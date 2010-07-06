@@ -1,0 +1,9 @@
+import "hole_puching_messages.proto";
+import "rpcmessage.proto";
+
+package transport;
+
+message TransportMessage {
+  optional rpcprotocol.RpcMessage rpc_msg = 1;
+  optional HolePunchingMsg hp_msg = 2;
+}

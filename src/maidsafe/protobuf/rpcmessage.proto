@@ -1,0 +1,15 @@
+package rpcprotocol;
+
+enum rpc_message_type {
+  REQUEST = 0;
+  RESPONSE = 1;
+};
+
+message RpcMessage {
+  required rpc_message_type rpc_type = 1;
+  required int32 message_id = 2;
+  required bytes args = 3;
+  optional bytes service = 4;
+  optional bytes method = 5;
+};
+

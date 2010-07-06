@@ -1,0 +1,23 @@
+package base;
+
+// Message for Response on kademlia operations join and leave
+// and used for a failure response for Store, FindNode, FindValue, Ping, operations
+// executed by the "client" NOT RPC's
+message GeneralResponse {
+  required bytes result = 1;
+}
+
+// kademlia configuration details (mainly list of bootstrap nodes).
+message KadConfig {
+  message Contact {
+    required bytes node_id = 1;
+    required bytes ip = 2;
+    required int32 port = 3;
+    optional bytes local_ip = 4;
+    optional int32 local_port = 5;
+    optional bytes rendezvouz_ip = 6;
+    optional int32 rendezvouz_port = 7;
+  }
+  optional int32 port = 1;
+  repeated Contact contact = 2;
+}

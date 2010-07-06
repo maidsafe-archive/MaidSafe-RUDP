@@ -1,0 +1,30 @@
+Directory structure
+===================
+• build (all build files)
+    • Linux
+        • Debug
+        • Release
+        • RelWithDebInfo
+        • MinSizeRel
+    • OSX
+        • Debug
+        • Release
+        • RelWithDebInfo
+        • MinSizeRel
+    • Win_MinGW
+        • Debug
+        • Release
+        • RelWithDebInfo
+        • MinSizeRel
+    • Win_MSVC
+    • tools
+• doc (documentation including API structure [To be completed])
+• src
+    • maidsafe (all source files)
+
+
+For full build instructions, see http://code.google.com/p/maidsafe-dht/wiki/DevBuild
+Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
+
+Please note the src/udt directory is a (nearly clean) CVS copy of the official udt
+project and typing CVS update in src/udt will bring this directory up to date at any time.

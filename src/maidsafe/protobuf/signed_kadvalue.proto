@@ -1,0 +1,12 @@
+package kad;
+message SignedValue {
+  required bytes value = 1;
+  required bytes value_signature = 2;
+}
+
+message SignedRequest {
+  required bytes signer_id = 1;
+  required bytes public_key = 2;
+  required bytes signed_public_key = 3;
+  required bytes signed_request = 4;
+};

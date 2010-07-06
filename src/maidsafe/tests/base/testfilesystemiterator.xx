@@ -1,0 +1,151 @@
+/*
+ * ==========================================================================
+ *
+ *       Filename:  testfilesystemiterator.cc
+ *
+ *    Description:  iterates any filesystem and passes back info to controller to decide what to do 
+ *    The iterator will identify regular files and empty directories ONLY at this stage. No links etc.
+ *
+ *        Version:  1.0
+ *        Created:  09/05/2008 10:52:17 AM
+ *       Revision:  none
+ *       Compiler:  gcc
+ *
+ *         Author:  David Irvine (di), david.irvine@maidsafe.net
+ *        Company:  maidsafe.net limited
+ *
+ * copyright maidsafe.net limited 2008
+ *
+ * The following source code is property of maidsafe.net limited and
+ * is not meant for external use. The use of this code is governed
+ * by the license file LICENSE.TXT found in the root of this directory and also
+ * on www.maidsafe.net.
+ * 
+ * You are not free to copy, amend or otherwise use this source code without
+ * explicit written permission of the board of directors of maidsafe.net
+ *
+ *
+ * ==========================================================================
+ */
+
+#include "base/filesystemiterator.h"
+#include <gtest/gtest.h>
+#include "boost/filesystem/convenience.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/filesystem/path.hpp" 
+
+namespace {
+
+class tmpIter:public FileSystemIterator
+{
+public:
+  bool HandleElement(fs::path entry)
+  {
+  // nothing here just stub code for handling files and non empty dirs
+  return true; 
+  }
+};
+
+  FileSystemIterator * fsitest = new tmpIter;
+//  The fixture for testing class FileSystemIterator.
+class FileSystemIteratorTest : public testing::Test {
+ protected:
+  //  You can remove any or all of the following functions if its body
+  //  is empty.
+
+  FileSystemIteratorTest() {
+    //  You can do set-up work for each test here.
+  
+  }
+
+  virtual ~FileSystemIteratorTest() {
+    //  You can do clean-up work that doesn't throw exceptions here.
+  }
+
+  //  If the constructor and destructor are not enough for setting up
+  //  and cleaning up each test, you can define the following methods:
+
+  virtual void SetUp() {
+    //  Code here will be called immediately after the constructor (right
+    //  before each test).
+  }
+
+  virtual void TearDown() {
+    //  Code here will be called immediately after each test (right
+    //  before the destructor).
+  fs::remove_all("dddd");
+  }
+
+  //  Objects declared here can be used by all tests in the test case for FileSystemIterator.
+};
+
+
+namespace fs = boost::filesystem;
+
+TEST_F(FileSystemIteratorTest, Detect2ByteFile) {
+  fs::remove_all("dddd");
+  fs::ofstream dave;
+  // fs::path fout("dddd");
+  // fout /= "dave";
+  dave.open("dddd");
+  dave << "s";
+  dave.close();
+  EXPECT_EQ(fsitest->REGULAR_FILE,fsitest->CheckEntry("dddd"));
+}
+
+TEST_F(FileSystemIteratorTest, Detect0ByteFile) {
+  fs::remove_all("dddd");
+  fs::ofstream dave;
+  // fs::path fout("dddd");
+  // fout /= "dave";
+  dave.open("dddd");
+  dave << "";
+  dave.close();
+  EXPECT_EQ(fsitest->REGULAR_FILE,fsitest->CheckEntry("dddd"));
+}
+TEST_F(FileSystemIteratorTest, DetectRegularFile) {
+  fs::remove_all("dddd");
+  fs::ofstream dave;
+  // fs::path fout("dddd");
+  // fout /= "dave";
+  dave.open("dddd");
+  dave << "siss";
+  dave.close();
+  EXPECT_EQ(fsitest->REGULAR_FILE,fsitest->CheckEntry("dddd"));
+}
+
+
+TEST_F(FileSystemIteratorTest, DetectNonEmptyDir) {
+  fs::remove_all("dddd");
+  fs::path dir("dddd");
+  fs::create_directory(dir);
+  fs::ofstream dave;
+  dir /= "dave";
+  dave.open(dir);
+  dave << "siss";
+  dave.close();
+  EXPECT_EQ(fsitest->NON_EMPTY_DIRECTORY,fsitest->CheckEntry("dddd"));
+}
+
+
+TEST_F(FileSystemIteratorTest, DetectEmptyDir) {
+  fs::remove_all("dddd");
+  fs::path dir("dddd");
+  fs::create_directory(dir);
+  EXPECT_EQ(fsitest->EMPTY_DIRECTORY,fsitest->CheckEntry("dddd"));
+  delete fsitest;
+}
+/*
+TEST_F(FileSystemIteratorTest, iterateback1Dir) {
+  fs::path path;
+  path = fsitest->MakePath("../");
+  // fsitest->GenerateTree("/");
+  EXPECT_TRUE(fsitest->HandleElement(path));
+}
+*/
+
+}  //  namespace
+
+
+
+

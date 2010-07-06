@@ -1,0 +1,134 @@
+// Kademlia rpc arguments and responses and callback results for FindNode, Join and Leave
+import "contact_info.proto";
+import "signed_kadvalue.proto";
+
+package kad;
+
+message PingRequest {
+  required bytes ping = 1;
+  required ContactInfo sender_info = 2;
+}
+
+message PingResponse {
+  required bytes result = 1;
+  optional bytes echo = 2;
+  optional bytes node_id = 3;
+};
+
+message FindRequest {
+  required bytes key = 1;
+  required ContactInfo sender_info = 2;
+  optional bool is_boostrap = 3;
+  optional bytes sender_ext_ip = 4;
+  optional int32 sender_ext_port = 5;
+};
+
+message FindResponse {
+  required bytes result = 1;
+  repeated bytes closest_nodes = 2;
+  repeated bytes values = 3;
+  repeated SignedValue signed_values = 4;
+  optional ContactInfo alternative_value_holder = 5;
+  optional bytes needs_cache_copy = 6;
+  optional bytes requester_ext_addr = 7;
+  optional bytes node_id = 8;
+};
+
+message FindNodeResult {
+  required bytes result = 1;
+  optional bytes contact = 2;
+  optional bytes node_id = 3;
+};
+
+
+message StoreRequest {
+  required bytes key = 1;
+  optional bytes value = 2;
+  optional SignedValue sig_value = 3;
+  required int32 ttl = 4;
+  required ContactInfo sender_info = 5;
+  required bool publish = 6;
+  optional SignedRequest signed_request = 7;
+};
+
+message StoreResponse {
+  required bytes result = 1;
+  optional bytes node_id = 2;
+  optional SignedRequest signed_request = 3;
+};
+
+message DownlistRequest {
+  repeated bytes downlist = 1;
+  required ContactInfo sender_info = 2;
+};
+
+message DownlistResponse {
+  required bytes result = 1;
+  optional bytes node_id = 2;
+};
+
+message BootstrapRequest {
+  required bytes newcomer_id = 1;
+  required bytes newcomer_local_ip = 2;
+  required int32 newcomer_local_port = 3;
+  required int32 node_type = 4;
+  optional bytes newcomer_ext_ip = 5;
+  optional int32 newcomer_ext_port = 6;
+};
+
+message BootstrapResponse {
+  required bytes result = 1;
+  optional bytes bootstrap_id = 2;
+  optional bytes newcomer_ext_ip = 3;
+  optional int32 newcomer_ext_port = 4;
+  optional int32 nat_type = 5; // 1: directly connected or behind full-cone router or ...
+                               // 2: need rendezvous server to punch the hole
+                               // 3. no connection
+};
+
+message NatDetectionRequest {
+  required bytes newcomer = 1;
+  required bytes bootstrap_node = 2;
+  required int32 type = 3;  //1: Node B asks C to try ping A; 2: Node B asks C to try a rendezvous to A with B as rendezvous
+  required bytes sender_id = 4;
+};
+
+message NatDetectionResponse {
+  required bytes result = 1;
+};
+
+message NatDetectionPingRequest {
+  required bytes ping = 1;
+};
+
+message NatDetectionPingResponse {
+  required bytes result = 1;
+  optional bytes echo = 2;
+  optional bytes node_id = 3;
+};
+
+message DeleteRequest {
+  required bytes key = 1;
+  required SignedValue value = 2;
+  required SignedRequest signed_request = 3;
+  required ContactInfo sender_info = 4;
+};
+
+message DeleteResponse {
+  required bytes result = 1;
+  optional bytes node_id = 2;
+};
+
+message UpdateRequest {
+  required bytes key = 1;
+  required SignedValue new_value = 2;
+  required SignedValue old_value = 3;
+  required int32 ttl = 4;
+  required SignedRequest request = 5;
+  required ContactInfo sender_info = 6;
+};
+
+message UpdateResponse {
+  required bytes result = 1;
+  optional bytes node_id = 2;
+};

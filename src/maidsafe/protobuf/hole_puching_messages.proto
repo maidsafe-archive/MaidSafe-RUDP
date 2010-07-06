@@ -1,0 +1,12 @@
+package transport;
+
+enum msg_type {
+  FORWARD_REQ = 0;
+  FORWARD_MSG = 1;
+};
+
+message HolePunchingMsg {
+  required bytes ip = 1;
+  required int32 port = 2;
+  required msg_type type = 3;
+}
