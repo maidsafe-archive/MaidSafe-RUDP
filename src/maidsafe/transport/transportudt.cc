@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+﻿/* Copyright (c) 2009 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -834,12 +834,169 @@ void TransportUDT::AcceptConnHandler() {
   }
 }
 
-#include <iostream>
-void TransportUDT::ReceiveData(UdtSocket* receiver) {
-    UdtSocket recver = *(UdtSocket*)receiver;
-    delete (UdtSocket*)receiver;
-    std::cout << "OK recieving data - when do I stop" << std::endl;
+void TransportUDT::ReceiveData(UdtSocket* receiver, ) {
+  UdtSocket recver = *(UdtSocket*)receiver;
+  delete (UdtSocket*)receiver;
+  LOG(INFO) << "OK recieving data - when do I stop" << std::endl;
+  timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 1000;
+   UDT::UDSET readfds;
+  while (true) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
+    if (stop_) return;
+    // read data.
+     std::map<boost::uint32_t, IncomingData>::iterator it;
+
+    UD_ZERO(&readfds);
+
+      int res = UDT::send(recver, NULL, 0, 0);
+      if (res == 0) {
+        UD_SET(recver, &readfds);
+      } else {
+        UDT::close(recver);
+        return;
+      }
+
+    if (UDT::ERROR == UDT::select(0, &readfds, NULL, NULL, &tv)) {
+      UDT::close(recver);
+      return;
+    }
+
+    if (UD_ISSET(recver, &readfds)) {
+      int result = 0;
+      // save the remote peer address
+      int peer_addr_size = sizeof(struct sockaddr);
+      if (UDT::ERROR == UDT::getpeername(recver,
+          &peer_address_, &peer_addr_size)) {
+        continue;
+    }
+ /// TODO FIXME Do this first before while !!!!
+        if (data.expect_size == 0) {
+          // get size information
+          int64_t size;
+          if (UDT::ERROR == UDT::recv(recver,
+              reinterpret_cast<char*>(&size), sizeof(size), 0)) {
+            if (UDT::getlasterror().getErrorCode() !=
+                CUDTException::EASYNCRCV) {
+              continue;
+            }
+
+            return;
+          }
+          if (size > 0) {
+            (*it).second.expect_size = size;
+          } else {
+            UDT::close((*it).second.udt_socket);
+            dead_connections_ids.push_back((*it).first);
+            continue;
+          }
+        } else {
+          if ((*it).second.data == NULL)
+            (*it).second.data = boost::shared_array<char>
+                (new char[(*it).second.expect_size]);
+          int rsize = 0;
+          if (UDT::ERROR == (rsize = UDT::recv((*it).second.udt_socket,
+              (*it).second.data.get() + (*it).second.received_size,
+              (*it).second.expect_size - (*it).second.received_size,
+              0))) {
+            if (UDT::getlasterror().getErrorCode() !=
+                CUDTException::EASYNCRCV) {
+              UDT::close((*it).second.udt_socket);
+              dead_connections_ids.push_back((*it).first);
+              continue;
+            }
+            continue;
+          }
+          (*it).second.received_size += rsize;
+          UDT::TRACEINFO perf;
+          if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket, &perf)) {
+            DLOG(ERROR) << "UDT permon error: " <<
+                UDT::getlasterror().getErrorMessage() << std::endl;
+          } else {
+            (*it).second.cumulative_rtt += perf.msRTT;
+            ++(*it).second.observations;
+          }
+          if ((*it).second.expect_size <= (*it).second.received_size) {
+            ++last_id_;
+            std::string message = std::string((*it).second.data.get(),
+                                  (*it).second.expect_size);
+            boost::uint32_t connection_id = (*it).first;
+            (*it).second.expect_size = 0;
+            (*it).second.received_size = 0;
+            TransportMessage t_msg;
+            if (t_msg.ParseFromString(message)) {
+              if (t_msg.has_hp_msg()) {
+                HandleRendezvousMsgs(t_msg.hp_msg());
+                result = UDT::close((*it).second.udt_socket);
+                dead_connections_ids.push_back((*it).first);
+              } else if (t_msg.has_rpc_msg()) {
+                IncomingMessages msg(connection_id, transport_id());
+                msg.msg = t_msg.rpc_msg();
+                DLOG(INFO) << "(" << listening_port_ << ") message for id "
+                    << connection_id << " arrived" << std::endl;
+                UDT::TRACEINFO perf;
+                if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
+                    &perf)) {
+                  DLOG(ERROR) << "UDT permon error: " <<
+                      UDT::getlasterror().getErrorMessage() << std::endl;
+                } else {
+                  msg.rtt = perf.msRTT;
+                  if ((*it).second.observations != 0) {
+                    msg.rtt = (*it).second.cumulative_rtt /
+                        static_cast<double>((*it).second.observations);
+                  } else {
+                    msg.rtt = 0.0;
+                  }
+                }
+                data_arrived_.insert(connection_id);
+                {  // NOLINT Fraser
+                  boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
+                  ips_from_connections_[connection_id] = peer_address_;
+                  incoming_msgs_queue_.push_back(msg);
+                }
+                msg_hdl_cond_.notify_one();
+              } else {
+                LOG(WARNING) << "( " << listening_port_ <<
+                    ") Invalid Message received" << std::endl;
+              }
+            } else /* TODO FIXME if (!message_notifier_.empty()) */{
+              IncomingMessages msg(connection_id, transport_id());
+              msg.raw_data = message;
+              DLOG(INFO) << "(" << listening_port_ << ") message for id "
+                  << connection_id << " arrived" << std::endl;
+              UDT::TRACEINFO perf;
+              if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
+                  &perf)) {
+                DLOG(ERROR) << "UDT permon error: " <<
+                    UDT::getlasterror().getErrorMessage() << std::endl;
+              } else {
+                msg.rtt = perf.msRTT;
+                if ((*it).second.observations != 0) {
+                  msg.rtt = (*it).second.cumulative_rtt /
+                      static_cast<double>((*it).second.observations);
+                } else {
+                  msg.rtt = 0.0;
+                }
+              }
+              data_arrived_.insert(connection_id);
+              {  // NOLINT Fraser
+                boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
+                ips_from_connections_[connection_id] = peer_address_;
+                incoming_msgs_queue_.push_back(msg);
+              }
+              msg_hdl_cond_.notify_one();
+            } /*TODO FIXME else {
+              LOG(WARNING) << "( " << listening_port_ <<
+                  ") Invalid Message received" << std::endl;
+            }*/
+          }
+        }
+      }
+
+
+  }
 
 }
 
