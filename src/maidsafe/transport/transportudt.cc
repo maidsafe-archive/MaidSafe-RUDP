@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transportudt.h"
 #include <boost/scoped_array.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/cstdint.hpp>
 #include <exception>
 #include "maidsafe/base/utils.h"
 #include "maidsafe/base/log.h"
@@ -834,170 +835,105 @@ void TransportUDT::AcceptConnHandler() {
   }
 }
 
-void TransportUDT::ReceiveData(UdtSocket* receiver, ) {
+void TransportUDT::ReceiveData(UdtSocket* receiver) {
   UdtSocket recver = *(UdtSocket*)receiver;
   delete (UdtSocket*)receiver;
   LOG(INFO) << "OK recieving data - when do I stop" << std::endl;
   timeval tv;
   tv.tv_sec = 0;
   tv.tv_usec = 1000;
-   UDT::UDSET readfds;
-  while (true) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  UDT::UDSET readfds;
 
-    if (stop_) return;
-    // read data.
-     std::map<boost::uint32_t, IncomingData>::iterator it;
+  if (stop_) return;
+  // read data.
+  UD_ZERO(&readfds);
+  int res = UDT::send(recver, NULL, 0, 0);
+  if (res == 0) {
+    LOG(INFO) << "Socket seems fine" << std::endl;
+    UD_SET(recver, &readfds);
+  } else {
+    UDT::close(recver);
+    return;
+  }
 
-    UD_ZERO(&readfds);
+  if (UDT::ERROR == UDT::select(0, &readfds, NULL, NULL, &tv)) {
+    UDT::close(recver);
+    return;
+  }
 
-      int res = UDT::send(recver, NULL, 0, 0);
-      if (res == 0) {
-        UD_SET(recver, &readfds);
-      } else {
-        UDT::close(recver);
-        return;
-      }
-
-    if (UDT::ERROR == UDT::select(0, &readfds, NULL, NULL, &tv)) {
-      UDT::close(recver);
+  if (UD_ISSET(recver, &readfds)) 
+    int result = 0;
+    // save the remote peer address
+    int peer_addr_size = sizeof(struct sockaddr);
+    if (UDT::ERROR == UDT::getpeername(recver,
+        &peer_address_, &peer_addr_size)) {
       return;
-    }
-
-    if (UD_ISSET(recver, &readfds)) {
-      int result = 0;
-      // save the remote peer address
-      int peer_addr_size = sizeof(struct sockaddr);
-      if (UDT::ERROR == UDT::getpeername(recver,
-          &peer_address_, &peer_addr_size)) {
-        continue;
-    }
- /// TODO FIXME Do this first before while !!!!
-        if (data.expect_size == 0) {
-          // get size information
-          int64_t size;
+  }
+   boost::int64_t size;
           if (UDT::ERROR == UDT::recv(recver,
-              reinterpret_cast<char*>(&size), sizeof(size), 0)) {
+              reinterpret_cast<char*>(&size), sizeof(size), 0)) { /*{
             if (UDT::getlasterror().getErrorCode() !=
-                CUDTException::EASYNCRCV) {
-              continue;
-            }
-
+                CUDTException::EASYNCRCV) */
             return;
           }
           if (size > 0) {
-            (*it).second.expect_size = size;
+            boost::int64_t expect_size = size;
           } else {
-            UDT::close((*it).second.udt_socket);
-            dead_connections_ids.push_back((*it).first);
-            continue;
+            UDT::close(recver);
+            return;
           }
-        } else {
-          if ((*it).second.data == NULL)
-            (*it).second.data = boost::shared_array<char>
-                (new char[(*it).second.expect_size]);
+          //boost::shared_array<char> data;
+          char *data;
+          //data_ = boost::shared_array<char>;
           int rsize = 0;
-          if (UDT::ERROR == (rsize = UDT::recv((*it).second.udt_socket,
-              (*it).second.data.get() + (*it).second.received_size,
-              (*it).second.expect_size - (*it).second.received_size,
-              0))) {
-            if (UDT::getlasterror().getErrorCode() !=
-                CUDTException::EASYNCRCV) {
-              UDT::close((*it).second.udt_socket);
-              dead_connections_ids.push_back((*it).first);
-              continue;
-            }
-            continue;
-          }
-          (*it).second.received_size += rsize;
+  LOG(INFO) << " OK we have the data size " <<
+                size << "now read it from the socket" << std::endl;
+          double rtt, bw, rcvrate, sndrate;
+          //while (rsize < size) {
+            /*if (UDT::ERROR == (*/
+            if (UDT::ERROR ==  UDT::recv(recver, data , size, 0) &&
+              (UDT::getlasterror().getErrorCode() == CUDTException::EASYNCRCV)) {
+                  UDT::close(recver);
+                  return;
+              }
+                /*) {*/
+            //    rsize =+ size;
+          //}
+          LOG(INFO) << " OK we have the data size " <<
+                rsize << "now read from the socket" << std::endl;
           UDT::TRACEINFO perf;
-          if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket, &perf)) {
+          if (UDT::ERROR == UDT::perfmon(recver, &perf)) {
             DLOG(ERROR) << "UDT permon error: " <<
                 UDT::getlasterror().getErrorMessage() << std::endl;
           } else {
-            (*it).second.cumulative_rtt += perf.msRTT;
-            ++(*it).second.observations;
+            rtt = perf.msRTT;
+            bw = perf.mbpsBandwidth;
+            rcvrate = perf.mbpsRecvRate;
+            sndrate = perf.mbpsSendRate;
+            LOG(INFO) <<"looked for " << size << " got " << rsize << std::endl;
+            LOG(INFO) <<"RTT = : " << rtt << "msecs " << std::endl;
+            LOG(INFO) <<"B/W used = : " << bw << " Mb/s " << std::endl;
+            LOG(INFO) <<"RcvRate = : " << rcvrate << " Mb/s " << std::endl;
           }
-          if ((*it).second.expect_size <= (*it).second.received_size) {
-            ++last_id_;
-            std::string message = std::string((*it).second.data.get(),
-                                  (*it).second.expect_size);
-            boost::uint32_t connection_id = (*it).first;
-            (*it).second.expect_size = 0;
-            (*it).second.received_size = 0;
-            TransportMessage t_msg;
-            if (t_msg.ParseFromString(message)) {
+          boost::int32_t connection_id = NextConnectionID();
+          LOG(INFO) << "HERE Before string " << std::endl;
+          std::string message = data;;
+          LOG(INFO) << "HERE After string " << std::endl;
+          TransportMessage t_msg;
+
+          if (t_msg.ParseFromString(message)) {
+          LOG(INFO) << "Parsed message " << std::endl;
               if (t_msg.has_hp_msg()) {
                 HandleRendezvousMsgs(t_msg.hp_msg());
-                result = UDT::close((*it).second.udt_socket);
-                dead_connections_ids.push_back((*it).first);
+          
+                UDT::close(recver);
               } else if (t_msg.has_rpc_msg()) {
-                IncomingMessages msg(connection_id, transport_id());
-                msg.msg = t_msg.rpc_msg();
-                DLOG(INFO) << "(" << listening_port_ << ") message for id "
-                    << connection_id << " arrived" << std::endl;
-                UDT::TRACEINFO perf;
-                if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
-                    &perf)) {
-                  DLOG(ERROR) << "UDT permon error: " <<
-                      UDT::getlasterror().getErrorMessage() << std::endl;
-                } else {
-                  msg.rtt = perf.msRTT;
-                  if ((*it).second.observations != 0) {
-                    msg.rtt = (*it).second.cumulative_rtt /
-                        static_cast<double>((*it).second.observations);
-                  } else {
-                    msg.rtt = 0.0;
-                  }
-                }
-                data_arrived_.insert(connection_id);
-                {  // NOLINT Fraser
-                  boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
-                  ips_from_connections_[connection_id] = peer_address_;
-                  incoming_msgs_queue_.push_back(msg);
-                }
-                msg_hdl_cond_.notify_one();
-              } else {
-                LOG(WARNING) << "( " << listening_port_ <<
-                    ") Invalid Message received" << std::endl;
+                 LOG(INFO) << "Parsed message its RPC" << std::endl;
+                SignalRPCMessageReceived_(t_msg.rpc_msg(), connection_id, rtt);               
               }
-            } else /* TODO FIXME if (!message_notifier_.empty()) */{
-              IncomingMessages msg(connection_id, transport_id());
-              msg.raw_data = message;
-              DLOG(INFO) << "(" << listening_port_ << ") message for id "
-                  << connection_id << " arrived" << std::endl;
-              UDT::TRACEINFO perf;
-              if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
-                  &perf)) {
-                DLOG(ERROR) << "UDT permon error: " <<
-                    UDT::getlasterror().getErrorMessage() << std::endl;
-              } else {
-                msg.rtt = perf.msRTT;
-                if ((*it).second.observations != 0) {
-                  msg.rtt = (*it).second.cumulative_rtt /
-                      static_cast<double>((*it).second.observations);
-                } else {
-                  msg.rtt = 0.0;
-                }
-              }
-              data_arrived_.insert(connection_id);
-              {  // NOLINT Fraser
-                boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
-                ips_from_connections_[connection_id] = peer_address_;
-                incoming_msgs_queue_.push_back(msg);
-              }
-              msg_hdl_cond_.notify_one();
-            } /*TODO FIXME else {
-              LOG(WARNING) << "( " << listening_port_ <<
-                  ") Invalid Message received" << std::endl;
-            }*/
           }
-        }
-      }
-
-
-  }
-
+          LOG(INFO) << "All done !!" << std::endl;
+          LOG(INFO) << "Message is " << message << std::endl;
 }
 
 void TransportUDT::MessageHandler() {

@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/detail/atomic_count.hpp>
 #include <maidsafe/transport/transport-api.h>
 #include <list>
 #include <map>
@@ -156,6 +157,13 @@ class TransportUDT : public Transport {
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(TransportUDT&);
+  boost::int32_t NextConnectionID() {
+                                    boost::detail::atomic_count connection_id_(1);
+//                                    if (connection_id_ < sizeof(boost::int32_t))
+//                                     connection_id_ = 5346;
+                                   return ++connection_id_;
+                                     }
+                                    
   void AddIncomingConnection(UdtSocket udt_socket);
   void ReceiveData(UdtSocket *receiver);
   void AddIncomingConnection(UdtSocket udt_socket,
@@ -200,6 +208,8 @@ class TransportUDT : public Transport {
   std::map<boost::uint32_t, UdtSocket> send_sockets_;
   TransportType transport_type_;
   boost::int16_t transport_id_;
+  static boost::uint32_t connection_id_;
+  boost::shared_array<char> data_;
 };
 
 }  // namespace transport
