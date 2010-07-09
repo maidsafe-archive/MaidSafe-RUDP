@@ -914,6 +914,8 @@ void TransportUDT::AcceptConnHandler() {
      // ++accepted_connections_;
      // AddIncomingConnection(recver);
     } else {
+      LOG(INFO) << "Problem passing socket off to handler, (closing socket)"
+                << std::endl;
       UDT::close(recver);
     }
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
@@ -1032,6 +1034,7 @@ void TransportUDT::ReceiveData(UdtSocket* receiver) {
       }
   }
   LOG(INFO) << "All done !!" << std::endl;
+  return;
 }
 
 void TransportUDT::MessageHandler() {

@@ -358,7 +358,7 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 //     false, &id));
 //   ASSERT_EQ(0, node1_transudt.Send(msg, id, true));
   // while (msg_handler2.raw_msgs.empty())
-     //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   node1_transudt.Stop();
   node2_transudt.Stop();
   ASSERT_TRUE(msg_handler1.raw_msgs.empty());
