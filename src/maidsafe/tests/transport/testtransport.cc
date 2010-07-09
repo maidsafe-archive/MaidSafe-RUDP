@@ -43,8 +43,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/udt/api.h"
 #include "maidsafe/base/network_interface.h"
 
-#include <iostream>
-
 
 class TransportNode {
  public:
@@ -272,7 +270,7 @@ class TransportTest: public testing::Test {
 // // Try and start then stop and try other sockets etc.
 //   boost::uint16_t node1_port;
 //   transport::TransportUDT node1, node2;
-// 
+//
 //   ASSERT_EQ(0, node1.Start(0));
 //   ASSERT_FALSE(node1.is_stopped());
 //   node1_port = node1.listening_port();
@@ -283,7 +281,7 @@ class TransportTest: public testing::Test {
 //   ASSERT_TRUE(node2.is_stopped());
 //   //node1.CleanUp();
 //   ASSERT_EQ(0, node2.Start(node1_port));
-// 
+//
 //   ASSERT_FALSE(node2.is_stopped());
 //   ASSERT_NE(0, node2.Start(node1_port)) << "whoops tried to"
 //                                       << "listen twice on same port !! tsk tsk";
@@ -291,9 +289,9 @@ class TransportTest: public testing::Test {
 //                                       << "listen twice on same port !! tsk tsk";
 //   node2.Stop();
 // }
-// 
-// 
-// 
+//
+//
+//
 // TEST_F(TransportTest, BEH_TRANS_start_1_send_from_100) {
 // // set up a node type
 //   transport::TransportUDT recieving_node;
@@ -307,7 +305,7 @@ class TransportTest: public testing::Test {
 //   }
 // // connect message recived signal
 // // recieving_node.connect_message_recieved(&echome);
-// 
+//
 // // lets start them all, check we get ports  and there all running then
 // // stop them all, just for a laugh;
 //   std::vector<transport::TransportUDT*>::iterator node;
@@ -323,7 +321,7 @@ class TransportTest: public testing::Test {
 //   // send some info to recieving_node
 //  // (*node)->
 //   }
-// 
+//
 // // no memory leaks
 //   for (node=nodes.begin(); node != nodes.end(); ++node) {
 //     delete (*node);
@@ -352,7 +350,7 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   std::string port = boost::lexical_cast<std::string>(lp_node2);
   std::string ip("127.0.0.1");
   ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, port));
-  
+
 //   ASSERT_EQ(1, node1_transudt.Send(msg, id, false));
 //   ASSERT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
 //     false, &id));

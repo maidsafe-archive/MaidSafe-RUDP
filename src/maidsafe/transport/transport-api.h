@@ -63,7 +63,9 @@ namespace transport {
   kNoSocket          = 7,
   kInvalidAddress    = 8,
   kNoRendezvous      = 9,
-  kError             = 10
+  kBehindFirewall    = 10,
+  kNoSocket          = 11,
+  kError             = 12
   };
 
 // Default Types, if you want more you will need to comment this out and
@@ -83,7 +85,7 @@ namespace transport {
 // at the transport layer.
 
 /*
-Protocol implementation (use Google protobufs for serialisation)
+Protocol (message) implementation (use Google protobufs for serialisation)
 _______________________________________________________________
 Type          | SubType
 ===============================================================
@@ -91,6 +93,7 @@ Ping          | Request / Response / None
 ProxyPing     |
 RPC           |
 AcceptConnect |
+HolePunching  |
 _______________________________________________________________
 */
 // This is a partially implmented base clase which is inherited by
@@ -109,61 +112,62 @@ class Transport {
   *                   the connection identifier is passed up and used to
   *                   respond to the sender on the same IP/PORT (or socket
   *                   in connection oriented implementations such as UDT or TCP)
+  * NOTE: BSD socket implementations use a char* as the port to no sense in
+  * passing an int although it seems more sensible to. Allwe do then is
+  * lexical casts everywhere which is a waste.
+  * We use connection ID to create maps etc. rather than passing pointers of
+  *  socket types and polluting the API
   */
  public:
   virtual ~Transport() {}
-/* This will be the new API with more flexability
   virtual TransportCondition Send(const std::string &data,
                                   const std::string &remote_ip,
-                                  const boost::uint16_t &remote_port) = 0;
-  virtual TransportCondition Send(const std::string &data,
+                                  const std::string &remote_port) = 0;
+  virtual TransportCondition SendWithRendezvous(const std::string &data,
                                   const std::string &remote_ip,
-                                  const boost::uint16_t &remote_port,
+                                  const std::string &remote_port,
                                   const std::string &rendezvous_ip,
-                                  const boost::uint16_t &rendezvous_port) = 0;
+                                  const std::string &rendezvous_port) = 0;
   virtual TransportCondition SendFile(const std::string &data,
                                   const std::string &remote_ip,
-                                  const boost::uint16_t &remote_port) = 0;
-  virtual TransportCondition SendFile(const std::string &data,
+                                  const std::string &remote_port) = 0;
+  virtual TransportCondition SendFileWithRendezvous(const std::string &data,
                                   const std::string &remote_ip,
-                                  const boost::uint16_t &remote_port,
+                                  const std::string &remote_port,
                                   const std::string &rendezvous_ip,
-                                  const boost::uint16_t &rendezvous_port) = 0;
+                                  const std::string &rendezvous_port) = 0;
 
-  virtual TransportCondition StartListening(const boost::uint16_t &port,
+  virtual TransportCondition StartListening(const std::string &port,
                                             const std::string &ip) = 0;
-// return value is the connection_id
+// return value is the connection_id or -1 on error
   virtual boost::uint32_t ManagedConnection(const std::string &remote_ip,
-                                            const boost::uint16_t &remote_port,
+                                            const std::string &remote_port,
                                             const std::string &rv_ip,
-                                            const boost::uint16_t &rv_port,
+                                            const std::string &rv_port,
                                             const boost::uint16_t &freq
                                             const boost::uint16_t &num_retires
                                             const boost::uint16_t &retry_freq)
                                             = 0;
 
-  virtual void CloseConnection(const boost::uint32_t &connection_id) = 0;
-  virtual void Stop() = 0;
-  virtual bool is_stopped() const = 0;
+  virtual TransportCondition CloseConnection(const boost::uint32_t &connection_id) = 0;
+  // Close even incoming sockets and exist
+  virtual void ImmediateStop() = 0;
+  // Close on all data recieved and RPC's responded
+  virtual void DeferredStop() =0;
   virtual bool GetPeerAddr(const boost::uint32_t &connection_id,
                            struct sockaddr *peer_address) = 0;
-  virtual bool ConnectionExists(const boost::uint32_t &connection_id) = 0;
+//   virtual bool ConnectionExists(const boost::uint32_t &connection_id) = 0;
 
+  virtual void peer_info(const boost::uint32_t &connection_id) = 0;
   // accessors
   virtual bool stopped() { return stopped_; }
   virtual bool nat_pnp() { return nat_pnp_; }
   virtual bool upnp() { return upnp_; }
-  virtual void peer_info() { return
-  */
+  virtual boost::uint16_t listening_port() = 0;
 
 // mutators
   virtual void set_nat_pnp(bool nat_pnp) { nat_pnp_ = nat_pnp; }
   virtual void set_upnp(bool upnp) { upnp_ = upnp; }
-
-
-
-  // TODO FIXME remove all below to the public decleration
-  virtual boost::uint16_t listening_port() = 0;
   virtual bool peer_address(struct sockaddr *peer_addr) = 0;
   virtual bool HasReceivedData(const boost::uint32_t &connection_id,
                                boost::int64_t *size) = 0;
@@ -175,8 +179,8 @@ class Transport {
                           const boost::uint16_t &port) = 0;
   virtual bool IsAddressUsable(const std::string &local_ip,
                                const std::string &remote_ip,
-                               const boost::uint16_t &remote_port) = 0;
-  virtual bool IsPortAvailable(const boost::uint16_t &port) = 0;
+                               const std::string &remote_port) = 0;
+  virtual bool IsPortAvailable(const std::string &port) = 0;
 
 public: // SIGNALS
   typedef bs2::signal<void(const std::string&,
