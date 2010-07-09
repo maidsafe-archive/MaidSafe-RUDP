@@ -352,18 +352,19 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   std::string port = boost::lexical_cast<std::string>(lp_node2);
   std::string ip("127.0.0.1");
   ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, port));
+  
 //   ASSERT_EQ(1, node1_transudt.Send(msg, id, false));
 //   ASSERT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
 //     false, &id));
 //   ASSERT_EQ(0, node1_transudt.Send(msg, id, true));
-//   while (msg_handler2.msgs.empty())
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  // while (msg_handler2.raw_msgs.empty())
+     //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   node1_transudt.Stop();
   node2_transudt.Stop();
-  ASSERT_TRUE(msg_handler1.msgs.empty());
- // ASSERT_FALSE(msg_handler2.msgs.empty());
-  ASSERT_EQ(sent_msg, msg_handler2.msgs.front());
-  ASSERT_EQ(1, msg_handler1.msgs_sent_);
+  ASSERT_TRUE(msg_handler1.raw_msgs.empty());
+  ASSERT_FALSE(msg_handler2.msgs.empty());
+  ASSERT_EQ(sent_msg, msg_handler2.raw_msgs.front());
+  //ASSERT_EQ(1, msg_handler1.msgs_sent_);
 }
 /*
 TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
