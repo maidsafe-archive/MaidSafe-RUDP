@@ -116,6 +116,8 @@ class TransportUDT : public Transport {
            const boost::uint32_t &connection_id, const bool &new_socket);
   int Send(const std::string &data, const boost::uint32_t &connection_id,
            const bool &new_socket);
+  int Send(const std::string &data, const std::string &remote_ip,
+         const std::string &remote_port);
   int Start(const boost::uint16_t & port);
   int StartLocal(const boost::uint16_t &port);
 //   bool RegisterOnRPCMessage(
@@ -208,7 +210,7 @@ class TransportUDT : public Transport {
   std::map<boost::uint32_t, UdtSocket> send_sockets_;
   TransportType transport_type_;
   boost::int16_t transport_id_;
-  static boost::uint32_t connection_id_;
+ // static boost::uint32_t connection_id_;
   boost::shared_array<char> data_;
 };
 
