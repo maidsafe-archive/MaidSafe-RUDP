@@ -188,7 +188,7 @@ int TransportUDT::Start(const boost::uint16_t &port) {
   listening_socket_ = UDT::socket(addrinfo_res_->ai_family,
       addrinfo_res_->ai_socktype, addrinfo_res_->ai_protocol);
   // UDT Options
-  bool blockng = false;
+  bool blockng = true;
   UDT::setsockopt(listening_socket_, 0, UDT_RCVSYN, &blockng, sizeof(blockng));
   if (UDT::ERROR == UDT::bind(listening_socket_, addrinfo_res_->ai_addr,
       addrinfo_res_->ai_addrlen)) {
