@@ -112,13 +112,14 @@ class TransportUDT : public Transport {
                     const boost::uint16_t &rendezvous_port,
                     const bool &keep_connection,
                     boost::uint32_t *connection_id);
+                    
   int Send(const rpcprotocol::RpcMessage &data,
            const boost::uint32_t &connection_id, const bool &new_socket);
   int Send(const std::string &data, const boost::uint32_t &connection_id,
            const bool &new_socket);
-  int Send(const std::string &data, const std::string &remote_ip,
-         const std::string &remote_port);
-  int Start(const boost::uint16_t & port);
+  TransportCondition Send(const std::string &data, const std::string &remote_ip,
+         const boost::uint16_t &remote_port);
+  TransportCondition StartListening(const boost::uint16_t & port, const std::string &ip);
   int StartLocal(const boost::uint16_t &port);
 //   bool RegisterOnRPCMessage(
 //       boost::function<void(const rpcprotocol::RpcMessage&,
@@ -137,7 +138,7 @@ class TransportUDT : public Transport {
 //       boost::function<void(const bool&,
 //                            const std::string&,
 //                            const boost::uint16_t&)> on_server_down);
-  void CloseConnection(const boost::uint32_t &connection_id);
+  TransportCondition CloseConnection(const boost::uint32_t &connection_id);
   void Stop();
   inline bool is_stopped() const { return stop_; }
   bool peer_address(struct sockaddr *peer_addr);

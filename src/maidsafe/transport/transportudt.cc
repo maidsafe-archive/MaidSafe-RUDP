@@ -80,9 +80,9 @@ boost::uint16_t TransportUDT::listening_port() {
   return listening_port_;
 }
 
-int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
-         const std::string &remote_port) {
-
+TransportCondition TransportUDT::Send(const std::string &data,
+                                      const std::string &remote_ip,
+                                      const boost::uint16_t &remote_port) {
   struct addrinfo addrinfo_hints, *local, *peer;
   struct addrinfo* addrinfo_res;
   memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
@@ -93,7 +93,7 @@ int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
   if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints,
       &addrinfo_res)) {
     freeaddrinfo(addrinfo_res);
-    return false;
+    return TransportCondition::kSucess;
   }
   UDTSOCKET skt = UDT::socket(addrinfo_res->ai_family,
       addrinfo_res->ai_socktype, addrinfo_res->ai_protocol);
@@ -108,20 +108,20 @@ int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
    #endif
 
    freeaddrinfo(local);
-
+// This is the default, were just making sure UDT API does not change
   bool blocking = true;
-//   bool reuse_addr = true;
+  bool reuse_addr = true;
   UDT::setsockopt(skt, 0, UDT_RCVSYN, &blocking, sizeof(blocking));
   UDT::setsockopt(skt, 0, UDT_SNDSYN, &blocking, sizeof(blocking));
-//   UDT::setsockopt(skt, 0, UDT_REUSEADDR, &reuse_addr,
-//                   sizeof(reuse_addr));
-   
-   if (0 != getaddrinfo(remote_ip.c_str(), remote_port.c_str(),
+  UDT::setsockopt(skt, 0, UDT_REUSEADDR, &reuse_addr,
+                  sizeof(reuse_addr));
+   std::string remote_p = boost::lexical_cast<std::string>(remote_port);
+   if (0 != getaddrinfo(remote_ip.c_str(), remote_p.c_str(),
                         &addrinfo_hints, &peer))
   {
     LOG(INFO) << "incorrect peer address. " << remote_ip << ":"
               << remote_port << std::endl;
-    return 1;
+    return TransportCondition::kInvalidAddress;
    }
 
    // connect to the server, implict bind
@@ -129,7 +129,7 @@ int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
    {
       LOG(INFO) << "connect: " << UDT::getlasterror().getErrorMessage()
                                << std::endl;
-      return 1;
+      return TransportCondition::kConnectError;
    }
 
    
@@ -141,7 +141,7 @@ int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
    if (UDT::ERROR == (ss = UDT::send(skt, reinterpret_cast<char*>(&size), sizeof(boost::int64_t),0)))
    {
      LOG(INFO) << "send:" << UDT::getlasterror().getErrorMessage() << std::endl;
-     return 1;
+     return TransportCondition::kSendError;
    }
   LOG(INFO) << " attempting to sent data size " << size << "to remote" <<std::endl;
   while (ssize < size)
@@ -156,25 +156,22 @@ int TransportUDT::Send(const std::string &data, const std::string &remote_ip,
   LOG(INFO) << " sent data of size " << ssize << std::endl;
   if (ssize < size) {
       UDT::close(skt);
-      return 1;
+      return TransportCondition::kSendError;
   } else {
-      return 0;
+      return TransportCondition::kSucess;
   }
 }
 
 
 
 
-int TransportUDT::Start(const boost::uint16_t &port) {
+TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
+                                 const std::string &ip) {
   if (!stop_) {
     DLOG(WARNING) << "TransportUDT::Start: Already registered" << std::endl;
-    return 1;
+    return TransportCondition::kAlreadyStarted;
   }
-//   if ((rpc_message_notifier_.empty() && message_notifier_.empty()) ||
-//        server_down_notifier_.empty() || send_notifier_.empty()) {
-//     DLOG(WARNING) << "TransportUDT::Start: Notifiers empty" << std::endl;
-//     return 1;
-//   }
+
   listening_port_ = port;
   memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
   addrinfo_hints_.ai_flags = AI_PASSIVE;
@@ -183,7 +180,7 @@ int TransportUDT::Start(const boost::uint16_t &port) {
   std::string service = boost::lexical_cast<std::string>(port);
   if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
       &addrinfo_res_)) {
-    return 1; // Illegal port or port busy
+    return TransportCondition::kInvalidPort; 
   }
   listening_socket_ = UDT::socket(addrinfo_res_->ai_family,
       addrinfo_res_->ai_socktype, addrinfo_res_->ai_protocol);
@@ -195,7 +192,7 @@ int TransportUDT::Start(const boost::uint16_t &port) {
     DLOG(WARNING) << "(" << listening_port_ << ") UDT bind error: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     freeaddrinfo(addrinfo_res_);
-    return 1;
+    return TransportCondition::kBindError;
   }
   // Modify the port to reflect the port UDT has chosen
   struct sockaddr_in name;
@@ -208,7 +205,7 @@ int TransportUDT::Start(const boost::uint16_t &port) {
     if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
       &addrinfo_res_)) {
       freeaddrinfo(addrinfo_res_);
-      return 1;
+      return TransportCondition::kInvalidPort;
     }
   }
 
@@ -216,7 +213,7 @@ int TransportUDT::Start(const boost::uint16_t &port) {
     LOG(ERROR) << "Failed to start listening port "<< listening_port_ << ": " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     freeaddrinfo(addrinfo_res_);
-    return 1;
+    return TransportCondition::kListenError;
   }
   // TODO FIXME -- Here is where we spawn threads to recieve handler
 
@@ -237,18 +234,18 @@ int TransportUDT::Start(const boost::uint16_t &port) {
     int result;
     result = UDT::close(listening_socket_);
     freeaddrinfo(addrinfo_res_);
-    return 1;
+    return TransportCondition::kThreadResourceErr;
   }
   current_id_ = base::GenerateNextTransactionId(current_id_);
   stop_ = false;
-  return 0;
+  return TransportCondition::kSucess;
 }
 
 int TransportUDT::Send(const rpcprotocol::RpcMessage &data,
                        const boost::uint32_t &connection_id,
                        const bool &new_socket) {
   TransportMessage msg;
-  rpcprotocol::RpcMessage *rpc_msg = msg.mutable_rpc_msg();
+  rpcprotocol::RpcMessage *rpc_msg = msg.mutable_rpc();
   *rpc_msg = data;
   if (data.IsInitialized()) {
     std::string ser_msg;
@@ -515,13 +512,13 @@ void TransportUDT::ReceiveHandler() {
               (*it).second.received_size = 0;
               TransportMessage t_msg;
               if (t_msg.ParseFromString(message)) {
-                if (t_msg.has_hp_msg()) {
-                  HandleRendezvousMsgs(t_msg.hp_msg());
+                if (t_msg.has_hp()) {
+                  HandleRendezvousMsgs(t_msg.hp());
                   result = UDT::close((*it).second.udt_socket);
                   dead_connections_ids.push_back((*it).first);
-                } else if (t_msg.has_rpc_msg()) {
+                } else if (t_msg.has_rpc()) {
                   IncomingMessages msg(connection_id, transport_id());
-                  msg.msg = t_msg.rpc_msg();
+                  msg.msg = t_msg.rpc();
                   DLOG(INFO) << "(" << listening_port_ << ") message for id "
                       << connection_id << " arrived" << std::endl;
                   UDT::TRACEINFO perf;
@@ -613,7 +610,7 @@ void TransportUDT::AddIncomingConnection(UdtSocket udt_socket) {
   recv_cond_.notify_one();
 }
 
-void TransportUDT::CloseConnection(const boost::uint32_t &connection_id) {
+TransportCondition TransportUDT::CloseConnection(const boost::uint32_t &connection_id) {
   std::map<boost::uint32_t, IncomingData>::iterator it;
   boost::mutex::scoped_lock guard(recv_mutex_);
   it = incoming_sockets_.find(connection_id);
@@ -778,7 +775,7 @@ int TransportUDT::Connect(const std::string &peer_address,
 void TransportUDT::HandleRendezvousMsgs(const HolePunchingMsg &message) {
   if (message.type() == FORWARD_REQ) {
     TransportMessage t_msg;
-    HolePunchingMsg *forward_msg = t_msg.mutable_hp_msg();
+    HolePunchingMsg *forward_msg = t_msg.mutable_hp();
     std::string peer_ip(inet_ntoa(((
       struct sockaddr_in *)&peer_address_)->sin_addr));
     boost::uint16_t peer_port =
@@ -1019,12 +1016,12 @@ void TransportUDT::ReceiveData(UdtSocket* receiver) {
 //   LOG(INFO) << "Message is " << message << std::endl;
   if (t_msg.ParseFromArray(data, size)) {
   LOG(INFO) << "Parsed message " << std::endl;
-      if (t_msg.has_hp_msg()) {
+      if (t_msg.has_hp()) {
         LOG(INFO) << "Parsed message its RPC" << std::endl;
-        HandleRendezvousMsgs(t_msg.hp_msg());
-      } else if (t_msg.has_rpc_msg()) {
+        HandleRendezvousMsgs(t_msg.hp());
+      } else if (t_msg.has_rpc()) {
         LOG(INFO) << "Parsed message its Hole punching RPC" << std::endl;
-        SignalRPCMessageReceived_(t_msg.rpc_msg(), connection_id, rtt);
+        SignalRPCMessageReceived_(t_msg.rpc(), connection_id, rtt);
 /*      } else if (t_msg.hp_msg()) {
         LOG(INFO) << "Parsed message its a message" << std::endl;
         SignalMessageReceived_(message, connection_id, rtt);*/
@@ -1191,7 +1188,7 @@ int TransportUDT::ConnectToSend(const std::string &remote_ip,
       return conn_result;
     }
     TransportMessage t_msg;
-    HolePunchingMsg *msg = t_msg.mutable_hp_msg();
+    HolePunchingMsg *msg = t_msg.mutable_hp();
     msg->set_ip(remote_ip);
     msg->set_port(remote_port);
     msg->set_type(FORWARD_REQ);

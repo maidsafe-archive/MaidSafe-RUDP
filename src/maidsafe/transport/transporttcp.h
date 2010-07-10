@@ -78,7 +78,7 @@ class TransportTCP : public Transport {
                            const float &)> on_message);
   bool RegisterOnSend(
       boost::function<void(const boost::uint32_t&, const bool&)> on_send);
-  void CloseConnection(const boost::uint32_t &connection_id);
+  TransportCondition CloseConnection(const boost::uint32_t &connection_id);
   void Stop();
   bool is_stopped() const { return stop_; }
   bool peer_address(struct sockaddr *peer_addr);

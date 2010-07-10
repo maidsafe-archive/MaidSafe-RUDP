@@ -167,7 +167,7 @@ void TransportTCP::HandleStop() {
   stop_ = true;
 }
 
-void TransportTCP::CloseConnection(const boost::uint32_t &connection_id) {
+TransportCondition TransportTCP::CloseConnection(const boost::uint32_t &connection_id) {
   std::map<boost::uint32_t, tcpconnection_ptr>::iterator it;
   boost::mutex::scoped_lock guard(conn_mutex_);
   it = connections_.find(connection_id);
@@ -336,9 +336,9 @@ void TransportTCP::HandleConnRecv(const std::string &msg,
 
   TransportMessage t_msg;
   if (t_msg.ParseFromString(msg)) {
-    if (t_msg.has_rpc_msg() && !rpc_message_notifier_.empty()) {
+    if (t_msg.has_rpc() && !rpc_message_notifier_.empty()) {
       boost::mutex::scoped_lock guard(rpcmsg_handler_mutex_);
-      SignalRPCMessageReceived_(t_msg.rpc_msg(), connection_id, 0.0);
+      SignalRPCMessageReceived_(t_msg.rpc(), connection_id, 0.0);
     }
   } else if (!message_notifier_.empty()) {
     boost::mutex::scoped_lock guard(msg_handler_mutex_);
@@ -427,7 +427,7 @@ int TransportTCP::Send(const rpcprotocol::RpcMessage &data,
       const boost::uint32_t &connection_id, const bool&) {
   if (data.IsInitialized()) {
     TransportMessage t_msg;
-    rpcprotocol::RpcMessage *rpc_msg = t_msg.mutable_rpc_msg();
+    rpcprotocol::RpcMessage *rpc_msg = t_msg.mutable_rpc();
     *rpc_msg = data;
     std::string ser_tmsg(t_msg.SerializeAsString());
     {

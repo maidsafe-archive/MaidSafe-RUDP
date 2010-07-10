@@ -19,18 +19,18 @@ message Address {
 }
 
 message Ping {
-  required Address address = 1;
-  required Type type = 2;
+  required Type type = 1;
+  optional Address address = 2;
 }
 
 message ProxyPing {
-  required Address address = 1;
-  optional Type type = 2;
-  required SubType sub_type = 3;
+  required Type type = 1;
+  required SubType sub_type = 2;
+  optional Address address = 3;
 }
 
 message AcceptConnect {
-  required Address address = 1;
+  optional Address address = 1;
   optional SubType sub_type = 2;
   optional int32 freq = 3;
   optional int32 num_retry = 4;

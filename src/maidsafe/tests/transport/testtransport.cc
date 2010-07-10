@@ -338,8 +338,8 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   boost::int16_t node1_id, node2_id;
   MessageHandler msg_handler1(&node1_transudt);
   MessageHandler msg_handler2(&node2_transudt);
-  ASSERT_EQ(0, node1_transudt.Start(0));
-  ASSERT_EQ(0, node2_transudt.Start(0));
+  ASSERT_EQ(0, node1_transudt.StartListening(0, ""));
+  ASSERT_EQ(0, node2_transudt.StartListening(0, ""));
   boost::uint16_t lp_node2 = node2_transudt.listening_port();
   rpcprotocol::RpcMessage msg;
   msg.set_rpc_type(rpcprotocol::REQUEST);
@@ -347,9 +347,9 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   msg.set_args(base::RandomString(256 * 1024));
   std::string sent_msg;
   msg.SerializeToString(&sent_msg);
-  std::string port = boost::lexical_cast<std::string>(lp_node2);
+  //std::string port = boost::lexical_cast<std::string>(lp_node2);
   std::string ip("127.0.0.1");
-  ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, port));
+  ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, lp_node2));
 
 //   ASSERT_EQ(1, node1_transudt.Send(msg, id, false));
 //   ASSERT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
