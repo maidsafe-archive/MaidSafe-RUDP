@@ -3,7 +3,44 @@ import "rpcmessage.proto";
 
 package transport;
 
+enum Type {
+  REQUEST = 0;
+  RESPONSE = 1;
+};
+
+enum SubType {
+  ACK = 1;
+  NACK = 2;
+}
+
+message Address {
+  required bytes ip = 1;
+  required int32 port = 2;
+}
+
+message Ping {
+  required Address address = 1;
+  required Type type = 2;
+}
+
+message ProxyPing {
+  required Address address = 1;
+  optional Type type = 2;
+  required SubType sub_type = 3;
+}
+
+message AcceptConnect {
+  required Address address = 1;
+  optional SubType sub_type = 2;
+  optional int32 freq = 3;
+  optional int32 num_retry = 4;
+  optional int32 retry_time = 5;
+}
+
 message TransportMessage {
-  optional rpcprotocol.RpcMessage rpc_msg = 1;
-  optional HolePunchingMsg hp_msg = 2;
+  optional rpcprotocol.RpcMessage rpc = 1;
+  optional HolePunchingMsg hp = 2;
+  optional Ping ping = 3;
+  optional ProxyPing proxy_ping = 4;
+  optional AcceptConnect accept_connect = 5;
 }
