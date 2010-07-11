@@ -40,16 +40,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <utility>
 #include <list>
+#include "maidsafe/protobuf/transport_message.pb.h"
 
 #if MAIDSAFE_DHT_VERSION < 23
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif
 
-
-namespace rpcprotocol {
-class RpcMessage;
-}  // namespace rpcprotocol
 
 
 namespace transport {
@@ -153,7 +150,7 @@ class TransportHandler {
                     const bool &keep_connection,
                     boost::uint32_t *connection_id,
                     const boost::int16_t &transport_id);
-  int Send(const rpcprotocol::RpcMessage &data,
+  int Send(const TransportMessage &t_mesg,
            const boost::uint32_t &connection_id, const bool &new_socket,
            const boost::int16_t &transport_id);
   int Send(const std::string &data, const boost::uint32_t &connection_id,
@@ -181,14 +178,14 @@ class TransportHandler {
   void StopPingRendezvous();
   bool CanConnect(const std::string &ip, const boost::uint16_t &port,
                   const boost::int16_t &transport_id);
-  void OnRPCMessage(const rpcprotocol::RpcMessage &request,
-                    const boost::uint32_t &connection_id,
-                    const boost::int16_t &transport_id, const float &rtt);
-  void OnMessage(const std::string &request,
-                 const boost::uint32_t &connection_id,
-                 const boost::int16_t &transport_id, const float &rtt);
-  void OnServerDown(const bool &dead_server, const std::string &ip,
-                    const boost::uint16_t &port);
+//   void OnRPCMessage(const transport::RpcMessage &request,
+//                     const boost::uint32_t &connection_id,
+//                     const boost::int16_t &transport_id, const float &rtt);
+//   void OnMessage(const std::string &request,
+//                  const boost::uint32_t &connection_id,
+//                  const boost::int16_t &transport_id, const float &rtt);
+//   void OnServerDown(const bool &dead_server, const std::string &ip,
+//                     const boost::uint16_t &port);
   void OnSend(const boost::uint32_t &connection_id, const bool &success);
  private:
   TransportHandler& operator=(const TransportHandler&);
@@ -214,10 +211,12 @@ public: // SIGNALS
                                       const boost::uint32_t&,
                                       const boost::int16_t&,
                                       const float&)>SignalMessageReceived;
-  typedef bs2::signal<void(const rpcprotocol::RpcMessage&,
+  typedef bs2::signal<void(const transport::RpcMessage&,
                                       const boost::uint32_t&,
-                                      const boost::int16_t&,
-                                      const float &)>SignalRPCMessageReceived;
+                                      const float &)>SignalRPCRequestReceived;                                     
+  typedef bs2::signal<void(const transport::RpcMessage&,
+                                      const boost::uint32_t&,
+                                      const float &)>SignalRPCResponseReceived;
   typedef bs2::signal<void(const bool &,
                            const std::string&,
                            const boost::uint16_t)>
@@ -229,10 +228,15 @@ public: // SIGNALS
                                           SignalMessageReceived){
     return SignalMessageReceived_.connect(SignalMessageReceived);
   }
-  virtual bs2::connection connect_rpc_message_recieved(const
-                                          SignalRPCMessageReceived::slot_type &
-                                          SignalRPCMessageReceived){
-    return SignalRPCMessageReceived_.connect(SignalRPCMessageReceived);
+  virtual bs2::connection connect_rpc_request_recieved(const
+                                          SignalRPCRequestReceived::slot_type &
+                                          SignalRPCRequestReceived){
+    return SignalRPCRequestReceived_.connect(SignalRPCRequestReceived);
+  }
+  virtual bs2::connection connect_rpc_response_recieved(const
+                                          SignalRPCResponseReceived::slot_type &
+                                          SignalRPCResponseReceived){
+    return SignalRPCResponseReceived_.connect(SignalRPCResponseReceived);
   }
   virtual  bs2::connection connect_connection_down(const
                                            SignalConnectionDown::slot_type &
@@ -245,8 +249,10 @@ public: // SIGNALS
   }
 protected:
 
-  SignalRPCMessageReceived SignalRPCMessageReceived_;
+  SignalRPCRequestReceived SignalRPCRequestReceived_;
+  SignalRPCResponseReceived SignalRPCResponseReceived_;
   SignalMessageReceived    SignalMessageReceived_;
+  
   SignalConnectionDown     SignalConnectionDown_;
   SignalSent               SignalSent_;
   bool upnp_;

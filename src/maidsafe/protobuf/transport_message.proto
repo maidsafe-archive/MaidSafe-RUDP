@@ -1,16 +1,8 @@
-import "hole_puching_messages.proto";
-import "rpcmessage.proto";
-
 package transport;
 
-enum Type {
-  REQUEST = 0;
-  RESPONSE = 1;
-};
-
 enum SubType {
-  ACK = 1;
-  NACK = 2;
+  kACK = 1;
+  kNACK = 2;
 }
 
 message Address {
@@ -19,13 +11,11 @@ message Address {
 }
 
 message Ping {
-  required Type type = 1;
-  optional Address address = 2;
+  optional Address from_address =1;
 }
 
 message ProxyPing {
-  required Type type = 1;
-  required SubType sub_type = 2;
+  optional SubType result = 2;
   optional Address address = 3;
 }
 
@@ -37,10 +27,43 @@ message AcceptConnect {
   optional int32 retry_time = 5;
 }
 
-message TransportMessage {
-  optional rpcprotocol.RpcMessage rpc = 1;
-  optional HolePunchingMsg hp = 2;
-  optional Ping ping = 3;
-  optional ProxyPing proxy_ping = 4;
-  optional AcceptConnect accept_connect = 5;
+message RpcMessage {
+  required int32 message_id = 1;
+  required bytes args = 2;
+  optional bytes service = 3;
+  optional bytes method = 4;
 }
+
+message HolePunchingMsg {
+  required bytes ip = 1;
+  required int32 port = 2;
+  required msg_type type = 3;
+  enum msg_type {
+    FORWARD_REQ = 0;
+    FORWARD_MSG = 1;
+  }
+}      
+
+message TransportMessage {
+  extensions 100 to max; // Allows extensions of the message types 
+  required Type type = 1;
+  optional RpcMessage rpc = 2;
+  optional HolePunchingMsg hp = 3;
+  optional Ping ping = 4;
+  optional ProxyPing proxy_ping = 5;
+  optional AcceptConnect accept_connect = 6;
+  enum Type {
+    kRequest = 0; // leave socket available to send the response on
+    kResponse = 1; // socket is closed on recieving this type unless it's a managed connection
+  }
+}
+
+// To add a message elsewhere (outside this library) type do this
+//  package transport; // to get this namespace
+//  extend TransportMessage {
+//  optional NewMessageType my_message = 100;
+//  optional AnotherNewMessageType my_other_message = 101; 
+//  }
+//
+//
+

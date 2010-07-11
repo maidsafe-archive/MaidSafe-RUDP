@@ -47,11 +47,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 
 
-namespace rpcprotocol {
-class RpcMessage;
-}  // namespace rpcprotocol
-
-
 namespace transport {
 
 class HolePunchingMsg;
@@ -98,29 +93,30 @@ class TransportUDT : public Transport {
   TransportUDT();
   ~TransportUDT();
   enum DataType { kString, kFile };
-  TransportType transport_type() { return kUdt; }
-  boost::int16_t transport_id() { return transport_id_; }
-  void set_transport_id(const boost::int16_t &transport_id) {
-    transport_id_ = transport_id;
-  }
+
   static void CleanUp();
-  int ConnectToSend(const std::string &remote_ip,
-                    const boost::uint16_t &remote_port,
-                    const std::string &local_ip,
-                    const boost::uint16_t &local_port,
-                    const std::string &rendezvous_ip,
-                    const boost::uint16_t &rendezvous_port,
-                    const bool &keep_connection,
-                    boost::uint32_t *connection_id);
+  int   ConnectToSend(const std::string &remote_ip,
+                      const boost::uint16_t &remote_port,
+                      const std::string &local_ip,
+                      const boost::uint16_t &local_port,
+                      const std::string &rendezvous_ip,
+                      const boost::uint16_t &rendezvous_port,
+                      const bool &keep_connection,
+                      boost::uint32_t *connection_id);
                     
-  int Send(const rpcprotocol::RpcMessage &data,
-           const boost::uint32_t &connection_id, const bool &new_socket);
-  int Send(const std::string &data, const boost::uint32_t &connection_id,
+  /*int Send(const rpcprotocol::RpcMessage &data,
+           const boost::uint32_t &connection_id, const bool &new_socket);*/
+  int   Send(const TransportMessage &t_mesg, const boost::uint32_t &connection_id,
            const bool &new_socket);
-  TransportCondition Send(const std::string &data, const std::string &remote_ip,
+  TransportCondition Send(const TransportMessage &t_mesg, const std::string &remote_ip,
          const boost::uint16_t &remote_port);
   TransportCondition StartListening(const boost::uint16_t & port, const std::string &ip);
-  int StartLocal(const boost::uint16_t &port);
+  int   StartLocal(const boost::uint16_t &port);
+// Helpers
+  bool  CheckPort(const boost::uint16_t &port);
+  bool  CheckIP(const std::string &ip);
+
+  
 //   bool RegisterOnRPCMessage(
 //       boost::function<void(const rpcprotocol::RpcMessage&,
 //                            const boost::uint32_t&,
@@ -191,6 +187,9 @@ class TransportUDT : public Transport {
   UdtSocket listening_socket_;
   struct sockaddr peer_address_;
   boost::uint16_t listening_port_, my_rendezvous_port_;
+// TODO (dirvine) allow multiple listening ports, map numbers with names
+  std::map<boost::uint16_t, std::string> listening_ports_;
+  
   std::string my_rendezvous_ip_;
   std::map<boost::uint32_t, IncomingData> incoming_sockets_;
   std::list<OutgoingData> outgoing_queue_;

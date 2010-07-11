@@ -89,7 +89,11 @@ class ChannelManagerImpl {
   void TimerHandler(const boost::uint32_t &request_id);
   void RequestSent(const boost::uint32_t &connection_id, const bool &success);
   void OnlineStatusChanged(const bool &online);
-  void MessageArrive(const RpcMessage &msg,
+  void ResponseArrive(const transport::RpcMessage &msg,
+                     const boost::uint32_t &connection_id,
+                     const boost::int16_t transport_id,
+                     const float &rtt);
+  void RequestArrive(const transport::RpcMessage &msg,
                      const boost::uint32_t &connection_id,
                      const boost::int16_t transport_id,
                      const float &rtt);
@@ -108,7 +112,7 @@ class ChannelManagerImpl {
   RpcStatsMap rpc_timings_;
   boost::condition_variable delete_channels_cond_;
   boost::uint16_t online_status_id_;
-  bs2::connection rpc_connection_;
+  bs2::connection rpc_reponse_, rpc_request_;
   bs2::connection data_sent_connection_;
 };
 }  // namespace rpcprotocol

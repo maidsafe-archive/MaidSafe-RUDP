@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include <maidsafe/maidsafe-dht_config.h>
 #include <string>
 
@@ -44,14 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
-namespace rpcprotocol {
-class RpcMessage;
-}  // namespace rpcprotocol
-
-
 namespace transport {
 
-  // return types for sending data
   enum TransportCondition {
   kSucess            = 0,
   kRemoteUnreachable = 1,
@@ -73,17 +68,25 @@ namespace transport {
   kError             = 17
   };
 
-// Default Types, if you want more you will need to comment this out and
-// recreate the enums to suit your needs.
-  enum MsgType {
-    kPing,
-    kProxyPing,
-    kRPC,
-    kConnect
-    };
- typedef boost::uint32_t connection_id;
- typedef std::string remote_ip, rendezvous_ip;
- typedef boost::uint16_t remote_port;
+
+  typedef boost::uint32_t connection_id;
+  typedef std::string remote_ip, rendezvous_ip;
+  typedef boost::uint16_t remote_port;
+  // SIGNALS
+  typedef bs2::signal<void(const std::string&,
+                                      const boost::uint32_t&,
+                                      const float&)>SignalMessageReceived;
+  typedef bs2::signal<void(const transport::RpcMessage&,
+                                      const boost::uint32_t&,
+                                      const float &)>SignalRPCRequestReceived;
+  typedef bs2::signal<void(const transport::RpcMessage&,
+                                      const boost::uint32_t&,
+                                      const float &)>SignalRPCResponseReceived;                                            
+  typedef bs2::signal<void(const bool &,
+                           const std::string&,
+                           const boost::uint16_t&)>
+                            SignalConnectionDown;
+  typedef bs2::signal<void(const boost::uint32_t&, const bool&)> SignalSent;
 
 // UPDATE: this will be replced with a protocol buffer implementation
 // using different message types and identifying these on reciept
@@ -120,7 +123,7 @@ class Transport {
   */
  public:
   virtual ~Transport() {}
-  virtual TransportCondition Send(const std::string &data,
+  virtual TransportCondition Send(const TransportMessage &t_mesg,
                                   const std::string &remote_ip,
                                   const boost::uint16_t &remote_port) = 0;
 //   virtual TransportCondition SendWithRendezvous(const std::string &data,
@@ -182,28 +185,22 @@ class Transport {
 //                                const boost::uint16_t &remote_port) = 0;
 //   virtual bool IsPortAvailable(const std::string &port) = 0;
 
-public: // SIGNALS
-  typedef bs2::signal<void(const std::string&,
-                                      const boost::uint32_t&,
-                                      const float&)>SignalMessageReceived;
-  typedef bs2::signal<void(const rpcprotocol::RpcMessage&,
-                                      const boost::uint32_t&,
-                                      const float &)>SignalRPCMessageReceived;
-  typedef bs2::signal<void(const bool &,
-                           const std::string&,
-                           const boost::uint16_t&)>
-                            SignalConnectionDown;
-  typedef bs2::signal<void(const boost::uint32_t&, const bool&)> SignalSent;
+public: 
  // CONNECTIONS (method is basically the same as sig.connect().)
   virtual bs2::connection connect_message_recieved(const
                                           SignalMessageReceived::slot_type &
                                           SignalMessageReceived){
     return SignalMessageReceived_.connect(SignalMessageReceived);
   }
-  virtual bs2::connection connect_rpc_message_recieved(const
-                                          SignalRPCMessageReceived::slot_type &
-                                          SignalRPCMessageReceived){
-    return SignalRPCMessageReceived_.connect(SignalRPCMessageReceived);
+  virtual bs2::connection connect_rpc_request_recieved(const
+                                          SignalRPCRequestReceived::slot_type &
+                                          SignalRPCRequestReceived){
+    return SignalRPCRequestReceived_.connect(SignalRPCRequestReceived);
+  }
+  virtual bs2::connection connect_rpc_response_recieved(const
+                                          SignalRPCResponseReceived::slot_type &
+                                          SignalRPCResponseReceived){
+    return SignalRPCResponseReceived_.connect(SignalRPCResponseReceived);
   }
   virtual bs2::connection connect_connection_down(const
                                            SignalConnectionDown::slot_type &
@@ -216,7 +213,8 @@ public: // SIGNALS
   }
 protected:
 
-  SignalRPCMessageReceived SignalRPCMessageReceived_;
+  SignalRPCRequestReceived SignalRPCRequestReceived_;
+  SignalRPCResponseReceived SignalRPCResponseReceived_;
   SignalMessageReceived    SignalMessageReceived_;
   SignalConnectionDown     SignalConnectionDown_;
   SignalSent               SignalSent_;

@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/online.h"
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
-#include "maidsafe/protobuf/rpcmessage.pb.h"
 #include "maidsafe/udt/udt.h"
 
 namespace transport {
@@ -45,7 +44,7 @@ struct IncomingMessages {
       : msg(), raw_data(), connection_id(id), transport_id(transid), rtt(0) {}
   IncomingMessages()
       : msg(), raw_data(), connection_id(0), transport_id(0), rtt(0) {}
-  rpcprotocol::RpcMessage msg;
+  transport::RpcMessage msg;
   std::string raw_data;
   boost::uint32_t connection_id;
   boost::int16_t transport_id;
@@ -80,9 +79,16 @@ boost::uint16_t TransportUDT::listening_port() {
   return listening_port_;
 }
 
-TransportCondition TransportUDT::Send(const std::string &data,
+TransportCondition TransportUDT::Send(const TransportMessage &t_mesg,
                                       const std::string &remote_ip,
                                       const boost::uint16_t &remote_port) {
+    std::string data;
+  if (t_mesg.IsInitialized()) {
+    t_mesg.SerializeToString(&data);
+  } else {
+    return TransportCondition::kInvalidData;
+  }
+  
   struct addrinfo addrinfo_hints, *local, *peer;
   struct addrinfo* addrinfo_res;
   memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
@@ -132,8 +138,6 @@ TransportCondition TransportUDT::Send(const std::string &data,
       return TransportCondition::kConnectError;
    }
 
-   
-
   boost::int64_t size = data.size();
   boost::int64_t ssize = 0;
   boost::int64_t ss;
@@ -162,17 +166,20 @@ TransportCondition TransportUDT::Send(const std::string &data,
   }
 }
 
-
-
-
-TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
-                                 const std::string &ip) {
-  if (!stop_) {
-    DLOG(WARNING) << "TransportUDT::Start: Already registered" << std::endl;
-    return TransportCondition::kAlreadyStarted;
+bool TransportUDT::CheckIP(const std::string &ip) {
+  memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
+  addrinfo_hints_.ai_flags = AI_PASSIVE;
+  addrinfo_hints_.ai_family = AF_INET;
+  addrinfo_hints_.ai_socktype = SOCK_STREAM;
+  if (0 != getaddrinfo(ip.c_str(), NULL, &addrinfo_hints_,
+      &addrinfo_res_)) {
+    return false;
+  } else {
+    return true;
   }
+}
 
-  listening_port_ = port;
+bool TransportUDT::CheckPort(const boost::uint16_t &port) {
   memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
   addrinfo_hints_.ai_flags = AI_PASSIVE;
   addrinfo_hints_.ai_family = AF_INET;
@@ -180,13 +187,34 @@ TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
   std::string service = boost::lexical_cast<std::string>(port);
   if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
       &addrinfo_res_)) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
+                                 const std::string &ip) {
+  if (!stop_) {
+    DLOG(WARNING) << "TransportUDT::Start: Already registered" << std::endl;
+    return TransportCondition::kAlreadyStarted;
+  }
+  memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
+  addrinfo_hints_.ai_flags = AI_PASSIVE;
+  addrinfo_hints_.ai_family = AF_INET;
+  addrinfo_hints_.ai_socktype = SOCK_STREAM;
+    std::string service = boost::lexical_cast<std::string>(port);
+   if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
+      &addrinfo_res_)) {
     return TransportCondition::kInvalidPort; 
   }
   listening_socket_ = UDT::socket(addrinfo_res_->ai_family,
-      addrinfo_res_->ai_socktype, addrinfo_res_->ai_protocol);
+                                  addrinfo_res_->ai_socktype,
+                                  addrinfo_res_->ai_addrlen);
   // UDT Options
   bool blockng = true;
   UDT::setsockopt(listening_socket_, 0, UDT_RCVSYN, &blockng, sizeof(blockng));
+  
   if (UDT::ERROR == UDT::bind(listening_socket_, addrinfo_res_->ai_addr,
       addrinfo_res_->ai_addrlen)) {
     DLOG(WARNING) << "(" << listening_port_ << ") UDT bind error: " <<
@@ -206,7 +234,10 @@ TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
       &addrinfo_res_)) {
       freeaddrinfo(addrinfo_res_);
       return TransportCondition::kInvalidPort;
-    }
+    } 
+
+  } else {
+    listening_port_ = port;
   }
 
   if (UDT::ERROR == UDT::listen(listening_socket_, 20)) {
@@ -215,19 +246,10 @@ TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
     freeaddrinfo(addrinfo_res_);
     return TransportCondition::kListenError;
   }
-  // TODO FIXME -- Here is where we spawn threads to recieve handler
 
-  // start the listening loop
   try {
     accept_routine_.reset(new boost::thread(
       &TransportUDT::AcceptConnHandler, this));
-    recv_routine_.reset(new boost::thread(&TransportUDT::ReceiveHandler,
-        this));
-    send_routine_.reset(new boost::thread(&TransportUDT::SendHandle, this));
-    ping_rendz_routine_.reset(new boost::thread(&TransportUDT::PingHandle,
-        this));
-    handle_msgs_routine_.reset(new boost::thread(
-      &TransportUDT::MessageHandler, this));
   }
   catch(const boost::thread_resource_error&) {
     stop_ = true;
@@ -238,156 +260,157 @@ TransportCondition TransportUDT::StartListening(const boost::uint16_t &port,
   }
   current_id_ = base::GenerateNextTransactionId(current_id_);
   stop_ = false;
+  stopped_ = false;
   return TransportCondition::kSucess;
 }
 
-int TransportUDT::Send(const rpcprotocol::RpcMessage &data,
-                       const boost::uint32_t &connection_id,
-                       const bool &new_socket) {
-  TransportMessage msg;
-  rpcprotocol::RpcMessage *rpc_msg = msg.mutable_rpc();
-  *rpc_msg = data;
-  if (data.IsInitialized()) {
-    std::string ser_msg;
-    msg.SerializeToString(&ser_msg);
-    return Send(ser_msg, kString, connection_id, new_socket, true);
-  } else {
-    {
-      boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-      std::map<boost::uint32_t, UDTSOCKET>::iterator it =
-          send_sockets_.find(connection_id);
-      if (it != send_sockets_.end())
-        send_sockets_.erase(it);
-    }
-    return 1;
-  }
-}
+// TransportCondition TransportUDT::Send(const rpcprotocol::RpcMessage &data,
+//                        const boost::uint32_t &connection_id,
+//                        const bool &new_socket) {
+//   TransportMessage msg;
+//   rpcprotocol::RpcMessage *rpc_msg = msg.mutable_rpc();
+//   *rpc_msg = data;
+//   if (data.IsInitialized()) {
+//     std::string ser_msg;
+//     msg.SerializeToString(&ser_msg);
+//     return Send(ser_msg, kString, connection_id, new_socket, true);
+//   } else {
+//     {
+//       boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//       std::map<boost::uint32_t, UDTSOCKET>::iterator it =
+//           send_sockets_.find(connection_id);
+//       if (it != send_sockets_.end())
+//         send_sockets_.erase(it);
+//     }
+//     return 1;
+//   }
+// }
 
-int TransportUDT::Send(const std::string &data,
-                       const boost::uint32_t &connection_id,
-                       const bool &new_socket) {
-  if (data != "") {
-    return Send(data, kString, connection_id, new_socket, false);
-  } else {
-    {
-      boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-      std::map<boost::uint32_t, UDTSOCKET>::iterator it =
-          send_sockets_.find(connection_id);
-      if (it != send_sockets_.end())
-        send_sockets_.erase(it);
-    }
-    return 1;
-  }
-}
-
-int TransportUDT::Send(const std::string &data, DataType type,
-                       const boost::uint32_t &connection_id,
-                       const bool &new_socket, const bool &is_rpc) {
-  UDTSOCKET skt;
-  if (new_socket) {
-    std::map<boost::uint32_t, UDTSOCKET>::iterator it;
-    {
-      boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-      it = send_sockets_.find(connection_id);
-      if (it == send_sockets_.end()) {
-        SignalSent_(connection_id, false);
-        return 1;
-      }
-      skt = (*it).second;
-      send_sockets_.erase(it);
-    }
-  } else {
-    std::map<boost::uint32_t, IncomingData>::iterator it;
-    {
-      boost::mutex::scoped_lock guard(recv_mutex_);
-      it = incoming_sockets_.find(connection_id);
-      if (it == incoming_sockets_.end()) {
-        SignalSent_(connection_id, false);
-        return 1;
-      }
-      skt = (*it).second.udt_socket;
-    }
-  }
-
-  if (type == kString) {
-    int64_t data_size = data.size();
-    OutgoingData out_data(skt, data_size, connection_id, is_rpc);
-    memcpy(out_data.data.get(),
-      const_cast<char*>(static_cast<const char*>(data.c_str())), data_size);
-    {
-      boost::mutex::scoped_lock(send_mutex_);
-      outgoing_queue_.push_back(out_data);
-    }
-    send_cond_.notify_one();
-  } else if (type == kFile) {
-    char *file_name = const_cast<char*>(static_cast<const char*>(data.c_str()));
-    std::fstream ifs(file_name, std::ios::in | std::ios::binary);
-    ifs.seekg(0, std::ios::end);
-    int64_t data_size = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-    // send file size information
-    if (UDT::ERROR == UDT::send(skt, reinterpret_cast<char*>(&data_size),
-        sizeof(int64_t), 0)) {
-      return 1;
-    }
-    // send the file
-    if (UDT::ERROR == UDT::sendfile(skt, ifs, 0, data_size)) {
-      return 1;
-    }
-  }
-  return 0;
-}
+// int TransportUDT::Send(const TransportMessage &t_mesg,
+//                        const boost::uint32_t &connection_id,
+//                        const bool &new_socket) {
+//   if (data != "") {
+//     return Send(data, kString, connection_id, new_socket, false);
+//   } else {
+//     {
+//       boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//       std::map<boost::uint32_t, UDTSOCKET>::iterator it =
+//           send_sockets_.find(connection_id);
+//       if (it != send_sockets_.end())
+//         send_sockets_.erase(it);
+//     }
+//     return 1;
+//   }
+// }
+// 
+// int TransportUDT::Send(const std::string &data, DataType type,
+//                        const boost::uint32_t &connection_id,
+//                        const bool &new_socket, const bool &is_rpc) {
+//   UDTSOCKET skt;
+//   if (new_socket) {
+//     std::map<boost::uint32_t, UDTSOCKET>::iterator it;
+//     {
+//       boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//       it = send_sockets_.find(connection_id);
+//       if (it == send_sockets_.end()) {
+//         SignalSent_(connection_id, false);
+//         return 1;
+//       }
+//       skt = (*it).second;
+//       send_sockets_.erase(it);
+//     }
+//   } else {
+//     std::map<boost::uint32_t, IncomingData>::iterator it;
+//     {
+//       boost::mutex::scoped_lock guard(recv_mutex_);
+//       it = incoming_sockets_.find(connection_id);
+//       if (it == incoming_sockets_.end()) {
+//         SignalSent_(connection_id, false);
+//         return 1;
+//       }
+//       skt = (*it).second.udt_socket;
+//     }
+//   }
+// 
+//   if (type == kString) {
+//     int64_t data_size = data.size();
+//     OutgoingData out_data(skt, data_size, connection_id, is_rpc);
+//     memcpy(out_data.data.get(),
+//       const_cast<char*>(static_cast<const char*>(data.c_str())), data_size);
+//     {
+//       boost::mutex::scoped_lock(send_mutex_);
+//       outgoing_queue_.push_back(out_data);
+//     }
+//     send_cond_.notify_one();
+//   } else if (type == kFile) {
+//     char *file_name = const_cast<char*>(static_cast<const char*>(data.c_str()));
+//     std::fstream ifs(file_name, std::ios::in | std::ios::binary);
+//     ifs.seekg(0, std::ios::end);
+//     int64_t data_size = ifs.tellg();
+//     ifs.seekg(0, std::ios::beg);
+//     // send file size information
+//     if (UDT::ERROR == UDT::send(skt, reinterpret_cast<char*>(&data_size),
+//         sizeof(int64_t), 0)) {
+//       return 1;
+//     }
+//     // send the file
+//     if (UDT::ERROR == UDT::sendfile(skt, ifs, 0, data_size)) {
+//       return 1;
+//     }
+//   }
+//   return 0;
+// }
 
 void TransportUDT::Stop() {
   if (stop_)
     return;
   stop_ = true;
-  if (send_routine_.get()) {
-    send_cond_.notify_one();
-    if (!send_routine_->timed_join(boost::posix_time::seconds(5))) {
-      // forcing to interrupt the thread
-      send_routine_->interrupt();
-      send_routine_->join();
-    }
-  }
-  if (accept_routine_.get()) {
-    if (!accept_routine_->timed_join(boost::posix_time::seconds(5))) {
-      // forcing to interrupt the thread
-      accept_routine_->interrupt();
-      accept_routine_->join();
-    }
-  }
-  if (recv_routine_.get()) {
-    recv_cond_.notify_one();
-    if (!recv_routine_->timed_join(boost::posix_time::seconds(5))) {
-      // forcing to interrupt the thread
-      recv_routine_->interrupt();
-      recv_routine_->join();
-    }
-  }
-  if (ping_rendz_routine_.get()) {
-    {
-      boost::mutex::scoped_lock lock(ping_rendez_mutex_);
-      if (!ping_rendezvous_) {
-        ping_rendezvous_ = true;
-      }
-      ping_rend_cond_.notify_one();
-    }
-    if (!ping_rendz_routine_->timed_join(boost::posix_time::seconds(5))) {
-      // forcing to interrupt the thread
-      ping_rendz_routine_->interrupt();
-      ping_rendz_routine_->join();
-    }
-    ping_rendezvous_ = false;
-  }
-  if (handle_msgs_routine_.get()) {
-    msg_hdl_cond_.notify_one();
-    if (!handle_msgs_routine_->timed_join(boost::posix_time::seconds(5))) {
-      // forcing to interrupt the thread
-      handle_msgs_routine_->interrupt();
-      handle_msgs_routine_->join();
-    }
-  }
+//   if (send_routine_.get()) {
+//     send_cond_.notify_one();
+//     if (!send_routine_->timed_join(boost::posix_time::seconds(5))) {
+//       // forcing to interrupt the thread
+//       send_routine_->interrupt();
+//       send_routine_->join();
+//     }
+//   }
+//   if (accept_routine_.get()) {
+//     if (!accept_routine_->timed_join(boost::posix_time::seconds(5))) {
+//       // forcing to interrupt the thread
+//       accept_routine_->interrupt();
+//       accept_routine_->join();
+//     }
+//   }
+//   if (recv_routine_.get()) {
+//     recv_cond_.notify_one();
+//     if (!recv_routine_->timed_join(boost::posix_time::seconds(5))) {
+//       // forcing to interrupt the thread
+//       recv_routine_->interrupt();
+//       recv_routine_->join();
+//     }
+//   }
+//   if (ping_rendz_routine_.get()) {
+//     {
+//       boost::mutex::scoped_lock lock(ping_rendez_mutex_);
+//       if (!ping_rendezvous_) {
+//         ping_rendezvous_ = true;
+//       }
+//       ping_rend_cond_.notify_one();
+//     }
+//     if (!ping_rendz_routine_->timed_join(boost::posix_time::seconds(5))) {
+//       // forcing to interrupt the thread
+//       ping_rendz_routine_->interrupt();
+//       ping_rendz_routine_->join();
+//     }
+//     ping_rendezvous_ = false;
+//   }
+//   if (handle_msgs_routine_.get()) {
+//     msg_hdl_cond_.notify_one();
+//     if (!handle_msgs_routine_->timed_join(boost::posix_time::seconds(5))) {
+//       // forcing to interrupt the thread
+//       handle_msgs_routine_->interrupt();
+//       handle_msgs_routine_->join();
+//     }
+//   }
   UDT::close(listening_socket_);
   std::map<boost::uint32_t, IncomingData>::iterator it;
   for (it = incoming_sockets_.begin(); it != incoming_sockets_.end(); it++)
@@ -414,201 +437,201 @@ bool TransportUDT::peer_address(struct sockaddr* addr) {
     return true;
 }
 
-void TransportUDT::ReceiveHandler() {
-  timeval tv;
-  tv.tv_sec = 0;
-  tv.tv_usec = 1000;
-  UDT::UDSET readfds;
-  while (true) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    {
-      boost::mutex::scoped_lock guard(recv_mutex_);
-      while (incoming_sockets_.empty() && !stop_) {
-        recv_cond_.wait(guard);
-      }
-    }
-    if (stop_) return;
-    // read data.
-    std::list<boost::uint32_t> dead_connections_ids;
-    std::map<boost::uint32_t, IncomingData>::iterator it;
-    {
-    boost::mutex::scoped_lock guard(recv_mutex_);
-    UD_ZERO(&readfds);
-    for (it = incoming_sockets_.begin(); it != incoming_sockets_.end(); ++it) {
-      int res = UDT::send((*it).second.udt_socket, NULL, 0, 0);
-      if (res == 0) {
-        UD_SET((*it).second.udt_socket, &readfds);
-      } else {
-        dead_connections_ids.push_back((*it).first);
-      }
-    }
-    }
-    int res = UDT::select(0, &readfds, NULL, NULL, &tv);
-    {
-    boost::mutex::scoped_lock guard(recv_mutex_);
-    if (res != UDT::ERROR) {
-      for (it = incoming_sockets_.begin(); it != incoming_sockets_.end();
-           ++it) {
-        if (UD_ISSET((*it).second.udt_socket, &readfds)) {
-          int result = 0;
-          // save the remote peer address
-          int peer_addr_size = sizeof(struct sockaddr);
-          if (UDT::ERROR == UDT::getpeername((*it).second.udt_socket,
-              &peer_address_, &peer_addr_size)) {
-            continue;
-          }
-          if ((*it).second.expect_size == 0) {
-            // get size information
-            int64_t size;
-            if (UDT::ERROR == UDT::recv((*it).second.udt_socket,
-                reinterpret_cast<char*>(&size), sizeof(size), 0)) {
-              if (UDT::getlasterror().getErrorCode() !=
-                  CUDTException::EASYNCRCV) {
-                UDT::close((*it).second.udt_socket);
-                dead_connections_ids.push_back((*it).first);
-                continue;
-              }
-              continue;
-            }
-            if (size > 0) {
-              (*it).second.expect_size = size;
-            } else {
-              UDT::close((*it).second.udt_socket);
-              dead_connections_ids.push_back((*it).first);
-              continue;
-            }
-          } else {
-            if ((*it).second.data == NULL)
-              (*it).second.data = boost::shared_array<char>
-                  (new char[(*it).second.expect_size]);
-            int rsize = 0;
-            if (UDT::ERROR == (rsize = UDT::recv((*it).second.udt_socket,
-                (*it).second.data.get() + (*it).second.received_size,
-                (*it).second.expect_size - (*it).second.received_size,
-                0))) {
-              if (UDT::getlasterror().getErrorCode() !=
-                  CUDTException::EASYNCRCV) {
-                UDT::close((*it).second.udt_socket);
-                dead_connections_ids.push_back((*it).first);
-                continue;
-              }
-              continue;
-            }
-            (*it).second.received_size += rsize;
-            UDT::TRACEINFO perf;
-            if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket, &perf)) {
-              DLOG(ERROR) << "UDT permon error: " <<
-                  UDT::getlasterror().getErrorMessage() << std::endl;
-            } else {
-              (*it).second.cumulative_rtt += perf.msRTT;
-              ++(*it).second.observations;
-            }
-            if ((*it).second.expect_size <= (*it).second.received_size) {
-              ++last_id_;
-              std::string message = std::string((*it).second.data.get(),
-                                    (*it).second.expect_size);
-              boost::uint32_t connection_id = (*it).first;
-              (*it).second.expect_size = 0;
-              (*it).second.received_size = 0;
-              TransportMessage t_msg;
-              if (t_msg.ParseFromString(message)) {
-                if (t_msg.has_hp()) {
-                  HandleRendezvousMsgs(t_msg.hp());
-                  result = UDT::close((*it).second.udt_socket);
-                  dead_connections_ids.push_back((*it).first);
-                } else if (t_msg.has_rpc()) {
-                  IncomingMessages msg(connection_id, transport_id());
-                  msg.msg = t_msg.rpc();
-                  DLOG(INFO) << "(" << listening_port_ << ") message for id "
-                      << connection_id << " arrived" << std::endl;
-                  UDT::TRACEINFO perf;
-                  if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
-                      &perf)) {
-                    DLOG(ERROR) << "UDT permon error: " <<
-                        UDT::getlasterror().getErrorMessage() << std::endl;
-                  } else {
-                    msg.rtt = perf.msRTT;
-                    if ((*it).second.observations != 0) {
-                      msg.rtt = (*it).second.cumulative_rtt /
-                          static_cast<double>((*it).second.observations);
-                    } else {
-                      msg.rtt = 0.0;
-                    }
-                  }
-                  data_arrived_.insert(connection_id);
-                  {  // NOLINT Fraser
-                    boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
-                    ips_from_connections_[connection_id] = peer_address_;
-                    incoming_msgs_queue_.push_back(msg);
-                  }
-                  msg_hdl_cond_.notify_one();
-                } else {
-                  LOG(WARNING) << "( " << listening_port_ <<
-                      ") Invalid Message received" << std::endl;
-                }
-              } else /* TODO FIXME if (!message_notifier_.empty()) */{
-                IncomingMessages msg(connection_id, transport_id());
-                msg.raw_data = message;
-                DLOG(INFO) << "(" << listening_port_ << ") message for id "
-                    << connection_id << " arrived" << std::endl;
-                UDT::TRACEINFO perf;
-                if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
-                    &perf)) {
-                  DLOG(ERROR) << "UDT permon error: " <<
-                      UDT::getlasterror().getErrorMessage() << std::endl;
-                } else {
-                  msg.rtt = perf.msRTT;
-                  if ((*it).second.observations != 0) {
-                    msg.rtt = (*it).second.cumulative_rtt /
-                        static_cast<double>((*it).second.observations);
-                  } else {
-                    msg.rtt = 0.0;
-                  }
-                }
-                data_arrived_.insert(connection_id);
-                {  // NOLINT Fraser
-                  boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
-                  ips_from_connections_[connection_id] = peer_address_;
-                  incoming_msgs_queue_.push_back(msg);
-                }
-                msg_hdl_cond_.notify_one();
-              } /*TODO FIXME else {
-                LOG(WARNING) << "( " << listening_port_ <<
-                    ") Invalid Message received" << std::endl;
-              }*/
-            }
-          }
-        }
-      }
-    }
-    // Deleting dead connections
-    std::list<boost::uint32_t>::iterator it1;
-    for (it1 = dead_connections_ids.begin(); it1 != dead_connections_ids.end();
-         ++it1) {
-      UDT::close(incoming_sockets_[*it1].udt_socket);
-      incoming_sockets_.erase(*it1);
-    }
-    }
-  }
-}
-
-void TransportUDT::AddIncomingConnection(UdtSocket udt_socket,
-                                         boost::uint32_t *connection_id) {
-  boost::mutex::scoped_lock guard(recv_mutex_);
-  current_id_ = base::GenerateNextTransactionId(current_id_);
-  IncomingData data(udt_socket);
-  incoming_sockets_[current_id_] = data;
-  *connection_id = current_id_;
-  recv_cond_.notify_one();
-}
-
-void TransportUDT::AddIncomingConnection(UdtSocket udt_socket) {
-  boost::mutex::scoped_lock guard(recv_mutex_);
-  current_id_ = base::GenerateNextTransactionId(current_id_);
-  IncomingData data(udt_socket);
-  incoming_sockets_[current_id_] = data;
-  recv_cond_.notify_one();
-}
+// void TransportUDT::ReceiveHandler() {
+//   timeval tv;
+//   tv.tv_sec = 0;
+//   tv.tv_usec = 1000;
+//   UDT::UDSET readfds;
+//   while (true) {
+//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+//     {
+//       boost::mutex::scoped_lock guard(recv_mutex_);
+//       while (incoming_sockets_.empty() && !stop_) {
+//         recv_cond_.wait(guard);
+//       }
+//     }
+//     if (stop_) return;
+//     // read data.
+//     std::list<boost::uint32_t> dead_connections_ids;
+//     std::map<boost::uint32_t, IncomingData>::iterator it;
+//     {
+//     boost::mutex::scoped_lock guard(recv_mutex_);
+//     UD_ZERO(&readfds);
+//     for (it = incoming_sockets_.begin(); it != incoming_sockets_.end(); ++it) {
+//       int res = UDT::send((*it).second.udt_socket, NULL, 0, 0);
+//       if (res == 0) {
+//         UD_SET((*it).second.udt_socket, &readfds);
+//       } else {
+//         dead_connections_ids.push_back((*it).first);
+//       }
+//     }
+//     }
+//     int res = UDT::select(0, &readfds, NULL, NULL, &tv);
+//     {
+//     boost::mutex::scoped_lock guard(recv_mutex_);
+//     if (res != UDT::ERROR) {
+//       for (it = incoming_sockets_.begin(); it != incoming_sockets_.end();
+//            ++it) {
+//         if (UD_ISSET((*it).second.udt_socket, &readfds)) {
+//           int result = 0;
+//           // save the remote peer address
+//           int peer_addr_size = sizeof(struct sockaddr);
+//           if (UDT::ERROR == UDT::getpeername((*it).second.udt_socket,
+//               &peer_address_, &peer_addr_size)) {
+//             continue;
+//           }
+//           if ((*it).second.expect_size == 0) {
+//             // get size information
+//             int64_t size;
+//             if (UDT::ERROR == UDT::recv((*it).second.udt_socket,
+//                 reinterpret_cast<char*>(&size), sizeof(size), 0)) {
+//               if (UDT::getlasterror().getErrorCode() !=
+//                   CUDTException::EASYNCRCV) {
+//                 UDT::close((*it).second.udt_socket);
+//                 dead_connections_ids.push_back((*it).first);
+//                 continue;
+//               }
+//               continue;
+//             }
+//             if (size > 0) {
+//               (*it).second.expect_size = size;
+//             } else {
+//               UDT::close((*it).second.udt_socket);
+//               dead_connections_ids.push_back((*it).first);
+//               continue;
+//             }
+//           } else {
+//             if ((*it).second.data == NULL)
+//               (*it).second.data = boost::shared_array<char>
+//                   (new char[(*it).second.expect_size]);
+//             int rsize = 0;
+//             if (UDT::ERROR == (rsize = UDT::recv((*it).second.udt_socket,
+//                 (*it).second.data.get() + (*it).second.received_size,
+//                 (*it).second.expect_size - (*it).second.received_size,
+//                 0))) {
+//               if (UDT::getlasterror().getErrorCode() !=
+//                   CUDTException::EASYNCRCV) {
+//                 UDT::close((*it).second.udt_socket);
+//                 dead_connections_ids.push_back((*it).first);
+//                 continue;
+//               }
+//               continue;
+//             }
+//             (*it).second.received_size += rsize;
+//             UDT::TRACEINFO perf;
+//             if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket, &perf)) {
+//               DLOG(ERROR) << "UDT permon error: " <<
+//                   UDT::getlasterror().getErrorMessage() << std::endl;
+//             } else {
+//               (*it).second.cumulative_rtt += perf.msRTT;
+//               ++(*it).second.observations;
+//             }
+//             if ((*it).second.expect_size <= (*it).second.received_size) {
+//               ++last_id_;
+//               std::string message = std::string((*it).second.data.get(),
+//                                     (*it).second.expect_size);
+//               boost::uint32_t connection_id = (*it).first;
+//               (*it).second.expect_size = 0;
+//               (*it).second.received_size = 0;
+//               TransportMessage t_msg;
+//               if (t_msg.ParseFromString(message)) {
+//                 if (t_msg.has_hp()) {
+//                   HandleRendezvousMsgs(t_msg.hp());
+//                   result = UDT::close((*it).second.udt_socket);
+//                   dead_connections_ids.push_back((*it).first);
+//                 } else if (t_msg.has_rpc()) {
+//                   IncomingMessages msg(connection_id);
+//                   msg.msg = t_msg.rpc();
+//                   DLOG(INFO) << "(" << listening_port_ << ") message for id "
+//                       << connection_id << " arrived" << std::endl;
+//                   UDT::TRACEINFO perf;
+//                   if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
+//                       &perf)) {
+//                     DLOG(ERROR) << "UDT permon error: " <<
+//                         UDT::getlasterror().getErrorMessage() << std::endl;
+//                   } else {
+//                     msg.rtt = perf.msRTT;
+//                     if ((*it).second.observations != 0) {
+//                       msg.rtt = (*it).second.cumulative_rtt /
+//                           static_cast<double>((*it).second.observations);
+//                     } else {
+//                       msg.rtt = 0.0;
+//                     }
+//                   }
+//                   data_arrived_.insert(connection_id);
+//                   {  // NOLINT Fraser
+//                     boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
+//                     ips_from_connections_[connection_id] = peer_address_;
+//                     incoming_msgs_queue_.push_back(msg);
+//                   }
+//                   msg_hdl_cond_.notify_one();
+//                 } else {
+//                   LOG(WARNING) << "( " << listening_port_ <<
+//                       ") Invalid Message received" << std::endl;
+//                 }
+//               } else /* TODO FIXME if (!message_notifier_.empty()) */{
+//                 IncomingMessages msg(connection_id);
+//                 msg.raw_data = message;
+//                 DLOG(INFO) << "(" << listening_port_ << ") message for id "
+//                     << connection_id << " arrived" << std::endl;
+//                 UDT::TRACEINFO perf;
+//                 if (UDT::ERROR == UDT::perfmon((*it).second.udt_socket,
+//                     &perf)) {
+//                   DLOG(ERROR) << "UDT permon error: " <<
+//                       UDT::getlasterror().getErrorMessage() << std::endl;
+//                 } else {
+//                   msg.rtt = perf.msRTT;
+//                   if ((*it).second.observations != 0) {
+//                     msg.rtt = (*it).second.cumulative_rtt /
+//                         static_cast<double>((*it).second.observations);
+//                   } else {
+//                     msg.rtt = 0.0;
+//                   }
+//                 }
+//                 data_arrived_.insert(connection_id);
+//                 {  // NOLINT Fraser
+//                   boost::mutex::scoped_lock guard1(msg_hdl_mutex_);
+//                   ips_from_connections_[connection_id] = peer_address_;
+//                   incoming_msgs_queue_.push_back(msg);
+//                 }
+//                 msg_hdl_cond_.notify_one();
+//               } /*TODO FIXME else {
+//                 LOG(WARNING) << "( " << listening_port_ <<
+//                     ") Invalid Message received" << std::endl;
+//               }*/
+//             }
+//           }
+//         }
+//       }
+//     }
+//     // Deleting dead connections
+//     std::list<boost::uint32_t>::iterator it1;
+//     for (it1 = dead_connections_ids.begin(); it1 != dead_connections_ids.end();
+//          ++it1) {
+//       UDT::close(incoming_sockets_[*it1].udt_socket);
+//       incoming_sockets_.erase(*it1);
+//     }
+//     }
+//   }
+// }
+// 
+// void TransportUDT::AddIncomingConnection(UdtSocket udt_socket,
+//                                          boost::uint32_t *connection_id) {
+//   boost::mutex::scoped_lock guard(recv_mutex_);
+//   current_id_ = base::GenerateNextTransactionId(current_id_);
+//   IncomingData data(udt_socket);
+//   incoming_sockets_[current_id_] = data;
+//   *connection_id = current_id_;
+//   recv_cond_.notify_one();
+// }
+// 
+// void TransportUDT::AddIncomingConnection(UdtSocket udt_socket) {
+//   boost::mutex::scoped_lock guard(recv_mutex_);
+//   current_id_ = base::GenerateNextTransactionId(current_id_);
+//   IncomingData data(udt_socket);
+//   incoming_sockets_[current_id_] = data;
+//   recv_cond_.notify_one();
+// }
 
 TransportCondition TransportUDT::CloseConnection(const boost::uint32_t &connection_id) {
   std::map<boost::uint32_t, IncomingData>::iterator it;
@@ -772,52 +795,52 @@ int TransportUDT::Connect(const std::string &peer_address,
   return 0;
 }
 
-void TransportUDT::HandleRendezvousMsgs(const HolePunchingMsg &message) {
-  if (message.type() == FORWARD_REQ) {
-    TransportMessage t_msg;
-    HolePunchingMsg *forward_msg = t_msg.mutable_hp();
-    std::string peer_ip(inet_ntoa(((
-      struct sockaddr_in *)&peer_address_)->sin_addr));
-    boost::uint16_t peer_port =
-      ntohs(((struct sockaddr_in *)&peer_address_)->sin_port);
-    forward_msg->set_ip(peer_ip);
-    forward_msg->set_port(peer_port);
-    forward_msg->set_type(FORWARD_MSG);
-    std::string ser_msg;
-    t_msg.SerializeToString(&ser_msg);
-    boost::uint32_t connection_id;
-    if (0 == ConnectToSend(message.ip(), message.port(), "", 0, "", 0, false,
-                           &connection_id))
-      Send(ser_msg, kString, connection_id, true, false);
-  } else if (message.type() == FORWARD_MSG) {
-    UDTSOCKET skt;
-    if (Connect(message.ip(), message.port(), &skt) == 0) {
-      UDT::close(skt);
-    }
-  }
-}
-
-void TransportUDT::StartPingRendezvous(
-    const bool &directly_connected,
-    const std::string &my_rendezvous_ip,
-    const boost::uint16_t &my_rendezvous_port) {
-  my_rendezvous_port_ = my_rendezvous_port;
-  if (my_rendezvous_ip.length() == 4)
-    my_rendezvous_ip_ = base::IpBytesToAscii(my_rendezvous_ip);
-  else
-    my_rendezvous_ip_ = my_rendezvous_ip;
-  {
-    boost::mutex::scoped_lock lock(ping_rendez_mutex_);
-    directly_connected_ = directly_connected;
-    ping_rendezvous_ = true;
-  }
-  ping_rend_cond_.notify_one();
-}
-
-void TransportUDT::StopPingRendezvous() {
-  boost::mutex::scoped_lock guard(ping_rendez_mutex_);
-  ping_rendezvous_ = false;
-}
+// void TransportUDT::HandleRendezvousMsgs(const HolePunchingMsg &message) {
+//   if (message.type() == FORWARD_REQ) {
+//     TransportMessage t_msg;
+//     HolePunchingMsg *forward_msg = t_msg.mutable_hp();
+//     std::string peer_ip(inet_ntoa(((
+//       struct sockaddr_in *)&peer_address_)->sin_addr));
+//     boost::uint16_t peer_port =
+//       ntohs(((struct sockaddr_in *)&peer_address_)->sin_port);
+//     forward_msg->set_ip(peer_ip);
+//     forward_msg->set_port(peer_port);
+//     forward_msg->set_type(FORWARD_MSG);
+//     std::string ser_msg;
+//     t_msg.SerializeToString(&ser_msg);
+//     boost::uint32_t connection_id;
+//     if (0 == ConnectToSend(message.ip(), message.port(), "", 0, "", 0, false,
+//                            &connection_id))
+//       Send(ser_msg, kString, connection_id, true, false);
+//   } else if (message.type() == FORWARD_MSG) {
+//     UDTSOCKET skt;
+//     if (Connect(message.ip(), message.port(), &skt) == 0) {
+//       UDT::close(skt);
+//     }
+//   }
+// }
+// 
+// void TransportUDT::StartPingRendezvous(
+//     const bool &directly_connected,
+//     const std::string &my_rendezvous_ip,
+//     const boost::uint16_t &my_rendezvous_port) {
+//   my_rendezvous_port_ = my_rendezvous_port;
+//   if (my_rendezvous_ip.length() == 4)
+//     my_rendezvous_ip_ = base::IpBytesToAscii(my_rendezvous_ip);
+//   else
+//     my_rendezvous_ip_ = my_rendezvous_ip;
+//   {
+//     boost::mutex::scoped_lock lock(ping_rendez_mutex_);
+//     directly_connected_ = directly_connected;
+//     ping_rendezvous_ = true;
+//   }
+//   ping_rend_cond_.notify_one();
+// }
+// 
+// void TransportUDT::StopPingRendezvous() {
+//   boost::mutex::scoped_lock guard(ping_rendez_mutex_);
+//   ping_rendezvous_ = false;
+// }
 
 void TransportUDT::PingHandle() {
   while (true) {
@@ -1021,7 +1044,7 @@ void TransportUDT::ReceiveData(UdtSocket* receiver) {
         HandleRendezvousMsgs(t_msg.hp());
       } else if (t_msg.has_rpc()) {
         LOG(INFO) << "Parsed message its Hole punching RPC" << std::endl;
-        SignalRPCMessageReceived_(t_msg.rpc(), connection_id, rtt);
+        SignalRPCRequestReceived_(t_msg.rpc() , connection_id, rtt);
 /*      } else if (t_msg.hp_msg()) {
         LOG(INFO) << "Parsed message its a message" << std::endl;
         SignalMessageReceived_(message, connection_id, rtt);*/
@@ -1029,46 +1052,47 @@ void TransportUDT::ReceiveData(UdtSocket* receiver) {
         LOG(INFO) << "Normal message " << std::endl;
         SignalMessageReceived_(data, connection_id, rtt);
       }
-  }
-  LOG(INFO) << "All done !!" << std::endl;
-  return;
-}
-
-void TransportUDT::MessageHandler() {
-  while (true) {
-    {
-      {
-        boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-        while (incoming_msgs_queue_.empty() && !stop_) {
-          msg_hdl_cond_.wait(guard);
-        }
-      }
-      if (stop_) return;
-      IncomingMessages msg;
-      {
-        boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-        msg.msg = incoming_msgs_queue_.front().msg;
-        msg.raw_data = incoming_msgs_queue_.front().raw_data;
-        msg.connection_id = incoming_msgs_queue_.front().connection_id;
-        msg.rtt = incoming_msgs_queue_.front().rtt;
-        incoming_msgs_queue_.pop_front();
-      }
-      {
-        boost::mutex::scoped_lock gaurd(recv_mutex_);
-        data_arrived_.erase(msg.connection_id);
-      }
-      if (msg.raw_data.empty())
-        SignalRPCMessageReceived_(msg.msg, msg.connection_id,
-                              msg.rtt);
-      else
-        SignalMessageReceived_(msg.raw_data, msg.connection_id,
-                          msg.rtt);
-      ips_from_connections_.erase(msg.connection_id);
-      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    }
+  } else { 
+  LOG(INFO) << "Bad data - not parsed" << std::endl;
+  UDT::close(recver);
   }
 }
 
+// void TransportUDT::MessageHandler() {
+//   while (true) {
+//     {
+//       {
+//         boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//         while (incoming_msgs_queue_.empty() && !stop_) {
+//           msg_hdl_cond_.wait(guard);
+//         }
+//       }
+//       if (stop_) return;
+//       IncomingMessages msg;
+//       {
+//         boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//         msg.msg = incoming_msgs_queue_.front().msg;
+//         msg.raw_data = incoming_msgs_queue_.front().raw_data;
+//         msg.connection_id = incoming_msgs_queue_.front().connection_id;
+//         msg.rtt = incoming_msgs_queue_.front().rtt;
+//         incoming_msgs_queue_.pop_front();
+//       }
+//       {
+//         boost::mutex::scoped_lock gaurd(recv_mutex_);
+//         data_arrived_.erase(msg.connection_id);
+//       }
+//       if (msg.raw_data.empty())
+//         SignalRPCMessageReceived_(msg.msg, msg.connection_id,
+//                               msg.rtt);
+//       else
+//         SignalMessageReceived_(msg.raw_data, msg.connection_id,
+//                           msg.rtt);
+//       ips_from_connections_.erase(msg.connection_id);
+//       boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+//     }
+//   }
+// }
+// 
 
 
 bool TransportUDT::IsAddressUsable(const std::string &local_ip,
@@ -1142,172 +1166,172 @@ bool TransportUDT::GetPeerAddr(const boost::uint32_t &connection_id,
   return true;
 }
 
-int TransportUDT::ConnectToSend(const std::string &remote_ip,
-                                const boost::uint16_t &remote_port,
-                                const std::string &local_ip,
-                                const boost::uint16_t &local_port,
-                                const std::string &rendezvous_ip,
-                                const boost::uint16_t &rendezvous_port,
-                                const bool &keep_connection,
-                                boost::uint32_t *connection_id) {
-  UDTSOCKET skt;
-  // the node receiver is directly connected, no rendezvous information
-  if (rendezvous_ip.empty() && rendezvous_port == 0) {
-    bool remote(local_ip.empty() || local_port == 0);
-    // the node is believed to be local
-    if (!remote) {
-      int conn_result = Connect(local_ip, local_port, &skt);
-      if (conn_result != 0) {
-        DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend "
-            << "failed to connect to local port " << local_port <<
-            " with udp error " << conn_result << std::endl;
-        UDT::close(skt);
-        remote = true;
-        (*base::PublicRoutingTable::GetInstance())
-            [base::IntToString(listening_port_)]->
-                UpdateLocalToUnknown(local_ip, local_port);
-      }
-    }
-    if (remote) {
-      int conn_result = Connect(remote_ip, remote_port, &skt);
-      if (conn_result != 0) {
-        DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend "
-            << "failed to connect to remote port " << remote_port << std::endl;
-        UDT::close(skt);
-        return conn_result;
-      }
-    }
-  } else {
-    UDTSOCKET rend_skt;
-    int conn_result = Connect(rendezvous_ip, rendezvous_port, &rend_skt);
-    if (conn_result != 0) {
-      DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend " <<
-          "failed to connect to rendezvouz port " << rendezvous_port <<
-          std::endl;
-      UDT::close(rend_skt);
-      return conn_result;
-    }
-    TransportMessage t_msg;
-    HolePunchingMsg *msg = t_msg.mutable_hp();
-    msg->set_ip(remote_ip);
-    msg->set_port(remote_port);
-    msg->set_type(FORWARD_REQ);
-    std::string ser_msg;
-    t_msg.SerializeToString(&ser_msg);
-    int64_t rend_data_size = ser_msg.size();
+// int TransportUDT::ConnectToSend(const std::string &remote_ip,
+//                                 const boost::uint16_t &remote_port,
+//                                 const std::string &local_ip,
+//                                 const boost::uint16_t &local_port,
+//                                 const std::string &rendezvous_ip,
+//                                 const boost::uint16_t &rendezvous_port,
+//                                 const bool &keep_connection,
+//                                 boost::uint32_t *connection_id) {
+//   UDTSOCKET skt;
+//   // the node receiver is directly connected, no rendezvous information
+//   if (rendezvous_ip.empty() && rendezvous_port == 0) {
+//     bool remote(local_ip.empty() || local_port == 0);
+//     // the node is believed to be local
+//     if (!remote) {
+//       int conn_result = Connect(local_ip, local_port, &skt);
+//       if (conn_result != 0) {
+//         DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend "
+//             << "failed to connect to local port " << local_port <<
+//             " with udp error " << conn_result << std::endl;
+//         UDT::close(skt);
+//         remote = true;
+//         (*base::PublicRoutingTable::GetInstance())
+//             [base::IntToString(listening_port_)]->
+//                 UpdateLocalToUnknown(local_ip, local_port);
+//       }
+//     }
+//     if (remote) {
+//       int conn_result = Connect(remote_ip, remote_port, &skt);
+//       if (conn_result != 0) {
+//         DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend "
+//             << "failed to connect to remote port " << remote_port << std::endl;
+//         UDT::close(skt);
+//         return conn_result;
+//       }
+//     }
+//   } else {
+//     UDTSOCKET rend_skt;
+//     int conn_result = Connect(rendezvous_ip, rendezvous_port, &rend_skt);
+//     if (conn_result != 0) {
+//       DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend " <<
+//           "failed to connect to rendezvouz port " << rendezvous_port <<
+//           std::endl;
+//       UDT::close(rend_skt);
+//       return conn_result;
+//     }
+//     TransportMessage t_msg;
+//     HolePunchingMsg *msg = t_msg.mutable_hp();
+//     msg->set_ip(remote_ip);
+//     msg->set_port(remote_port);
+//     msg->set_type(FORWARD_REQ);
+//     std::string ser_msg;
+//     t_msg.SerializeToString(&ser_msg);
+//     int64_t rend_data_size = ser_msg.size();
+// 
+//     // send rendezvous msg size information
+//     if (UDT::ERROR == UDT::send(rend_skt,
+//         reinterpret_cast<char*>(&rend_data_size),
+//         sizeof(rend_data_size), 0)) {
+//       UDT::close(rend_skt);
+//       return 1;
+//     }
+// 
+//     if (UDT::ERROR == UDT::send(rend_skt, ser_msg.c_str(), rend_data_size, 0)) {
+//       UDT::close(rend_skt);
+//       return 1;
+//     }
+//     // TODO(jose): establish connect in a thread or in another asynchronous
+//     // way to avoid blocking in the upper layers
+//     int retries = 4;
+//     bool connected = false;
+//     for (int i = 0; i < retries && !connected; ++i) {
+//       conn_result = Connect(remote_ip, remote_port, &skt);
+//       if (conn_result == 0)
+//         connected = true;
+//     }
+//     if (!connected) {
+//       DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend " <<
+//           "failed to connect to remote port " << remote_port << std::endl;
+//       UDT::close(skt);
+//       return conn_result;
+//     }
+//   }
+//   if (keep_connection) {
+//    // AddIncomingConnection(skt, connection_id);
+//   } else  {
+//     current_id_ = base::GenerateNextTransactionId(current_id_);
+//     *connection_id = current_id_;
+//   }
+//   {
+//     boost::mutex::scoped_lock guard(msg_hdl_mutex_);
+//     send_sockets_[*connection_id] = skt;
+//   }
+//   return 0;
+// }
 
-    // send rendezvous msg size information
-    if (UDT::ERROR == UDT::send(rend_skt,
-        reinterpret_cast<char*>(&rend_data_size),
-        sizeof(rend_data_size), 0)) {
-      UDT::close(rend_skt);
-      return 1;
-    }
-
-    if (UDT::ERROR == UDT::send(rend_skt, ser_msg.c_str(), rend_data_size, 0)) {
-      UDT::close(rend_skt);
-      return 1;
-    }
-    // TODO(jose): establish connect in a thread or in another asynchronous
-    // way to avoid blocking in the upper layers
-    int retries = 4;
-    bool connected = false;
-    for (int i = 0; i < retries && !connected; ++i) {
-      conn_result = Connect(remote_ip, remote_port, &skt);
-      if (conn_result == 0)
-        connected = true;
-    }
-    if (!connected) {
-      DLOG(ERROR) << "(" << listening_port_ << ") Transport::ConnectToSend " <<
-          "failed to connect to remote port " << remote_port << std::endl;
-      UDT::close(skt);
-      return conn_result;
-    }
-  }
-  if (keep_connection) {
-    AddIncomingConnection(skt, connection_id);
-  } else  {
-    current_id_ = base::GenerateNextTransactionId(current_id_);
-    *connection_id = current_id_;
-  }
-  {
-    boost::mutex::scoped_lock guard(msg_hdl_mutex_);
-    send_sockets_[*connection_id] = skt;
-  }
-  return 0;
-}
-
-int TransportUDT::StartLocal(const boost::uint16_t &port) {
-  if (!stop_)
-    return 1;
-//   if ((rpc_message_notifier_.empty() && message_notifier_.empty()) ||
-//      send_notifier_.empty())
+// int TransportUDT::StartLocal(const boost::uint16_t &port) {
+//   if (!stop_)
 //     return 1;
-  listening_port_ = port;
-  memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
-  addrinfo_hints_.ai_flags = AI_PASSIVE;
-  addrinfo_hints_.ai_family = AF_INET;
-  addrinfo_hints_.ai_socktype = SOCK_STREAM;
-  std::string service = boost::lexical_cast<std::string>(port);
-  if (0 != getaddrinfo("127.0.0.1", service.c_str(), &addrinfo_hints_,
-      &addrinfo_res_)) {
-    return 1;
-  }
-  listening_socket_ = UDT::socket(addrinfo_res_->ai_family,
-      addrinfo_res_->ai_socktype, addrinfo_res_->ai_protocol);
-  // UDT Options
-//   bool blockng = false;
-//   UDT::setsockopt(listening_socket_, 0, UDT_RCVSYN, &blockng, sizeof(blockng));
-  if (UDT::ERROR == UDT::bind(listening_socket_, addrinfo_res_->ai_addr,
-      addrinfo_res_->ai_addrlen)) {
-    LOG(ERROR) << "Error binding listening socket" <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    freeaddrinfo(addrinfo_res_);
-    return 1;
-  }
-  // Modify the port to reflect the port UDT has chosen
-  struct sockaddr_in name;
-  int namelen;
-  if (listening_port_ == 0) {
-    UDT::getsockname(listening_socket_, (struct sockaddr *)&name, &namelen);
-    listening_port_ = ntohs(name.sin_port);
-        UDT::getsockname(listening_socket_, (struct sockaddr *)&name, &namelen);
-    listening_port_ = ntohs(name.sin_port);
-    std::string service = boost::lexical_cast<std::string>(listening_port_);
-    freeaddrinfo(addrinfo_res_);
-    if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
-      &addrinfo_res_)) {
-      freeaddrinfo(addrinfo_res_);
-      return 1;
-    }
-  }
-
-  if (UDT::ERROR == UDT::listen(listening_socket_, 20)) {
-    LOG(ERROR) << "Failed to start the listening socket " << listening_socket_
-        << " : " << UDT::getlasterror().getErrorMessage() << std::endl;
-    freeaddrinfo(addrinfo_res_);
-    return 1;
-  }
-  stop_ = false;
-  // start the listening loop
-  try {
-    accept_routine_.reset(new boost::thread(
-      &TransportUDT::AcceptConnHandler, this));
-    recv_routine_.reset(new boost::thread(&TransportUDT::ReceiveHandler,
-        this));
-    send_routine_.reset(new boost::thread(&TransportUDT::SendHandle, this));
-    handle_msgs_routine_.reset(new boost::thread(
-      &TransportUDT::MessageHandler, this));
-  } catch(const boost::thread_resource_error& ) {
-    stop_ = true;
-    int result;
-    result = UDT::close(listening_socket_);
-    freeaddrinfo(addrinfo_res_);
-    return 1;
-  }
-  current_id_ = base::GenerateNextTransactionId(current_id_);
-  return 0;
-}
+// //   if ((rpc_message_notifier_.empty() && message_notifier_.empty()) ||
+// //      send_notifier_.empty())
+// //     return 1;
+//   listening_port_ = port;
+//   memset(&addrinfo_hints_, 0, sizeof(struct addrinfo));
+//   addrinfo_hints_.ai_flags = AI_PASSIVE;
+//   addrinfo_hints_.ai_family = AF_INET;
+//   addrinfo_hints_.ai_socktype = SOCK_STREAM;
+//   std::string service = boost::lexical_cast<std::string>(port);
+//   if (0 != getaddrinfo("127.0.0.1", service.c_str(), &addrinfo_hints_,
+//       &addrinfo_res_)) {
+//     return 1;
+//   }
+//   listening_socket_ = UDT::socket(addrinfo_res_->ai_family,
+//       addrinfo_res_->ai_socktype, addrinfo_res_->ai_protocol);
+//   // UDT Options
+// //   bool blockng = false;
+// //   UDT::setsockopt(listening_socket_, 0, UDT_RCVSYN, &blockng, sizeof(blockng));
+//   if (UDT::ERROR == UDT::bind(listening_socket_, addrinfo_res_->ai_addr,
+//       addrinfo_res_->ai_addrlen)) {
+//     LOG(ERROR) << "Error binding listening socket" <<
+//         UDT::getlasterror().getErrorMessage() << std::endl;
+//     freeaddrinfo(addrinfo_res_);
+//     return 1;
+//   }
+//   // Modify the port to reflect the port UDT has chosen
+//   struct sockaddr_in name;
+//   int namelen;
+//   if (listening_port_ == 0) {
+//     UDT::getsockname(listening_socket_, (struct sockaddr *)&name, &namelen);
+//     listening_port_ = ntohs(name.sin_port);
+//         UDT::getsockname(listening_socket_, (struct sockaddr *)&name, &namelen);
+//     listening_port_ = ntohs(name.sin_port);
+//     std::string service = boost::lexical_cast<std::string>(listening_port_);
+//     freeaddrinfo(addrinfo_res_);
+//     if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
+//       &addrinfo_res_)) {
+//       freeaddrinfo(addrinfo_res_);
+//       return 1;
+//     }
+//   }
+// 
+//   if (UDT::ERROR == UDT::listen(listening_socket_, 20)) {
+//     LOG(ERROR) << "Failed to start the listening socket " << listening_socket_
+//         << " : " << UDT::getlasterror().getErrorMessage() << std::endl;
+//     freeaddrinfo(addrinfo_res_);
+//     return 1;
+//   }
+//   stop_ = false;
+//   // start the listening loop
+//   try {
+//     accept_routine_.reset(new boost::thread(
+//       &TransportUDT::AcceptConnHandler, this));
+//     recv_routine_.reset(new boost::thread(&TransportUDT::ReceiveHandler,
+//         this));
+//     send_routine_.reset(new boost::thread(&TransportUDT::SendHandle, this));
+//     handle_msgs_routine_.reset(new boost::thread(
+//       &TransportUDT::MessageHandler, this));
+//   } catch(const boost::thread_resource_error& ) {
+//     stop_ = true;
+//     int result;
+//     result = UDT::close(listening_socket_);
+//     freeaddrinfo(addrinfo_res_);
+//     return 1;
+//   }
+//   current_id_ = base::GenerateNextTransactionId(current_id_);
+//   return 0;
+// }
 
 bool TransportUDT::IsPortAvailable(const boost::uint16_t &port) {
   struct addrinfo addrinfo_hints;

@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/descriptor.h>
 #include <typeinfo>
 #include "maidsafe/base/log.h"
-#include "maidsafe/protobuf/rpcmessage.pb.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelimpl.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
@@ -111,22 +111,24 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
       done->Run();
       return;
     }
-    RpcMessage msg;
-    msg.set_message_id(pmanager_->CreateNewId());
-    msg.set_rpc_type(REQUEST);
+
+    transport::TransportMessage t_msg;
+    transport::RpcMessage * msg = t_msg.mutable_rpc();
+    msg->set_message_id(pmanager_->CreateNewId());
+    t_msg.set_type(transport::TransportMessage::kRequest); //set_type(Request);
     std::string ser_args;
     request->SerializeToString(&ser_args);
-    msg.set_args(ser_args);
-    msg.set_service(GetServiceName(method->full_name()));
-    msg.set_method(method->name());
+    msg->set_args(ser_args);
+    msg->set_service(GetServiceName(method->full_name()));
+    msg->set_method(method->name());
 
     PendingReq req;
     req.args = response;
     req.callback = done;
     boost::uint32_t connection_id = 0;
     Controller *ctrl = static_cast<Controller*>(controller);
-    ctrl->set_request_id(msg.message_id());
-    ctrl->set_message_info(msg.service(), msg.method());
+    ctrl->set_request_id(msg->message_id());
+    ctrl->set_message_info(msg->service(), msg->method());
     ctrl->StartRpcTimer();
     if (0 == transport_handler_->ConnectToSend(remote_ip_, remote_port_,
         local_ip_, local_port_, rv_ip_, rv_port_, true, &connection_id,
@@ -139,37 +141,37 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
         req.timeout = kRpcTimeout;
       }
       req.ctrl = ctrl;
-      if (!pmanager_->AddPendingRequest(msg.message_id(), req)) {
+      if (!pmanager_->AddPendingRequest(msg->message_id(), req)) {
         done->Run();
         return;
       }
-      pmanager_->AddTimeOutRequest(connection_id, msg.message_id(),
+      pmanager_->AddTimeOutRequest(connection_id, msg->message_id(),
                                    req.timeout);
-      if (0 != transport_handler_->Send(msg, connection_id, true,
+      if (0 != transport_handler_->Send(t_msg, connection_id, true,
           transport_id_)) {
         DLOG(WARNING) << transport_handler_->listening_port(transport_id_) <<
-          " --- Failed to send request with id " << msg.message_id()
+          " --- Failed to send request with id " << msg->message_id()
            << std::endl;
       }
     } else {
       DLOG(WARNING) << transport_handler_->listening_port(transport_id_) <<
-          " --- Failed to connect to send rpc " << msg.method() << " to " <<
-          remote_ip_ << ":" << remote_port_ << " with id " << msg.message_id()
+          " --- Failed to connect to send rpc " << msg->method() << " to " <<
+          remote_ip_ << ":" << remote_port_ << " with id " << msg->message_id()
           << std::endl;
       ctrl->set_timeout(1);
       req.timeout = ctrl->timeout();
       req.ctrl = ctrl;
-      if (!pmanager_->AddPendingRequest(msg.message_id(), req)) {
+      if (!pmanager_->AddPendingRequest(msg->message_id(), req)) {
         done->Run();
         return;
       }
-      pmanager_->AddReqToTimer(msg.message_id(), req.timeout);
+      pmanager_->AddReqToTimer(msg->message_id(), req.timeout);
       return;
     }
     DLOG(INFO) << transport_handler_->listening_port(transport_id_) <<
-      " --- Sending rpc " << msg.method() << " to " << remote_ip_ << ":" <<
+      " --- Sending rpc " << msg->method() << " to " << remote_ip_ << ":" <<
       remote_port_ << " connection_id = " << connection_id << " -- rpc_id = " <<
-      msg.message_id() << std::endl;
+      msg->message_id() << std::endl;
 }
 
 std::string ChannelImpl::GetServiceName(const std::string &full_name) {
@@ -197,7 +199,7 @@ void ChannelImpl::SetService(google::protobuf::Service* service) {
   pservice_ = service;
 }
 
-void ChannelImpl::HandleRequest(const RpcMessage &request,
+void ChannelImpl::HandleRequest(const transport::RpcMessage &request,
                                 const boost::uint32_t &connection_id,
                                 const boost::int16_t &transport_id,
                                 const float &rtt) {
@@ -233,13 +235,14 @@ void ChannelImpl::HandleRequest(const RpcMessage &request,
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,
                                RpcInfo info) {
-  RpcMessage response_msg;
-  response_msg.set_message_id(info.rpc_id);
-  response_msg.set_rpc_type(RESPONSE);
+  transport::TransportMessage t_msg;
+  transport::RpcMessage * response_msg;
+  response_msg->set_message_id(info.rpc_id);
+  t_msg.set_type(transport::TransportMessage::kResponse);
   std::string ser_response;
   response->SerializeToString(&ser_response);
-  response_msg.set_args(ser_response);
-  if (0 != transport_handler_->Send(response_msg, info.connection_id, false,
+  response_msg->set_args(ser_response);
+  if (0 != transport_handler_->Send(t_msg, info.connection_id, false,
       info.transport_id)) {
     DLOG(WARNING) << transport_handler_->listening_port(info.transport_id) <<
         " Failed to send response to connection " << info.connection_id

@@ -62,22 +62,22 @@ class TransportTCP : public Transport {
                     const boost::uint16_t &rendezvous_port,
                     const bool &keep_connection,
                     boost::uint32_t *connection_id);
-  int Send(const rpcprotocol::RpcMessage &data,
-           const boost::uint32_t &connection_id, const bool &new_socket);
+//   int Send(const rpcprotocol::RpcMessage &data,
+//            const boost::uint32_t &connection_id, const bool &new_socket);
   int Send(const std::string &data, const boost::uint32_t &connection_id,
            const bool &new_socket);
-  bool RegisterOnRPCMessage(
-      boost::function<void(const rpcprotocol::RpcMessage&,
-                           const boost::uint32_t&,
-                           const boost::int16_t&,
-                           const float &)> on_rpcmessage);
-  bool RegisterOnMessage(
-      boost::function<void(const std::string&,
-                           const boost::uint32_t&,
-                           const boost::int16_t&,
-                           const float &)> on_message);
-  bool RegisterOnSend(
-      boost::function<void(const boost::uint32_t&, const bool&)> on_send);
+//   bool RegisterOnRPCMessage(
+//       boost::function<void(const rpcprotocol::RpcMessage&,
+//                            const boost::uint32_t&,
+//                            const boost::int16_t&,
+//                            const float &)> on_rpcmessage);
+//   bool RegisterOnMessage(
+//       boost::function<void(const std::string&,
+//                            const boost::uint32_t&,
+//                            const boost::int16_t&,
+//                            const float &)> on_message);
+//   bool RegisterOnSend(
+//       boost::function<void(const boost::uint32_t&, const bool&)> on_send);
   TransportCondition CloseConnection(const boost::uint32_t &connection_id);
   void Stop();
   bool is_stopped() const { return stop_; }
@@ -118,15 +118,15 @@ class TransportTCP : public Transport {
   boost::asio::io_service io_service_;
   tcp::acceptor acceptor_;
   bool stop_;
-  boost::function<void(const rpcprotocol::RpcMessage&,
-                       const boost::uint32_t&,
-                       const boost::int16_t&,
-                       const float&)> rpc_message_notifier_;
-  boost::function<void(const std::string&,
-                       const boost::uint32_t&,
-                       const boost::int16_t&,
-                       const float&)> message_notifier_;
-  boost::function<void(const boost::uint32_t&, const bool&)> send_notifier_;
+//   boost::function<void(const rpcprotocol::RpcMessage&,
+//                        const boost::uint32_t&,
+//                        const boost::int16_t&,
+//                        const float&)> rpc_message_notifier_;
+//   boost::function<void(const std::string&,
+//                        const boost::uint32_t&,
+//                        const boost::int16_t&,
+//                        const float&)> message_notifier_;
+//   boost::function<void(const boost::uint32_t&, const bool&)> send_notifier_;
   boost::shared_ptr<boost::thread> service_routine_;
   std::map<boost::uint32_t, tcpconnection_ptr> connections_;
   boost::mutex conn_mutex_, msg_handler_mutex_, rpcmsg_handler_mutex_;

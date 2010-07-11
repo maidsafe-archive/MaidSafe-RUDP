@@ -36,6 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <string>
 #include "maidsafe/protobuf/rpcmessage.pb.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
@@ -61,36 +62,38 @@ class TransportNode {
 
 };
 
-void send_string(TransportNode* node, int port, int repeat,
-    rpcprotocol::RpcMessage msg, bool keep_conn, int our_port) {
-  boost::uint32_t id;
-  boost::asio::ip::address local_address;
-  std::string ip;
-  if (base::GetLocalAddress(&local_address)) {
-    ip = local_address.to_string();
-  } else {
-    ip = std::string("127.0.0.1");
-  }
-  for (int i = 0; i < repeat; ++i) {
-    int send_res = node->transportUDT()->ConnectToSend(ip, port, "", 0, "", 0,
-        keep_conn, &id);
-    if (send_res == 1002) {
-      // connection refused - wait 10 sec and resend
-      boost::this_thread::sleep(boost::posix_time::seconds(10));
-      send_res = node->transportUDT()->ConnectToSend(ip, port, "", 0, "", 0,
-      keep_conn, &id);
-    }
-    if (send_res == 0) {
-      node->transportUDT()->Send(msg, id, true);
-      node->IncreaseSuccessfulConn();
-    } else {
-      node->IncreaseRefusedConn();
-    }
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  }
-  LOG(INFO) << "thread " << our_port << " finished sending " <<
-      node->successful_conn() << " messages." << std::endl;
-}
+// void send_string(TransportNode* node, int port, int repeat,
+//     rpcprotocol::RpcMessage msg, bool keep_conn, int our_port) {
+//   boost::uint32_t id;
+//   boost::asio::ip::address local_address;
+//   std::string ip;
+//   if (base::GetLocalAddress(&local_address)) {
+//     ip = local_address.to_string();
+//   } else {
+//     ip = std::string("127.0.0.1");
+//   }
+//   for (int i = 0; i < repeat; ++i) {
+//     int send_res = node->transportUDT()->ConnectToSend(ip, port, "", 0, "", 0,
+//         keep_conn, &id);
+//     if (send_res == 1002) {
+//       // connection refused - wait 10 sec and resend
+//       boost::this_thread::sleep(boost::posix_time::seconds(10));
+//       send_res = node->transportUDT()->ConnectToSend(ip, port, "", 0, "", 0,
+//       keep_conn, &id);
+//     }
+//     std::string message;
+//     msg.SerializeToString(&message);
+//     if (send_res == 0) {
+//       node->transportUDT()->Send(message, id, true);
+//       node->IncreaseSuccessfulConn();
+//     } else {
+//       node->IncreaseRefusedConn();
+//     }
+//     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+//   }
+//   LOG(INFO) << "thread " << our_port << " finished sending " <<
+//       node->successful_conn() << " messages." << std::endl;
+// }
 
 class MessageHandler {
  public:
@@ -98,7 +101,7 @@ class MessageHandler {
     ids(), dead_server_(true), server_ip_(), server_port_(0), transport_(),
     msgs_sent_(0), msgs_received_(0), msgs_confirmed_(0), target_msg_(),
     keep_msgs_(true) {
-   rpc_connection_ = transport->connect_rpc_message_recieved(
+  rpc_connection_ = transport->connect_rpc_request_recieved(
        boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2, _3));
   data_sent_connection_ = transport->connect_sent((
       boost::bind(&MessageHandler::OnSend, this, _1, _2)));
@@ -188,7 +191,7 @@ class MessageHandlerEchoReq {
         << peer_port << " . RTT = " << rtt << std::endl;
     // replying same msg
     if (msgs.size() < size_t(10))
-      node_->Send(msg, connection_id, false);
+      node_->Send(message, connection_id, false);
   }
   void OnDeadRendezvousServer(const bool &dead_server, const std::string &ip,
     const boost::uint16_t &port) {
@@ -341,12 +344,24 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   ASSERT_EQ(0, node1_transudt.StartListening(0, ""));
   ASSERT_EQ(0, node2_transudt.StartListening(0, ""));
   boost::uint16_t lp_node2 = node2_transudt.listening_port();
+//    TransportMessage t_msg;
+//     HolePunchingMsg *msg = t_msg.mutable_hp();
+//     msg->set_ip(remote_ip);
+//     msg->set_port(remote_port);
+//     msg->set_type(FORWARD_REQ);
+//     std::string ser_msg;
+//     t_msg.SerializeToString(&ser_msg);
+//     int64_t rend_data_size = ser_msg.size();
   rpcprotocol::RpcMessage msg;
-  msg.set_rpc_type(rpcprotocol::REQUEST);
-  msg.set_message_id(2000);
-  msg.set_args(base::RandomString(256 * 1024));
+  transport::TransportMessage * t_msg;
+  const std::string args = base::RandomString(256 * 1024);
+  t_msg = transport::TransportMessage;
+  t_msg->set_type(transport::REQUEST);
+  t_msg->rpc().args(args); ; //::set_args(args);
+  //t_msg->set_message_id(2000);
+  //t_msg.rpc(&msg).  // set_rpc_type(rpcprotocol::REQUEST);
   std::string sent_msg;
-  msg.SerializeToString(&sent_msg);
+  t_msg->SerializeToString(&sent_msg);
   //std::string port = boost::lexical_cast<std::string>(lp_node2);
   std::string ip("127.0.0.1");
   ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, lp_node2));
@@ -355,12 +370,12 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 //   ASSERT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
 //     false, &id));
 //   ASSERT_EQ(0, node1_transudt.Send(msg, id, true));
-  // while (msg_handler2.raw_msgs.empty())
-     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  while (msg_handler2.raw_msgs.empty())
+     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
   node1_transudt.Stop();
   node2_transudt.Stop();
   ASSERT_TRUE(msg_handler1.raw_msgs.empty());
-  ASSERT_FALSE(msg_handler2.msgs.empty());
+  ASSERT_FALSE(msg_handler2.raw_msgs.empty());
   ASSERT_EQ(sent_msg, msg_handler2.raw_msgs.front());
   //ASSERT_EQ(1, msg_handler1.msgs_sent_);
 }

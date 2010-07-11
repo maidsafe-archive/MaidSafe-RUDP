@@ -37,7 +37,7 @@ namespace transport {
 TransportTCP::TransportTCP()
     : transport_id_(-1), listening_port_(0), outgoing_port_(0), current_id_(0),
       io_service_(), acceptor_(io_service_), stop_(true),
-      rpc_message_notifier_(), message_notifier_(), service_routine_(),
+      service_routine_(),
       connections_(), conn_mutex_(), msg_handler_mutex_(),
       rpcmsg_handler_mutex_(), send_handler_mutex_(), peer_addr_(),
       new_connection_() {}
@@ -176,7 +176,7 @@ TransportCondition TransportTCP::CloseConnection(const boost::uint32_t &connecti
     connections_.erase(connection_id);
   }
 }
-
+/*
 bool TransportTCP::RegisterOnMessage(boost::function<void(const std::string&,
       const boost::uint32_t&, const boost::int16_t&,
       const float &)> on_message) {
@@ -188,7 +188,7 @@ bool TransportTCP::RegisterOnMessage(boost::function<void(const std::string&,
 }
 
 bool TransportTCP::RegisterOnRPCMessage(boost::function < void(
-      const rpcprotocol::RpcMessage&, const boost::uint32_t&,
+      const transport::RpcMessage&, const boost::uint32_t&,
       const boost::int16_t&, const float &) > on_rpcmessage) {
   if (stop_) {
     rpc_message_notifier_ = on_rpcmessage;
@@ -204,7 +204,7 @@ bool TransportTCP::RegisterOnSend(boost::function < void(const boost::uint32_t&,
     return true;
   }
   return false;
-}
+}*/
 
 bool TransportTCP::CanConnect(const std::string &ip,
       const boost::uint16_t &port) {
@@ -336,17 +336,17 @@ void TransportTCP::HandleConnRecv(const std::string &msg,
 
   TransportMessage t_msg;
   if (t_msg.ParseFromString(msg)) {
-    if (t_msg.has_rpc() && !rpc_message_notifier_.empty()) {
+    if (t_msg.has_rpc()) {
       boost::mutex::scoped_lock guard(rpcmsg_handler_mutex_);
-      SignalRPCMessageReceived_(t_msg.rpc(), connection_id, 0.0);
+      SignalRPCRequestReceived_(t_msg.rpc(), connection_id, 0.0);
     }
-  } else if (!message_notifier_.empty()) {
+  } else  {
     boost::mutex::scoped_lock guard(msg_handler_mutex_);
     SignalMessageReceived_(msg, connection_id, 0.0);
-  } else {
+  } /*else {
     LOG(WARNING) << "TCP(" << listening_port_ <<
         ") Invalid Message received" << std::endl;
-  }
+  }*/
 
   {
     boost::mutex::scoped_lock guard(conn_mutex_);
@@ -423,38 +423,38 @@ int TransportTCP::ConnectToSend(const std::string &remote_ip,
   return 0;
 }
 
-int TransportTCP::Send(const rpcprotocol::RpcMessage &data,
-      const boost::uint32_t &connection_id, const bool&) {
-  if (data.IsInitialized()) {
-    TransportMessage t_msg;
-    rpcprotocol::RpcMessage *rpc_msg = t_msg.mutable_rpc();
-    *rpc_msg = data;
-    std::string ser_tmsg(t_msg.SerializeAsString());
-    {
-      boost::mutex::scoped_lock guard(conn_mutex_);
-      std::map<boost::uint32_t, tcpconnection_ptr>::iterator it =
-          connections_.find(connection_id);
-      if (it != connections_.end()) {
-        it->second->sending_rpc(true);
-        it->second->Send(ser_tmsg);
-      } else {
-        return 1;
-      }
-    }
-    return 0;
-  } else {
-    {
-      boost::mutex::scoped_lock guard(conn_mutex_);
-      std::map<boost::uint32_t, tcpconnection_ptr>::iterator it =
-          connections_.find(connection_id);
-      if (it != connections_.end()) {
-        it->second->Close();
-        connections_.erase(it);
-      }
-    }
-    return 1;
-  }
-}
+// int TransportTCP::Send(const transport::RpcMessage &data,
+//       const boost::uint32_t &connection_id, const bool&) {
+//   if (data.IsInitialized()) {
+//     TransportMessage t_msg;
+//     transport::RpcMessage *rpc_msg = t_msg.mutable_rpc();
+//     *rpc_msg = data;
+//     std::string ser_tmsg(t_msg.SerializeAsString());
+//     {
+//       boost::mutex::scoped_lock guard(conn_mutex_);
+//       std::map<boost::uint32_t, tcpconnection_ptr>::iterator it =
+//           connections_.find(connection_id);
+//       if (it != connections_.end()) {
+//         it->second->sending_rpc(true);
+//         it->second->Send(ser_tmsg);
+//       } else {
+//         return 1;
+//       }
+//     }
+//     return 0;
+//   } else {
+//     {
+//       boost::mutex::scoped_lock guard(conn_mutex_);
+//       std::map<boost::uint32_t, tcpconnection_ptr>::iterator it =
+//           connections_.find(connection_id);
+//       if (it != connections_.end()) {
+//         it->second->Close();
+//         connections_.erase(it);
+//       }
+//     }
+//     return 1;
+//   }
+// }
 
 int TransportTCP::Send(const std::string &data,
                        const boost::uint32_t &connection_id, const bool&) {

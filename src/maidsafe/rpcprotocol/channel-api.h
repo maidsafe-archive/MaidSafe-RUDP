@@ -33,11 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_RPCPROTOCOL_CHANNEL_API_H_
 #define MAIDSAFE_RPCPROTOCOL_CHANNEL_API_H_
 
+#include <string>
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
 #include <google/protobuf/service.h>
-#include <maidsafe/maidsafe-dht_config.h>
-#include <string>
+#include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/maidsafe-dht_config.h"
 
 #if MAIDSAFE_DHT_VERSION < 23
 #error This API is not compatible with the installed library.
@@ -55,7 +56,6 @@ namespace rpcprotocol {
 class ControllerImpl;
 class ChannelImpl;
 class ChannelManager;
-class RpcMessage;
 
 /**
 * @class Controller
@@ -199,7 +199,7 @@ class Channel : public google::protobuf::RpcChannel {
   * message
   * @param rtt round trip time to the peer from which it received the request
   */
-  void HandleRequest(const RpcMessage &request,
+  void HandleRequest(const transport::RpcMessage &request,
                      const boost::uint32_t &connection_id,
                      const boost::int16_t &transport_id, const float &rtt);
  private:

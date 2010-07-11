@@ -128,7 +128,7 @@ class ChannelImpl {
                   google::protobuf::Message *response,
                   google::protobuf::Closure *done);
   void SetService(google::protobuf::Service *service);
-  void HandleRequest(const RpcMessage &request,
+  void HandleRequest(const transport::RpcMessage &request,
                      const boost::uint32_t &connection_id,
                      const boost::int16_t &transport_id,
                      const float &rtt);

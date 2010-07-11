@@ -32,15 +32,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/network_interface.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/protobuf/rpcmessage.pb.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/transport-api.h"
 
 namespace rpcprotocol {
 
 ChannelManagerImpl::ChannelManagerImpl(
     transport::TransportHandler *transport_handler)
-        : transport_handler_(transport_handler),
-          is_started_(false),
+        : is_started_(false),
           ptimer_(new base::CallLaterTimer),
           req_mutex_(),
           channels_mutex_(),
@@ -57,8 +56,10 @@ ChannelManagerImpl::ChannelManagerImpl(
           rpc_timings_(),
           delete_channels_cond_(),
           online_status_id_(0) {
-  rpc_connection_ = transport_handler_->connect_rpc_message_recieved(
-    boost::bind(&ChannelManagerImpl::MessageArrive, this, _1, _2, _3, _4));
+//   rpc_request_ = transport_handler_->connect_rpc_request_recieved(
+//     boost::bind(&ChannelManagerImpl::RequestArrive, this, _1, _2, _3, _4));
+//   rpc_reponse_ = transport_handler_->connect_rpc_response_recieved(
+//     boost::bind(&ChannelManagerImpl::ResponseArrive, this, _1, _2, _3, _4));
   data_sent_connection_ = transport_handler_->connect_sent((boost::bind(
         &ChannelManagerImpl::RequestSent, this, _1, _2)));
   }
@@ -207,96 +208,95 @@ int ChannelManagerImpl::Stop() {
   return 1;
 }
 
-void ChannelManagerImpl::MessageArrive(const RpcMessage &msg,
+void ChannelManagerImpl::ResponseArrive(const transport::RpcMessage &msg,
                                        const boost::uint32_t &connection_id,
                                        const boost::int16_t transport_id,
                                        const float &rtt) {
-  RpcMessage decoded_msg = msg;
-  if (decoded_msg.rpc_type() == REQUEST) {
+    transport::RpcMessage decoded_msg = msg;
     if (!decoded_msg.has_service() || !decoded_msg.has_method()) {
-      DLOG(ERROR) << transport_handler_->listening_port(transport_id) <<
-          " --- request arrived cannot parse message\n";
+    DLOG(ERROR) << transport_handler_->listening_port(transport_id) <<
+        " --- request arrived cannot parse message\n";
+    return;
+  }
+  // If this is a special find node for boostrapping,
+  // inject incoming address
+  if (decoded_msg.method() == "Bootstrap") {
+    kad::BootstrapRequest decoded_bootstrap;
+    if (!decoded_bootstrap.ParseFromString(decoded_msg.args())) {
       return;
     }
-    // If this is a special find node for boostrapping,
-    // inject incoming address
-    if (decoded_msg.method() == "Bootstrap") {
-      kad::BootstrapRequest decoded_bootstrap;
-      if (!decoded_bootstrap.ParseFromString(decoded_msg.args())) {
-        return;
-      }
-      struct sockaddr peer_addr;
-      if (!transport_handler_->GetPeerAddr(connection_id, transport_id,
-          &peer_addr))
-        return;
-      std::string peer_ip = base::NetworkInterface::SockaddrToAddress(
-                            &peer_addr).to_string();
-      boost::uint16_t peer_port = ntohs(reinterpret_cast<struct sockaddr_in*>(
-                                        &peer_addr)->sin_port);
-      decoded_bootstrap.set_newcomer_ext_ip(peer_ip);
-      decoded_bootstrap.set_newcomer_ext_port(peer_port);
-      std::string encoded_bootstrap;
-      if (!decoded_bootstrap.SerializeToString(&encoded_bootstrap)) {
-        return;
-      }
-      decoded_msg.set_args(encoded_bootstrap);
+    struct sockaddr peer_addr;
+    if (!transport_handler_->GetPeerAddr(connection_id, transport_id,
+        &peer_addr))
+      return;
+    std::string peer_ip = base::NetworkInterface::SockaddrToAddress(
+                          &peer_addr).to_string();
+    boost::uint16_t peer_port = ntohs(reinterpret_cast<struct sockaddr_in*>(
+                                      &peer_addr)->sin_port);
+    decoded_bootstrap.set_newcomer_ext_ip(peer_ip);
+    decoded_bootstrap.set_newcomer_ext_port(peer_port);
+    std::string encoded_bootstrap;
+    if (!decoded_bootstrap.SerializeToString(&encoded_bootstrap)) {
+      return;
     }
-    // Find Channel that has registered the service
-    std::map<std::string, Channel*>::iterator it;
-    channels_mutex_.lock();
-    it = channels_.find(decoded_msg.service());
-    if (it != channels_.end()) {
-      it->second->HandleRequest(decoded_msg, connection_id, transport_id, rtt);
-      channels_mutex_.unlock();
-    } else {
-      LOG(ERROR) << "Message arrived for unregistered service\n";
-      channels_mutex_.unlock();
-    }
-  } else if (decoded_msg.rpc_type() == RESPONSE) {
-    std::map<boost::uint32_t, PendingReq>::iterator it;
-    req_mutex_.lock();
-    it = pending_req_.find(decoded_msg.message_id());
-    if (it != pending_req_.end()) {
-      if (it->second.args->ParseFromString(decoded_msg.args())) {
-        boost::uint64_t duration(0);
-        std::string service, method;
-        if (it->second.ctrl != NULL) {
-          it->second.ctrl->StopRpcTimer();
-          it->second.ctrl->set_rtt(rtt);
-          it->second.ctrl->message_info(&service, &method);
-          duration = it->second.ctrl->Duration();
-          {
-            boost::mutex::scoped_lock lock(timings_mutex_);
-            rpc_timings_[service + "::" + method].Add(duration);
-          }
+    decoded_msg.set_args(encoded_bootstrap);
+  }
+  // Find Channel that has registered the service
+  std::map<std::string, Channel*>::iterator it;
+  channels_mutex_.lock();
+  it = channels_.find(decoded_msg.service());
+  if (it != channels_.end()) {
+    it->second->HandleRequest(decoded_msg, connection_id, transport_id, rtt);
+    channels_mutex_.unlock();
+  } else {
+    LOG(ERROR) << "Message arrived for unregistered service\n";
+    channels_mutex_.unlock();
+  }
+}
+void ChannelManagerImpl::RequestArrive(const transport::RpcMessage &msg,
+                                       const boost::uint32_t &connection_id,
+                                       const boost::int16_t transport_id,
+                                       const float &rtt) {
+  transport::RpcMessage decoded_msg = msg;
+  std::map<boost::uint32_t, PendingReq>::iterator it;
+  req_mutex_.lock();
+  it = pending_req_.find(decoded_msg.message_id());
+  if (it != pending_req_.end()) {
+    if (it->second.args->ParseFromString(decoded_msg.args())) {
+      boost::uint64_t duration(0);
+      std::string service, method;
+      if (it->second.ctrl != NULL) {
+        it->second.ctrl->StopRpcTimer();
+        it->second.ctrl->set_rtt(rtt);
+        it->second.ctrl->message_info(&service, &method);
+        duration = it->second.ctrl->Duration();
+        {
+          boost::mutex::scoped_lock lock(timings_mutex_);
+          rpc_timings_[service + "::" + method].Add(duration);
         }
-        google::protobuf::Closure* done = (*it).second.callback;
-        pending_req_.erase(decoded_msg.message_id());
-        req_mutex_.unlock();
-        DLOG(INFO) << transport_handler_->listening_port(transport_id) <<
-        " --- Response arrived for " << service << "::" << method << " -- " <<
-        decoded_msg.message_id() << " -- RTT: " << rtt << " ms, duration: " <<
-            duration << " ms" << std::endl;
-        done->Run();
-        // TODO(dirvine) FIXREFRESH Check this is not connected to a node in
-        // our first kbucketkbucket
-        transport_handler_->CloseConnection(connection_id, transport_id);
-      } else {
-        req_mutex_.unlock();
-        DLOG(INFO) << transport_handler_->listening_port(transport_id) <<
-            " --- ChannelManager no callback for id " <<
-            decoded_msg.message_id() << std::endl;
       }
+      google::protobuf::Closure* done = (*it).second.callback;
+      pending_req_.erase(decoded_msg.message_id());
+      req_mutex_.unlock();
+      DLOG(INFO) << transport_handler_->listening_port(transport_id) <<
+      " --- Response arrived for " << service << "::" << method << " -- " <<
+      decoded_msg.message_id() << " -- RTT: " << rtt << " ms, duration: " <<
+          duration << " ms" << std::endl;
+      done->Run();
+      // TODO(dirvine) FIXREFRESH Check this is not connected to a node in
+      // our first kbucketkbucket
+      transport_handler_->CloseConnection(connection_id, transport_id);
     } else {
       req_mutex_.unlock();
       DLOG(INFO) << transport_handler_->listening_port(transport_id) <<
-          " --- ChannelManager no request for id " <<
+          " --- ChannelManager no callback for id " <<
           decoded_msg.message_id() << std::endl;
     }
   } else {
-    DLOG(ERROR) << transport_handler_->listening_port(transport_id) <<
-        " --- ChannelManager::MessageArrive " <<
-        "unknown type of message received\n";
+    req_mutex_.unlock();
+    DLOG(INFO) << transport_handler_->listening_port(transport_id) <<
+        " --- ChannelManager no request for id " <<
+        decoded_msg.message_id() << std::endl;
   }
 }
 
