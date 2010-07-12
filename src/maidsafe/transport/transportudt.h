@@ -110,6 +110,7 @@ class TransportUDT : public Transport {
            const bool &new_socket);
   TransportCondition Send(const TransportMessage &t_mesg, const std::string &remote_ip,
          const boost::uint16_t &remote_port);
+
   TransportCondition StartListening(const boost::uint16_t & port, const std::string &ip);
   int   StartLocal(const boost::uint16_t &port);
 // Helpers
@@ -168,9 +169,7 @@ class TransportUDT : public Transport {
   void AddIncomingConnection(UdtSocket udt_socket,
                              boost::uint32_t *connection_id);
   void HandleRendezvousMsgs(const HolePunchingMsg &message);
-  int Send(const std::string &data, DataType type,
-           const boost::uint32_t &connection_id, const bool &new_socket,
-           const bool &is_rpc);
+
   void SendHandle();
   int Connect(const std::string &peer_address, const boost::uint16_t &peer_port,
               UdtSocket *udt_socket);

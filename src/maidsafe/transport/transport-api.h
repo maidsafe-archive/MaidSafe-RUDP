@@ -88,7 +88,7 @@ namespace transport {
                             SignalConnectionDown;
   typedef bs2::signal<void(const boost::uint32_t&, const bool&)> SignalSent;
 
-// UPDATE: this will be replced with a protocol buffer implementation
+// UPDATE: this will be replaced with a protocol buffer implementation
 // using different message types and identifying these on reciept
 // at the transport layer.
 

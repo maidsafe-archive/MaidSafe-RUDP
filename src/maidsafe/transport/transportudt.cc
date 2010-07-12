@@ -89,7 +89,7 @@ TransportCondition TransportUDT::Send(const TransportMessage &t_mesg,
     return TransportCondition::kInvalidData;
   }
   
-  struct addrinfo addrinfo_hints, *local, *peer;
+  struct addrinfo addrinfo_hints, *peer;
   struct addrinfo* addrinfo_res;
   memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
   addrinfo_hints.ai_flags = AI_PASSIVE;
@@ -112,8 +112,6 @@ TransportCondition TransportUDT::Send(const TransportMessage &t_mesg,
    #ifdef WIN32
       UDT::setsockopt(skt, 0, UDT_MSS, new int(1052), sizeof(int));
    #endif
-
-   freeaddrinfo(local);
 // This is the default, were just making sure UDT API does not change
   bool blocking = true;
   bool reuse_addr = true;

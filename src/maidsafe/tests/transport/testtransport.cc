@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <list>
 #include <string>
-#include "maidsafe/protobuf/rpcmessage.pb.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/base/log.h"
@@ -63,7 +62,7 @@ class TransportNode {
 };
 
 // void send_string(TransportNode* node, int port, int repeat,
-//     rpcprotocol::RpcMessage msg, bool keep_conn, int our_port) {
+//     transport::RpcMessage msg, bool keep_conn, int our_port) {
 //   boost::uint32_t id;
 //   boost::asio::ip::address local_address;
 //   std::string ip;
@@ -101,7 +100,9 @@ class MessageHandler {
     ids(), dead_server_(true), server_ip_(), server_port_(0), transport_(),
     msgs_sent_(0), msgs_received_(0), msgs_confirmed_(0), target_msg_(),
     keep_msgs_(true) {
-  rpc_connection_ = transport->connect_rpc_request_recieved(
+  rpc_request_ = transport->connect_rpc_request_recieved(
+       boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2, _3));
+  rpc_response_ = transport->connect_rpc_request_recieved(
        boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2, _3));
   data_sent_connection_ = transport->connect_sent((
       boost::bind(&MessageHandler::OnSend, this, _1, _2)));
@@ -110,7 +111,7 @@ class MessageHandler {
   server_down_connection_= transport->connect_connection_down((
       boost::bind(&MessageHandler::OnDeadRendezvousServer, this, _1, _2, _3)));
     }
-  void OnRPCMessage(const rpcprotocol::RpcMessage &msg,
+  void OnRPCMessage(const transport::RpcMessage &msg,
                     const boost::uint32_t &connection_id,
                     const float &rtt) {
     std::string message;
@@ -156,7 +157,7 @@ class MessageHandler {
  private:
   // MessageHandler(const MessageHandler&);
   // MessageHandler& operator=(const MessageHandler&);
-  bs2::connection rpc_connection_;
+  bs2::connection rpc_request_, rpc_response_;
   bs2::connection data_sent_connection_;
   bs2::connection message_connection_;
   bs2::connection server_down_connection_;
@@ -172,14 +173,19 @@ class MessageHandlerEchoReq {
         server_ip_(),
         server_port_(0),
         msgs_sent_(0) {
-    rpc_connection_ = node_->connect_rpc_message_recieved(
+    rpc_connection_ = node_->connect_rpc_response_recieved(
     boost::bind(&MessageHandlerEchoReq::OnRPCMessage, this, _1, _2, _3));
     }
-    void OnRPCMessage(const rpcprotocol::RpcMessage &msg,
+    void OnRPCMessage(const transport::RpcMessage &msg,
                       const boost::uint32_t &connection_id,
                       const float &rtt) {
+    transport::TransportMessage t_msg;
+    transport::RpcMessage *pmsg = t_msg.mutable_rpc();
+
     std::string message;
     msg.SerializeToString(&message);
+    pmsg->set_args(message);
+    
     msgs.push_back(message);
     ids.push_back(connection_id);
     struct sockaddr addr;
@@ -191,7 +197,7 @@ class MessageHandlerEchoReq {
         << peer_port << " . RTT = " << rtt << std::endl;
     // replying same msg
     if (msgs.size() < size_t(10))
-      node_->Send(message, connection_id, false);
+      node_->Send(t_msg, connection_id, false);
   }
   void OnDeadRendezvousServer(const bool &dead_server, const std::string &ip,
     const boost::uint16_t &port) {
@@ -221,11 +227,12 @@ class MessageHandlerEchoResp {
   explicit MessageHandlerEchoResp(transport::TransportUDT *node)
       : node_(node), msgs(), ids(), dead_server_(true),
       server_ip_(), server_port_(0), msgs_sent_(0) {
-    rpc_connection_ = node->connect_rpc_message_recieved(
+    rpc_request_ = node->connect_rpc_request_recieved(
     boost::bind(&MessageHandlerEchoResp::OnRPCMessage, this, _1, _2, _3));
-
+    rpc_response_ = node->connect_rpc_request_recieved(
+    boost::bind(&MessageHandlerEchoResp::OnRPCMessage, this, _1, _2, _3));
       }
-    void OnRPCMessage(const rpcprotocol::RpcMessage &msg,
+    void OnRPCMessage(const transport::RpcMessage &msg,
                       const boost::uint32_t &connection_id,
                       const float &rtt) {
     std::string message;
@@ -257,7 +264,7 @@ class MessageHandlerEchoResp {
  private:
   MessageHandlerEchoResp(const MessageHandlerEchoResp&);
   MessageHandlerEchoResp& operator=(const MessageHandlerEchoResp&);
-  bs2::connection rpc_connection_;
+  bs2::connection rpc_request_, rpc_response_;
 };
 
 class TransportTest: public testing::Test {
@@ -344,27 +351,19 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   ASSERT_EQ(0, node1_transudt.StartListening(0, ""));
   ASSERT_EQ(0, node2_transudt.StartListening(0, ""));
   boost::uint16_t lp_node2 = node2_transudt.listening_port();
-//    TransportMessage t_msg;
-//     HolePunchingMsg *msg = t_msg.mutable_hp();
-//     msg->set_ip(remote_ip);
-//     msg->set_port(remote_port);
-//     msg->set_type(FORWARD_REQ);
-//     std::string ser_msg;
-//     t_msg.SerializeToString(&ser_msg);
-//     int64_t rend_data_size = ser_msg.size();
-  rpcprotocol::RpcMessage msg;
+
+  transport::RpcMessage msg;
   transport::TransportMessage * t_msg;
   const std::string args = base::RandomString(256 * 1024);
-  t_msg = transport::TransportMessage;
-  t_msg->set_type(transport::REQUEST);
-  t_msg->rpc().args(args); ; //::set_args(args);
+  t_msg->set_type(transport::TransportMessage::kRequest);
+  msg.set_args(args); ; //::set_args(args);
   //t_msg->set_message_id(2000);
   //t_msg.rpc(&msg).  // set_rpc_type(rpcprotocol::REQUEST);
   std::string sent_msg;
   t_msg->SerializeToString(&sent_msg);
   //std::string port = boost::lexical_cast<std::string>(lp_node2);
   std::string ip("127.0.0.1");
-  ASSERT_EQ(0, node1_transudt.Send(sent_msg, ip, lp_node2));
+  ASSERT_EQ(0, node1_transudt.Send(t_msg, ip, lp_node2));
 
 //   ASSERT_EQ(1, node1_transudt.Send(msg, id, false));
 //   ASSERT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
@@ -395,7 +394,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   ASSERT_EQ(0, node4_transudt.Start(0));
   boost::uint16_t lp_node4 = node4_transudt.listening_port();
   std::list<std::string> sent_msgs;
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -516,7 +515,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToMany) {
   ASSERT_EQ(0, node6_handler.Start(0, node6_id));
   boost::uint16_t lp_node6_handler = node6_handler.listening_port(node6_id);
   std::string sent_msgs[3];
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64*1024));
@@ -621,7 +620,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromOneToMany) {
   ASSERT_EQ(0, node4_handler.Start(0, node4_id));
   boost::uint16_t lp_node4 = node4_handler.listening_port(node4_id);
   std::string sent_msgs[3];
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -686,7 +685,7 @@ TEST_F(TransportTest, BEH_TRANS_TimeoutForSendingToAWrongPeer) {
 //   ASSERT_TRUE(node1_handler.RegisterOnSend(boost::bind(&MessageHandler::OnSend,
 //     &msg_handler[0], _1, _2)));
   ASSERT_EQ(0, node1_handler.Start(0, node1_id));
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -709,7 +708,7 @@ TEST_F(TransportTest, FUNC_TRANS_Send1000Msgs) {
   TransportNode* tnodes[kNumNodes-1];
   boost::thread_group thr_grp;
   boost::thread *thrd;
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -804,7 +803,7 @@ TEST_F(TransportTest, BEH_TRANS_GetRemotePeerAddress) {
 //     &msg_handler[1], _1, _2)));
   ASSERT_EQ(0, node2_handler.Start(0, node2_id));
   boost::uint16_t lp_node2 = node2_handler.listening_port(node2_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -856,7 +855,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessageFromOneToAnotherBidirectional) {
 //     &msg_handler[1], _1, _2)));
   ASSERT_EQ(0, node2_handler.Start(0, node2_id));
   boost::uint16_t lp_node2 = node2_handler.listening_port(node2_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -939,7 +938,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMsgsFromManyToOneBidirectional) {
 //     &msg_handler[3], _1, _2)));
   ASSERT_EQ(0, node4_handler.Start(0, node4_id));
   boost::uint16_t lp_node4 = node4_handler.listening_port(node4_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(64 * 1024));
@@ -1042,7 +1041,7 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageCloseAConnection) {
 //     &msg_handler[1], _1, _2)));
   ASSERT_EQ(0, node2_handler.Start(0, node2_id));
   boost::uint16_t lp_node2 = node2_handler.listening_port(node2_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1233,7 +1232,7 @@ TEST_F(TransportTest, FUNC_TRANS_StartStopTransport) {
 //     &msg_handler[1], _1, _2)));
   ASSERT_EQ(0, node2_handler.Start(0, node2_id));
   boost::uint16_t lp_node2 = node2_handler.listening_port(node2_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1339,7 +1338,7 @@ TEST_F(TransportTest, BEH_TRANS_SendRespond) {
     ip = std::string("127.0.0.1");
   }
   for (unsigned int i = 0; i < msgs_sent; i++) {
-    rpcprotocol::RpcMessage rpc_msg;
+    transport::RpcMessage rpc_msg;
     rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
     rpc_msg.set_message_id(2000);
     rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1436,7 +1435,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMultipleMsgsSameConnection) {
   } else {
     ip = std::string("127.0.0.1");
   }
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1521,7 +1520,7 @@ TEST_F(TransportTest, BEH_TRANS_SendViaRdz) {
   ASSERT_EQ(0, node3_handler.Start(0, node3_id));
   boost::uint16_t lp_node3 = node3_handler.listening_port(node3_id);
   node1_handler.StartPingRendezvous(false, "127.0.0.1", lp_node3, node1_id);
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1569,7 +1568,7 @@ TEST_F(TransportTest, BEH_TRANS_NoNotificationForInvalidMsgs) {
   boost::uint32_t id;
   ASSERT_EQ(0, node2_handler.ConnectToSend("127.0.0.1", lp_node1_handler, "", 0,
     "", 0, true, &id, node2_id));
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   ASSERT_EQ(1, node2_handler.Send(rpc_msg, id, true, node2_id));
   ASSERT_EQ(0, node2_handler.ConnectToSend("127.0.0.1", lp_node1_handler, "", 0,
     "", 0, true, &id, node2_id));
@@ -1714,7 +1713,7 @@ TEST_F(TransportTest, BEH_TRANS_StartLocal) {
     true, &id, node1_id));
   ASSERT_EQ(0, node1_handler.ConnectToSend(loop_back, lp_node2, "", 0, "", 0,
     true, &id, node1_id));
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1768,7 +1767,7 @@ TEST_F(TransportTest, FUNC_TRANS_StartStopLocal) {
   ASSERT_EQ(0, node1_handler.ConnectToSend(loop_back, lp_node2, "", 0, "", 0,
     true, &id, node1_id));
 
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
@@ -1905,7 +1904,7 @@ TEST_F(TransportTest, FUNC_TRANS_StartBadLocal) {
       bad_local_port, "", 0, true, &id, node1_id));
   ASSERT_EQ(2, rt_handler->ContactLocal(kademlia_id));
 
-  rpcprotocol::RpcMessage rpc_msg;
+  transport::RpcMessage rpc_msg;
   rpc_msg.set_rpc_type(rpcprotocol::REQUEST);
   rpc_msg.set_message_id(2000);
   rpc_msg.set_args(base::RandomString(256 * 1024));
