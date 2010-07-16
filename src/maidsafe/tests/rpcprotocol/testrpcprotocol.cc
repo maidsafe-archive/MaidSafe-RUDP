@@ -530,7 +530,7 @@ TEST_F(RpcProtocolTest, FUNC_RPC_DeletePendingRequest) {
       &resultholder, &ResultHolder::GetMirrorResult, &resp1, &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
   ASSERT_TRUE(client_chann_manager->DeletePendingRequest(
-      controller.request_id()));
+      controller.rpc_id()));
   boost::this_thread::sleep(boost::posix_time::seconds(11));
   ASSERT_EQ(std::string("-"), resultholder.mirror_res.mirrored_string());
   ASSERT_EQ(rpcprotocol::kCancelled, controller.ErrorText());
@@ -552,7 +552,7 @@ TEST_F(RpcProtocolTest, FUNC_RPC_DeletePendingRequest) {
       &resultholder, &ResultHolder::GetMirrorResult, &resp2, &controller);
   stubservice2.Mirror(&controller, &req2, &resp2, done2);
   ASSERT_TRUE(client_chann_manager->DeletePendingRequest(
-              controller.request_id()));
+              controller.rpc_id()));
   boost::this_thread::sleep(boost::posix_time::seconds(4));
   ASSERT_EQ(std::string("-"), resultholder.mirror_res.mirrored_string());
   ASSERT_EQ(rpcprotocol::kCancelled, controller.ErrorText());
@@ -586,9 +586,9 @@ TEST_F(RpcProtocolTest, BEH_RPC_CancelPendingRequest) {
       &resultholder, &ResultHolder::GetMirrorResult, &resp1, &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
   ASSERT_TRUE(client_chann_manager->CancelPendingRequest(
-              controller.request_id()));
+              controller.rpc_id()));
   ASSERT_FALSE(client_chann_manager->CancelPendingRequest(
-               controller.request_id()));
+               controller.rpc_id()));
 //  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 //  ASSERT_EQ(std::string("-"), resultholder.mirror_res.mirrored_string());
 //  ASSERT_EQ(rpcprotocol::kCancelled, controller.ErrorText());
@@ -613,9 +613,9 @@ TEST_F(RpcProtocolTest, BEH_RPC_CancelPendingRequest) {
       p_controller.get());
   stubservice2.Mirror(&controller, &req2, &resp2, done2);
   ASSERT_TRUE(client_chann_manager->CancelPendingRequest(
-              controller.request_id()));
+              controller.rpc_id()));
   ASSERT_FALSE(client_chann_manager->CancelPendingRequest(
-               controller.request_id()));
+               controller.rpc_id()));
 }
 
 TEST_F(RpcProtocolTest, BEH_RPC_ResetTimeout) {
@@ -859,11 +859,11 @@ TEST(RpcControllerTest, BEH_RPC_RpcController) {
   rpcprotocol::Controller controller;
   ASSERT_FALSE(controller.Failed());
   ASSERT_TRUE(controller.ErrorText().empty());
-  ASSERT_EQ(0, controller.request_id());
+  ASSERT_EQ(0, controller.rpc_id());
   controller.SetFailed(rpcprotocol::kTimeOut);
-  boost::uint32_t id = 1234;
-  controller.set_request_id(id);
-  ASSERT_EQ(id, controller.request_id());
+  RpcId id = 1234;
+  controller.set_rpc_id(id);
+  ASSERT_EQ(id, controller.rpc_id());
   ASSERT_TRUE(controller.Failed());
   ASSERT_EQ(rpcprotocol::kTimeOut, controller.ErrorText());
   controller.StartCancel();
@@ -871,18 +871,13 @@ TEST(RpcControllerTest, BEH_RPC_RpcController) {
   controller.Reset();
   ASSERT_FALSE(controller.Failed());
   ASSERT_TRUE(controller.ErrorText().empty());
-  ASSERT_EQ(0, controller.request_id());
+  ASSERT_EQ(0, controller.rpc_id());
   ASSERT_EQ(0, controller.Duration());
   controller.StartRpcTimer();
   boost::this_thread::sleep(boost::posix_time::milliseconds(10));
   controller.StopRpcTimer();
   ASSERT_LE(10, controller.Duration());
-  std::string service, method;
-  controller.message_info(&service, &method);
-  ASSERT_TRUE(service.empty());
-  ASSERT_TRUE(method.empty());
-  controller.set_message_info("abc", "xyz");
-  controller.message_info(&service, &method);
-  ASSERT_EQ("abc", service);
-  ASSERT_EQ("xyz", method);
+  ASSERT_TRUE(controller.method().empty());
+  controller.set_method("abc");
+  ASSERT_EQ("abc", controller.method());
 }

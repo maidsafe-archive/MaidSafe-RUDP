@@ -34,7 +34,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "maidsafe/base/utils.h"
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/transport/transporthandler-api.h"
+
+namespace transport {
+class Transport;
+class RpcMessage;
+}  // namespace transport
 
 namespace rpcprotocol {
 
@@ -49,9 +53,8 @@ class ControllerImpl {
         time_received_(0),
         rtt_(0.0),
         failure_(),
-        request_id_(0),
-        transport_id_(0),
-        service_(),
+        rpc_id_(0),
+        socket_id_(0),
         method_() {}
   void SetFailed(const std::string &failure) { failure_ = failure; }
   void Reset();
@@ -77,72 +80,52 @@ class ControllerImpl {
   // rtt in milliseconds
   void set_rtt(const float &rtt) { rtt_ = rtt; }
   float rtt() const { return rtt_; }
-  void set_transport_id(const boost::int16_t &transport_id) {
-    transport_id_ = transport_id;
-  }
-  boost::int16_t transport_id() const { return transport_id_; }
-  void set_request_id(const boost::uint32_t &id) { request_id_ = id; }
-  boost::uint32_t request_id() const { return request_id_; }
-  // Set additional information for the processed message.
-  void set_message_info(const std::string &service, const std::string &method) {
-    service_ = service;
-    method_ = method;
-  }
-  // Get information for the processed message, if stored.
-  void message_info(std::string *service, std::string *method) const {
-    *service = service_;
-    *method = method_;
-  }
+  void set_rpc_id(const RpcId &id) { rpc_id_ = id; }
+  RpcId rpc_id() const { return rpc_id_; }
+  void set_socket_id(const SocketId &socket_id) { socket_id_ = socket_id; }
+  SocketId socket_id() const { return socket_id_; }
+  void set_method(const std::string &method) { method_ = method; }
+  std::string method() const { return method_; }
  private:
   boost::uint64_t timeout_;
   boost::uint64_t time_sent_, time_received_;
   float rtt_;
   std::string failure_;
-  boost::uint32_t request_id_;
-  boost::int16_t transport_id_;
-  std::string service_, method_;
-};
-
-struct RpcInfo {
-  RpcInfo() : ctrl(NULL), rpc_id(0), connection_id(0), transport_id(0) {}
-  Controller *ctrl;
-  boost::uint32_t rpc_id, connection_id;
-  boost::int16_t transport_id;
+  RpcId rpc_id_;
+  SocketId socket_id_;
+  std::string method_;
 };
 
 class ChannelImpl {
  public:
-  ChannelImpl(ChannelManager *channelmanager,
-              transport::TransportHandler *transport_handler);
-  ChannelImpl(ChannelManager *channelmanager,
-              transport::TransportHandler *transport_handler,
-              const boost::int16_t &transport_id, const std::string &remote_ip,
-              const boost::uint16_t &remote_port, const std::string &local_ip,
-              const boost::uint16_t &local_port,
-              const std::string &rendezvous_ip,
-              const boost::uint16_t &rendezvous_port);
+  ChannelImpl(ChannelManager *channel_manager,
+              transport::Transport *transport);
+  ChannelImpl(ChannelManager *channel_manager, transport::Transport *transport,
+              const IP &remote_ip, const Port &remote_port,
+              const IP &local_ip, const Port &local_port,
+              const IP &rendezvous_ip,
+              const Port &rendezvous_port);
   ~ChannelImpl();
   void CallMethod(const google::protobuf::MethodDescriptor *method,
-                  google::protobuf::RpcController *controller,
+                  google::protobuf::RpcController *rpc_controller,
                   const google::protobuf::Message *request,
                   google::protobuf::Message *response,
                   google::protobuf::Closure *done);
-  void SetService(google::protobuf::Service *service);
-  void HandleRequest(const transport::RpcMessage &request,
-                     const boost::uint32_t &connection_id,
-                     const boost::int16_t &transport_id,
+  void SetService(google::protobuf::Service *service) { service_ = service; };
+  void HandleRequest(const transport::RpcMessage &rpc_message,
+                     const ConnectionId &connection_id,
                      const float &rtt);
  private:
-  void SendResponse(const google::protobuf::Message *response, RpcInfo info);
-  std::string GetServiceName(const std::string &full_name);
-  transport::TransportHandler *transport_handler_;
-  boost::int16_t transport_id_;
-  ChannelManager *pmanager_;
-  google::protobuf::Service *pservice_;
-  std::string remote_ip_, local_ip_, rv_ip_;
-  boost::uint16_t remote_port_, local_port_, rv_port_;
   ChannelImpl(const ChannelImpl&);
   ChannelImpl& operator=(const ChannelImpl&);
+  void SendResponse(const google::protobuf::Message *response,
+                    boost::shared_ptr<Controller> controller);
+  std::string GetServiceName(const std::string &full_name);
+  ChannelManager *channel_manager_;
+  transport::Transport *transport_;
+  google::protobuf::Service *service_;
+  IP remote_ip_, local_ip_, rendezvous_ip_;
+  Port remote_port_, local_port_, rendezvous_port_;
   boost::uint32_t id_;
 };
 }  // namespace

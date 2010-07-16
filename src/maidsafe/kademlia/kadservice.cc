@@ -380,7 +380,6 @@ void KadService::NatDetection(google::protobuf::RpcController *controller,
         rpcprotocol::Controller *ctrler =
             static_cast<rpcprotocol::Controller*>(controller);
         data.controller = new rpcprotocol::Controller;
-        data.controller->set_transport_id(ctrler->transport_id());
         google::protobuf::Closure *done =
             google::protobuf::NewCallback<KadService,
             const NatDetectionPingResponse*, struct NatDetectionPingData>
@@ -402,7 +401,6 @@ void KadService::NatDetection(google::protobuf::RpcController *controller,
         rpcprotocol::Controller *ctrler =
             static_cast<rpcprotocol::Controller*>(controller);
         data.controller = new rpcprotocol::Controller;
-        data.controller->set_transport_id(ctrler->transport_id());
         google::protobuf::Closure *done =
           google::protobuf::NewCallback<KadService,
             const NatDetectionPingResponse*,
@@ -508,9 +506,7 @@ void KadService::SendNatDetection(NatDetectionData data) {
     data.newcomer.SerialiseToString(&newcomer_str);
     rpcprotocol::Controller *temp_controller =
         static_cast<rpcprotocol::Controller*>(data.controller);
-    boost::int16_t temp_transport_id(temp_controller->transport_id());
     data.controller = new rpcprotocol::Controller;
-    data.controller->set_transport_id(temp_transport_id);
     NatDetectionResponse *resp = new NatDetectionResponse;
     google::protobuf::Closure *done = google::protobuf::NewCallback
         <KadService, const NatDetectionResponse*, struct NatDetectionData>

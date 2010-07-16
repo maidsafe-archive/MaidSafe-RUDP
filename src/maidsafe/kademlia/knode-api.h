@@ -56,7 +56,7 @@ class ChannelManager;
 
 
 namespace transport {
-class TransportHandler;
+class Transport;
 }  // namespace transport
 
 
@@ -83,8 +83,8 @@ class KNode {
   * refresh time.
   * @param channel_manager a reference to the channel manager, where the
   * services are going to be registered
-  * @param transport_handler a reference to the transport handler object in
-  * charge of transmitting data from the node to a specific node
+  * @param transport a pointer to the transport object in charge of transmitting
+  * data from the node to a specific node
   * @param type the type of node VAULT or CLIENT
   * @param private_key private key for the node, if no digitally signed values
   * are used, pass an empty string
@@ -97,7 +97,7 @@ class KNode {
   * @param k Maximum number of elements in the node's kbuckets
   */
   KNode(rpcprotocol::ChannelManager *channel_manager,
-        transport::TransportHandler *transport_handler, NodeType type,
+        transport::Transport *transport, NodeType type,
         const std::string &private_key, const std::string &public_key,
         const bool &port_forwarded, const bool &use_upnp,
         const boost::uint16_t &k);
@@ -106,8 +106,8 @@ class KNode {
   * refresh time are set by the user.
   * @param channel_manager a reference to the channel manager, where the
   * services are going to be registered
-  * @param transport_handler a reference to the transport handler object in
-  * charge of transmitting data from the node to a specific node
+  * @param transport a pointer to the transport object in charge of
+  * transmitting data from the node to a specific node
   * @param type the type of node VAULT or CLIENT
   * @param k Maximum number of elements in the node's kbuckets
   * @param alpha Number of parallelisation during iterative find procedure
@@ -124,17 +124,12 @@ class KNode {
   * for NAT traversal
   */
   KNode(rpcprotocol::ChannelManager *channel_manager,
-        transport::TransportHandler *transport_handler, NodeType type,
+        transport::Transport *transport, NodeType type,
         const boost::uint16_t &k, const boost::uint16_t &alpha,
         const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
         const std::string &private_key, const std::string &public_key,
         const bool &port_forwarded, const bool &use_upnp);
   ~KNode();
-
-  /**
-  *
-  */
-  void set_transport_id(const boost::int16_t &transport_id);
 
   /**
   * Join the network using a specific id. This is a non-blocking operation.
@@ -163,8 +158,8 @@ class KNode {
   * @param callback callback function where result of the operation is notified
   */
   void Join(const KadId &node_id, const std::string &kad_config_file,
-            const std::string &external_ip,
-            const boost::uint16_t &external_port,
+            const IP &external_ip,
+            const Port &external_port,
             VoidFunctorOneString callback);
   /**
   * Join the first node of the network using a random id.
@@ -175,8 +170,8 @@ class KNode {
   * @param external_port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void Join(const std::string &kad_config_file, const std::string &external_ip,
-            const boost::uint16_t &external_port,
+  void Join(const std::string &kad_config_file, const IP &external_ip,
+            const Port &external_port,
             VoidFunctorOneString callback);
   /**
   * Leave the kademlia network.  All values stored in the node are erased and
@@ -372,9 +367,9 @@ class KNode {
   * not (REMOTE)
   */
   ConnectionType CheckContactLocalAddress(const KadId &id,
-                                          const std::string &ip,
-                                          const boost::uint16_t &port,
-                                          const std::string &ext_ip);
+                                          const IP &ip,
+                                          const Port &port,
+                                          const IP &ext_ip);
   /**
   * Updates the database routing table in the entry for the node id passed to be
   * to be contacted only via the remote endpoint.
@@ -382,15 +377,15 @@ class KNode {
   * @param host_ip ip of the node
   */
   void UpdatePDRTContactToRemote(const KadId &node_id,
-                                 const std::string &host_ip);
+                                 const IP &host_ip);
   ContactInfo contact_info() const;
   KadId node_id() const;
-  std::string host_ip() const;
-  boost::uint16_t host_port() const;
-  std::string local_host_ip() const;
-  boost::uint16_t local_host_port() const;
-  std::string rendezvous_ip() const;
-  boost::uint16_t rendezvous_port() const;
+  IP host_ip() const;
+  Port host_port() const;
+  IP local_host_ip() const;
+  Port local_host_port() const;
+  IP rendezvous_ip() const;
+  Port rendezvous_port() const;
   bool is_joined() const;
   /**
   * Returns a reference to the KadRpcs object inside the knode

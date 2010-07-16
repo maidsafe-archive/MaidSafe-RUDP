@@ -7,10 +7,10 @@ service KademliaService {
   rpc FindValue (FindRequest) returns (FindResponse);
   rpc FindNode (FindRequest) returns (FindResponse);
   rpc Store (StoreRequest) returns (StoreResponse);
+  rpc Delete (DeleteRequest) returns (DeleteResponse);
+  rpc Update (UpdateRequest) returns (UpdateResponse);
   rpc Downlist (DownlistRequest) returns (DownlistResponse);
   rpc NatDetection (NatDetectionRequest) returns (NatDetectionResponse);
   rpc NatDetectionPing (NatDetectionPingRequest) returns (NatDetectionPingResponse);
   rpc Bootstrap (BootstrapRequest) returns (BootstrapResponse);
-  rpc Delete (DeleteRequest) returns (DeleteResponse);
-  rpc Update (UpdateRequest) returns (UpdateResponse);
 }

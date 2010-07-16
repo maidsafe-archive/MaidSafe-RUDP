@@ -1,8 +1,8 @@
 package transport;
 
 enum SubType {
-  kACK = 1;
-  kNACK = 2;
+  kACK = 0;
+  kNACK = 1;
 }
 
 message Address {
@@ -11,12 +11,12 @@ message Address {
 }
 
 message Ping {
-  optional Address from_address =1;
+  optional Address from_address = 1;
 }
 
 message ProxyPing {
-  optional SubType result = 2;
-  optional Address address = 3;
+  optional SubType result = 1;
+  optional Address address = 2;
 }
 
 message AcceptConnect {
@@ -28,13 +28,15 @@ message AcceptConnect {
 }
 
 message RpcMessage {
-  required int32 message_id = 1;
-  required bytes args = 2;
-  optional bytes service = 3;
-  optional bytes method = 4;
+  message Detail {
+    extensions 1 to 18999;  // all extensions must themselves be proto messages
+  }
+  required uint32 rpc_id = 1;
+  optional bytes method = 2;
+  required Detail detail = 3;
 }
 
-message HolePunchingMsg {
+message HolePunchingMessage {
   required bytes ip = 1;
   required int32 port = 2;
   required msg_type type = 3;
@@ -45,24 +47,28 @@ message HolePunchingMsg {
 }      
 
 message TransportMessage {
-  extensions 100 to max; // Allows extensions of the message types 
-  required Type type = 1;
-  optional RpcMessage rpc = 2;
-  optional HolePunchingMsg hp = 3;
-  optional Ping ping = 4;
-  optional ProxyPing proxy_ping = 5;
-  optional AcceptConnect accept_connect = 6;
   enum Type {
-    kRequest = 0; // leave socket available to send the response on
-    kResponse = 1; // socket is closed on recieving this type unless it's a managed connection
+    kRequest = 0;  // leave socket available to send the response on
+    kResponse = 1;  // socket is closed on receiving this type unless it's a managed connection
   }
+  message Data {
+    extensions 100 to 18999;  // Allows extensions of the message types 
+    optional bytes raw_message = 1;
+    optional RpcMessage rpc_message = 2;
+    optional HolePunchingMessage hole_punching_message = 3;
+    optional Ping ping = 4;
+    optional ProxyPing proxy_ping = 5;
+    optional AcceptConnect accept_connect = 6;
+  }
+  required Type type = 1;
+  required Data data = 2;
 }
 
 // To add a message elsewhere (outside this library) type do this
 //  package transport; // to get this namespace
-//  extend TransportMessage {
-//  optional NewMessageType my_message = 100;
-//  optional AnotherNewMessageType my_other_message = 101; 
+//  extend TransportMessage.Data {
+//    optional NewMessageType my_message = 100;
+//    optional AnotherNewMessageType my_other_message = 101; 
 //  }
 //
 //

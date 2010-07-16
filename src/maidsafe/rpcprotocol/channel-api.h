@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class TransportHandler;
+class Transport;
 }  // namespace transport
 
 
@@ -78,11 +78,6 @@ class Controller : public google::protobuf::RpcController {
   bool IsCanceled() const;
   void NotifyOnCancel(google::protobuf::Closure*);
   /**
-  * Sets the timeout for the RPC request.
-  * @param id timeout time in seconds.
-  */
-  void set_timeout(const boost::uint32_t &seconds);
-  /**
   * Returns time between sending and receiving the RPC request/response.
   * @return time in milliseconds
   */
@@ -96,50 +91,52 @@ class Controller : public google::protobuf::RpcController {
   */
   void StopRpcTimer();
   /**
-  * Sets the RTT of the communication between the client who is requesting
-  * a remote procedure and the server that is executing the procedure.
-  * @param rtt RTT in milliseconds
+  * Sets the timeout for the RPC request.
+  * @param id timeout time in seconds.
   */
-  void set_rtt(const float &rtt);
-  /**
-  * Sets the ID of the transport object in use.
-  * @param Transport object ID
-  */
-  void set_transport_id(const boost::int16_t &transport_id);
-  /**
-  * Sets the ID of the RPC request.
-  * @param id Identifier of the rpc request/response
-  */
-  void set_request_id(const boost::uint32_t &id);
-  /**
-  * Set additional information for the processed message.
-  * @param service The name of the service providing the method.
-  * @param method The name of the method being called remotely.
-  */
-  void set_message_info(const std::string &service, const std::string &method);
-  /**
-  * Get information for the processed message, if stored.
-  * @param service The name of the service providing the method.
-  * @param method The name of the method being called remotely.
-  */
-  void message_info(std::string *service, std::string *method) const;
+  void set_timeout(const boost::uint32_t &seconds);
   /**
   * Returns the timeout for the RPC request.
   * @return the timeout time in milliseconds.
   */
   boost::uint64_t timeout() const;
   /**
+  * Sets the RTT of the communication between the client who is requesting
+  * a remote procedure and the server that is executing the procedure.
+  * @param rtt RTT in milliseconds
+  */
+  void set_rtt(const float &rtt);
+  /**
   * @return The RTT in milliseconds
   */
   float rtt() const;
   /**
-  * @return the identifier of the transport object in use.
+  * Sets the ID of the RPC request.
+  * @param id Identifier of the rpc request/response
   */
-  boost::int16_t transport_id() const;
+  void set_rpc_id(const RpcId &rpc_id);
   /**
   * @return the identifier of the rpc request/response
   */
-  boost::uint32_t request_id() const;
+  RpcId rpc_id() const;
+  /**
+  * Sets the ID of the transport socket being used by the RPC.
+  * @param id Identifier of the transport socket
+  */
+  void set_socket_id(const SocketId &socket_id);
+  /**
+  * @return the identifier of the transport socket
+  */
+  SocketId socket_id() const;
+  /**
+  * Set the name of the method being called remotely.
+  * @param method The name of the method being called remotely.
+  */
+  void set_method(const std::string &method);
+  /**
+  * Get the name of the method being called remotely, if stored.
+  */
+  std::string method() const;
  private:
   boost::shared_ptr<ControllerImpl> controller_pimpl_;
 };
@@ -154,15 +151,14 @@ class Channel : public google::protobuf::RpcChannel {
   * Constructor. Used for the server that is going to receive RPC's of a service
   * through this object.
   * @param channelmanager Pointer to a ChannelManager object
-  * @param transport_handler Pointer to a TransportHandler object
+  * @param transport Pointer to a Transport object
   */
-  Channel(ChannelManager *channelmanager,
-          transport::TransportHandler *transport_handler);
+  Channel(ChannelManager *channel_manager,
+          transport::Transport *transport);
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object
-  * @param transport_handler Pointer to a TransportHandler object
-  * @param transport_id id of the transport to use
+  * @param transport Pointer to a Transport object
   * @param remote_ip remote ip of the endpoint that is going to receive the RPC
   * @param remote_port remote port of the endpoint that is going to receive
   * the RPC
@@ -170,18 +166,16 @@ class Channel : public google::protobuf::RpcChannel {
   * @param local_port local port of the endpoint that is going to receive
   * the RPC
   */
-  Channel(ChannelManager *channelmanager,
-          transport::TransportHandler *transport_handler,
-          const boost::int16_t &transport_id, const std::string &remote_ip,
-          const boost::uint16_t &remote_port, const std::string &local_ip,
-          const boost::uint16_t &local_port, const std::string &rendezvous_ip,
-          const boost::uint16_t &rendezvous_port);
+  Channel(ChannelManager *channel_manager, transport::Transport *transport,
+          const IP &remote_ip, const Port &remote_port,
+          const IP &local_ip, const Port &local_port,
+          const IP &rendezvous_ip, const Port &rendezvous_port);
   ~Channel();
   /**
   * Implementation of virtual method of the interface.
   */
   void CallMethod(const google::protobuf::MethodDescriptor *method,
-                  google::protobuf::RpcController *controller,
+                  google::protobuf::RpcController *rpc_controller,
                   const google::protobuf::Message *request,
                   google::protobuf::Message *response,
                   google::protobuf::Closure *done);
@@ -192,16 +186,13 @@ class Channel : public google::protobuf::RpcChannel {
   void SetService(google::protobuf::Service *service);
   /**
   * Handles the request for a RPC of the service registered.
-  * @param request message containg the request of the RPC
+  * @param rpc_message message containg the request of the RPC
   * @param connection_id id of the connection from which it received the request
-  * message
-  * @param transport_id id of the transport from which it received the request
   * message
   * @param rtt round trip time to the peer from which it received the request
   */
-  void HandleRequest(const transport::RpcMessage &request,
-                     const boost::uint32_t &connection_id,
-                     const boost::int16_t &transport_id, const float &rtt);
+  void HandleRequest(const transport::RpcMessage &rpc_message,
+                     const ConnectionId &connection_id, const float &rtt);
  private:
   boost::shared_ptr<ChannelImpl> pimpl_;
 };

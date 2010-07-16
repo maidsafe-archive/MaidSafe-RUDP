@@ -43,11 +43,11 @@ Contact::Contact()
       local_ip_(),
       local_port_(0) {}
 
-Contact::Contact(const std::string &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port, const std::string &local_ip,
-                 const boost::uint16_t &local_port,
-                 const std::string &rendezvous_ip,
-                 const boost::uint16_t &rendezvous_port)
+Contact::Contact(const std::string &node_id, const IP &host_ip,
+                 const Port &host_port, const IP &local_ip,
+                 const Port &local_port,
+                 const IP &rendezvous_ip,
+                 const Port &rendezvous_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(rendezvous_ip),
       rendezvous_port_(rendezvous_port),
@@ -61,8 +61,8 @@ Contact::Contact(const std::string &node_id, const std::string &host_ip,
       rendezvous_ip_ = base::IpAsciiToBytes(rendezvous_ip);
 }
 
-Contact::Contact(const std::string &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port)
+Contact::Contact(const std::string &node_id, const IP &host_ip,
+                 const Port &host_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(), rendezvous_port_(0),
       last_seen_(base::GetEpochMilliseconds()), local_ip_(), local_port_(0) {
@@ -70,9 +70,9 @@ Contact::Contact(const std::string &node_id, const std::string &host_ip,
       host_ip_ = base::IpAsciiToBytes(host_ip);
 }
 
-Contact::Contact(const std::string &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port, const std::string &local_ip,
-                 const boost::uint16_t &local_port)
+Contact::Contact(const std::string &node_id, const IP &host_ip,
+                 const Port &host_port, const IP &local_ip,
+                 const Port &local_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(), rendezvous_port_(0),
       last_seen_(base::GetEpochMilliseconds()), local_ip_(local_ip),
@@ -83,11 +83,11 @@ Contact::Contact(const std::string &node_id, const std::string &host_ip,
       local_ip_ = base::IpAsciiToBytes(local_ip);
 }
 
-Contact::Contact(const KadId &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port, const std::string &local_ip,
-                 const boost::uint16_t &local_port,
-                 const std::string &rendezvous_ip,
-                 const boost::uint16_t &rendezvous_port)
+Contact::Contact(const KadId &node_id, const IP &host_ip,
+                 const Port &host_port, const IP &local_ip,
+                 const Port &local_port,
+                 const IP &rendezvous_ip,
+                 const Port &rendezvous_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(rendezvous_ip),
       rendezvous_port_(rendezvous_port),
@@ -101,8 +101,8 @@ Contact::Contact(const KadId &node_id, const std::string &host_ip,
       rendezvous_ip_ = base::IpAsciiToBytes(rendezvous_ip);
 }
 
-Contact::Contact(const KadId &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port)
+Contact::Contact(const KadId &node_id, const IP &host_ip,
+                 const Port &host_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(), rendezvous_port_(0),
       last_seen_(base::GetEpochMilliseconds()), local_ip_(), local_port_(0) {
@@ -110,9 +110,9 @@ Contact::Contact(const KadId &node_id, const std::string &host_ip,
       host_ip_ = base::IpAsciiToBytes(host_ip);
 }
 
-Contact::Contact(const KadId &node_id, const std::string &host_ip,
-                 const boost::uint16_t &host_port, const std::string &local_ip,
-                 const boost::uint16_t &local_port)
+Contact::Contact(const KadId &node_id, const IP &host_ip,
+                 const Port &host_port, const IP &local_ip,
+                 const Port &local_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(), rendezvous_port_(0),
       last_seen_(base::GetEpochMilliseconds()), local_ip_(local_ip),
@@ -193,13 +193,13 @@ bool Contact::ParseFromString(const std::string &data) {
     host_ip_ = base::IpAsciiToBytes(info.ip());
   else
     host_ip_ = info.ip();
-  host_port_ = static_cast<boost::uint16_t>(info.port());
+  host_port_ = static_cast<Port>(info.port());
   if (info.has_rendezvous_ip()) {
     if (info.rendezvous_ip().size() > 4)
       rendezvous_ip_ = base::IpAsciiToBytes(info.rendezvous_ip());
     else
       rendezvous_ip_ = info.rendezvous_ip();
-    rendezvous_port_ = static_cast<boost::uint16_t>(info.rendezvous_port());
+    rendezvous_port_ = static_cast<Port>(info.rendezvous_port());
   } else {
     rendezvous_ip_.clear();
     rendezvous_port_ = 0;
@@ -209,7 +209,7 @@ bool Contact::ParseFromString(const std::string &data) {
       local_ip_ = base::IpAsciiToBytes(info.local_ip());
     else
       local_ip_ = info.local_ip();
-    local_port_ = static_cast<boost::uint16_t>(info.local_port());
+    local_port_ = static_cast<Port>(info.local_port());
   } else {
     local_ip_.clear();
     local_port_ = 0;

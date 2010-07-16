@@ -91,10 +91,26 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 
 /*******************************************************************************
- * Global Aliases                                                                     *
+ * Global Aliases                                                              *
  ******************************************************************************/
 namespace  bs2 = boost::signals2;
 namespace  bfs = boost::filesystem;
+
+
+/*******************************************************************************
+ * Transport Layer                                                             *
+ ******************************************************************************/
+namespace transport {
+
+typedef std::string IP;
+typedef boost::uint16_t Port;
+typedef boost::uint32_t ConnectionId;
+typedef int SocketId;
+enum TransportType { kUdt, kTcp, kOther };
+
+}  // namespace transport
+
+
 /*******************************************************************************
  * Kademlia Layer                                                              *
  ******************************************************************************/
@@ -102,6 +118,8 @@ namespace kad {
 
 // Functor for general callback functions.
 typedef boost::function<void(const std::string&)> VoidFunctorOneString;
+typedef transport::IP IP;
+typedef transport::Port Port;
 
 enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
@@ -168,11 +186,17 @@ const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
  ******************************************************************************/
 namespace rpcprotocol {
 
+typedef transport::IP IP;
+typedef transport::Port Port;
+typedef boost::uint32_t RpcId;
+typedef transport::SocketId SocketId;
+typedef transport::ConnectionId ConnectionId;
+
 // Maximum port number.
-const boost::uint16_t kMaxPort = 65535;
+const Port kMaxPort = 65535;
 
 // Minimum port number.
-const boost::uint16_t kMinPort = 5000;
+const Port kMinPort = 5000;
 
 // RPC timeout duration (in milliseconds).
 const boost::uint32_t kRpcTimeout = 10000;
@@ -187,15 +211,5 @@ const std::string kTimeOut("T");
 const std::string kCancelled("C");
 
 }  // namespace rpcprotocol
-
-
-/*******************************************************************************
- * Transport Layer                                                             *
- ******************************************************************************/
-namespace transport {
-
-enum TransportType { kUdt, kTcp, kOther };
-
-}  // namespace transport
 
 #endif  // MAIDSAFE_MAIDSAFE_DHT_CONFIG_H_

@@ -52,7 +52,7 @@ class Stats;
 
 
 namespace transport {
-class TransportHandler;
+class Transport;
 }  // namespace transport
 
 
@@ -62,7 +62,7 @@ typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 
 class Channel;
 class ChannelManagerImpl;
-struct PendingReq;
+struct PendingRequest;
 class RpcMessage;
 
 // Ensure that a one-to-one relationship is maintained between channelmanager &
@@ -82,9 +82,9 @@ class ChannelManager {
  public:
   /**
   * Constructor
-  * @param ptransport_handler Pointer to a transport handler object.
+  * @param transport Pointer to a Transport object
   */
-  explicit ChannelManager(transport::TransportHandler *transport_handler);
+  explicit ChannelManager(transport::Transport *transport);
   ~ChannelManager();
   /**
   * Registers a channel and identifies it with the name of the RPC service that
@@ -128,45 +128,46 @@ class ChannelManager {
   * Creates a new id for the pending requests.
   * @return the id created
   */
-  boost::uint32_t CreateNewId();
+  RpcId CreateNewId();
   /**
   * Adds a new pending request after an RPC has been sent.
-  * @param request_id id to identify the request
-  * @param req structure holding all the information of the request
+  * @param rpc_id id to identify the request
+  * @param pending_request structure holding all the information of the request
   * @return True if pending request successfully added, False otherwise
   */
-  bool AddPendingRequest(const boost::uint32_t &request_id, PendingReq request);
+  bool AddPendingRequest(const RpcId &rpc_id,
+                         PendingRequest pending_request);
   /**
   * Removes a pending request from the list and calls the callback of the
   * request with status Cancelled.
-  * @param request_id id of the request
+  * @param rpc_id id of the request
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool DeletePendingRequest(const boost::uint32_t &request_id);
+  bool DeletePendingRequest(const RpcId &rpc_id);
   /**
   * Removes a pending request from the list.
-  * @param request_id id of the request
+  * @param rpc_id id of the request
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool CancelPendingRequest(const boost::uint32_t &request_id);
+  bool CancelPendingRequest(const RpcId &rpc_id);
   /**
   * Adds a request to the timer to check when it times out.
-  * @param request_id id of the request
+  * @param rpc_id id of the request
   * @param timeout time in milliseconds after which the request times out
   */
-  void AddReqToTimer(const boost::uint32_t &request_id,
-                     const boost::uint64_t &timeout);
+  void AddRequestToTimer(const RpcId &rpc_id,
+                         const boost::uint64_t &timeout);
   /**
   * Adds a request to a list that holds all request that haven't been
   * completely sent via the transport.
   * @param connection_id id of the connection used to send the request
-  * @param request_id id of the request
+  * @param rpc_id id of the request
   * @param timeout milliseconds after which the request times out
   */
-  void AddTimeOutRequest(const boost::uint32_t &connection_id,
-                         const boost::uint32_t &request_id, const int &timeout);
+  void AddTimeOutRequest(const ConnectionId &connection_id,
+                         const RpcId &rpc_id, const int &timeout);
   /**
   * Creates and adds the id of a Channel to a list that holds all the channels
   * using the objet.

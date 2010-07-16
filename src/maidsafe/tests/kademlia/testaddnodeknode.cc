@@ -36,8 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transport-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/base/log.h"
-#include "maidsafe/protobuf/rpcmessage.pb.h"
-#include "maidsafe/transport/transporthandler-api.h"
 
 namespace test_add_knode {
   static const boost::uint16_t K = 16;

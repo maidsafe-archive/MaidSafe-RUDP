@@ -920,7 +920,6 @@ SET(MAIDSAFE_RPC_INSTALL_FILES
       maidsafe/rpcprotocol/channelmanager-api.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
       maidsafe/transport/transport-api.h
-      maidsafe/transport/transporthandler-api.h
       maidsafe/transport/transportudt.h)
 # Check the script /build/Win_MSVC/extract_includes.bat matches this list
 FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)

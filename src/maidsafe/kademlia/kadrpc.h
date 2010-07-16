@@ -35,8 +35,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/protobuf/kademlia_service.pb.h"
-#include "maidsafe/transport/transporthandler-api.h"
 #include "maidsafe/maidsafe-dht_config.h"
+
+namespace transport {
+class Transport;
+}  // namespace transport
 
 namespace rpcprotocol {
 class Controller;
@@ -52,51 +55,51 @@ class KadId;
 class KadRpcs {
  public:
   KadRpcs(rpcprotocol::ChannelManager *channel_manager,
-      transport::TransportHandler *transport_handler);
-  void FindNode(const KadId &key, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, FindResponse *resp,
+          transport::Transport *transport);
+  void FindNode(const KadId &key, const IP &ip,
+      const Port &port, const IP &rendezvous_ip,
+      const Port &rendezvous_port, FindResponse *resp,
       rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
-  void FindValue(const KadId &key, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, FindResponse *resp,
+  void FindValue(const KadId &key, const IP &ip,
+      const Port &port, const IP &rendezvous_ip,
+      const Port &rendezvous_port, FindResponse *resp,
       rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
-  void Ping(const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
+  void Ping(const IP &ip, const Port &port,
+      const IP &rendezvous_ip, const Port &rendezvous_port,
       PingResponse *resp, rpcprotocol::Controller *ctler,
       google::protobuf::Closure *callback);
   void Store(const KadId &key, const SignedValue &value,
-      const SignedRequest &sig_req, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, StoreResponse *resp,
+      const SignedRequest &sig_req, const IP &ip,
+      const Port &port, const IP &rendezvous_ip,
+      const Port &rendezvous_port, StoreResponse *resp,
       rpcprotocol::Controller *ctler, google::protobuf::Closure *callback,
       const boost::int32_t &ttl, const bool &publish);
   void Store(const KadId &key, const std::string &value,
-      const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
+      const IP &ip, const Port &port,
+      const IP &rendezvous_ip, const Port &rendezvous_port,
       StoreResponse *resp, rpcprotocol::Controller *ctler,
       google::protobuf::Closure *callback, const boost::int32_t &ttl,
       const bool &publish);
   void Downlist(const std::vector<std::string> downlist,
-      const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
+      const IP &ip, const Port &port,
+      const IP &rendezvous_ip, const Port &rendezvous_port,
       DownlistResponse *resp, rpcprotocol::Controller *ctler,
       google::protobuf::Closure *callback);
-  void Bootstrap(const KadId &local_id, const std::string &local_ip,
-      const boost::uint16_t &local_port, const std::string &remote_ip,
-      const boost::uint16_t &remote_port, const NodeType &type,
+  void Bootstrap(const KadId &local_id, const IP &local_ip,
+      const Port &local_port, const IP &remote_ip,
+      const Port &remote_port, const NodeType &type,
       BootstrapResponse *resp, rpcprotocol::Controller *ctler,
       google::protobuf::Closure *callback);
   void Delete(const KadId &key, const SignedValue &value,
-      const SignedRequest &sig_req, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, DeleteResponse *resp,
+      const SignedRequest &sig_req, const IP &ip,
+      const Port &port, const IP &rendezvous_ip,
+      const Port &rendezvous_port, DeleteResponse *resp,
       rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
   void Update(const KadId &key, const SignedValue &new_value,
       const SignedValue &old_value, const boost::int32_t &ttl,
-      const SignedRequest &sig_req, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, UpdateResponse *resp,
+      const SignedRequest &sig_req, const IP &ip,
+      const Port &port, const IP &rendezvous_ip,
+      const Port &rendezvous_port, UpdateResponse *resp,
       rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
   void set_info(const ContactInfo &info);
  private:
@@ -104,7 +107,7 @@ class KadRpcs {
   KadRpcs& operator=(const KadRpcs&);
   ContactInfo info_;
   rpcprotocol::ChannelManager *pchannel_manager_;
-  transport::TransportHandler *transport_handler_;
+  transport::Transport *transport_;
 };
 }  // namespace kad
 

@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/rpcprotocol/channelimpl.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
-#include "maidsafe/transport/transporthandler-api.h"
+#include "maidsafe/transport/transport-api.h"
 
 namespace rpcprotocol {
 
@@ -91,67 +91,61 @@ float Controller::rtt() const {
   return controller_pimpl_->rtt();
 }
 
-void Controller::set_transport_id(const boost::int16_t &transport_id) {
-  controller_pimpl_->set_transport_id(transport_id);
+void Controller::set_rpc_id(const RpcId &rpc_id) {
+  controller_pimpl_->set_rpc_id(rpc_id);
 }
 
-boost::int16_t Controller::transport_id() const {
-  return controller_pimpl_->transport_id();
+RpcId Controller::rpc_id() const {
+  return controller_pimpl_->rpc_id();
 }
 
-void Controller::set_request_id(const boost::uint32_t &id) {
-  return controller_pimpl_->set_request_id(id);
+void Controller::set_socket_id(const SocketId &socket_id) {
+  controller_pimpl_->set_socket_id(socket_id);
 }
 
-boost::uint32_t Controller::request_id() const {
-  return controller_pimpl_->request_id();
+SocketId Controller::socket_id() const {
+  return controller_pimpl_->socket_id();
 }
 
-void Controller::set_message_info(const std::string &service,
-                                  const std::string &method) {
-  controller_pimpl_->set_message_info(service, method);
+void Controller::set_method(const std::string &method) {
+  controller_pimpl_->set_method(method);
 }
 
-void Controller::message_info(std::string *service, std::string *method) const {
-  controller_pimpl_->message_info(service, method);
+std::string Controller::method() const {
+  return controller_pimpl_->method();
 }
 
-Channel::Channel(ChannelManager *channelmanager,
-                 transport::TransportHandler *transport_handler)
-    : pimpl_(new ChannelImpl(channelmanager, transport_handler)) {}
+Channel::Channel(ChannelManager *channel_manager,
+                 transport::Transport *transport)
+    : pimpl_(new ChannelImpl(channel_manager, transport)) {}
 
-Channel::Channel(ChannelManager *channelmanager,
-                 transport::TransportHandler *transport_handler,
-                 const boost::int16_t &transport_id,
-                 const std::string &remote_ip,
-                 const boost::uint16_t &remote_port,
-                 const std::string &local_ip,
-                 const boost::uint16_t &local_port,
-                 const std::string &rendezvous_ip,
-                 const boost::uint16_t &rendezvous_port)
-    : pimpl_(new ChannelImpl(channelmanager, transport_handler, transport_id,
-                             remote_ip, remote_port, local_ip, local_port,
-                             rendezvous_ip, rendezvous_port)) {}
+Channel::Channel(ChannelManager *channel_manager,
+                 transport::Transport *transport,
+                 const IP &remote_ip, const Port &remote_port,
+                 const IP &local_ip, const Port &local_port,
+                 const IP &rendezvous_ip, const Port &rendezvous_port)
+    : pimpl_(new ChannelImpl(channel_manager, transport, remote_ip, remote_port,
+                             local_ip, local_port, rendezvous_ip,
+                             rendezvous_port)) {}
 
 Channel::~Channel() {}
 
 void Channel::CallMethod(const google::protobuf::MethodDescriptor *method,
-                         google::protobuf::RpcController *controller,
+                         google::protobuf::RpcController *rpc_controller,
                          const google::protobuf::Message *request,
                          google::protobuf::Message *response,
                          google::protobuf::Closure *done) {
-  pimpl_->CallMethod(method, controller, request, response, done);
+  pimpl_->CallMethod(method, rpc_controller, request, response, done);
 }
 
 void Channel::SetService(google::protobuf::Service* service) {
   pimpl_->SetService(service);
 }
 
-void Channel::HandleRequest(const transport::RpcMessage &request,
-                            const boost::uint32_t &connection_id,
-                            const boost::int16_t &transport_id,
+void Channel::HandleRequest(const transport::RpcMessage &rpc_message,
+                            const ConnectionId &connection_id,
                             const float &rtt) {
-  pimpl_->HandleRequest(request, connection_id, transport_id, rtt);
+  pimpl_->HandleRequest(rpc_message, connection_id, rtt);
 }
 
 }  // namespace rpcprotocol

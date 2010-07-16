@@ -27,5 +27,4 @@ copy ..\..\src\maidsafe\rpcprotocol\channelmanager-api.h include\maidsafe\rpcpro
 
 md include\maidsafe\transport
 copy ..\..\src\maidsafe\transport\transport-api.h include\maidsafe\transport\transport-api.h
-copy ..\..\src\maidsafe\transport\transporthandler-api.h include\maidsafe\transport\transporthandler-api.h
 copy ..\..\src\maidsafe\transport\transportudt.h include\maidsafe\transport\transportudt.h

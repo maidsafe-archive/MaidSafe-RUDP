@@ -31,29 +31,24 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kad {
 
 KNode::KNode(rpcprotocol::ChannelManager *channel_manager,
-             transport::TransportHandler *transport_handler,
-             NodeType type, const std::string &private_key,
-             const std::string &public_key, const bool &port_forwarded,
-             const bool &use_upnp, const boost::uint16_t &k)
-      : pimpl_(new KNodeImpl(channel_manager, transport_handler, type,
-               private_key, public_key, port_forwarded, use_upnp, k)) {}
+             transport::Transport *transport, NodeType type,
+             const std::string &private_key, const std::string &public_key,
+             const bool &port_forwarded, const bool &use_upnp,
+             const boost::uint16_t &k)
+    : pimpl_(new KNodeImpl(channel_manager, transport, type,
+             private_key, public_key, port_forwarded, use_upnp, k)) {}
 
 KNode::KNode(rpcprotocol::ChannelManager *channel_manager,
-             transport::TransportHandler *transport_handler,
-             NodeType type, const boost::uint16_t &k,
-             const boost::uint16_t &alpha, const boost::uint16_t &beta,
-             const boost::uint32_t &refresh_time,
+             transport::Transport *transport, NodeType type,
+             const boost::uint16_t &k, const boost::uint16_t &alpha,
+             const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
              const std::string &private_key, const std::string &public_key,
              const bool &port_forwarded, const bool &use_upnp)
-      : pimpl_(new KNodeImpl(channel_manager, transport_handler, type, k, alpha,
-               beta, refresh_time, private_key, public_key, port_forwarded,
-               use_upnp)) {}
+    : pimpl_(new KNodeImpl(channel_manager, transport, type, k, alpha,
+              beta, refresh_time, private_key, public_key, port_forwarded,
+              use_upnp)) {}
 
 KNode::~KNode() {}
-
-void KNode::set_transport_id(const boost::int16_t &transport_id) {
-  pimpl_->set_transport_id(transport_id);
-}
 
 void KNode::Join(const KadId &node_id, const std::string &kad_config_file,
                  VoidFunctorOneString callback) {
@@ -66,15 +61,15 @@ void KNode::Join(const std::string &kad_config_file,
 }
 
 void KNode::Join(const KadId &node_id, const std::string &kad_config_file,
-                 const std::string &external_ip,
-                 const boost::uint16_t &external_port,
+                 const IP &external_ip,
+                 const Port &external_port,
                  VoidFunctorOneString callback) {
   pimpl_->Join(node_id, kad_config_file, external_ip, external_port, callback);
 }
 
 void KNode::Join(const std::string &kad_config_file,
-                 const std::string &external_ip,
-                 const boost::uint16_t &external_port,
+                 const IP &external_ip,
+                 const Port &external_port,
                  VoidFunctorOneString callback) {
   pimpl_->Join(kad_config_file, external_ip, external_port, callback);
 }
@@ -168,14 +163,14 @@ void KNode::HandleDeadRendezvousServer(const bool &dead_server) {
 }
 
 ConnectionType KNode::CheckContactLocalAddress(const KadId &id,
-                                               const std::string &ip,
-                                               const boost::uint16_t &port,
-                                               const std::string &ext_ip) {
+                                               const IP &ip,
+                                               const Port &port,
+                                               const IP &ext_ip) {
   return pimpl_->CheckContactLocalAddress(id, ip, port, ext_ip);
 }
 
 void KNode::UpdatePDRTContactToRemote(const KadId &node_id,
-                                      const std::string &host_ip) {
+                                      const IP &host_ip) {
   pimpl_->UpdatePDRTContactToRemote(node_id, host_ip);
 }
 
@@ -187,27 +182,27 @@ KadId KNode::node_id() const {
   return pimpl_->node_id();
 }
 
-std::string KNode::host_ip() const {
+IP KNode::host_ip() const {
   return pimpl_->host_ip();
 }
 
-boost::uint16_t KNode::host_port() const {
+Port KNode::host_port() const {
   return pimpl_->host_port();
 }
 
-std::string KNode::local_host_ip() const {
+IP KNode::local_host_ip() const {
   return pimpl_->local_host_ip();
 }
 
-boost::uint16_t KNode::local_host_port() const {
+Port KNode::local_host_port() const {
   return pimpl_->local_host_port();
 }
 
-std::string KNode::rendezvous_ip() const {
+IP KNode::rendezvous_ip() const {
   return pimpl_->rendezvous_ip();
 }
 
-boost::uint16_t KNode::rendezvous_port() const {
+Port KNode::rendezvous_port() const {
   return pimpl_->rendezvous_port();
 }
 

@@ -27,26 +27,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/kadrpc.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
-#include "maidsafe/transport/transporthandler-api.h"
 #include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/transport/transport-api.h"
 
 namespace kad {
 
 KadRpcs::KadRpcs(rpcprotocol::ChannelManager *channel_manager,
-                 transport::TransportHandler *transport_handler)
-                  : info_(),
-                    pchannel_manager_(channel_manager),
-                    transport_handler_(transport_handler) {
-}
+                 transport::Transport *transport)
+    : info_(),
+      pchannel_manager_(channel_manager),
+      transport_(transport) {}
 
 void KadRpcs::set_info(const ContactInfo &info) {
   info_ = info;
 }
 
-void KadRpcs::FindNode(const KadId &key, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, FindResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
+void KadRpcs::FindNode(const KadId &key, const IP &ip,
+                       const Port &port,
+                       const IP &rendezvous_ip,
+                       const Port &rendezvous_port,
+                       FindResponse *resp, rpcprotocol::Controller *ctler,
+                       google::protobuf::Closure *callback) {
   FindRequest args;
   if (resp->has_requester_ext_addr()) {
     // This is a special find node RPC for bootstrapping process
@@ -56,47 +57,52 @@ void KadRpcs::FindNode(const KadId &key, const std::string &ip,
   args.set_key(key.String());
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port,
+                               "", 0, rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.FindNode(ctler, &args, resp, callback);
 }
 
-void KadRpcs::FindValue(const KadId &key, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, FindResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
+void KadRpcs::FindValue(const KadId &key, const IP &ip,
+                        const Port &port,
+                        const IP &rendezvous_ip,
+                        const Port &rendezvous_port,
+                        FindResponse *resp, rpcprotocol::Controller *ctler,
+                        google::protobuf::Closure *callback) {
   FindRequest args;
   args.set_key(key.String());
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.FindValue(ctler, &args, resp, callback);
 }
 
-void KadRpcs::Ping(const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
-      PingResponse *resp, rpcprotocol::Controller *ctler,
-      google::protobuf::Closure *callback) {
+void KadRpcs::Ping(const IP &ip, const Port &port,
+                   const IP &rendezvous_ip,
+                   const Port &rendezvous_port, PingResponse *resp,
+                   rpcprotocol::Controller *ctler,
+                   google::protobuf::Closure *callback) {
   PingRequest args;
   args.set_ping("ping");
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   ctler->set_timeout(kRpcPingTimeout);
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Ping(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Store(const KadId &key, const SignedValue &value,
-      const SignedRequest &sig_req, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, StoreResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback,
-      const boost::int32_t &ttl, const bool &publish) {
+                    const SignedRequest &sig_req, const IP &ip,
+                    const Port &port,
+                    const IP &rendezvous_ip,
+                    const Port &rendezvous_port, StoreResponse *resp,
+                    rpcprotocol::Controller *ctler,
+                    google::protobuf::Closure *callback,
+                    const boost::int32_t &ttl, const bool &publish) {
   StoreRequest args;
   args.set_key(key.String());
   SignedValue *svalue = args.mutable_sig_value();
@@ -107,18 +113,19 @@ void KadRpcs::Store(const KadId &key, const SignedValue &value,
   *sreq = sig_req;
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Store(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Store(const KadId &key, const std::string &value,
-      const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
-      StoreResponse *resp, rpcprotocol::Controller *ctler,
-      google::protobuf::Closure *callback, const boost::int32_t &ttl,
-      const bool &publish) {
+                    const IP &ip, const Port &port,
+                    const IP &rendezvous_ip,
+                    const Port &rendezvous_port, StoreResponse *resp,
+                    rpcprotocol::Controller *ctler,
+                    google::protobuf::Closure *callback,
+                    const boost::int32_t &ttl, const bool &publish) {
   StoreRequest args;
   args.set_key(key.String());
   args.set_value(value);
@@ -126,32 +133,33 @@ void KadRpcs::Store(const KadId &key, const std::string &value,
   args.set_publish(publish);
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Store(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Downlist(const std::vector<std::string> downlist,
-      const std::string &ip, const boost::uint16_t &port,
-      const std::string &rendezvous_ip, const boost::uint16_t &rendezvous_port,
-      DownlistResponse *resp, rpcprotocol::Controller *ctler,
-      google::protobuf::Closure *callback) {
+                       const IP &ip, const Port &port,
+                       const IP &rendezvous_ip,
+                       const Port &rendezvous_port,
+                       DownlistResponse *resp, rpcprotocol::Controller *ctler,
+                       google::protobuf::Closure *callback) {
   DownlistRequest args;
   for (unsigned int i = 0; i < downlist.size(); ++i)
     args.add_downlist(downlist[i]);
   rpcprotocol::Controller controller;
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Downlist(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Bootstrap(const KadId &local_id,
-    const std::string &local_ip, const boost::uint16_t &local_port,
-    const std::string &remote_ip, const boost::uint16_t &remote_port,
+    const IP &local_ip, const Port &local_port,
+    const IP &remote_ip, const Port &remote_port,
     const NodeType &type, BootstrapResponse *resp,
     rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
   BootstrapRequest args;
@@ -160,17 +168,17 @@ void KadRpcs::Bootstrap(const KadId &local_id,
   args.set_newcomer_local_port(local_port);
   args.set_node_type(type);
   ctler->set_timeout(20);
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), remote_ip, remote_port, "", 0, "", 0);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, remote_ip,
+                               remote_port, "", 0, "", 0);
   KademliaService::Stub service(&channel);
   service.Bootstrap(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Delete(const KadId &key, const SignedValue &value,
-      const SignedRequest &sig_req, const std::string &ip,
-      const boost::uint16_t &port, const std::string &rendezvous_ip,
-      const boost::uint16_t &rendezvous_port, DeleteResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
+                     const SignedRequest &sig_req, const IP &ip,
+                     const Port &port, const IP &rendezvous_ip,
+                     const Port &rendezvous_port, DeleteResponse *resp,
+                     rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
   DeleteRequest args;
   args.set_key(key.String());
   SignedValue *svalue = args.mutable_value();
@@ -179,17 +187,17 @@ void KadRpcs::Delete(const KadId &key, const SignedValue &value,
   *sreq = sig_req;
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-      ctler->transport_id(), ip, port, "", 0, rendezvous_ip, rendezvous_port);
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
+                               rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Delete(ctler, &args, resp, callback);
 }
 
 void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
     const SignedValue &old_value, const boost::int32_t &ttl,
-    const SignedRequest &sig_req, const std::string &ip,
-    const boost::uint16_t &port, const std::string &rendezvous_ip,
-    const boost::uint16_t &rendezvous_port, UpdateResponse *resp,
+    const SignedRequest &sig_req, const IP &ip,
+    const Port &port, const IP &rendezvous_ip,
+    const Port &rendezvous_port, UpdateResponse *resp,
     rpcprotocol::Controller *ctler, google::protobuf::Closure *callback) {
   UpdateRequest args;
   args.set_key(key.String());
@@ -202,8 +210,7 @@ void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
   *sreq = sig_req;
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel channel(pchannel_manager_, transport_handler_,
-                               ctler->transport_id(), ip, port, "", 0,
+  rpcprotocol::Channel channel(pchannel_manager_, transport_, ip, port, "", 0,
                                rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.Update(ctler, &args, resp, callback);

@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transport-api.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/tests/validationimpl.h"
-#include "maidsafe/transport/transporthandler-api.h"
 
 namespace kad {
 
