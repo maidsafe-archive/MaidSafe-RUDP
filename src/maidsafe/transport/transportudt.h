@@ -104,6 +104,8 @@ class TransportUDT : public Transport {
                           const SocketId &socket_id);
   bool CheckIP(const IP &ip);
   bool CheckPort(const Port &port);
+  bool CheckSocketSend(const SocketId &udt_socket_id);
+  bool CheckSocketReceive(const SocketId &udt_socket_id);
   TransportCondition StartListening(const IP &ip, const Port &port);
 /*  int ConnectToSend(const IP &remote_ip,
                     const Port &remote_port,
@@ -112,7 +114,7 @@ class TransportUDT : public Transport {
                     const IP &rendezvous_ip,
                     const Port &rendezvous_port,
                     const bool &keep_connection,
-                    ConnectionId *connection_id);                  
+                    ConnectionId *connection_id);
   int Send(const rpcprotocol::RpcMessage &data,
            const ConnectionId &connection_id, const bool &new_socket);
   int Send(const TransportMessage &t_mesg, const ConnectionId &connection_id,
@@ -120,7 +122,7 @@ class TransportUDT : public Transport {
 
   int StartLocal(const Port &port);
 
-  
+
 //   bool RegisterOnRPCMessage(
 //       boost::function<void(const rpcprotocol::RpcMessage&,
 //                            const ConnectionId&,
@@ -199,7 +201,7 @@ class TransportUDT : public Transport {
   Port listening_port_, my_rendezvous_port_;
 // TODO (dirvine) allow multiple listening ports, map numbers with names
   std::map<Port, std::string> listening_ports_;
-  
+
   IP my_rendezvous_ip_;
   std::map<ConnectionId, IncomingData> incoming_sockets_;
   std::list<OutgoingData> outgoing_queue_;

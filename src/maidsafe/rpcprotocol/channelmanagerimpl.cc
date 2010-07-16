@@ -240,7 +240,8 @@ void ChannelManagerImpl::ResponseArrive(const transport::RpcMessage &msg,
                                         const ConnectionId &connection_id,
                                         const float &rtt) {
   transport::RpcMessage decoded_msg = msg;
-  if (!decoded_msg.has_service() || !decoded_msg.has_method()) {
+  // TODO FIXME (dirvine)
+  if (/*!decoded_msg.has_service() ||*/ !decoded_msg.has_method()) {
     DLOG(ERROR) << transport_->listening_port() <<
         " --- request arrived cannot parse message\n";
     return;
