@@ -50,42 +50,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace transport {
 
 class HolePunchingMessage;
-struct IncomingMessages;
+// struct IncomingMessages;
 
 typedef int UdtSocketId;
-
-struct IncomingData {
-  explicit IncomingData(const UdtSocketId &udt_socket_id)
-      : udt_socket_id(udt_socket_id), expect_size(0), received_size(0), data(NULL),
-        cumulative_rtt(0.0), observations(0) {}
-  IncomingData()
-      : udt_socket_id(), expect_size(0), received_size(0), data(NULL),
-        cumulative_rtt(0.0), observations(0) {}
-  UdtSocketId udt_socket_id;
-  DataSize expect_size;
-  DataSize received_size;
-  boost::shared_array<char> data;
-  double cumulative_rtt;
-  boost::uint32_t observations;
-};
-
-struct OutgoingData {
-  OutgoingData()
-      : udt_socket_id(), data_size(0), data_sent(0), data(NULL), sent_size(false),
-        connection_id(0), is_rpc(false) {}
-  OutgoingData(UdtSocketId udt_socket_id, DataSize data_size,
-               ConnectionId connection_id, bool is_rpc)
-      : udt_socket_id(udt_socket_id), data_size(data_size), data_sent(0),
-        data(new char[data_size]), sent_size(false),
-        connection_id(connection_id), is_rpc(is_rpc) {}
-  UdtSocketId udt_socket_id;
-  DataSize data_size;
-  DataSize data_sent;
-  boost::shared_array<char> data;
-  bool sent_size;
-  ConnectionId connection_id;
-  bool is_rpc;
-};
 
 class TransportUDT : public Transport {
  public:
@@ -93,72 +60,48 @@ class TransportUDT : public Transport {
   TransportUDT();
   ~TransportUDT();
   static void CleanUp();
-  // This method is used to create a new socket and send data.  It assumes a
+  // Used to create a new socket and send data.  It assumes a
   // response is expected if timeout is > 0, and keeps the socket alive
   // for timeout (in milliseconds)
   TransportCondition Send(const TransportMessage &transport_message,
                           const IP &remote_ip,
                           const Port &remote_port,
                           const int &response_timeout);
-  TransportCondition Send(const TransportMessage &transport_message,
+  // Used to send a response to a request recived on socket_id.
+  TransportCondition SendResponse(const TransportMessage &transport_message,
                           const SocketId &socket_id);
-  bool CheckIP(const IP &ip);
-  bool CheckPort(const Port &port);
+
+  TransportCondition Send(const std::string &data,
+            const UdtSocketId &udt_socket_id,
+            const int &response_timeout,
+            const Port & receive_port);
+  // Checks a socket can send data.(close it otherwise)
   bool CheckSocketSend(const SocketId &udt_socket_id);
+  // Check a socket can recieve data (close it otherwise)
   bool CheckSocketReceive(const SocketId &udt_socket_id);
-  TransportCondition StartListening(const IP &ip, const Port &port);
-/*  int ConnectToSend(const IP &remote_ip,
-                    const Port &remote_port,
-                    const IP &local_ip,
-                    const Port &local_port,
-                    const IP &rendezvous_ip,
-                    const Port &rendezvous_port,
-                    const bool &keep_connection,
-                    ConnectionId *connection_id);
-  int Send(const rpcprotocol::RpcMessage &data,
-           const ConnectionId &connection_id, const bool &new_socket);
-  int Send(const TransportMessage &t_mesg, const ConnectionId &connection_id,
-           const bool &new_socket);*/
-
-  int StartLocal(const Port &port);
-
-
-//   bool RegisterOnRPCMessage(
-//       boost::function<void(const rpcprotocol::RpcMessage&,
-//                            const ConnectionId&,
-//                            const boost::int16_t&,
-//                            const float &)> on_rpcmessage);
-//   bool RegisterOnMessage(
-//       boost::function<void(const std::string&,
-//                            const ConnectionId&,
-//                            const boost::int16_t&,
-//                            const float &)> on_message);
-//   bool RegisterOnSend(
-//       boost::function<void(const ConnectionId&,
-//                            const bool&)> on_send);
-//   bool RegisterOnServerDown(
-//       boost::function<void(const bool&,
-//                            const IP&,
-//                            const Port&)> on_server_down);
-  TransportCondition CloseConnection(const ConnectionId &connection_id);
-  void Stop();
-  bool is_stopped() const { return stop_; }
+  // return 1-5000 for fail or port number (check > 5000)
+  // this port number is passed up with every message received
+  // add sucessful ports to listening_ports_ vector.
+  Port StartListening(const IP &ip, const Port &port);
+  // Stop a particular port
+  bool StopListening(const Port);
+  // Stop all listening ports
+  bool StopAllListening();
+  bool is_stopped() const { return stop_all_; }
   TransportCondition GetPeerAddress(const SocketId &socket_id,
                                     struct sockaddr *peer_address);
   bool ConnectionExists(const ConnectionId &connection_id);
-  bool HasReceivedData(const ConnectionId &connection_id,
-                       DataSize *size);
+  std::vector<Port> GetListeningPorts() { return listening_ports_; }
+//   bool HasReceivedData(const ConnectionId &connection_id,
+//                        DataSize *size);
   Port listening_port() const { return listening_port_; }
-  void StartPingRendezvous(bool directly_connected,
-                           const IP &my_rendezvous_ip,
-                           const Port &my_rendezvous_port);
-  void StopPingRendezvous();
-  bool CanConnect(const IP &ip, const Port &port);
+
   bool IsAddressUsable(const IP &local_ip,
                        const IP &remote_ip,
                        const Port &remote_port);
   bool IsPortAvailable(const Port &port);
  private:
+   // No copy or assign
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
   void AddUdtSocketId(const UdtSocketId &udt_socket_id);
@@ -168,9 +111,7 @@ class TransportUDT : public Transport {
   int GetAndRefreshSocketStates(
       std::vector<UdtSocketId> *sockets_ready_to_receive,
       std::vector<UdtSocketId> *sockets_ready_to_send);
-  TransportCondition Send(const std::string &data,
-                          const UdtSocketId &udt_socket_id,
-                          const int &response_timeout);
+
 
 
   ConnectionId NextConnectionID() {
@@ -179,10 +120,14 @@ class TransportUDT : public Transport {
   }
   void AddIncomingConnection(UdtSocketId udt_socket_id);
   void ReceiveData(const UdtSocketId &udt_socket_id,
-                   const int &timeout);
+                   const int &timeout,
+                   const Port& receive_port);
+  void AsyncReceiveData(const UdtSocketId &udt_socket_id,
+                               const int &timeout);
   bool ParseTransportMessage(const std::string &data,
                              const UdtSocketId &udt_socket_id,
-                             const float &rtt);
+                             const float &rtt,
+                             const Port & receive_port);
   void AddIncomingConnection(UdtSocketId udt_socket_id,
                              ConnectionId *connection_id);
   void HandleRendezvousMessage(const HolePunchingMessage &message);
@@ -191,7 +136,8 @@ class TransportUDT : public Transport {
   int Connect(const IP &peer_address, const Port &peer_port,
               UdtSocketId *udt_socket_id);
   void PingHandle();
-  void AcceptConnectionHandler(const UdtSocketId &udt_socket_id);
+  void AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
+                               const Port & receive_port);
   void ReceiveHandler();
   void MessageHandler();
   boost::shared_ptr<boost::thread> accept_routine_, recv_routine_;
@@ -199,13 +145,10 @@ class TransportUDT : public Transport {
   boost::shared_ptr<boost::thread> handle_msgs_routine_;
   UdtSocketId listening_socket_;
   Port listening_port_, my_rendezvous_port_;
-// TODO (dirvine) allow multiple listening ports, map numbers with names
-  std::map<Port, std::string> listening_ports_;
-
   IP my_rendezvous_ip_;
-  std::map<ConnectionId, IncomingData> incoming_sockets_;
-  std::list<OutgoingData> outgoing_queue_;
-  std::list<IncomingMessages> incoming_msgs_queue_;
+//   std::map<ConnectionId, IncomingData> incoming_sockets_;
+//   std::list<OutgoingData> outgoing_queue_;
+//   std::list<IncomingMessages> incoming_msgs_queue_;
   boost::mutex send_mutex_, ping_rendez_mutex_, recv_mutex_, msg_hdl_mutex_;
   boost::mutex s_skts_mutex_;
   struct addrinfo addrinfo_hints_;
@@ -222,6 +165,7 @@ class TransportUDT : public Transport {
   std::map<ConnectionId, UdtSocketId> send_sockets_;
   TransportType transport_type_;
   std::vector<UdtSocketId> udt_socket_ids_;
+  std::vector<Port> listening_ports_;
   boost::mutex udt_socket_ids_mutex_;
  // static ConnectionId connection_id_;
   //boost::shared_array<char> data_;

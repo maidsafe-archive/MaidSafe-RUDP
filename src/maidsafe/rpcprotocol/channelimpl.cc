@@ -120,8 +120,8 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   rpc_message->set_method(method->name());
   // Get field descriptor for RPC payload
   const google::protobuf::FieldDescriptor *field_descriptor =
-      rpc_message->detail().GetReflection()->FindKnownExtensionByName(
-          request->GetTypeName());
+      rpc_message->detail().;   //GetReflection()->FindKnownExtensionByName(
+         // request->GetTypeName());
   // Get mutable payload field
   transport::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();

@@ -35,8 +35,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
+#include <boost/asio/ip/address.hpp>
+#include <boost/system/error_code.hpp>
 #include <maidsafe/protobuf/transport_message.pb.h>
 #include <maidsafe/maidsafe-dht_config.h>
+#include <maidsafe/transport/signals-inl.h>
 #include <string>
 
 #if MAIDSAFE_DHT_VERSION < 23
@@ -47,46 +50,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-enum TransportCondition {
-  kSuccess = 0,
-  kError = -1,
-  kRemoteUnreachable = -2,
-  kNoConnection = -3,
-  kNoNetwork = -4,
-  kInvalidIP = -5,
-  kInvalidPort = -6,
-  kInvalidData = -7,
-  kNoSocket = -8,
-  kInvalidAddress = -9,
-  kNoRendezvous = -10,
-  kBehindFirewall = -11,
-  kBindError = -12,
-  kConnectError = -13,
-  kSendError = -14,
-  kAlreadyStarted = -15,
-  kListenError = -16,
-  kThreadResourceError = -17,
-  kCloseSocketError = -18
-};
-
-typedef bs2::signal<void(const std::string&,
-                         const ConnectionId&,
-                         const float&)> SignalMessageReceived;
-typedef bs2::signal<void(const transport::RpcMessage&,
-                         const ConnectionId&,
-                         const float&)> SignalRpcRequestReceived,
-                                        SignalRpcResponseReceived;
-typedef bs2::signal<void(const bool&,
-                         const IP&,
-                         const Port&)> SignalConnectionDown;
-typedef bs2::signal<void(const ConnectionId&, const bool&)> SignalSent;
-
 typedef boost::int64_t DataSize;
 
-class Transport {
+class Transport : public Signals {
   /* Transport API, all transports require to inherit these public methods
-  *   as well as the signals. Slots must be defined and connected. Common
-  *   parameters listed below
+  *   as well as the signals (inherited). Slots must be defined and connected.
+  *   Common parameters listed below
   *  @param port - The port the transport has been given
   *  @param remote_ip - Remote IP adress in dotted decimal i.e. 123.123.123.123
   *  @param remote_port - Remote port [integer]
@@ -103,23 +72,16 @@ class Transport {
                                   const IP &remote_ip,
                                   const Port &remote_port,
                                   const int &response_timeout) = 0;
-  virtual TransportCondition Send(const TransportMessage &transport_message,
-                                  const SocketId &socket_id) = 0;
-//   virtual TransportCondition SendWithRendezvous(const std::string &data,
-//                                   const IP &remote_ip,
-//                                   const Port &remote_port,
-//                                   const IP &rendezvous_ip,
-//                                   const Port &rendezvous_port) = 0;
-//   virtual TransportCondition SendFile(const std::string &data,
-//                                   const IP &remote_ip,
-//                                   const Port &remote_port) = 0;
-//   virtual TransportCondition SendFileWithRendezvous(const std::string &data,
-//                                   const IP &remote_ip,
-//                                   const Port &remote_port,
-//                                   const IP &rendezvous_ip,
-//                                   const Port &rendezvous_port) = 0;
-
-  virtual TransportCondition StartListening(const IP &ip, const Port &port) = 0;
+//   virtual TransportCondition Send(const TransportMessage &transport_message,
+//                                   const SocketId &socket_id) = 0;
+// Create a rendezvous connection - pass server as well
+// this will block as we need the result
+//   virtual TransportCondition Open(const IP &remote_ip,
+//                                    const Port &remote_port,
+//                                    const IP &rendezvous_peer_ip,
+//                                    const Port &rendezvous_peer_port) = 0;
+//                                    
+  virtual Port StartListening(const IP &ip, const Port &port) = 0;
 // return value is the connection_id or -1 on error
 //   virtual ConnectionId ManagedConnection(const IP &remote_ip,
 //                                          const Port &remote_port,
@@ -128,77 +90,44 @@ class Transport {
 //                                          const boost::uint16_t &frequency,
 //                                          const boost::uint16_t &retry_count,
 //                                          const boost::uint16_t &retry_frequency) = 0;
-
-  virtual TransportCondition CloseConnection(
-      const ConnectionId &connection_id) = 0;
-  // Close even incoming sockets and exit
+  bool CheckIP(const IP &ip) {
+    boost::system::error_code ec;
+    boost::asio::ip::address::from_string( ip, ec );
+    if ( ec ) { return false; }
+    return true;
+  }
+  bool CheckListeningPort(const Port &port) {
+    if ((5000 < port) && (port < 65536)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
   bool ImmediateStop() { stop_now_ = true; }
-  // Close on all data received and RPCs responded
-  bool DeferredStop() { stop_ = true; }
+  bool DeferredStop() { stop_all_ = true; }
   virtual TransportCondition GetPeerAddress(const SocketId &socket_id,
                                             struct sockaddr *peer_address) = 0;
-//   virtual bool ConnectionExists(const ConnectionId &connection_id) = 0;
-//   virtual void peer_info(const ConnectionId &connection_id) = 0;
   bool stopped() const { return stopped_; }
   bool nat_pnp() const { return nat_pnp_; }
   bool upnp() const { return upnp_; }
+  // TODO (dirvine) turn into vector of listening ports
   virtual Port listening_port() const = 0;
-
   void set_nat_pnp(bool nat_pnp) { nat_pnp_ = nat_pnp; }
   void set_upnp(bool upnp) { upnp_ = upnp; }
-  virtual bool HasReceivedData(const ConnectionId &connection_id,
-                               DataSize *size) = 0;
-  virtual void StartPingRendezvous(bool directly_connected,
-                                   const IP &my_rendezvous_ip,
-                                   const Port &my_rendezvous_port) = 0;
-  virtual void StopPingRendezvous() = 0;
-  virtual bool CanConnect(const IP &ip, const Port &port) = 0;
-//   virtual bool IsAddressUsable(const IP &local_ip,
-//                                const IP &remote_ip,
-//                                const Port &remote_port) = 0;
-//   virtual bool IsPortAvailable(const std::string &port) = 0;
-
- // CONNECTIONS (method is basically the same as sig.connect().)
-  bs2::connection ConnectMessageReceived(
-      const SignalMessageReceived::slot_type &message_received_slot) {
-    return signal_message_received_.connect(message_received_slot);
-  }
-  bs2::connection ConnectRpcRequestReceived(
-      const SignalRpcRequestReceived::slot_type &rpc_request_received_slot) {
-    return signal_rpc_request_received_.connect(rpc_request_received_slot);
-  }
-  bs2::connection ConnectRpcResponseReceived(
-      const SignalRpcResponseReceived::slot_type &rpc_response_received_slot) {
-    return signal_rpc_response_received_.connect(rpc_response_received_slot);
-  }
-  bs2::connection ConnectConnectionDown(
-      const SignalConnectionDown::slot_type &connection_down_slot) {
-    return signal_connection_down_.connect(connection_down_slot);
-  }
-  bs2::connection ConnectSent(const SignalSent::slot_type &sent_slot) {
-    return signal_sent_.connect(sent_slot);
-  }
-
  protected:
-  Transport() : signal_rpc_request_received_(),
-                signal_rpc_response_received_(),
-                signal_message_received_(),
-                signal_connection_down_(),
-                signal_sent_(),
-                upnp_(false),
+  Transport() : upnp_(false),
                 nat_pnp_(false),
                 rendezvous_(false),
                 local_port_only_(false),
                 stopped_(true),
-                stop_(false),
+                stop_all_(false),
                 stop_now_(false) {}
-  SignalRpcRequestReceived signal_rpc_request_received_;
-  SignalRpcResponseReceived signal_rpc_response_received_;
-  SignalMessageReceived signal_message_received_;
-  SignalConnectionDown signal_connection_down_;
-  SignalSent signal_sent_;
-  bool upnp_, nat_pnp_, rendezvous_, local_port_only_, stopped_, stop_;
+
+  bool upnp_, nat_pnp_, rendezvous_, local_port_only_, stopped_, stop_all_;
   bool stop_now_;
+ private:
+  Transport(const Transport&);
+  Transport& operator=(const Transport&);
 };
 
 }  // namespace transport

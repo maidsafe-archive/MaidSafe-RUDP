@@ -124,10 +124,9 @@ class MessageHandler {
       msgs.push_back(message);
       ids.push_back(socket_id);
     }
-    LOG(INFO) << "message " << msgs_received_ << " arrived. RTT = " << rtt
-        << std::endl;
-    if (transport_ != NULL)
-      transport_->CloseConnection(socket_id);
+//     LOG(INFO) << "message " << msgs_received_ << " arrived. RTT = " << rtt
+//         << std::endl;
+  UDT::close(socket_id);
   }
   void OnMessage(const std::string &msg,
                  const transport::SocketId &socket_id,
@@ -197,9 +196,9 @@ class MessageHandlerEchoRequest {
     transport::Port peer_port = ntohs(((struct sockaddr_in *)&addr)->sin_port);
     LOG(INFO) << "message " << msgs.size() << " arrived from " << peer_ip << ":"
         << peer_port << " . RTT = " << rtt << std::endl;
-    // replying same msg
+   // replying same msg
     if (msgs.size() < size_t(10))
-      node_->Send(t_msg, socket_id);
+      node_->SendResponse(t_msg, socket_id);
   }
   void OnDeadRendezvousServer(const bool &dead_server, const transport::IP &ip,
                               const transport::Port &port) {
@@ -241,10 +240,10 @@ class MessageHandlerEchoResponse {
     msg.SerializeToString(&message);
     msgs.push_back(message);
     ids.push_back(socket_id);
-    LOG(INFO) << "message " << msgs.size() << " arrived. RTT = " << rtt
-        << std::endl;
+//     LOG(INFO) << "message " << msgs.size() << " arrived. RTT = " << rtt
+//         << std::endl;
     // replying same msg
-    node_->CloseConnection(socket_id);
+    UDT::close(socket_id);
   }
   void OnDeadRendezvousServer(const bool &dead_server, const transport::IP &ip,
                               const transport::Port &port) {
@@ -342,18 +341,56 @@ class TransportTest: public testing::Test {
 //   }
 // }
 
+TEST_F(TransportTest, FUNC_TRANS_MultipleListeningPorts) {
+  transport::TransportUDT node;
+  transport::Port lp_node[100];
+  transport::TransportMessage transport_message;
+  transport_message.set_type(transport::TransportMessage::kRequest);
+  transport::RpcMessage *rpc_message =
+      transport_message.mutable_data()->mutable_rpc_message();
+  rpc_message->set_rpc_id(2000);
+  rpc_message->set_method("Test");
+  transport::RpcMessage::Detail *payload = rpc_message->mutable_detail();
+  kad::NatDetectionPingRequest *request = payload->MutableExtension(
+      kad::NatDetectionPingRequest::nat_detection_ping_request);
+  const std::string args = base::RandomString(256 * 1024);
+  request->set_ping(args);
+  std::string sent_msg;
+  rpc_message->SerializeToString(&sent_msg);
+  transport::IP ip("127.0.0.1");
+  boost::uint16_t num_listening_ports = 20;
+  for (int i = 0; i < num_listening_ports ; ++i) {
+    lp_node[i] = node.StartListening("", 0);
+    // LOG(INFO) << "Chosen port number for node : " << i << " "
+    //            << lp_node[i] << std::endl;
+    EXPECT_TRUE(node.CheckListeningPort(lp_node[i]));
+    if (i == 1) {
+      EXPECT_FALSE(node.CheckListeningPort(0));
+      EXPECT_FALSE(node.CheckListeningPort(1));
+      EXPECT_FALSE(node.CheckListeningPort(4999));
+      EXPECT_FALSE(node.CheckListeningPort(5000));
+    }
+     EXPECT_EQ(transport::kSuccess,
+             node.Send(transport_message, ip, lp_node[i], 0));
+  }
+  EXPECT_EQ(num_listening_ports, node.GetListeningPorts().size()); // shoudl all be sucessful
+  
+}
+
 TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   transport::SocketId id = 0;
-
-  // transport::TransportHandler node1_handler, node2_handler;
   transport::TransportUDT node1_transudt, node2_transudt;
   boost::int16_t node1_id, node2_id;
   MessageHandler msg_handler1(&node1_transudt);
   MessageHandler msg_handler2(&node2_transudt);
-  EXPECT_EQ(0, node1_transudt.StartListening("", 0));
-  EXPECT_EQ(0, node2_transudt.StartListening("", 0));
-  transport::Port lp_node2 = node2_transudt.listening_port();
-
+  transport::Port lp_node1 = node1_transudt.StartListening("", 0);
+  transport::Port lp_node2 = node2_transudt.StartListening("", 0);
+  EXPECT_TRUE(node1_transudt.CheckListeningPort(lp_node1));
+  EXPECT_TRUE(node1_transudt.CheckListeningPort(lp_node2));
+  EXPECT_FALSE(node1_transudt.CheckListeningPort(0));
+  EXPECT_FALSE(node1_transudt.CheckListeningPort(1));
+  EXPECT_FALSE(node1_transudt.CheckListeningPort(4999));
+  EXPECT_FALSE(node1_transudt.CheckListeningPort(5000));
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
   transport::RpcMessage *rpc_message =
@@ -371,20 +408,19 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   EXPECT_EQ(transport::kSuccess,
             node1_transudt.Send(transport_message, ip, lp_node2, 0));
 
-  EXPECT_EQ(transport::kNoSocket, node1_transudt.Send(transport_message, id))
+  EXPECT_EQ(transport::kNoSocket, node1_transudt.SendResponse(transport_message, id))
             << "Should fail to send to bad socket";
-// 3 secs for the above call to fail - perhaps smart pointer is better
-//   EXPECT_EQ(0, node1_transudt.ConnectToSend("127.0.0.1", lp_node2, "", 0, "", 0,
-//     false, &id));
-//   EXPECT_EQ(0, node1_transudt.Send(msg, id, true));
+
+   EXPECT_NE(0, node1_transudt.SendResponse(transport_message, id));
   while (msg_handler2.msgs.empty())
      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-  node1_transudt.Stop();
-  node2_transudt.Stop();
-  EXPECT_TRUE(msg_handler1.msgs.empty());
+  node1_transudt.StopAllListening();
+  node2_transudt.StopAllListening();
+  EXPECT_FALSE(msg_handler1.msgs.empty()); // both messagehandlers are picking
+                                          // up the signal, of course
   EXPECT_FALSE(msg_handler2.msgs.empty());
   EXPECT_EQ(sent_msg, msg_handler2.msgs.front());
-  //EXPECT_EQ(1, msg_handler1.msgs_sent_);
+  EXPECT_EQ(1, msg_handler1.msgs_sent_);
 }
 /*
 TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
