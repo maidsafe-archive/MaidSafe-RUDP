@@ -30,6 +30,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       However, it should not be regarded as finalised until this notice is  *
  *       removed.                                                              *
  ******************************************************************************/
+/*
+* TODO 
+* 1:  Allow Listening ports to be closed individually and as a group
+* 2:  Create managed connection interface
+* 3:  Add an Open method for rendezvous connections
+* 4:  Create a ping at network level (in UDT this is a connect)
+* 5:  Use managed connections for rendezvous
+* 6:  Add tcp listen capability, may be another transport  
+* 7:  Provide a brodcast tcp method " " " " "
+* 8:  When a knode can it will start a tcp listener on 80 and 443 and add this
+*     to the contact tuple (prononced toople apparently :-) )
+* 9:  Thread send
+* 10  Use thread pool
+* 11: On thread pool filling up move all incoming connecitons to an async
+*     connection method until a thread becomes available.
+* 12: Complete NAT traversal management (use upnp, nat-pmp and hole punching)
+*     allong prioratising of method type.
+* 13: Use TCP to beackon on port 5483 when contact with kademlia network lost
+* 14: Profile profile and profile. The send recive test should be under 100ms
+*     preferrably less than 25ms. 
+*/
 
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
 #define MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
@@ -165,8 +186,9 @@ class TransportUDT : public Transport {
   std::map<ConnectionId, UdtSocketId> send_sockets_;
   TransportType transport_type_;
   std::vector<UdtSocketId> udt_socket_ids_;
-  std::vector<Port> listening_ports_;
   boost::mutex udt_socket_ids_mutex_;
+  std::vector<Port> listening_ports_;
+
  // static ConnectionId connection_id_;
   //boost::shared_array<char> data_;
 };

@@ -62,6 +62,7 @@ enum TransportCondition {
   kCloseSocketError = 18
 };
 
+struct PerformanceStats;
 
 typedef bs2::signal<void(const std::string&,
                          const SocketId&,
@@ -78,6 +79,8 @@ typedef bs2::signal<void(const bool&,
 typedef bs2::signal<void(const SocketId&, const bool&)> SignalSent;
 typedef bs2::signal<void(const TransportMessage &,
                          const TransportCondition&)> SignalSend;
+typedef bs2::signal<void(const SocketId&, const PerformanceStats &)>
+                         SignalStats;
 
 
 class Signals {
@@ -106,19 +109,24 @@ class Signals {
   bs2::connection ConnectSend(const SignalSend::slot_type &send_slot) {
     return signal_send_.connect(send_slot);
   }
+  bs2::connection ConnectStats(const SignalStats::slot_type &stats_slot) {
+    return signal_stats_.connect(stats_slot);
+  }
  protected:
   Signals() : signal_rpc_request_received_(),
               signal_rpc_response_received_(),
               signal_message_received_(),
               signal_connection_down_(),
               signal_sent_(),
-              signal_send_() {}
+              signal_send_(),
+              signal_stats_() {}
   SignalRpcRequestReceived signal_rpc_request_received_;
   SignalRpcResponseReceived signal_rpc_response_received_;
   SignalMessageReceived signal_message_received_;
   SignalConnectionDown signal_connection_down_;
   SignalSent signal_sent_;
   SignalSend signal_send_;
+  SignalStats signal_stats_;
  private:
   Signals(const Signals&);
   Signals& operator=(const Signals&);

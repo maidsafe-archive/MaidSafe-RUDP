@@ -206,7 +206,7 @@ public:
       // Returned value:
       //    errno.
 
-   virtual const int getErrorCode() const;
+   virtual int getErrorCode() const;
 
       // Functionality:
       //    Clear the error code.

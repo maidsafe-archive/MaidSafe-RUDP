@@ -97,14 +97,14 @@ class Transport : public Signals {
     return true;
   }
   bool CheckListeningPort(const Port &port) {
-    if ((5000 < port) && (port < 65536)) {
+    if ((5000 < port) && (port < 65535)) {
       return true;
     } else {
       return false;
     }
   }
-  bool ImmediateStop() { stop_now_ = true; }
-  bool DeferredStop() { stop_all_ = true; }
+  bool ImmediateStop() { return stop_now_ = true; }
+  bool DeferredStop() { return stop_all_ = true; }
   virtual TransportCondition GetPeerAddress(const SocketId &socket_id,
                                             struct sockaddr *peer_address) = 0;
   bool stopped() const { return stopped_; }

@@ -203,13 +203,13 @@ private:
 class CSeqNo
 {
 public:
-   inline static const int seqcmp(const int32_t& seq1, const int32_t& seq2)
+   inline static  int seqcmp(const int32_t& seq1, const int32_t& seq2)
    {return (abs(seq1 - seq2) < m_iSeqNoTH) ? (seq1 - seq2) : (seq2 - seq1);}
 
-   inline static const int seqlen(const int32_t& seq1, const int32_t& seq2)
+   inline static  int seqlen(const int32_t& seq1, const int32_t& seq2)
    {return (seq1 <= seq2) ? (seq2 - seq1 + 1) : (seq2 - seq1 + m_iMaxSeqNo + 2);}
 
-   inline static const int seqoff(const int32_t& seq1, const int32_t& seq2)
+   inline static  int seqoff(const int32_t& seq1, const int32_t& seq2)
    {
       if (abs(seq1 - seq2) < m_iSeqNoTH)
          return seq2 - seq1;
@@ -220,13 +220,13 @@ public:
       return seq2 - seq1 + m_iMaxSeqNo + 1;
    }
 
-   inline static const int32_t incseq(const int32_t seq)
+   inline static  int32_t incseq(const int32_t seq)
    {return (seq == m_iMaxSeqNo) ? 0 : seq + 1;}
 
-   inline static const int32_t decseq(const int32_t& seq)
+   inline static  int32_t decseq(const int32_t& seq)
    {return (seq == 0) ? m_iMaxSeqNo : seq - 1;}
 
-   inline static const int32_t incseq(const int32_t& seq, const int32_t& inc)
+   inline static  int32_t incseq(const int32_t& seq, const int32_t& inc)
    {return (m_iMaxSeqNo - seq >= inc) ? seq + inc : seq - m_iMaxSeqNo + inc - 1;}
 
 public:
@@ -241,7 +241,7 @@ public:
 class CAckNo
 {
 public:
-   inline static const int32_t incack(const int32_t& ackno)
+   inline static  int32_t incack(const int32_t& ackno)
    {return (ackno == m_iMaxAckSeqNo) ? 0 : ackno + 1;}
 
 public:
@@ -255,13 +255,13 @@ public:
 class CMsgNo
 {
 public:
-   inline static const int msgcmp(const int32_t& msgno1, const int32_t& msgno2)
+   inline static  int msgcmp(const int32_t& msgno1, const int32_t& msgno2)
    {return (abs(msgno1 - msgno2) < m_iMsgNoTH) ? (msgno1 - msgno2) : (msgno2 - msgno1);}
 
-   inline static const int msglen(const int32_t& msgno1, const int32_t& msgno2)
+   inline static  int msglen(const int32_t& msgno1, const int32_t& msgno2)
    {return (msgno1 <= msgno2) ? (msgno2 - msgno1 + 1) : (msgno2 - msgno1 + m_iMaxMsgNo + 2);}
 
-   inline static const int msgoff(const int32_t& msgno1, const int32_t& msgno2)
+   inline static int msgoff(const int32_t& msgno1, const int32_t& msgno2)
    {
       if (abs(msgno1 - msgno2) < m_iMsgNoTH)
          return msgno2 - msgno1;
@@ -272,7 +272,7 @@ public:
       return msgno2 - msgno1 + m_iMaxMsgNo + 1;
    }
 
-   inline static const int32_t incmsg(const int32_t& msgno)
+   inline static int32_t incmsg(const int32_t& msgno)
    {return (msgno == m_iMaxMsgNo) ? 0 : msgno + 1;}
 
 public:

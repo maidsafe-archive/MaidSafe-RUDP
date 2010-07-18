@@ -88,7 +88,8 @@ TransportUDT::TransportUDT() : Transport(),
                                send_sockets_(),
                                transport_type_(kUdt),
                                udt_socket_ids_(),
-                               udt_socket_ids_mutex_() {
+                               udt_socket_ids_mutex_(),
+                               listening_ports_() {
   UDT::startup();
 }
 
@@ -345,12 +346,11 @@ Port TransportUDT::StartListening(const IP &ip,
         &TransportUDT::AcceptConnectionHandler, this, listening_socket_, try_port));
   }
   catch(const boost::thread_resource_error&) {
-    stop_all_ = true;
-    int result = UDT::close(listening_socket_);
+    UDT::close(listening_socket_);
     freeaddrinfo(addrinfo_result_);
     return kThreadResourceError;
   }
-  stopped_ = false;
+  stop_all_ = false;
   listening_ports_.push_back(try_port);
   return try_port;
 }
@@ -360,10 +360,10 @@ bool TransportUDT::StopAllListening() {
     return true;
   // iterate through vector
   stop_all_ = true;
-//   while (!listening_ports_.empty()) {
-//    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-//   }
-    
+//    while (!listening_ports_.empty()) {
+//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+//    }
+//     
       return true;
 }
 
@@ -411,7 +411,16 @@ void TransportUDT::AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
   int addrlen = sizeof(clientaddr);
   UdtSocketId receiver_socket_id;
   while (true) {
-    if (stop_all_) return; // FIXME This would leave unsent/received data !!
+    if (stop_all_) {
+      LOG(INFO) << "trying to stop " << std::endl;
+      for (std::vector<Port>::iterator it = listening_ports_.begin(); it != listening_ports_.end(); ++it) {
+        if ((*it) == receive_port) {
+          listening_ports_.erase(it);
+           UDT::close(receiver_socket_id);
+          break;
+        }
+      }
+    } // FIXME This would leave unsent/received data !!
     if (UDT::INVALID_SOCK == (receiver_socket_id = UDT::accept(udt_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen))) {
 
@@ -430,6 +439,7 @@ void TransportUDT::AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
       UDT::close(receiver_socket_id);
     }
   }
+  
 }
 /*
 void TransportUDT::AsyncReceiveData(const UdtSocketId &udt_socket_id,
