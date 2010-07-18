@@ -184,17 +184,20 @@ TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
         remote_port << std::endl;
     return kInvalidAddress;
   }
-  // connect to the server, implict bind
+  // connect to the peer, implict bind
+  // TODO FIXME - This can delay by up to 3 seconds !!!! even on pass
   if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr, peer->ai_addrlen)) {
    DLOG(INFO) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
         std::endl;
     return kConnectError;
   }
+
   std::string data;
   if (!transport_message.SerializeToString(&data))
     return kInvalidData;
-//  boost::thread(&TransportUDT::Send,this ,data, udt_socket_id, response_timeout);
-  return Send(data, udt_socket_id, response_timeout, 0);
+  boost::thread(&TransportUDT::SendNow,this ,data,
+                udt_socket_id, response_timeout, 0);
+  return kSuccess; // SendNow(data, udt_socket_id, response_timeout, 0);
 
 }
 
@@ -203,7 +206,9 @@ TransportCondition TransportUDT::SendResponse(const TransportMessage &transport_
   std::string data;
   if (!transport_message.SerializeToString(&data))
     return kInvalidData;
-  return Send(data, socket_id, 0, 0);
+  boost::thread(&TransportUDT::SendNow,this ,data,
+                socket_id, 0, 0);
+  return kSuccess; // SendNow(data, socket_id, 0, 0);
 }
 
 bool TransportUDT::CheckSocketReceive(const SocketId &udt_socket_id) {
@@ -215,7 +220,7 @@ bool TransportUDT::CheckSocketReceive(const SocketId &udt_socket_id) {
   UD_SET(udt_socket_id, &readfds);
   int res = UDT::select(0, &readfds, NULL, NULL, &tv);
   if ((res == UDT::ERROR) && (UD_ISSET(udt_socket_id, &readfds))) {
-   DLOG(INFO) << "Cannot use this socket to receive closing it !" << std::endl;
+   LOG(INFO) << "Cannot use this socket to receive closing it !" << std::endl;
     UDT::close(udt_socket_id);
     return false;
   } else {
@@ -232,7 +237,7 @@ bool TransportUDT::CheckSocketSend(const SocketId &udt_socket_id) {
   UD_SET(udt_socket_id, &writefds);
   int res = UDT::select(0, &writefds, NULL, NULL, &tv);
   if ((res == UDT::ERROR) && (UD_ISSET(udt_socket_id, &writefds))) {
-   DLOG(INFO) << "Cannot use this socket to send closing it !" << std::endl;
+   LOG(INFO) << "Cannot use this socket to send closing it !" << std::endl;
     UDT::close(udt_socket_id);
     return false;
   } else {
@@ -241,26 +246,29 @@ bool TransportUDT::CheckSocketSend(const SocketId &udt_socket_id) {
 }
 
 
-TransportCondition TransportUDT::Send(const std::string &data,
+TransportCondition TransportUDT::SendNow(const std::string &data,
                                       const UdtSocketId &udt_socket_id,
                                       const int &response_timeout,
                                       const Port &receive_port) {
   std::string data_size_as_string =
       boost::lexical_cast<std::string>(data.size());
-  DataSize data_size = static_cast<DataSize>(data.size());
+   DataSize data_size = static_cast<DataSize>(data.size());
   if (data_size != data.size()) {
    DLOG(INFO) << "TransportUDT::Send: data > max buffer size." << std::endl;
     signal_sent_(udt_socket_id, false);
     return kInvalidData;
   }
- DLOG(INFO) << "Attempting to send data of size " << data_size_as_string <<
+ DLOG(INFO) << "Attempting to send data of size" << data_size_as_string <<
       std::endl;
       // Here we must check the socket is alive
       // any socket that fails is closed in this method.
-  if (!CheckSocketSend(udt_socket_id)) {
-    signal_sent_(udt_socket_id, false); 
-    return kNoSocket;
-  }
+// TODO FIXME - This adds massive time to all tests
+// So do we really need it as we do pick up the error 
+//   if (!CheckSocketSend(udt_socket_id)) {
+//     signal_sent_(udt_socket_id, false);
+//     LOG(INFO) << "bad socket cannot send on it (SendNow) " << std::endl;
+//     return kNoSocket;
+//   }
 
 
   if (UDT::ERROR == UDT::send(udt_socket_id, data_size_as_string.data(),
@@ -272,7 +280,8 @@ TransportCondition TransportUDT::Send(const std::string &data,
   }
   DataSize sent_total = 0;
   int sent_size = 0;
-  while (sent_total < data.size()) {
+  // Don't think we need a while loop here. 
+   while (sent_total < data.size()) {
     if (UDT::ERROR == (sent_size = UDT::send(udt_socket_id,
         data.data() + sent_total, data_size - sent_total, 0))) {
      DLOG(INFO) << "Send: " << UDT::getlasterror().getErrorMessage() <<
@@ -281,13 +290,13 @@ TransportCondition TransportUDT::Send(const std::string &data,
       return kSendError;
     }
     sent_total += sent_size;
-  }
+   }
  DLOG(INFO) << "Sent data of size " << sent_total << std::endl;
 
 //   if (response_timeout > 0) {
-// TODO FIXME (dirvine) - we should not close the socket here
-    boost::thread(&TransportUDT::ReceiveData, this, udt_socket_id,
-                  response_timeout, receive_port);
+// TODO FIXME (dirvine) - need to bind a recieving socket and pass that.
+//     boost::thread(&TransportUDT::ReceiveData, this, udt_socket_id,
+//                   response_timeout, receive_port);
 //   } else {
 //   signal_sent_(udt_socket_id, false);    
 //     UDT::close(udt_socket_id);
@@ -296,14 +305,20 @@ TransportCondition TransportUDT::Send(const std::string &data,
   return kSuccess;
 }
 
-Port TransportUDT::StartListening(const IP &ip,
-                                                const Port &port) {
+Port TransportUDT::StartListening(const IP &ip, const Port &port) {
   Port try_port = port;
   memset(&addrinfo_hints_, 0, sizeof(addrinfo_hints_));
   addrinfo_hints_.ai_flags = AI_PASSIVE;
   addrinfo_hints_.ai_family = AF_INET;
   addrinfo_hints_.ai_socktype = SOCK_STREAM;
   std::string service = boost::lexical_cast<std::string>(try_port);
+  std::string address;
+  if (ip != "")
+    address = ip;
+  // TODO FIXME
+//   else
+//     address = NULL;
+  
   if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints_,
                        &addrinfo_result_)) {
     return kInvalidPort;
@@ -311,6 +326,7 @@ Port TransportUDT::StartListening(const IP &ip,
   listening_socket_ = UDT::socket(addrinfo_result_->ai_family,
                                   addrinfo_result_->ai_socktype,
                                   addrinfo_result_->ai_addrlen);
+                                  
   if (UDT::ERROR == UDT::bind(listening_socket_, addrinfo_result_->ai_addr,
       addrinfo_result_->ai_addrlen)) {
     DLOG(WARNING) << "(" << listening_port_ << ") UDT bind error: " <<
@@ -334,7 +350,7 @@ Port TransportUDT::StartListening(const IP &ip,
     } 
   } 
 
-  if (UDT::ERROR == UDT::listen(listening_socket_, 20)) {
+  if (UDT::ERROR == UDT::listen(listening_socket_, 10)) {
    DLOG(ERROR) << "Failed to start listening port "<< port << ": " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     freeaddrinfo(addrinfo_result_);
@@ -411,20 +427,21 @@ void TransportUDT::AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
   int addrlen = sizeof(clientaddr);
   UdtSocketId receiver_socket_id;
   while (true) {
-    if (stop_all_) {
-      LOG(INFO) << "trying to stop " << std::endl;
-      for (std::vector<Port>::iterator it = listening_ports_.begin(); it != listening_ports_.end(); ++it) {
-        if ((*it) == receive_port) {
-          listening_ports_.erase(it);
-           UDT::close(receiver_socket_id);
-          break;
-        }
-      }
-    } // FIXME This would leave unsent/received data !!
+// //     if (stop_all_) {
+//       LOG(INFO) << "trying to stop " << std::endl;
+//       for (std::vector<Port>::iterator it = listening_ports_.begin();
+//             it != listening_ports_.end(); ++it) {
+//         if ((*it) == receive_port) {
+//           listening_ports_.erase(it);
+//            UDT::close(receiver_socket_id);
+//           break;
+//         }
+//       }
+//     } // FIXME This would leave unsent/received data !!
     if (UDT::INVALID_SOCK == (receiver_socket_id = UDT::accept(udt_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen))) {
 
-      DLOG(ERROR) << "(" << listening_port_ << ") UDT::accept error: " <<
+      LOG(ERROR) << "(" << listening_port_ << ") UDT::accept error: " <<
           UDT::getlasterror().getErrorMessage() << std::endl;
       return;
 
@@ -434,7 +451,7 @@ void TransportUDT::AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
       boost::thread(&TransportUDT::ReceiveData, this, receiver_socket_id, -1,
                     receive_port);
     } else {
-     DLOG(INFO) << "Problem passing socket off to handler, (closing socket)"
+     LOG(INFO) << "Problem passing socket off to handler, (closing socket)"
                 << std::endl;
       UDT::close(receiver_socket_id);
     }
@@ -538,32 +555,35 @@ void TransportUDT::AsyncReceiveData(const UdtSocketId &udt_socket_id,
 void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
                                const int &timeout,
                                const Port &receive_port) {
- DLOG(INFO) << "running receive data loop!" << std::endl;
+ //LOG(INFO) << "receiving a message of some kind !" << std::endl;
   // Get the incoming message size
   std::string data_size_as_string(sizeof(DataSize), 0);
   DataSize data_size;
   int received_count;
   UDT::getlasterror().clear();
-  if (UDT::ERROR == (received_count = UDT::recv(udt_socket_id,
-      &data_size_as_string.at(0), sizeof(DataSize), 0))) {
-   DLOG(ERROR) << "Cannot get data size: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    UDT::close(udt_socket_id);
-    return;
-  }
+//   while (true) {
+    if (UDT::ERROR == (received_count = UDT::recv(udt_socket_id,
+        &data_size_as_string.at(0), sizeof(DataSize), 0))) {
+    LOG(ERROR) << "Cannot get data size: " <<
+          UDT::getlasterror().getErrorMessage() << std::endl;
+  //     UDT::close(udt_socket_id);
+      return;
+    }
+//   }
+LOG(INFO) << "Size as string " << data_size_as_string << std::endl;
   try {
     data_size_as_string.resize(received_count);
     data_size =
         boost::lexical_cast<DataSize>(data_size_as_string);
   }
   catch(const std::exception &e) {
-   DLOG(ERROR) << "Cannot get data size: " << e.what() << std::endl;
-    UDT::close(udt_socket_id);
+   LOG(ERROR) << "Cannot get data size (2): " << e.what() << std::endl;
+     UDT::close(udt_socket_id);
     return;
   }
   if (data_size < 1) {
-   DLOG(INFO) << "Data size is " << data_size << std::endl;
-    UDT::close(udt_socket_id);
+   LOG(INFO) << "Data size is " << data_size << std::endl;
+     UDT::close(udt_socket_id);
     return;
   }
  DLOG(INFO) << "OK we have the data size " << data_size <<
@@ -571,20 +591,21 @@ void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
 
   // Get message
   std::string data(data_size, 0);
-
-  UDT::setsockopt(udt_socket_id, 0, UDT_RCVTIMEO, &timeout, sizeof(timeout));
+  if (timeout != 0) {
+    UDT::setsockopt(udt_socket_id, 0, UDT_RCVTIMEO, &timeout, sizeof(timeout));
+  }
   DataSize received_total = 0;
   int received_size = 0;
   while (received_total < data_size) {
     if (UDT::ERROR == (received_size = UDT::recv(udt_socket_id,
         &data.at(0) + received_total, data_size - received_total, 0))) {
-     DLOG(ERROR) << "Recv: " << UDT::getlasterror().getErrorMessage() <<
+     LOG(ERROR) << "Recv: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
       UDT::close(udt_socket_id);
       return;
     }
     received_total += received_size;
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+   // boost::this_thread::sleep(boost::posix_time::milliseconds(2));
   }
  DLOG(INFO) << "SUCCESS we have read " << received_total << " bytes of data." <<
       std::endl;
@@ -615,7 +636,7 @@ bool TransportUDT::ParseTransportMessage(const std::string &data,
                                          const Port & receive_port) {
   TransportMessage transport_message;
   if (!transport_message.ParseFromString(data)) {
-   DLOG(INFO) << "Bad data - not parsed." << std::endl;
+   LOG(INFO) << "Bad data - not parsed." << std::endl;
     UDT::close(udt_socket_id);
     return false;
   }
@@ -640,6 +661,7 @@ bool TransportUDT::ParseTransportMessage(const std::string &data,
         signal_rpc_request_received_(transport_message.data().rpc_message(),
                                      udt_socket_id, rtt, receive_port);
         // Leave socket open to send response on.
+        DLOG(INFO) << "Got request RPC" << std::endl;
       } else {
         signal_rpc_response_received_(transport_message.data().rpc_message(),
                                       udt_socket_id, rtt, receive_port);

@@ -41,7 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 7:  Provide a brodcast tcp method " " " " "
 * 8:  When a knode can it will start a tcp listener on 80 and 443 and add this
 *     to the contact tuple (prononced toople apparently :-) )
-* 9:  Thread send
+* 9:  Thread send including connect
 * 10  Use thread pool
 * 11: On thread pool filling up move all incoming connecitons to an async
 *     connection method until a thread becomes available.
@@ -49,7 +49,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *     allong prioratising of method type.
 * 13: Use TCP to beackon on port 5483 when contact with kademlia network lost
 * 14: Profile profile and profile. The send recive test should be under 100ms
-*     preferrably less than 25ms. 
+*     preferrably less than 25ms.
+* 15: Decide on how / when to fire the Stats signals
+* 16: Provide channel level encryption (diffie Hellman -> AES xfer)
 */
 
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
@@ -92,7 +94,7 @@ class TransportUDT : public Transport {
   TransportCondition SendResponse(const TransportMessage &transport_message,
                           const SocketId &socket_id);
 
-  TransportCondition Send(const std::string &data,
+  TransportCondition SendNow(const std::string &data,
             const UdtSocketId &udt_socket_id,
             const int &response_timeout,
             const Port & receive_port);
