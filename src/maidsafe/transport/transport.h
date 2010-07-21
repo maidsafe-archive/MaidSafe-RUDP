@@ -71,10 +71,13 @@ class Transport : public Signals {
   virtual TransportCondition Send(const TransportMessage &transport_message,
                                   const IP &remote_ip,
                                   const Port &remote_port,
-                                  const int &response_timeout) = 0;
-//   virtual TransportCondition Send(const TransportMessage &transport_message,
-//                                   const SocketId &socket_id) = 0;
-// Create a rendezvous connection - pass server as well
+                                  const int &response_timeout,
+                                  SocketId *socket_id) = 0;
+  virtual TransportCondition SendResponse(
+      const TransportMessage &transport_message,
+      const SocketId &socket_id) = 0;
+
+  // Create a rendezvous connection - pass server as well
 // this will block as we need the result
 //   virtual TransportCondition Open(const IP &remote_ip,
 //                                    const Port &remote_port,
@@ -90,18 +93,16 @@ class Transport : public Signals {
 //                                          const boost::uint16_t &frequency,
 //                                          const boost::uint16_t &retry_count,
 //                                          const boost::uint16_t &retry_frequency) = 0;
+  void StartPingRendezvous(const bool &directly_connected,
+                           const IP &rendezvous_ip,
+                           const Port &rendezvous_port) {}
   bool CheckIP(const IP &ip) {
     boost::system::error_code ec;
-    boost::asio::ip::address::from_string( ip, ec );
-    if ( ec ) { return false; }
-    return true;
+    boost::asio::ip::address::from_string(ip, ec);
+    return ec == boost::system::errc::success;
   }
   bool CheckListeningPort(const Port &port) {
-    if ((5000 < port) && (port < 65535)) {
-      return true;
-    } else {
-      return false;
-    }
+    return ((5000 < port) && (port < 65535));
   }
   bool ImmediateStop() { return stop_now_ = true; }
   bool DeferredStop() { return stop_all_ = true; }

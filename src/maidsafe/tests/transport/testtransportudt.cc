@@ -77,12 +77,13 @@ class MessageHandler {
         server_port_(0),
         transport_(transport),
         messages_sent_(0),
+        messages_unsent_(0),
         messages_received_(0),
         messages_confirmed_(0),
         keep_messages_(true),
         rpc_request_(),
         rpc_response_(),
-        data_sent_connection_(),
+        send_(),
         message_connection_(),
         server_down_connection_(),
         stats_connection_() {
@@ -90,7 +91,7 @@ class MessageHandler {
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
     rpc_response_ = transport->ConnectRpcResponseReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
-    data_sent_connection_ = transport->ConnectSend(
+    send_ = transport->ConnectSend(
         boost::bind(&MessageHandler::OnSend, this, _1, _2));
     message_connection_ = transport->ConnectMessageReceived(
         boost::bind(&MessageHandler::OnMessage, this, _1, _2, _3));
@@ -138,10 +139,12 @@ class MessageHandler {
     server_ip_ = ip;
     server_port_ = port;
   }
-  void OnSend(const transport::SocketId &,
+  void OnSend(const transport::SocketId&,
               const transport::TransportCondition &result) {
     if (result == transport::kSuccess)
       ++messages_sent_;
+    else
+      ++messages_unsent_;
   }
   void OnStats(boost::shared_ptr<transport::SocketPerformanceStats> stats) {
     boost::shared_ptr<transport::UdtStats> udt_stats =
@@ -223,13 +226,13 @@ class MessageHandler {
   transport::IP server_ip_;
   transport::Port server_port_;
   transport::TransportUDT *transport_;
-  int messages_sent_, messages_received_, messages_confirmed_;
+  int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
   bs2::connection rpc_request_, rpc_response_;
-  bs2::connection data_sent_connection_;
+  bs2::connection send_;
   bs2::connection message_connection_;
   bs2::connection server_down_connection_;
   bs2::connection stats_connection_;
@@ -273,7 +276,7 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
       EXPECT_FALSE(node.CheckListeningPort(5000));
     }
      EXPECT_EQ(transport::kSuccess,
-             node.Send(transport_message, ip, lp_node[i], 0));
+             node.Send(transport_message, ip, lp_node[i], 0, NULL));
   }
   EXPECT_EQ(num_listening_ports, node.listening_ports().size());
   //LOG(INFO) << "Number of messages_ sent : " << message_handler1.messages_sent_ << std::endl;
@@ -288,7 +291,6 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
   EXPECT_EQ(message_handler1.messages_sent_, message_handler1.messages_received_);
   EXPECT_EQ(num_listening_ports, message_handler1.messages_received_);
   EXPECT_TRUE(node.StopAllListening());
-
 }
 
 TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
@@ -318,27 +320,35 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   std::string sent_message;
   rpc_message->SerializeToString(&sent_message);
   transport::IP ip("127.0.0.1");
+
   for (size_t i = 0; i < kRepeats; ++i) {
     EXPECT_EQ(transport::kSuccess,
-              node1_transudt.Send(transport_message, ip, lp_node2, 6000));
+              node1_transudt.Send(transport_message, ip, lp_node2, 6000, NULL));
   }
 
-//   EXPECT_NE(transport::kSuccess, node1_transudt.SendResponse(transport_message, id))
-//             << "Should fail to send to bad socket";
+  EXPECT_EQ(transport::kSuccess,
+            node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK));
+  const int kTimeout(10000);
+  int count(0);
+  while (count < kTimeout && message_handler1.messages_unsent_ == 0) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(1, message_handler1.messages_unsent_);
 
-   // EXPECT_NE(0, node1_transudt.SendResponse(transport_message, id));
-  while (message_handler2.messages_.size() < kRepeats)
-     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-                       //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  count = 0;
+  while (count < kTimeout && message_handler2.messages_.size() < kRepeats) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
   node1_transudt.StopAllListening();
   node2_transudt.StopAllListening();
   for (size_t i = 0; i < kRepeats; ++i) {
     EXPECT_EQ(sent_message, message_handler2.messages_.front());
     message_handler2.messages_.pop_front();
   }
- // EXPECT_EQ(sent_message, message_handler1.messages_.front());
   EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent_);
-                       //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+                       //boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 }
 
 TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
@@ -362,7 +372,8 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   transport::IP ip("127.0.0.1");
 //  sent_messages.push_back(sent_message);
   for (int i =0; i <20 ; ++i) {
-    EXPECT_EQ(0, node[i].Send(transport_message, "127.0.0.1", lp_node4, 0));
+    EXPECT_EQ(0, node[i].Send(transport_message, "127.0.0.1", lp_node4, 0,
+                              NULL));
   }
   
 }

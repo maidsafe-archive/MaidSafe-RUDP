@@ -26,9 +26,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/transportudt.h"
-#include <boost/scoped_array.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/progress.hpp>
+#include <boost/scoped_array.hpp>
 #include <google/protobuf/descriptor.h>
 #include <algorithm>
 #include <exception>
@@ -133,7 +134,10 @@ bool TransportUDT::StopAllListening() {
 TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
                                       const IP &remote_ip,
                                       const Port &remote_port,
-                                      const int &response_timeout) {
+                                      const int &response_timeout,
+                                      SocketId *socket_id) {
+  if (socket_id != NULL)
+    *socket_id = UDT::INVALID_SOCK;
   struct addrinfo hints, *peer;
   memset(&hints, 0, sizeof(hints));
   hints.ai_flags = AI_PASSIVE;
@@ -167,42 +171,19 @@ TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
     freeaddrinfo(peer);
     return kConnectError;
   }
-  freeaddrinfo(peer);
 
-  std::string data;
-  if (!transport_message.SerializeToString(&data)) {
-    DLOG(ERROR) << "TransportUDT::Send: failed to serialise." << std::endl;
-    signal_send_(udt_socket_id, kInvalidData);
-    UDT::close(udt_socket_id);
-    return kInvalidData;
-  }
-
-  boost::thread(&TransportUDT::SendData, this, data, udt_socket_id,
+  if (socket_id != NULL)
+    *socket_id = udt_socket_id;
+  boost::thread(&TransportUDT::SendData, this, transport_message, udt_socket_id,
                 response_timeout, response_timeout);
+  freeaddrinfo(peer);
   return kSuccess;
 }
 
 TransportCondition TransportUDT::SendResponse(
     const TransportMessage &transport_message,
     const SocketId &socket_id) {
-  std::string data;
-  if (!transport_message.SerializeToString(&data)) {
-    DLOG(ERROR) << "TransportUDT::SendResponse: failed to serialise." <<
-        std::endl;
-    signal_send_(socket_id, kInvalidData);
-    UDT::close(socket_id);
-    return kInvalidData;
-  }
-
-  struct sockaddr_in name;
-  int name_size;
-  UDT::getsockname(socket_id, reinterpret_cast<sockaddr*>(&name), &name_size);
-  Port our_port = ntohs(name.sin_port);
-  UDT::getpeername(socket_id, reinterpret_cast<sockaddr*>(&name), &name_size);
-  Port their_port = ntohs(name.sin_port);
-  std::cout << "SENDING RESPONSE FROM " << our_port << " TO " << their_port << std::endl;
-
-  boost::thread(&TransportUDT::SendData, this, data, socket_id,
+  boost::thread(&TransportUDT::SendData, this, transport_message, socket_id,
                 kDefaultSendTimeout, 0);
   return kSuccess;
 }
@@ -277,10 +258,11 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
   }
 }
 
-TransportCondition TransportUDT::SendData(const std::string &data,
-                                          const UdtSocketId &udt_socket_id,
-                                          const int &send_timeout,
-                                          const int &receive_timeout) {
+TransportCondition TransportUDT::SendData(
+    const TransportMessage &transport_message,
+    const UdtSocketId &udt_socket_id,
+    const int &send_timeout,
+    const int &receive_timeout) {
   // Set timeout
   if (send_timeout > 0) {
     UDT::setsockopt(udt_socket_id, 0, UDT_SNDTIMEO, &send_timeout,
@@ -288,14 +270,14 @@ TransportCondition TransportUDT::SendData(const std::string &data,
   }
 
   // Send the message size
-  TransportCondition result = SendDataSize(data, udt_socket_id);
+  TransportCondition result = SendDataSize(transport_message, udt_socket_id);
   if (result != kSuccess)
     return result;
 
   // Send the message
   boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_socket_id,
                                                      UdtStats::kSend));
-  result = SendDataContent(data, udt_socket_id);
+  result = SendDataContent(transport_message, udt_socket_id);
   if (result != kSuccess)
     return result;
   signal_send_(udt_socket_id, kSuccess);
@@ -318,13 +300,14 @@ TransportCondition TransportUDT::SendData(const std::string &data,
 }
 
 TransportCondition TransportUDT::SendDataSize(
-    const std::string &data,
+    const TransportMessage &transport_message,
     const UdtSocketId &udt_socket_id) {
 //  std::string data_size_as_string =
 //      boost::lexical_cast<std::string>(data.size());
-  DataSize data_size = data.size();
-  if (data_size != data.size()) {
-    LOG(INFO) << "TransportUDT::SendNow: data > max buffer size." << std::endl;
+  DataSize data_size = static_cast<DataSize>(transport_message.ByteSize());
+  if (data_size != transport_message.ByteSize()) {
+    LOG(INFO) << "TransportUDT::SendDataSize: data > max buffer size." <<
+        std::endl;
     signal_send_(udt_socket_id, kSendUdtFailure);
     UDT::close(udt_socket_id);
     return kSendUdtFailure;
@@ -350,14 +333,24 @@ TransportCondition TransportUDT::SendDataSize(
 }
 
 TransportCondition TransportUDT::SendDataContent(
-    const std::string &data,
+    const TransportMessage &transport_message,
     const UdtSocketId &udt_socket_id) {
-  DataSize data_size = static_cast<DataSize>(data.size());
+  DataSize data_size = static_cast<DataSize>(transport_message.ByteSize());
+  boost::shared_array<char> serialised_message(new char[data_size]);
+  // Check for valid message
+  if (!transport_message.SerializeToArray(serialised_message.get(),
+                                          data_size)) {
+    DLOG(ERROR) << "TransportUDT::SendDataContent: failed to serialise." <<
+        std::endl;
+    signal_send_(udt_socket_id, kInvalidData);
+    UDT::close(udt_socket_id);
+    return kInvalidData;
+  }
   DataSize sent_total = 0;
   int sent_size = 0;
   while (sent_total < data_size) {
     if (UDT::ERROR == (sent_size = UDT::send(udt_socket_id,
-        data.data() + sent_total, data_size - sent_total, 0))) {
+        serialised_message.get() + sent_total, data_size - sent_total, 0))) {
       LOG(ERROR) << "Send: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
       signal_send_(udt_socket_id, kSendUdtFailure);
@@ -377,6 +370,8 @@ TransportCondition TransportUDT::SendDataContent(
 
 void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
                                const int &receive_timeout) {
+
+                                 boost::progress_timer t;
   // Set timeout
   if (receive_timeout > 0) {
     UDT::setsockopt(udt_socket_id, 0, UDT_RCVTIMEO, &receive_timeout,
@@ -391,8 +386,8 @@ void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
   // Get message
   boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_socket_id,
                                                      UdtStats::kReceive));
-  std::string data = ReceiveDataContent(udt_socket_id, data_size);
-  if (data.empty())
+  TransportMessage transport_message;
+  if (!ReceiveDataContent(udt_socket_id, data_size, &transport_message))
     return;
 
   // Get stats
@@ -407,7 +402,7 @@ void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
   }
 
   // Handle message
-  ParseTransportMessage(data, udt_socket_id, rtt);
+  HandleTransportMessage(transport_message, udt_socket_id, rtt);
 }
 
 DataSize TransportUDT::ReceiveDataSize(const UdtSocketId &udt_socket_id) {
@@ -449,41 +444,38 @@ DataSize TransportUDT::ReceiveDataSize(const UdtSocketId &udt_socket_id) {
   return data_size;
 }
 
-std::string TransportUDT::ReceiveDataContent(const UdtSocketId &udt_socket_id,
-                                             const DataSize &data_size) {
-  std::string data(data_size, 0);
+bool TransportUDT::ReceiveDataContent(
+    const UdtSocketId &udt_socket_id,
+    const DataSize &data_size,
+    TransportMessage *transport_message) {
+  boost::shared_array<char> serialised_message(new char[data_size]);
   DataSize received_total = 0;
   int received_size = 0;
   while (received_total < data_size) {
     if (UDT::ERROR == (received_size = UDT::recv(udt_socket_id,
-        &data.at(0) + received_total, data_size - received_total, 0))) {
+        serialised_message.get() + received_total, data_size - received_total,
+        0))) {
       LOG(ERROR) << "Recv: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
       signal_receive_(udt_socket_id, kReceiveUdtFailure);
       UDT::close(udt_socket_id);
-      return "";
+      return false;
     } else if (received_size == 0) {
       LOG(INFO) << "Receiving socket " << udt_socket_id << " timed out" <<
           std::endl;
       signal_receive_(udt_socket_id, kReceiveTimeout);
       UDT::close(udt_socket_id);
-      return "";
+      return false;
     }
     received_total += received_size;
   }
-  return data;
+  return transport_message->ParseFromArray(serialised_message.get(), data_size);
 }
 
-bool TransportUDT::ParseTransportMessage(const std::string &data,
-                                         const UdtSocketId &udt_socket_id,
-                                         const float &rtt) {
-  TransportMessage transport_message;
-  if (!transport_message.ParseFromString(data)) {
-    LOG(INFO) << "Bad data - not parsed." << std::endl;
-    signal_receive_(udt_socket_id, kReceiveParseFailure);
-    UDT::close(udt_socket_id);
-    return false;
-  }
+bool TransportUDT::HandleTransportMessage(
+    const TransportMessage &transport_message,
+    const UdtSocketId &udt_socket_id,
+    const float &rtt) {
   bool is_request(transport_message.type() == TransportMessage::kRequest);
   // message data should contain exactly one optional field
   const google::protobuf::Message::Reflection *reflection =

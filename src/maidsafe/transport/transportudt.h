@@ -109,13 +109,15 @@ class TransportUDT : public Transport {
   // Stop all listening ports
   bool StopAllListening();
   // Used to create a new socket and send data.  It assumes a
-  // response is expected if timeout is > 0, and keeps the socket alive
-  // for timeout (in milliseconds)
+  // response is expected if timeout is > 0, and keeps the socket alive.
+  // Given a non-NULL socket_id, if Send succeeds it is set to the new socket ID
+  // otherwise it is set to UDT::INVALID_SOCK (currently defined as -1).  
   TransportCondition Send(const TransportMessage &transport_message,
                           const IP &remote_ip,
                           const Port &remote_port,
-                          const int &response_timeout);
-  // Used to send a response to a request recived on socket_id.
+                          const int &response_timeout,
+                          SocketId *socket_id);
+  // Used to send a response to a request received on socket_id.
   TransportCondition SendResponse(const TransportMessage &transport_message,
                                   const SocketId &socket_id);
   TransportCondition GetPeerAddress(const SocketId &socket_id,
@@ -134,15 +136,15 @@ class TransportUDT : public Transport {
   //            UdtSocketId *udt_socket_id);
   void AcceptConnection(const UdtSocketId &udt_socket_id);
   // General method for sending data
-  TransportCondition SendData(const std::string &data,
+  TransportCondition SendData(const TransportMessage &transport_message,
                               const UdtSocketId &udt_socket_id,
                               const int &send_timeout,
                               const int &receive_timeout);
   // Send the size of the pending message
-  TransportCondition SendDataSize(const std::string &data,
+  TransportCondition SendDataSize(const TransportMessage &transport_message,
                                   const UdtSocketId &udt_socket_id);
   // Send the content of the message
-  TransportCondition SendDataContent(const std::string &data,
+  TransportCondition SendDataContent(const TransportMessage &transport_message,
                                      const UdtSocketId &udt_socket_id);
   // General method for receiving data
   void ReceiveData(const UdtSocketId &udt_socket_id,
@@ -150,11 +152,12 @@ class TransportUDT : public Transport {
   // Receive the size of the forthcoming message
   DataSize ReceiveDataSize(const UdtSocketId &udt_socket_id);
   // Receive the content of the message
-  std::string ReceiveDataContent(const UdtSocketId &udt_socket_id,
-                                 const DataSize &data_size);
-  bool ParseTransportMessage(const std::string &data,
-                             const UdtSocketId &udt_socket_id,
-                             const float &rtt);
+  bool ReceiveDataContent(const UdtSocketId &udt_socket_id,
+                          const DataSize &data_size,
+                          TransportMessage *transport_message);
+  bool HandleTransportMessage(const TransportMessage &transport_message,
+                              const UdtSocketId &udt_socket_id,
+                              const float &rtt);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
   // Check a socket can send data (close it otherwise)
