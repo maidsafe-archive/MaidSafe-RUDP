@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 
 namespace rpcprotocol {
 

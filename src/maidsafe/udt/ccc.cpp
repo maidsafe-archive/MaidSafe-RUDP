@@ -170,7 +170,7 @@ void CUDTCC::init()
    m_LastRCTime = CTimer::getTime();
    setACKTimer(m_iRCInterval);
 
-   m_bSlowStart = true;
+   m_bSlowStart = false;
    m_iLastAck = m_iSndCurrSeqNo;
    m_bLoss = false;
    m_iLastDecSeq = CSeqNo::decseq(m_iLastAck);

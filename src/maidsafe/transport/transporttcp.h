@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include <boost/asio.hpp>
 //#include <string>
 //#include <map>
-//#include "maidsafe/transport/transport-api.h"
+//#include "maidsafe/transport/transport.h"
 //#include "maidsafe/transport/tcpconnection.h"
 //
 //using boost::asio::ip::tcp;

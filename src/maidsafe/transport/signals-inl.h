@@ -55,32 +55,41 @@ enum TransportCondition {
   kBehindFirewall = 11,
   kBindError = 12,
   kConnectError = 13,
-  kSendError = 14,
-  kAlreadyStarted = 15,
-  kListenError = 16,
-  kThreadResourceError = 17,
-  kCloseSocketError = 18
+  kAlreadyStarted = 14,
+  kListenError = 15,
+  kThreadResourceError = 16,
+  kCloseSocketError = 17,
+  kSendUdtFailure = 18,
+  kSendTimeout = 19,
+  kSendParseFailure = 20,
+  kSendSizeFailure = 21,
+  kReceiveUdtFailure = 22,
+  kReceiveTimeout = 23,
+  kReceiveParseFailure = 24,
+  kReceiveSizeFailure = 25
 };
 
-struct PerformanceStats;
+struct SocketPerformanceStats {
+ public:
+  virtual ~SocketPerformanceStats() {}
+};
 
 typedef bs2::signal<void(const std::string&,
                          const SocketId&,
-                         const float&,
-                         const Port&)> SignalMessageReceived;
+                         const float&)> SignalMessageReceived;
 typedef bs2::signal<void(const transport::RpcMessage&,
                          const SocketId&,
-                         const float&,
-                         const Port&)> SignalRpcRequestReceived,
+                         const float&)> SignalRpcRequestReceived,
                                         SignalRpcResponseReceived;
 typedef bs2::signal<void(const bool&,
                          const IP&,
                          const Port&)> SignalConnectionDown;
-typedef bs2::signal<void(const SocketId&, const bool&)> SignalSent;
-typedef bs2::signal<void(const TransportMessage &,
-                         const TransportCondition&)> SignalSend;
-typedef bs2::signal<void(const SocketId&, const PerformanceStats &)>
-                         SignalStats;
+typedef bs2::signal<void(const SocketId&,
+                         const TransportCondition&)> SignalSend, SignalReceive;
+//typedef bs2::signal<void(const TransportMessage&,
+//                         const TransportCondition&)> SignalSend;
+typedef bs2::signal<void(boost::shared_ptr<SocketPerformanceStats>)>
+                            SignalStats;
 
 
 class Signals {
@@ -103,33 +112,33 @@ class Signals {
       const SignalConnectionDown::slot_type &connection_down_slot) {
     return signal_connection_down_.connect(connection_down_slot);
   }
-  bs2::connection ConnectSent(const SignalSent::slot_type &sent_slot) {
-    return signal_sent_.connect(sent_slot);
-  }
   bs2::connection ConnectSend(const SignalSend::slot_type &send_slot) {
     return signal_send_.connect(send_slot);
+  }
+  bs2::connection ConnectReceive(const SignalReceive::slot_type &receive_slot) {
+    return signal_receive_.connect(receive_slot);
   }
   bs2::connection ConnectStats(const SignalStats::slot_type &stats_slot) {
     return signal_stats_.connect(stats_slot);
   }
  protected:
-  Signals() : signal_rpc_request_received_(),
+  Signals() : signal_message_received_(),
+              signal_rpc_request_received_(),
               signal_rpc_response_received_(),
-              signal_message_received_(),
               signal_connection_down_(),
-              signal_sent_(),
               signal_send_(),
+              signal_receive_(),
               signal_stats_() {}
+  SignalMessageReceived signal_message_received_;
   SignalRpcRequestReceived signal_rpc_request_received_;
   SignalRpcResponseReceived signal_rpc_response_received_;
-  SignalMessageReceived signal_message_received_;
   SignalConnectionDown signal_connection_down_;
-  SignalSent signal_sent_;
   SignalSend signal_send_;
+  SignalReceive signal_receive_;
   SignalStats signal_stats_;
  private:
   Signals(const Signals&);
   Signals& operator=(const Signals&);
 };
-} // namespace transport
+}  // namespace transport
 #endif  // MAIDSAFE_TRANSPORT_SIGNALS_INL_H_

@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/maidsafe-dht_config.h>
 
 // API files
-#include <maidsafe/transport/transport-api.h>
+#include <maidsafe/transport/transport.h>
 #include <maidsafe/rpcprotocol/channelmanager-api.h>
 #include <maidsafe/rpcprotocol/channel-api.h>
 #include <maidsafe/kademlia/knode-api.h>

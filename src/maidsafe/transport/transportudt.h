@@ -63,11 +63,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/detail/atomic_count.hpp>
-#include <maidsafe/transport/transport-api.h>
+#include <maidsafe/transport/transport.h>
 #include <list>
 #include <map>
 #include <set>
 #include <string>
+#include "maidsafe/udt/udt.h"
 
 
 namespace transport {
@@ -77,12 +78,36 @@ class HolePunchingMessage;
 
 typedef int UdtSocketId;
 
+const int kDefaultSendTimeout(10000);  // milliseconds
+
+struct UdtStats : public SocketPerformanceStats {
+ public:
+  enum UdtSocketType { kSend, kReceive };
+  UdtStats(const UdtSocketId &udt_socket_id,
+           const UdtSocketType &udt_socket_type)
+      : udt_socket_id_(udt_socket_id),
+        udt_socket_type_(udt_socket_type),
+        performance_monitor_() {}
+  ~UdtStats() {}
+  UdtSocketId udt_socket_id_;
+  UdtSocketType udt_socket_type_;
+  UDT::TRACEINFO performance_monitor_;
+};
+
 class TransportUDT : public Transport {
  public:
   enum DataType { kString, kFile };
   TransportUDT();
   ~TransportUDT();
   static void CleanUp();
+  // return 1-5000 for fail or port number (check > 5000)
+  // this port number is passed up with every message received
+  // add sucessful ports to listening_ports_ vector.
+  Port StartListening(const IP &ip, const Port &port);
+  // Stop a particular port
+  bool StopListening(const Port &port);
+  // Stop all listening ports
+  bool StopAllListening();
   // Used to create a new socket and send data.  It assumes a
   // response is expected if timeout is > 0, and keeps the socket alive
   // for timeout (in milliseconds)
@@ -92,107 +117,77 @@ class TransportUDT : public Transport {
                           const int &response_timeout);
   // Used to send a response to a request recived on socket_id.
   TransportCondition SendResponse(const TransportMessage &transport_message,
-                          const SocketId &socket_id);
-
-  TransportCondition SendNow(const std::string &data,
-            const UdtSocketId &udt_socket_id,
-            const int &response_timeout,
-            const Port & receive_port);
-  // Checks a socket can send data.(close it otherwise)
-  bool CheckSocketSend(const SocketId &udt_socket_id);
-  // Check a socket can recieve data (close it otherwise)
-  bool CheckSocketReceive(const SocketId &udt_socket_id);
-  // return 1-5000 for fail or port number (check > 5000)
-  // this port number is passed up with every message received
-  // add sucessful ports to listening_ports_ vector.
-  Port StartListening(const IP &ip, const Port &port);
-  // Stop a particular port
-  bool StopListening(const Port);
-  // Stop all listening ports
-  bool StopAllListening();
-  bool is_stopped() const { return stop_all_; }
+                                  const SocketId &socket_id);
   TransportCondition GetPeerAddress(const SocketId &socket_id,
                                     struct sockaddr *peer_address);
-  bool ConnectionExists(const ConnectionId &connection_id);
-  std::vector<Port> GetListeningPorts() { return listening_ports_; }
-//   bool HasReceivedData(const ConnectionId &connection_id,
-//                        DataSize *size);
-  Port listening_port() const { return listening_port_; }
+//  bool ConnectionExists(const ConnectionId &connection_id);
+  bool is_stopped() const { return stop_all_; }
 
   bool IsAddressUsable(const IP &local_ip,
                        const IP &remote_ip,
                        const Port &remote_port);
   bool IsPortAvailable(const Port &port);
  private:
-   // No copy or assign
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
-  void AddUdtSocketId(const UdtSocketId &udt_socket_id);
-  void CloseSocket(const UdtSocketId &udt_socket_id);
-  void RemoveUdtSocketId(const UdtSocketId &udt_socket_id);
-  void RemoveDeadSocketId(const UdtSocketId &udt_socket_id);
-  int GetAndRefreshSocketStates(
-      std::vector<UdtSocketId> *sockets_ready_to_receive,
-      std::vector<UdtSocketId> *sockets_ready_to_send);
-
-
-
-  ConnectionId NextConnectionID() {
-    boost::detail::atomic_count connection_id_(1);
-    return ++connection_id_;
-  }
-  void AddIncomingConnection(UdtSocketId udt_socket_id);
+  //int Connect(const IP &peer_address, const Port &peer_port,
+  //            UdtSocketId *udt_socket_id);
+  void AcceptConnection(const UdtSocketId &udt_socket_id);
+  // General method for sending data
+  TransportCondition SendData(const std::string &data,
+                              const UdtSocketId &udt_socket_id,
+                              const int &send_timeout,
+                              const int &receive_timeout);
+  // Send the size of the pending message
+  TransportCondition SendDataSize(const std::string &data,
+                                  const UdtSocketId &udt_socket_id);
+  // Send the content of the message
+  TransportCondition SendDataContent(const std::string &data,
+                                     const UdtSocketId &udt_socket_id);
+  // General method for receiving data
   void ReceiveData(const UdtSocketId &udt_socket_id,
-                   const int &timeout,
-                   const Port& receive_port);
-  void AsyncReceiveData(const UdtSocketId &udt_socket_id,
-                               const int &timeout);
+                   const int &receive_timeout);
+  // Receive the size of the forthcoming message
+  DataSize ReceiveDataSize(const UdtSocketId &udt_socket_id);
+  // Receive the content of the message
+  std::string ReceiveDataContent(const UdtSocketId &udt_socket_id,
+                                 const DataSize &data_size);
   bool ParseTransportMessage(const std::string &data,
                              const UdtSocketId &udt_socket_id,
-                             const float &rtt,
-                             const Port & receive_port);
-  void AddIncomingConnection(UdtSocketId udt_socket_id,
-                             ConnectionId *connection_id);
+                             const float &rtt);
+  void AsyncReceiveData(const UdtSocketId &udt_socket_id,
+                        const int &timeout);
+  // Check a socket can send data (close it otherwise)
+  bool CheckSocketSend(const UdtSocketId &udt_socket_id);
+  // Check a socket can receive data (close it otherwise)
+  bool CheckSocketReceive(const UdtSocketId &udt_socket_id);
+  // Check a socket can send or receive data (close it otherwise)
+  bool CheckSocket(const UdtSocketId &udt_socket_id, bool send);
+
+
+
+
   void HandleRendezvousMessage(const HolePunchingMessage &message);
 
-  void SendHandle();
-  int Connect(const IP &peer_address, const Port &peer_port,
-              UdtSocketId *udt_socket_id);
-  void PingHandle();
-  void AcceptConnectionHandler(const UdtSocketId &udt_socket_id,
-                               const Port & receive_port);
-  void ReceiveHandler();
-  void MessageHandler();
-  boost::shared_ptr<boost::thread> accept_routine_, recv_routine_;
-  boost::shared_ptr<boost::thread> send_routine_, ping_rendz_routine_;
-  boost::shared_ptr<boost::thread> handle_msgs_routine_;
-  UdtSocketId listening_socket_;
-  Port listening_port_, my_rendezvous_port_;
-  IP my_rendezvous_ip_;
-//   std::map<ConnectionId, IncomingData> incoming_sockets_;
-//   std::list<OutgoingData> outgoing_queue_;
-//   std::list<IncomingMessages> incoming_msgs_queue_;
-  boost::mutex send_mutex_, ping_rendez_mutex_, recv_mutex_, msg_hdl_mutex_;
-  boost::mutex s_skts_mutex_;
-  struct addrinfo addrinfo_hints_;
-  struct addrinfo *addrinfo_result_;
-  ConnectionId current_id_;
-  boost::condition_variable send_cond_, ping_rend_cond_, recv_cond_;
-  boost::condition_variable msg_hdl_cond_;
-  bool ping_rendezvous_, directly_connected_/*, handle_non_transport_msgs_*/;
-  int accepted_connections_, msgs_sent_;
-  ConnectionId last_id_;
-  std::set<ConnectionId> data_arrived_;
-  std::map<ConnectionId, struct sockaddr> ips_from_connections_;
-  boost::function<void(const ConnectionId&, const bool&)> send_notifier_;
-  std::map<ConnectionId, UdtSocketId> send_sockets_;
-  TransportType transport_type_;
-  std::vector<UdtSocketId> udt_socket_ids_;
-  boost::mutex udt_socket_ids_mutex_;
-  std::vector<Port> listening_ports_;
 
- // static ConnectionId connection_id_;
-  //boost::shared_array<char> data_;
+
+  TransportType transport_type_;
+  IP rendezvous_ip_;
+  Port rendezvous_port_;
+//  std::map<ConnectionId, IncomingData> incoming_sockets_;
+//  std::list<OutgoingData> outgoing_queue_;
+//  std::list<IncomingMessages> incoming_msgs_queue_;
+//  boost::condition_variable send_cond_, ping_rend_cond_, recv_cond_;
+//  boost::condition_variable msg_hdl_cond_;
+//  bool ping_rendezvous_, directly_connected_/*, handle_non_transport_msgs_*/;
+//  int accepted_connections_, msgs_sent_;
+//  ConnectionId last_id_;
+//  std::set<ConnectionId> data_arrived_;
+//  std::map<ConnectionId, struct sockaddr> ips_from_connections_;
+//  boost::function<void(const ConnectionId&, const bool&)> send_notifier_;
+//  std::map<ConnectionId, UdtSocketId> send_sockets_;
+//  static ConnectionId connection_id_;
+//  boost::shared_array<char> data_;
 };
 
 }  // namespace transport

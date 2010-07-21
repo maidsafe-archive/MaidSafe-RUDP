@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/rpcmessage.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/tests/rpcprotocol/testservices.pb.h"
 

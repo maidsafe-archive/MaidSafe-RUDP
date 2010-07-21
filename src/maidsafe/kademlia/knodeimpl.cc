@@ -46,7 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 
 namespace fs = boost::filesystem;
 

@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/calllatertimer.h"
 #include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/rpcprotocol/channelimpl.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 
 namespace transport {
 class Transport;
@@ -82,10 +82,9 @@ class ChannelManagerImpl {
                          PendingRequest pending_request);
   bool DeletePendingRequest(const RpcId &rpc_id);
   bool CancelPendingRequest(const RpcId &rpc_id);
-  void AddReqToTimer(const RpcId &rpc_id,
-    const boost::uint64_t &timeout);
-  void AddTimeOutRequest(const ConnectionId &connection_id,
-    const RpcId &rpc_id, const int &timeout);
+  void AddReqToTimer(const RpcId &rpc_id, const boost::uint64_t &timeout);
+  void AddTimeOutRequest(const ConnectionId &connection_id, const RpcId &rpc_id,
+                         const int &timeout);
   bool RegisterNotifiersToTransport();
   RpcStatsMap RpcTimings();
   void ClearRpcTimings();

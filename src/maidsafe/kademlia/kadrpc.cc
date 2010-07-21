@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kadrpc.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 
 namespace kad {
 

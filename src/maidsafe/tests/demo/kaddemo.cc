@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/demo/commands.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportudt.h"
 
 namespace po = boost::program_options;

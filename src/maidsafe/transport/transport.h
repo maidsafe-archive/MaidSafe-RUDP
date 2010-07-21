@@ -110,8 +110,7 @@ class Transport : public Signals {
   bool stopped() const { return stopped_; }
   bool nat_pnp() const { return nat_pnp_; }
   bool upnp() const { return upnp_; }
-  // TODO (dirvine) turn into vector of listening ports
-  virtual Port listening_port() const = 0;
+  virtual std::vector<Port> listening_ports() { return listening_ports_; }
   void set_nat_pnp(bool nat_pnp) { nat_pnp_ = nat_pnp; }
   void set_upnp(bool upnp) { upnp_ = upnp; }
  protected:
@@ -121,10 +120,12 @@ class Transport : public Signals {
                 local_port_only_(false),
                 stopped_(true),
                 stop_all_(false),
-                stop_now_(false) {}
+                stop_now_(false),
+                listening_ports_() {}
 
   bool upnp_, nat_pnp_, rendezvous_, local_port_only_, stopped_, stop_all_;
   bool stop_now_;
+  std::vector<Port> listening_ports_;
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);

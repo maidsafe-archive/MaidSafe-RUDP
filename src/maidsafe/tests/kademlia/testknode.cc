@@ -50,7 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/udt/udt.h"
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/log.h"
-#include "maidsafe/transport/transport-api.h"
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/tests/validationimpl.h"
 
