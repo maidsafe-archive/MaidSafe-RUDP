@@ -126,7 +126,7 @@ bool TransportUDT::StopAllListening() {
 //    while (!listening_ports_.empty()) {
 //     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 //    }
-//     
+//
       return true;
 }
 
@@ -320,26 +320,26 @@ TransportCondition TransportUDT::SendData(const std::string &data,
 TransportCondition TransportUDT::SendDataSize(
     const std::string &data,
     const UdtSocketId &udt_socket_id) {
-  std::string data_size_as_string =
-      boost::lexical_cast<std::string>(data.size());
-  DataSize data_size = static_cast<DataSize>(data.size());
+//  std::string data_size_as_string =
+//      boost::lexical_cast<std::string>(data.size());
+  DataSize data_size = data.size();
   if (data_size != data.size()) {
-    DLOG(INFO) << "TransportUDT::SendNow: data > max buffer size." << std::endl;
+    LOG(INFO) << "TransportUDT::SendNow: data > max buffer size." << std::endl;
     signal_send_(udt_socket_id, kSendUdtFailure);
     UDT::close(udt_socket_id);
     return kSendUdtFailure;
   }
+  DataSize data_buffer_size = sizeof(DataSize);
 
   int sent_count;
   if (UDT::ERROR == (sent_count = UDT::send(udt_socket_id,
-      data_size_as_string.data(), static_cast<int>(data_size_as_string.size()),
-      0))) {
+      reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
     LOG(ERROR) << "Cannot send data size: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
-    signal_send_(udt_socket_id, kSendUdtFailure); 
+    signal_send_(udt_socket_id, kSendUdtFailure);
     UDT::close(udt_socket_id);
     return kSendUdtFailure;
-  } else if (sent_count != static_cast<int>(data_size_as_string.size())) {
+  } else if (sent_count != data_buffer_size) {
     LOG(INFO) << "Sending socket " << udt_socket_id << " timed out" <<
         std::endl;
     signal_send_(udt_socket_id, kSendTimeout);
@@ -411,12 +411,12 @@ void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
 }
 
 DataSize TransportUDT::ReceiveDataSize(const UdtSocketId &udt_socket_id) {
-  std::string data_size_as_string(sizeof(DataSize), 0);
+  DataSize data_buffer_size = sizeof(DataSize);
   DataSize data_size;
   int received_count;
   UDT::getlasterror().clear();
   if (UDT::ERROR == (received_count = UDT::recv(udt_socket_id,
-      &data_size_as_string.at(0), sizeof(DataSize), 0))) {
+      reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
     LOG(ERROR) << "Cannot get data size: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     signal_receive_(udt_socket_id, kReceiveUdtFailure);
@@ -429,17 +429,17 @@ DataSize TransportUDT::ReceiveDataSize(const UdtSocketId &udt_socket_id) {
     UDT::close(udt_socket_id);
     return 0;
   }
-  try {
-    data_size_as_string.resize(received_count);
-    data_size =
-        boost::lexical_cast<DataSize>(data_size_as_string);
-  }
-  catch(const std::exception &e) {
-    LOG(ERROR) << "Exception getting data size: " << e.what() << std::endl;
-    signal_receive_(udt_socket_id, kReceiveParseFailure);
-    UDT::close(udt_socket_id);
-    return 0;
-  }
+//  try {
+//    data_size_as_string.resize(received_count);
+//    data_size =
+//        boost::lexical_cast<DataSize>(data_size_as_string);
+//  }
+//  catch(const std::exception &e) {
+//    LOG(ERROR) << "Exception getting data size: " << e.what() << std::endl;
+//    signal_receive_(udt_socket_id, kReceiveParseFailure);
+//    UDT::close(udt_socket_id);
+//    return 0;
+//  }
   if (data_size < 1) {
     LOG(ERROR) << "Data size is " << data_size << std::endl;
     signal_receive_(udt_socket_id, kReceiveSizeFailure);
