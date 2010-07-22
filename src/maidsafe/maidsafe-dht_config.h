@@ -90,12 +90,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
-/*******************************************************************************
- * Global Aliases                                                              *
- ******************************************************************************/
-namespace  bs2 = boost::signals2;
-namespace  bfs = boost::filesystem;
-
 
 /*******************************************************************************
  * Transport Layer                                                             *
@@ -104,9 +98,7 @@ namespace transport {
 
 typedef std::string IP;
 typedef boost::uint16_t Port;
-typedef boost::uint32_t ConnectionId;
-typedef int SocketId;
-enum TransportType { kUdt, kTcp, kOther };
+typedef int SocketId, ManagedEndpointId;
 
 }  // namespace transport
 
@@ -189,8 +181,7 @@ namespace rpcprotocol {
 typedef transport::IP IP;
 typedef transport::Port Port;
 typedef boost::uint32_t RpcId;
-typedef transport::SocketId SocketId;
-typedef transport::ConnectionId ConnectionId;
+typedef transport::SocketId SocketId, ConnectionId;
 
 // Maximum port number.
 const Port kMaxPort = 65535;

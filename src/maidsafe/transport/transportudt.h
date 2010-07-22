@@ -71,6 +71,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/udt/udt.h"
 
 
+namespace  bs2 = boost::signals2;
+namespace  fs = boost::filesystem;
+
 namespace transport {
 
 class HolePunchingMessage;
@@ -96,7 +99,6 @@ struct UdtStats : public SocketPerformanceStats {
 
 class TransportUDT : public Transport {
  public:
-  enum DataType { kString, kFile };
   TransportUDT();
   ~TransportUDT();
   static void CleanUp();
@@ -117,18 +119,43 @@ class TransportUDT : public Transport {
                           const Port &remote_port,
                           const int &response_timeout,
                           SocketId *socket_id);
+  TransportCondition SendWithRendezvous(
+      const TransportMessage &transport_message,
+      const IP &remote_ip,
+      const Port &remote_port,
+      const IP &rendezvous_ip,
+      const Port &rendezvous_port,
+      int &response_timeout,
+      SocketId *socket_id);
   // Used to send a response to a request received on socket_id.
   TransportCondition SendResponse(const TransportMessage &transport_message,
                                   const SocketId &socket_id);
-  TransportCondition GetPeerAddress(const SocketId &socket_id,
-                                    struct sockaddr *peer_address);
-//  bool ConnectionExists(const ConnectionId &connection_id);
-  bool is_stopped() const { return stop_all_; }
+  // Used to send a file in response to a request received on socket_id.
+  TransportCondition SendFile(fs::path &path, const SocketId &socket_id);
+  // Adds an endpoint that is checked at frequency milliseconds, or which keeps
+  // alive the connection if frequency == 0.  Checking persists until
+  // RemoveManagedEndpoint called, or endpoint lost.
+  // Return value is the socket id or -1 on error.  For frequency == 0 (implies
+  // stay connected) the ManagedEndpointId can be used as the SocketId for
+  // sending further messages.  For frequency > 0, new connections are
+  // regularly made and broken, so ManagedEndpointId cannot be used as SocketId.
+  // On failure to connect, retry_count further attempts at retry_frequency (ms)
+  // are performed before failure.
+  ManagedEndpointId AddManagedEndpoint(
+      const IP &remote_ip,
+      const Port &remote_port,
+      const IP &rendezvous_ip,
+      const Port &rendezvous_port,
+      const boost::uint16_t &frequency,
+      const boost::uint16_t &retry_count,
+      const boost::uint16_t &retry_frequency);
+  TransportCondition RemoveManagedEndpoint(
+      const ManagedEndpointId &managed_endpoint_id);
 
-  bool IsAddressUsable(const IP &local_ip,
-                       const IP &remote_ip,
-                       const Port &remote_port);
-  bool IsPortAvailable(const Port &port);
+
+
+  //  bool ConnectionExists(const ConnectionId &connection_id);
+  bool is_stopped() const { return stop_all_; }
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
@@ -169,14 +196,21 @@ class TransportUDT : public Transport {
 
 
 
+    // Create a rendezvous connection - pass server as well
+// this will block as we need the result
+//   virtual TransportCondition Open(const IP &remote_ip,
+//                                    const Port &remote_port,
+//                                    const IP &rendezvous_peer_ip,
+//                                    const Port &rendezvous_peer_port) = 0;
 
-  void HandleRendezvousMessage(const HolePunchingMessage &message);
+
+  std::vector<Port> ports_to_stop_;
+  boost::mutex ports_to_stop_mutex_;
 
 
-
-  TransportType transport_type_;
-  IP rendezvous_ip_;
-  Port rendezvous_port_;
+//  TransportType transport_type_;
+//  IP rendezvous_ip_;
+//  Port rendezvous_port_;
 //  std::map<ConnectionId, IncomingData> incoming_sockets_;
 //  std::list<OutgoingData> outgoing_queue_;
 //  std::list<IncomingMessages> incoming_msgs_queue_;

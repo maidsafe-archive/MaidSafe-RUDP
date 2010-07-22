@@ -40,6 +40,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+namespace  bs2 = boost::signals2;
+namespace  fs = boost::filesystem;
+
 enum TransportCondition {
   kSuccess = 0,
   kError = 1,

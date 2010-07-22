@@ -77,13 +77,6 @@ class Transport : public Signals {
       const TransportMessage &transport_message,
       const SocketId &socket_id) = 0;
 
-  // Create a rendezvous connection - pass server as well
-// this will block as we need the result
-//   virtual TransportCondition Open(const IP &remote_ip,
-//                                    const Port &remote_port,
-//                                    const IP &rendezvous_peer_ip,
-//                                    const Port &rendezvous_peer_port) = 0;
-//                                    
   virtual Port StartListening(const IP &ip, const Port &port) = 0;
 // return value is the connection_id or -1 on error
 //   virtual ConnectionId ManagedConnection(const IP &remote_ip,
@@ -106,12 +99,10 @@ class Transport : public Signals {
   }
   bool ImmediateStop() { return stop_now_ = true; }
   bool DeferredStop() { return stop_all_ = true; }
-  virtual TransportCondition GetPeerAddress(const SocketId &socket_id,
-                                            struct sockaddr *peer_address) = 0;
   bool stopped() const { return stopped_; }
   bool nat_pnp() const { return nat_pnp_; }
   bool upnp() const { return upnp_; }
-  virtual std::vector<Port> listening_ports() { return listening_ports_; }
+  std::vector<Port> listening_ports() { return listening_ports_; }
   void set_nat_pnp(bool nat_pnp) { nat_pnp_ = nat_pnp; }
   void set_upnp(bool upnp) { upnp_ = upnp; }
  protected:

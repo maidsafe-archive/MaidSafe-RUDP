@@ -42,9 +42,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace transport {
 
 TransportUDT::TransportUDT() : Transport(),
-                               transport_type_(kUdt),
-                               rendezvous_ip_(),
-                               rendezvous_port_(0) {
+                               ports_to_stop_(),
+                               ports_to_stop_mutex_() {
   UDT::startup();
 }
 
@@ -115,7 +114,9 @@ Port TransportUDT::StartListening(const IP &ip, const Port &port) {
   return listening_port;
 }
 
-bool TransportUDT::StopListening(const Port &/*port*/) {
+bool TransportUDT::StopListening(const Port &port) {
+  boost::mutex::scoped_lock lock(ports_to_stop_mutex_);
+  ports_to_stop_.push_back(port);
   return true;
 }
 
@@ -161,7 +162,7 @@ TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
   UDT::setsockopt(udt_socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif
 
-  // TODO FIXME - This can delay by up to 3 seconds !!!! even on pass
+
   if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
       peer->ai_addrlen)) {
     DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
@@ -229,7 +230,23 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
   UdtSocketId receiver_socket_id;
+  struct sockaddr_in name;
+  int name_size;
+  UDT::getsockname(udt_socket_id, reinterpret_cast<sockaddr*>(&name),
+                   &name_size);
+  Port this_port = ntohs(name.sin_port);
+ // FIXME - get port
   while (true) {
+    {
+
+      boost::mutex::scoped_lock lock(ports_to_stop_mutex_);
+      if (!listening_ports_.empty()) {
+        std::vector<Port>::iterator it;
+        it = find(listening_ports_.begin(), listening_ports_.end(), this_port);
+        if (*it != this_port)
+          return;
+      }
+    }
 // //     if (stop_all_) {
 //       LOG(INFO) << "trying to stop " << std::endl;
 //       for (std::vector<Port>::iterator it = listening_ports_.begin();
@@ -247,14 +264,15 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
           UDT::getlasterror().getErrorMessage() << std::endl;
       return;
     }
-    struct sockaddr peer_address;
-    if (kSuccess == GetPeerAddress(receiver_socket_id, &peer_address)) {
+//   struct sockaddr peer_address;
+   // if (kSuccess == UDT:: (receiver_socket_id, &peer_address)) {
       boost::thread(&TransportUDT::ReceiveData, this, receiver_socket_id, -1);
-    } else {
-      LOG(INFO) << "Problem passing socket off to handler, (closing socket)"
-                << std::endl;
-      UDT::close(receiver_socket_id);
-    }
+   // } else {
+    //  LOG(INFO) << "Problem passing socket off to handler, (closing socket)"
+     //           << std::endl;
+     // UDT::close(receiver_socket_id);
+   // }
+    
   }
 }
 
@@ -652,107 +670,6 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id, bool send) {
   } else {
     return true;
   }
-}
-
-TransportCondition TransportUDT::GetPeerAddress(const SocketId &socket_id,
-                                                struct sockaddr *peer_address) {
-  int peer_address_size = sizeof(*peer_address);
-  if (UDT::ERROR == UDT::getpeername(socket_id, peer_address,
-                                     &peer_address_size)) {
-    DLOG(INFO) << "Failed to get valid peer address." <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    return kInvalidAddress;
-  }
-  return kSuccess;
-}
-
-bool TransportUDT::IsAddressUsable(const IP &local_ip, const IP &remote_ip,
-                                   const Port &remote_port) {
-  // Ensure that local and remote addresses aren't empty
-  if (local_ip.empty() || remote_ip.empty())
-    return false;
-
-  struct addrinfo hints, *local;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_flags = AI_PASSIVE;
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  IP dec_lip;
-  if (local_ip.size() == 4)
-    dec_lip = base::IpBytesToAscii(local_ip);
-  else
-    dec_lip = local_ip;
-  if (0 != getaddrinfo(dec_lip.c_str(), "0", &hints, &local)) {
-    DLOG(ERROR) << "Invalid local address " << local_ip << std::endl;
-    return false;
-  }
-
-  UdtSocketId skt = UDT::socket(local->ai_family, local->ai_socktype,
-                                local->ai_protocol);
-  if (UDT::ERROR == UDT::bind(skt, local->ai_addr, local->ai_addrlen)) {
-   DLOG(ERROR) << "IsAddressUsable UDT Bind error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    return false;
-  }
-
-  freeaddrinfo(local);
-  sockaddr_in remote_addr;
-  remote_addr.sin_family = AF_INET;
-  remote_addr.sin_port = htons(remote_port);
-
-#ifndef WIN32
-  if (inet_pton(AF_INET, remote_ip.c_str(), &remote_addr.sin_addr) <= 0) {
-    DLOG(ERROR) << "Invalid remote address " << remote_ip << ":"<< remote_port
-        << std::endl;
-    return false;
-  }
-#else
-  if (INADDR_NONE == (remote_addr.sin_addr.s_addr =
-      inet_addr(remote_ip.c_str()))) {
-    DLOG(ERROR) << "Invalid remote address " << remote_ip << ":"<< remote_port
-        << std::endl;
-    return false;
-  }
-#endif
-
-  if (UDT::ERROR == UDT::connect(skt,
-      reinterpret_cast<sockaddr*>(&remote_addr), sizeof(remote_addr))) {
-    DLOG(ERROR) << "IsAddressUsable UDT connect to " << remote_ip << ":" <<
-        remote_port <<" -- " << UDT::getlasterror().getErrorMessage() <<
-        std::endl;
-    return false;
-  }
-  UDT::close(skt);
-  return true;
-}
-
-bool TransportUDT::IsPortAvailable(const Port &port) {
-  struct addrinfo addrinfo_hints;
-  struct addrinfo* addrinfo_res;
-  memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
-  addrinfo_hints.ai_flags = AI_PASSIVE;
-  addrinfo_hints.ai_family = AF_INET;
-  addrinfo_hints.ai_socktype = SOCK_STREAM;
-  std::string service = boost::lexical_cast<std::string>(port);
-  if (0 != getaddrinfo(NULL, service.c_str(), &addrinfo_hints,
-      &addrinfo_res)) {
-    freeaddrinfo(addrinfo_res);
-    return false;
-  }
-  UdtSocketId skt = UDT::socket(addrinfo_res->ai_family,
-      addrinfo_res->ai_socktype, addrinfo_res->ai_protocol);
-  if (UDT::ERROR == UDT::bind(skt, addrinfo_res->ai_addr,
-      addrinfo_res->ai_addrlen)) {
-    freeaddrinfo(addrinfo_res);
-    return false;
-  }
-  if (UDT::ERROR == UDT::listen(skt, 20)) {
-    freeaddrinfo(addrinfo_res);
-    return false;
-  }
-  UDT::close(skt);
-  freeaddrinfo(addrinfo_res);
-  return true;
 }
 
 }  // namespace transport
