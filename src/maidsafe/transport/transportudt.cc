@@ -243,8 +243,10 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
       if (!listening_ports_.empty()) {
         std::vector<Port>::iterator it;
         it = find(listening_ports_.begin(), listening_ports_.end(), this_port);
-        if (*it != this_port)
+        if ((*it != this_port)  || (stop_all_)) {
+          UDT::close(udt_socket_id);
           return;
+        }
       }
     }
 // //     if (stop_all_) {
