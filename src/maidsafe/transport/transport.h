@@ -50,7 +50,66 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+enum TransportCondition {
+  kSuccess = 0,
+  kError = 1,
+  kRemoteUnreachable = 2,
+  kNoConnection = 3,
+  kNoNetwork = 4,
+  kInvalidIP = 5,
+  kInvalidPort = 6,
+  kInvalidData = 7,
+  kNoSocket = 8,
+  kInvalidAddress = 9,
+  kNoRendezvous = 10,
+  kBehindFirewall = 11,
+  kBindError = 12,
+  kConnectError = 13,
+  kAlreadyStarted = 14,
+  kListenError = 15,
+  kThreadResourceError = 16,
+  kCloseSocketError = 17,
+  kSendUdtFailure = 18,
+  kSendTimeout = 19,
+  kSendParseFailure = 20,
+  kSendSizeFailure = 21,
+  kReceiveUdtFailure = 22,
+  kReceiveTimeout = 23,
+  kReceiveParseFailure = 24,
+  kReceiveSizeFailure = 25
+};
+
+struct SocketPerformanceStats;
+
+typedef bs2::signal<void(const std::string&,
+                         const SocketId&,
+                         const float&)> SignalMessageReceived;
+typedef bs2::signal<void(const transport::RpcMessage&,
+                         const SocketId&,
+                         const float&)> SignalRpcRequestReceived,
+                                        SignalRpcResponseReceived;
+typedef bs2::signal<void(const ManagedEndpointId&)> SignalLostManagedEndpoint;
+typedef bs2::signal<void(const SocketId&,
+                         const TransportCondition&)> SignalSend, SignalReceive;
+typedef bs2::signal<void(boost::shared_ptr<SocketPerformanceStats>)>
+                            SignalStats;
+
 typedef boost::int64_t DataSize;
+
+inline bool ValidIP(const IP &ip) {
+  boost::system::error_code ec;
+  boost::asio::ip::address::from_string(ip, ec);
+  return ec == boost::system::errc::success;
+}
+
+inline bool ValidPort(const Port &port) {
+  return ((5000 < port) && (port < 65535));
+}
+
+struct SocketPerformanceStats {
+ public:
+  virtual ~SocketPerformanceStats() {}
+};
 
 class Transport : public Signals {
   /* Transport API, all transports require to inherit these public methods
@@ -68,56 +127,70 @@ class Transport : public Signals {
   */
  public:
   virtual ~Transport() {}
-  virtual TransportCondition Send(const TransportMessage &transport_message,
-                                  const IP &remote_ip,
-                                  const Port &remote_port,
-                                  const int &response_timeout,
-                                  SocketId *socket_id) = 0;
-  virtual TransportCondition SendResponse(
-      const TransportMessage &transport_message,
-      const SocketId &socket_id) = 0;
-
   virtual Port StartListening(const IP &ip, const Port &port) = 0;
-// return value is the connection_id or -1 on error
-//   virtual ConnectionId ManagedConnection(const IP &remote_ip,
-//                                          const Port &remote_port,
-//                                          const IP &rendezvous_ip,
-//                                          const Port &rendezvous_port,
-//                                          const boost::uint16_t &frequency,
-//                                          const boost::uint16_t &retry_count,
-//                                          const boost::uint16_t &retry_frequency) = 0;
-  void StartPingRendezvous(const bool &directly_connected,
-                           const IP &rendezvous_ip,
-                           const Port &rendezvous_port) {}
-  bool CheckIP(const IP &ip) {
-    boost::system::error_code ec;
-    boost::asio::ip::address::from_string(ip, ec);
-    return ec == boost::system::errc::success;
-  }
-  bool CheckListeningPort(const Port &port) {
-    return ((5000 < port) && (port < 65535));
-  }
-  bool ImmediateStop() { return stop_now_ = true; }
-  bool DeferredStop() { return stop_all_ = true; }
-  bool stopped() const { return stopped_; }
-  bool nat_pnp() const { return nat_pnp_; }
-  bool upnp() const { return upnp_; }
+  virtual bool StopListening(const Port &port) = 0;
+  virtual bool StopAllListening() = 0;
+  virtual void Send(const TransportMessage &transport_message,
+                    const IP &remote_ip,
+                    const Port &remote_port,
+                    const int &response_timeout) = 0;
+  virtual void SendResponse(const TransportMessage &transport_message,
+                            const SocketId &socket_id) = 0;
+  virtual void SendFile(fs::path &path, const SocketId &socket_id) = 0;
+  virtual ManagedEndpointId AddManagedEndpoint(
+      const IP &remote_ip,
+      const Port &remote_port,
+      const IP &rendezvous_ip,
+      const Port &rendezvous_port,
+      const boost::uint16_t &frequency,
+      const boost::uint16_t &retry_count,
+      const boost::uint16_t &retry_frequency);
+  virtual TransportCondition RemoveManagedEndpoint(
+      const ManagedEndpointId &managed_endpoint_id);
   std::vector<Port> listening_ports() { return listening_ports_; }
-  void set_nat_pnp(bool nat_pnp) { nat_pnp_ = nat_pnp; }
-  void set_upnp(bool upnp) { upnp_ = upnp; }
+  // Connect to signals
+  bs2::connection ConnectMessageReceived(
+      const SignalMessageReceived::slot_type &message_received_slot) {
+    return signal_message_received_.connect(message_received_slot);
+  }
+  bs2::connection ConnectRpcRequestReceived(
+      const SignalRpcRequestReceived::slot_type &rpc_request_received_slot) {
+    return signal_rpc_request_received_.connect(rpc_request_received_slot);
+  }
+  bs2::connection ConnectRpcResponseReceived(
+      const SignalRpcResponseReceived::slot_type &rpc_response_received_slot) {
+    return signal_rpc_response_received_.connect(rpc_response_received_slot);
+  }
+  bs2::connection ConnectConnectionDown(
+      const SignalLostManagedEndpoint::slot_type &lost_managed_endpoint_slot) {
+    return signal_lost_managed_endpoint_.connect(lost_managed_endpoint_slot);
+  }
+  bs2::connection ConnectSend(const SignalSend::slot_type &send_slot) {
+    return signal_send_.connect(send_slot);
+  }
+  bs2::connection ConnectReceive(const SignalReceive::slot_type &receive_slot) {
+    return signal_receive_.connect(receive_slot);
+  }
+  bs2::connection ConnectStats(const SignalStats::slot_type &stats_slot) {
+    return signal_stats_.connect(stats_slot);
+  }
  protected:
-  Transport() : upnp_(false),
-                nat_pnp_(false),
-                rendezvous_(false),
-                local_port_only_(false),
-                stopped_(true),
-                stop_all_(false),
-                stop_now_(false),
-                listening_ports_() {}
-
-  bool upnp_, nat_pnp_, rendezvous_, local_port_only_, stopped_, stop_all_;
-  bool stop_now_;
+  Transport() : listening_ports_(),
+                signal_message_received_(),
+                signal_rpc_request_received_(),
+                signal_rpc_response_received_(),
+                signal_lost_managed_endpoint_(),
+                signal_send_(),
+                signal_receive_(),
+                signal_stats_() {}
   std::vector<Port> listening_ports_;
+  SignalMessageReceived signal_message_received_;
+  SignalRpcRequestReceived signal_rpc_request_received_;
+  SignalRpcResponseReceived signal_rpc_response_received_;
+  SignalLostManagedEndpoint signal_lost_managed_endpoint_;
+  SignalSend signal_send_;
+  SignalReceive signal_receive_;
+  SignalStats signal_stats_;
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);

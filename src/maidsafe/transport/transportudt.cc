@@ -132,13 +132,10 @@ bool TransportUDT::StopAllListening() {
       return true;
 }
 
-TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
-                                      const IP &remote_ip,
-                                      const Port &remote_port,
-                                      const int &response_timeout,
-                                      SocketId *socket_id) {
-  if (socket_id != NULL)
-    *socket_id = UDT::INVALID_SOCK;
+void TransportUDT::Send(const TransportMessage &transport_message,
+                        const IP &remote_ip,
+                        const Port &remote_port,
+                        const int &response_timeout) {
   struct addrinfo hints, *peer;
   memset(&hints, 0, sizeof(hints));
   hints.ai_flags = AI_PASSIVE;
@@ -149,8 +146,8 @@ TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
     DLOG(ERROR) << "Incorrect peer address. " << remote_ip << ":" <<
         remote_port << std::endl;
     freeaddrinfo(peer);
-    signal_send_(0, kInvalidAddress);
-    return kInvalidAddress;
+    signal_send_(UDT::INVALID_SOCK, kInvalidAddress);
+    return;
   }
 
   UdtSocketId udt_socket_id =
@@ -170,23 +167,19 @@ TransportCondition TransportUDT::Send(const TransportMessage &transport_message,
     signal_send_(udt_socket_id, kConnectError);
     UDT::close(udt_socket_id);
     freeaddrinfo(peer);
-    return kConnectError;
+    return;
   }
 
-  if (socket_id != NULL)
-    *socket_id = udt_socket_id;
   boost::thread(&TransportUDT::SendData, this, transport_message, udt_socket_id,
                 response_timeout, response_timeout);
   freeaddrinfo(peer);
-  return kSuccess;
+  return;
 }
 
-TransportCondition TransportUDT::SendResponse(
-    const TransportMessage &transport_message,
-    const SocketId &socket_id) {
+void TransportUDT::SendResponse(const TransportMessage &transport_message,
+                                const SocketId &socket_id) {
   boost::thread(&TransportUDT::SendData, this, transport_message, socket_id,
                 kDefaultSendTimeout, 0);
-  return kSuccess;
 }
 
 //int TransportUDT::Connect(const IP &peer_address, const Port &peer_port,
@@ -224,7 +217,6 @@ TransportCondition TransportUDT::SendResponse(
 //  }
 //  return 0;
 //}
-
 
 void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
   sockaddr_storage clientaddr;

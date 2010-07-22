@@ -110,28 +110,32 @@ class TransportUDT : public Transport {
   bool StopListening(const Port &port);
   // Stop all listening ports
   bool StopAllListening();
+  // Create a hole to remote endpoint using rendezvous endpoint.
+  TransportCondition PunchHole(const IP &remote_ip,
+                               const Port &remote_port,
+                               const IP &rendezvous_ip,
+                               const Port &rendezvous_port);
   // Used to create a new socket and send data.  It assumes a
   // response is expected if timeout is > 0, and keeps the socket alive.
   // Given a non-NULL socket_id, if Send succeeds it is set to the new socket ID
-  // otherwise it is set to UDT::INVALID_SOCK (currently defined as -1).  
-  TransportCondition Send(const TransportMessage &transport_message,
+  // otherwise it is set to UDT::INVALID_SOCK (currently defined as -1).
+  void Send(const TransportMessage &transport_message,
+            const IP &remote_ip,
+            const Port &remote_port,
+            const int &response_timeout);
+  // Convenience function - calls PunchHole followed by Send.
+  void SendWithRendezvous(const TransportMessage &transport_message,
                           const IP &remote_ip,
                           const Port &remote_port,
-                          const int &response_timeout,
+                          const IP &rendezvous_ip,
+                          const Port &rendezvous_port,
+                          int &response_timeout,
                           SocketId *socket_id);
-  TransportCondition SendWithRendezvous(
-      const TransportMessage &transport_message,
-      const IP &remote_ip,
-      const Port &remote_port,
-      const IP &rendezvous_ip,
-      const Port &rendezvous_port,
-      int &response_timeout,
-      SocketId *socket_id);
   // Used to send a response to a request received on socket_id.
-  TransportCondition SendResponse(const TransportMessage &transport_message,
-                                  const SocketId &socket_id);
+  void SendResponse(const TransportMessage &transport_message,
+                    const SocketId &socket_id);
   // Used to send a file in response to a request received on socket_id.
-  TransportCondition SendFile(fs::path &path, const SocketId &socket_id);
+  void SendFile(fs::path &path, const SocketId &socket_id);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
   // alive the connection if frequency == 0.  Checking persists until
   // RemoveManagedEndpoint called, or endpoint lost.
@@ -155,7 +159,7 @@ class TransportUDT : public Transport {
 
 
   //  bool ConnectionExists(const ConnectionId &connection_id);
-  bool is_stopped() const { return stop_all_; }
+  //  bool is_stopped() const { return stop_all_; }
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
@@ -196,12 +200,6 @@ class TransportUDT : public Transport {
 
 
 
-    // Create a rendezvous connection - pass server as well
-// this will block as we need the result
-//   virtual TransportCondition Open(const IP &remote_ip,
-//                                    const Port &remote_port,
-//                                    const IP &rendezvous_peer_ip,
-//                                    const Port &rendezvous_peer_port) = 0;
 
 
   std::vector<Port> ports_to_stop_;
