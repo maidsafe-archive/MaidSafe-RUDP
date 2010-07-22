@@ -102,23 +102,16 @@ class TransportUDT : public Transport {
   TransportUDT();
   ~TransportUDT();
   static void CleanUp();
-  // return 1-5000 for fail or port number (check > 5000)
-  // this port number is passed up with every message received
-  // add sucessful ports to listening_ports_ vector.
-  Port StartListening(const IP &ip, const Port &port);
-  // Stop a particular port
+  Port StartListening(const IP &ip,
+                      const Port &port,
+                      TransportCondition *transport_condition);
   bool StopListening(const Port &port);
-  // Stop all listening ports
   bool StopAllListening();
   // Create a hole to remote endpoint using rendezvous endpoint.
   TransportCondition PunchHole(const IP &remote_ip,
                                const Port &remote_port,
                                const IP &rendezvous_ip,
                                const Port &rendezvous_port);
-  // Used to create a new socket and send data.  It assumes a
-  // response is expected if timeout is > 0, and keeps the socket alive.
-  // Given a non-NULL socket_id, if Send succeeds it is set to the new socket ID
-  // otherwise it is set to UDT::INVALID_SOCK (currently defined as -1).
   void Send(const TransportMessage &transport_message,
             const IP &remote_ip,
             const Port &remote_port,
@@ -131,14 +124,13 @@ class TransportUDT : public Transport {
                           const Port &rendezvous_port,
                           int &response_timeout,
                           SocketId *socket_id);
-  // Used to send a response to a request received on socket_id.
   void SendResponse(const TransportMessage &transport_message,
                     const SocketId &socket_id);
   // Used to send a file in response to a request received on socket_id.
   void SendFile(fs::path &path, const SocketId &socket_id);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
   // alive the connection if frequency == 0.  Checking persists until
-  // RemoveManagedEndpoint called, or endpoint lost.
+  // RemoveManagedEndpoint called, or endpoint is unavailable.
   // Return value is the socket id or -1 on error.  For frequency == 0 (implies
   // stay connected) the ManagedEndpointId can be used as the SocketId for
   // sending further messages.  For frequency > 0, new connections are
@@ -155,11 +147,6 @@ class TransportUDT : public Transport {
       const boost::uint16_t &retry_frequency);
   TransportCondition RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
-
-
-
-  //  bool ConnectionExists(const ConnectionId &connection_id);
-  //  bool is_stopped() const { return stop_all_; }
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
@@ -202,8 +189,6 @@ class TransportUDT : public Transport {
 
 
 
-  std::vector<Port> ports_to_stop_;
-  boost::mutex ports_to_stop_mutex_;
 
 
 //  TransportType transport_type_;

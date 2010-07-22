@@ -39,7 +39,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/system/error_code.hpp>
 #include <maidsafe/protobuf/transport_message.pb.h>
 #include <maidsafe/maidsafe-dht_config.h>
-#include <maidsafe/transport/signals-inl.h>
 #include <string>
 
 #if MAIDSAFE_DHT_VERSION < 23
@@ -47,36 +46,38 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #error Please update the maidsafe-dht library.
 #endif
 
+namespace  bs2 = boost::signals2;
+namespace  fs = boost::filesystem;
 
 namespace transport {
 
 enum TransportCondition {
   kSuccess = 0,
-  kError = 1,
-  kRemoteUnreachable = 2,
-  kNoConnection = 3,
-  kNoNetwork = 4,
-  kInvalidIP = 5,
-  kInvalidPort = 6,
-  kInvalidData = 7,
-  kNoSocket = 8,
-  kInvalidAddress = 9,
-  kNoRendezvous = 10,
-  kBehindFirewall = 11,
-  kBindError = 12,
-  kConnectError = 13,
-  kAlreadyStarted = 14,
-  kListenError = 15,
-  kThreadResourceError = 16,
-  kCloseSocketError = 17,
-  kSendUdtFailure = 18,
-  kSendTimeout = 19,
-  kSendParseFailure = 20,
-  kSendSizeFailure = 21,
-  kReceiveUdtFailure = 22,
-  kReceiveTimeout = 23,
-  kReceiveParseFailure = 24,
-  kReceiveSizeFailure = 25
+  kError = -1,
+  kRemoteUnreachable = -2,
+  kNoConnection = -3,
+  kNoNetwork = -4,
+  kInvalidIP = -5,
+  kInvalidPort = -6,
+  kInvalidData = -7,
+  kNoSocket = -8,
+  kInvalidAddress = -9,
+  kNoRendezvous = -10,
+  kBehindFirewall = -11,
+  kBindError = -12,
+  kConnectError = -13,
+  kAlreadyStarted = -14,
+  kListenError = -15,
+  kThreadResourceError = -16,
+  kCloseSocketError = -17,
+  kSendUdtFailure = -18,
+  kSendTimeout = -19,
+  kSendParseFailure = -20,
+  kSendSizeFailure = -21,
+  kReceiveUdtFailure = -22,
+  kReceiveTimeout = -23,
+  kReceiveParseFailure = -24,
+  kReceiveSizeFailure = -25
 };
 
 struct SocketPerformanceStats;
@@ -111,44 +112,36 @@ struct SocketPerformanceStats {
   virtual ~SocketPerformanceStats() {}
 };
 
-class Transport : public Signals {
-  /* Transport API, all transports require to inherit these public methods
-  *   as well as the signals (inherited). Slots must be defined and connected.
-  *   Common parameters listed below
-  *  @param port - The port the transport has been given
-  *  @param remote_ip - Remote IP adress in dotted decimal i.e. 123.123.123.123
-  *  @param remote_port - Remote port [integer]
-  *  @param rendezvous_ip - if required (otherwise pass "") to traverse NAT's
-  *  @param rendezvous_port - if required (otherwise pass 0) to traverse NAT's
-  *  @param conn_id - where connections are maintained (or pseudo maintained)
-  *                   the connection identifier is passed up and used to
-  *                   respond to the sender on the same IP/PORT (or socket
-  *                   in connection oriented implementations such as UDT or TCP)
-  */
+class Transport {
+  // Base class for all transport types.
  public:
   virtual ~Transport() {}
-  virtual Port StartListening(const IP &ip, const Port &port) = 0;
+  // Tries to open a listening socket on the suggested IP, Port.  If port == 0,
+  // a random port is chosen.  On success, the actual local port opened is
+  // returned and the port is added to listening_ports_ vector.  On failure,
+  // 0 is returned and if transport_condition != NULL, it is set appropriately.
+  virtual Port StartListening(const IP &ip,
+                              const Port &port,
+                              TransportCondition *transport_condition) = 0;
+  // Stops listening on the chosen port and removes the port from
+  // listening_ports_ vector.
   virtual bool StopListening(const Port &port) = 0;
+  // Stops all listening ports and clears listening_ports_ vector.
   virtual bool StopAllListening() = 0;
+  // Used to create a new socket and send data.  It assumes a
+  // response is expected if timeout is > 0, and keeps the socket alive.
+  // The result is signalled with the new socket ID (-1) for failure and the
+  // appropriate TransportCondition.
   virtual void Send(const TransportMessage &transport_message,
                     const IP &remote_ip,
                     const Port &remote_port,
                     const int &response_timeout) = 0;
+  // Used to send a response to a request received on socket_id.
   virtual void SendResponse(const TransportMessage &transport_message,
                             const SocketId &socket_id) = 0;
+  // Used to send a file in response to a request received on socket_id.
   virtual void SendFile(fs::path &path, const SocketId &socket_id) = 0;
-  virtual ManagedEndpointId AddManagedEndpoint(
-      const IP &remote_ip,
-      const Port &remote_port,
-      const IP &rendezvous_ip,
-      const Port &rendezvous_port,
-      const boost::uint16_t &frequency,
-      const boost::uint16_t &retry_count,
-      const boost::uint16_t &retry_frequency);
-  virtual TransportCondition RemoveManagedEndpoint(
-      const ManagedEndpointId &managed_endpoint_id);
   std::vector<Port> listening_ports() { return listening_ports_; }
-  // Connect to signals
   bs2::connection ConnectMessageReceived(
       const SignalMessageReceived::slot_type &message_received_slot) {
     return signal_message_received_.connect(message_received_slot);
@@ -161,7 +154,7 @@ class Transport : public Signals {
       const SignalRpcResponseReceived::slot_type &rpc_response_received_slot) {
     return signal_rpc_response_received_.connect(rpc_response_received_slot);
   }
-  bs2::connection ConnectConnectionDown(
+  bs2::connection ConnectLostManagedEndpoint(
       const SignalLostManagedEndpoint::slot_type &lost_managed_endpoint_slot) {
     return signal_lost_managed_endpoint_.connect(lost_managed_endpoint_slot);
   }
@@ -176,6 +169,7 @@ class Transport : public Signals {
   }
  protected:
   Transport() : listening_ports_(),
+                listening_ports_mutex_(),
                 signal_message_received_(),
                 signal_rpc_request_received_(),
                 signal_rpc_response_received_(),
@@ -184,6 +178,7 @@ class Transport : public Signals {
                 signal_receive_(),
                 signal_stats_() {}
   std::vector<Port> listening_ports_;
+  boost::mutex listening_ports_mutex_;
   SignalMessageReceived signal_message_received_;
   SignalRpcRequestReceived signal_rpc_request_received_;
   SignalRpcResponseReceived signal_rpc_response_received_;

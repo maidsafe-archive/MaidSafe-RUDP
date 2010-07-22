@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
@@ -73,8 +74,6 @@ class MessageHandler {
         ids_(),
         raw_ids_(),
         dead_server_(true),
-        server_ip_(),
-        server_port_(0),
         transport_(transport),
         messages_sent_(0),
         messages_unsent_(0),
@@ -95,8 +94,8 @@ class MessageHandler {
         boost::bind(&MessageHandler::OnSend, this, _1, _2));
     message_connection_ = transport->ConnectMessageReceived(
         boost::bind(&MessageHandler::OnMessage, this, _1, _2, _3));
-    server_down_connection_ = transport->ConnectConnectionDown(
-        boost::bind(&MessageHandler::OnDeadRendezvousServer, this, _1, _2, _3));
+    server_down_connection_ = transport->ConnectLostManagedEndpoint(
+        boost::bind(&MessageHandler::OnDeadRendezvousServer, this, _1));
     if (display_stats) {
       stats_connection_ = transport->ConnectStats(
           boost::bind(&MessageHandler::OnStats, this, _1));
@@ -133,11 +132,9 @@ class MessageHandler {
     raw_messages_.push_back(message);
     raw_ids_.push_back(socket_id);
   }
-  void OnDeadRendezvousServer(const bool &dead_server, const transport::IP &ip,
-                              const transport::Port &port) {
-    dead_server_ = dead_server;
-    server_ip_ = ip;
-    server_port_ = port;
+  void OnDeadRendezvousServer(
+      const transport::ManagedEndpointId &/*managed_endpoint_id*/) {
+    dead_server_ = true;
   }
   void OnSend(const transport::SocketId&,
               const transport::TransportCondition &result) {
@@ -223,8 +220,6 @@ class MessageHandler {
   std::string target_message_;
   std::list<transport::SocketId> ids_, raw_ids_;
   bool dead_server_;
-  transport::IP server_ip_;
-  transport::Port server_port_;
   transport::TransportUDT *transport_;
   int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
@@ -266,17 +261,15 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
   std::string sent_message;
   rpc_message->SerializeToString(&sent_message);
   transport::IP ip("127.0.0.1");
+  EXPECT_FALSE(transport::ValidPort(0));
+  EXPECT_FALSE(transport::ValidPort(1));
+  EXPECT_FALSE(transport::ValidPort(4999));
+  EXPECT_FALSE(transport::ValidPort(5000));
+  EXPECT_TRUE(transport::ValidPort(5001));
   for (int i = 0; i < num_listening_ports ; ++i) {
-    lp_node[i] = node.StartListening("", 0);
-    EXPECT_TRUE(node.CheckListeningPort(lp_node[i]));
-    if (i == 1) {
-      EXPECT_FALSE(node.CheckListeningPort(0));
-      EXPECT_FALSE(node.CheckListeningPort(1));
-      EXPECT_FALSE(node.CheckListeningPort(4999));
-      EXPECT_FALSE(node.CheckListeningPort(5000));
-    }
-     EXPECT_EQ(transport::kSuccess,
-             node.Send(transport_message, ip, lp_node[i], 0, NULL));
+    lp_node[i] = node.StartListening("", 0, NULL);
+    EXPECT_TRUE(transport::ValidPort(lp_node[i]));
+    node.Send(transport_message, ip, lp_node[i], 0);
   }
   EXPECT_EQ(num_listening_ports, node.listening_ports().size());
   //LOG(INFO) << "Number of messages_ sent : " << message_handler1.messages_sent_ << std::endl;
@@ -299,14 +292,10 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   transport::TransportUDT node1_transudt, node2_transudt;
   MessageHandler message_handler1(&node1_transudt, false);
   MessageHandler message_handler2(&node2_transudt, false);
-  transport::Port lp_node1 = node1_transudt.StartListening("", 0);
-  transport::Port lp_node2 = node2_transudt.StartListening("", 0);
-  EXPECT_TRUE(node1_transudt.CheckListeningPort(lp_node1));
-  EXPECT_TRUE(node1_transudt.CheckListeningPort(lp_node2));
-  EXPECT_FALSE(node1_transudt.CheckListeningPort(0));
-  EXPECT_FALSE(node1_transudt.CheckListeningPort(1));
-  EXPECT_FALSE(node1_transudt.CheckListeningPort(4999));
-  EXPECT_FALSE(node1_transudt.CheckListeningPort(5000));
+  transport::Port lp_node1 = node1_transudt.StartListening("", 0, NULL);
+  transport::Port lp_node2 = node2_transudt.StartListening("", 0, NULL);
+  EXPECT_TRUE(transport::ValidPort(lp_node1));
+  EXPECT_TRUE(transport::ValidPort(lp_node2));
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
   transport::RpcMessage *rpc_message =
@@ -322,12 +311,10 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   transport::IP ip("127.0.0.1");
 
   for (size_t i = 0; i < kRepeats; ++i) {
-    EXPECT_EQ(transport::kSuccess,
-              node1_transudt.Send(transport_message, ip, lp_node2, 6000, NULL));
+    node1_transudt.Send(transport_message, ip, lp_node2, 6000);
   }
 
-  EXPECT_EQ(transport::kSuccess,
-            node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK));
+  node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK);
   const int kTimeout(10000);
   int count(0);
   while (count < kTimeout && message_handler1.messages_unsent_ == 0) {
@@ -355,7 +342,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   transport::TransportUDT node4;
   transport::TransportUDT node[20]; 
   MessageHandler message_handler4(&node4, false);
-  transport::Port lp_node4 = node4.StartListening("", 0);
+  transport::Port lp_node4 = node4.StartListening("", 0, NULL);
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
   transport::RpcMessage *rpc_message =
@@ -372,8 +359,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   transport::IP ip("127.0.0.1");
 //  sent_messages.push_back(sent_message);
   for (int i =0; i <20 ; ++i) {
-    EXPECT_EQ(0, node[i].Send(transport_message, "127.0.0.1", lp_node4, 0,
-                              NULL));
+    node[i].Send(transport_message, "127.0.0.1", lp_node4, 0);
   }
   
 }

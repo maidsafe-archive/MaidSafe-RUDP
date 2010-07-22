@@ -41,22 +41,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-TransportUDT::TransportUDT() : Transport(),
-                               ports_to_stop_(),
-                               ports_to_stop_mutex_() {
+TransportUDT::TransportUDT() : Transport() {
   UDT::startup();
 }
 
 TransportUDT::~TransportUDT() {
-  if (!stop_all_)
-    StopAllListening();
+  StopAllListening();
+  // TODO - wait for threads to exit
 }
 
 void TransportUDT::CleanUp() {
   UDT::cleanup();
 }
 
-Port TransportUDT::StartListening(const IP &ip, const Port &port) {
+Port TransportUDT::StartListening(const IP &ip,
+                                  const Port &port,
+                                  TransportCondition *transport_condition) {
   Port try_port = port;
   struct addrinfo hints, *addrinfo_result;
   memset(&hints, 0, sizeof(hints));
@@ -72,7 +72,9 @@ Port TransportUDT::StartListening(const IP &ip, const Port &port) {
     DLOG(ERROR) << "Incorrect listening address. " << ip << ":" << port <<
         std::endl;
     freeaddrinfo(addrinfo_result);
-    return kInvalidAddress;
+    if (transport_condition != NULL)
+      *transport_condition = kInvalidAddress;
+    return 0;
   }
 
   UdtSocketId listening_socket = UDT::socket(addrinfo_result->ai_family,
@@ -85,7 +87,9 @@ Port TransportUDT::StartListening(const IP &ip, const Port &port) {
         UDT::getlasterror().getErrorMessage() << std::endl;
     freeaddrinfo(addrinfo_result);
     UDT::close(listening_socket);
-    return kBindError;
+    if (transport_condition != NULL)
+      *transport_condition = kBindError;
+    return 0;
   }
   freeaddrinfo(addrinfo_result);
   // Modify the port to reflect the port UDT has chosen
@@ -99,7 +103,9 @@ Port TransportUDT::StartListening(const IP &ip, const Port &port) {
     DLOG(ERROR) << "Failed to start listening port "<< port << ": " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     UDT::close(listening_socket);
-    return kListenError;
+    if (transport_condition != NULL)
+      *transport_condition = kListenError;
+    return 0;
   }
 
   try {
@@ -107,29 +113,36 @@ Port TransportUDT::StartListening(const IP &ip, const Port &port) {
   }
   catch(const boost::thread_resource_error&) {
     UDT::close(listening_socket);
-    return kThreadResourceError;
+    if (transport_condition != NULL)
+      *transport_condition = kThreadResourceError;
+    return 0;
   }
-  stop_all_ = false;
+  boost::mutex::scoped_lock lock(listening_ports_mutex_);
   listening_ports_.push_back(listening_port);
+  if (transport_condition != NULL)
+    *transport_condition = kSuccess;
   return listening_port;
 }
 
 bool TransportUDT::StopListening(const Port &port) {
-  boost::mutex::scoped_lock lock(ports_to_stop_mutex_);
-  ports_to_stop_.push_back(port);
+  boost::mutex::scoped_lock lock(listening_ports_mutex_);
+  listening_ports_.erase(
+      std::remove(listening_ports_.begin(), listening_ports_.end(), port),
+      listening_ports_.end());
   return true;
 }
 
 bool TransportUDT::StopAllListening() {
-  if (stop_all_)
-    return true;
-  // iterate through vector
-  stop_all_ = true;
-//    while (!listening_ports_.empty()) {
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-//    }
-//
-      return true;
+  boost::mutex::scoped_lock lock(listening_ports_mutex_);
+  listening_ports_.clear();
+  return true;
+}
+
+TransportCondition TransportUDT::PunchHole(const IP &remote_ip,
+                                           const Port &remote_port,
+                                           const IP &rendezvous_ip,
+                                           const Port &rendezvous_port) {
+  return kSuccess;
 }
 
 void TransportUDT::Send(const TransportMessage &transport_message,
@@ -176,10 +189,38 @@ void TransportUDT::Send(const TransportMessage &transport_message,
   return;
 }
 
+void TransportUDT::SendWithRendezvous(const TransportMessage &transport_message,
+                                      const IP &remote_ip,
+                                      const Port &remote_port,
+                                      const IP &rendezvous_ip,
+                                      const Port &rendezvous_port,
+                                      int &response_timeout,
+                                      SocketId *socket_id) {
+}
+
 void TransportUDT::SendResponse(const TransportMessage &transport_message,
                                 const SocketId &socket_id) {
   boost::thread(&TransportUDT::SendData, this, transport_message, socket_id,
                 kDefaultSendTimeout, 0);
+}
+
+void TransportUDT::SendFile(fs::path &path, const SocketId &socket_id) {
+}
+
+ManagedEndpointId TransportUDT::AddManagedEndpoint(
+      const IP &remote_ip,
+      const Port &remote_port,
+      const IP &rendezvous_ip,
+      const Port &rendezvous_port,
+      const boost::uint16_t &frequency,
+      const boost::uint16_t &retry_count,
+      const boost::uint16_t &retry_frequency) {
+  return 0;
+}
+
+TransportCondition TransportUDT::RemoveManagedEndpoint(
+      const ManagedEndpointId &managed_endpoint_id) {
+  return kSuccess;
 }
 
 //int TransportUDT::Connect(const IP &peer_address, const Port &peer_port,
@@ -228,30 +269,17 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
                    &name_size);
   Port this_port = ntohs(name.sin_port);
  // FIXME - get port
+  std::vector<Port>::iterator port_iterator;
   while (true) {
     {
-
-      boost::mutex::scoped_lock lock(ports_to_stop_mutex_);
-      if (!listening_ports_.empty()) {
-        std::vector<Port>::iterator it;
-        it = find(listening_ports_.begin(), listening_ports_.end(), this_port);
-        if ((*it != this_port)  || (stop_all_)) {
-          UDT::close(udt_socket_id);
-          return;
-        }
+      boost::mutex::scoped_lock lock(listening_ports_mutex_);
+      port_iterator =
+          find(listening_ports_.begin(), listening_ports_.end(), this_port);
+      if (port_iterator == listening_ports_.end()) {
+        UDT::close(udt_socket_id);
+        return;
       }
     }
-// //     if (stop_all_) {
-//       LOG(INFO) << "trying to stop " << std::endl;
-//       for (std::vector<Port>::iterator it = listening_ports_.begin();
-//             it != listening_ports_.end(); ++it) {
-//         if ((*it) == receive_port) {
-//           listening_ports_.erase(it);
-//            UDT::close(receiver_socket_id);
-//           break;
-//         }
-//       }
-//     } // FIXME This would leave unsent/received data !!
     if (UDT::INVALID_SOCK == (receiver_socket_id = UDT::accept(udt_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen))) {
       LOG(ERROR) << "UDT::accept error: " <<
