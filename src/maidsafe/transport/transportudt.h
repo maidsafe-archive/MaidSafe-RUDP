@@ -31,13 +31,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 /*
-* TODO 
+* TODO
 * 1:  Allow Listening ports to be closed individually and as a group
 * 2:  Create managed connection interface
 * 3:  Add an Open method for rendezvous connections
 * 4:  Create a ping at network level (in UDT this is a connect)
 * 5:  Use managed connections for rendezvous
-* 6:  Add tcp listen capability, may be another transport  
+* 6:  Add tcp listen capability, may be another transport
 * 7:  Provide a brodcast tcp method " " " " "
 * 8:  When a knode can it will start a tcp listener on 80 and 443 and add this
 *     to the contact tuple (prononced toople apparently :-) )
@@ -150,8 +150,9 @@ class TransportUDT : public Transport {
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
-  //int Connect(const IP &peer_address, const Port &peer_port,
-  //            UdtSocketId *udt_socket_id);
+  TransportCondition Connect(const IP &remote_ip,
+                             const Port &remote_port,
+                             SocketId * udt_socket_id);
   void AcceptConnection(const UdtSocketId &udt_socket_id);
   // General method for sending data
   TransportCondition SendData(const TransportMessage &transport_message,
@@ -184,7 +185,7 @@ class TransportUDT : public Transport {
   bool CheckSocketReceive(const UdtSocketId &udt_socket_id);
   // Check a socket can send or receive data (close it otherwise)
   bool CheckSocket(const UdtSocketId &udt_socket_id, bool send);
-
+  std::vector<SocketId> ManagedEndpointIds_;
 
 
 
