@@ -41,7 +41,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/maidsafe-dht.h"
 
 
 namespace benchmark {

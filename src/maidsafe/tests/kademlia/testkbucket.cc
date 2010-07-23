@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/kadid.h"
 #include "maidsafe/base/crypto.h"
-#include "maidsafe/maidsafe-dht.h"
 
 namespace test_kbucket {
   static const boost::uint16_t K = 16;

@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/knodeimpl.h"
 #include "maidsafe/base/alternativestore.h"
 #include "maidsafe/base/crypto.h"
-#include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/log.h"

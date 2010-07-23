@@ -365,7 +365,7 @@ void KadService::Bootstrap_NatDetectionRzPing(
   Bootstrap_NatDetectionPing(response, data);
 }
 
-void KadService::NatDetection(google::protobuf::RpcController *controller,
+void KadService::NatDetection(google::protobuf::RpcController*,
                               const NatDetectionRequest *request,
                               NatDetectionResponse *response,
                               google::protobuf::Closure *done) {
@@ -377,8 +377,8 @@ void KadService::NatDetection(google::protobuf::RpcController *controller,
         NatDetectionPingResponse *resp = new NatDetectionPingResponse;
         struct NatDetectionPingData data = {request->sender_id(), response,
             done, NULL};
-        rpcprotocol::Controller *ctrler =
-            static_cast<rpcprotocol::Controller*>(controller);
+//        rpcprotocol::Controller *ctrler =
+//            static_cast<rpcprotocol::Controller*>(controller);
         data.controller = new rpcprotocol::Controller;
         google::protobuf::Closure *done =
             google::protobuf::NewCallback<KadService,
@@ -398,8 +398,8 @@ void KadService::NatDetection(google::protobuf::RpcController *controller,
         NatDetectionPingResponse *resp = new NatDetectionPingResponse;
         struct NatDetectionPingData data =
           {request->sender_id(), response, done, NULL};
-        rpcprotocol::Controller *ctrler =
-            static_cast<rpcprotocol::Controller*>(controller);
+//        rpcprotocol::Controller *ctrler =
+//            static_cast<rpcprotocol::Controller*>(controller);
         data.controller = new rpcprotocol::Controller;
         google::protobuf::Closure *done =
           google::protobuf::NewCallback<KadService,
@@ -504,8 +504,8 @@ void KadService::SendNatDetection(NatDetectionData data) {
     // Node B asks C to try ping A
     std::string newcomer_str;
     data.newcomer.SerialiseToString(&newcomer_str);
-    rpcprotocol::Controller *temp_controller =
-        static_cast<rpcprotocol::Controller*>(data.controller);
+//    rpcprotocol::Controller *temp_controller =
+//        static_cast<rpcprotocol::Controller*>(data.controller);
     data.controller = new rpcprotocol::Controller;
     NatDetectionResponse *resp = new NatDetectionResponse;
     google::protobuf::Closure *done = google::protobuf::NewCallback

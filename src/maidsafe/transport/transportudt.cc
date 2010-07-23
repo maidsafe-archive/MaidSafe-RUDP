@@ -23,6 +23,14 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+/usr/include/boost-1_43/boost/signals2/detail/signal_template.hpp|678|note: candidates are: typename boost::signals2::detail::signal_impl<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::result_type boost::signals2::signal<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::operator()(Args ...) [with Combiner = boost::signals2::optional_last_value<void>, Group = int, GroupCompare = std::less<int>, SlotFunction = boost::function<void(const transport::RpcMessage&, const transport::SocketId&, const float&)>, ExtendedSlotFunction = boost::function<void(const boost::signals2::connection&, const transport::RpcMessage&, const transport::SocketId&, const float&)>, Mutex = boost::signals2::mutex, R = void, Args = const transport::RpcMessage&, const transport::SocketId&, const float&]|
+/usr/include/boost-1_43/boost/signals2/detail/signal_template.hpp|682|note:                 typename boost::signals2::detail::signal_impl<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::result_type boost::signals2::signal<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::operator()(Args ...) const [with Combiner = boost::signals2::optional_last_value<void>, Group = int, GroupCompare = std::less<int>, SlotFunction = boost::function<void(const transport::RpcMessage&, const transport::SocketId&, const float&)>, ExtendedSlotFunction = boost::function<void(const boost::signals2::connection&, const transport::RpcMessage&, const transport::SocketId&, const float&)>, Mutex = boost::signals2::mutex, R = void, Args = const transport::RpcMessage&, const transport::SocketId&, const float&]|
+/home/Smer/svn/new-transport-dht/branches/signals/src/maidsafe/transport/transportudt.cc|521|error: no match for call to ‘(transport::OnRpcResponseReceived) (const rpcprotocol::RpcMessage&, const int&, const float&)’|
+/usr/include/boost-1_43/boost/signals2/detail/signal_template.hpp|678|note: candidates are: typename boost::signals2::detail::signal_impl<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::result_type boost::signals2::signal<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::operator()(Args ...) [with Combiner = boost::signals2::optional_last_value<void>, Group = int, GroupCompare = std::less<int>, SlotFunction = boost::function<void(const transport::RpcMessage&, const transport::SocketId&, const float&)>, ExtendedSlotFunction = boost::function<void(const boost::signals2::connection&, const transport::RpcMessage&, const transport::SocketId&, const float&)>, Mutex = boost::signals2::mutex, R = void, Args = const transport::RpcMessage&, const transport::SocketId&, const float&]|
+/usr/include/boost-1_43/boost/signals2/detail/signal_template.hpp|682|note:                 typename boost::signals2::detail::signal_impl<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::result_type boost::signals2::signal<R(Args ...), Combiner, Group, GroupCompare, SlotFunction, ExtendedSlotFunction, Mutex>::operator()(Args ...) const [with Combiner = boost::signals2::optional_last_value<void>, Group = int, GroupCompare = std::less<int>, SlotFunction = boost::function<void(const transport::RpcMessage&, const transport::SocketId&, const float&)>, ExtendedSlotFunction = boost::function<void(const boost::signals2::connection&, const transport::RpcMessage&, const transport::SocketId&, const float&)>, Mutex = boost::signals2::mutex, R = void, Args = const transport::RpcMessage&, const transport::SocketId&, const float&]|
+||=== Build finished: 2 errors, 20 warnings ===|
+
 */
 
 #include "maidsafe/transport/transportudt.h"
@@ -271,7 +279,7 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
      //           << std::endl;
      // UDT::close(receiver_socket_id);
    // }
-    
+
   }
 }
 
@@ -513,12 +521,12 @@ bool TransportUDT::HandleTransportMessage(
       break;
     case TransportMessage::Data::kRpcMessageFieldNumber:
       if (is_request) {
-        signals_.on_rpc_request_received_(transport_message.data().rpc_message(),
-                                     udt_socket_id, rtt);
+        signals_.on_rpc_request_received_(
+            transport_message.data().rpc_message(), udt_socket_id, rtt);
         // Leave socket open to send response on.
       } else {
-        signals_.on_rpc_response_received_(transport_message.data().rpc_message(),
-                                      udt_socket_id, rtt);
+        signals_.on_rpc_response_received_(
+            transport_message.data().rpc_message(), udt_socket_id, rtt);
         UDT::close(udt_socket_id);
       }
       break;

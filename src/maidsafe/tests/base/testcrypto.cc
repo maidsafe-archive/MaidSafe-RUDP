@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <cstdlib>
 #include "maidsafe/base/crypto.h"
-#include "maidsafe/maidsafe-dht.h"
 // Obfuscation tests
 TEST(CryptoTest, BEH_BASE_ObfuscatDiffSizes) {
   crypto::Crypto ct;

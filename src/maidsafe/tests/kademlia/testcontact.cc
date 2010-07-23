@@ -27,7 +27,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include "maidsafe/base/crypto.h"
-#include "maidsafe/maidsafe-dht.h"
 
 class TestContact : public testing::Test {
  public:

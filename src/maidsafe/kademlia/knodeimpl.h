@@ -172,7 +172,8 @@ struct UpdateValueData {
                   VoidFunctorOneString callback, boost::uint8_t foundnodes)
       : uvd_key(key), uvd_old_value(old_value), uvd_new_value(new_value),
         uvd_request_signature(sreq), uvd_callback(callback), uvd_calledback(0),
-        uvd_succeeded(0), retries(0), found_nodes(foundnodes), mutex() {}
+        uvd_succeeded(0), retries(0), found_nodes(foundnodes), ttl(0),
+        mutex() {}
   KadId uvd_key;
   SignedValue uvd_old_value;
   SignedValue uvd_new_value;
@@ -187,8 +188,22 @@ struct UpdateValueData {
 };
 
 struct FindCallbackArgs {
+ public:
   explicit FindCallbackArgs(boost::shared_ptr<IterativeLookUpData> data)
       : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+  FindCallbackArgs(const FindCallbackArgs &findcbargs)
+      : remote_ctc(findcbargs.remote_ctc), data(findcbargs.data),
+        retry(findcbargs.retry), rpc_ctrler(findcbargs.rpc_ctrler) {}
+  FindCallbackArgs &operator=(const FindCallbackArgs &findcbargs) {
+    if (this != &findcbargs) {
+      remote_ctc = findcbargs.remote_ctc;
+      data = findcbargs.data;
+      retry = findcbargs.retry;
+      delete rpc_ctrler;
+      rpc_ctrler = findcbargs.rpc_ctrler;
+    }
+    return *this;
+  }
   Contact remote_ctc;
   boost::shared_ptr<IterativeLookUpData> data;
   bool retry;
@@ -198,6 +213,19 @@ struct FindCallbackArgs {
 struct StoreCallbackArgs {
   explicit StoreCallbackArgs(boost::shared_ptr<IterativeStoreValueData> data)
       : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+  StoreCallbackArgs(const StoreCallbackArgs &storecbargs)
+      : remote_ctc(storecbargs.remote_ctc), data(storecbargs.data),
+        retry(storecbargs.retry), rpc_ctrler(storecbargs.rpc_ctrler) {}
+  StoreCallbackArgs &operator=(const StoreCallbackArgs &storecbargs) {
+    if (this != &storecbargs) {
+      remote_ctc = storecbargs.remote_ctc;
+      data = storecbargs.data;
+      retry = storecbargs.retry;
+      delete rpc_ctrler;
+      rpc_ctrler = storecbargs.rpc_ctrler;
+    }
+    return *this;
+  }
   Contact remote_ctc;
   boost::shared_ptr<IterativeStoreValueData> data;
   bool retry;
@@ -207,6 +235,19 @@ struct StoreCallbackArgs {
 struct PingCallbackArgs {
   explicit PingCallbackArgs(VoidFunctorOneString callback)
       : remote_ctc(), callback(callback), retry(false), rpc_ctrler(NULL) {}
+  PingCallbackArgs(const PingCallbackArgs &pingcbargs)
+      : remote_ctc(pingcbargs.remote_ctc), callback(pingcbargs.callback),
+        retry(pingcbargs.retry), rpc_ctrler(pingcbargs.rpc_ctrler) {}
+  PingCallbackArgs &operator=(const PingCallbackArgs &pingcbargs) {
+    if (this != &pingcbargs) {
+      remote_ctc = pingcbargs.remote_ctc;
+      callback = pingcbargs.callback;
+      retry = pingcbargs.retry;
+      delete rpc_ctrler;
+      rpc_ctrler = pingcbargs.rpc_ctrler;
+    }
+    return *this;
+  }
   Contact remote_ctc;
   VoidFunctorOneString callback;
   bool retry;
@@ -216,6 +257,19 @@ struct PingCallbackArgs {
 struct DeleteCallbackArgs {
   explicit DeleteCallbackArgs(boost::shared_ptr<IterativeDelValueData> data)
       : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+  DeleteCallbackArgs(const DeleteCallbackArgs &delcbargs)
+      : remote_ctc(delcbargs.remote_ctc), data(delcbargs.data),
+        retry(delcbargs.retry), rpc_ctrler(delcbargs.rpc_ctrler) {}
+  DeleteCallbackArgs &operator=(const DeleteCallbackArgs &delcbargs) {
+    if (this != &delcbargs) {
+      remote_ctc = delcbargs.remote_ctc;
+      data = delcbargs.data;
+      retry = delcbargs.retry;
+      delete rpc_ctrler;
+      rpc_ctrler = delcbargs.rpc_ctrler;
+    }
+    return *this;
+  }
   Contact remote_ctc;
   boost::shared_ptr<IterativeDelValueData> data;
   bool retry;
@@ -223,6 +277,25 @@ struct DeleteCallbackArgs {
 };
 
 struct UpdateCallbackArgs {
+  UpdateCallbackArgs()
+      : uvd(), retries(0), response(NULL), controller(NULL), ct(), contact() {}
+  UpdateCallbackArgs(const UpdateCallbackArgs &updatecbargs)
+      : uvd(updatecbargs.uvd), retries(updatecbargs.retries),
+        response(updatecbargs.response), controller(updatecbargs.controller),
+        ct(updatecbargs.ct), contact(updatecbargs.contact) {}
+  UpdateCallbackArgs &operator=(const UpdateCallbackArgs &updatecbargs) {
+    if (this != &updatecbargs) {
+      uvd = updatecbargs.uvd;
+      retries = updatecbargs.retries;
+      ct = updatecbargs.ct;
+      contact = updatecbargs.contact;
+      delete response;
+      delete controller;
+      response = updatecbargs.response;
+      controller = updatecbargs.controller;
+    }
+    return *this;
+  }
   boost::shared_ptr<UpdateValueData> uvd;
   boost::uint8_t retries;
   UpdateResponse *response;

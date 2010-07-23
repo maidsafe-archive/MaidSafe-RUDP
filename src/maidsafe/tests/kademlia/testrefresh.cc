@@ -29,7 +29,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/transport.h"

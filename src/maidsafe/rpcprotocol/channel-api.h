@@ -191,7 +191,7 @@ class Channel : public google::protobuf::RpcChannel {
   * message
   * @param rtt round trip time to the peer from which it received the request
   */
-  void HandleRequest(const transport::RpcMessage &rpc_message,
+  void HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                      const ConnectionId &connection_id, const float &rtt);
  private:
   boost::shared_ptr<ChannelImpl> pimpl_;

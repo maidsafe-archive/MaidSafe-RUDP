@@ -31,7 +31,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/protobuf/rpcmessage.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"

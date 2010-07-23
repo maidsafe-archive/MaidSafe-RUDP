@@ -77,9 +77,9 @@ class MessageHandler {
         dead_server_(true),
         transport_(transport),
         messages_sent_(0),
-        messages_unsent_(0),
         messages_received_(0),
         messages_confirmed_(0),
+        messages_unsent_(0),
         keep_messages_(true),
         rpc_request_(),
         rpc_response_(),
@@ -349,7 +349,7 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 
 TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   transport::TransportUDT node4;
-  transport::TransportUDT node[20]; 
+  transport::TransportUDT node[20];
   MessageHandler message_handler4(&node4, false);
   transport::Port lp_node4 = node4.StartListening("", 0, NULL);
   transport::TransportMessage transport_message;

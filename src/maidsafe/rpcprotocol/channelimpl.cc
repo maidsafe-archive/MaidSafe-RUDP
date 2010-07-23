@@ -25,6 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
 #include <boost/tokenizer.hpp>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
@@ -33,6 +34,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelimpl.h"
+#include "maidsafe/rpcprotocol/channelmanagerimpl.h"
+#include "maidsafe/transport/transport.h"
+*/
+#include <boost/tokenizer.hpp>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/message.h>
+#include <typeinfo>
+#include "maidsafe/base/log.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/protobuf/rpcmessage.pb.h"
+#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
+#include "maidsafe/rpcprotocol/channel-api.h"
+#include "maidsafe/rpcprotocol/channelimpl.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
 #include "maidsafe/transport/transport.h"
 
@@ -114,7 +130,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
-  transport::RpcMessage *rpc_message =
+  rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(channel_manager_->CreateNewId());
   rpc_message->set_method(method->name());
@@ -123,7 +139,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
       rpc_message->detail().GetReflection()->FindKnownExtensionByName(
           request->GetTypeName());
   // Get mutable payload field
-  transport::RpcMessage::Detail *rpc_message_detail =
+  rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();
   // Copy payload into RpcMessage
   google::protobuf::Message *mutable_message =
@@ -140,50 +156,56 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   controller->set_rpc_id(rpc_message->rpc_id());
   controller->set_method(method->name());
   controller->StartRpcTimer();
-  if (true/*0 == transport_->ConnectToSend(remote_ip_, remote_port_,
-      local_ip_, local_port_, rendezvous_ip_, rendezvous_port_, true, &connection_id)*/) {
-    pending_request.connection_id = connection_id;
-    // Set the RPC request timeout
-    if (controller->timeout() != 0) {
-      pending_request.timeout = controller->timeout();
-    } else {
-      pending_request.timeout = kRpcTimeout;
-    }
-    pending_request.controller = controller;
-    if (!channel_manager_->AddPendingRequest(rpc_message->rpc_id(),
-                                             pending_request)) {
-      done->Run();
-      return;
-    }
-    channel_manager_->AddTimeOutRequest(connection_id, rpc_message->rpc_id(),
-                                 pending_request.timeout);
-    if (0 != transport_->Send(transport_message, remote_ip_, remote_port_,
-                              controller->timeout())) {
-      DLOG(WARNING) << transport_->listening_port() <<
-        " --- Failed to send request with id " << rpc_message->rpc_id()
-          << std::endl;
-    }
-  } else {
-    DLOG(WARNING) << transport_->listening_port() <<
-        " --- Failed to connect to send rpc " << rpc_message->method() <<
-        " to " << remote_ip_ << ":" << remote_port_ << " with id " <<
-        rpc_message->rpc_id() << std::endl;
-    controller->set_timeout(1);
-    pending_request.timeout = controller->timeout();
-    pending_request.controller = controller;
-    if (!channel_manager_->AddPendingRequest(rpc_message->rpc_id(),
-                                             pending_request)) {
-      done->Run();
-      return;
-    }
-    channel_manager_->AddRequestToTimer(rpc_message->rpc_id(),
-                                        pending_request.timeout);
-    return;
-  }
-  DLOG(INFO) << transport_->listening_port() <<
-      " --- Sending rpc " << rpc_message->method() << " to " << remote_ip_ <<
-      ":" << remote_port_ << " connection_id = " << connection_id <<
-      " -- rpc_id = " << rpc_message->rpc_id() << std::endl;
+//  if (true/*0 == transport_->ConnectToSend(remote_ip_, remote_port_,
+//      local_ip_, local_port_, rendezvous_ip_, rendezvous_port_, true, &connection_id)*/) {
+//    pending_request.connection_id = connection_id;
+//    // Set the RPC request timeout
+//    if (controller->timeout() != 0) {
+//      pending_request.timeout = controller->timeout();
+//    } else {
+//      pending_request.timeout = kRpcTimeout;
+//    }
+//    pending_request.controller = controller;
+//    if (!channel_manager_->AddPendingRequest(rpc_message->rpc_id(),
+//                                             pending_request)) {
+//      done->Run();
+//      return;
+//    }
+//    channel_manager_->AddTimeOutRequest(connection_id, rpc_message->rpc_id(),
+//                                 pending_request.timeout);
+/******************************************************************************/
+//    if (0 != transport_->Send(transport_message, remote_ip_, remote_port_,
+//                              controller->timeout())) {
+//      DLOG(WARNING) << transport_->listening_port() <<
+//        " --- Failed to send request with id " << rpc_message->rpc_id()
+//          << std::endl;
+//    }
+/******************************************************************************/
+//  } else {
+/******************************************************************************/
+//    DLOG(WARNING) << transport_->listening_port() <<
+//        " --- Failed to connect to send rpc " << rpc_message->method() <<
+//        " to " << remote_ip_ << ":" << remote_port_ << " with id " <<
+//        rpc_message->rpc_id() << std::endl;
+/******************************************************************************/
+//    controller->set_timeout(1);
+//    pending_request.timeout = controller->timeout();
+//    pending_request.controller = controller;
+//    if (!channel_manager_->AddPendingRequest(rpc_message->rpc_id(),
+//                                             pending_request)) {
+//      done->Run();
+//      return;
+//    }
+//    channel_manager_->AddRequestToTimer(rpc_message->rpc_id(),
+//                                        pending_request.timeout);
+//    return;
+//  }
+/******************************************************************************/
+//  DLOG(INFO) << transport_->listening_port() <<
+//      " --- Sending rpc " << rpc_message->method() << " to " << remote_ip_ <<
+//      ":" << remote_port_ << " connection_id = " << connection_id <<
+//      " -- rpc_id = " << rpc_message->rpc_id() << std::endl;
+/******************************************************************************/
 }
 
 std::string ChannelImpl::GetServiceName(const std::string &full_name) {
@@ -207,22 +229,22 @@ std::string ChannelImpl::GetServiceName(const std::string &full_name) {
   return service_name;
 }
 
-void ChannelImpl::HandleRequest(const transport::RpcMessage &rpc_message,
+void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                                 const ConnectionId &connection_id,
                                 const float &rtt) {
   if (!service_) {
     LOG(ERROR) << "ChannelImpl::HandleRequest - no service." << std::endl;
-    transport_->CloseConnection(connection_id);
+//    transport_->CloseConnection(connection_id);
     return;
   }
   if (!rpc_message.IsInitialized()) {
     LOG(ERROR) << "ChannelImpl::HandleRequest - uninitialised." << std::endl;
-    transport_->CloseConnection(connection_id);
+//    transport_->CloseConnection(connection_id);
     return;
   }
   if (!rpc_message.has_method()) {
     LOG(ERROR) << "ChannelImpl::HandleRequest - no method." << std::endl;
-    transport_->CloseConnection(connection_id);
+//    transport_->CloseConnection(connection_id);
     return;
   }
 
@@ -239,7 +261,7 @@ void ChannelImpl::HandleRequest(const transport::RpcMessage &rpc_message,
   // Check only one field exists
   if (field_descriptors.size() != 1U) {
     LOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
-    transport_->CloseConnection(connection_id);
+//    transport_->CloseConnection(connection_id);
     return;
   }
   // Get the payload message's descriptor
@@ -250,7 +272,7 @@ void ChannelImpl::HandleRequest(const transport::RpcMessage &rpc_message,
   if (field_descriptor->type() !=
       google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
     LOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
-    transport_->CloseConnection(connection_id);
+//    transport_->CloseConnection(connection_id);
     return;
   }
   // Copy the payload to a new message (DescriptorProto inherits from Message)
@@ -261,9 +283,11 @@ void ChannelImpl::HandleRequest(const transport::RpcMessage &rpc_message,
   controller->set_rtt(rtt);
   controller->set_rpc_id(rpc_message.rpc_id());
   controller->set_socket_id(connection_id);
-  google::protobuf::Closure *done = google::protobuf::NewCallback< ChannelImpl,
-      const google::protobuf::Message*, boost::shared_ptr<Controller> > (this,
-      &ChannelImpl::SendResponse, response, controller);
+  google::protobuf::Closure *done =
+      google::protobuf::NewCallback<ChannelImpl,
+                                    const google::protobuf::Message*,
+                                    boost::shared_ptr<Controller> >
+      (this, &ChannelImpl::SendResponse, response, controller);
   service_->CallMethod(method, controller.get(), proto_request, response, done);
 }
 
@@ -272,7 +296,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kResponse);
-  transport::RpcMessage *rpc_message =
+  rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(controller->rpc_id());
   rpc_message->set_method(controller->method());
@@ -281,7 +305,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
       rpc_message->detail().GetReflection()->FindKnownExtensionByName(
           response->GetTypeName());
   // Get mutable payload field
-  transport::RpcMessage::Detail *rpc_message_detail =
+  rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();
   // Copy payload into RpcMessage
   google::protobuf::Message *mutable_message =
@@ -289,13 +313,16 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
           rpc_message_detail, field_descriptor);
   mutable_message->CopyFrom(*response);
 
-  if (0 != transport_->Send(transport_message, controller->socket_id())) {
-    DLOG(WARNING) << transport_->listening_port() <<
-        " Failed to send response to connection " << controller->socket_id()
-         << std::endl;
-  }
-  DLOG(INFO) << transport_->listening_port() <<
-    " --- Response to req " << controller->rpc_id() << std::endl;
+/******************************************************************************/
+//  if (0 != transport_->Send(transport_message, controller->socket_id())) {
+//    DLOG(WARNING) << transport_->listening_port() <<
+//        " Failed to send response to connection " << controller->socket_id()
+//         << std::endl;
+//  }
+//  DLOG(INFO) << transport_->listening_port() <<
+//    " --- Response to req " << controller->rpc_id() << std::endl;
+/******************************************************************************/
   delete response;
 }
+
 }  // namespace rpcprotocol

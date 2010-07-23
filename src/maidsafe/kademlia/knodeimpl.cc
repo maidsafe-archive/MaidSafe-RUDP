@@ -253,8 +253,8 @@ void KNodeImpl::Join_Bootstrapping_Iteration_Client(
     host_port_ = result_msg.newcomer_ext_port();
     DLOG(INFO) << "external address " << host_ip_ << ":" << host_port_
         << std::endl;
-    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
-        bootstrap_node.host_port());
+//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//        bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
     if (type_ != CLIENT)
@@ -347,8 +347,8 @@ void KNodeImpl::Join_Bootstrapping_Iteration(
         return;
       }
     }
-    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
-                                    bootstrap_node.host_port());
+//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//                                    bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
     StartSearchIteration(node_id_, BOOTSTRAP, args->callback);
@@ -365,8 +365,8 @@ void KNodeImpl::Join_Bootstrapping_Iteration(
     AddContact(bootstrap_node, 0.0, false);
     host_ip_ = result_msg.newcomer_ext_ip();
     host_port_ = result_msg.newcomer_ext_port();
-    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
-                                    bootstrap_node.host_port());
+//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//                                    bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
     StartSearchIteration(node_id_, BOOTSTRAP, args->callback);
@@ -404,7 +404,7 @@ void KNodeImpl::Join_Bootstrapping(VoidFunctorOneString callback,
       premote_service_->set_node_joined(true);
       premote_service_->set_node_info(contact_info());
       // since it is a 1 network node, so it has no rendezvous server to ping
-      transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
+//      transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
       addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
                                                    this));
       if (!refresh_routine_started_) {
@@ -514,8 +514,12 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
     return;
   }
   if (host_port_ == 0)
-    host_port_ = transport_->listening_port();
-  local_host_port_ = transport_->listening_port();
+/******************************************************************************/
+//    host_port_ = transport_->listening_port();
+    host_port_ = 1;
+//  local_host_port_ = transport_->listening_port();
+  local_host_port_ = 2;
+/******************************************************************************/
   // Adding the services
   RegisterKadService();
 
@@ -570,7 +574,10 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
     callback(local_result_str);
     return;
   }
-  local_host_port_ = transport_->listening_port();
+/******************************************************************************/
+//  local_host_port_ = transport_->listening_port();
+  local_host_port_ = 2;
+/******************************************************************************/
 
   if (use_upnp_) {
     UPnPMap(local_host_port_);
@@ -606,7 +613,7 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   premote_service_->set_node_joined(true);
   premote_service_->set_node_info(contact_info());
   // since it is a 1 network node, so it has no rendezvous server to ping
-  transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
+//  transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
   addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
       this));
   if (!refresh_routine_started_) {
@@ -642,7 +649,7 @@ void KNodeImpl::Leave() {
       premote_service_->set_node_joined(false);
       ptimer_->CancelAll();
       pchannel_manager_->ClearCallLaters();
-      transport_->StopPingRendezvous();
+//      transport_->StopPingRendezvous();
       UnRegisterKadService();
       pdata_store_->Clear();
       add_ctc_cond_.notify_one();
@@ -1369,11 +1376,13 @@ void KNodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
       }
       for (unsigned int i = 0; i < ctcs.size(); ++i) {
         // checking connection
-        if (transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
-          transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
-                                          ctcs[i].host_port());
-          return;
-        }
+/******************************************************************************/
+//        if (transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
+//          transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
+//                                          ctcs[i].host_port());
+//          return;
+//        }
+/******************************************************************************/
       }
     }
     // setting status to be offline
@@ -1458,12 +1467,12 @@ ConnectionType KNodeImpl::CheckContactLocalAddress(const KadId &id,
     case UNKNOWN: ext_ip_dec = base::IpBytesToAscii(ext_ip);
                   if (host_ip_ != ext_ip_dec) {
                     conn_type = REMOTE;
-                  } else if (transport_->CanConnect(ip, port)) {
+                  } /*else if (transport_->CanConnect(ip, port)) {
                     conn_type = LOCAL;
                     (*base::PublicRoutingTable::GetInstance())
                         [base::IntToString(host_port_)]->UpdateContactLocal(
                             str_id, ip, conn_type);
-                  } else {
+                  } */else {
                     conn_type = REMOTE;
                     (*base::PublicRoutingTable::GetInstance())[
                         base::IntToString(host_port_)]->UpdateContactLocal(

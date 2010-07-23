@@ -1,9 +1,9 @@
 // /* Copyright (c) 2009 maidsafe.net limited
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright notice,
 //     this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 //     * Neither the name of the maidsafe.net limited nor the names of its
 //     contributors may be used to endorse or promote products derived from this
 //     software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,30 +24,29 @@
 // TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // */
-// 
+//
 // // This tests NAT Detection and bootstrap services between three knodes, node 1
 // // being the newcomer, node 2 being the rendezvouz and node 3 being the contact
 // // which node 2 uses to test direct-connection status of node 1.
-// 
+//
 // #include <gtest/gtest.h>
 // #include <google/protobuf/descriptor.h>
 // #include <boost/filesystem.hpp>
 // #include "maidsafe/kademlia/kadservice.h"
 // #include "maidsafe/kademlia/knodeimpl.h"
-// #include "maidsafe/maidsafe-dht.h"
 // #include "maidsafe/tests/kademlia/fake_callbacks.h"
 // #include "maidsafe/base/log.h"
 // #include "maidsafe/transport/transport.h"
 // #include "maidsafe/transport/transportudt.h"
-// 
+//
 // namespace fs = boost::filesystem;
-// 
+//
 // namespace test_nat_detection {
 //   static const boost::uint16_t K = 16;
 // }  // namespace test_nat_detection
-// 
+//
 // namespace kad {
-// 
+//
 // class Callback {
 //  public:
 //   Callback() : response_() {}
@@ -59,7 +58,7 @@
 //  private:
 //   BootstrapResponse *response_;
 // };
-// 
+//
 // class NatDetectionTest: public testing::Test {
 //  protected:
 //   NatDetectionTest() : trans_handlers_(), transports_(),
@@ -82,7 +81,7 @@
 //     channel_managerB_ = rpcprotocol::ChannelManager(trans_handlers_[1]);
 //     channel_managerC_ = rpcprotocol::ChannelManager(trans_handlers_[2]);
 //   }
-// 
+//
 //   ~NatDetectionTest() {
 //     for (boost::uint8_t i = 0; i < 3; ++i) {
 //       delete trans_handlers_[i]->Get(transports_[i]);
@@ -92,7 +91,7 @@
 //     transports_.clear();
 //     trans_handlers_.clear();
 //   }
-// 
+//
 //   virtual void SetUp() {
 //     // Node A.
 //     std::string hex_id("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -105,13 +104,13 @@
 //     ASSERT_EQ(0, channel_managerA_.Start());
 //     boost::asio::ip::address local_ip;
 //     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-// 
+//
 //     contactA_ = Contact(base::DecodeFromHex(hex_id), local_ip.to_string(),
 //                         trans_handlers_[0]->listening_port(transports_[0]),
 //                         local_ip.to_string(),
 //                         trans_handlers_[0]->listening_port(transports_[0]));
 //     contactA_.SerialiseToString(&contact_strA_);
-// 
+//
 //     datastoreA_.reset(new DataStore(kRefreshTime));
 //     routingtableA_.reset(new RoutingTable(contactA_.node_id(),
 //                                           test_nat_detection::K));
@@ -137,7 +136,7 @@
 //     channelA_->SetService(serviceA_.get());
 //     channel_managerA_.RegisterChannel(serviceA_->GetDescriptor()->name(),
 //                                       channelA_.get());
-// 
+//
 //     // Node B.
 //     hex_id = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 //              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -146,13 +145,13 @@
 //                 boost::bind(&NatDetectionTest::HandleDeadRVServer, this, _1)));
 //     ASSERT_EQ(0, trans_handlers_[1]->Start(0, transports_[1]));
 //     ASSERT_EQ(0, channel_managerB_.Start());
-// 
+//
 //     contactB_ = Contact(base::DecodeFromHex(hex_id), local_ip.to_string(),
 //                         trans_handlers_[1]->listening_port(transports_[1]),
 //                         local_ip.to_string(),
 //                         trans_handlers_[1]->listening_port(transports_[1]));
 //     contactB_.SerialiseToString(&contact_strB_);
-// 
+//
 //     datastoreB_.reset(new DataStore(kRefreshTime));
 //     routingtableB_.reset(new RoutingTable(contactB_.node_id(),
 //                                           test_nat_detection::K));
@@ -177,7 +176,7 @@
 //     channelB_->SetService(serviceB_.get());
 //     channel_managerB_.RegisterChannel(serviceB_->GetDescriptor()->name(),
 //                                       channelB_.get());
-// 
+//
 //     // Node C.
 //     hex_id = "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 //              "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
@@ -191,7 +190,7 @@
 //                         local_ip.to_string(),
 //                         trans_handlers_[2]->listening_port(transports_[2]));
 //     contactC_.SerialiseToString(&contact_strC_);
-// 
+//
 //     datastoreC_.reset(new DataStore(kRefreshTime));
 //     routingtableC_.reset(new RoutingTable(contactC_.node_id(),
 //                                           test_nat_detection::K));
@@ -216,10 +215,10 @@
 //     channelC_->SetService(serviceC_.get());
 //     channel_managerC_.RegisterChannel(serviceC_->GetDescriptor()->name(),
 //                                       channelC_.get());
-// 
+//
 //     // Add node C's details to node B's routing table
 //     ASSERT_EQ(routingtableB_->AddContact(contactC_), 0);
-// 
+//
 //     // Set up another contact
 //     hex_id = "22222222222222222222222222222222222222222222222222222222222222222"
 //              "222222222222222222222222222222222222222222222222222222222222222";
@@ -232,7 +231,7 @@
 //     remote_contact_.set_rendezvous_ip("127.0.0.7");
 //     remote_contact_.set_rendezvous_port(5557);
 //   }
-// 
+//
 //   virtual void TearDown() {
 //     transport::TransportUDT * trans_temp =
 //       static_cast<transport::TransportUDT*>(trans_handlers_[0]->Get(0));
@@ -240,7 +239,7 @@
 //     for (boost::uint16_t i = 0; i < 3; ++i) {
 //       trans_handlers_[i]->Stop(transports_[i]);
 //     }
-// 
+//
 //     channel_managerA_.UnRegisterChannel(serviceA_->GetDescriptor()->name());
 //     channelA_.reset();
 //     channel_managerB_.UnRegisterChannel(serviceB_->GetDescriptor()->name());
@@ -251,7 +250,7 @@
 //     channel_managerB_.Stop();
 //     channel_managerC_.Stop();
 //   }
-// 
+//
 //   std::vector<transport::TransportHandler*> trans_handlers_;
 //   std::vector<boost::int16_t> transports_;
 //   rpcprotocol::ChannelManager channel_managerA_, channel_managerB_,
@@ -351,7 +350,7 @@
 //   void HandleDeadRVServer(const bool&) {}
 //   void RemoveContact(const KadId&) {}
 // };
-// 
+//
 // TEST_F(NatDetectionTest, BEH_KAD_NatDetPing) {
 //   rpcprotocol::Controller controller;
 //   NatDetectionPingRequest *nd_ping_request = new NatDetectionPingRequest;
@@ -383,7 +382,7 @@
 //   EXPECT_EQ(contactA_.node_id().String(), nd_ping_response.node_id());
 //   delete nd_ping_request;
 // }
-// 
+//
 // TEST_F(NatDetectionTest, BEH_KAD_SendNatDet) {
 //   // Send request to node C with node A as newcomer - should fail as node C has
 //   // empty routing table.
@@ -416,7 +415,7 @@
 //   EXPECT_TRUE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   delete controller;
 // }
-// 
+//
 // TEST_F(NatDetectionTest, BEH_KAD_BootstrapNatDetRv) {
 //   NatDetectionResponse *nd_response = new NatDetectionResponse;
 //   Contact node_c;
@@ -435,7 +434,7 @@
 //     boost::this_thread::sleep(boost::posix_time::milliseconds(50));
 //   // It should be able to contact another node
 //   EXPECT_EQ(1, response.nat_type());
-// 
+//
 //   response.Clear();
 //   nd_response = new NatDetectionResponse;
 //   nd_response->set_result(kRpcResultFailure);
@@ -451,7 +450,7 @@
 //   EXPECT_TRUE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   routingtableB_->RemoveContact(contactA_.node_id(), false);
 //   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
-// 
+//
 //   nd_response = new NatDetectionResponse;
 //   response.Clear();
 //   nd_response->set_result(kRpcResultSuccess);
@@ -466,7 +465,7 @@
 //   EXPECT_TRUE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   delete controller;
 // }
-// 
+//
 // TEST_F(NatDetectionTest, FUNC_KAD_CompleteBootstrapNatDet) {
 //   // If NatDetectionResponse is uninitialised, NAT type can't be asserted by
 //   // node C, as his routing table is empty
@@ -487,7 +486,7 @@
 //   Contact contactback;
 //   EXPECT_FALSE(routingtableC_->GetContact(contactA_.node_id(), &contactback));
 //   delete ctrl1;
-// 
+//
 // //   If NatDetectionResponse is uninitialised, NAT type can't be asserted, so
 // //   node B calls new NatDetection rpc and should identify NAT type as 1.
 //   nd_response = new NatDetectionResponse;
@@ -501,13 +500,13 @@
 //   serviceB_->Bootstrap_NatDetection(nd_response, nd_data2);
 //   while (!response.has_nat_type())
 //     boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-// 
+//
 //   EXPECT_EQ(1, response.nat_type());
 //   EXPECT_TRUE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   routingtableB_->RemoveContact(contactA_.node_id(), false);
 //   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   delete ctrl2;
-// 
+//
 //   // If NatDetectionResponse is failure, NAT type can't be asserted, so node B
 //   // calls new NatDetection rpc and should identify NAT type as 1.
 //   nd_response = new NatDetectionResponse;
@@ -527,7 +526,7 @@
 //   routingtableB_->RemoveContact(contactA_.node_id(), false);
 //   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   delete ctrl3;
-// 
+//
 //   // If NatDetectionResponse is success, NAT type is 1.
 //   nd_response = new NatDetectionResponse;
 //   response.Clear();
@@ -545,7 +544,7 @@
 //   EXPECT_TRUE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   routingtableB_->RemoveContact(contactA_.node_id(), false);
 //   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
-// 
+//
 //   // If NatDetectionResponse is failure, NAT type can't be asserted, so node B
 //   // calls new NatDetection rpc.  If node C is switched off, this should fail.
 //   ex_contacts.push_back(contactA_);
@@ -558,7 +557,7 @@
 //       (&cb_obj, &Callback::CallbackFunction);
 //   struct NatDetectionData nd_data5 = {contactA_, contact_strB_, contactC_,
 //       &response, done5, ctrl5, ex_contacts};
-// 
+//
 //   channel_managerC_.UnRegisterChannel(serviceC_->GetDescriptor()->name());
 //   serviceB_->Bootstrap_NatDetection(nd_response, nd_data5);
 //   while (!response.IsInitialized())
@@ -567,7 +566,7 @@
 //   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
 //   delete ctrl5;
 // }
-// 
+//
 // TEST_F(NatDetectionTest, BEH_KAD_CompleteNatDet) {
 //   // With request uninitialised, fail.
 //   NatDetectionRequest nd_request;
@@ -584,7 +583,7 @@
 //   Contact contactback;
 //   EXPECT_FALSE(routingtableA_->GetContact(contactC_.node_id(), &contactback));
 //   EXPECT_FALSE(routingtableC_->GetContact(contactA_.node_id(), &contactback));
-// 
+//
 //   // With request incorrectly initialised, fail.
 //   nd_request.set_newcomer(contact_strA_);
 //   nd_request.set_bootstrap_node(contact_strB_);
@@ -601,7 +600,7 @@
 //   EXPECT_EQ(kRpcResultFailure, nd_response.result());
 //   EXPECT_FALSE(routingtableA_->GetContact(contactC_.node_id(), &contactback));
 //   EXPECT_FALSE(routingtableC_->GetContact(contactA_.node_id(), &contactback));
-// 
+//
 //   // With request type == 1, node C tries to ping node A.
 //   nd_request.set_newcomer(contact_strA_);
 //   nd_request.set_bootstrap_node(contact_strB_);
@@ -621,7 +620,7 @@
 //   EXPECT_FALSE(routingtableC_->GetContact(contactA_.node_id(), &contactback));
 //   routingtableA_->RemoveContact(contactC_.node_id(), false);
 //   EXPECT_FALSE(routingtableA_->GetContact(contactC_.node_id(), &contactback));
-// 
+//
 //   // With request type == 2, node C tries to rendezvouz with node A via node B.
 //   nd_request.set_newcomer(contact_strA_);
 //   nd_request.set_bootstrap_node(contact_strB_);
@@ -640,13 +639,13 @@
 //   // at the nat detection ping stage.
 //   EXPECT_FALSE(routingtableC_->GetContact(contactA_.node_id(), &contactback));
 // }
-// 
+//
 // TEST_F(NatDetectionTest, BEH_KAD_FullBootstrap) {
 //   // With request uninitialised, fail.
 //   BootstrapRequest request;
 //   BootstrapResponse response;
 //   Callback cb_obj;
-// 
+//
 //   // Check for id == kClientId
 //   request.set_newcomer_id(kClientId);
 //   request.set_newcomer_local_ip(contactA_.local_ip());
@@ -654,7 +653,7 @@
 //   request.set_newcomer_ext_ip(contactA_.host_ip());
 //   request.set_newcomer_ext_port(contactA_.host_port());
 //   request.set_node_type(VAULT);
-// 
+//
 //   // Check for normal id
 //   request.set_newcomer_id(contactA_.node_id().String());
 //   response.Clear();
@@ -670,5 +669,5 @@
 //   EXPECT_EQ(contactA_.host_port(), response.newcomer_ext_port());
 //   EXPECT_EQ(1, response.nat_type());
 // }
-// 
+//
 // }  // namespace kad

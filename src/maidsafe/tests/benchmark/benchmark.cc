@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <iostream>  //  NOLINT
 #include "maidsafe/base/log.h"
-#include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/tests/benchmark/operations.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"

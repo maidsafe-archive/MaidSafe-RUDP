@@ -42,6 +42,7 @@ namespace base {
   * Network interface utilities.
   */
 struct NetworkInterface {
+  NetworkInterface() : destination(), gateway(), netmask() {}
 /**
   * Determines if the given ip address is local.
   * @param addr The ip address to check.

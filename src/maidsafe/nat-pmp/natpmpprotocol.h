@@ -111,6 +111,8 @@ class Protocol {
   * Mapping response structure.
   */
   struct MappingResponse {
+    MappingResponse() : type(0), result_code(0), epoch(0), public_address(),
+                        private_port(0), public_port(0), lifetime(0) {}
     bool operator == (const MappingResponse & other) const {
       return (private_port == other.private_port &&
               public_port == other.public_port);

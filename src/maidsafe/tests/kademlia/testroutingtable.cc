@@ -32,7 +32,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kadroutingtable.h"
 #include "maidsafe/base/crypto.h"
 #include "maidsafe/base/utils.h"
-#include "maidsafe/maidsafe-dht.h"
 
 namespace test_routing_table {
   static const boost::uint16_t K = 16;

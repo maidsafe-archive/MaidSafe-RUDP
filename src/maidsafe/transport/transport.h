@@ -51,7 +51,6 @@ namespace  fs = boost::filesystem;
 
 namespace transport {
 
-
 typedef boost::int64_t DataSize;
 
 inline bool ValidIP(const IP &ip) {

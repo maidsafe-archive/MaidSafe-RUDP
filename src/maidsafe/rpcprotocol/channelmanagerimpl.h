@@ -36,8 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "google/protobuf/service.h"
 #include "google/protobuf/message.h"
 #include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/rpcprotocol/channelimpl.h"
+#include "maidsafe/rpcprotocol/rpcstructs.h"
 #include "maidsafe/transport/transport.h"
 
 namespace transport {
@@ -46,24 +46,9 @@ class Transport;
 
 namespace rpcprotocol {
 
+class Channel;
+
 typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
-
-struct PendingRequest {
-  PendingRequest() : args(NULL), callback(NULL), controller(NULL),
-                     connection_id(0), timeout(0), size_received(0) {}
-  google::protobuf::Message* args;
-  google::protobuf::Closure* callback;
-  Controller *controller;
-  ConnectionId connection_id;
-  boost::uint64_t timeout;
-  transport::DataSize size_received;
-};
-
-struct PendingTimeOut {
-  PendingTimeOut() : rpc_id(0), timeout(0) {}
-  RpcId rpc_id;
-  boost::uint64_t timeout;
-};
 
 class ChannelManagerImpl {
  public:
@@ -92,10 +77,10 @@ class ChannelManagerImpl {
   void TimerHandler(const RpcId &rpc_id);
   void RequestSent(const ConnectionId &connection_id, const bool &success);
   void OnlineStatusChanged(const bool &online);
-  void RequestArrive(const transport::RpcMessage &msg,
+  void RequestArrive(const rpcprotocol::RpcMessage &msg,
                      const ConnectionId &connection_id,
                      const float &rtt);
-  void ResponseArrive(const transport::RpcMessage &msg,
+  void ResponseArrive(const rpcprotocol::RpcMessage &msg,
                       const ConnectionId &connection_id,
                       const float &rtt);
   transport::Transport *transport_;
@@ -115,6 +100,9 @@ class ChannelManagerImpl {
   boost::condition_variable delete_channels_cond_;
   boost::uint16_t online_status_id_;
   bs2::connection rpc_request_, rpc_reponse_, data_sent_connection_;
+  boost::uint16_t listening_port_;
 };
+
 }  // namespace rpcprotocol
+
 #endif  // MAIDSAFE_RPCPROTOCOL_CHANNELMANAGERIMPL_H_

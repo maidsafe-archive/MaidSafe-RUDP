@@ -30,20 +30,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/asio.hpp>
 #include <google/protobuf/service.h>
+
 #include <memory>
 #include <string>
-#include "maidsafe/base/utils.h"
+
 #include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/base/utils.h"
 
 namespace transport {
 class Transport;
-class RpcMessage;
 }  // namespace transport
 
 namespace rpcprotocol {
 
 class Controller;
 class ChannelManager;
+class RpcMessage;
 
 class ControllerImpl {
  public:
@@ -112,7 +114,7 @@ class ChannelImpl {
                   google::protobuf::Message *response,
                   google::protobuf::Closure *done);
   void SetService(google::protobuf::Service *service) { service_ = service; };
-  void HandleRequest(const transport::RpcMessage &rpc_message,
+  void HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                      const ConnectionId &connection_id,
                      const float &rtt);
  private:
@@ -128,5 +130,7 @@ class ChannelImpl {
   Port remote_port_, local_port_, rendezvous_port_;
   boost::uint32_t id_;
 };
-}  // namespace
+
+}  // namespace rpcprotocol
+
 #endif  // MAIDSAFE_RPCPROTOCOL_CHANNELIMPL_H_

@@ -142,7 +142,7 @@ void Channel::SetService(google::protobuf::Service* service) {
   pimpl_->SetService(service);
 }
 
-void Channel::HandleRequest(const transport::RpcMessage &rpc_message,
+void Channel::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                             const ConnectionId &connection_id,
                             const float &rtt) {
   pimpl_->HandleRequest(rpc_message, connection_id, rtt);

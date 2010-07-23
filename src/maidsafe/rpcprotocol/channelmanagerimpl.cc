@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/rpcprotocol/channel-api.h"
 
 namespace rpcprotocol {
 
@@ -54,11 +55,11 @@ ChannelManagerImpl::ChannelManagerImpl(transport::Transport *transport)
       rpc_timings_(),
       delete_channels_cond_(),
       online_status_id_(0) {
-  rpc_request_ = transport_->ConnectRpcRequestReceived(
+  rpc_request_ = transport_->signals().ConnectOnRpcRequestReceived(
       boost::bind(&ChannelManagerImpl::RequestArrive, this, _1, _2, _3));
-  rpc_reponse_ = transport_->ConnectRpcResponseReceived(
+  rpc_reponse_ = transport_->signals().ConnectOnRpcResponseReceived(
       boost::bind(&ChannelManagerImpl::ResponseArrive, this, _1, _2, _3));
-  data_sent_connection_ = transport_->ConnectSent((boost::bind(
+  data_sent_connection_ = transport_->signals().ConnectOnSend((boost::bind(
       &ChannelManagerImpl::RequestSent, this, _1, _2)));
 }
 
@@ -72,10 +73,10 @@ int ChannelManagerImpl::Start() {
   }
   current_rpc_id_ =
       base::GenerateNextTransactionId(current_rpc_id_) +
-      (transport_->listening_port() * 100);
+      (listening_port_/*transport_->listening_port()*/ * 100);
   is_started_ = true;
   online_status_id_ = base::OnlineController::Instance()->RegisterObserver(
-      transport_->listening_port(),
+      /*transport_->listening_port()*/listening_port_,
       boost::bind(&ChannelManagerImpl::OnlineStatusChanged, this, _1));
   return 0;
 }
@@ -143,8 +144,10 @@ bool ChannelManagerImpl::DeletePendingRequest(const RpcId &rpc_id) {
   google::protobuf::Closure *callback = it->second.callback;
   pending_requests_.erase(it);
   req_mutex_.unlock();
-  if (connection_id != 0)
-    transport_->CloseConnection(connection_id);
+/******************************************************************************/
+//  if (connection_id != 0)
+//    transport_->CloseConnection(connection_id);
+/******************************************************************************/
   callback->Run();
   return true;
 }
@@ -164,8 +167,10 @@ bool ChannelManagerImpl::CancelPendingRequest(const RpcId &rpc_id) {
   delete it->second.callback;
   pending_requests_.erase(it);
   req_mutex_.unlock();
-  if (connection_id != 0)
-    transport_->CloseConnection(connection_id);
+/******************************************************************************/
+//  if (connection_id != 0)
+//    transport_->CloseConnection(connection_id);
+/******************************************************************************/
   return true;
 }
 
@@ -190,10 +195,10 @@ void ChannelManagerImpl::RegisterChannel(const std::string &service_name,
   channels_[service_name] = channel;
 }
 
-void ChannelManagerImpl::RequestArrive(const transport::RpcMessage &msg,
+void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
                                        const ConnectionId &connection_id,
                                        const float &rtt) {
-  transport::RpcMessage decoded_msg = msg;
+  rpcprotocol::RpcMessage decoded_msg = msg;
   std::map<RpcId, PendingRequest>::iterator it;
   req_mutex_.lock();
   it = pending_requests_.find(decoded_msg.rpc_id());
@@ -236,13 +241,13 @@ void ChannelManagerImpl::RequestArrive(const transport::RpcMessage &msg,
   //}
 }
 
-void ChannelManagerImpl::ResponseArrive(const transport::RpcMessage &msg,
+void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
                                         const ConnectionId &connection_id,
                                         const float &rtt) {
-  transport::RpcMessage decoded_msg = msg;
+  rpcprotocol::RpcMessage decoded_msg = msg;
   // TODO FIXME (dirvine)
   if (/*!decoded_msg.has_service() ||*/ !decoded_msg.has_method()) {
-    DLOG(ERROR) << transport_->listening_port() <<
+    DLOG(ERROR) << /*transport_->listening_port()*/ listening_port_ <<
         " --- request arrived cannot parse message\n";
     return;
   }
@@ -285,36 +290,38 @@ void ChannelManagerImpl::TimerHandler(const RpcId &rpc_id) {
   if (!is_started_) {
     return;
   }
-  std::map<RpcId, PendingRequest>::iterator it;
-  req_mutex_.lock();
-  it = pending_requests_.find(rpc_id);
-  if (it != pending_requests_.end()) {
-    transport::DataSize size_received = it->second.size_received;
-    ConnectionId connection_id = it->second.connection_id;
-    boost::uint64_t timeout = it->second.timeout;
-    if (transport_->HasReceivedData(connection_id, &size_received)) {
-      it->second.size_received = size_received;
-      req_mutex_.unlock();
-      DLOG(INFO) << transport_->listening_port() <<
-          " -- Reseting timeout for RPC ID: " << rpc_id <<
-          ". Connection ID: " << connection_id << ". Recvd: " << size_received;
-      AddReqToTimer(rpc_id, timeout);
-    } else {
-      DLOG(INFO) << transport_->listening_port() <<
-          "Request " << rpc_id << " times out.  Connection ID: " <<
-          connection_id << std::endl;
-      // call back without modifying the response
-      google::protobuf::Closure* done = (*it).second.callback;
-      (*it).second.controller->SetFailed(kTimeOut);
-      pending_requests_.erase(it);
-      req_mutex_.unlock();
-      done->Run();
-      if (connection_id != 0)
-        transport_->CloseConnection(connection_id);
-    }
-  } else {
-    req_mutex_.unlock();
-  }
+/******************************************************************************/
+//  std::map<RpcId, PendingRequest>::iterator it;
+//  req_mutex_.lock();
+//  it = pending_requests_.find(rpc_id);
+//  if (it != pending_requests_.end()) {
+//    transport::DataSize size_received = it->second.size_received;
+//    ConnectionId connection_id = it->second.connection_id;
+//    boost::uint64_t timeout = it->second.timeout;
+//    if (transport_->HasReceivedData(connection_id, &size_received)) {
+//      it->second.size_received = size_received;
+//      req_mutex_.unlock();
+//      DLOG(INFO) << transport_->listening_port() <<
+//          " -- Reseting timeout for RPC ID: " << rpc_id <<
+//          ". Connection ID: " << connection_id << ". Recvd: " << size_received;
+//      AddReqToTimer(rpc_id, timeout);
+//    } else {
+//      DLOG(INFO) << transport_->listening_port() <<
+//          "Request " << rpc_id << " times out.  Connection ID: " <<
+//          connection_id << std::endl;
+//      // call back without modifying the response
+//      google::protobuf::Closure* done = (*it).second.callback;
+//      (*it).second.controller->SetFailed(kTimeOut);
+//      pending_requests_.erase(it);
+//      req_mutex_.unlock();
+//      done->Run();
+//      if (connection_id != 0)
+//        transport_->CloseConnection(connection_id);
+//    }
+//  } else {
+//    req_mutex_.unlock();
+//  }
+/******************************************************************************/
 }
 
 void ChannelManagerImpl::UnRegisterChannel(const std::string &service_name) {

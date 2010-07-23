@@ -1,3 +1,5 @@
+import "rpcmessage.proto";
+
 package transport;
 
 enum SubType {
@@ -27,15 +29,6 @@ message AcceptConnect {
   optional int32 retry_time = 5;
 }
 
-message RpcMessage {
-  message Detail {
-    extensions 1 to 18999;  // all extensions must themselves be proto messages
-  }
-  required uint32 rpc_id = 1;
-  optional bytes method = 2;
-  required Detail detail = 3;
-}
-
 message HolePunchingMessage {
   required bytes ip = 1;
   required int32 port = 2;
@@ -44,7 +37,7 @@ message HolePunchingMessage {
     FORWARD_REQ = 0;
     FORWARD_MSG = 1;
   }
-}      
+}
 
 message TransportMessage {
   enum Type {
@@ -52,9 +45,9 @@ message TransportMessage {
     kResponse = 1;  // socket is closed on receiving this type unless it's a managed connection
   }
   message Data {
-    extensions 100 to 18999;  // Allows extensions of the message types 
+    extensions 100 to 18999;  // Allows extensions of the message types
     optional bytes raw_message = 1;
-    optional RpcMessage rpc_message = 2;
+    optional rpcprotocol.RpcMessage rpc_message = 2;
     optional HolePunchingMessage hole_punching_message = 3;
     optional Ping ping = 4;
     optional ProxyPing proxy_ping = 5;
@@ -68,7 +61,7 @@ message TransportMessage {
 //  package transport; // to get this namespace
 //  extend TransportMessage.Data {
 //    optional NewMessageType my_message = 100;
-//    optional AnotherNewMessageType my_other_message = 101; 
+//    optional AnotherNewMessageType my_other_message = 101;
 //  }
 //
 //
