@@ -86,12 +86,12 @@ class Transport {
   virtual bool StopAllListening() = 0;
   // Used to create a new socket and send data.  It assumes a
   // response is expected if timeout is > 0, and keeps the socket alive.
-  // The result is signalled with the new socket ID (-1) for failure and the
-  // appropriate TransportCondition.
-  virtual void Send(const TransportMessage &transport_message,
-                    const IP &remote_ip,
-                    const Port &remote_port,
-                    const int &response_timeout) = 0;
+  // The result is signalled with the new socket ID the appropriate
+  // TransportCondition.
+  virtual SocketId Send(const TransportMessage &transport_message,
+                        const IP &remote_ip,
+                        const Port &remote_port,
+                        const int &response_timeout) = 0;
   // Used to send a response to a request received on socket_id.
   virtual void SendResponse(const TransportMessage &transport_message,
                             const SocketId &socket_id) = 0;

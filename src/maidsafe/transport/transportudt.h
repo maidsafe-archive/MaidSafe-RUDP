@@ -112,10 +112,10 @@ class TransportUDT : public Transport {
                                const Port &remote_port,
                                const IP &rendezvous_ip,
                                const Port &rendezvous_port);
-  void Send(const TransportMessage &transport_message,
-            const IP &remote_ip,
-            const Port &remote_port,
-            const int &response_timeout);
+  SocketId Send(const TransportMessage &transport_message,
+                const IP &remote_ip,
+                const Port &remote_port,
+                const int &response_timeout);
   // Convenience function - calls PunchHole followed by Send.
   void SendWithRendezvous(const TransportMessage &transport_message,
                           const IP &remote_ip,
@@ -151,11 +151,17 @@ class TransportUDT : public Transport {
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
   void AcceptConnection(const UdtSocketId &udt_socket_id);
-  // General method for sending data
-  TransportCondition SendData(const TransportMessage &transport_message,
-                              const UdtSocketId &udt_socket_id,
-                              const int &send_timeout,
-                              const int &receive_timeout);
+  // General method for connecting then sending data
+  void ConnectThenSend(const TransportMessage &transport_message,
+                       const UdtSocketId &udt_socket_id,
+                       const int &send_timeout,
+                       const int &receive_timeout,
+                       addrinfo *peer);
+  // General method for sending data once connection made
+  void SendData(const TransportMessage &transport_message,
+                const UdtSocketId &udt_socket_id,
+                const int &send_timeout,
+                const int &receive_timeout);
   // Send the size of the pending message
   TransportCondition SendDataSize(const TransportMessage &transport_message,
                                   const UdtSocketId &udt_socket_id);
@@ -174,9 +180,12 @@ class TransportUDT : public Transport {
   bool HandleTransportMessage(const TransportMessage &transport_message,
                               const UdtSocketId &udt_socket_id,
                               const float &rtt);
-  TransportCondition Connect(const IP &remote_ip,
-                             const Port &remote_port,
-                             UdtSocketId *udt_socket_id);
+  TransportCondition CheckEndpoint(const IP &remote_ip,
+                                   const Port &remote_port,
+                                   UdtSocketId *udt_socket_id,
+                                   addrinfo **peer);
+  TransportCondition Connect(const UdtSocketId &udt_socket_id,
+                             const addrinfo &peer);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
   // Check a socket can send data (close it otherwise)

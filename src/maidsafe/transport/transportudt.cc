@@ -145,16 +145,20 @@ TransportCondition TransportUDT::PunchHole(const IP &remote_ip,
   return kSuccess;
 }
 
-void TransportUDT::Send(const TransportMessage &transport_message,
-                        const IP &remote_ip,
-                        const Port &remote_port,
-                        const int &response_timeout) {
+SocketId TransportUDT::Send(const TransportMessage &transport_message,
+                            const IP &remote_ip,
+                            const Port &remote_port,
+                            const int &response_timeout) {
   SocketId udt_socket_id(UDT::INVALID_SOCK);
-  if (Connect(remote_ip, remote_port, &udt_socket_id) == kSuccess) {
-    boost::thread(&TransportUDT::SendData, this, transport_message,
-                  udt_socket_id, response_timeout, response_timeout);
+  struct addrinfo *peer(NULL);
+  if (CheckEndpoint(remote_ip, remote_port, &udt_socket_id, &peer) !=
+      kSuccess) {
+    freeaddrinfo(peer);
+    return UDT::INVALID_SOCK;
   } else {
-    signals_.on_send_(udt_socket_id, kSendUdtFailure);
+    boost::thread(&TransportUDT::ConnectThenSend, this, transport_message,
+                  udt_socket_id, response_timeout, response_timeout, peer);
+    return udt_socket_id;
   }
 }
 
@@ -184,10 +188,21 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     const boost::uint16_t &frequency,
     const boost::uint16_t &retry_count,
     const boost::uint16_t &retry_frequency) {
-  // Connect a socket
+  // Check endpoint is valid
   SocketId udt_socket_id(UDT::INVALID_SOCK);
-  if (Connect(remote_ip, remote_port, &udt_socket_id))
-    return  kConnectError;
+  struct addrinfo *peer(NULL);
+  if (CheckEndpoint(remote_ip, remote_port, &udt_socket_id, &peer) !=
+      kSuccess) {
+    freeaddrinfo(peer);
+    return kConnectError;
+  }
+
+  // Connect a socket
+  TransportCondition transport_condition = Connect(udt_socket_id, *peer);
+  freeaddrinfo(peer);
+  if (transport_condition != kSuccess)
+    return transport_condition;
+
   // add socket to vector of managed connections
   ManagedEndpointIds_.push_back(udt_socket_id);
 
@@ -199,42 +214,6 @@ TransportCondition TransportUDT::RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id) {
   return kSuccess;
 }
-
-//int TransportUDT::Connect(const IP &peer_address, const Port &peer_port,
-//                          UdtSocketId *udt_socket_id) {
-//  if (stop_all_)
-//    return -1;
-//  *udt_socket_id = UDT::socket(addrinfo_result_->ai_family,
-//                               addrinfo_result_->ai_socktype,
-//                               addrinfo_result_->ai_protocol);
-//  if (UDT::ERROR == UDT::bind(*udt_socket_id, addrinfo_result_->ai_addr,
-//      addrinfo_result_->ai_addrlen)) {
-//   DLOG(ERROR) << "Connect UDT bind error: " <<
-//        UDT::getlasterror().getErrorMessage()<< std::endl;
-//    return -1;
-//  }
-//
-//  sockaddr_in peer_addr;
-//  peer_addr.sin_family = AF_INET;
-//  peer_addr.sin_port = htons(peer_port);
-//#ifndef WIN32
-//  if (inet_pton(AF_INET, peer_address.c_str(), &peer_addr.sin_addr) <= 0) {
-//#else
-//  if (INADDR_NONE == (peer_addr.sin_addr.s_addr =
-//      inet_addr(peer_address.c_str()))) {
-//#endif
-//   DLOG(ERROR) << "Invalid remote address " << peer_address << ":"<< peer_port
-//        << std::endl;
-//    return -1;
-//  }
-//  if (UDT::ERROR == UDT::connect(*udt_socket_id,
-//      reinterpret_cast<sockaddr*>(&peer_addr), sizeof(peer_addr))) {
-//    DLOG(ERROR) << "UDT connect to " << peer_address << ":" << peer_port <<
-//        " -- " << UDT::getlasterror().getErrorMessage() << std::endl;
-//    return UDT::getlasterror().getErrorCode();
-//  }
-//  return 0;
-//}
 
 void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
   sockaddr_storage clientaddr;
@@ -275,11 +254,24 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
   }
 }
 
-TransportCondition TransportUDT::SendData(
+void TransportUDT::ConnectThenSend(
     const TransportMessage &transport_message,
     const UdtSocketId &udt_socket_id,
     const int &send_timeout,
-    const int &receive_timeout) {
+    const int &receive_timeout,
+    addrinfo *peer) {
+  TransportCondition transport_condition = Connect(udt_socket_id, *peer);
+  freeaddrinfo(peer);
+  if (transport_condition != kSuccess) {
+    signals_.on_send_(udt_socket_id, kSendUdtFailure);
+  }
+  SendData(transport_message, udt_socket_id, send_timeout, receive_timeout);
+}
+
+void TransportUDT::SendData(const TransportMessage &transport_message,
+                            const UdtSocketId &udt_socket_id,
+                            const int &send_timeout,
+                            const int &receive_timeout) {
   // Set timeout
   if (send_timeout > 0) {
     UDT::setsockopt(udt_socket_id, 0, UDT_SNDTIMEO, &send_timeout,
@@ -288,16 +280,18 @@ TransportCondition TransportUDT::SendData(
 
   // Send the message size
   TransportCondition result = SendDataSize(transport_message, udt_socket_id);
-  if (result != kSuccess)
-    return result;
+  if (result != kSuccess) {
+    signals_.on_send_(udt_socket_id, result);
+    return;
+  }
 
   // Send the message
   boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_socket_id,
                                                      UdtStats::kSend));
   result = SendDataContent(transport_message, udt_socket_id);
+  signals_.on_send_(udt_socket_id, result);
   if (result != kSuccess)
-    return result;
-  signals_.on_send_(udt_socket_id, kSuccess);
+    return;
 
   // Get stats
   if (UDT::ERROR == UDT::perfmon(udt_socket_id,
@@ -313,7 +307,6 @@ TransportCondition TransportUDT::SendData(
   } else {
     UDT::close(udt_socket_id);
   }
-  return kSuccess;
 }
 
 TransportCondition TransportUDT::SendDataSize(
@@ -543,44 +536,45 @@ bool TransportUDT::HandleTransportMessage(
   return true;
 }
 
-TransportCondition TransportUDT::Connect(const IP &remote_ip,
-                                         const Port &remote_port,
-                                         UdtSocketId *udt_socket_id) {
+TransportCondition TransportUDT::CheckEndpoint(const IP &remote_ip,
+                                               const Port &remote_port,
+                                               UdtSocketId *udt_socket_id,
+                                               addrinfo **peer) {
   if (udt_socket_id == NULL)
     return kConnectError;
 
-  struct addrinfo hints, *peer;
+  struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_flags = AI_PASSIVE;
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   std::string peer_port = boost::lexical_cast<std::string>(remote_port);
-  if (0 != getaddrinfo(remote_ip.c_str(), peer_port.c_str(), &hints, &peer)) {
+  if (0 != getaddrinfo(remote_ip.c_str(), peer_port.c_str(), &hints, peer)) {
     DLOG(ERROR) << "Incorrect peer address. " << remote_ip << ":" <<
         remote_port << std::endl;
-    freeaddrinfo(peer);
     *udt_socket_id = UDT::INVALID_SOCK;
     return kInvalidAddress;
   }
-  *udt_socket_id =
-      UDT::socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
+  *udt_socket_id = UDT::socket((*peer)->ai_family, (*peer)->ai_socktype,
+                               (*peer)->ai_protocol);
 
   // Windows UDP problems fix
 #ifdef WIN32
   int mtu(1052);
   UDT::setsockopt(*udt_socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif
+  return kSuccess;
+}
 
-  if (UDT::ERROR == UDT::connect(*udt_socket_id, peer->ai_addr,
-      peer->ai_addrlen)) {
+TransportCondition TransportUDT::Connect(const UdtSocketId &udt_socket_id,
+                                         const addrinfo &peer) {
+  if (UDT::ERROR == UDT::connect(udt_socket_id, peer.ai_addr,
+                                 peer.ai_addrlen)) {
     DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
         std::endl;
-    UDT::close(*udt_socket_id);
-    freeaddrinfo(peer);
-    *udt_socket_id = UDT::INVALID_SOCK;
+    UDT::close(udt_socket_id);
     return kConnectError;
   }
-  freeaddrinfo(peer);
   return kSuccess;
 }
 
