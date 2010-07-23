@@ -25,59 +25,59 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <boost/thread/mutex.hpp>
+#include <gtest/gtest.h>
+
 #include "maidsafe/base/threadpool.h"
+#include "maidsafe/base/utils.h"
 
 namespace base {
 
-ThreadedCallContainer::ThreadedCallContainer(const size_t &thread_count)
-    : running_(true), mutex_(), condition_(), threads_(), functors_() {
-  boost::mutex::scoped_lock lock(mutex_);
-  for (size_t i = 0; i < thread_count; ++i) {
-    threads_.push_back(boost::thread(&ThreadedCallContainer::Run, this));
-  }
-}
+namespace test {
 
-ThreadedCallContainer::~ThreadedCallContainer() {
+class Work {
+ public:
+  Work() {}
+  ~Work() {}
+  void DoJob(const int &job_id) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(
+        base::RandomUint32() % 100));
+    boost::mutex::scoped_lock lock(completed_jobs_mutex_);
+    completed_jobs_.push_back(job_id);
+  }
+  std::vector<int> completed_jobs() const { return completed_jobs_; }
+ private:
+  Work(const Work&);
+  Work& operator=(const Work&);
+  std::vector<int> completed_jobs_;
+  boost::mutex completed_jobs_mutex_;
+};
+
+class ThreadpoolTest : public testing::Test {
+ protected:
+  ThreadpoolTest() : work_() {}
+  virtual ~ThreadpoolTest() {}
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+  Work work_;
+ private:
+  ThreadpoolTest(const ThreadpoolTest&);
+  ThreadpoolTest& operator=(const ThreadpoolTest&);
+};
+
+TEST_F(ThreadpoolTest, BEH_BASE_AddSingleTask) {
+  const size_t kThreadCount(10);
   {
-    boost::mutex::scoped_lock lock(mutex_);
-    running_ = false;
-    condition_.notify_all();
+    ThreadedCallContainer threadpool(kThreadCount);
+    ASSERT_EQ(kThreadCount, threadpool.threads_.size());
+    ASSERT_TRUE(threadpool.functors_.empty());
+    ASSERT_TRUE(work_.completed_jobs().empty());
+    threadpool.Enqueue(boost::bind(&Work::DoJob, &work_, 999));
   }
-  while (threads_.size()) {
-    threads_.back().join();
-    threads_.pop_back();
-  }
+  boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+  ASSERT_EQ(1U, work_.completed_jobs().size());
 }
 
-void ThreadedCallContainer::Enqueue(const VoidFunctor &functor) {
-  boost::mutex::scoped_lock lock(mutex_);
-  if (!running_)
-    return;
-  functors_.push(functor);
-  condition_.notify_all();
-}
-
-bool ThreadedCallContainer::Continue() {
-  return !running_ || !functors_.empty();
-}
-
-void ThreadedCallContainer::Run() {
-  while (true) {
-    boost::mutex::scoped_lock lock(mutex_);
-    condition_.wait(lock,
-                    boost::bind(&ThreadedCallContainer::Continue, this));
-    if (!running_)
-      return;
-    while (!functors_.empty()) {
-      // grab the first functor from the queue, but allow other threads to
-      // operate while executing it
-      VoidFunctor f = functors_.front();
-      functors_.pop();
-      lock.unlock();
-      f();
-      lock.lock();
-    }
-  }
-}
+}  // namespace test
 
 }  // namespace base

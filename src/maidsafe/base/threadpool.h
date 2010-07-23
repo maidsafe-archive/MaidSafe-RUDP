@@ -37,26 +37,32 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition_variable.hpp>
 #include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
+#include <gtest/gtest_prod.h>
 #include <queue>
 #include <vector>
 
 namespace base {
+
+namespace test {
+class ThreadpoolTest_BEH_BASE_AddSingleTask_Test;
+}  // namespace test
 
 class ThreadedCallContainer {
  public:
   typedef boost::function<void()> VoidFunctor;
   explicit ThreadedCallContainer(const size_t &thread_count);
   ~ThreadedCallContainer();
-  void Enqueue(VoidFunctor functor);
-  void Wait();
+  void Enqueue(const VoidFunctor &functor);
+  friend class test::ThreadpoolTest_BEH_BASE_AddSingleTask_Test;
  private:
   ThreadedCallContainer(const ThreadedCallContainer&);
   ThreadedCallContainer &operator=(const ThreadedCallContainer&);
   void Run();
+  bool Continue();
   bool running_;
   boost::mutex mutex_;
   boost::condition_variable condition_;
-  std::vector< boost::shared_ptr<boost::thread> > threads_;
+  std::vector<boost::thread> threads_;
   std::queue<VoidFunctor> functors_;
 };
 

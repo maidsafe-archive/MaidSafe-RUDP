@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/protobuf/rpcmessage.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 
 namespace rpcprotocol {

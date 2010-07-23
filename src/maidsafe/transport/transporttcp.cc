@@ -188,7 +188,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //}
 //
 //bool TransportTCP::RegisterOnRPCMessage(boost::function < void(
-//      const transport::RpcMessage&, const boost::uint32_t&,
+//      const rpcprotocol::RpcMessage&, const boost::uint32_t&,
 //      const boost::int16_t&, const float &) > on_rpcmessage) {
 //  if (stop_) {
 //    rpc_message_notifier_ = on_rpcmessage;
@@ -424,11 +424,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //  return 0;
 //}
 //
-//// int TransportTCP::Send(const transport::RpcMessage &data,
+//// int TransportTCP::Send(const rpcprotocol::RpcMessage &data,
 ////       const boost::uint32_t &connection_id, const bool&) {
 ////   if (data.IsInitialized()) {
 ////     TransportMessage t_msg;
-////     transport::RpcMessage *rpc_msg = t_msg.mutable_rpc();
+////     rpcprotocol::RpcMessage *rpc_msg = t_msg.mutable_rpc();
 ////     *rpc_msg = data;
 ////     std::string ser_tmsg(t_msg.SerializeAsString());
 ////     {

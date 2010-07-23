@@ -276,8 +276,8 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
     return;
   }
   // Copy the payload to a new message (DescriptorProto inherits from Message)
-  google::protobuf::DescriptorProto *proto_request;
-  field_descriptor->message_type()->CopyTo(proto_request);
+  google::protobuf::DescriptorProto proto_request;
+  field_descriptor->message_type()->CopyTo(&proto_request);
 
   boost::shared_ptr<Controller> controller(new Controller);
   controller->set_rtt(rtt);
@@ -288,7 +288,8 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                                     const google::protobuf::Message*,
                                     boost::shared_ptr<Controller> >
       (this, &ChannelImpl::SendResponse, response, controller);
-  service_->CallMethod(method, controller.get(), proto_request, response, done);
+  service_->CallMethod(method, controller.get(), &proto_request, response,
+                       done);
 }
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,

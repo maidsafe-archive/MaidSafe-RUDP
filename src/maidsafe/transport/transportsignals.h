@@ -41,12 +41,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace  bs2 = boost::signals2;
 
+namespace rpcprotocol {
+class RpcMessage;
+}  // namespace rpcprotocol
+
 namespace transport {
 
 struct SocketPerformanceStats;
 class TransportUDT;
 class TransportTCP;
-class RpcMessage;
 
 typedef bs2::signal<void(const std::string&,
                          const SocketId&,

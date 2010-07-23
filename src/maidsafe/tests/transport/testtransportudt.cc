@@ -110,7 +110,7 @@ class MessageHandler {
     server_down_connection_.disconnect();
     stats_connection_.disconnect();
   }
-  void OnRPCMessage(const transport::RpcMessage &rpc_message,
+  void OnRPCMessage(const rpcprotocol::RpcMessage &rpc_message,
                     const transport::SocketId &socket_id) {
     std::string message;
     rpc_message.SerializeToString(&message);
@@ -123,11 +123,11 @@ class MessageHandler {
     }
 //    transport::TransportMessage transport_message;
 //    transport_message.set_type(transport::TransportMessage::kResponse);
-//    transport::RpcMessage *rpc_reply =
+//    rpcprotocol::RpcMessage *rpc_reply =
 //        transport_message.mutable_data()->mutable_rpc_message();
 //    rpc_reply->set_rpc_id(2000);
 //    rpc_reply->set_method("Rply");
-//    transport::RpcMessage::Detail *payload = rpc_reply->mutable_detail();
+//    rpcprotocol::RpcMessage::Detail *payload = rpc_reply->mutable_detail();
 //    kad::NatDetectionPingResponse *response = payload->MutableExtension(
 //        kad::NatDetectionPingResponse::nat_detection_ping_response);
 //    response->set_result("Rubbish");
@@ -258,11 +258,11 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
   transport::Port lp_node[100];
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
-  transport::RpcMessage *rpc_message =
+  rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(2000);
   rpc_message->set_method("Test");
-  transport::RpcMessage::Detail *payload = rpc_message->mutable_detail();
+  rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
   kad::NatDetectionPingRequest *request = payload->MutableExtension(
       kad::NatDetectionPingRequest::nat_detection_ping_request);
   const std::string args = base::RandomString(256 * 1024);
@@ -307,11 +307,11 @@ TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   EXPECT_TRUE(transport::ValidPort(lp_node2));
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
-  transport::RpcMessage *rpc_message =
+  rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(2000);
   rpc_message->set_method("Test");
-  transport::RpcMessage::Detail *payload = rpc_message->mutable_detail();
+  rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
   kad::NatDetectionPingRequest *request = payload->MutableExtension(
       kad::NatDetectionPingRequest::nat_detection_ping_request);
   request->set_ping(args);
@@ -354,11 +354,11 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   transport::Port lp_node4 = node4.StartListening("", 0, NULL);
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
-  transport::RpcMessage *rpc_message =
+  rpcprotocol::RpcMessage *rpc_message =
   transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(2000);
   rpc_message->set_method("Test");
-  transport::RpcMessage::Detail *payload = rpc_message->mutable_detail();
+  rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
   kad::NatDetectionPingRequest *request = payload->MutableExtension(
       kad::NatDetectionPingRequest::nat_detection_ping_request);
   const std::string args = base::RandomString(256 * 1024);
