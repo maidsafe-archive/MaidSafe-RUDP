@@ -63,25 +63,26 @@ class ChannelManagerImpl {
   int Start();
   int Stop();
   RpcId CreateNewId();
-  bool AddPendingRequest(const RpcId &rpc_id,
+  bool AddPendingRequest(const SocketId &socket_id,
                          PendingRequest pending_request);
-  bool DeletePendingRequest(const RpcId &rpc_id);
-  bool CancelPendingRequest(const RpcId &rpc_id);
-  void AddReqToTimer(const RpcId &rpc_id, const boost::uint64_t &timeout);
-  void AddTimeOutRequest(const ConnectionId &connection_id, const RpcId &rpc_id,
-                         const int &timeout);
+  bool DeletePendingRequest(const SocketId &socket_id);
+  bool CancelPendingRequest(const SocketId &socket_id);
+  void AddReqToTimer(const SocketId &socket_id, const boost::uint64_t &timeout);
+//  void AddTimeOutRequest(const ConnectionId &connection_id,
+//                         const SocketId &socket_id,
+//                         const int &timeout);
   bool RegisterNotifiersToTransport();
   RpcStatsMap RpcTimings();
   void ClearRpcTimings();
  private:
-  void TimerHandler(const RpcId &rpc_id);
+  void TimerHandler(const SocketId &socket_id);
   void RequestSent(const ConnectionId &connection_id, const bool &success);
   void OnlineStatusChanged(const bool &online);
   void RequestArrive(const rpcprotocol::RpcMessage &msg,
-                     const ConnectionId &connection_id,
+                     const SocketId &socket_id,
                      const float &rtt);
   void ResponseArrive(const rpcprotocol::RpcMessage &msg,
-                      const ConnectionId &connection_id,
+                      const SocketId &socket_id,
                       const float &rtt);
   transport::Transport *transport_;
   bool is_started_;
@@ -91,10 +92,10 @@ class ChannelManagerImpl {
   RpcId current_rpc_id_;
   boost::uint32_t current_channel_id_;
   std::map<std::string, Channel*> channels_;
-  std::map<RpcId, PendingRequest> pending_requests_;
+  std::map<SocketId, PendingRequest> pending_requests_;
   ChannelManagerImpl(const ChannelManagerImpl&);
   ChannelManagerImpl& operator=(const ChannelManagerImpl&);
-  std::map<ConnectionId, PendingTimeOut> pending_timeouts_;
+  std::map<SocketId, PendingTimeOut> pending_timeouts_;
   std::set<boost::uint32_t> channels_ids_;
   RpcStatsMap rpc_timings_;
   boost::condition_variable delete_channels_cond_;

@@ -33,10 +33,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/descriptor.h>
 #include <algorithm>
 #include <exception>
-#include "maidsafe/base/utils.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/online.h"
 #include "maidsafe/base/routingtable.h"
+#include "maidsafe/base/utils.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
 
 namespace transport {

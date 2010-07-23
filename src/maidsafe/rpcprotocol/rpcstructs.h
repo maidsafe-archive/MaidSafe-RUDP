@@ -31,12 +31,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace rpcprotocol {
 
 struct PendingRequest {
-  PendingRequest() : args(NULL), callback(NULL), controller(NULL),
-                     connection_id(0) {}
-  google::protobuf::Message* args;
-  google::protobuf::Closure* callback;
+  PendingRequest() : args(NULL), callback(NULL), controller(NULL) {}
+  google::protobuf::Message *args;
+  google::protobuf::Closure *callback;
   Controller *controller;
-  ConnectionId connection_id;
 };
 
 struct PendingTimeOut {

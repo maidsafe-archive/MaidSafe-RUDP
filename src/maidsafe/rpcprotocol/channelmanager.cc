@@ -37,22 +37,22 @@ ChannelManager::ChannelManager(transport::Transport *transport)
 
 ChannelManager::~ChannelManager() {}
 
-bool ChannelManager::AddPendingRequest(const RpcId &rpc_id,
+bool ChannelManager::AddPendingRequest(const SocketId &socket_id,
                                        PendingRequest pending_request) {
-  return pimpl_->AddPendingRequest(rpc_id, pending_request);
+  return pimpl_->AddPendingRequest(socket_id, pending_request);
 }
 
-bool ChannelManager::DeletePendingRequest(const RpcId &rpc_id) {
-  return pimpl_->DeletePendingRequest(rpc_id);
+bool ChannelManager::DeletePendingRequest(const SocketId &socket_id) {
+  return pimpl_->DeletePendingRequest(socket_id);
 }
 
-bool ChannelManager::CancelPendingRequest(const RpcId &rpc_id) {
-  return pimpl_->CancelPendingRequest(rpc_id);
+bool ChannelManager::CancelPendingRequest(const SocketId &socket_id) {
+  return pimpl_->CancelPendingRequest(socket_id);
 }
 
-void ChannelManager::AddRequestToTimer(const RpcId &rpc_id,
+void ChannelManager::AddRequestToTimer(const SocketId &socket_id,
                                        const boost::uint64_t &timeout) {
-  pimpl_->AddReqToTimer(rpc_id, timeout);
+  pimpl_->AddReqToTimer(socket_id, timeout);
 }
 
 RpcId ChannelManager::CreateNewId() {
@@ -83,11 +83,11 @@ void ChannelManager::ClearCallLaters() {
   pimpl_->ClearCallLaters();
 }
 
-void ChannelManager::AddTimeOutRequest(const ConnectionId &connection_id,
-                                       const RpcId &rpc_id,
-                                       const int &timeout) {
-  pimpl_->AddTimeOutRequest(connection_id, rpc_id, timeout);
-}
+//void ChannelManager::AddTimeOutRequest(const ConnectionId &connection_id,
+//                                       const SocketId &socket_id,
+//                                       const int &timeout) {
+//  pimpl_->AddTimeOutRequest(connection_id, socket_id, timeout);
+//}
 
 void ChannelManager::AddChannelId(boost::uint32_t *id) {
   pimpl_->AddChannelId(id);
@@ -97,9 +97,6 @@ void ChannelManager::RemoveChannelId(const boost::uint32_t &id) {
   pimpl_->RemoveChannelId(id);
 }
 
-// bool ChannelManager::RegisterNotifiersToTransport() {
-//   return pimpl_->RegisterNotifiersToTransport();
-// }
 
 RpcStatsMap ChannelManager::RpcTimings() {
   return pimpl_->RpcTimings();
@@ -108,4 +105,5 @@ RpcStatsMap ChannelManager::RpcTimings() {
 void ChannelManager::ClearRpcTimings() {
   return pimpl_->ClearRpcTimings();
 }
+
 }  // namespace rpcprotocol

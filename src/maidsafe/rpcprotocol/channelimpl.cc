@@ -150,12 +150,20 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   PendingRequest pending_request;
   pending_request.args = response;
   pending_request.callback = done;
-//  ConnectionId connection_id = 0;
-  ConnectionId connection_id = base::RandomUint32();
-  Controller *controller = static_cast<Controller*>(rpc_controller);
-  controller->set_rpc_id(rpc_message->rpc_id());
-  controller->set_method(method->name());
-  controller->StartRpcTimer();
+  pending_request.controller = static_cast<Controller*>(rpc_controller);
+  pending_request.controller->set_rpc_id(rpc_message->rpc_id());
+  pending_request.controller->set_method(method->name());
+  SocketId socket_id;
+  if (rendezvous_ip_.empty() && rendezvous_port_ == 0) {
+    socket_id = transport_->Send(transport_message, remote_ip_, remote_port_,
+                                 pending_request.controller->timeout());
+  }
+
+  /* else {
+    pending_request.socket_id =
+        transport_->Send(transport_message, remote_ip_, remote_port_,
+                         pending_request->controller->timeout());
+  }*/
 //  if (true/*0 == transport_->ConnectToSend(remote_ip_, remote_port_,
 //      local_ip_, local_port_, rendezvous_ip_, rendezvous_port_, true, &connection_id)*/) {
 //    pending_request.connection_id = connection_id;

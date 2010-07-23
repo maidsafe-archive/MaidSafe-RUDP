@@ -135,7 +135,7 @@ class ChannelManager {
   * @param pending_request structure holding all the information of the request
   * @return True if pending request successfully added, False otherwise
   */
-  bool AddPendingRequest(const RpcId &rpc_id,
+  bool AddPendingRequest(const SocketId &socket_id,
                          PendingRequest pending_request);
   /**
   * Removes a pending request from the list and calls the callback of the
@@ -144,30 +144,30 @@ class ChannelManager {
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool DeletePendingRequest(const RpcId &rpc_id);
+  bool DeletePendingRequest(const SocketId &socket_id);
   /**
   * Removes a pending request from the list.
   * @param rpc_id id of the request
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool CancelPendingRequest(const RpcId &rpc_id);
+  bool CancelPendingRequest(const SocketId &socket_id);
   /**
   * Adds a request to the timer to check when it times out.
   * @param rpc_id id of the request
   * @param timeout time in milliseconds after which the request times out
   */
-  void AddRequestToTimer(const RpcId &rpc_id,
+  void AddRequestToTimer(const SocketId &socket_id,
                          const boost::uint64_t &timeout);
-  /**
-  * Adds a request to a list that holds all request that haven't been
-  * completely sent via the transport.
-  * @param connection_id id of the connection used to send the request
-  * @param rpc_id id of the request
-  * @param timeout milliseconds after which the request times out
-  */
-  void AddTimeOutRequest(const ConnectionId &connection_id,
-                         const RpcId &rpc_id, const int &timeout);
+//  /**
+//  * Adds a request to a list that holds all request that haven't been
+//  * completely sent via the transport.
+//  * @param connection_id id of the connection used to send the request
+//  * @param rpc_id id of the request
+//  * @param timeout milliseconds after which the request times out
+//  */
+//  void AddTimeOutRequest(const ConnectionId &connection_id,
+//                         const RpcId &rpc_id, const int &timeout);
   /**
   * Creates and adds the id of a Channel to a list that holds all the channels
   * using the objet.

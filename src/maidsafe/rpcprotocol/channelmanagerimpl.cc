@@ -119,28 +119,28 @@ void ChannelManagerImpl::RemoveChannelId(const boost::uint32_t &id) {
   delete_channels_cond_.notify_all();
 }
 
-bool ChannelManagerImpl::AddPendingRequest(const RpcId &rpc_id,
+bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
                                            PendingRequest pending_request) {
   if (!is_started_) {
     return false;
   }
   boost::mutex::scoped_lock guard(req_mutex_);
-  pending_requests_[rpc_id] = pending_request;
+  pending_requests_[socket_id] = pending_request;
   return true;
 }
 
-bool ChannelManagerImpl::DeletePendingRequest(const RpcId &rpc_id) {
+bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
-  std::map<RpcId, PendingRequest>::iterator it;
+  std::map<SocketId, PendingRequest>::iterator it;
   req_mutex_.lock();
-  it = pending_requests_.find(rpc_id);
+  it = pending_requests_.find(socket_id);
   if (it == pending_requests_.end()) {
     req_mutex_.unlock();
     return false;
   }
-  ConnectionId connection_id = it->second.connection_id;
+//  ConnectionId connection_id = it->second.connection_id;
   it->second.controller->SetFailed(kCancelled);
   google::protobuf::Closure *callback = it->second.callback;
   pending_requests_.erase(it);
@@ -153,18 +153,18 @@ bool ChannelManagerImpl::DeletePendingRequest(const RpcId &rpc_id) {
   return true;
 }
 
-bool ChannelManagerImpl::CancelPendingRequest(const RpcId &rpc_id) {
+bool ChannelManagerImpl::CancelPendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
-  std::map<RpcId, PendingRequest>::iterator it;
+  std::map<SocketId, PendingRequest>::iterator it;
   req_mutex_.lock();
-  it = pending_requests_.find(rpc_id);
+  it = pending_requests_.find(socket_id);
   if (it == pending_requests_.end()) {
     req_mutex_.unlock();
     return false;
   }
-  ConnectionId connection_id = it->second.connection_id;
+//  ConnectionId connection_id = it->second.connection_id;
   delete it->second.callback;
   pending_requests_.erase(it);
   req_mutex_.unlock();
@@ -175,13 +175,13 @@ bool ChannelManagerImpl::CancelPendingRequest(const RpcId &rpc_id) {
   return true;
 }
 
-void ChannelManagerImpl::AddReqToTimer(const RpcId &rpc_id,
+void ChannelManagerImpl::AddReqToTimer(const SocketId &socket_id,
                                        const boost::uint64_t &timeout) {
   if (!is_started_) {
     return;
   }
   call_later_timer_->AddCallLater(timeout,
-      boost::bind(&ChannelManagerImpl::TimerHandler, this, rpc_id));
+      boost::bind(&ChannelManagerImpl::TimerHandler, this, socket_id));
 }
 
 RpcId ChannelManagerImpl::CreateNewId() {
@@ -202,7 +202,7 @@ void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
   rpcprotocol::RpcMessage decoded_msg = msg;
   std::map<RpcId, PendingRequest>::iterator it;
   req_mutex_.lock();
-  it = pending_requests_.find(decoded_msg.rpc_id());
+//  it = pending_requests_.find(decoded_msg.rpc_id());
   //if (it != pending_requests_.end()) {
   //  if (it->second.args->CopyFrom(decoded_msg.args())) {
   //    boost::uint64_t duration(0);
@@ -287,7 +287,7 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
   //}
 }
 
-void ChannelManagerImpl::TimerHandler(const RpcId &rpc_id) {
+void ChannelManagerImpl::TimerHandler(const SocketId &socket_id) {
   if (!is_started_) {
     return;
   }
@@ -338,7 +338,7 @@ void ChannelManagerImpl::ClearChannels() {
 void ChannelManagerImpl::ClearCallLaters() {
   {
     boost::mutex::scoped_lock guard(req_mutex_);
-    std::map<RpcId, PendingRequest>::iterator it;
+    std::map<SocketId, PendingRequest>::iterator it;
     for (it = pending_requests_.begin(); it != pending_requests_.end(); ++it)
       delete it->second.callback;
     pending_requests_.clear();
@@ -347,7 +347,7 @@ void ChannelManagerImpl::ClearCallLaters() {
 }
 
 void ChannelManagerImpl::RequestSent(const ConnectionId &connection_id,
-    const bool &success) {
+                                     const bool &success) {
   std::map<ConnectionId, PendingTimeOut>::iterator it;
   boost::mutex::scoped_lock guard(pend_timeout_mutex_);
   it = pending_timeouts_.find(connection_id);
@@ -360,30 +360,19 @@ void ChannelManagerImpl::RequestSent(const ConnectionId &connection_id,
   }
 }
 
-void ChannelManagerImpl::AddTimeOutRequest(const ConnectionId &connection_id,
-    const RpcId &rpc_id, const int &timeout) {
-  struct PendingTimeOut timestruct;
-  timestruct.rpc_id = rpc_id;
-  timestruct.timeout = timeout;
-  boost::mutex::scoped_lock guard(pend_timeout_mutex_);
-  pending_timeouts_[connection_id] = timestruct;
-}
+//void ChannelManagerImpl::AddTimeOutRequest(const ConnectionId &connection_id,
+//                                           const SocketId &socket_id,
+//                                           const int &timeout) {
+//  struct PendingTimeOut timestruct;
+//  timestruct.rpc_id = rpc_id;
+//  timestruct.timeout = timeout;
+//  boost::mutex::scoped_lock guard(pend_timeout_mutex_);
+//  pending_timeouts_[connection_id] = timestruct;
+//}
 
 void ChannelManagerImpl::OnlineStatusChanged(const bool&) {
   // TODO(anyone) handle connection loss
 }
-
-// bool ChannelManagerImpl::RegisterNotifiersToTransport() {
-//   if (is_started_) {
-//     return true;  // Everything has already been registered
-//   }
-//    if (transport_->RegisterOnRPCMessage(
-//      boost::bind(&ChannelManagerImpl::MessageArrive, this, _1, _2, _3, _4))) {
-//   return transport_->RegisterOnSend(boost::bind(
-//         &ChannelManagerImpl::RequestSent, this, _1, _2));
-//    }
-//   return false;
-// }
 
 RpcStatsMap ChannelManagerImpl::RpcTimings() {
   boost::mutex::scoped_lock lock(timings_mutex_);
