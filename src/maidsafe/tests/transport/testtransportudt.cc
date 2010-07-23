@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/transportsignals.h"
 #include "maidsafe/transport/transportudt.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
@@ -86,20 +87,28 @@ class MessageHandler {
         message_connection_(),
         server_down_connection_(),
         stats_connection_() {
-    rpc_request_ = transport->ConnectRpcRequestReceived(
+    rpc_request_ = transport->signals().ConnectOnRpcRequestReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
-    rpc_response_ = transport->ConnectRpcResponseReceived(
+    rpc_response_ = transport->signals().ConnectOnRpcResponseReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
-    send_ = transport->ConnectSend(
+    send_ = transport->signals().ConnectOnSend(
         boost::bind(&MessageHandler::OnSend, this, _1, _2));
-    message_connection_ = transport->ConnectMessageReceived(
+    message_connection_ = transport->signals().ConnectOnMessageReceived(
         boost::bind(&MessageHandler::OnMessage, this, _1, _2, _3));
-    server_down_connection_ = transport->ConnectLostManagedEndpoint(
+    server_down_connection_ = transport->signals().ConnectOnLostManagedEndpoint(
         boost::bind(&MessageHandler::OnDeadRendezvousServer, this, _1));
     if (display_stats) {
-      stats_connection_ = transport->ConnectStats(
+      stats_connection_ = transport->signals().ConnectOnStats(
           boost::bind(&MessageHandler::OnStats, this, _1));
     }
+  }
+  ~MessageHandler() {
+    rpc_request_.disconnect();
+    rpc_response_.disconnect();
+    send_.disconnect();
+    message_connection_.disconnect();
+    server_down_connection_.disconnect();
+    stats_connection_.disconnect();
   }
   void OnRPCMessage(const transport::RpcMessage &rpc_message,
                     const transport::SocketId &socket_id) {
@@ -358,8 +367,11 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   rpc_message->SerializeToString(&sent_message);
   transport::IP ip("127.0.0.1");
 //  sent_messages.push_back(sent_message);
-  for (int i =0; i <20 ; ++i) {
+  for (int i =0; i < 20 ; ++i) {
     node[i].Send(transport_message, "127.0.0.1", lp_node4, 0);
   }
-  
+  node4.StopAllListening();
+  for (int i =0; i < 20 ; ++i) {
+    node[i].StopAllListening();
+  }
 }

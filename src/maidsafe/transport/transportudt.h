@@ -150,9 +150,6 @@ class TransportUDT : public Transport {
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
-  TransportCondition Connect(const IP &remote_ip,
-                             const Port &remote_port,
-                             SocketId * udt_socket_id);
   void AcceptConnection(const UdtSocketId &udt_socket_id);
   // General method for sending data
   TransportCondition SendData(const TransportMessage &transport_message,
@@ -177,6 +174,9 @@ class TransportUDT : public Transport {
   bool HandleTransportMessage(const TransportMessage &transport_message,
                               const UdtSocketId &udt_socket_id,
                               const float &rtt);
+  TransportCondition Connect(const IP &remote_ip,
+                             const Port &remote_port,
+                             UdtSocketId *udt_socket_id);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
   // Check a socket can send data (close it otherwise)
