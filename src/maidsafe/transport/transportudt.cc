@@ -201,6 +201,8 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
   freeaddrinfo(peer);
   if (transport_condition != kSuccess)
     return transport_condition;
+  if (ManagedEndpointSockets_.empty())
+    boost::thread(&CheckManagedSockets());
   ManagedEndpointSockets_.push_back(udt_socket_id);
   return udt_socket_id;
 
