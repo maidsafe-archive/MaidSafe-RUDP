@@ -26,55 +26,84 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/base/threadpool.h"
+#include "maidsafe/base/log.h"
 
 namespace base {
 
-ThreadedCallContainer::ThreadedCallContainer(const size_t &thread_count)
-    : running_(true), mutex_(), condition_(), threads_(), functors_() {
-  boost::mutex::scoped_lock lock(mutex_);
-  for (size_t i = 0; i < thread_count; ++i) {
-    threads_.push_back(boost::thread(&ThreadedCallContainer::Run, this));
-  }
+Threadpool::Threadpool(const boost::uint16_t &thread_count)
+    : requested_thread_count_(thread_count),
+      running_thread_count_(0),
+      mutex_(),
+      condition_(),
+      functors_() {
+  Resize(requested_thread_count_);
 }
 
-ThreadedCallContainer::~ThreadedCallContainer() {
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    running_ = false;
+Threadpool::~Threadpool() {
+  Resize(0);
+  boost::mutex::scoped_lock lock(mutex_);
+  while (requested_thread_count_ != running_thread_count_)
+    condition_.wait(lock);
+}
+
+bool Threadpool::Resize(const boost::uint16_t &thread_count) {
+  boost::mutex::scoped_lock lock(mutex_);
+  requested_thread_count_ = thread_count;
+  boost::int32_t difference = requested_thread_count_ - running_thread_count_;
+  if (difference > 0) {
+    for (int i = 0; i < difference; ++i) {
+      try {
+        boost::thread(&Threadpool::Run, this);
+      }
+      catch(const std::exception &e) {
+        DLOG(ERROR) << "Exception resizing threadpool to " <<
+            requested_thread_count_ << " threads: " << e.what() << std::endl;
+        return false;
+      }
+    }
+  } else if (difference < 0) {
     condition_.notify_all();
   }
-  while (threads_.size()) {
-    threads_.back().join();
-    threads_.pop_back();
-  }
+  return true;
 }
 
-void ThreadedCallContainer::Enqueue(const VoidFunctor &functor) {
+void Threadpool::EnqueueTask(const VoidFunctor &functor) {
   boost::mutex::scoped_lock lock(mutex_);
-  if (!running_)
-    return;
   functors_.push(functor);
   condition_.notify_all();
 }
 
-bool ThreadedCallContainer::Continue() {
-  return !running_ || !functors_.empty();
+bool Threadpool::ThreadCountCorrect() {
+  return requested_thread_count_ == running_thread_count_;
 }
 
-void ThreadedCallContainer::Run() {
+bool Threadpool::Continue() {
+  return (requested_thread_count_ < running_thread_count_) ||
+         !functors_.empty();
+}
+
+void Threadpool::Run() {
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    ++running_thread_count_;
+  }
   while (true) {
     boost::mutex::scoped_lock lock(mutex_);
-    condition_.wait(lock,
-                    boost::bind(&ThreadedCallContainer::Continue, this));
-    if (!running_)
+    condition_.wait(lock, boost::bind(&Threadpool::Continue, this));
+    if (requested_thread_count_ < running_thread_count_) {
+      --running_thread_count_;
+      // Notify to destructor
+      if (running_thread_count_ == 0) {
+        condition_.notify_one();
+      }
       return;
-    while (!functors_.empty()) {
+    } else {
       // grab the first functor from the queue, but allow other threads to
       // operate while executing it
-      VoidFunctor f = functors_.front();
+      VoidFunctor functor = functors_.front();
       functors_.pop();
       lock.unlock();
-      f();
+      functor();
       lock.lock();
     }
   }

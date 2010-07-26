@@ -41,7 +41,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-TransportUDT::TransportUDT() : Transport() {
+TransportUDT::TransportUDT() : Transport(),
+                               managed_endpoint_ids_(),
+                               managed_endpoint_sockets_(),
+                               stop_managed_connections_(false),
+                               managed_enpoint_sockets_mutex_(),
+                               listening_threadpool_(0),
+                               general_threadpool_(kDefaultThreadpoolSize) {
   UDT::startup();
 }
 
@@ -107,16 +113,20 @@ Port TransportUDT::StartListening(const IP &ip,
       *transport_condition = kListenError;
     return 0;
   }
-
-  try {
-    boost::thread(&TransportUDT::AcceptConnection, this, listening_socket);
+  size_t listening_ports_size;
+  {
+    boost::mutex::scoped_lock lock(listening_ports_mutex_);
+    listening_ports_size = listening_ports_.size();
   }
-  catch(const boost::thread_resource_error&) {
+  if (!listening_threadpool_.Resize(listening_ports_size + 1)) {
     UDT::close(listening_socket);
     if (transport_condition != NULL)
       *transport_condition = kThreadResourceError;
     return 0;
   }
+  //listening_threadpool_.EnqueueTask(
+  //    boost::bind(&TransportUDT::AcceptConnection, this, listening_socket));
+  boost::thread(&TransportUDT::AcceptConnection, this, listening_socket);
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
   listening_ports_.push_back(listening_port);
   if (transport_condition != NULL)
@@ -129,6 +139,7 @@ bool TransportUDT::StopListening(const Port &port) {
   listening_ports_.erase(
       std::remove(listening_ports_.begin(), listening_ports_.end(), port),
       listening_ports_.end());
+  listening_threadpool_.Resize(listening_ports_.size());
   return true;
 }
 
@@ -197,13 +208,13 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     return kConnectError;
   }
   // Connect a socket
-  TransportCondition transport_condition = Connect(udt_socket_id, *peer);
+  TransportCondition transport_condition = Connect(udt_socket_id, peer);
   freeaddrinfo(peer);
   if (transport_condition != kSuccess)
     return transport_condition;
-  if (ManagedEndpointSockets_.empty())
+  if (managed_endpoint_sockets_.empty())
     boost::thread(&CheckManagedSockets());
-  ManagedEndpointSockets_.push_back(udt_socket_id);
+  managed_endpoint_sockets_.push_back(udt_socket_id);
   return udt_socket_id;
 
 }
@@ -213,10 +224,10 @@ bool TransportUDT::RemoveManagedEndpoint(
   if (0 == UDT::close(managed_endpoint_id)) {
     std::vector<ManagedEndpointId>::iterator endpoint_iterator;
     endpoint_iterator =
-      std::find(ManagedEndpointSockets_.begin(), ManagedEndpointSockets_.end(),
+      std::find(managed_endpoint_sockets_.begin(), managed_endpoint_sockets_.end(),
            managed_endpoint_id);
-      if (endpoint_iterator != ManagedEndpointSockets_.end())
-        ManagedEndpointSockets_.erase(endpoint_iterator);
+      if (endpoint_iterator != managed_endpoint_sockets_.end())
+        managed_endpoint_sockets_.erase(endpoint_iterator);
     return true;
   } else {
     return false;
@@ -250,21 +261,21 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
           UDT::getlasterror().getErrorMessage() << std::endl;
       return;
     }
-      boost::thread(&TransportUDT::ReceiveData, this, receiver_socket_id, -1);
+    boost::thread(&TransportUDT::ReceiveData, this, receiver_socket_id, -1);
   }
 }
-
 
 void TransportUDT::ConnectThenSend(
     const TransportMessage &transport_message,
     const UdtSocketId &udt_socket_id,
     const int &send_timeout,
     const int &receive_timeout,
-    addrinfo *peer) {
-  TransportCondition transport_condition = Connect(udt_socket_id, *peer);
+    struct addrinfo *peer) {
+  TransportCondition transport_condition = Connect(udt_socket_id, peer);
   freeaddrinfo(peer);
   if (transport_condition != kSuccess) {
     signals_.on_send_(udt_socket_id, kSendUdtFailure);
+    return;
   }
   SendData(transport_message, udt_socket_id, send_timeout, receive_timeout);
 }
@@ -283,6 +294,7 @@ void TransportUDT::SendData(const TransportMessage &transport_message,
   TransportCondition result = SendDataSize(transport_message, udt_socket_id);
   if (result != kSuccess) {
     signals_.on_send_(udt_socket_id, result);
+    UDT::close(udt_socket_id);
     return;
   }
 
@@ -291,8 +303,10 @@ void TransportUDT::SendData(const TransportMessage &transport_message,
                                                      UdtStats::kSend));
   result = SendDataContent(transport_message, udt_socket_id);
   signals_.on_send_(udt_socket_id, result);
-  if (result != kSuccess)
+  if (result != kSuccess) {
+    UDT::close(udt_socket_id);
     return;
+  }
 
   // Get stats
   if (UDT::ERROR == UDT::perfmon(udt_socket_id,
@@ -319,8 +333,6 @@ TransportCondition TransportUDT::SendDataSize(
   if (data_size != transport_message.ByteSize()) {
     LOG(INFO) << "TransportUDT::SendDataSize: data > max buffer size." <<
         std::endl;
-    signals_.on_send_(udt_socket_id, kSendUdtFailure);
-    UDT::close(udt_socket_id);
     return kSendUdtFailure;
   }
   DataSize data_buffer_size = sizeof(DataSize);
@@ -328,16 +340,12 @@ TransportCondition TransportUDT::SendDataSize(
   int sent_count;
   if (UDT::ERROR == (sent_count = UDT::send(udt_socket_id,
       reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
-    DLOG(ERROR) << "Cannot send data size: " <<
+    DLOG(ERROR) << "Cannot send data size to " << udt_socket_id << ": " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
-    signals_.on_send_(udt_socket_id, kSendUdtFailure);
-    UDT::close(udt_socket_id);
     return kSendUdtFailure;
   } else if (sent_count != data_buffer_size) {
     LOG(INFO) << "Sending socket " << udt_socket_id << " timed out" <<
         std::endl;
-    signals_.on_send_(udt_socket_id, kSendTimeout);
-    UDT::close(udt_socket_id);
     return kSendTimeout;
   }
   return kSuccess;
@@ -353,8 +361,6 @@ TransportCondition TransportUDT::SendDataContent(
                                           data_size)) {
     DLOG(ERROR) << "TransportUDT::SendDataContent: failed to serialise." <<
         std::endl;
-    signals_.on_send_(udt_socket_id, kInvalidData);
-    UDT::close(udt_socket_id);
     return kInvalidData;
   }
   DataSize sent_total = 0;
@@ -364,14 +370,10 @@ TransportCondition TransportUDT::SendDataContent(
         serialised_message.get() + sent_total, data_size - sent_total, 0))) {
       LOG(ERROR) << "Send: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
-      signals_.on_send_(udt_socket_id, kSendUdtFailure);
-      UDT::close(udt_socket_id);
       return kSendUdtFailure;
     } else if (sent_size == 0) {
       LOG(INFO) << "Sending socket " << udt_socket_id << " timed out" <<
           std::endl;
-      signals_.on_send_(udt_socket_id, kSendTimeout);
-      UDT::close(udt_socket_id);
       return kSendTimeout;
     }
     sent_total += sent_size;
@@ -540,7 +542,7 @@ bool TransportUDT::HandleTransportMessage(
 TransportCondition TransportUDT::CheckEndpoint(const IP &remote_ip,
                                                const Port &remote_port,
                                                UdtSocketId *udt_socket_id,
-                                               addrinfo **peer) {
+                                               struct addrinfo **peer) {
   if (udt_socket_id == NULL)
     return kConnectError;
 
@@ -568,9 +570,9 @@ TransportCondition TransportUDT::CheckEndpoint(const IP &remote_ip,
 }
 
 TransportCondition TransportUDT::Connect(const UdtSocketId &udt_socket_id,
-                                         const addrinfo &peer) {
-  if (UDT::ERROR == UDT::connect(udt_socket_id, peer.ai_addr,
-                                 peer.ai_addrlen)) {
+                                         const struct addrinfo *peer) {
+  if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
+                                 peer->ai_addrlen)) {
     DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
         std::endl;
     UDT::close(udt_socket_id);
@@ -716,18 +718,18 @@ void TransportUDT::CheckManagedSockets() {
     {
     boost::mutex::scoped_lock lock(managed_enpoint_sockets_mutex_);
     if (stop_managed_connections_)  {
-      if (ManagedEndpointSockets_.empty())
+      if (managed_endpoint_sockets_.empty())
         break;
-      for(socket_iterator = ManagedEndpointSockets_.begin();
-      socket_iterator < ManagedEndpointSockets_.end();
+      for(socket_iterator = managed_endpoint_sockets_.begin();
+      socket_iterator < managed_endpoint_sockets_.end();
       ++socket_iterator) {
         UDT::close(*socket_iterator);
-        ManagedEndpointSockets_.erase(socket_iterator);
+        managed_endpoint_sockets_.erase(socket_iterator);
       }
       break;
     }
 
-    UDT::selectEx(ManagedEndpointSockets_,
+    UDT::selectEx(managed_endpoint_sockets_,
                            NULL, NULL, &sockets_bad,
                            1000);
     if (!sockets_bad.empty()) {

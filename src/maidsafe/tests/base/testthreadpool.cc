@@ -25,6 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <boost/lexical_cast.hpp>
 #include <boost/thread/mutex.hpp>
 #include <gtest/gtest.h>
 
@@ -37,45 +38,181 @@ namespace test {
 
 class Work {
  public:
-  Work() {}
-  ~Work() {}
-  void DoJob(const int &job_id) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(
-        base::RandomUint32() % 100));
-    boost::mutex::scoped_lock lock(completed_jobs_mutex_);
-    completed_jobs_.push_back(job_id);
+  Work(const boost::uint8_t &min_task_sleep,
+       const boost::uint8_t &max_task_sleep)
+      : min_task_sleep_(min_task_sleep),
+        max_task_sleep_(max_task_sleep),
+        task_sleep_difference_(max_task_sleep - min_task_sleep + 1),
+        completed_tasks_(),
+        completed_tasks_mutex_() {
+    if (min_task_sleep_ > max_task_sleep_) {
+      min_task_sleep_ = 10;
+      max_task_sleep_ = 90;
+      task_sleep_difference_ = 81;
+    }
   }
-  std::vector<int> completed_jobs() const { return completed_jobs_; }
+  ~Work() {}
+  void DoTask(const int &task_id) {
+    if (task_sleep_difference_ == 1) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(
+          min_task_sleep_));
+    } else {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(
+          (base::RandomUint32() % task_sleep_difference_) + min_task_sleep_));
+    }
+    boost::mutex::scoped_lock lock(completed_tasks_mutex_);
+    completed_tasks_.push_back(task_id);
+  }
+  std::vector<int> completed_tasks() {
+    boost::mutex::scoped_lock lock(completed_tasks_mutex_);
+    return completed_tasks_;
+  }
  private:
   Work(const Work&);
   Work& operator=(const Work&);
-  std::vector<int> completed_jobs_;
-  boost::mutex completed_jobs_mutex_;
+  boost::uint8_t min_task_sleep_, max_task_sleep_, task_sleep_difference_;
+  std::vector<int> completed_tasks_;
+  boost::mutex completed_tasks_mutex_;
 };
 
 class ThreadpoolTest : public testing::Test {
  protected:
-  ThreadpoolTest() : work_() {}
+  ThreadpoolTest() : kMaxTaskDuration_(110),
+                     kMinTaskDuration_(10),
+                     work_(kMinTaskDuration_, kMaxTaskDuration_ - 10) {}
   virtual ~ThreadpoolTest() {}
   virtual void SetUp() {}
   virtual void TearDown() {}
+  void Sleep(const boost::uint32_t &duration) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(duration));
+  }
   Work work_;
+  const boost::uint8_t kMinTaskDuration_, kMaxTaskDuration_;
  private:
   ThreadpoolTest(const ThreadpoolTest&);
   ThreadpoolTest& operator=(const ThreadpoolTest&);
 };
 
-TEST_F(ThreadpoolTest, BEH_BASE_AddSingleTask) {
+TEST_F(ThreadpoolTest, BEH_BASE_ThreadpoolSingleTask) {
   const size_t kThreadCount(10);
-  {
-    ThreadedCallContainer threadpool(kThreadCount);
-    ASSERT_EQ(kThreadCount, threadpool.threads_.size());
-    ASSERT_TRUE(threadpool.functors_.empty());
-    ASSERT_TRUE(work_.completed_jobs().empty());
-    threadpool.Enqueue(boost::bind(&Work::DoJob, &work_, 999));
+  Threadpool threadpool(kThreadCount);
+  boost::uint16_t timeout_count(0);
+  while (!threadpool.ThreadCountCorrect() &&
+         timeout_count < 2 * kMaxTaskDuration_) {
+    Sleep(5);
+    timeout_count += 5;
   }
-  boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-  ASSERT_EQ(1U, work_.completed_jobs().size());
+  ASSERT_TRUE(threadpool.ThreadCountCorrect());
+  ASSERT_EQ(kThreadCount, threadpool.running_thread_count_);
+  ASSERT_TRUE(threadpool.functors_.empty());
+  ASSERT_TRUE(work_.completed_tasks().empty());
+  threadpool.EnqueueTask(boost::bind(&Work::DoTask, &work_, 999));
+  timeout_count = 0;
+  while (work_.completed_tasks().empty() &&
+         timeout_count < 2 * kMaxTaskDuration_) {
+    Sleep(5);
+    timeout_count += 5;
+  }
+  ASSERT_EQ(size_t(1), work_.completed_tasks().size());
+  ASSERT_EQ(kThreadCount, threadpool.running_thread_count_);
+}
+
+TEST_F(ThreadpoolTest, BEH_BASE_ThreadpoolMultipleTasks) {
+  const size_t kThreadCount(10);
+  const size_t kTaskCount(1000);
+  std::vector<int> enqueued_tasks;
+  enqueued_tasks.reserve(kTaskCount);
+  {
+    Threadpool threadpool(kThreadCount);
+    ASSERT_TRUE(threadpool.functors_.empty());
+    ASSERT_TRUE(work_.completed_tasks().empty());
+    for (size_t i = 0; i < kTaskCount; ++i) {
+      threadpool.EnqueueTask(boost::bind(&Work::DoTask, &work_, i));
+      enqueued_tasks.push_back(i);
+    }
+    size_t timeout_count(0);
+    while (work_.completed_tasks().size() < kTaskCount &&
+           timeout_count < (2 * kMaxTaskDuration_ * kTaskCount)) {
+      Sleep(20);
+      timeout_count += 20;
+    }
+    ASSERT_EQ(kTaskCount, work_.completed_tasks().size());
+    ASSERT_EQ(kThreadCount, threadpool.running_thread_count_);
+  }
+  ASSERT_EQ(kTaskCount, work_.completed_tasks().size());
+  std::vector<int> completed_tasks(work_.completed_tasks());
+  ASSERT_FALSE(std::equal(enqueued_tasks.begin(), enqueued_tasks.end(),
+                          completed_tasks.begin()));
+  std::sort(completed_tasks.begin(), completed_tasks.end());
+  ASSERT_TRUE(std::equal(enqueued_tasks.begin(), enqueued_tasks.end(),
+                         completed_tasks.begin()));
+}
+
+TEST_F(ThreadpoolTest, BEH_BASE_ThreadpoolResize) {
+  const size_t kMaxTestThreadCount(20);
+  size_t thread_count((base::RandomUint32() % kMaxTestThreadCount) + 1);
+  Threadpool threadpool(thread_count);
+  ASSERT_EQ(thread_count, threadpool.requested_thread_count_);
+  const boost::uint16_t kTimeout(10000);
+  boost::uint16_t timeout_count(0);
+  while (!threadpool.ThreadCountCorrect() && timeout_count < kTimeout) {
+    Sleep(5);
+    timeout_count += 5;
+  }
+  ASSERT_TRUE(threadpool.ThreadCountCorrect());
+  ASSERT_EQ(thread_count, threadpool.running_thread_count_);
+
+  // Enqueue many lengthy tasks
+  boost::uint8_t task_duration(255);
+  Work work(task_duration, task_duration);
+  const size_t kTaskCount(10000);
+  for (size_t i = 0; i < kTaskCount; ++i)
+    threadpool.EnqueueTask(boost::bind(&Work::DoTask, &work, i));
+
+  // Repeatedly resize to size - 1 until 0 threads.
+  while (true) {
+    --thread_count;
+    SCOPED_TRACE("Resizing to " +
+                 boost::lexical_cast<std::string>(thread_count));
+    ASSERT_TRUE(threadpool.Resize(thread_count));
+    ASSERT_EQ(thread_count, threadpool.requested_thread_count_);
+    timeout_count = 0;
+    while (!threadpool.ThreadCountCorrect() && timeout_count < kTimeout) {
+      Sleep(5);
+      timeout_count += 5;
+    }
+    ASSERT_TRUE(threadpool.ThreadCountCorrect());
+    ASSERT_EQ(thread_count, threadpool.running_thread_count_);
+    if (thread_count == 0)
+      break;
+  }
+
+  // Check that not all tasks have been completed
+  size_t tasks_completed = work.completed_tasks().size();
+  ASSERT_LT(tasks_completed, kTaskCount);
+  Sleep(task_duration * 2);
+  // Check that no more tasks have been completed
+  ASSERT_EQ(tasks_completed, work.completed_tasks().size());
+
+  // Resize to max for test
+  ASSERT_TRUE(threadpool.Resize(kMaxTestThreadCount));
+  ASSERT_EQ(kMaxTestThreadCount, threadpool.requested_thread_count_);
+  timeout_count = 0;
+  while (!threadpool.ThreadCountCorrect() && timeout_count < kTimeout) {
+    Sleep(5);
+    timeout_count += 5;
+  }
+  ASSERT_TRUE(threadpool.ThreadCountCorrect());
+  ASSERT_EQ(kMaxTestThreadCount, threadpool.running_thread_count_);
+
+  // Check that some more tasks have been completed
+  Sleep(task_duration * 2);
+  ASSERT_LT(tasks_completed, work.completed_tasks().size());
+
+  bool thread_resources_ok(true);
+  boost::uint64_t exceed_system_resource_count(kMaxTestThreadCount);
+  while (thread_resources_ok)
+    thread_resources_ok = threadpool.Resize(++exceed_system_resource_count);
 }
 
 }  // namespace test

@@ -44,25 +44,32 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace base {
 
 namespace test {
-class ThreadpoolTest_BEH_BASE_AddSingleTask_Test;
+class ThreadpoolTest_BEH_BASE_ThreadpoolSingleTask_Test;
+class ThreadpoolTest_BEH_BASE_ThreadpoolMultipleTasks_Test;
+class ThreadpoolTest_BEH_BASE_ThreadpoolResize_Test;
 }  // namespace test
 
-class ThreadedCallContainer {
+class Threadpool {
  public:
   typedef boost::function<void()> VoidFunctor;
-  explicit ThreadedCallContainer(const size_t &thread_count);
-  ~ThreadedCallContainer();
-  void Enqueue(const VoidFunctor &functor);
-  friend class test::ThreadpoolTest_BEH_BASE_AddSingleTask_Test;
+  explicit Threadpool(const boost::uint16_t &thread_count);
+  // Resizes to 0 (doesn't complete tasks not already started)
+  ~Threadpool();
+  // Returns false if a thread resource error is thrown
+  bool Resize(const boost::uint16_t &thread_count);
+  void EnqueueTask(const VoidFunctor &functor);
+  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolSingleTask_Test;
+  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolMultipleTasks_Test;
+  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolResize_Test;
  private:
-  ThreadedCallContainer(const ThreadedCallContainer&);
-  ThreadedCallContainer &operator=(const ThreadedCallContainer&);
+  Threadpool(const Threadpool&);
+  Threadpool &operator=(const Threadpool&);
   void Run();
+  bool ThreadCountCorrect();
   bool Continue();
-  volatile bool running_;
+  boost::uint16_t requested_thread_count_, running_thread_count_;
   boost::mutex mutex_;
   boost::condition_variable condition_;
-  std::vector<boost::thread> threads_;
   std::queue<VoidFunctor> functors_;
 };
 

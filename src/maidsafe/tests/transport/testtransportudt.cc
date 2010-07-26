@@ -47,19 +47,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/network_interface.h"
 
 
+namespace transport {
+
+namespace test {
+
 class TransportNode {
  public:
-  TransportNode(transport::TransportUDT *transport)
+  TransportNode(TransportUDT *transport)
       : transport_(transport),
         successful_conn_(0),
         refused_conn_(0) {}
-  transport::TransportUDT *transportUDT() { return transport_; }
+  TransportUDT *transportUDT() { return transport_; }
   int successful_conn() { return successful_conn_; }
   int refused_conn() { return refused_conn_; }
   void IncreaseSuccessfulConn() { ++successful_conn_; }
   void IncreaseRefusedConn() { ++refused_conn_; }
  private:
-  transport::TransportUDT *transport_;
+  TransportUDT *transport_;
   int successful_conn_, refused_conn_;
 
 };
@@ -67,8 +71,7 @@ class TransportNode {
 
 class MessageHandler {
  public:
-  MessageHandler(transport::TransportUDT *transport,
-                 bool display_stats)
+  MessageHandler(TransportUDT *transport, bool display_stats)
       : messages_(),
         raw_messages_(),
         target_message_(),
@@ -111,7 +114,7 @@ class MessageHandler {
     stats_connection_.disconnect();
   }
   void OnRPCMessage(const rpcprotocol::RpcMessage &rpc_message,
-                    const transport::SocketId &socket_id) {
+                    const SocketId &socket_id) {
     std::string message;
     rpc_message.SerializeToString(&message);
     ++messages_received_;
@@ -121,8 +124,8 @@ class MessageHandler {
       messages_.push_back(message);
       ids_.push_back(socket_id);
     }
-//    transport::TransportMessage transport_message;
-//    transport_message.set_type(transport::TransportMessage::kResponse);
+//    TransportMessage transport_message;
+//    transport_message.set_type(TransportMessage::kResponse);
 //    rpcprotocol::RpcMessage *rpc_reply =
 //        transport_message.mutable_data()->mutable_rpc_message();
 //    rpc_reply->set_rpc_id(2000);
@@ -136,26 +139,27 @@ class MessageHandler {
 //    transport_->SendResponse(transport_message, socket_id);
   }
   void OnMessage(const std::string &message,
-                 const transport::SocketId &socket_id,
+                 const SocketId &socket_id,
                  const float&) {
     raw_messages_.push_back(message);
     raw_ids_.push_back(socket_id);
   }
   void OnDeadRendezvousServer(
-      const transport::ManagedEndpointId &/*managed_endpoint_id*/) {
+      const ManagedEndpointId &/*managed_endpoint_id*/) {
     dead_server_ = true;
   }
-  void OnSend(const transport::SocketId&,
-              const transport::TransportCondition &result) {
-    if (result == transport::kSuccess)
+  void OnSend(const SocketId &socket_id,
+              const TransportCondition &result) {
+    std::cout << "Socket ID " << socket_id << " send result: " << result << std::endl;
+    if (result == kSuccess)
       ++messages_sent_;
     else
       ++messages_unsent_;
   }
-  void OnStats(boost::shared_ptr<transport::SocketPerformanceStats> stats) {
-    boost::shared_ptr<transport::UdtStats> udt_stats =
-        boost::static_pointer_cast<transport::UdtStats>(stats);
-    if (udt_stats->udt_socket_type_ == transport::UdtStats::kSend) {
+  void OnStats(boost::shared_ptr<SocketPerformanceStats> stats) {
+    boost::shared_ptr<UdtStats> udt_stats =
+        boost::static_pointer_cast<UdtStats>(stats);
+    if (udt_stats->udt_socket_type_ == UdtStats::kSend) {
       DLOG(INFO) << "\tSocket ID:         " << udt_stats->udt_socket_id_ <<
           std::endl;
       DLOG(INFO) << "\tRTT:               " <<
@@ -227,9 +231,9 @@ class MessageHandler {
   }
   std::list<std::string> messages_, raw_messages_;
   std::string target_message_;
-  std::list<transport::SocketId> ids_, raw_ids_;
+  std::list<SocketId> ids_, raw_ids_;
   bool dead_server_;
-  transport::TransportUDT *transport_;
+  TransportUDT *transport_;
   int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
  private:
@@ -243,21 +247,21 @@ class MessageHandler {
 };
 
 
-class TransportTest: public testing::Test {
+class TransportUdtTest: public testing::Test {
  protected:
-  virtual ~TransportTest() {
+  virtual ~TransportUdtTest() {
   //  UDT::cleanup();
   }
 };
 
 
-TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
-  boost::uint16_t num_listening_ports = 10;
-  transport::TransportUDT node;
+TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
+  boost::uint16_t num_listening_ports = 12;
+  TransportUDT node;
   MessageHandler message_handler1(&node, false);
-  transport::Port lp_node[100];
-  transport::TransportMessage transport_message;
-  transport_message.set_type(transport::TransportMessage::kRequest);
+  Port lp_node[100];
+  TransportMessage transport_message;
+  transport_message.set_type(TransportMessage::kRequest);
   rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(2000);
@@ -269,15 +273,15 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
   request->set_ping(args);
   std::string sent_message;
   rpc_message->SerializeToString(&sent_message);
-  transport::IP ip("127.0.0.1");
-  EXPECT_FALSE(transport::ValidPort(0));
-  EXPECT_FALSE(transport::ValidPort(1));
-  EXPECT_FALSE(transport::ValidPort(4999));
-  EXPECT_FALSE(transport::ValidPort(5000));
-  EXPECT_TRUE(transport::ValidPort(5001));
+  IP ip("127.0.0.1");
+  EXPECT_FALSE(ValidPort(0));
+  EXPECT_FALSE(ValidPort(1));
+  EXPECT_FALSE(ValidPort(4999));
+  EXPECT_FALSE(ValidPort(5000));
+  EXPECT_TRUE(ValidPort(5001));
   for (int i = 0; i < num_listening_ports ; ++i) {
     lp_node[i] = node.StartListening("", 0, NULL);
-    EXPECT_TRUE(transport::ValidPort(lp_node[i]));
+    EXPECT_TRUE(ValidPort(lp_node[i]));
     node.Send(transport_message, ip, lp_node[i], 0);
   }
   EXPECT_EQ(num_listening_ports, node.listening_ports().size());
@@ -295,65 +299,65 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
   EXPECT_TRUE(node.StopAllListening());
 }
 
-// TEST_F(TransportTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
-//   const std::string args = base::RandomString(256 * 1024);
-//   const size_t kRepeats = 1;
-//   transport::TransportUDT node1_transudt, node2_transudt;
-//   MessageHandler message_handler1(&node1_transudt, false);
-//   MessageHandler message_handler2(&node2_transudt, false);
-//   transport::Port lp_node1 = node1_transudt.StartListening("", 0, NULL);
-//   transport::Port lp_node2 = node2_transudt.StartListening("", 0, NULL);
-//   EXPECT_TRUE(transport::ValidPort(lp_node1));
-//   EXPECT_TRUE(transport::ValidPort(lp_node2));
-//   transport::TransportMessage transport_message;
-//   transport_message.set_type(transport::TransportMessage::kRequest);
-//   rpcprotocol::RpcMessage *rpc_message =
-//       transport_message.mutable_data()->mutable_rpc_message();
-//   rpc_message->set_rpc_id(2000);
-//   rpc_message->set_method("Test");
-//   rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
-//   kad::NatDetectionPingRequest *request = payload->MutableExtension(
-//       kad::NatDetectionPingRequest::nat_detection_ping_request);
-//   request->set_ping(args);
-//   std::string sent_message;
-//   rpc_message->SerializeToString(&sent_message);
-//   transport::IP ip("127.0.0.1");
-//
-//   for (size_t i = 0; i < kRepeats; ++i) {
-//     node1_transudt.Send(transport_message, ip, lp_node2, 6000);
-//   }
-//
-//   node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK);
-//   const int kTimeout(10000);
-//   int count(0);
-//   while (count < kTimeout && message_handler1.messages_unsent_ == 0) {
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-//     count += 10;
-//   }
-//   EXPECT_EQ(1, message_handler1.messages_unsent_);
-//
-//   count = 0;
-//   while (count < kTimeout && message_handler2.messages_.size() < kRepeats) {
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-//     count += 10;
-//   }
-//   node1_transudt.StopAllListening();
-//   node2_transudt.StopAllListening();
-//   for (size_t i = 0; i < kRepeats; ++i) {
-//     EXPECT_EQ(sent_message, message_handler2.messages_.front());
-//     message_handler2.messages_.pop_front();
-//   }
-//   EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent_);
-//                        //boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
-// }
-/*
-TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
-  transport::TransportUDT node4;
-  transport::TransportUDT node[20];
+TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
+  const std::string args = base::RandomString(256 * 1024);
+  const size_t kRepeats = 1;
+  TransportUDT node1_transudt, node2_transudt;
+  MessageHandler message_handler1(&node1_transudt, false);
+  MessageHandler message_handler2(&node2_transudt, false);
+  Port lp_node1 = node1_transudt.StartListening("", 0, NULL);
+  Port lp_node2 = node2_transudt.StartListening("", 0, NULL);
+  EXPECT_TRUE(ValidPort(lp_node1));
+  EXPECT_TRUE(ValidPort(lp_node2));
+  TransportMessage transport_message;
+  transport_message.set_type(TransportMessage::kRequest);
+  rpcprotocol::RpcMessage *rpc_message =
+      transport_message.mutable_data()->mutable_rpc_message();
+  rpc_message->set_rpc_id(2000);
+  rpc_message->set_method("Test");
+  rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
+  kad::NatDetectionPingRequest *request = payload->MutableExtension(
+      kad::NatDetectionPingRequest::nat_detection_ping_request);
+  request->set_ping(args);
+  std::string sent_message;
+  rpc_message->SerializeToString(&sent_message);
+  IP ip("127.0.0.1");
+
+  for (size_t i = 0; i < kRepeats; ++i) {
+    node1_transudt.Send(transport_message, ip, lp_node2, 6000);
+  }
+
+  node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK);
+  const int kTimeout(10000);
+  int count(0);
+  while (count < kTimeout && message_handler1.messages_unsent_ == 0) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(1, message_handler1.messages_unsent_);
+
+  count = 0;
+  while (count < kTimeout && message_handler2.messages_.size() < kRepeats) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  node1_transudt.StopAllListening();
+  node2_transudt.StopAllListening();
+  for (size_t i = 0; i < kRepeats; ++i) {
+    EXPECT_EQ(sent_message, message_handler2.messages_.front());
+    message_handler2.messages_.pop_front();
+  }
+  EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent_);
+                      //boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+}
+
+TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
+  TransportUDT node4;
+  TransportUDT node[20];
   MessageHandler message_handler4(&node4, false);
-  transport::Port lp_node4 = node4.StartListening("", 0, NULL);
-  transport::TransportMessage transport_message;
-  transport_message.set_type(transport::TransportMessage::kRequest);
+  Port lp_node4 = node4.StartListening("", 0, NULL);
+  TransportMessage transport_message;
+  transport_message.set_type(TransportMessage::kRequest);
   rpcprotocol::RpcMessage *rpc_message =
   transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(2000);
@@ -365,7 +369,7 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   request->set_ping(args);
   std::string sent_message;
   rpc_message->SerializeToString(&sent_message);
-  transport::IP ip("127.0.0.1");
+  IP ip("127.0.0.1");
 //  sent_messages.push_back(sent_message);
   for (int i =0; i < 20 ; ++i) {
     node[i].Send(transport_message, "127.0.0.1", lp_node4, 0);
@@ -374,35 +378,35 @@ TEST_F(TransportTest, BEH_TRANS_SendMessagesFromManyToOne) {
   for (int i =0; i < 20 ; ++i) {
     node[i].StopAllListening();
   }
-}*/
+}
 
-namespace transport { // to access friends
-TEST_F(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints) {
-  transport::TransportUDT node1, node2, node3, node4, node5;
-  transport::Port node1_port = node1.StartListening("", 0, NULL);
-  transport::Port node2_port = node2.StartListening("", 0, NULL);
-  transport::Port node3_port = node3.StartListening("", 0, NULL);
-  transport::Port node4_port = node4.StartListening("", 0, NULL);
-  transport::Port node5_port = node5.StartListening("", 0, NULL);
-  transport::ManagedEndpointId node1_end1 =
+TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
+  TransportUDT node1, node2, node3, node4, node5;
+  Port node1_port = node1.StartListening("", 0, NULL);
+  Port node2_port = node2.StartListening("", 0, NULL);
+  Port node3_port = node3.StartListening("", 0, NULL);
+  Port node4_port = node4.StartListening("", 0, NULL);
+  Port node5_port = node5.StartListening("", 0, NULL);
+  ManagedEndpointId node1_end1 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(1, node1.ManagedEndpointSockets_.size());
-  transport::ManagedEndpointId node1_end2 =
+  EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
+  ManagedEndpointId node1_end2 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(2, node1.ManagedEndpointSockets_.size());
+  EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
-  EXPECT_EQ(1, node1.ManagedEndpointSockets_.size());
+  EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   node1_end2 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(2, node1.ManagedEndpointSockets_.size());
-  transport::ManagedEndpointId node1_end3 =
+  EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
+  ManagedEndpointId node1_end3 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(3, node1.ManagedEndpointSockets_.size());
-  transport::ManagedEndpointId node1_end4 =
+  EXPECT_EQ(3, node1.managed_endpoint_sockets_.size());
+  ManagedEndpointId node1_end4 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(4, node1.ManagedEndpointSockets_.size());
+  EXPECT_EQ(4, node1.managed_endpoint_sockets_.size());
   EXPECT_TRUE(node1.CheckSocketAlive(node1_end1));
 }
-}
 
+}  // namespace test
 
+}  // namespace transport

@@ -63,7 +63,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/detail/atomic_count.hpp>
-#include <gtest/gtest_prod.h>
+#include <maidsafe/base/threadpool.h>
 #include <maidsafe/transport/transport.h>
 #include <list>
 #include <map>
@@ -80,9 +80,14 @@ namespace transport {
 class HolePunchingMessage;
 // struct IncomingMessages;
 
+namespace test {
+class TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
+}  // namespace test
+
 typedef int UdtSocketId;
 
 const int kDefaultSendTimeout(10000);  // milliseconds
+const boost::uint16_t kDefaultThreadpoolSize(10);
 
 struct UdtStats : public SocketPerformanceStats {
  public:
@@ -148,7 +153,8 @@ class TransportUDT : public Transport {
       const boost::uint16_t &retry_frequency);
   bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
-   private:
+  friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
+ private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
   enum SocketCheckType { kSend, kReceive, kAlive };
@@ -158,7 +164,7 @@ class TransportUDT : public Transport {
                        const UdtSocketId &udt_socket_id,
                        const int &send_timeout,
                        const int &receive_timeout,
-                       addrinfo *peer);
+                       struct addrinfo *peer);
   // General method for sending data once connection made
   void SendData(const TransportMessage &transport_message,
                 const UdtSocketId &udt_socket_id,
@@ -185,9 +191,9 @@ class TransportUDT : public Transport {
   TransportCondition CheckEndpoint(const IP &remote_ip,
                                    const Port &remote_port,
                                    UdtSocketId *udt_socket_id,
-                                   addrinfo **peer);
+                                   struct addrinfo **peer);
   TransportCondition Connect(const UdtSocketId &udt_socket_id,
-                             const addrinfo &peer);
+                             const struct addrinfo *peer);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
   // Check a socket can send data (close it otherwise)
@@ -201,11 +207,12 @@ class TransportUDT : public Transport {
                    const SocketCheckType &socket_check_type);
   void CheckManagedSockets();
   void StopManagedConnections() { stop_managed_connections_ = true; }
-  std::vector<SocketId> ManagedEndpointIds_;
-  std::vector<SocketId> ManagedEndpointSockets_;
+  std::vector<UdtSocketId> managed_endpoint_ids_;
+  std::vector<UdtSocketId> managed_endpoint_sockets_;
   volatile bool stop_managed_connections_;
   boost::mutex managed_enpoint_sockets_mutex_;
-  FRIEND_TEST(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints);
+  base::Threadpool listening_threadpool_;
+  base::Threadpool general_threadpool_;
 
 //  TransportType transport_type_;
 //  IP rendezvous_ip_;
