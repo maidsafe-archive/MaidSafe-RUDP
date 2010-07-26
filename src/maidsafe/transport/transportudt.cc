@@ -689,34 +689,21 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id,
   std::vector<UdtSocketId> socket_to_check(1, udt_socket_id);
   std::vector<UdtSocketId> sockets_ready;
   int result;
+
   if (socket_check_type == kSend) {
     result = UDT::selectEx(socket_to_check, NULL, &sockets_ready, NULL, 1000);
+    if (result != UDT::ERROR)
+      return sockets_ready.empty();
   } else if (socket_check_type == kReceive) {
     result = UDT::selectEx(socket_to_check, &sockets_ready, NULL, NULL, 1000);
+    if (result != UDT::ERROR)
+      return sockets_ready.empty();
   } else if (socket_check_type == kAlive) {
     result = UDT::selectEx(socket_to_check, NULL, NULL, &sockets_ready, 1000);
     if (result != UDT::ERROR)
       return sockets_ready.empty();
-    else
-      return false;
-  } else {
-    return false;
   }
-
-   if (result == UDT::ERROR) {
-    LOG(ERROR) << "Error checking socket." <<
-          UDT::getlasterror().getErrorMessage() << std::endl;
-    UDT::close(udt_socket_id);
     return false;
-  }
-  std::string message = (send ? " to send." : " to receive.");
-  if (sockets_ready.empty()) {
-    LOG(INFO) << "Cannot use socket " << udt_socket_id << message << std::endl;
-    //UDT::close(udt_socket_id);
-    return false;
-  } else {
-    return true;
-  }
 }
 
 
