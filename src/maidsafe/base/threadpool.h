@@ -59,7 +59,7 @@ class ThreadedCallContainer {
   ThreadedCallContainer &operator=(const ThreadedCallContainer&);
   void Run();
   bool Continue();
-  bool running_;
+  volatile bool running_;
   boost::mutex mutex_;
   boost::condition_variable condition_;
   std::vector<boost::thread> threads_;

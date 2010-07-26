@@ -202,17 +202,35 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
   freeaddrinfo(peer);
   if (transport_condition != kSuccess)
     return transport_condition;
-
-  // add socket to vector of managed connections
+  // Add a recieving capability
+  // listen on this port for incoming info.
+  struct sockaddr_in name;
+  int name_size;
+  UDT::getsockname(udt_socket_id, reinterpret_cast<sockaddr*>(&name),
+                   &name_size);
+  Port port = ntohs(name.sin_port);
+  StartListening("",port, 0);
   ManagedEndpointIds_.push_back(udt_socket_id);
-
   // TODO FINISHME
   return udt_socket_id;
+//    } else {
+//      return kBindError;
+//    }
 }
 
-TransportCondition TransportUDT::RemoveManagedEndpoint(
+bool TransportUDT::RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id) {
-  return kSuccess;
+  if (0 == UDT::close(managed_endpoint_id)) {
+    std::vector<ManagedEndpointId>::iterator endpoint_iterator;
+    endpoint_iterator =
+      std::find(ManagedEndpointIds_.begin(), ManagedEndpointIds_.end(),
+           managed_endpoint_id);
+      if (endpoint_iterator != ManagedEndpointIds_.end())
+        ManagedEndpointIds_.erase(endpoint_iterator);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
@@ -242,17 +260,10 @@ void TransportUDT::AcceptConnection(const UdtSocketId &udt_socket_id) {
           UDT::getlasterror().getErrorMessage() << std::endl;
       return;
     }
-//   struct sockaddr peer_address;
-   // if (kSuccess == UDT:: (receiver_socket_id, &peer_address)) {
       boost::thread(&TransportUDT::ReceiveData, this, receiver_socket_id, -1);
-   // } else {
-    //  LOG(INFO) << "Problem passing socket off to handler, (closing socket)"
-     //           << std::endl;
-     // UDT::close(receiver_socket_id);
-   // }
-
   }
 }
+
 
 void TransportUDT::ConnectThenSend(
     const TransportMessage &transport_message,
@@ -327,7 +338,7 @@ TransportCondition TransportUDT::SendDataSize(
   int sent_count;
   if (UDT::ERROR == (sent_count = UDT::send(udt_socket_id,
       reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
-    LOG(ERROR) << "Cannot send data size: " <<
+    DLOG(ERROR) << "Cannot send data size: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     signals_.on_send_(udt_socket_id, kSendUdtFailure);
     UDT::close(udt_socket_id);
@@ -698,8 +709,7 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id, bool send) {
   }
   std::string message = (send ? " to send." : " to receive.");
   if (sockets_ready.empty()) {
-    //LOG(INFO) << "Cannot use socket " << udt_socket_id << message <<
-    //    "  Closing it!" << std::endl;
+    LOG(INFO) << "Cannot use socket " << udt_socket_id << message << std::endl;
     //UDT::close(udt_socket_id);
     return false;
   } else {

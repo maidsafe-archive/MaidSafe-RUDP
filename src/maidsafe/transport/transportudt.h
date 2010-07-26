@@ -63,6 +63,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/detail/atomic_count.hpp>
+#include <gtest/gtest_prod.h>
 #include <maidsafe/transport/transport.h>
 #include <list>
 #include <map>
@@ -145,9 +146,9 @@ class TransportUDT : public Transport {
       const boost::uint16_t &frequency,
       const boost::uint16_t &retry_count,
       const boost::uint16_t &retry_frequency);
-  TransportCondition RemoveManagedEndpoint(
+  bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
- private:
+   private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
   void AcceptConnection(const UdtSocketId &udt_socket_id);
@@ -195,11 +196,7 @@ class TransportUDT : public Transport {
   // Check a socket can send or receive data (close it otherwise)
   bool CheckSocket(const UdtSocketId &udt_socket_id, bool send);
   std::vector<SocketId> ManagedEndpointIds_;
-
-
-
-
-
+  FRIEND_TEST(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints);
 
 //  TransportType transport_type_;
 //  IP rendezvous_ip_;
