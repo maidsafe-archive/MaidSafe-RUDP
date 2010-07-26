@@ -706,10 +706,39 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id,
     return false;
 }
 
-
 void TransportUDT::CheckManagedSockets() {
+  int result;
+  std::vector<UdtSocketId>::iterator socket_iterator;
+  std::vector<UdtSocketId> sockets_bad;
+  while (true) {
+    {
+    boost::mutex::scoped_lock lock(managed_enpoint_sockets_mutex_);
+    if (stop_managed_connections_)  {
+      if (ManagedEndpointSockets_.empty())
+        break;
+      for(socket_iterator = ManagedEndpointSockets_.begin();
+      socket_iterator < ManagedEndpointSockets_.end();
+      ++socket_iterator) {
+        UDT::close(*socket_iterator);
+        ManagedEndpointSockets_.erase(socket_iterator);
+      }
+      break;
+    }
 
-
+    UDT::selectEx(ManagedEndpointSockets_,
+                           NULL, NULL, &sockets_bad,
+                           1000);
+    if (!sockets_bad.empty()) {
+        for(socket_iterator = sockets_bad.begin();
+            socket_iterator < sockets_bad.end();
+            ++socket_iterator) {
+          RemoveManagedEndpoint(*socket_iterator);
+          OnLostManagedEndpoint(*socket_iterator);
+        }
+    }
+    } // lock
+  boost::this_thread::sleep(boost::posix_time::millisec(500));
+  }
 }
 
 

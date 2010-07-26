@@ -200,8 +200,11 @@ class TransportUDT : public Transport {
   bool CheckSocket(const UdtSocketId &udt_socket_id,
                    const SocketCheckType &socket_check_type);
   void CheckManagedSockets();
+  void StopManagedConnections() { stop_managed_connections_ = true; }
   std::vector<SocketId> ManagedEndpointIds_;
   std::vector<SocketId> ManagedEndpointSockets_;
+  volatile bool stop_managed_connections_;
+  boost::mutex managed_enpoint_sockets_mutex_;
   FRIEND_TEST(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints);
 
 //  TransportType transport_type_;
