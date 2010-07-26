@@ -318,11 +318,11 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
 //   std::string sent_message;
 //   rpc_message->SerializeToString(&sent_message);
 //   transport::IP ip("127.0.0.1");
-// 
+//
 //   for (size_t i = 0; i < kRepeats; ++i) {
 //     node1_transudt.Send(transport_message, ip, lp_node2, 6000);
 //   }
-// 
+//
 //   node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK);
 //   const int kTimeout(10000);
 //   int count(0);
@@ -331,7 +331,7 @@ TEST_F(TransportTest, BEH_TRANS_MultipleListeningPorts) {
 //     count += 10;
 //   }
 //   EXPECT_EQ(1, message_handler1.messages_unsent_);
-// 
+//
 //   count = 0;
 //   while (count < kTimeout && message_handler2.messages_.size() < kRepeats) {
 //     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
@@ -386,23 +386,23 @@ TEST_F(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints) {
   transport::Port node5_port = node5.StartListening("", 0, NULL);
   transport::ManagedEndpointId node1_end1 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(1, node1.ManagedEndpointIds_.size());
+  EXPECT_EQ(1, node1.ManagedEndpointSockets_.size());
   transport::ManagedEndpointId node1_end2 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(2, node1.ManagedEndpointIds_.size());
+  EXPECT_EQ(2, node1.ManagedEndpointSockets_.size());
   EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
-  EXPECT_EQ(1, node1.ManagedEndpointIds_.size());
+  EXPECT_EQ(1, node1.ManagedEndpointSockets_.size());
   node1_end2 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(2, node1.ManagedEndpointIds_.size());
+  EXPECT_EQ(2, node1.ManagedEndpointSockets_.size());
   transport::ManagedEndpointId node1_end3 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(3, node1.ManagedEndpointIds_.size());
+  EXPECT_EQ(3, node1.ManagedEndpointSockets_.size());
   transport::ManagedEndpointId node1_end4 =
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
-  EXPECT_EQ(4, node1.ManagedEndpointIds_.size());
-  EXPECT_TRUE(node1.CheckSocketSend(node1_end1));
+  EXPECT_EQ(4, node1.ManagedEndpointSockets_.size());
+  EXPECT_TRUE(node1.CheckSocketAlive(node1_end1));
 }
 }
 
-  
+

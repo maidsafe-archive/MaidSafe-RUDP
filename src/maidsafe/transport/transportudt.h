@@ -151,6 +151,7 @@ class TransportUDT : public Transport {
    private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
+  enum SocketCheckType { kSend, kReceive, kAlive };
   void AcceptConnection(const UdtSocketId &udt_socket_id);
   // General method for connecting then sending data
   void ConnectThenSend(const TransportMessage &transport_message,
@@ -193,9 +194,14 @@ class TransportUDT : public Transport {
   bool CheckSocketSend(const UdtSocketId &udt_socket_id);
   // Check a socket can receive data (close it otherwise)
   bool CheckSocketReceive(const UdtSocketId &udt_socket_id);
+    // Check a socket can receive data (close it otherwise)
+  bool CheckSocketAlive(const UdtSocketId &udt_socket_id);
   // Check a socket can send or receive data (close it otherwise)
-  bool CheckSocket(const UdtSocketId &udt_socket_id, bool send);
+  bool CheckSocket(const UdtSocketId &udt_socket_id,
+                   const SocketCheckType &socket_check_type);
+  void CheckManagedSockets();
   std::vector<SocketId> ManagedEndpointIds_;
+  std::vector<SocketId> ManagedEndpointSockets_;
   FRIEND_TEST(TransportTest, BEH_TRANS_AddRemoveManagedEndpoints);
 
 //  TransportType transport_type_;

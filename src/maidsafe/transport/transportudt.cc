@@ -196,26 +196,14 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     freeaddrinfo(peer);
     return kConnectError;
   }
-
   // Connect a socket
   TransportCondition transport_condition = Connect(udt_socket_id, *peer);
   freeaddrinfo(peer);
   if (transport_condition != kSuccess)
     return transport_condition;
-  // Add a recieving capability
-  // listen on this port for incoming info.
-  struct sockaddr_in name;
-  int name_size;
-  UDT::getsockname(udt_socket_id, reinterpret_cast<sockaddr*>(&name),
-                   &name_size);
-  Port port = ntohs(name.sin_port);
-  StartListening("",port, 0);
-  ManagedEndpointIds_.push_back(udt_socket_id);
-  // TODO FINISHME
+  ManagedEndpointSockets_.push_back(udt_socket_id);
   return udt_socket_id;
-//    } else {
-//      return kBindError;
-//    }
+
 }
 
 bool TransportUDT::RemoveManagedEndpoint(
@@ -223,10 +211,10 @@ bool TransportUDT::RemoveManagedEndpoint(
   if (0 == UDT::close(managed_endpoint_id)) {
     std::vector<ManagedEndpointId>::iterator endpoint_iterator;
     endpoint_iterator =
-      std::find(ManagedEndpointIds_.begin(), ManagedEndpointIds_.end(),
+      std::find(ManagedEndpointSockets_.begin(), ManagedEndpointSockets_.end(),
            managed_endpoint_id);
-      if (endpoint_iterator != ManagedEndpointIds_.end())
-        ManagedEndpointIds_.erase(endpoint_iterator);
+      if (endpoint_iterator != ManagedEndpointSockets_.end())
+        ManagedEndpointSockets_.erase(endpoint_iterator);
     return true;
   } else {
     return false;
@@ -685,23 +673,37 @@ void TransportUDT::AsyncReceiveData(const UdtSocketId &udt_socket_id,
 }*/
 
 bool TransportUDT::CheckSocketSend(const UdtSocketId &udt_socket_id) {
-  return CheckSocket(udt_socket_id, true);
+  return CheckSocket(udt_socket_id, kSend);
 }
 
 bool TransportUDT::CheckSocketReceive(const UdtSocketId &udt_socket_id) {
-  return CheckSocket(udt_socket_id, false);
+  return CheckSocket(udt_socket_id, kReceive);
 }
 
-bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id, bool send) {
+bool TransportUDT::CheckSocketAlive(const UdtSocketId &udt_socket_id) {
+  return CheckSocket(udt_socket_id, kAlive);
+}
+
+bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id,
+                               const SocketCheckType &socket_check_type) {
   std::vector<UdtSocketId> socket_to_check(1, udt_socket_id);
   std::vector<UdtSocketId> sockets_ready;
   int result;
-  if (send) {
+  if (socket_check_type == kSend) {
     result = UDT::selectEx(socket_to_check, NULL, &sockets_ready, NULL, 1000);
-  } else {
+  } else if (socket_check_type == kReceive) {
     result = UDT::selectEx(socket_to_check, &sockets_ready, NULL, NULL, 1000);
+  } else if (socket_check_type == kAlive) {
+    result = UDT::selectEx(socket_to_check, NULL, NULL, &sockets_ready, 1000);
+    if (result != UDT::ERROR)
+      return sockets_ready.empty();
+    else
+      return false;
+  } else {
+    return false;
   }
-  if (result == UDT::ERROR) {
+
+   if (result == UDT::ERROR) {
     LOG(ERROR) << "Error checking socket." <<
           UDT::getlasterror().getErrorMessage() << std::endl;
     UDT::close(udt_socket_id);
@@ -716,5 +718,12 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id, bool send) {
     return true;
   }
 }
+
+
+void TransportUDT::CheckManagedSockets() {
+
+
+}
+
 
 }  // namespace transport
