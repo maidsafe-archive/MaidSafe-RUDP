@@ -733,15 +733,15 @@ LOG(INFO) << "in CheckManagedSockets method" << std::endl;
     boost::mutex::scoped_lock lock(managed_enpoint_sockets_mutex_);
     if (stop_managed_connections_)  {
       LOG(INFO) << "stopping all connections " << std::endl;
-      if (managed_endpoint_sockets_.empty())
-        break;
+//       if (managed_endpoint_sockets_.empty())
+//         break;
       for(socket_iterator = managed_endpoint_sockets_.begin();
-      socket_iterator < managed_endpoint_sockets_.end();
+      socket_iterator != managed_endpoint_sockets_.end();
       ++socket_iterator) {
         UDT::close(*socket_iterator);
-        managed_endpoint_sockets_.erase(socket_iterator);
         signals_.on_lost_managed_endpoint_(*socket_iterator);
       }
+      managed_endpoint_sockets_.clear();
       break;
     }
 // TODO selectEx seems to killing sockets

@@ -412,6 +412,32 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
   EXPECT_EQ(0, node1.managed_endpoint_sockets_.size());
 }
 
+TEST_F(TransportUdtTest, BEH_TRANS_CrashManagedEndpoints) {
+  TransportUDT node2, node3, node4;
+  boost::shared_ptr<TransportUDT> node1_ptr;
+  MessageHandler message_handler2(&node2, false);
+  MessageHandler message_handler3(&node3, false);
+  MessageHandler message_handler4(&node4, false);
+  Port node1_port = node1_ptr->StartListening("", 0, NULL);
+  Port node2_port = node2.StartListening("", 0, NULL);
+  Port node3_port = node3.StartListening("", 0, NULL);
+  Port node4_port = node4.StartListening("", 0, NULL);
+  ManagedEndpointId node1_end1 =
+    node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
+  ManagedEndpointId node1_end2 =
+    node2.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, 0 ,0 ,0);
+  ManagedEndpointId node1_end3 =
+    node3.AddManagedEndpoint("127.0.0.1", node1_port, "", 0, 0 ,0 ,0);
+  // Kill node1
+  node1_ptr.reset();
+  EXPECT_EQ(1, message_handler2.dead_nodes());
+LOG(INFO) << message_handler2.dead_nodes() << "HERE !!!" <<std::endl;
+  node1_ptr->StopManagedConnections();
+  node2.StopManagedConnections();
+  node3.StopManagedConnections();
+  node4.StopManagedConnections();
+}
+
 }  // namespace test
 
 }  // namespace transport
