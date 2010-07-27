@@ -153,6 +153,7 @@ class TransportUDT : public Transport {
       const boost::uint16_t &retry_frequency);
   bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
+  void StopManagedConnections() { stop_managed_connections_ = true; }
   friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
  private:
   TransportUDT& operator=(const TransportUDT&);
@@ -206,14 +207,13 @@ class TransportUDT : public Transport {
   bool CheckSocket(const UdtSocketId &udt_socket_id,
                    const SocketCheckType &socket_check_type);
   void CheckManagedSockets();
-  void StopManagedConnections() { stop_managed_connections_ = true; }
   std::vector<UdtSocketId> managed_endpoint_ids_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
   volatile bool stop_managed_connections_;
   boost::mutex managed_enpoint_sockets_mutex_;
   base::Threadpool listening_threadpool_;
   base::Threadpool general_threadpool_;
-
+  boost::shared_ptr<boost::thread> check_connections_;
 //  TransportType transport_type_;
 //  IP rendezvous_ip_;
 //  Port rendezvous_port_;

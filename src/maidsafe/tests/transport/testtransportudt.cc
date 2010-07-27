@@ -89,7 +89,8 @@ class MessageHandler {
         send_(),
         message_connection_(),
         server_down_connection_(),
-        stats_connection_() {
+        stats_connection_()
+        {
     rpc_request_ = transport->signals().ConnectOnRpcRequestReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
     rpc_response_ = transport->signals().ConnectOnRpcResponseReceived(
@@ -124,19 +125,7 @@ class MessageHandler {
       messages_.push_back(message);
       ids_.push_back(socket_id);
     }
-//    TransportMessage transport_message;
-//    transport_message.set_type(TransportMessage::kResponse);
-//    rpcprotocol::RpcMessage *rpc_reply =
-//        transport_message.mutable_data()->mutable_rpc_message();
-//    rpc_reply->set_rpc_id(2000);
-//    rpc_reply->set_method("Rply");
-//    rpcprotocol::RpcMessage::Detail *payload = rpc_reply->mutable_detail();
-//    kad::NatDetectionPingResponse *response = payload->MutableExtension(
-//        kad::NatDetectionPingResponse::nat_detection_ping_response);
-//    response->set_result("Rubbish");
-//    std::string sent_message;
-//    rpc_reply->SerializeToString(&sent_message);
-//    transport_->SendResponse(transport_message, socket_id);
+
   }
   void OnMessage(const std::string &message,
                  const SocketId &socket_id,
@@ -147,6 +136,7 @@ class MessageHandler {
   void OnDeadRendezvousServer(
       const ManagedEndpointId &/*managed_endpoint_id*/) {
     dead_server_ = true;
+    ++dead_nodes_;
   }
   void OnSend(const SocketId &socket_id,
               const TransportCondition &result) {
@@ -229,6 +219,7 @@ class MessageHandler {
           std::endl;
     }
   }
+  size_t dead_nodes() { return dead_nodes_; }
   std::list<std::string> messages_, raw_messages_;
   std::string target_message_;
   std::list<SocketId> ids_, raw_ids_;
@@ -244,8 +235,10 @@ class MessageHandler {
   bs2::connection message_connection_;
   bs2::connection server_down_connection_;
   bs2::connection stats_connection_;
-};
+  static size_t dead_nodes_;
 
+};
+size_t MessageHandler::dead_nodes_ = 0;
 
 class TransportUdtTest: public testing::Test {
  protected:
@@ -382,6 +375,7 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
 
 TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
   TransportUDT node1, node2, node3, node4, node5;
+  MessageHandler message_handler(&node1, false);
   Port node1_port = node1.StartListening("", 0, NULL);
   Port node2_port = node2.StartListening("", 0, NULL);
   Port node3_port = node3.StartListening("", 0, NULL);
@@ -391,20 +385,31 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
     node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
   EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end2 =
-    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, 0 ,0 ,0);
   EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
+  EXPECT_EQ(1, message_handler.dead_nodes());
   EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   node1_end2 =
-    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, 0 ,0 ,0);
   EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end3 =
-    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node4_port, "", 0, 0 ,0 ,0);
   EXPECT_EQ(3, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end4 =
-    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node5_port, "", 0, 0 ,0 ,0);
   EXPECT_EQ(4, node1.managed_endpoint_sockets_.size());
-  EXPECT_TRUE(node1.CheckSocketAlive(node1_end1));
+ // EXPECT_TRUE(node1.CheckSocketAlive(node1_end1));
+  node1.StopManagedConnections();
+  ASSERT_TRUE(node1.stop_managed_connections_);
+  boost::this_thread::sleep(boost::posix_time::milliseconds(90));
+  EXPECT_EQ(5, message_handler.dead_nodes());
+  EXPECT_TRUE(message_handler.dead_server_);
+  EXPECT_FALSE(node1.CheckSocketAlive(node1_end1));
+  EXPECT_FALSE(node1.CheckSocketAlive(node1_end2));
+  EXPECT_FALSE(node1.CheckSocketAlive(node1_end3));
+  EXPECT_FALSE(node1.CheckSocketAlive(node1_end4));
+  EXPECT_EQ(0, node1.managed_endpoint_sockets_.size());
 }
 
 }  // namespace test

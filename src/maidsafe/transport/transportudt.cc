@@ -47,7 +47,8 @@ TransportUDT::TransportUDT() : Transport(),
                                stop_managed_connections_(false),
                                managed_enpoint_sockets_mutex_(),
                                listening_threadpool_(0),
-                               general_threadpool_(kDefaultThreadpoolSize) {
+                               general_threadpool_(kDefaultThreadpoolSize)
+                               {
   UDT::startup();
 }
 
@@ -167,6 +168,9 @@ SocketId TransportUDT::Send(const TransportMessage &transport_message,
     freeaddrinfo(peer);
     return UDT::INVALID_SOCK;
   } else {
+    // Force new port
+    bool reuse = false;
+    UDT::setsockopt(udt_socket_id, 0, UDT_REUSEADDR, &reuse, sizeof(reuse));
     boost::thread(&TransportUDT::ConnectThenSend, this, transport_message,
                   udt_socket_id, response_timeout, response_timeout, peer);
     return udt_socket_id;
@@ -207,16 +211,20 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     freeaddrinfo(peer);
     return kConnectError;
   }
+  // Force new port
+  bool reuse = false;
+  UDT::setsockopt(udt_socket_id, 0, UDT_REUSEADDR, &reuse, sizeof(reuse));
   // Connect a socket
   TransportCondition transport_condition = Connect(udt_socket_id, peer);
   freeaddrinfo(peer);
   if (transport_condition != kSuccess)
     return transport_condition;
-  if (managed_endpoint_sockets_.empty())
-    boost::thread(&CheckManagedSockets());
+  if (managed_endpoint_sockets_.empty()) {
+    check_connections_.reset(new boost::thread(
+                            &TransportUDT::CheckManagedSockets, this));
+  }
   managed_endpoint_sockets_.push_back(udt_socket_id);
   return udt_socket_id;
-
 }
 
 bool TransportUDT::RemoveManagedEndpoint(
@@ -226,8 +234,10 @@ bool TransportUDT::RemoveManagedEndpoint(
     endpoint_iterator =
       std::find(managed_endpoint_sockets_.begin(), managed_endpoint_sockets_.end(),
            managed_endpoint_id);
-      if (endpoint_iterator != managed_endpoint_sockets_.end())
+      if (endpoint_iterator != managed_endpoint_sockets_.end()) {
+        signals_.on_lost_managed_endpoint_(managed_endpoint_id);
         managed_endpoint_sockets_.erase(endpoint_iterator);
+      }
     return true;
   } else {
     return false;
@@ -390,7 +400,9 @@ void TransportUDT::ReceiveData(const UdtSocketId &udt_socket_id,
     UDT::setsockopt(udt_socket_id, 0, UDT_RCVTIMEO, &receive_timeout,
                     sizeof(receive_timeout));
   }
-
+  // force use of new ports
+  bool reuse = false;
+  UDT::setsockopt(udt_socket_id, 0, UDT_REUSEADDR, &reuse, sizeof(reuse));
   // Get the incoming message size
   DataSize data_size = ReceiveDataSize(udt_socket_id);
   if (data_size == 0)
@@ -696,16 +708,16 @@ bool TransportUDT::CheckSocket(const UdtSocketId &udt_socket_id,
 
   if (socket_check_type == kSend) {
     result = UDT::selectEx(socket_to_check, NULL, &sockets_ready, NULL, 1000);
-    if (result != UDT::ERROR)
-      return sockets_ready.empty();
+    if (result == 1)
+      return true;
   } else if (socket_check_type == kReceive) {
     result = UDT::selectEx(socket_to_check, &sockets_ready, NULL, NULL, 1000);
-    if (result != UDT::ERROR)
-      return sockets_ready.empty();
+    if (result == 1)
+      return true;
   } else if (socket_check_type == kAlive) {
     result = UDT::selectEx(socket_to_check, NULL, NULL, &sockets_ready, 1000);
-    if (result != UDT::ERROR)
-      return sockets_ready.empty();
+    if (result == 1)
+      return false;
   }
     return false;
 }
@@ -714,10 +726,13 @@ void TransportUDT::CheckManagedSockets() {
   int result;
   std::vector<UdtSocketId>::iterator socket_iterator;
   std::vector<UdtSocketId> sockets_bad;
+LOG(INFO) << "in CheckManagedSockets method" << std::endl;
   while (true) {
+    LOG(INFO) << "in CheckManagedSockets loop" << std::endl;
     {
     boost::mutex::scoped_lock lock(managed_enpoint_sockets_mutex_);
     if (stop_managed_connections_)  {
+      LOG(INFO) << "stopping all connections " << std::endl;
       if (managed_endpoint_sockets_.empty())
         break;
       for(socket_iterator = managed_endpoint_sockets_.begin();
@@ -725,23 +740,24 @@ void TransportUDT::CheckManagedSockets() {
       ++socket_iterator) {
         UDT::close(*socket_iterator);
         managed_endpoint_sockets_.erase(socket_iterator);
+        signals_.on_lost_managed_endpoint_(*socket_iterator);
       }
       break;
     }
-
-    UDT::selectEx(managed_endpoint_sockets_,
-                           NULL, NULL, &sockets_bad,
-                           1000);
-    if (!sockets_bad.empty()) {
-        for(socket_iterator = sockets_bad.begin();
-            socket_iterator < sockets_bad.end();
-            ++socket_iterator) {
-          RemoveManagedEndpoint(*socket_iterator);
-          OnLostManagedEndpoint(*socket_iterator);
-        }
-    }
+// TODO selectEx seems to killing sockets
+//     UDT::selectEx(managed_endpoint_sockets_,
+//                            NULL, NULL, &sockets_bad,
+//                            1000);
+//     if (!sockets_bad.empty()) {
+//         for(socket_iterator = sockets_bad.begin();
+//             socket_iterator < sockets_bad.end();
+//             ++socket_iterator) {
+//           RemoveManagedEndpoint(*socket_iterator);
+//           signals_.on_lost_managed_endpoint_(*socket_iterator);
+//         }
+//     }
     } // lock
-  boost::this_thread::sleep(boost::posix_time::millisec(500));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(5));
   }
 }
 
