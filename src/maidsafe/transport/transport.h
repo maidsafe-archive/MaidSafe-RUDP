@@ -77,7 +77,7 @@ class Transport {
   // returned and the port is added to listening_ports_ vector.  On failure,
   // 0 is returned and if transport_condition != NULL, it is set appropriately.
   virtual Port StartListening(const IP &ip,
-                              const Port &port,
+                              const Port &try_port,
                               TransportCondition *transport_condition) = 0;
   // Stops listening on the chosen port and removes the port from
   // listening_ports_ vector.

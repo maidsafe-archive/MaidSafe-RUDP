@@ -21,12 +21,13 @@ message ProxyPing {
   optional Address address = 2;
 }
 
-message AcceptConnect {
+message ManagedEndpointMessage {
   optional Address address = 1;
-  optional SubType sub_type = 2;
-  optional int32 freq = 3;
-  optional int32 num_retry = 4;
-  optional int32 retry_time = 5;
+  optional SubType result = 2;
+  optional bytes identifier = 3;
+  optional int32 frequency = 4;
+  optional int32 retry_count = 5;
+  optional int32 retry_frequency = 6;
 }
 
 message HolePunchingMessage {
@@ -51,7 +52,7 @@ message TransportMessage {
     optional HolePunchingMessage hole_punching_message = 3;
     optional Ping ping = 4;
     optional ProxyPing proxy_ping = 5;
-    optional AcceptConnect accept_connect = 6;
+    optional ManagedEndpointMessage managed_endpoint_message = 6;
   }
   required Type type = 1;
   required Data data = 2;

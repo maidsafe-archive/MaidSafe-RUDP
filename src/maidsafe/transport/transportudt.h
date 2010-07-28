@@ -87,6 +87,7 @@ class TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
 typedef int UdtSocketId;
 
 const int kDefaultSendTimeout(10000);  // milliseconds
+const int kAddManagedConnectionTimeout(1000);  // milliseconds
 const boost::uint16_t kDefaultThreadpoolSize(10);
 
 struct UdtStats : public SocketPerformanceStats {
@@ -109,10 +110,11 @@ class TransportUDT : public Transport {
   ~TransportUDT();
   static void CleanUp();
   Port StartListening(const IP &ip,
-                      const Port &port,
+                      const Port &try_port,
                       TransportCondition *transport_condition);
   bool StopListening(const Port &port);
   bool StopAllListening();
+  void StopManagedConnections();
   // Create a hole to remote endpoint using rendezvous endpoint.
   TransportCondition PunchHole(const IP &remote_ip,
                                const Port &remote_port,
@@ -148,25 +150,27 @@ class TransportUDT : public Transport {
       const Port &remote_port,
       const IP &rendezvous_ip,
       const Port &rendezvous_port,
+      const std::string &our_identifier,
       const boost::uint16_t &frequency,
       const boost::uint16_t &retry_count,
       const boost::uint16_t &retry_frequency);
   bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
-  void StopManagedConnections() { stop_managed_connections_ = true; }
   friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
-  enum SocketCheckType { kSend, kReceive, kAlive };
-  void AcceptConnection(const UdtSocketId &udt_socket_id);
+  void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
   // General method for connecting then sending data
   void ConnectThenSend(const TransportMessage &transport_message,
                        const UdtSocketId &udt_socket_id,
                        const int &send_timeout,
                        const int &receive_timeout,
                        struct addrinfo *peer);
-  // General method for sending data once connection made
+  // General method for sending data once connection made.  Unlike public Send,
+  // the socket is only closed iff receive_timeout == 0.  For receive_timeout >
+  // 0, the socket switches to receive after sending.  For receive_timeout < 0,
+  // the socket is simply left open.
   void SendData(const TransportMessage &transport_message,
                 const UdtSocketId &udt_socket_id,
                 const int &send_timeout,
@@ -189,48 +193,25 @@ class TransportUDT : public Transport {
   bool HandleTransportMessage(const TransportMessage &transport_message,
                               const UdtSocketId &udt_socket_id,
                               const float &rtt);
-  TransportCondition CheckEndpoint(const IP &remote_ip,
-                                   const Port &remote_port,
-                                   UdtSocketId *udt_socket_id,
-                                   struct addrinfo **peer);
+  TransportCondition GetNewSocket(const IP &ip,
+                                  const Port &port,
+                                  UdtSocketId *udt_socket_id,
+                                  struct addrinfo **address_info);
   TransportCondition Connect(const UdtSocketId &udt_socket_id,
                              const struct addrinfo *peer);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
-  // Check a socket can send data (close it otherwise)
-  bool CheckSocketSend(const UdtSocketId &udt_socket_id);
-  // Check a socket can receive data (close it otherwise)
-  bool CheckSocketReceive(const UdtSocketId &udt_socket_id);
-    // Check a socket can receive data (close it otherwise)
-  bool CheckSocketAlive(const UdtSocketId &udt_socket_id);
-  // Check a socket can send or receive data (close it otherwise)
-  bool CheckSocket(const UdtSocketId &udt_socket_id,
-                   const SocketCheckType &socket_check_type);
   void CheckManagedSockets();
+  void AcceptManagedSocket(const UdtSocketId &udt_socket_id,
+                           const ManagedEndpointMessage &message);
+  std::map<Port, UdtSocketId> listening_map_;
   std::vector<UdtSocketId> managed_endpoint_ids_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
   volatile bool stop_managed_connections_;
-  boost::mutex managed_enpoint_sockets_mutex_;
+  boost::mutex managed_endpoint_sockets_mutex_;
   base::Threadpool listening_threadpool_;
   base::Threadpool general_threadpool_;
   boost::shared_ptr<boost::thread> check_connections_;
-//  TransportType transport_type_;
-//  IP rendezvous_ip_;
-//  Port rendezvous_port_;
-//  std::map<ConnectionId, IncomingData> incoming_sockets_;
-//  std::list<OutgoingData> outgoing_queue_;
-//  std::list<IncomingMessages> incoming_msgs_queue_;
-//  boost::condition_variable send_cond_, ping_rend_cond_, recv_cond_;
-//  boost::condition_variable msg_hdl_cond_;
-//  bool ping_rendezvous_, directly_connected_/*, handle_non_transport_msgs_*/;
-//  int accepted_connections_, msgs_sent_;
-//  ConnectionId last_id_;
-//  std::set<ConnectionId> data_arrived_;
-//  std::map<ConnectionId, struct sockaddr> ips_from_connections_;
-//  boost::function<void(const ConnectionId&, const bool&)> send_notifier_;
-//  std::map<ConnectionId, UdtSocketId> send_sockets_;
-//  static ConnectionId connection_id_;
-//  boost::shared_array<char> data_;
 };
 
 }  // namespace transport

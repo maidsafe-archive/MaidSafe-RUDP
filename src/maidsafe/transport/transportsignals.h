@@ -58,7 +58,10 @@ typedef bs2::signal<void(const rpcprotocol::RpcMessage&,
                          const SocketId&,
                          const float&)> OnRpcRequestReceived,
                                         OnRpcResponseReceived;
-typedef bs2::signal<void(const ManagedEndpointId&)> OnLostManagedEndpoint;
+typedef bs2::signal<void(const ManagedEndpointId&,
+                         const ManagedEndpointMessage&)>
+                             OnManagedEndpointReceived;
+typedef bs2::signal<void(const ManagedEndpointId&)> OnManagedEndpointLost;
 typedef bs2::signal<void(const SocketId&,
                          const TransportCondition&)> OnSend, OnReceive;
 typedef bs2::signal<void(boost::shared_ptr<SocketPerformanceStats>)> OnStats;
@@ -68,7 +71,8 @@ class Signals {
   Signals() : on_message_received_(),
               on_rpc_request_received_(),
               on_rpc_response_received_(),
-              on_lost_managed_endpoint_(),
+              on_managed_endpoint_received_(),
+              on_managed_endpoint_lost_(),
               on_send_(),
               on_receive_(),
               on_stats_() {}
@@ -110,16 +114,28 @@ class Signals {
     return on_rpc_response_received_.connect(group, slot);
   }
 
-  // OnLostManagedEndpoint =====================================================
-  bs2::connection ConnectOnLostManagedEndpoint(
-      const OnLostManagedEndpoint::slot_type &slot) {
-    return on_lost_managed_endpoint_.connect(slot);
+  // OnManagedEndpointReceived =================================================
+  bs2::connection ConnectOnManagedEndpointReceived(
+      const OnManagedEndpointReceived::slot_type &slot) {
+    return on_managed_endpoint_received_.connect(slot);
   }
 
-  bs2::connection GroupConnectOnLostManagedEndpoint(
+  bs2::connection GroupConnectOnManagedEndpointReceived(
       const int &group,
-      const OnLostManagedEndpoint::slot_type &slot) {
-    return on_lost_managed_endpoint_.connect(group, slot);
+      const OnManagedEndpointReceived::slot_type &slot) {
+    return on_managed_endpoint_received_.connect(group, slot);
+  }
+
+  // OnManagedEndpointLost =====================================================
+  bs2::connection ConnectOnManagedEndpointLost(
+      const OnManagedEndpointLost::slot_type &slot) {
+    return on_managed_endpoint_lost_.connect(slot);
+  }
+
+  bs2::connection GroupConnectOnManagedEndpointLost(
+      const int &group,
+      const OnManagedEndpointLost::slot_type &slot) {
+    return on_managed_endpoint_lost_.connect(group, slot);
   }
 
   // OnSend ====================================================================
@@ -158,7 +174,8 @@ class Signals {
   OnMessageReceived on_message_received_;
   OnRpcRequestReceived on_rpc_request_received_;
   OnRpcResponseReceived on_rpc_response_received_;
-  OnLostManagedEndpoint on_lost_managed_endpoint_;
+  OnManagedEndpointReceived on_managed_endpoint_received_;
+  OnManagedEndpointLost on_managed_endpoint_lost_;
   OnSend on_send_;
   OnReceive on_receive_;
   OnStats on_stats_;
