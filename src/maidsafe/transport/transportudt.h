@@ -205,7 +205,6 @@ class TransportUDT : public Transport {
   void AcceptManagedSocket(const UdtSocketId &udt_socket_id,
                            const ManagedEndpointMessage &message);
   std::map<Port, UdtSocketId> listening_map_;
-  std::vector<UdtSocketId> managed_endpoint_ids_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
   volatile bool stop_managed_connections_;
   boost::mutex managed_endpoint_sockets_mutex_;

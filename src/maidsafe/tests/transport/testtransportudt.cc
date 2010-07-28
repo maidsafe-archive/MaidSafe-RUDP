@@ -86,6 +86,7 @@ class MessageHandler {
         messages_confirmed_(0),
         messages_unsent_(0),
         keep_messages_(true),
+        message_handler_id_(),
         rpc_request_(),
         rpc_response_(),
         send_(),
@@ -141,11 +142,11 @@ class MessageHandler {
   }
   void OnManagedEndpointReceived(const ManagedEndpointId &managed_endpoint_id,
                                  const ManagedEndpointMessage &message) {
-std::cout << "CATCHING OnManagedEndpointReceived" << std::endl;
+// std::cout << message_handler_id_ << " CATCHING OnManagedEndpointReceived" << std::endl;
     managed_endpoint_ids_.insert(managed_endpoint_id);
   }
   void OnManagedEndpointLost(const ManagedEndpointId &managed_endpoint_id) {
-std::cout << "CATCHING OnManagedEndpointLost" << std::endl;
+// std::cout << message_handler_id_ << " CATCHING OnManagedEndpointLost" << std::endl;
     managed_endpoint_ids_.erase(managed_endpoint_id);
     lost_managed_endpoint_ids_.insert(managed_endpoint_id);
   }
@@ -237,6 +238,7 @@ std::cout << "CATCHING OnManagedEndpointLost" << std::endl;
   TransportUDT *transport_;
   int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
+  std::string message_handler_id_;
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
@@ -396,7 +398,9 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
 TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
   TransportUDT node1, node2, node3, node4, node5;
   MessageHandler message_handler1(&node1, false);
+  message_handler1.message_handler_id_ = "Node1";
   MessageHandler message_handler3(&node3, false);
+  message_handler3.message_handler_id_ = "Node3";
   Port node1_port = node1.StartListening("", 0, NULL);
   Port node2_port = node2.StartListening("", 0, NULL);
   Port node3_port = node3.StartListening("", 0, NULL);
@@ -409,6 +413,13 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
     node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node1", 0 ,0 ,0);
   EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
+  const int kTimeout(100000);
+  int count(0);
+  while (count < kTimeout &&
+         message_handler3.lost_managed_endpoint_ids_.empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
   EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids_.size());
   EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   node1_end2 =
@@ -423,11 +434,15 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
  // EXPECT_TRUE(CheckSocketAlive(node1_end1));
   node1.StopManagedConnections();
   ASSERT_TRUE(node1.stop_managed_connections_);
-  boost::this_thread::sleep(boost::posix_time::milliseconds(90));
   EXPECT_FALSE(CheckSocketAlive(node1_end1));
   EXPECT_FALSE(CheckSocketAlive(node1_end2));
   EXPECT_FALSE(CheckSocketAlive(node1_end3));
   EXPECT_FALSE(CheckSocketAlive(node1_end4));
+  count = 0;
+  while (count < kTimeout && !node1.managed_endpoint_sockets_.empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
   EXPECT_EQ(0, node1.managed_endpoint_sockets_.size());
 }
 

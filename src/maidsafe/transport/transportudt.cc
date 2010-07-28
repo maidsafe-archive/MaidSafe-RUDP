@@ -809,14 +809,14 @@ void TransportUDT::CheckManagedSockets() {
   int result;
   std::vector<UdtSocketId>::iterator socket_iterator;
   std::vector<UdtSocketId> sockets_bad;
+  boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
   while (true) {
-    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     if (stop_managed_connections_) {
       for (socket_iterator = managed_endpoint_sockets_.begin();
             socket_iterator != managed_endpoint_sockets_.end();
             ++socket_iterator) {
         UDT::close(*socket_iterator);
-std::cout << "FIRING on_managed_endpoint_lost_ 1" << std::endl;
+// std::cout << "FIRING on_managed_endpoint_lost_ 1" << std::endl;
         signals_.on_managed_endpoint_lost_(*socket_iterator);
       }
       managed_endpoint_sockets_.clear();
@@ -824,15 +824,17 @@ std::cout << "FIRING on_managed_endpoint_lost_ 1" << std::endl;
     }
     sockets_bad.clear();
     UDT::selectEx(managed_endpoint_sockets_, NULL, NULL, &sockets_bad, 10);
+    lock.unlock();
     if (!sockets_bad.empty()) {
       for (socket_iterator = sockets_bad.begin();
            socket_iterator != sockets_bad.end(); ++socket_iterator) {
         RemoveManagedEndpoint(*socket_iterator);
         signals_.on_managed_endpoint_lost_(*socket_iterator);
-std::cout << "FIRING on_managed_endpoint_lost_ 2" << std::endl;
+// std::cout << "FIRING on_managed_endpoint_lost_ 2" << std::endl;
       }
     }
-    boost::this_thread::sleep(boost::posix_time::milliseconds(5));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+    lock.lock();
   }
 }
 
@@ -884,7 +886,7 @@ void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
     }
     managed_endpoint_sockets_.push_back(managed_socket_id);
   }
-std::cout << "FIRING on_managed_endpoint_received_" << std::endl;
+// std::cout << "FIRING on_managed_endpoint_received_" << std::endl;
   signals_.on_managed_endpoint_received_(managed_socket_id, message);
 }
 
