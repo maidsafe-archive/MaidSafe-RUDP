@@ -338,6 +338,9 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
 
 bool TransportUDT::RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id) {
+  // Send '-' to peer to indicate socket closure.
+  char close_indicator('-');
+  UDT::send(managed_endpoint_id, &close_indicator, 1, 0);
   UDT::close(managed_endpoint_id);
   std::vector<ManagedEndpointId>::iterator endpoint_iterator;
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -481,7 +484,7 @@ TransportCondition TransportUDT::SendDataContent(
     const TransportMessage &transport_message,
     const UdtSocketId &udt_socket_id) {
   DataSize data_size = static_cast<DataSize>(transport_message.ByteSize());
-  boost::shared_array<char> serialised_message(new char[data_size]);
+  boost::scoped_array<char> serialised_message(new char[data_size]);
   // Check for valid message
   if (!transport_message.SerializeToArray(serialised_message.get(),
                                           data_size)) {
@@ -578,7 +581,7 @@ bool TransportUDT::ReceiveDataContent(
     const UdtSocketId &udt_socket_id,
     const DataSize &data_size,
     TransportMessage *transport_message) {
-  boost::shared_array<char> serialised_message(new char[data_size]);
+  boost::scoped_array<char> serialised_message(new char[data_size]);
   DataSize received_total = 0;
   int received_size = 0;
   while (received_total < data_size) {
@@ -808,13 +811,14 @@ void TransportUDT::AsyncReceiveData(const UdtSocketId &udt_socket_id,
 void TransportUDT::CheckManagedSockets() {
   int result;
   std::vector<UdtSocketId>::iterator socket_iterator;
-  std::vector<UdtSocketId> sockets_bad;
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+  boost::scoped_array<char> holder(new char[10]);
+  int received_count;
   while (true) {
     if (stop_managed_connections_) {
       for (socket_iterator = managed_endpoint_sockets_.begin();
-            socket_iterator != managed_endpoint_sockets_.end();
-            ++socket_iterator) {
+           socket_iterator != managed_endpoint_sockets_.end();
+           ++socket_iterator) {
         UDT::close(*socket_iterator);
 // std::cout << "FIRING on_managed_endpoint_lost_ 1" << std::endl;
         signals_.on_managed_endpoint_lost_(*socket_iterator);
@@ -822,14 +826,20 @@ void TransportUDT::CheckManagedSockets() {
       managed_endpoint_sockets_.clear();
       break;
     }
-    sockets_bad.clear();
-    UDT::selectEx(managed_endpoint_sockets_, NULL, NULL, &sockets_bad, 10);
+    std::vector<UdtSocketId> copy_of_managed_ids(managed_endpoint_sockets_);
     lock.unlock();
-    if (!sockets_bad.empty()) {
-      for (socket_iterator = sockets_bad.begin();
-           socket_iterator != sockets_bad.end(); ++socket_iterator) {
+    // Try to receive on each socket to check if connection is still OK.  If
+    // "-" is received, close the socket.
+    for (socket_iterator = copy_of_managed_ids.begin();
+         socket_iterator != copy_of_managed_ids.end();
+         ++socket_iterator) {
+      UDT::getlasterror().clear();
+      received_count = UDT::recv(*socket_iterator, holder.get(), 1, 0);
+      if ((received_count && (holder[0] == '-')) ||
+          UDT::getlasterror().getErrorCode() == UDT::ERRORINFO::ECONNLOST) {
         RemoveManagedEndpoint(*socket_iterator);
         signals_.on_managed_endpoint_lost_(*socket_iterator);
+        holder[0] = '\0';
 // std::cout << "FIRING on_managed_endpoint_lost_ 2" << std::endl;
       }
     }
@@ -851,7 +861,7 @@ void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
     return;
   }
 
-  // Get new socket
+  // Get new socket and set to receive asynchronously
   UdtSocketId managed_socket_id = UDT::socket(peer_sockaddr.sin_family,
                                               SOCK_STREAM, 0);
   if (UDT::INVALID_SOCK == managed_socket_id) {
@@ -864,6 +874,13 @@ void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
   int mtu(1052);
   UDT::setsockopt(managed_socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif
+  bool receive_synchronously = false;
+  if (UDT::ERROR == UDT::setsockopt(managed_socket_id, 0, UDT_RCVSYN,
+      &receive_synchronously, sizeof(receive_synchronously))) {
+    UDT::close(udt_socket_id);
+    UDT::close(managed_socket_id);
+    return;
+  }
 
   // Connect to peer
   if (UDT::ERROR == UDT::connect(managed_socket_id,
