@@ -448,7 +448,7 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
 
 TEST_F(TransportUdtTest, BEH_TRANS_CrashManagedEndpoints) {
   TransportUDT node2, node3, node4;
-  boost::shared_ptr<TransportUDT> node1_ptr;
+  boost::shared_ptr<TransportUDT> node1_ptr(new TransportUDT());
   MessageHandler message_handler2(&node2, false);
   MessageHandler message_handler3(&node3, false);
   MessageHandler message_handler4(&node4, false);
@@ -463,13 +463,42 @@ TEST_F(TransportUdtTest, BEH_TRANS_CrashManagedEndpoints) {
   ManagedEndpointId node1_end3 =
     node3.AddManagedEndpoint("127.0.0.1", node1_port, "", 0, "Node3", 0 ,0 ,0);
   // Kill node1
-  node1_ptr.reset();
-  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids_.size());
-LOG(INFO) << "HERE !!!" <<std::endl;
   node1_ptr->StopManagedConnections();
+  const int kTimeout(100000);
+  int count(0);
+  while (count < kTimeout &&
+         message_handler2.lost_managed_endpoint_ids_.empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids_.size());
   node2.StopManagedConnections();
+  count = 0;
+  while (count < kTimeout &&
+         message_handler3.lost_managed_endpoint_ids_.size() != 2) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids_.size());
+  ManagedEndpointId node1_end11 =
+    node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0, "Node1", 0 ,0 ,0);
+  node1_ptr.reset();
+ count = 0;
+  while (count < kTimeout &&
+         message_handler2.lost_managed_endpoint_ids_.size() != 3) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(size_t(3), message_handler2.lost_managed_endpoint_ids_.size());
+  node2.StopManagedConnections();
+  count = 0;
+  while (count < kTimeout &&
+         message_handler3.lost_managed_endpoint_ids_.size() != 2) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids_.size());
   node3.StopManagedConnections();
-  node4.StopManagedConnections();
 }
 
 }  // namespace test

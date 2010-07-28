@@ -30,8 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <google/protobuf/descriptor.h>
-#include <algorithm>
-#include <exception>
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/online.h"
 #include "maidsafe/base/routingtable.h"
