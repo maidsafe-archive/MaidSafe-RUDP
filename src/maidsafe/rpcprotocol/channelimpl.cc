@@ -115,26 +115,33 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   tests::TestPingRequest tpr;
 
   // Get field descriptor for RPC payload
-  const google::protobuf::FieldDescriptor *field_descriptor =
-      rpc_message->detail().GetReflection()->FindKnownExtensionByName(
-          /*request->GetTypeName()*/"tests::TestPingRequest");
-  if (!field_descriptor) {
-    DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists: "
-                << request->GetTypeName() << std::endl;
-    done->Run();
-    return;
-  }
+  std::string fr = request->GetTypeName();
+  const google::protobuf::Message::Reflection *refln = rpc_message->detail().GetReflection();
+  const google::protobuf::Descriptor *descfr = request->GetDescriptor();
+  
+  int num = 1;//descfr->extension(0);
+  const google::protobuf::FieldDescriptor *field_descriptor = descfr->extension(0);
+  //    refln->FindKnownExtensionByNumber(num);
+      //request->GetDescriptor()->FindExtensionByName("tests.TestPingRequest")->number());
+  //if (!field_descriptor) {
+  //  DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists: "
+  //              << request->GetTypeName() << std::endl;
+  //  done->Run();
+  //  return;
+  //}
+
+//      tests::TestPingRequest tpr;
+//  rpc_message_detail->MutableExtension();
 
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();
-//      tests::TestPingRequest tpr;
-//  rpc_message_detail->MutableExtension();
 
   // Copy payload into RpcMessage
+  const google::protobuf::Message::Reflection *reflection =
+      rpc_message_detail->GetReflection();
   google::protobuf::Message *mutable_message =
-      rpc_message_detail->GetReflection()->MutableMessage(rpc_message_detail,
-                                                          field_descriptor);
+      reflection->MutableMessage(rpc_message_detail, descfr->extension(0));
   mutable_message->CopyFrom(*request);
 
   PendingMessage pending_request;
@@ -224,8 +231,7 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
   }
   // Get the payload message's descriptor
   const google::protobuf::FieldDescriptor *field_descriptor =
-      rpc_message.detail().GetReflection()->FindKnownExtensionByName(
-         field_descriptors.at(0)->full_name());
+      rpc_message.detail().GetDescriptor()->extension(0);
   // Check it's a message type
   if (field_descriptor->type() !=
       google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
