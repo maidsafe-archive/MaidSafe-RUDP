@@ -323,6 +323,10 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     return kReceiveUdtFailure;
   }
 
+  // Send single char to allow for fast closing on peer side if socket dropped
+  char open_indicator('+');
+  UDT::send(managed_socket_id, &open_indicator, 1, 0);
+
   // Add newly accepted socket to managed endpoints - start checking thread if
   // this is the first
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -814,9 +818,12 @@ void TransportUDT::CheckManagedSockets() {
   int received_count;
   while (true) {
     if (stop_managed_connections_) {
+      // Send '-' to peer to indicate socket closure.
+      char close_indicator('-');
       for (socket_iterator = managed_endpoint_sockets_.begin();
            socket_iterator != managed_endpoint_sockets_.end();
            ++socket_iterator) {
+        UDT::send(*socket_iterator, &close_indicator, 1, 0);
         UDT::close(*socket_iterator);
 // std::cout << "FIRING on_managed_endpoint_lost_ 1" << std::endl;
         signals_.on_managed_endpoint_lost_(*socket_iterator);
@@ -901,6 +908,11 @@ void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
     }
     managed_endpoint_sockets_.push_back(managed_socket_id);
   }
+
+  // Send single char to allow for fast closing on peer side if socket dropped
+  char open_indicator('+');
+  UDT::send(managed_socket_id, &open_indicator, 1, 0);
+
 // std::cout << "FIRING on_managed_endpoint_received_" << std::endl;
   signals_.on_managed_endpoint_received_(managed_socket_id, message);
 }
