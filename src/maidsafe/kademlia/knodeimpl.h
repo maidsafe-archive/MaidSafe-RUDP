@@ -322,18 +322,19 @@ struct BootstrapArgs {
 
 class KNodeImpl {
  public:
-  KNodeImpl(rpcprotocol::ChannelManager* channel_manager,
-            transport::Transport *transport, NodeType type,
-            const std::string &private_key, const std::string &public_key,
-            const bool &port_forwarded, const bool &use_upnp,
-            const boost::uint16_t &k);
+  KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
+            boost::shared_ptr<transport::TransportUDT> udt_transport,
+            NodeType type, const std::string &private_key,
+            const std::string &public_key, const bool &port_forwarded,
+            const bool &use_upnp, const boost::uint16_t &k);
   // constructor used to set up parameters k, alpha, and beta for kademlia
-  KNodeImpl(rpcprotocol::ChannelManager *channel_manager,
-            transport::Transport *transport, NodeType type,
-            const boost::uint16_t &k, const boost::uint16_t &alpha,
-            const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
-            const std::string &private_key, const std::string &public_key,
-            const bool &port_forwarded, const bool &use_upnp);
+  KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
+            boost::shared_ptr<transport::TransportUDT> udt_transport,
+            NodeType type, const boost::uint16_t &k,
+            const boost::uint16_t &alpha, const boost::uint16_t &beta,
+            const boost::uint32_t &refresh_time, const std::string &private_key,
+            const std::string &public_key, const bool &port_forwarded,
+            const bool &use_upnp);
   ~KNodeImpl();
 
   void Join(const KadId &node_id, const std::string &kad_config_file,
@@ -511,16 +512,16 @@ class KNodeImpl {
                     const boost::int32_t &ttl, VoidFunctorOneString callback);
   void RefreshValueCallback(const std::string &result, const KadId &key,
                             const std::string &value, const boost::int32_t &ttl,
-                            boost::shared_ptr<boost::uint32_t> refreshes_done,
-                            const boost::uint32_t &total_refreshes);
+                            const boost::uint32_t &total_refreshes,
+                            boost::shared_ptr<boost::uint32_t> refreshes_done);
   void RecheckNatRoutine();
   void RecheckNatRoutineJoinCallback(const std::string &result);
   boost::mutex routingtable_mutex_, kadconfig_mutex_, extendshortlist_mutex_,
                joinbootstrapping_mutex_, leave_mutex_, activeprobes_mutex_,
                pendingcts_mutex_;
   boost::shared_ptr<base::CallLaterTimer> ptimer_;
-  rpcprotocol::ChannelManager *pchannel_manager_;
-  transport::Transport *transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
+  boost::shared_ptr<transport::TransportUDT> udt_transport_;
   boost::shared_ptr<rpcprotocol::Channel> pservice_channel_;
   boost::shared_ptr<DataStore> pdata_store_;
   base::AlternativeStore *alternative_store_;

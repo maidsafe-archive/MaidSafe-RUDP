@@ -46,7 +46,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
-#include "maidsafe/transport/transport.h"
 
 namespace fs = boost::filesystem;
 
@@ -136,46 +135,43 @@ void InsertKadContact(const KadId &key,
   }
 }
 
-KNodeImpl::KNodeImpl(rpcprotocol::ChannelManager *channel_manager,
-                     transport::Transport *transport, NodeType type,
-                     const std::string &private_key,
-                     const std::string &public_key, const bool &port_forwarded,
-                     const bool &use_upnp, const boost::uint16_t &k)
+KNodeImpl::KNodeImpl(
+    boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
+    boost::shared_ptr<transport::TransportUDT> udt_transport, NodeType type,
+    const std::string &private_key, const std::string &public_key,
+    const bool &port_forwarded, const bool &use_upnp, const boost::uint16_t &k)
     : routingtable_mutex_(), kadconfig_mutex_(), extendshortlist_mutex_(),
       joinbootstrapping_mutex_(), leave_mutex_(), activeprobes_mutex_(),
       pendingcts_mutex_(), ptimer_(new base::CallLaterTimer),
-      pchannel_manager_(channel_manager), transport_(transport),
+      pchannel_manager_(channel_manager), udt_transport_(udt_transport),
       pservice_channel_(), pdata_store_(new DataStore(kRefreshTime)),
-      alternative_store_(NULL), premote_service_(), kadrpcs_(channel_manager,
-      transport), natrpcs_(channel_manager, transport),
-      is_joined_(false), prouting_table_(), node_id_(), fake_kClientId_(),
-      host_ip_(), type_(type), host_port_(0), rv_ip_(),
-      rv_port_(0), bootstrapping_nodes_(), K_(k), alpha_(kAlpha), beta_(kBeta),
-      refresh_routine_started_(false), kad_config_path_(), local_host_ip_(),
-      local_host_port_(0), stopping_(false), port_forwarded_(port_forwarded),
-      use_upnp_(use_upnp), contacts_to_add_(), addcontacts_routine_(),
-      add_ctc_cond_(), private_key_(private_key), public_key_(public_key),
-      host_nat_type_(NONE), recheck_nat_type_(false), upnp_(),
-      upnp_mapped_port_(0), signature_validator_(NULL),
+      alternative_store_(NULL), premote_service_(), kadrpcs_(channel_manager),
+      natrpcs_(channel_manager), is_joined_(false), prouting_table_(),
+      node_id_(), fake_kClientId_(), host_ip_(), type_(type), host_port_(0),
+      rv_ip_(), rv_port_(0), bootstrapping_nodes_(), K_(k), alpha_(kAlpha),
+      beta_(kBeta), refresh_routine_started_(false), kad_config_path_(),
+      local_host_ip_(), local_host_port_(0), stopping_(false),
+      port_forwarded_(port_forwarded), use_upnp_(use_upnp), contacts_to_add_(),
+      addcontacts_routine_(), add_ctc_cond_(), private_key_(private_key),
+      public_key_(public_key), host_nat_type_(NONE), recheck_nat_type_(false),
+      upnp_(), upnp_mapped_port_(0), signature_validator_(NULL),
       exclude_bs_contacts_() {}
 
-KNodeImpl::KNodeImpl(rpcprotocol::ChannelManager *channel_manager,
-                     transport::Transport *transport, NodeType type,
-                     const boost::uint16_t &k, const boost::uint16_t &alpha,
-                     const boost::uint16_t &beta,
-                     const boost::uint32_t &refresh_time,
-                     const std::string &private_key,
-                     const std::string &public_key,
-                     const bool &port_forwarded, const bool &use_upnp)
+KNodeImpl::KNodeImpl(
+    boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
+    boost::shared_ptr<transport::TransportUDT> udt_transport, NodeType type,
+    const boost::uint16_t &k, const boost::uint16_t &alpha,
+    const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
+    const std::string &private_key, const std::string &public_key,
+    const bool &port_forwarded, const bool &use_upnp)
     : routingtable_mutex_(), kadconfig_mutex_(), extendshortlist_mutex_(),
       joinbootstrapping_mutex_(), leave_mutex_(), activeprobes_mutex_(),
       pendingcts_mutex_(), ptimer_(new base::CallLaterTimer),
-      pchannel_manager_(channel_manager), transport_(transport),
+      pchannel_manager_(channel_manager), udt_transport_(udt_transport),
       pservice_channel_(), pdata_store_(new DataStore(refresh_time)),
-      alternative_store_(NULL), premote_service_(),
-      kadrpcs_(channel_manager, transport),
-      natrpcs_(channel_manager, transport), is_joined_(false),
-      prouting_table_(), node_id_(), fake_kClientId_(), host_ip_(), type_(type),
+      alternative_store_(NULL), premote_service_(), kadrpcs_(channel_manager),
+      natrpcs_(channel_manager), is_joined_(false), prouting_table_(),
+      node_id_(), fake_kClientId_(), host_ip_(), type_(type),
       host_port_(0), rv_ip_(), rv_port_(0), bootstrapping_nodes_(), K_(k),
       alpha_(alpha), beta_(beta), refresh_routine_started_(false),
       kad_config_path_(), local_host_ip_(), local_host_port_(0),
@@ -253,7 +249,7 @@ void KNodeImpl::Join_Bootstrapping_Iteration_Client(
     host_port_ = result_msg.newcomer_ext_port();
     DLOG(INFO) << "external address " << host_ip_ << ":" << host_port_
         << std::endl;
-//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//    udt_transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
 //        bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
@@ -286,8 +282,8 @@ void KNodeImpl::Join_Bootstrapping_Iteration_Client(
 
 void KNodeImpl::Join_Bootstrapping_Iteration(
     const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
-    const IP bootstrap_ip, const Port bootstrap_port,
-    const IP local_bs_ip, const Port local_bs_port) {
+    const IP bootstrap_ip, const Port bootstrap_port, const IP local_bs_ip,
+    const Port local_bs_port) {
   if (args->is_callbacked || stopping_)
     return;
   --args->active_process;
@@ -347,7 +343,7 @@ void KNodeImpl::Join_Bootstrapping_Iteration(
         return;
       }
     }
-//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//    udt_transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
 //                                    bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
@@ -365,7 +361,7 @@ void KNodeImpl::Join_Bootstrapping_Iteration(
     AddContact(bootstrap_node, 0.0, false);
     host_ip_ = result_msg.newcomer_ext_ip();
     host_port_ = result_msg.newcomer_ext_port();
-//    transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
+//    udt_transport_->StartPingRendezvous(false, bootstrap_node.host_ip(),
 //                                    bootstrap_node.host_port());
     kadrpcs_.set_info(contact_info());
     args->is_callbacked = true;
@@ -404,7 +400,7 @@ void KNodeImpl::Join_Bootstrapping(VoidFunctorOneString callback,
       premote_service_->set_node_joined(true);
       premote_service_->set_node_info(contact_info());
       // since it is a 1 network node, so it has no rendezvous server to ping
-//      transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
+//      udt_transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
       addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
                                                    this));
       if (!refresh_routine_started_) {
@@ -480,7 +476,7 @@ void KNodeImpl::Join_RefreshNode(VoidFunctorOneString callback,
     IP remote_ip =
         base::IpBytesToAscii(bootstrapping_nodes_[i].host_ip());
     for (unsigned int j = 0; j < local_ips.size() && !got_local_address; ++j) {
-    //  if (transport_->IsAddressUsable(local_ips[j], remote_ip,
+    //  if (udt_transport_->IsAddressUsable(local_ips[j], remote_ip,
     //                                  bootstrapping_nodes_[i].host_port())) {
     //    if (!got_external_address)
     //      host_ip_ = local_ips[j];
@@ -515,9 +511,9 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   }
   if (host_port_ == 0)
 /******************************************************************************/
-//    host_port_ = transport_->listening_port();
+//    host_port_ = udt_transport_->listening_port();
     host_port_ = 1;
-//  local_host_port_ = transport_->listening_port();
+//  local_host_port_ = udt_transport_->listening_port();
   local_host_port_ = 2;
 /******************************************************************************/
   // Adding the services
@@ -575,7 +571,7 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
     return;
   }
 /******************************************************************************/
-//  local_host_port_ = transport_->listening_port();
+//  local_host_port_ = udt_transport_->listening_port();
   local_host_port_ = 2;
 /******************************************************************************/
 
@@ -613,7 +609,7 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   premote_service_->set_node_joined(true);
   premote_service_->set_node_info(contact_info());
   // since it is a 1 network node, so it has no rendezvous server to ping
-//  transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
+//  udt_transport_->StartPingRendezvous(true, rv_ip_, rv_port_);
   addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
       this));
   if (!refresh_routine_started_) {
@@ -629,10 +625,8 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   callback(local_result_str);
 }
 
-void KNodeImpl::Join(const std::string &kad_config_file,
-                     const IP &external_ip,
-                     const Port &external_port,
-                     VoidFunctorOneString callback) {
+void KNodeImpl::Join(const std::string &kad_config_file, const IP &external_ip,
+                     const Port &external_port, VoidFunctorOneString callback) {
   Join(KadId(KadId::kRandomId), kad_config_file, external_ip, external_port,
        callback);
 }
@@ -649,7 +643,7 @@ void KNodeImpl::Leave() {
       premote_service_->set_node_joined(false);
       ptimer_->CancelAll();
       pchannel_manager_->ClearCallLaters();
-//      transport_->StopPingRendezvous();
+//      udt_transport_->StopPingRendezvous();
       UnRegisterKadService();
       pdata_store_->Clear();
       add_ctc_cond_.notify_one();
@@ -1377,8 +1371,8 @@ void KNodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
       for (unsigned int i = 0; i < ctcs.size(); ++i) {
         // checking connection
 /******************************************************************************/
-//        if (transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
-//          transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
+//        if (udt_transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
+//          udt_transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
 //                                          ctcs[i].host_port());
 //          return;
 //        }
@@ -1433,7 +1427,7 @@ void KNodeImpl::RegisterKadService() {
   premote_service_->set_alternative_store(alternative_store_);
   premote_service_->set_signature_validator(signature_validator_);
   pservice_channel_.reset(new rpcprotocol::Channel(pchannel_manager_,
-                                                   transport_));
+                                                   udt_transport_));
   pservice_channel_->SetService(premote_service_.get());
   pchannel_manager_->RegisterChannel(
       premote_service_->GetDescriptor()->name(), pservice_channel_.get());
@@ -1467,7 +1461,7 @@ ConnectionType KNodeImpl::CheckContactLocalAddress(const KadId &id,
     case UNKNOWN: ext_ip_dec = base::IpBytesToAscii(ext_ip);
                   if (host_ip_ != ext_ip_dec) {
                     conn_type = REMOTE;
-                  } /*else if (transport_->CanConnect(ip, port)) {
+                  } /*else if (udt_transport_->CanConnect(ip, port)) {
                     conn_type = LOCAL;
                     (*base::PublicRoutingTable::GetInstance())
                         [base::IntToString(host_port_)]->UpdateContactLocal(
@@ -2281,9 +2275,8 @@ void KNodeImpl::RefreshValue(const KadId &key, const std::string &value,
 
 void KNodeImpl::RefreshValueCallback(
     const std::string &result, const KadId &key, const std::string &value,
-    const boost::int32_t &ttl,
-    boost::shared_ptr<boost::uint32_t> refreshes_done,
-    const boost::uint32_t &total_refreshes) {
+    const boost::int32_t &ttl, const boost::uint32_t &total_refreshes,
+    boost::shared_ptr<boost::uint32_t> refreshes_done) {
   if (!is_joined_ || !refresh_routine_started_  || stopping_)
     return;
   StoreResponse refresh_result;
@@ -2315,11 +2308,11 @@ void KNodeImpl::RefreshValuesRoutine() {
                                 id_key, values[i].value_, values[i].ttl_,
                                 boost::bind(&KNodeImpl::RefreshValueCallback,
                                             this, _1, id_key, values[i].value_,
-                                            values[i].ttl_, refreshes_done,
-                                            values.size()));
+                                            values[i].ttl_, values.size(),
+                                            refreshes_done));
                             break;
          case MARKED_FOR_DELETION: pdata_store_->MarkAsDeleted(
-                                     values[i].key_, values[i].value_);
+                                       values[i].key_, values[i].value_);
                                    break;
          case DELETED: pdata_store_->DeleteItem(values[i].key_,
                                                 values[i].value_);

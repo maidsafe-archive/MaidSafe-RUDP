@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/maidsafe-dht_config.h"
 
 namespace transport {
-class Transport;
+class TransportUDT;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -54,8 +54,7 @@ class KadId;
 
 class KadRpcs {
  public:
-  KadRpcs(rpcprotocol::ChannelManager *channel_manager,
-          transport::Transport *transport);
+  KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager);
   void FindNode(const KadId &key, const IP &ip,
       const Port &port, const IP &rendezvous_ip,
       const Port &rendezvous_port, FindResponse *resp,
@@ -106,9 +105,9 @@ class KadRpcs {
   KadRpcs(const KadRpcs&);
   KadRpcs& operator=(const KadRpcs&);
   ContactInfo info_;
-  rpcprotocol::ChannelManager *pchannel_manager_;
-  transport::Transport *transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
 };
+
 }  // namespace kad
 
 #endif  // MAIDSAFE_KADEMLIA_KADRPC_H_

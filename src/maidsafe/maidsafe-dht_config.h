@@ -181,7 +181,7 @@ namespace rpcprotocol {
 typedef transport::IP IP;
 typedef transport::Port Port;
 typedef boost::uint32_t RpcId;
-typedef transport::SocketId SocketId, ConnectionId;
+typedef transport::SocketId SocketId;
 
 // Maximum port number.
 const Port kMaxPort = 65535;

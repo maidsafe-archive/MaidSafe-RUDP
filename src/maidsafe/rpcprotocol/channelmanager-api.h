@@ -35,9 +35,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/shared_ptr.hpp>
 #include <boost/cstdint.hpp>
-#include <maidsafe/maidsafe-dht_config.h>
 #include <map>
 #include <string>
+#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/base/utils.h"
 
 #if MAIDSAFE_DHT_VERSION < 23
 #error This API is not compatible with the installed library.
@@ -45,14 +46,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
-namespace base {
-template <typename T>
-class Stats;
-}  // namespace base
-
-
 namespace transport {
-class Transport;
+class TransportUDT;
 }  // namespace transport
 
 
@@ -62,8 +57,8 @@ typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 
 class Channel;
 class ChannelManagerImpl;
-struct PendingRequest;
 class RpcMessage;
+struct PendingMessage;
 
 // Ensure that a one-to-one relationship is maintained between channelmanager &
 // knode.
@@ -82,9 +77,14 @@ class ChannelManager {
  public:
   /**
   * Constructor
+  */
+  ChannelManager();
+  /**
+  * Constructor
   * @param transport Pointer to a Transport object
   */
-  explicit ChannelManager(transport::Transport *transport);
+  explicit ChannelManager(
+      boost::shared_ptr<transport::TransportUDT> udt_transport);
   ~ChannelManager();
   /**
   * Registers a channel and identifies it with the name of the RPC service that
@@ -136,7 +136,7 @@ class ChannelManager {
   * @return True if pending request successfully added, False otherwise
   */
   bool AddPendingRequest(const SocketId &socket_id,
-                         PendingRequest pending_request);
+                         PendingMessage pending_request);
   /**
   * Removes a pending request from the list and calls the callback of the
   * request with status Cancelled.
@@ -152,22 +152,6 @@ class ChannelManager {
   * no request was found for the id.
   */
   bool CancelPendingRequest(const SocketId &socket_id);
-  /**
-  * Adds a request to the timer to check when it times out.
-  * @param rpc_id id of the request
-  * @param timeout time in milliseconds after which the request times out
-  */
-  void AddRequestToTimer(const SocketId &socket_id,
-                         const boost::uint64_t &timeout);
-//  /**
-//  * Adds a request to a list that holds all request that haven't been
-//  * completely sent via the transport.
-//  * @param connection_id id of the connection used to send the request
-//  * @param rpc_id id of the request
-//  * @param timeout milliseconds after which the request times out
-//  */
-//  void AddTimeOutRequest(const ConnectionId &connection_id,
-//                         const RpcId &rpc_id, const int &timeout);
   /**
   * Creates and adds the id of a Channel to a list that holds all the channels
   * using the objet.

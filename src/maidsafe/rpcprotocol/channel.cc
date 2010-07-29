@@ -27,7 +27,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/rpcprotocol/channelimpl.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
-#include "maidsafe/transport/transport.h"
 
 namespace rpcprotocol {
 
@@ -115,16 +114,24 @@ std::string Controller::method() const {
   return controller_pimpl_->method();
 }
 
-Channel::Channel(ChannelManager *channel_manager,
-                 transport::Transport *transport)
-    : pimpl_(new ChannelImpl(channel_manager, transport)) {}
+void Controller::set_udt_transport(
+    boost::shared_ptr<transport::TransportUDT> udt_transport) {
+  controller_pimpl_->set_udt_transport(udt_transport);
+}
 
-Channel::Channel(ChannelManager *channel_manager,
-                 transport::Transport *transport,
+boost::shared_ptr<transport::TransportUDT> Controller::udt_transport() const {
+  return controller_pimpl_->udt_transport();
+}
+
+Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
+                 boost::shared_ptr<transport::TransportUDT> udt_transport)
+    : pimpl_(new ChannelImpl(channel_manager, udt_transport)) {}
+
+Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
                  const IP &remote_ip, const Port &remote_port,
                  const IP &local_ip, const Port &local_port,
                  const IP &rendezvous_ip, const Port &rendezvous_port)
-    : pimpl_(new ChannelImpl(channel_manager, transport, remote_ip, remote_port,
+    : pimpl_(new ChannelImpl(channel_manager, remote_ip, remote_port,
                              local_ip, local_port, rendezvous_ip,
                              rendezvous_port)) {}
 
@@ -143,9 +150,9 @@ void Channel::SetService(google::protobuf::Service* service) {
 }
 
 void Channel::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
-                            const ConnectionId &connection_id,
+                            const SocketId &socket_id,
                             const float &rtt) {
-  pimpl_->HandleRequest(rpc_message, connection_id, rtt);
+  pimpl_->HandleRequest(rpc_message, socket_id, rtt);
 }
 
 }  // namespace rpcprotocol

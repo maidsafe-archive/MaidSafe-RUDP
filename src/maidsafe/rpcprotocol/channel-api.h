@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class Transport;
+class TransportUDT;
 }  // namespace transport
 
 
@@ -137,6 +137,16 @@ class Controller : public google::protobuf::RpcController {
   * Get the name of the method being called remotely, if stored.
   */
   std::string method() const;
+  /**
+  * Set the UDT transport being used for the operation.
+  * @param udt_transport The transport used.
+  */
+  void set_udt_transport(
+      boost::shared_ptr<transport::TransportUDT> udt_transport);
+  /**
+  * Get the UDT transport being used, if not NULL.
+  */
+  boost::shared_ptr<transport::TransportUDT> udt_transport() const;
  private:
   boost::shared_ptr<ControllerImpl> controller_pimpl_;
 };
@@ -153,8 +163,8 @@ class Channel : public google::protobuf::RpcChannel {
   * @param channelmanager Pointer to a ChannelManager object
   * @param transport Pointer to a Transport object
   */
-  Channel(ChannelManager *channel_manager,
-          transport::Transport *transport);
+  Channel(boost::shared_ptr<ChannelManager> channel_manager,
+          boost::shared_ptr<transport::TransportUDT> udt_transport);
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object
@@ -166,7 +176,7 @@ class Channel : public google::protobuf::RpcChannel {
   * @param local_port local port of the endpoint that is going to receive
   * the RPC
   */
-  Channel(ChannelManager *channel_manager, transport::Transport *transport,
+  Channel(boost::shared_ptr<ChannelManager> channel_manager,
           const IP &remote_ip, const Port &remote_port,
           const IP &local_ip, const Port &local_port,
           const IP &rendezvous_ip, const Port &rendezvous_port);
@@ -192,7 +202,7 @@ class Channel : public google::protobuf::RpcChannel {
   * @param rtt round trip time to the peer from which it received the request
   */
   void HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
-                     const ConnectionId &connection_id, const float &rtt);
+                     const SocketId &socket_id, const float &rtt);
  private:
   boost::shared_ptr<ChannelImpl> pimpl_;
 };

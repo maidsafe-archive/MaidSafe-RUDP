@@ -26,42 +26,44 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
+#include <google/protobuf/descriptor.h>
 #include <list>
 #include "maidsafe/base/log.h"
-#include "maidsafe/base/online.h"
+#include "maidsafe/base/utils.h"
 #include "maidsafe/base/network_interface.h"
-#include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/rpcmessage.pb.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
+#include "maidsafe/rpcprotocol/rpcstructs.h"
+#include "maidsafe/transport/transportudt.h"
+
 
 namespace rpcprotocol {
 
-ChannelManagerImpl::ChannelManagerImpl(transport::Transport *transport)
-    : is_started_(false),
-      call_later_timer_(new base::CallLaterTimer),
-      req_mutex_(),
-      channels_mutex_(),
-      id_mutex_(),
-      pend_timeout_mutex_(),
-      channels_ids_mutex_(),
-      timings_mutex_(),
-      current_rpc_id_(0),
-      current_channel_id_(0),
-      channels_(),
-      pending_requests_(),
-      pending_timeouts_(),
-      channels_ids_(),
-      rpc_timings_(),
-      delete_channels_cond_(),
-      online_status_id_(0) {
-  rpc_request_ = transport_->signals().ConnectOnRpcRequestReceived(
-      boost::bind(&ChannelManagerImpl::RequestArrive, this, _1, _2, _3));
-  rpc_reponse_ = transport_->signals().ConnectOnRpcResponseReceived(
-      boost::bind(&ChannelManagerImpl::ResponseArrive, this, _1, _2, _3));
-  data_sent_connection_ = transport_->signals().ConnectOnSend((boost::bind(
-      &ChannelManagerImpl::RequestSent, this, _1, _2)));
+ChannelManagerImpl::ChannelManagerImpl()
+    : udt_transport_ (), is_started_(false), message_mutex_(),
+      channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
+      current_rpc_id_(0), current_channel_id_(0), channels_(),
+      pending_messages_(), channels_ids_(), rpc_timings_(),
+      delete_channels_cond_(), online_status_id_(0), rpc_request_(),
+      rpc_reponse_(), data_sent_(), timeout_() {}
+
+ChannelManagerImpl::ChannelManagerImpl(
+    boost::shared_ptr<transport::TransportUDT> udt_transport)
+    : udt_transport_ (udt_transport), is_started_(false), message_mutex_(),
+      channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
+      current_rpc_id_(0), current_channel_id_(0), channels_(),
+      pending_messages_(), channels_ids_(), rpc_timings_(),
+      delete_channels_cond_(), online_status_id_(0), rpc_request_(),
+      rpc_reponse_(), data_sent_(), timeout_() {
+  rpc_request_ = udt_transport_->signals().ConnectOnRpcRequestReceived(
+                     boost::bind(&ChannelManagerImpl::RequestArrive,
+                                 this, _1, _2, _3));
+  data_sent_ = udt_transport_->signals().ConnectOnSend(
+                   boost::bind(&ChannelManagerImpl::RpcMessageSent,
+                               this, _1, _2));
+  timeout_ = udt_transport_->signals().ConnectOnReceive(
+                 boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
 }
 
 ChannelManagerImpl::~ChannelManagerImpl() {
@@ -72,13 +74,8 @@ int ChannelManagerImpl::Start() {
   if (is_started_) {
     return 0;
   }
-  current_rpc_id_ =
-      base::GenerateNextTransactionId(current_rpc_id_) +
-      (listening_port_/*transport_->listening_port()*/ * 100);
+  current_rpc_id_ = base::GenerateNextTransactionId(current_rpc_id_);
   is_started_ = true;
-  online_status_id_ = base::OnlineController::Instance()->RegisterObserver(
-      /*transport_->listening_port()*/listening_port_,
-      boost::bind(&ChannelManagerImpl::OnlineStatusChanged, this, _1));
   return 0;
 }
 
@@ -87,11 +84,6 @@ int ChannelManagerImpl::Stop() {
     return 0;
   }
   is_started_ = false;
-  base::OnlineController::Instance()->UnregisterObserver(online_status_id_);
-  {
-    boost::mutex::scoped_lock guard(pend_timeout_mutex_);
-    pending_timeouts_.clear();
-  }
   ClearCallLaters();
   {
     boost::mutex::scoped_lock lock(channels_ids_mutex_);
@@ -103,6 +95,10 @@ int ChannelManagerImpl::Stop() {
     }
   }
   ClearChannels();
+  rpc_request_.disconnect();
+  rpc_reponse_.disconnect();
+  data_sent_.disconnect();
+  timeout_.disconnect();
   return 1;
 }
 
@@ -120,35 +116,45 @@ void ChannelManagerImpl::RemoveChannelId(const boost::uint32_t &id) {
 }
 
 bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
-                                           PendingRequest pending_request) {
+                                           PendingMessage pending_request) {
   if (!is_started_) {
     return false;
   }
-  boost::mutex::scoped_lock guard(req_mutex_);
-  pending_requests_[socket_id] = pending_request;
-  return true;
+  pending_request.rpc_reponse =
+      pending_request.controller->udt_transport()->signals().
+          ConnectOnRpcResponseReceived(
+              boost::bind(&ChannelManagerImpl::ResponseArrive,
+                          this, _1, _2, _3));
+  pending_request.data_sent =
+      pending_request.controller->udt_transport()->signals().ConnectOnSend(
+          boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
+  pending_request.timeout =
+      pending_request.controller->udt_transport()->signals().ConnectOnReceive(
+          boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
+  std::pair<std::map<SocketId, PendingMessage>::iterator, bool> p;
+  {
+    boost::mutex::scoped_lock loch_nan_clar(message_mutex_);
+    p = pending_messages_.insert(std::pair<SocketId,  PendingMessage>(
+                                           socket_id, pending_request));
+  }
+  return p.second;
 }
 
 bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
-  std::map<SocketId, PendingRequest>::iterator it;
-  req_mutex_.lock();
-  it = pending_requests_.find(socket_id);
-  if (it == pending_requests_.end()) {
-    req_mutex_.unlock();
+  std::map<SocketId, PendingMessage>::iterator it;
+  message_mutex_.lock();
+  it = pending_messages_.find(socket_id);
+  if (it == pending_messages_.end()) {
+    message_mutex_.unlock();
     return false;
   }
-//  ConnectionId connection_id = it->second.connection_id;
   it->second.controller->SetFailed(kCancelled);
   google::protobuf::Closure *callback = it->second.callback;
-  pending_requests_.erase(it);
-  req_mutex_.unlock();
-/******************************************************************************/
-//  if (connection_id != 0)
-//    transport_->CloseConnection(connection_id);
-/******************************************************************************/
+  pending_messages_.erase(it);
+  message_mutex_.unlock();
   callback->Run();
   return true;
 }
@@ -157,31 +163,17 @@ bool ChannelManagerImpl::CancelPendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
-  std::map<SocketId, PendingRequest>::iterator it;
-  req_mutex_.lock();
-  it = pending_requests_.find(socket_id);
-  if (it == pending_requests_.end()) {
-    req_mutex_.unlock();
+  std::map<SocketId, PendingMessage>::iterator it;
+  message_mutex_.lock();
+  it = pending_messages_.find(socket_id);
+  if (it == pending_messages_.end()) {
+    message_mutex_.unlock();
     return false;
   }
-//  ConnectionId connection_id = it->second.connection_id;
   delete it->second.callback;
-  pending_requests_.erase(it);
-  req_mutex_.unlock();
-/******************************************************************************/
-//  if (connection_id != 0)
-//    transport_->CloseConnection(connection_id);
-/******************************************************************************/
+  pending_messages_.erase(it);
+  message_mutex_.unlock();
   return true;
-}
-
-void ChannelManagerImpl::AddReqToTimer(const SocketId &socket_id,
-                                       const boost::uint64_t &timeout) {
-  if (!is_started_) {
-    return;
-  }
-  call_later_timer_->AddCallLater(timeout,
-      boost::bind(&ChannelManagerImpl::TimerHandler, this, socket_id));
 }
 
 RpcId ChannelManagerImpl::CreateNewId() {
@@ -197,132 +189,70 @@ void ChannelManagerImpl::RegisterChannel(const std::string &service_name,
 }
 
 void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
-                                       const ConnectionId &connection_id,
+                                       const SocketId &socket_id,
                                        const float &rtt) {
   rpcprotocol::RpcMessage decoded_msg = msg;
-  std::map<RpcId, PendingRequest>::iterator it;
-  req_mutex_.lock();
-//  it = pending_requests_.find(decoded_msg.rpc_id());
-  //if (it != pending_requests_.end()) {
-  //  if (it->second.args->CopyFrom(decoded_msg.args())) {
-  //    boost::uint64_t duration(0);
-  //    std::string method;
-  //    if (it->second.controller != NULL) {
-  //      it->second.controller->StopRpcTimer();
-  //      it->second.controller->set_rtt(rtt);
-  //      method = it->second.controller->method();
-  //      duration = it->second.controller->Duration();
-  //      {
-  //        boost::mutex::scoped_lock lock(timings_mutex_);
-  //        rpc_timings_[method].Add(duration);
-  //      }
-  //    }
-  //    google::protobuf::Closure* done = (*it).second.callback;
-  //    pending_requests_.erase(decoded_msg.rpc_id());
-  //    req_mutex_.unlock();
-  //    DLOG(INFO) << transport_->listening_port() <<
-  //        " --- Request arrived for " << method << " -- " <<
-  //        decoded_msg.rpc_id() << " -- RTT: " << rtt << " ms, duration: " <<
-  //        duration << " ms" << std::endl;
-  //    done->Run();
-  //    // TODO(dirvine) FIXREFRESH Check this is not connected to a node in
-  //    // our first kbucketkbucket
-  //    //transport_->CloseConnection(connection_id);
-  //  } else {
-  //    req_mutex_.unlock();
-  //    DLOG(INFO) << transport_->listening_port() <<
-  //        " --- ChannelManager no callback for id " <<
-  //        decoded_msg.rpc_id() << std::endl;
-  //  }
-  //} else {
-  //  req_mutex_.unlock();
-  //  DLOG(INFO) << transport_->listening_port() <<
-  //      " --- ChannelManager no request for id " <<
-  //      decoded_msg.rpc_id() << std::endl;
-  //}
+  std::map<std::string, Channel*>::iterator it;
+  channels_mutex_.lock();
+  it = channels_.find(decoded_msg.service());
+  if (it != channels_.end()) {
+    std::pair<std::map<SocketId, PendingMessage>::iterator, bool> p;
+    {
+      boost::mutex::scoped_lock loch_loanan(message_mutex_);
+      PendingMessage pm;
+      pm.status = kAwaitingResponseSend;
+      p = pending_messages_.insert(std::pair<SocketId,  PendingMessage>(
+                                             socket_id, pm));
+      if (!p.second) {
+        channels_mutex_.unlock();
+        DLOG(ERROR) << "CMImpl::RequestArrive - Failed to add to pending msgs"
+                    << " - " << socket_id << std::endl;
+      }
+    }
+    it->second->HandleRequest(decoded_msg, socket_id, rtt);
+    channels_mutex_.unlock();
+  } else {
+    DLOG(ERROR) << "Message arrived for unregistered service" << std::endl;
+    channels_mutex_.unlock();
+  }
 }
 
 void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
-                                        const ConnectionId &connection_id,
-                                        const float &rtt) {
+                                        const SocketId &socket_id,
+                                        const float&) {
   rpcprotocol::RpcMessage decoded_msg = msg;
-  // TODO FIXME (dirvine)
-  if (/*!decoded_msg.has_service() ||*/ !decoded_msg.has_method()) {
-    DLOG(ERROR) << /*transport_->listening_port()*/ listening_port_ <<
-        " --- request arrived cannot parse message\n";
+  if (!decoded_msg.has_method()) {
+    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                << " - request arrived cannot parse message" << std::endl;
     return;
   }
-  // If this is a special find node for boostrapping,
-  // inject incoming address
-  //if (decoded_msg.method() == "Bootstrap") {
-  //  kad::BootstrapRequest decoded_bootstrap;
-  //  if (!decoded_bootstrap.ParseFromString(decoded_msg.args())) {
-  //    return;
-  //  }
-  //  struct sockaddr peer_addr;
-  //  if (!transport_->GetPeerAddr(connection_id, &peer_addr))
-  //    return;
-  //  IP peer_ip =
-  //      base::NetworkInterface::SockaddrToAddress(&peer_addr).to_string();
-  //  Port peer_port = ntohs(reinterpret_cast<struct sockaddr_in*>(
-  //                                    &peer_addr)->sin_port);
-  //  decoded_bootstrap.set_newcomer_ext_ip(peer_ip);
-  //  decoded_bootstrap.set_newcomer_ext_port(peer_port);
-  //  std::string encoded_bootstrap;
-  //  if (!decoded_bootstrap.SerializeToString(&encoded_bootstrap)) {
-  //    return;
-  //  }
-  //  decoded_msg.set_args(encoded_bootstrap);
-  //}
-  //// Find Channel that has registered the service
-  //std::map<std::string, Channel*>::iterator it;
-  //channels_mutex_.lock();
-  //it = channels_.find(decoded_msg.service());
-  //if (it != channels_.end()) {
-  //  it->second->HandleRequest(decoded_msg, connection_id, rtt);
-  //  channels_mutex_.unlock();
-  //} else {
-  //  LOG(ERROR) << "Message arrived for unregistered service\n";
-  //  channels_mutex_.unlock();
-  //}
-}
+  std::map<SocketId, PendingMessage>::iterator it;
+  {
+    boost::mutex::scoped_lock loch_coire(message_mutex_);
+    it = pending_messages_.find(socket_id);
+    if (it == pending_messages_.end()) {
+      DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                  << " - response not expected" << std::endl;
+      return;
+    }
+  }
+  if ((*it).second.status != kRequestSent) {
+    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                << " - response not expected" << std::endl;
+    return;
+  }
 
-void ChannelManagerImpl::TimerHandler(const SocketId &socket_id) {
-  if (!is_started_) {
+  if (!(*it).second.callback) {
+    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                << " - callback null" << std::endl;
     return;
   }
-/******************************************************************************/
-//  std::map<RpcId, PendingRequest>::iterator it;
-//  req_mutex_.lock();
-//  it = pending_requests_.find(rpc_id);
-//  if (it != pending_requests_.end()) {
-//    transport::DataSize size_received = it->second.size_received;
-//    ConnectionId connection_id = it->second.connection_id;
-//    boost::uint64_t timeout = it->second.timeout;
-//    if (transport_->HasReceivedData(connection_id, &size_received)) {
-//      it->second.size_received = size_received;
-//      req_mutex_.unlock();
-//      DLOG(INFO) << transport_->listening_port() <<
-//          " -- Reseting timeout for RPC ID: " << rpc_id <<
-//          ". Connection ID: " << connection_id << ". Recvd: " << size_received;
-//      AddReqToTimer(rpc_id, timeout);
-//    } else {
-//      DLOG(INFO) << transport_->listening_port() <<
-//          "Request " << rpc_id << " times out.  Connection ID: " <<
-//          connection_id << std::endl;
-//      // call back without modifying the response
-//      google::protobuf::Closure* done = (*it).second.callback;
-//      (*it).second.controller->SetFailed(kTimeOut);
-//      pending_requests_.erase(it);
-//      req_mutex_.unlock();
-//      done->Run();
-//      if (connection_id != 0)
-//        transport_->CloseConnection(connection_id);
-//    }
-//  } else {
-//    req_mutex_.unlock();
-//  }
-/******************************************************************************/
+  google::protobuf::Closure* done = (*it).second.callback;
+  (*it).second.rpc_reponse.disconnect();
+  (*it).second.data_sent.disconnect();
+  (*it).second.timeout.disconnect();
+  pending_messages_.erase(it);
+  done->Run();
 }
 
 void ChannelManagerImpl::UnRegisterChannel(const std::string &service_name) {
@@ -336,42 +266,33 @@ void ChannelManagerImpl::ClearChannels() {
 }
 
 void ChannelManagerImpl::ClearCallLaters() {
-  {
-    boost::mutex::scoped_lock guard(req_mutex_);
-    std::map<SocketId, PendingRequest>::iterator it;
-    for (it = pending_requests_.begin(); it != pending_requests_.end(); ++it)
-      delete it->second.callback;
-    pending_requests_.clear();
-  }
-  call_later_timer_->CancelAll();
+  boost::mutex::scoped_lock loch_more(message_mutex_);
+  std::map<SocketId, PendingMessage>::iterator it;
+  for (it = pending_messages_.begin(); it != pending_messages_.end(); ++it)
+    delete it->second.callback;
+  pending_messages_.clear();
 }
 
-void ChannelManagerImpl::RequestSent(const ConnectionId &connection_id,
-                                     const bool &success) {
-  std::map<ConnectionId, PendingTimeOut>::iterator it;
-  boost::mutex::scoped_lock guard(pend_timeout_mutex_);
-  it = pending_timeouts_.find(connection_id);
-  if (it != pending_timeouts_.end()) {
-    if (success) {
-      AddReqToTimer(it->second.rpc_id, it->second.timeout);
-    } else {
-      AddReqToTimer(it->second.rpc_id, 1000);
-    }
+void ChannelManagerImpl::RpcMessageSent(const SocketId &socket_id,
+                                        const bool &success) {
+  std::map<SocketId, PendingMessage>::iterator it;
+  boost::mutex::scoped_lock loch_hope(message_mutex_);
+  it = pending_messages_.find(socket_id);
+  if (it == pending_messages_.end())
+    return;
+  if (!success) {
+    pending_messages_.erase(it);
+    return;
   }
-}
 
-//void ChannelManagerImpl::AddTimeOutRequest(const ConnectionId &connection_id,
-//                                           const SocketId &socket_id,
-//                                           const int &timeout) {
-//  struct PendingTimeOut timestruct;
-//  timestruct.rpc_id = rpc_id;
-//  timestruct.timeout = timeout;
-//  boost::mutex::scoped_lock guard(pend_timeout_mutex_);
-//  pending_timeouts_[connection_id] = timestruct;
-//}
-
-void ChannelManagerImpl::OnlineStatusChanged(const bool&) {
-  // TODO(anyone) handle connection loss
+  switch ((*it).second.status) {
+    case kAwaitingRequestSend: (*it).second.status = kRequestSent;
+                               break;
+    case kAwaitingResponseSend: delete (*it).second.callback;
+    case kPending: pending_messages_.erase(it);
+                   break;
+    default:;
+  }
 }
 
 RpcStatsMap ChannelManagerImpl::RpcTimings() {
@@ -382,6 +303,22 @@ RpcStatsMap ChannelManagerImpl::RpcTimings() {
 void ChannelManagerImpl::ClearRpcTimings() {
   boost::mutex::scoped_lock lock(timings_mutex_);
   rpc_timings_.clear();
+}
+
+void ChannelManagerImpl::RpcStatus(const SocketId &socket_id,
+                                   const transport::TransportCondition &tc) {
+  if (tc != transport::kSuccess) {
+    boost::mutex::scoped_lock loch_urigill(message_mutex_);
+    std::map<SocketId, PendingMessage>::iterator it;
+    it = pending_messages_.find(socket_id);
+    if (it != pending_messages_.end()) {
+      if ((*it).second.status == kRequestSent) {
+        DLOG(ERROR) << "CMImpl::RpcStatus - " << socket_id
+                    << " - request timeout" << std::endl;
+        pending_messages_.erase(it);
+      }
+    }
+  }
 }
 
 }  // namespace rpcprotocol

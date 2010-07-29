@@ -28,17 +28,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
-#include "maidsafe/transport/transport.h"
+#include "maidsafe/rpcprotocol/rpcstructs.h"
 
 namespace rpcprotocol {
 
-ChannelManager::ChannelManager(transport::Transport *transport)
-    : pimpl_(new ChannelManagerImpl(transport)) {}
+ChannelManager::ChannelManager() : pimpl_(new ChannelManagerImpl()) {}
+
+ChannelManager::ChannelManager(
+    boost::shared_ptr<transport::TransportUDT> udt_transport)
+    : pimpl_(new ChannelManagerImpl(udt_transport)) {}
 
 ChannelManager::~ChannelManager() {}
 
 bool ChannelManager::AddPendingRequest(const SocketId &socket_id,
-                                       PendingRequest pending_request) {
+                                       PendingMessage pending_request) {
   return pimpl_->AddPendingRequest(socket_id, pending_request);
 }
 
@@ -48,11 +51,6 @@ bool ChannelManager::DeletePendingRequest(const SocketId &socket_id) {
 
 bool ChannelManager::CancelPendingRequest(const SocketId &socket_id) {
   return pimpl_->CancelPendingRequest(socket_id);
-}
-
-void ChannelManager::AddRequestToTimer(const SocketId &socket_id,
-                                       const boost::uint64_t &timeout) {
-  pimpl_->AddReqToTimer(socket_id, timeout);
 }
 
 RpcId ChannelManager::CreateNewId() {

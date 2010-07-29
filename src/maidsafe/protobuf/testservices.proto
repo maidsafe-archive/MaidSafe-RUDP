@@ -1,0 +1,67 @@
+import "rpcmessage.proto";
+
+package tests;
+
+message TestPingRequest{
+  extend rpcprotocol.RpcMessage.Detail {
+    optional TestPingRequest ping_request = 19;
+  }
+  required string ping = 2;
+  required string ip = 3;
+  required int32 port = 4;
+}
+
+message TestPingResponse{
+  extend rpcprotocol.RpcMessage.Detail {
+    optional TestPingResponse ping_response = 20;
+  }
+  required string result = 2;
+  required string pong = 3;
+}
+
+message BinaryOpRequest {
+  extend rpcprotocol.RpcMessage.Detail {
+    optional BinaryOpRequest binary_request = 21;
+  }
+  required int32 first = 1;
+  required int32 second = 2;
+  required string ip = 3;
+  required int32 port = 4;
+}
+
+message BinaryOpResponse {
+  extend rpcprotocol.RpcMessage.Detail {
+    optional BinaryOpResponse binary_response = 22;
+  }
+  required int32 result = 1;
+}
+
+message StringMirrorRequest {
+  extend rpcprotocol.RpcMessage.Detail {
+    optional StringMirrorRequest mirror_request = 23;
+  }
+  required string message = 1;
+  required string ip = 2;
+  required int32 port = 3;
+  optional bool not_pause = 4;
+}
+
+message StringMirrorResponse {
+  extend rpcprotocol.RpcMessage.Detail {
+    optional BinaryOpResponse mirror_response = 24;
+  }
+  required string mirrored_string = 1;
+}
+
+service PingTest {
+  rpc TestPing( TestPingRequest ) returns (TestPingResponse);
+}
+
+service TestOp {
+  rpc Add ( BinaryOpRequest ) returns ( BinaryOpResponse );
+  rpc Multiplyl ( BinaryOpRequest ) returns ( BinaryOpResponse );
+}
+
+service MirrorTest {
+  rpc Mirror ( StringMirrorRequest ) returns ( StringMirrorResponse );
+}

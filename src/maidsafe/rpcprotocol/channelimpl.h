@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 
 namespace transport {
-class Transport;
+class TransportUDT;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -49,15 +49,9 @@ class RpcMessage;
 
 class ControllerImpl {
  public:
-  ControllerImpl()
-      : timeout_(kRpcTimeout),
-        time_sent_(0),
-        time_received_(0),
-        rtt_(0.0),
-        failure_(),
-        rpc_id_(0),
-        socket_id_(0),
-        method_() {}
+  ControllerImpl() : timeout_(kRpcTimeout), time_sent_(0), time_received_(0),
+                     rtt_(0.0), failure_(), rpc_id_(0), socket_id_(0),
+                     method_(), udt_transport_() {}
   void SetFailed(const std::string &failure) { failure_ = failure; }
   void Reset();
   bool Failed() const { return !failure_.empty(); }
@@ -88,6 +82,13 @@ class ControllerImpl {
   SocketId socket_id() const { return socket_id_; }
   void set_method(const std::string &method) { method_ = method; }
   std::string method() const { return method_; }
+  void set_udt_transport(
+      boost::shared_ptr<transport::TransportUDT> udt_transport) {
+    udt_transport_ = udt_transport;
+  }
+  boost::shared_ptr<transport::TransportUDT> udt_transport() const {
+    return udt_transport_;
+  }
  private:
   boost::uint64_t timeout_;
   boost::uint64_t time_sent_, time_received_;
@@ -96,17 +97,17 @@ class ControllerImpl {
   RpcId rpc_id_;
   SocketId socket_id_;
   std::string method_;
+  boost::shared_ptr<transport::TransportUDT> udt_transport_;
 };
 
 class ChannelImpl {
  public:
-  ChannelImpl(ChannelManager *channel_manager,
-              transport::Transport *transport);
-  ChannelImpl(ChannelManager *channel_manager, transport::Transport *transport,
+  ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
+              boost::shared_ptr<transport::TransportUDT> udt_transport);
+  ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
-              const IP &rendezvous_ip,
-              const Port &rendezvous_port);
+              const IP &rendezvous_ip, const Port &rendezvous_port);
   ~ChannelImpl();
   void CallMethod(const google::protobuf::MethodDescriptor *method,
                   google::protobuf::RpcController *rpc_controller,
@@ -115,7 +116,7 @@ class ChannelImpl {
                   google::protobuf::Closure *done);
   void SetService(google::protobuf::Service *service) { service_ = service; };
   void HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
-                     const ConnectionId &connection_id,
+                     const SocketId &socket_id,
                      const float &rtt);
  private:
   ChannelImpl(const ChannelImpl&);
@@ -123,12 +124,13 @@ class ChannelImpl {
   void SendResponse(const google::protobuf::Message *response,
                     boost::shared_ptr<Controller> controller);
   std::string GetServiceName(const std::string &full_name);
-  ChannelManager *channel_manager_;
-  transport::Transport *transport_;
+  boost::shared_ptr<ChannelManager> channel_manager_;
+  boost::shared_ptr<transport::TransportUDT> udt_transport_;
   google::protobuf::Service *service_;
   IP remote_ip_, local_ip_, rendezvous_ip_;
   Port remote_port_, local_port_, rendezvous_port_;
   boost::uint32_t id_;
+  bool local_transport_;
 };
 
 }  // namespace rpcprotocol

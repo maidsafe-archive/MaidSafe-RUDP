@@ -28,31 +28,40 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_RPCPROTOCOL_CHANNELMANAGERIMPL_H_
 #define MAIDSAFE_RPCPROTOCOL_CHANNELMANAGERIMPL_H_
 
+#include <boost/shared_ptr.hpp>
+#include <boost/thread/condition_variable.hpp>
+#include <boost/thread/mutex.hpp>
+
 #include <map>
 #include <set>
 #include <string>
 #include <memory>
-#include "boost/shared_ptr.hpp"
-#include "google/protobuf/service.h"
-#include "google/protobuf/message.h"
-#include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/rpcprotocol/channelimpl.h"
-#include "maidsafe/rpcprotocol/rpcstructs.h"
-#include "maidsafe/transport/transport.h"
+
+#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/transport/transportconditions.h"
+
+namespace base {
+template <typename T>
+class Stats;
+}  // namespace base
 
 namespace transport {
-class Transport;
+class TransportUDT;
 }  // namespace transport
 
 namespace rpcprotocol {
 
 class Channel;
+class RpcMessage;
+struct PendingMessage;
 
 typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 
 class ChannelManagerImpl {
  public:
-  explicit ChannelManagerImpl(transport::Transport *transport);
+  ChannelManagerImpl();
+  explicit ChannelManagerImpl(
+      boost::shared_ptr<transport::TransportUDT> udt_transport);
   ~ChannelManagerImpl();
   void RegisterChannel(const std::string &service_name, Channel* channel);
   void UnRegisterChannel(const std::string &service_name);
@@ -64,44 +73,36 @@ class ChannelManagerImpl {
   int Stop();
   RpcId CreateNewId();
   bool AddPendingRequest(const SocketId &socket_id,
-                         PendingRequest pending_request);
+                         PendingMessage pending_request);
   bool DeletePendingRequest(const SocketId &socket_id);
   bool CancelPendingRequest(const SocketId &socket_id);
-  void AddReqToTimer(const SocketId &socket_id, const boost::uint64_t &timeout);
-//  void AddTimeOutRequest(const ConnectionId &connection_id,
-//                         const SocketId &socket_id,
-//                         const int &timeout);
-  bool RegisterNotifiersToTransport();
   RpcStatsMap RpcTimings();
   void ClearRpcTimings();
  private:
-  void TimerHandler(const SocketId &socket_id);
-  void RequestSent(const ConnectionId &connection_id, const bool &success);
-  void OnlineStatusChanged(const bool &online);
+  ChannelManagerImpl(const ChannelManagerImpl&);
+  ChannelManagerImpl& operator=(const ChannelManagerImpl&);
+  void RpcMessageSent(const SocketId &socket_id, const bool &success);
   void RequestArrive(const rpcprotocol::RpcMessage &msg,
                      const SocketId &socket_id,
                      const float &rtt);
   void ResponseArrive(const rpcprotocol::RpcMessage &msg,
                       const SocketId &socket_id,
                       const float &rtt);
-  transport::Transport *transport_;
+  void RpcStatus(const SocketId &socket_id,
+                 const transport::TransportCondition &tc);
+  boost::shared_ptr<transport::TransportUDT> udt_transport_;
   bool is_started_;
-  boost::shared_ptr<base::CallLaterTimer> call_later_timer_;
-  boost::mutex req_mutex_, channels_mutex_, id_mutex_, pend_timeout_mutex_,
-      channels_ids_mutex_, timings_mutex_;
+  boost::mutex message_mutex_, channels_mutex_, id_mutex_, channels_ids_mutex_,
+               timings_mutex_;
   RpcId current_rpc_id_;
   boost::uint32_t current_channel_id_;
   std::map<std::string, Channel*> channels_;
-  std::map<SocketId, PendingRequest> pending_requests_;
-  ChannelManagerImpl(const ChannelManagerImpl&);
-  ChannelManagerImpl& operator=(const ChannelManagerImpl&);
-  std::map<SocketId, PendingTimeOut> pending_timeouts_;
+  std::map<SocketId, PendingMessage> pending_messages_;
   std::set<boost::uint32_t> channels_ids_;
   RpcStatsMap rpc_timings_;
   boost::condition_variable delete_channels_cond_;
   boost::uint16_t online_status_id_;
-  bs2::connection rpc_request_, rpc_reponse_, data_sent_connection_;
-  boost::uint16_t listening_port_;
+  boost::signals2::connection rpc_request_, rpc_reponse_, data_sent_, timeout_;
 };
 
 }  // namespace rpcprotocol

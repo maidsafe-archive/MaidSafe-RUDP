@@ -28,21 +28,53 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_RPCPROTOCOL_RPCSTRUCTS_H_
 #define MAIDSAFE_RPCPROTOCOL_RPCSTRUCTS_H_
 
+#include <google/protobuf/service.h>
+#include <google/protobuf/message.h>
+
 namespace rpcprotocol {
 
-struct PendingRequest {
-  PendingRequest() : args(NULL), callback(NULL), controller(NULL) {}
-  google::protobuf::Message *args;
-  google::protobuf::Closure *callback;
-  Controller *controller;
+class Controller;
+
+enum MessageStatus {
+  kPending,
+  kAwaitingRequestSend,
+  kRequestSent,
+  kAwaitingResponseSend,
+  kResponseSent
 };
 
-struct PendingTimeOut {
-  PendingTimeOut() : rpc_id(0), timeout(0) {}
-  RpcId rpc_id;
-  boost::uint64_t timeout;
+struct PendingMessage {
+  PendingMessage() : status(kPending), args(NULL), callback(NULL),
+                     controller(), rpc_reponse(), data_sent(), timeout(),
+                     local_transport(false) {}
+  PendingMessage(const PendingMessage &pm)
+      : status(pm.status), args(pm.args),
+        callback(pm.callback), controller(pm.controller),
+        rpc_reponse(pm.rpc_reponse), data_sent(pm.data_sent),
+        timeout(pm.timeout), local_transport(pm.local_transport) {}
+  PendingMessage &operator=(const PendingMessage &pm) {
+    if (this != &pm) {
+      status = pm.status;
+      rpc_reponse = pm.rpc_reponse;
+      data_sent = pm.data_sent;
+      timeout = pm.timeout;
+      local_transport = pm.local_transport;
+      controller = pm.controller;
+      delete args;
+      args = pm.args;
+    }
+    return *this;
+  }
+  MessageStatus status;
+  google::protobuf::Message *args;
+  google::protobuf::Closure *callback;
+  boost::shared_ptr<Controller> controller;
+  boost::signals2::connection rpc_reponse;
+  boost::signals2::connection data_sent;
+  boost::signals2::connection timeout;
+  bool local_transport;
 };
 
 }  // namespace rpcprotocol
 
-#endif  // MAIDSAFE_RPCPROTOCOL_CHANNELMANAGER_API_H_
+#endif  // MAIDSAFE_RPCPROTOCOL_RPCSTRUCTS_H_

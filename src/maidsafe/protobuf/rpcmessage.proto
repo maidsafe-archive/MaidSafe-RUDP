@@ -7,5 +7,6 @@ message RpcMessage {
   required uint32 rpc_id = 1;
   optional bytes method = 2;
   required Detail detail = 3;
+  required bytes service = 4;
 };
 

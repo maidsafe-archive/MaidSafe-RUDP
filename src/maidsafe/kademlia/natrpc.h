@@ -42,21 +42,24 @@ namespace kad {
 const boost::uint32_t kRpcNatPingTimeout = 3;
 class NatRpcs {
  public:
-  NatRpcs(rpcprotocol::ChannelManager *ch_manager,
-          transport::Transport *transport);
+  NatRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager);
   void NatDetection(const std::string &newcomer,
-      const std::string &bootstrap_node, const boost::uint32_t &type,
-      const std::string &sender_id, const IP &remote_ip,
-      const Port &remote_port, const IP &rendezvous_ip,
-      const Port &rendezvous_port, NatDetectionResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
-  void NatDetectionPing(const IP &remote_ip,
-      const Port &remote_port, const IP &rendezvous_ip,
-      const Port &rendezvous_port, NatDetectionPingResponse *resp,
-      rpcprotocol::Controller *ctler, google::protobuf::Closure *callback);
+                    const std::string &bootstrap_node,
+                    const boost::uint32_t &type,
+                    const std::string &sender_id, const IP &remote_ip,
+                    const Port &remote_port, const IP &rendezvous_ip,
+                    const Port &rendezvous_port, NatDetectionResponse *resp,
+                    rpcprotocol::Controller *ctler,
+                    google::protobuf::Closure *callback);
+  void NatDetectionPing(const IP &remote_ip, const Port &remote_port,
+                        const IP &rendezvous_ip, const Port &rendezvous_port,
+                        NatDetectionPingResponse *resp,
+                        rpcprotocol::Controller *ctler,
+                        google::protobuf::Closure *callback);
  private:
-  rpcprotocol::ChannelManager *pchannel_manager_;
-  transport::Transport *transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
 };
+
 }  // namespace kad
+
 #endif  // MAIDSAFE_KADEMLIA_NATRPC_H_
