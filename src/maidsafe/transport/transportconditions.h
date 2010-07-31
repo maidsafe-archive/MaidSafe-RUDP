@@ -61,7 +61,9 @@ enum TransportCondition {
   kReceiveUdtFailure = -22,
   kReceiveTimeout = -23,
   kReceiveParseFailure = -24,
-  kReceiveSizeFailure = -25
+  kReceiveSizeFailure = -25,
+  kAddManagedEndpointError = -26,
+  kAddManagedEndpointTimeout = -27
 };
 
 }  // namespace transport

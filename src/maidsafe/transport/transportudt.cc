@@ -38,11 +38,30 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
+                                                    char const *service,
+                                                    addrinfo const &hints,
+                                                    int *result) {
+  addrinfo *servinfo;
+  *result = getaddrinfo(node, service, &hints, &servinfo);
+  return (*result == 0) ? boost::shared_ptr<addrinfo>(servinfo, freeaddrinfo) :
+                          boost::shared_ptr<addrinfo>();
+}
+
+boost::shared_ptr<addrinfo const> Next(
+    boost::shared_ptr<addrinfo const> const &node) {
+  return boost::shared_ptr<addrinfo const>(node, node->ai_next);
+}
+
 TransportUDT::TransportUDT() : Transport(),
                                listening_map_(),
                                managed_endpoint_sockets_(),
+                               pending_managed_endpoint_sockets_(),
                                stop_managed_connections_(false),
                                managed_endpoint_sockets_mutex_(),
+                               pending_managed_endpoints_cond_var_(),
+                               managed_endpoint_listening_addrinfo_(),
+                               managed_endpoint_listening_port_(0),
                                listening_threadpool_(0),
                                general_threadpool_(kDefaultThreadpoolSize),
                                check_connections_() {
@@ -63,29 +82,33 @@ void TransportUDT::CleanUp() {
 Port TransportUDT::StartListening(const IP &ip,
                                   const Port &try_port,
                                   TransportCondition *transport_condition) {
+  return DoStartListening(ip, try_port, false, transport_condition);
+}
+
+Port TransportUDT::DoStartListening(const IP &ip,
+                                    const Port &try_port,
+                                    bool managed_connection_listener,
+                                    TransportCondition *transport_condition) {
   // Get a new socket descriptor
   SocketId listening_socket_id(UDT::INVALID_SOCK);
-  struct addrinfo *address_info(NULL);
+  boost::shared_ptr<addrinfo const> address_info;
   if (GetNewSocket(ip, try_port, &listening_socket_id, &address_info) !=
       kSuccess) {
-    freeaddrinfo(address_info);
     if (transport_condition != NULL)
       *transport_condition = kInvalidAddress;
     return 0;
   }
 
-  // Bind to this socket
+  // Bind this socket
   if (UDT::ERROR == UDT::bind(listening_socket_id, address_info->ai_addr,
                               address_info->ai_addrlen)) {
     DLOG(WARNING) << "UDT bind error: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
-    freeaddrinfo(address_info);
     UDT::close(listening_socket_id);
     if (transport_condition != NULL)
       *transport_condition = kBindError;
     return 0;
   }
-  freeaddrinfo(address_info);
 
   // Get the actual listening port UDT has assigned
   struct sockaddr_in name;
@@ -93,6 +116,16 @@ Port TransportUDT::StartListening(const IP &ip,
   UDT::getsockname(listening_socket_id, reinterpret_cast<sockaddr*>(&name),
                    &name_size);
   Port listening_port = ntohs(name.sin_port);
+
+  // For managed connections, this must be the same port as the one requested
+  if (managed_connection_listener && (try_port != listening_port)) {
+    DLOG(ERROR) << "Failed to bind to requested port "<< try_port <<
+        ": " << UDT::getlasterror().getErrorMessage() << std::endl;
+    UDT::close(listening_socket_id);
+    if (transport_condition != NULL)
+      *transport_condition = kBindError;
+    return 0;
+  }
 
   // Start listening
   if (UDT::ERROR == UDT::listen(listening_socket_id, 1024)) {
@@ -123,9 +156,16 @@ Port TransportUDT::StartListening(const IP &ip,
     listening_map_.insert(
         std::pair<Port, UdtSocketId>(listening_port, listening_socket_id));
   }
+
   listening_threadpool_.EnqueueTask(
       boost::bind(&TransportUDT::AcceptConnection, this, listening_port,
                   listening_socket_id));
+  if (managed_connection_listener) {
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    managed_endpoint_listening_addrinfo_ = address_info;
+    managed_endpoint_listening_port_ = listening_port;
+  }
+
   if (transport_condition != NULL)
     *transport_condition = kSuccess;
   return listening_port;
@@ -171,9 +211,8 @@ SocketId TransportUDT::Send(const TransportMessage &transport_message,
                             const Port &remote_port,
                             const int &response_timeout) {
   SocketId udt_socket_id(UDT::INVALID_SOCK);
-  struct addrinfo *peer(NULL);
+  boost::shared_ptr<addrinfo const> peer;
   if (GetNewSocket(remote_ip, remote_port, &udt_socket_id, &peer) != kSuccess) {
-    freeaddrinfo(peer);
     return UDT::INVALID_SOCK;
   } else {
     bool reuse = false;
@@ -214,20 +253,76 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
     const boost::uint16_t &frequency,
     const boost::uint16_t &retry_count,
     const boost::uint16_t &retry_frequency) {
-  // Check endpoint is valid
-  UdtSocketId initial_peer_socket_id(UDT::INVALID_SOCK);
-  struct addrinfo *peer(NULL);
-  if (GetNewSocket(remote_ip, remote_port, &initial_peer_socket_id, &peer) !=
-      kSuccess) {
-    freeaddrinfo(peer);
+  // Get temp socket bound to managed_endpoint_listening_port_ to send request
+  UdtSocketId initial_peer_socket_id =
+      GetNewManagedEndpointSocket(remote_ip, remote_port, rendezvous_ip,
+                                  rendezvous_port);
+  if (initial_peer_socket_id < 0)
     return kNoSocket;
+
+  // Prepare & send transport message to peer.  Keep initial socket alive to
+  // allow peer time to call getpeerinfo
+  TransportMessage transport_message;
+  transport_message.set_type(TransportMessage::kRequest);
+  ManagedEndpointMessage *managed_endpoint_message =
+      transport_message.mutable_data()->mutable_managed_endpoint_message();
+  managed_endpoint_message->set_message_id(initial_peer_socket_id);
+  managed_endpoint_message->set_identifier(our_identifier);
+  SendData(transport_message, initial_peer_socket_id,
+           kAddManagedConnectionTimeout, -1);
+
+  // Wait for peer to send response to managed_endpoint_listening_port_
+  try {
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    pending_managed_endpoint_sockets_.insert(
+        std::pair<UdtSocketId, UdtSocketId>(initial_peer_socket_id, 0));
+    bool success = pending_managed_endpoints_cond_var_.timed_wait(lock,
+        boost::posix_time::milliseconds(kAddManagedConnectionTimeout),
+        boost::bind(&TransportUDT::PendingManagedSocketReplied, this,
+                    initial_peer_socket_id));
+    UDT::close(initial_peer_socket_id);
+    if (success) {
+      std::map<UdtSocketId, UdtSocketId>::iterator it =
+          pending_managed_endpoint_sockets_.find(initial_peer_socket_id);
+      if (it == pending_managed_endpoint_sockets_.end()) {
+        // This shouldn't happen - pending_managed_endpoint_sockets_ only gets
+        // modified here.
+        DLOG(ERROR) << "AddManagedEndpoint error." << std::endl;
+        return kAddManagedEndpointError;
+      }
+      return (*it).second;
+    } else {
+      pending_managed_endpoint_sockets_.erase(initial_peer_socket_id);
+      DLOG(INFO) << "AddManagedEndpoint timeout." << std::endl;
+      return kAddManagedEndpointTimeout;
+    }
+  }
+  catch(const std::exception &e) {
+    DLOG(ERROR) << "In AddManagedEndpoint: " << e.what() << std::endl;
+    UDT::close(initial_peer_socket_id);
+    return kAddManagedEndpointError;
+  }
+}
+
+TransportCondition TransportUDT::StartManagedEndpointListener(
+    const UdtSocketId &initial_peer_socket_id,
+    boost::shared_ptr<addrinfo const> peer) {
+  // Check not already started and set managed_endpoint_listening_port_ to 1 to
+  // indicate that startup has begun.
+  {
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    if (managed_endpoint_listening_port_ > 1)
+      return kAlreadyStarted;
+    managed_endpoint_listening_port_ = 1;
   }
 
   // Connect to peer
   TransportCondition transport_condition(Connect(initial_peer_socket_id, peer));
-  freeaddrinfo(peer);
-  if (transport_condition != kSuccess)
+  if (transport_condition != kSuccess) {
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    managed_endpoint_listening_port_ = 0;
     return transport_condition;
+  }
 
   // Get connected socket local port
   struct sockaddr_in name;
@@ -236,106 +331,92 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
                    &name_size);
   Port sending_port = ntohs(name.sin_port);
 
-  // Get a new socket descriptor to listen on this port
-  SocketId listening_socket_id(UDT::INVALID_SOCK);
-  struct addrinfo *address_info(NULL);
-  if (GetNewSocket("", sending_port, &listening_socket_id, &address_info) !=
+  // Start a listening socket on this port
+  if (sending_port != DoStartListening("", sending_port, true, NULL)) {
+    UDT::close(initial_peer_socket_id);
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    managed_endpoint_listening_port_ = 0;
+    return kListenError;
+  }
+  return kSuccess;
+}
+
+UdtSocketId TransportUDT::GetNewManagedEndpointSocket(
+    const IP &remote_ip,
+    const Port &remote_port,
+    const IP &rendezvous_ip,
+    const Port &rendezvous_port) {
+  // Get a new socket descriptor to send on managed_endpoint_listening_port_
+  UdtSocketId initial_peer_socket_id(UDT::INVALID_SOCK);
+  boost::shared_ptr<addrinfo const> peer;
+  if (GetNewSocket(remote_ip, remote_port, &initial_peer_socket_id, &peer) !=
       kSuccess) {
-    freeaddrinfo(address_info);
+    DLOG(ERROR) << "GetNewManagedEndpointInitialSocket error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    return kNoSocket;
+  }
+
+  Port listening_port(1);
+  int attempts(0);
+  const int kMaxAttempts(3);
+  // Start listening socket for all managed endpoints if not already done
+  while (listening_port < 2) {
+    {
+      boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+      listening_port = managed_endpoint_listening_port_;
+    }
+    if (listening_port == 0) {  // Need to start listening socket
+      ++attempts;
+      if (StartManagedEndpointListener(initial_peer_socket_id, peer) ==
+          kSuccess) {
+        bool receive_synchronously = false;
+        if (UDT::ERROR == UDT::setsockopt(initial_peer_socket_id, 0, UDT_RCVSYN,
+            &receive_synchronously, sizeof(receive_synchronously))) {
+          DLOG(ERROR) << "GetNewManagedEndpointSocket setsockopt error: " <<
+              UDT::getlasterror().getErrorMessage() << std::endl;
+          UDT::close(initial_peer_socket_id);
+          return kNoSocket;
+        }
+        boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+        listening_port = managed_endpoint_listening_port_;
+        return initial_peer_socket_id;
+      } else {
+        if (attempts == kMaxAttempts)
+          return kListenError;
+      }
+    } else if (listening_port == -1) {  // Startup is already in progress
+      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    }
+  }
+
+  // Bind this new socket
+  if (UDT::ERROR ==
+      UDT::bind(initial_peer_socket_id,
+                managed_endpoint_listening_addrinfo_->ai_addr,
+                managed_endpoint_listening_addrinfo_->ai_addrlen)) {
+    DLOG(WARNING) << "UDT bind error in GetNewManagedEndpointInitialSocket: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    UDT::close(initial_peer_socket_id);
+    return kBindError;
+  }
+  bool receive_synchronously = false;
+  if (UDT::ERROR == UDT::setsockopt(initial_peer_socket_id, 0, UDT_RCVSYN,
+      &receive_synchronously, sizeof(receive_synchronously))) {
+    DLOG(ERROR) << "GetNewManagedEndpointInitialSocket setsockopt error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
     UDT::close(initial_peer_socket_id);
     return kNoSocket;
   }
 
-  // Bind to this new socket
-  if (UDT::ERROR == UDT::bind(listening_socket_id, address_info->ai_addr,
-                              address_info->ai_addrlen)) {
-    DLOG(WARNING) << "UDT bind error in AddManagedEndpoint: " <<
+  // Connect to peer
+  if (Connect(initial_peer_socket_id, peer) != kSuccess) {
+    DLOG(ERROR) << "GetNewManagedEndpointInitialSocket connect error: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
-    freeaddrinfo(address_info);
     UDT::close(initial_peer_socket_id);
-    UDT::close(listening_socket_id);
-    return kBindError;
-  }
-  freeaddrinfo(address_info);
-
-  // Check the actual listening port UDT has assigned is correct
-  UDT::getsockname(listening_socket_id, reinterpret_cast<sockaddr*>(&name),
-                   &name_size);
-  Port listening_port = ntohs(name.sin_port);
-  if (sending_port != listening_port) {
-    UDT::close(initial_peer_socket_id);
-    UDT::close(listening_socket_id);
-    return kListenError;
+    return kConnectError;
   }
 
-  // Start listening
-  if (UDT::ERROR == UDT::listen(listening_socket_id, 1)) {
-    DLOG(ERROR) << "Failed to start listening on port "<< listening_port <<
-        " in AddManagedEndpoint: " << UDT::getlasterror().getErrorMessage() <<
-        std::endl;
-    UDT::close(initial_peer_socket_id);
-    UDT::close(listening_socket_id);
-    return kListenError;
-  }
-
-  // Prepare & send transport message to peer.  Keep initial socket alive to
-  // allow peer time to call getpeerinfo
-  TransportMessage transport_message;
-  transport_message.set_type(TransportMessage::kRequest);
-  ManagedEndpointMessage *managed_endpoint_message =
-      transport_message.mutable_data()->mutable_managed_endpoint_message();
-  managed_endpoint_message->set_identifier(our_identifier);
-  SendData(transport_message, initial_peer_socket_id,
-           kAddManagedConnectionTimeout, -1);
-
-  // Accept one connection asynchronously and keep new socket alive as managed
-  // connection.  Close initial socket & listening socket.
-  sockaddr_storage clientaddr;
-  int addrlen = sizeof(clientaddr);
-  UdtSocketId managed_socket_id(UDT::INVALID_SOCK);
-  bool receive_synchronously = false;
-  if (UDT::ERROR == UDT::setsockopt(listening_socket_id, 0, UDT_RCVSYN,
-      &receive_synchronously, sizeof(receive_synchronously))) {
-    UDT::close(listening_socket_id);
-    return kReceiveUdtFailure;
-  }
-  int time_count(0);
-  bool success(false);
-  while (time_count < kAddManagedConnectionTimeout) {
-    managed_socket_id = UDT::accept(listening_socket_id,
-        reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
-    success = (managed_socket_id != UDT::INVALID_SOCK);
-    if (success)
-      break;
-    if (UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCRCV) {
-      DLOG(ERROR) << "UDT::accept error in AddManagedEndpoint: " <<
-          UDT::getlasterror().getErrorMessage() << std::endl;
-      break;
-    }
-    ++time_count;
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-  }
-  UDT::close(initial_peer_socket_id);
-  UDT::close(listening_socket_id);
-  if (!success) {
-    if (time_count >= kAddManagedConnectionTimeout)
-      DLOG(ERROR) << "UDT::accept timeout in AddManagedEndpoint." << std::endl;
-    return kReceiveUdtFailure;
-  }
-
-  // Send single char to allow for fast closing on peer side if socket dropped
-  char open_indicator('+');
-  UDT::send(managed_socket_id, &open_indicator, 1, 0);
-
-  // Add newly accepted socket to managed endpoints - start checking thread if
-  // this is the first
-  boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
-  if (managed_endpoint_sockets_.empty()) {
-    check_connections_.reset(new boost::thread(
-                             &TransportUDT::CheckManagedSockets, this));
-  }
-  managed_endpoint_sockets_.push_back(managed_socket_id);
-  return managed_socket_id;
+  return initial_peer_socket_id;
 }
 
 bool TransportUDT::RemoveManagedEndpoint(
@@ -385,6 +466,15 @@ void TransportUDT::AcceptConnection(const Port &port,
           listening_map_.erase(it);
         listening_threadpool_.Resize(listening_ports_.size());
         UDT::close(udt_socket_id);
+        // If this is managed_endpoint_listening_port_, reset it to allow
+        // restart if required
+        {
+          boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+          if (managed_endpoint_listening_port_ == *port_iterator) {
+            managed_endpoint_listening_addrinfo_.reset();
+            managed_endpoint_listening_port_ = 0;
+          }
+        }
       }
       return;
     } else {
@@ -399,9 +489,8 @@ void TransportUDT::ConnectThenSend(
     const UdtSocketId &udt_socket_id,
     const int &send_timeout,
     const int &receive_timeout,
-    struct addrinfo *peer) {
+    boost::shared_ptr<addrinfo const> peer) {
   TransportCondition transport_condition = Connect(udt_socket_id, peer);
-  freeaddrinfo(peer);
   if (transport_condition != kSuccess) {
     signals_.on_send_(udt_socket_id, kSendUdtFailure);
     return;
@@ -652,11 +741,13 @@ bool TransportUDT::HandleTransportMessage(
       break;
     case TransportMessage::Data::kManagedEndpointMessageFieldNumber:
       if (is_request) {
-        AcceptManagedSocket(udt_socket_id,
+        HandleManagedSocketRequest(udt_socket_id,
             transport_message.data().managed_endpoint_message());
         // Leave socket open.
       } else {
-        UDT::close(udt_socket_id);
+        HandleManagedSocketResponse(udt_socket_id,
+            transport_message.data().managed_endpoint_message());
+        // Leave socket open.
       }
       break;
     default:
@@ -667,28 +758,40 @@ bool TransportUDT::HandleTransportMessage(
   return true;
 }
 
-TransportCondition TransportUDT::GetNewSocket(const IP &ip,
-                                              const Port &port,
-                                              UdtSocketId *udt_socket_id,
-                                              struct addrinfo **address_info) {
+TransportCondition TransportUDT::GetNewSocket(
+    const IP &ip,
+    const Port &port,
+    UdtSocketId *udt_socket_id,
+    boost::shared_ptr<addrinfo const> *address_info) {
   if (udt_socket_id == NULL)
     return kConnectError;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_flags = AI_PASSIVE;
+  hints.ai_flags = (ip.empty() ? AI_PASSIVE : 0);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   const char *address(ip.empty() ? NULL : ip.c_str());
   std::string port_str = boost::lexical_cast<std::string>(port);
-  if (0 != getaddrinfo(address, port_str.c_str(), &hints, address_info)) {
+  int result(0);
+  *address_info = SocketGetAddrinfo(address, port_str.c_str(), hints, &result);
+  if (result != 0) {
     DLOG(ERROR) << "Incorrect endpoint. " << ip << ":" << port << std::endl;
     *udt_socket_id = UDT::INVALID_SOCK;
     return kInvalidAddress;
   }
-  *udt_socket_id = UDT::socket((*address_info)->ai_family,
-                               (*address_info)->ai_socktype,
-                               (*address_info)->ai_protocol);
+  return GetNewSocket(udt_socket_id, *address_info);
+}
+
+TransportCondition TransportUDT::GetNewSocket(
+    UdtSocketId *udt_socket_id,
+    boost::shared_ptr<addrinfo const> address_info) {
+  if (udt_socket_id == NULL)
+    return kConnectError;
+
+  *udt_socket_id = UDT::socket(address_info->ai_family,
+                               address_info->ai_socktype,
+                               address_info->ai_protocol);
 
   if (UDT::INVALID_SOCK == *udt_socket_id) {
     DLOG(ERROR) << "GetNewSocket error: " <<
@@ -704,8 +807,9 @@ TransportCondition TransportUDT::GetNewSocket(const IP &ip,
   return kSuccess;
 }
 
-TransportCondition TransportUDT::Connect(const UdtSocketId &udt_socket_id,
-                                         const struct addrinfo *peer) {
+TransportCondition TransportUDT::Connect(
+    const UdtSocketId &udt_socket_id,
+    boost::shared_ptr<addrinfo const> peer) {
   if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
                                  peer->ai_addrlen)) {
     DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
@@ -853,53 +957,54 @@ void TransportUDT::CheckManagedSockets() {
   }
 }
 
-void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
-                                       const ManagedEndpointMessage &message) {
-  // Get address of peer to reply to
+void TransportUDT::HandleManagedSocketRequest(
+    const UdtSocketId &udt_socket_id,
+    const ManagedEndpointMessage &request) {
+  // Check request has correct entries
+  if (!request.has_message_id() || !request.has_identifier()) {
+    DLOG(ERROR) << "HandleManagedSocketRequest request error." << std::endl;
+    UDT::close(udt_socket_id);
+    return;
+  }
+
+  // Get address of peer to reply to and close original socket
   struct sockaddr_in peer_sockaddr;
   int peer_sockaddr_size;
   if (UDT::ERROR == UDT::getpeername(udt_socket_id,
       reinterpret_cast<sockaddr*>(&peer_sockaddr), &peer_sockaddr_size)) {
-    DLOG(ERROR) << "AcceptManagedSocket getpeername error: " <<
+    DLOG(ERROR) << "HandleManagedSocketRequest getpeername error: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     UDT::close(udt_socket_id);
     return;
   }
-
-  // Get new socket and set to receive asynchronously
-  UdtSocketId managed_socket_id = UDT::socket(peer_sockaddr.sin_family,
-                                              SOCK_STREAM, 0);
-  if (UDT::INVALID_SOCK == managed_socket_id) {
-    DLOG(ERROR) << "AcceptManagedSocket socket error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    UDT::close(udt_socket_id);
-    return;
-  }
-#ifdef WIN32
-  int mtu(1052);
-  UDT::setsockopt(managed_socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
-#endif
-  bool receive_synchronously = false;
-  if (UDT::ERROR == UDT::setsockopt(managed_socket_id, 0, UDT_RCVSYN,
-      &receive_synchronously, sizeof(receive_synchronously))) {
-    UDT::close(udt_socket_id);
-    UDT::close(managed_socket_id);
-    return;
-  }
-
-  // Connect to peer
-  if (UDT::ERROR == UDT::connect(managed_socket_id,
-      reinterpret_cast<sockaddr*>(&peer_sockaddr), peer_sockaddr_size)) {
-    DLOG(ERROR) << "AcceptManagedSocket connect error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    UDT::close(udt_socket_id);
-    UDT::close(managed_socket_id);
-    return;
-  }
-
-  // Close original socket and add newly connected socket to managed endpoints -
-  // start checking thread if this is the first
+  std::string remote_ip(inet_ntoa(peer_sockaddr.sin_addr));
+  Port remote_port(ntohs(peer_sockaddr.sin_port));
   UDT::close(udt_socket_id);
+
+  // Get new socket bound to managed_endpoint_listening_port_ to send response
+  UdtSocketId managed_socket_id =
+      GetNewManagedEndpointSocket(remote_ip, remote_port, "", 0);
+  if (managed_socket_id < 0) {
+    DLOG(ERROR) << "HandleManagedSocketRequest get new socket error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    return;
+  }
+
+  // Prepare & send transport message to peer.  Keep initial socket alive to
+  // allow peer time to call getpeerinfo
+  TransportMessage transport_message;
+  transport_message.set_type(TransportMessage::kResponse);
+  ManagedEndpointMessage *managed_endpoint_message =
+      transport_message.mutable_data()->mutable_managed_endpoint_message();
+  // TODO(Fraser#5#): 2010-07-31 - Use authentication to set_identifier & result
+  managed_endpoint_message->set_result(true);
+  managed_endpoint_message->set_message_id(request.message_id());
+  // managed_endpoint_message->set_identifier(our_identifier);
+  SendData(transport_message, managed_socket_id, kAddManagedConnectionTimeout,
+           -1);
+
+  // Add newly connected socket to managed endpoints - start checking thread if
+  // this is the first
   {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     if (managed_endpoint_sockets_.empty()) {
@@ -914,7 +1019,74 @@ void TransportUDT::AcceptManagedSocket(const UdtSocketId &udt_socket_id,
   UDT::send(managed_socket_id, &open_indicator, 1, 0);
 
 // std::cout << "FIRING on_managed_endpoint_received_" << std::endl;
-  signals_.on_managed_endpoint_received_(managed_socket_id, message);
+  signals_.on_managed_endpoint_received_(managed_socket_id, request);
+}
+
+void TransportUDT::HandleManagedSocketResponse(
+    const UdtSocketId &managed_socket_id,
+    const ManagedEndpointMessage &response) {
+  // Check response has correct entries
+  // TODO(Fraser#5#): 2010-07-31 - add !response.has_identifier() below
+  if (!response.has_message_id() || !response.has_result()) {
+    DLOG(ERROR) << "HandleManagedSocketResponse response error." << std::endl;
+    UDT::close(managed_socket_id);
+    return;
+  }
+
+  // Check response indicates success and set managed socket to asynchronous
+  // TODO(Fraser#5#): 2010-07-31 - Use authentication to check identifier()
+  UdtSocketId pending_managed_socket_id = response.message_id();
+  bool success(response.has_result() && response.result());
+  bool receive_synchronously = false;
+  if (UDT::ERROR == UDT::setsockopt(managed_socket_id, 0, UDT_RCVSYN,
+      &receive_synchronously, sizeof(receive_synchronously))) {
+    DLOG(ERROR) << "HandleManagedSocketResponse setsockopt error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    success = false;
+  }
+
+  {
+    boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+    // Adjust pending_managed_endpoint_sockets_ entry
+    std::map<UdtSocketId, UdtSocketId>::iterator it =
+        pending_managed_endpoint_sockets_.find(pending_managed_socket_id);
+    if (it == pending_managed_endpoint_sockets_.end()) {
+      DLOG(ERROR) << "In HandleManagedSocketResp, pending_managed_socket_id " <<
+          pending_managed_socket_id << " not found." << std::endl;
+      UDT::close(managed_socket_id);
+      return;
+    }
+    if (!success) {
+      (*it).second = UDT::INVALID_SOCK;
+      UDT::close(managed_socket_id);
+      pending_managed_endpoints_cond_var_.notify_all();
+      return;
+    } else {
+      (*it).second = managed_socket_id;
+    }
+
+    // Add newly accepted socket to managed endpoints - start checking thread if
+    // this is the first
+    if (managed_endpoint_sockets_.empty()) {
+      check_connections_.reset(new boost::thread(
+                               &TransportUDT::CheckManagedSockets, this));
+    }
+    managed_endpoint_sockets_.push_back(managed_socket_id);
+    pending_managed_endpoints_cond_var_.notify_all();
+  }
+
+  // Send single char to allow for fast closing on peer side if socket dropped
+  char open_indicator('+');
+  UDT::send(managed_socket_id, &open_indicator, 1, 0);
+}
+
+bool TransportUDT::PendingManagedSocketReplied(
+    const UdtSocketId &udt_socket_id) {
+  std::map<UdtSocketId, UdtSocketId>::iterator it =
+      pending_managed_endpoint_sockets_.find(udt_socket_id);
+  if (it == pending_managed_endpoint_sockets_.end())
+    return true;
+  return (*it).second != 0;
 }
 
 }  // namespace transport

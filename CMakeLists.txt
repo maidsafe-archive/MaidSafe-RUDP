@@ -586,7 +586,7 @@ IF(MSVC)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testcontact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testknode.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/testnatpmp.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransportudt.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # CMake defaults to passing stack size in LINKER_FLAGS of 10MB.  Set this to windows default of 1MB

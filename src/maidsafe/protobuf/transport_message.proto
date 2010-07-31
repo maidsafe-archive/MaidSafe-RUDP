@@ -2,11 +2,6 @@ import "rpcmessage.proto";
 
 package transport;
 
-enum SubType {
-  kACK = 0;
-  kNACK = 1;
-}
-
 message Address {
   required bytes ip = 1;
   required int32 port = 2;
@@ -17,17 +12,22 @@ message Ping {
 }
 
 message ProxyPing {
+  enum SubType {
+    kACK = 0;
+    kNACK = 1;
+  }
   optional SubType result = 1;
   optional Address address = 2;
 }
 
 message ManagedEndpointMessage {
   optional Address address = 1;
-  optional SubType result = 2;
-  optional bytes identifier = 3;
-  optional int32 frequency = 4;
-  optional int32 retry_count = 5;
-  optional int32 retry_frequency = 6;
+  optional bool result = 2;
+  optional int32 message_id = 3;
+  optional bytes identifier = 4;
+  optional int32 frequency = 5;
+  optional int32 retry_count = 6;
+  optional int32 retry_frequency = 7;
 }
 
 message HolePunchingMessage {

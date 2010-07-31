@@ -104,6 +104,13 @@ struct UdtStats : public SocketPerformanceStats {
   UDT::TRACEINFO performance_monitor_;
 };
 
+boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
+                                                    char const *service,
+                                                    addrinfo const &hints,
+                                                    int *result);
+boost::shared_ptr<addrinfo const> Next(
+    boost::shared_ptr<addrinfo const> const &node);
+
 class TransportUDT : public Transport {
  public:
   TransportUDT();
@@ -160,13 +167,24 @@ class TransportUDT : public Transport {
  private:
   TransportUDT& operator=(const TransportUDT&);
   TransportUDT(const TransportUDT&);
+  Port DoStartListening(const IP &ip,
+                        const Port &try_port,
+                        bool managed_connection_listener,
+                        TransportCondition *transport_condition);
+  TransportCondition StartManagedEndpointListener(
+      const UdtSocketId &initial_peer_socket_id,
+      boost::shared_ptr<addrinfo const> peer);
+  UdtSocketId GetNewManagedEndpointSocket(const IP &remote_ip,
+                                          const Port &remote_port,
+                                          const IP &rendezvous_ip,
+                                          const Port &rendezvous_port);
   void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
   // General method for connecting then sending data
   void ConnectThenSend(const TransportMessage &transport_message,
                        const UdtSocketId &udt_socket_id,
                        const int &send_timeout,
                        const int &receive_timeout,
-                       struct addrinfo *peer);
+                       boost::shared_ptr<addrinfo const> peer);
   // General method for sending data once connection made.  Unlike public Send,
   // the socket is only closed iff receive_timeout == 0.  For receive_timeout >
   // 0, the socket switches to receive after sending.  For receive_timeout < 0,
@@ -193,21 +211,34 @@ class TransportUDT : public Transport {
   bool HandleTransportMessage(const TransportMessage &transport_message,
                               const UdtSocketId &udt_socket_id,
                               const float &rtt);
-  TransportCondition GetNewSocket(const IP &ip,
-                                  const Port &port,
-                                  UdtSocketId *udt_socket_id,
-                                  struct addrinfo **address_info);
+  TransportCondition GetNewSocket(
+      const IP &ip,
+      const Port &port,
+      UdtSocketId *udt_socket_id,
+      boost::shared_ptr<addrinfo const> *address_info);
+  TransportCondition GetNewSocket(
+      UdtSocketId *udt_socket_id,
+      boost::shared_ptr<addrinfo const> address_info);
   TransportCondition Connect(const UdtSocketId &udt_socket_id,
-                             const struct addrinfo *peer);
+                             boost::shared_ptr<addrinfo const> peer);
   void AsyncReceiveData(const UdtSocketId &udt_socket_id,
                         const int &timeout);
   void CheckManagedSockets();
-  void AcceptManagedSocket(const UdtSocketId &udt_socket_id,
-                           const ManagedEndpointMessage &message);
+  void HandleManagedSocketRequest(const UdtSocketId &udt_socket_id,
+                                  const ManagedEndpointMessage &request);
+  void HandleManagedSocketResponse(const UdtSocketId &managed_socket_id,
+                                   const ManagedEndpointMessage &response);
+  // This is only meant to be used as a predicate where 
+  // managed_endpoint_sockets_mutex_ is already locked.
+  bool PendingManagedSocketReplied(const UdtSocketId &udt_socket_id);
   std::map<Port, UdtSocketId> listening_map_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
+  std::map<UdtSocketId, UdtSocketId> pending_managed_endpoint_sockets_;
   volatile bool stop_managed_connections_;
   boost::mutex managed_endpoint_sockets_mutex_;
+  boost::condition_variable pending_managed_endpoints_cond_var_;
+  boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
+  Port managed_endpoint_listening_port_;
   base::Threadpool listening_threadpool_;
   base::Threadpool general_threadpool_;
   boost::shared_ptr<boost::thread> check_connections_;
