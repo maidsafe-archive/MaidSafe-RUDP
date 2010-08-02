@@ -92,6 +92,27 @@ ChannelImpl::~ChannelImpl() {
   channel_manager_->RemoveChannelId(id_);
 }
 
+std::string ChannelImpl::GetServiceName(const std::string &full_name) {
+  std::string service_name;
+  try {
+    boost::char_separator<char> sep(".");
+    boost::tokenizer< boost::char_separator<char> > tok(full_name, sep);
+    boost::tokenizer< boost::char_separator<char> >::iterator beg = tok.begin();
+    int no_tokens = -1;
+    while (beg != tok.end()) {
+      ++beg;
+      ++no_tokens;
+    }
+    beg = tok.begin();
+    advance(beg, no_tokens - 1);
+    service_name = *beg;
+  } catch(const std::exception &e) {
+    LOG(ERROR) << "ChannelImpl::GetServiceName. " <<
+        "Error with full method name format: " << e.what() << std::endl;
+  }
+  return service_name;
+}
+
 void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
                              google::protobuf::RpcController *rpc_controller,
                              const google::protobuf::Message *request,
@@ -112,26 +133,16 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   rpc_message->set_rpc_id(channel_manager_->CreateNewId());
   rpc_message->set_method(method->name());
   rpc_message->set_service(GetServiceName(method->full_name()));
-  tests::TestPingRequest tpr;
 
   // Get field descriptor for RPC payload
-  std::string fr = request->GetTypeName();
-  const google::protobuf::Message::Reflection *refln = rpc_message->detail().GetReflection();
-  const google::protobuf::Descriptor *descfr = request->GetDescriptor();
-  
-  int num = 1;//descfr->extension(0);
-  const google::protobuf::FieldDescriptor *field_descriptor = descfr->extension(0);
-  //    refln->FindKnownExtensionByNumber(num);
-      //request->GetDescriptor()->FindExtensionByName("tests.TestPingRequest")->number());
-  //if (!field_descriptor) {
-  //  DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists: "
-  //              << request->GetTypeName() << std::endl;
-  //  done->Run();
-  //  return;
-  //}
-
-//      tests::TestPingRequest tpr;
-//  rpc_message_detail->MutableExtension();
+  const google::protobuf::FieldDescriptor *field_descriptor =
+      request->GetDescriptor()->extension(0);
+  if (!field_descriptor) {
+    DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists: "
+                << request->GetTypeName() << std::endl;
+    done->Run();
+    return;
+  }
 
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
@@ -141,14 +152,14 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   const google::protobuf::Message::Reflection *reflection =
       rpc_message_detail->GetReflection();
   google::protobuf::Message *mutable_message =
-      reflection->MutableMessage(rpc_message_detail, descfr->extension(0));
+      reflection->MutableMessage(rpc_message_detail, field_descriptor);
   mutable_message->CopyFrom(*request);
 
   PendingMessage pending_request;
   pending_request.status = kAwaitingRequestSend;
   pending_request.args = response;
   pending_request.callback = done;
-  pending_request.controller.reset(static_cast<Controller*>(rpc_controller));
+  pending_request.controller = static_cast<Controller*>(rpc_controller);
   pending_request.controller->set_rpc_id(rpc_message->rpc_id());
   pending_request.controller->set_method(method->name());
   if (local_transport_) {
@@ -177,70 +188,57 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
              << ":" << remote_port_ << " -- id = " << socket_id << std::endl;
 }
 
-std::string ChannelImpl::GetServiceName(const std::string &full_name) {
-  std::string service_name;
-  try {
-    boost::char_separator<char> sep(".");
-    boost::tokenizer< boost::char_separator<char> > tok(full_name, sep);
-    boost::tokenizer< boost::char_separator<char> >::iterator beg = tok.begin();
-    int no_tokens = -1;
-    while (beg != tok.end()) {
-      ++beg;
-      ++no_tokens;
-    }
-    beg = tok.begin();
-    advance(beg, no_tokens - 1);
-    service_name = *beg;
-  } catch(const std::exception &e) {
-    LOG(ERROR) << "ChannelImpl::GetServiceName. " <<
-        "Error with full method name format: " << e.what() << std::endl;
-  }
-  return service_name;
-}
-
 void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                                 const SocketId &socket_id,
                                 const float &rtt) {
   if (!service_) {
-    LOG(ERROR) << "ChannelImpl::HandleRequest - no service." << std::endl;
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - no service." << std::endl;
     return;
   }
   if (!rpc_message.IsInitialized()) {
-    LOG(ERROR) << "ChannelImpl::HandleRequest - uninitialised." << std::endl;
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - uninitialised." << std::endl;
     return;
   }
   if (!rpc_message.has_method()) {
-    LOG(ERROR) << "ChannelImpl::HandleRequest - no method." << std::endl;
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - no method." << std::endl;
     return;
   }
 
   const google::protobuf::MethodDescriptor* method =
       service_->GetDescriptor()->FindMethodByName(rpc_message.method());
-  google::protobuf::Message* response  =
+  google::protobuf::Message *response  =
       service_->GetResponsePrototype(method).New();
+//  google::protobuf::Message *args  =
+//      service_->GetRequestPrototype(method).New();
 
   // Extract the optional field which is the actual RPC payload.  The field must
   // be a proto message itself and is an extension.
   std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
   rpc_message.detail().GetReflection()->ListFields(rpc_message.detail(),
                                                    &field_descriptors);
+  DLOG(ERROR) << rpc_message.detail().DebugString() << std::endl;
+//  rpcprotocol::RpcMessage rpcmsg = rpc_message;
+//  google::protobuf::Message *args;
+//  *args = rpc_message.detail().GetReflection()->GetMessage(rpc_message.detail(),
+//                                                          field_descriptors.at(0));
   // Check only one field exists
-  if (field_descriptors.size() != 1U) {
-    LOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
+  if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0)) {
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
     return;
   }
   // Get the payload message's descriptor
-  const google::protobuf::FieldDescriptor *field_descriptor =
-      rpc_message.detail().GetDescriptor()->extension(0);
-  // Check it's a message type
-  if (field_descriptor->type() !=
+  if (field_descriptors.at(0)->type() !=
       google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
-    LOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
     return;
   }
+  DLOG(ERROR) << "ChannelImpl::HandleRequest - "
+              << field_descriptors.at(0)->full_name() << std::endl;
+
   // Copy the payload to a new message (DescriptorProto inherits from Message)
   google::protobuf::DescriptorProto proto_request;
-  field_descriptor->message_type()->CopyTo(&proto_request);
+//  field_descriptors.at(0)->message_type()->CopyTo(args);
+  field_descriptors.at(0)->message_type()->CopyTo(&proto_request);
 
   boost::shared_ptr<Controller> controller(new Controller);
   controller->set_rtt(rtt);
@@ -251,12 +249,19 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                                     const google::protobuf::Message*,
                                     boost::shared_ptr<Controller> >
       (this, &ChannelImpl::SendResponse, response, controller);
+//  service_->CallMethod(method, controller.get(), args, response,
   service_->CallMethod(method, controller.get(), &proto_request, response,
                        done);
+//  delete args;
 }
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,
                                boost::shared_ptr<Controller> controller) {
+  if (!response->IsInitialized()) {
+    DLOG(ERROR) << "ChannelImpl::SendResponse - response uninitialised - "
+                << controller->Failed() << "." << std::endl;
+    return;
+  }
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kResponse);
@@ -264,17 +269,20 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(controller->rpc_id());
   rpc_message->set_method(controller->method());
+  rpc_message->set_service("done");
+
   // Get field descriptor for RPC payload
-  // Get field descriptor for RPC payload
+/******************************************************************************/
   const google::protobuf::FieldDescriptor *field_descriptor =
-      rpc_message->detail().GetReflection()->FindKnownExtensionByNumber(
-          19);
+      response->GetDescriptor()->extension(0);
 //  if (!field_descriptor) {
 //    DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists."
 //                << std::endl;
 //    done->Run();
 //    return;
 //  }
+/******************************************************************************/
+
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();

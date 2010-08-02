@@ -102,6 +102,30 @@ int ChannelManagerImpl::Stop() {
   return 1;
 }
 
+void ChannelManagerImpl::RegisterChannel(const std::string &service_name,
+                                         Channel* channel) {
+  boost::mutex::scoped_lock guard(channels_mutex_);
+  channels_[service_name] = channel;
+}
+
+void ChannelManagerImpl::UnRegisterChannel(const std::string &service_name) {
+  boost::mutex::scoped_lock guard(channels_mutex_);
+  channels_.erase(service_name);
+}
+
+void ChannelManagerImpl::ClearChannels() {
+  boost::mutex::scoped_lock guard(channels_mutex_);
+  channels_.clear();
+}
+
+void ChannelManagerImpl::ClearCallLaters() {
+  boost::mutex::scoped_lock loch_more(message_mutex_);
+  std::map<SocketId, PendingMessage>::iterator it;
+  for (it = pending_messages_.begin(); it != pending_messages_.end(); ++it)
+    delete it->second.callback;
+  pending_messages_.clear();
+}
+
 void ChannelManagerImpl::AddChannelId(boost::uint32_t *id) {
   boost::mutex::scoped_lock guard(channels_ids_mutex_);
   current_channel_id_ = base::GenerateNextTransactionId(current_channel_id_);
@@ -182,15 +206,10 @@ RpcId ChannelManagerImpl::CreateNewId() {
   return current_rpc_id_;
 }
 
-void ChannelManagerImpl::RegisterChannel(const std::string &service_name,
-                                         Channel* channel) {
-  boost::mutex::scoped_lock guard(channels_mutex_);
-  channels_[service_name] = channel;
-}
-
 void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
                                        const SocketId &socket_id,
                                        const float &rtt) {
+  DLOG(ERROR) << "CMImpl::RequestArriveMessage arrived" << std::endl;
   rpcprotocol::RpcMessage decoded_msg = msg;
   std::map<std::string, Channel*>::iterator it;
   channels_mutex_.lock();
@@ -255,32 +274,22 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
   done->Run();
 }
 
-void ChannelManagerImpl::UnRegisterChannel(const std::string &service_name) {
-  boost::mutex::scoped_lock guard(channels_mutex_);
-  channels_.erase(service_name);
-}
-
-void ChannelManagerImpl::ClearChannels() {
-  boost::mutex::scoped_lock guard(channels_mutex_);
-  channels_.clear();
-}
-
-void ChannelManagerImpl::ClearCallLaters() {
-  boost::mutex::scoped_lock loch_more(message_mutex_);
-  std::map<SocketId, PendingMessage>::iterator it;
-  for (it = pending_messages_.begin(); it != pending_messages_.end(); ++it)
-    delete it->second.callback;
-  pending_messages_.clear();
-}
-
-void ChannelManagerImpl::RpcMessageSent(const SocketId &socket_id,
-                                        const bool &success) {
+void ChannelManagerImpl::RpcMessageSent(
+    const SocketId &socket_id, const transport::TransportCondition &success) {
+  DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id << " - "
+             << success << std::endl;
   std::map<SocketId, PendingMessage>::iterator it;
   boost::mutex::scoped_lock loch_hope(message_mutex_);
   it = pending_messages_.find(socket_id);
   if (it == pending_messages_.end())
     return;
-  if (!success) {
+  if (success != transport::kSuccess) {
+    DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id
+               << " failed to send: " << std::endl;
+    (*it).second.callback->Run();
+    (*it).second.rpc_reponse.disconnect();
+    (*it).second.data_sent.disconnect();
+    (*it).second.timeout.disconnect();
     pending_messages_.erase(it);
     return;
   }
@@ -295,16 +304,6 @@ void ChannelManagerImpl::RpcMessageSent(const SocketId &socket_id,
   }
 }
 
-RpcStatsMap ChannelManagerImpl::RpcTimings() {
-  boost::mutex::scoped_lock lock(timings_mutex_);
-  return rpc_timings_;
-}
-
-void ChannelManagerImpl::ClearRpcTimings() {
-  boost::mutex::scoped_lock lock(timings_mutex_);
-  rpc_timings_.clear();
-}
-
 void ChannelManagerImpl::RpcStatus(const SocketId &socket_id,
                                    const transport::TransportCondition &tc) {
   if (tc != transport::kSuccess) {
@@ -315,10 +314,25 @@ void ChannelManagerImpl::RpcStatus(const SocketId &socket_id,
       if ((*it).second.status == kRequestSent) {
         DLOG(ERROR) << "CMImpl::RpcStatus - " << socket_id
                     << " - request timeout" << std::endl;
+        if ((*it).second.callback)
+          (*it).second.callback->Run();
+        (*it).second.rpc_reponse.disconnect();
+        (*it).second.data_sent.disconnect();
+        (*it).second.timeout.disconnect();
         pending_messages_.erase(it);
       }
     }
   }
+}
+
+RpcStatsMap ChannelManagerImpl::RpcTimings() {
+  boost::mutex::scoped_lock lock(timings_mutex_);
+  return rpc_timings_;
+}
+
+void ChannelManagerImpl::ClearRpcTimings() {
+  boost::mutex::scoped_lock lock(timings_mutex_);
+  rpc_timings_.clear();
 }
 
 }  // namespace rpcprotocol

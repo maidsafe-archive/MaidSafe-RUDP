@@ -81,7 +81,8 @@ class ChannelManagerImpl {
  private:
   ChannelManagerImpl(const ChannelManagerImpl&);
   ChannelManagerImpl& operator=(const ChannelManagerImpl&);
-  void RpcMessageSent(const SocketId &socket_id, const bool &success);
+  void RpcMessageSent(const SocketId &socket_id,
+                      const transport::TransportCondition &success);
   void RequestArrive(const rpcprotocol::RpcMessage &msg,
                      const SocketId &socket_id,
                      const float &rtt);

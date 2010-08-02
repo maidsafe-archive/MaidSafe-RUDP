@@ -68,7 +68,8 @@ struct PendingMessage {
   MessageStatus status;
   google::protobuf::Message *args;
   google::protobuf::Closure *callback;
-  boost::shared_ptr<Controller> controller;
+//  boost::shared_ptr<Controller> controller;
+  Controller *controller;
   boost::signals2::connection rpc_reponse;
   boost::signals2::connection data_sent;
   boost::signals2::connection timeout;
