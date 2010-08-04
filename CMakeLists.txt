@@ -589,6 +589,11 @@ IF(MSVC)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransportudt.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
+  # warning 4996 disabled due to generation through use of Boost Signals2
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transportudt.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/udtconnection.cc
+                                PROPERTIES COMPILE_FLAGS "/wd4996")
+
   # CMake defaults to passing stack size in LINKER_FLAGS of 10MB.  Set this to windows default of 1MB
   STRING(REGEX REPLACE "/STACK:[0-9]+" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
   STRING(REGEX REPLACE "/STACK:[0-9]+" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")

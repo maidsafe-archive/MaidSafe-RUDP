@@ -65,10 +65,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/detail/atomic_count.hpp>
 #include <maidsafe/base/threadpool.h>
 #include <maidsafe/transport/transport.h>
+#include <maidsafe/transport/udtconnection.h>
 #include <list>
 #include <map>
 #include <set>
 #include <string>
+#include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
 
@@ -86,30 +88,9 @@ class TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
 
 typedef int UdtSocketId;
 
-const int kDefaultSendTimeout(10000);  // milliseconds
 const int kAddManagedConnectionTimeout(1000);  // milliseconds
 const boost::uint16_t kDefaultThreadpoolSize(10);
-
-struct UdtStats : public SocketPerformanceStats {
- public:
-  enum UdtSocketType { kSend, kReceive };
-  UdtStats(const UdtSocketId &udt_socket_id,
-           const UdtSocketType &udt_socket_type)
-      : udt_socket_id_(udt_socket_id),
-        udt_socket_type_(udt_socket_type),
-        performance_monitor_() {}
-  ~UdtStats() {}
-  UdtSocketId udt_socket_id_;
-  UdtSocketType udt_socket_type_;
-  UDT::TRACEINFO performance_monitor_;
-};
-
-boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
-                                                    char const *service,
-                                                    addrinfo const &hints,
-                                                    int *result);
-boost::shared_ptr<addrinfo const> Next(
-    boost::shared_ptr<addrinfo const> const &node);
+const int kManagedSocketBufferSize(200);  // bytes
 
 class TransportUDT : public Transport {
  public:
@@ -121,7 +102,11 @@ class TransportUDT : public Transport {
                       TransportCondition *transport_condition);
   bool StopListening(const Port &port);
   bool StopAllListening();
+  // Closes all managed connections and stops accepting new incoming ones.
   void StopManagedConnections();
+  // Allows new incoming managed connections after StopManagedConnections has
+  // been called.
+  void ReAllowIncomingManagedConnections();
   // Create a hole to remote endpoint using rendezvous endpoint.
   TransportCondition PunchHole(const IP &remote_ip,
                                const Port &remote_port,
@@ -163,6 +148,7 @@ class TransportUDT : public Transport {
       const boost::uint16_t &retry_frequency);
   bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
+  friend class UdtConnection;
   friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
  private:
   TransportUDT& operator=(const TransportUDT&);
@@ -174,55 +160,13 @@ class TransportUDT : public Transport {
   TransportCondition StartManagedEndpointListener(
       const UdtSocketId &initial_peer_socket_id,
       boost::shared_ptr<addrinfo const> peer);
+  TransportCondition SetManagedSocketOptions(const UdtSocketId &udt_socket_id,
+                                             bool receive_synchronously);
   UdtSocketId GetNewManagedEndpointSocket(const IP &remote_ip,
                                           const Port &remote_port,
                                           const IP &rendezvous_ip,
                                           const Port &rendezvous_port);
   void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
-  // General method for connecting then sending data
-  void ConnectThenSend(const TransportMessage &transport_message,
-                       const UdtSocketId &udt_socket_id,
-                       const int &send_timeout,
-                       const int &receive_timeout,
-                       boost::shared_ptr<addrinfo const> peer);
-  // General method for sending data once connection made.  Unlike public Send,
-  // the socket is only closed iff receive_timeout == 0.  For receive_timeout >
-  // 0, the socket switches to receive after sending.  For receive_timeout < 0,
-  // the socket is simply left open.
-  void SendData(const TransportMessage &transport_message,
-                const UdtSocketId &udt_socket_id,
-                const int &send_timeout,
-                const int &receive_timeout);
-  // Send the size of the pending message
-  TransportCondition SendDataSize(const TransportMessage &transport_message,
-                                  const UdtSocketId &udt_socket_id);
-  // Send the content of the message
-  TransportCondition SendDataContent(const TransportMessage &transport_message,
-                                     const UdtSocketId &udt_socket_id);
-  // General method for receiving data
-  void ReceiveData(const UdtSocketId &udt_socket_id,
-                   const int &receive_timeout);
-  // Receive the size of the forthcoming message
-  DataSize ReceiveDataSize(const UdtSocketId &udt_socket_id);
-  // Receive the content of the message
-  bool ReceiveDataContent(const UdtSocketId &udt_socket_id,
-                          const DataSize &data_size,
-                          TransportMessage *transport_message);
-  bool HandleTransportMessage(const TransportMessage &transport_message,
-                              const UdtSocketId &udt_socket_id,
-                              const float &rtt);
-  TransportCondition GetNewSocket(
-      const IP &ip,
-      const Port &port,
-      UdtSocketId *udt_socket_id,
-      boost::shared_ptr<addrinfo const> *address_info);
-  TransportCondition GetNewSocket(
-      UdtSocketId *udt_socket_id,
-      boost::shared_ptr<addrinfo const> address_info);
-  TransportCondition Connect(const UdtSocketId &udt_socket_id,
-                             boost::shared_ptr<addrinfo const> peer);
-  void AsyncReceiveData(const UdtSocketId &udt_socket_id,
-                        const int &timeout);
   void CheckManagedSockets();
   void HandleManagedSocketRequest(const UdtSocketId &udt_socket_id,
                                   const ManagedEndpointMessage &request);
@@ -234,9 +178,9 @@ class TransportUDT : public Transport {
   std::map<Port, UdtSocketId> listening_map_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
   std::map<UdtSocketId, UdtSocketId> pending_managed_endpoint_sockets_;
-  volatile bool stop_managed_connections_;
+  volatile bool stop_managed_connections_, managed_connections_stopped_;
   boost::mutex managed_endpoint_sockets_mutex_;
-  boost::condition_variable pending_managed_endpoints_cond_var_;
+  boost::condition_variable managed_endpoints_cond_var_;
   boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
   Port managed_endpoint_listening_port_;
   base::Threadpool listening_threadpool_;

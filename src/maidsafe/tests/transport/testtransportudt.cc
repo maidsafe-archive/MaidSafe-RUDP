@@ -28,7 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/signals2/signal.hpp>
-#include <boost/progress.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/thread.hpp>
@@ -41,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportsignals.h"
 #include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udtconnection.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/base/utils.h"
@@ -52,27 +52,11 @@ namespace transport {
 
 namespace test {
 
-class TransportNode {
- public:
-  TransportNode(TransportUDT *transport)
-      : transport_(transport),
-        successful_conn_(0),
-        refused_conn_(0) {}
-  TransportUDT *transportUDT() { return transport_; }
-  int successful_conn() { return successful_conn_; }
-  int refused_conn() { return refused_conn_; }
-  void IncreaseSuccessfulConn() { ++successful_conn_; }
-  void IncreaseRefusedConn() { ++refused_conn_; }
- private:
-  TransportUDT *transport_;
-  int successful_conn_, refused_conn_;
-
-};
-
-
 class MessageHandler {
  public:
-  MessageHandler(TransportUDT *transport, bool display_stats)
+  MessageHandler(TransportUDT *transport,
+                 const std::string &message_handler_id,
+                 bool display_stats)
       : messages_(),
         raw_messages_(),
         target_message_(),
@@ -86,34 +70,36 @@ class MessageHandler {
         messages_confirmed_(0),
         messages_unsent_(0),
         keep_messages_(true),
-        message_handler_id_(),
+        message_handler_id_(message_handler_id),
         rpc_request_(),
         rpc_response_(),
         send_(),
         message_connection_(),
         managed_endpoint_received_connection_(),
         managed_endpoint_lost_connection_(),
-        stats_connection_() {
-    rpc_request_ = transport->signals().ConnectOnRpcRequestReceived(
+        stats_connection_(),
+        mutex_() {
+    rpc_request_ = transport->signals()->ConnectOnRpcRequestReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
-    rpc_response_ = transport->signals().ConnectOnRpcResponseReceived(
+    rpc_response_ = transport->signals()->ConnectOnRpcResponseReceived(
         boost::bind(&MessageHandler::OnRPCMessage, this, _1, _2));
-    send_ = transport->signals().ConnectOnSend(
+    send_ = transport->signals()->ConnectOnSend(
         boost::bind(&MessageHandler::OnSend, this, _1, _2));
-    message_connection_ = transport->signals().ConnectOnMessageReceived(
+    message_connection_ = transport->signals()->ConnectOnMessageReceived(
         boost::bind(&MessageHandler::OnMessage, this, _1, _2, _3));
     managed_endpoint_received_connection_ =
-        transport->signals().ConnectOnManagedEndpointReceived(boost::bind(
+        transport->signals()->ConnectOnManagedEndpointReceived(boost::bind(
             &MessageHandler::OnManagedEndpointReceived, this, _1, _2));
     managed_endpoint_lost_connection_ =
-        transport->signals().ConnectOnManagedEndpointLost(
+        transport->signals()->ConnectOnManagedEndpointLost(
             boost::bind(&MessageHandler::OnManagedEndpointLost, this, _1));
     if (display_stats) {
-      stats_connection_ = transport->signals().ConnectOnStats(
+      stats_connection_ = transport->signals()->ConnectOnStats(
           boost::bind(&MessageHandler::OnStats, this, _1));
     }
   }
   ~MessageHandler() {
+    boost::mutex::scoped_lock lock(mutex_);
     rpc_request_.disconnect();
     rpc_response_.disconnect();
     send_.disconnect();
@@ -125,6 +111,7 @@ class MessageHandler {
                     const SocketId &socket_id) {
     std::string message;
     rpc_message.SerializeToString(&message);
+    boost::mutex::scoped_lock lock(mutex_);
     ++messages_received_;
     if (!target_message_.empty() && message == target_message_)
       ++messages_confirmed_;
@@ -132,27 +119,30 @@ class MessageHandler {
       messages_.push_back(message);
       ids_.push_back(socket_id);
     }
-
   }
   void OnMessage(const std::string &message,
                  const SocketId &socket_id,
                  const float&) {
+    boost::mutex::scoped_lock lock(mutex_);
     raw_messages_.push_back(message);
     raw_ids_.push_back(socket_id);
   }
   void OnManagedEndpointReceived(const ManagedEndpointId &managed_endpoint_id,
                                  const ManagedEndpointMessage &message) {
-// std::cout << message_handler_id_ << " CATCHING OnManagedEndpointReceived" << std::endl;
+ //std::cout << message_handler_id_ << " CATCHING OnManagedEndpointReceived" << std::endl;
+    boost::mutex::scoped_lock lock(mutex_);
     managed_endpoint_ids_.insert(managed_endpoint_id);
   }
   void OnManagedEndpointLost(const ManagedEndpointId &managed_endpoint_id) {
-// std::cout << message_handler_id_ << " CATCHING OnManagedEndpointLost" << std::endl;
+ //std::cout << message_handler_id_ << " CATCHING OnManagedEndpointLost" << std::endl;
+    boost::mutex::scoped_lock lock(mutex_);
     managed_endpoint_ids_.erase(managed_endpoint_id);
     lost_managed_endpoint_ids_.insert(managed_endpoint_id);
   }
   void OnSend(const SocketId &socket_id,
               const TransportCondition &result) {
-  if (result == kSuccess)
+    boost::mutex::scoped_lock lock(mutex_);
+    if (result == kSuccess)
       ++messages_sent_;
     else
       ++messages_unsent_;
@@ -160,6 +150,7 @@ class MessageHandler {
   void OnStats(boost::shared_ptr<SocketPerformanceStats> stats) {
     boost::shared_ptr<UdtStats> udt_stats =
         boost::static_pointer_cast<UdtStats>(stats);
+    boost::mutex::scoped_lock lock(mutex_);
     if (udt_stats->udt_socket_type_ == UdtStats::kSend) {
       DLOG(INFO) << "\tSocket ID:         " << udt_stats->udt_socket_id_ <<
           std::endl;
@@ -230,6 +221,55 @@ class MessageHandler {
           std::endl;
     }
   }
+  // Getters
+  std::list<std::string> messages() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return messages_;
+  }
+  std::list<std::string> raw_messages() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return raw_messages_;
+  }
+  std::string target_message() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return target_message_;
+  }
+  std::list<SocketId> ids() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return ids_;
+  }
+  std::list<SocketId> raw_ids() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return raw_ids_;
+  }
+  std::set<ManagedEndpointId> managed_endpoint_ids() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return managed_endpoint_ids_;
+  }
+  std::set<ManagedEndpointId> lost_managed_endpoint_ids() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return lost_managed_endpoint_ids_;
+  }
+  int messages_sent() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return messages_sent_;
+  }
+  int messages_received() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return messages_received_;
+  }
+  int messages_confirmed() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return messages_confirmed_;
+  }
+  int messages_unsent() {
+    boost::mutex::scoped_lock lock(mutex_);
+    return messages_unsent_;
+  }
+
+ private:
+  MessageHandler(const MessageHandler&);
+  MessageHandler& operator=(const MessageHandler&);
   std::list<std::string> messages_, raw_messages_;
   std::string target_message_;
   std::list<SocketId> ids_, raw_ids_;
@@ -239,9 +279,7 @@ class MessageHandler {
   int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
   std::string message_handler_id_;
- private:
-  MessageHandler(const MessageHandler&);
-  MessageHandler& operator=(const MessageHandler&);
+  boost::mutex mutex_;
   bs2::connection rpc_request_, rpc_response_;
   bs2::connection send_;
   bs2::connection message_connection_;
@@ -257,8 +295,6 @@ bool CheckSocketAlive(const UdtSocketId &udt_socket_id) {
   return (UDT::selectEx(socket_to_check, NULL, NULL, &sockets_bad, 1000) == 0);
 }
 
-
-
 class TransportUdtTest: public testing::Test {
  protected:
   virtual ~TransportUdtTest() {
@@ -266,11 +302,10 @@ class TransportUdtTest: public testing::Test {
   }
 };
 
-
 TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
   boost::uint16_t num_listening_ports = 12;
   TransportUDT node;
-  MessageHandler message_handler1(&node, false);
+  MessageHandler message_handler1(&node, "Node 1", false);
   Port lp_node[100];
   TransportMessage transport_message;
   transport_message.set_type(TransportMessage::kRequest);
@@ -303,17 +338,17 @@ TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
   const int kTimeout(10000);
   int count(0);
   while (count < kTimeout &&
-         message_handler1.messages_received_ != num_listening_ports) {
-//    LOG(INFO) << "Sent: " << message_handler1.messages_sent_ << std::endl;
-//    LOG(INFO) << "Recd: " << message_handler1.messages_received_ << std::endl;
+         message_handler1.messages_received() != num_listening_ports) {
+//    LOG(INFO) << "Sent: " << message_handler1.messages_sent() << std::endl;
+//    LOG(INFO) << "Recd: " << message_handler1.messages_received() << std::endl;
     boost::this_thread::sleep(boost::posix_time::milliseconds(30));
     count += 30;
   }
-//  LOG(INFO) << "Sent: " << message_handler1.messages_sent_ << std::endl;
-//  LOG(INFO) << "Recd: " << message_handler1.messages_received_ << std::endl;
-  EXPECT_EQ(num_listening_ports, message_handler1.messages_received_);
-  EXPECT_EQ(message_handler1.messages_sent_,
-            message_handler1.messages_received_);
+//  LOG(INFO) << "Sent: " << message_handler1.messages_sent() << std::endl;
+//  LOG(INFO) << "Recd: " << message_handler1.messages_received() << std::endl;
+  EXPECT_EQ(num_listening_ports, message_handler1.messages_received());
+  EXPECT_EQ(message_handler1.messages_sent(),
+            message_handler1.messages_received());
   EXPECT_TRUE(node.StopAllListening());
 }
 
@@ -321,8 +356,8 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   const std::string args = base::RandomString(256 * 1024);
   const size_t kRepeats = 1;
   TransportUDT node1_transudt, node2_transudt;
-  MessageHandler message_handler1(&node1_transudt, false);
-  MessageHandler message_handler2(&node2_transudt, false);
+  MessageHandler message_handler1(&node1_transudt, "Node 1", false);
+  MessageHandler message_handler2(&node2_transudt, "Node 2", false);
   Port lp_node1 = node1_transudt.StartListening("", 0, NULL);
   Port lp_node2 = node2_transudt.StartListening("", 0, NULL);
   EXPECT_TRUE(ValidPort(lp_node1));
@@ -349,32 +384,32 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   node1_transudt.SendResponse(transport_message, UDT::INVALID_SOCK);
   const int kTimeout(10000);
   int count(0);
-  while (count < kTimeout && message_handler1.messages_unsent_ == 0) {
+  while (count < kTimeout && message_handler1.messages_unsent() == 0) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
-  EXPECT_EQ(1, message_handler1.messages_unsent_);
+  EXPECT_EQ(1, message_handler1.messages_unsent());
 
   count = 0;
-  while (count < kTimeout && message_handler2.messages_.size() < kRepeats) {
+  while (count < kTimeout && message_handler2.messages().size() < kRepeats) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
   node1_transudt.StopAllListening();
   node2_transudt.StopAllListening();
   //for (size_t i = 0; i < kRepeats; ++i) {
-  //  EXPECT_EQ(sent_message, message_handler2.messages_.front());
-  //  message_handler2.messages_.pop_front();
+  //  EXPECT_EQ(sent_message, message_handler2.messages().front());
+  //  message_handler2.messages().pop_front();
   //}
-  EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent_);
-                      //boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+  EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent());
+                      //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
-  TransportUDT node4;
+  TransportUDT node1;
   TransportUDT node[20];
-  MessageHandler message_handler4(&node4, false);
-  Port lp_node4 = node4.StartListening("", 0, NULL);
+  MessageHandler message_handler4(&node1, "Node 1", false);
+  Port lp_node4 = node1.StartListening("", 0, NULL);
   TransportMessage transport_message;
   transport_message.set_type(TransportMessage::kRequest);
   rpcprotocol::RpcMessage *rpc_message =
@@ -394,49 +429,49 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
   for (int i =0; i < 20 ; ++i) {
     node[i].Send(transport_message, "127.0.0.1", lp_node4, 0);
   }
-  node4.StopAllListening();
+  node1.StopAllListening();
   for (int i =0; i < 20 ; ++i) {
     node[i].StopAllListening();
   }
+                      //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
+  UdtConnection udt_connection;
   TransportUDT node1, node2, node3, node4, node5;
-  MessageHandler message_handler1(&node1, false);
-  message_handler1.message_handler_id_ = "Node1";
-  MessageHandler message_handler3(&node3, false);
-  message_handler3.message_handler_id_ = "Node3";
+  MessageHandler message_handler1(&node1, "Node 1", false);
+  MessageHandler message_handler3(&node3, "Node 3", false);
   Port node1_port = node1.StartListening("", 0, NULL);
   Port node2_port = node2.StartListening("", 0, NULL);
   Port node3_port = node3.StartListening("", 0, NULL);
   Port node4_port = node4.StartListening("", 0, NULL);
   Port node5_port = node5.StartListening("", 0, NULL);
   ManagedEndpointId node1_end1 =
-    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, "Node1", 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node2_port, "", 0, "Node1", 0, 0, 0);
   EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end2 =
-    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node1", 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node1", 0, 0, 0);
   EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
-  const int kTimeout(100000);
+  const int kTimeout(10000);
   int count(0);
   while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids_.empty()) {
+         message_handler3.lost_managed_endpoint_ids().empty()) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
-  EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids_.size());
+  EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids().size());
   EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
   node1_end2 =
-    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node1", 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node1", 0, 0, 0);
   EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end3 =
-    node1.AddManagedEndpoint("127.0.0.1", node4_port, "", 0, "Node1", 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node4_port, "", 0, "Node1", 0, 0, 0);
   EXPECT_EQ(3, node1.managed_endpoint_sockets_.size());
   ManagedEndpointId node1_end4 =
-    node1.AddManagedEndpoint("127.0.0.1", node5_port, "", 0, "Node1", 0 ,0 ,0);
+    node1.AddManagedEndpoint("127.0.0.1", node5_port, "", 0, "Node1", 0, 0, 0);
   EXPECT_EQ(4, node1.managed_endpoint_sockets_.size());
- // EXPECT_TRUE(CheckSocketAlive(node1_end1));
+  EXPECT_TRUE(CheckSocketAlive(node1_end1));
   node1.StopManagedConnections();
   ASSERT_TRUE(node1.stop_managed_connections_);
   EXPECT_FALSE(CheckSocketAlive(node1_end1));
@@ -452,58 +487,74 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_CrashManagedEndpoints) {
-  TransportUDT node2, node3, node4;
+  // Setup managed connections between three nodes.
   boost::shared_ptr<TransportUDT> node1_ptr(new TransportUDT());
-  MessageHandler message_handler2(&node2, false);
-  MessageHandler message_handler3(&node3, false);
-  MessageHandler message_handler4(&node4, false);
+  TransportUDT node2, node3;
+  MessageHandler message_handler2(&node2, "Node 2", false);
+  MessageHandler message_handler3(&node3, "Node 3", false);
   Port node1_port = node1_ptr->StartListening("", 0, NULL);
   Port node2_port = node2.StartListening("", 0, NULL);
   Port node3_port = node3.StartListening("", 0, NULL);
-  Port node4_port = node4.StartListening("", 0, NULL);
-  ManagedEndpointId node1_end1 =
-    node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0, "Node1", 0 ,0 ,0);
-  ManagedEndpointId node1_end2 =
-    node2.AddManagedEndpoint("127.0.0.1", node3_port, "", 0, "Node2", 0 ,0 ,0);
-  ManagedEndpointId node1_end3 =
-    node3.AddManagedEndpoint("127.0.0.1", node1_port, "", 0, "Node3", 0 ,0 ,0);
-  // Kill node1
+  ManagedEndpointId node1_to_node2 = node1_ptr->AddManagedEndpoint("127.0.0.1",
+      node2_port, "", 0, "Node1", 0, 0, 0);
+  ASSERT_LT(0, node1_to_node2);
+  ManagedEndpointId node2_to_node3 = node2.AddManagedEndpoint("127.0.0.1",
+      node3_port, "", 0, "Node2", 0, 0, 0);
+  ASSERT_LT(0, node2_to_node3);
+  ManagedEndpointId node3_to_node1 = node3.AddManagedEndpoint("127.0.0.1",
+      node1_port, "", 0, "Node3", 0, 0, 0);
+  ASSERT_LT(0, node3_to_node1);
+
+  // Stop Node 1's managed connections - Nodes 2 & 3 should each detect a lost
+  // connection.
   node1_ptr->StopManagedConnections();
-  const int kTimeout(100000);
+  const int kTimeout(kAddManagedConnectionTimeout * 2);
   int count(0);
   while (count < kTimeout &&
-         message_handler2.lost_managed_endpoint_ids_.empty()) {
+         message_handler2.lost_managed_endpoint_ids().empty()) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
-  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids_.size());
+  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids().size());
+  count = 0;
+  while (count < kTimeout &&
+         message_handler3.lost_managed_endpoint_ids().empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+  EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids().size());
+
+  // Stop Node 2's managed connections - Node 3 should detect a lost connection.
   node2.StopManagedConnections();
   count = 0;
   while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids_.size() != 2) {
+         message_handler3.lost_managed_endpoint_ids().size() != size_t(2)) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
-  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids_.size());
-  ManagedEndpointId node1_end11 =
-    node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0, "Node1", 0 ,0 ,0);
+  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids().size());
+  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids().size());
+
+  // Try to reconnect to Node 2 - should fail.
+  node1_to_node2 = node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0,
+                                                 "Node1", 0, 0, 0);
+  ASSERT_GE(0, node1_to_node2);
+
+  // Re-enable managed connections on Node 2 & try to reconnect - should pass.
+  node2.ReAllowIncomingManagedConnections();
+  node1_to_node2 = node1_ptr->AddManagedEndpoint("127.0.0.1", node2_port, "", 0,
+                                                 "Node1", 0, 0, 0);
+  ASSERT_LT(0, node1_to_node2);
+
+  // Destroy Node 1 - Node 2 should detect a lost connection.
   node1_ptr.reset();
- count = 0;
-  while (count < kTimeout &&
-         message_handler2.lost_managed_endpoint_ids_.size() != 3) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(3), message_handler2.lost_managed_endpoint_ids_.size());
-  node2.StopManagedConnections();
   count = 0;
   while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids_.size() != 2) {
+         message_handler2.lost_managed_endpoint_ids().size() != size_t(2)) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     count += 10;
   }
-  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids_.size());
-  node3.StopManagedConnections();
+  EXPECT_EQ(size_t(2), message_handler2.lost_managed_endpoint_ids().size());
 }
 
 }  // namespace test

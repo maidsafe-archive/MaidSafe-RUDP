@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -26,47 +26,50 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*******************************************************************************
- * NOTE: This API is unlikely to have any breaking changes applied.  However,  *
- *       it should not be regarded as a final API until this notice is removed.*
+ * NOTE: This header is unlikely to have any breaking changes applied.         *
+ *       However, it should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
-#define MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
+#ifndef MAIDSAFE_TRANSPORT_UDTUTILS_H_
+#define MAIDSAFE_TRANSPORT_UDTUTILS_H_
+
+#include <boost/shared_ptr.hpp>
+#include <maidsafe/maidsafe-dht_config.h>
+#include <maidsafe/transport/transportconditions.h>
+#include "maidsafe/udt/udt.h"
+
 
 namespace transport {
 
-enum TransportCondition {
-  kSuccess = 0,
-  kError = -1,
-  kRemoteUnreachable = -2,
-  kNoConnection = -3,
-  kNoNetwork = -4,
-  kInvalidIP = -5,
-  kInvalidPort = -6,
-  kInvalidData = -7,
-  kNoSocket = -8,
-  kInvalidAddress = -9,
-  kNoRendezvous = -10,
-  kBehindFirewall = -11,
-  kBindError = -12,
-  kConnectError = -13,
-  kAlreadyStarted = -14,
-  kListenError = -15,
-  kThreadResourceError = -16,
-  kCloseSocketError = -17,
-  kSendUdtFailure = -18,
-  kSendTimeout = -19,
-  kSendParseFailure = -20,
-  kSendSizeFailure = -21,
-  kReceiveUdtFailure = -22,
-  kReceiveTimeout = -23,
-  kReceiveParseFailure = -24,
-  kReceiveSizeFailure = -25,
-  kAddManagedEndpointError = -26,
-  kAddManagedEndpointTimeout = -27,
-  kSetOptionFailure = -28
-};
+typedef int UdtSocketId;
+
+namespace udtutils {
+
+boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
+                                                    char const *service,
+                                                    addrinfo const &hints,
+                                                    int *result);
+boost::shared_ptr<addrinfo const> Next(
+    boost::shared_ptr<addrinfo const> const &node);
+
+TransportCondition GetNewSocket(
+    const IP &ip,
+    const Port &port,
+    bool reuse_address,
+    UdtSocketId *udt_socket_id,
+    boost::shared_ptr<addrinfo const> *address_info);
+
+TransportCondition GetNewSocket(bool reuse_address,
+                                UdtSocketId *udt_socket_id,
+                                boost::shared_ptr<addrinfo const> address_info);
+
+TransportCondition Connect(const UdtSocketId &udt_socket_id,
+                           boost::shared_ptr<addrinfo const> peer);
+
+}  // namespace udtutils
 
 }  // namespace transport
 
-#endif  // MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
+#endif  // MAIDSAFE_TRANSPORT_UDTUTILS_H_
+

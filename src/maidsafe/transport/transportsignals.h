@@ -50,6 +50,7 @@ namespace transport {
 struct SocketPerformanceStats;
 class TransportUDT;
 class TransportTCP;
+class UdtConnection;
 
 typedef bs2::signal<void(const std::string&,
                          const SocketId&,
@@ -170,6 +171,7 @@ class Signals {
 
   friend class TransportUDT;
   friend class TransportTCP;
+  friend class UdtConnection;
  private:
   OnMessageReceived on_message_received_;
   OnRpcRequestReceived on_rpc_request_received_;

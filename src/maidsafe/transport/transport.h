@@ -97,13 +97,13 @@ class Transport {
                             const SocketId &socket_id) = 0;
   // Used to send a file in response to a request received on socket_id.
   virtual void SendFile(fs::path &path, const SocketId &socket_id) = 0;
-  Signals &signals() { return signals_; }
+  boost::shared_ptr<Signals> signals() { return signals_; }
   std::vector<Port> listening_ports() { return listening_ports_; }
  protected:
-  Transport() : signals_(),
+  Transport() : signals_(new Signals),
                 listening_ports_(),
                 listening_ports_mutex_() {}
-  Signals signals_;
+  boost::shared_ptr<Signals> signals_;
   std::vector<Port> listening_ports_;
   boost::mutex listening_ports_mutex_;
  private:

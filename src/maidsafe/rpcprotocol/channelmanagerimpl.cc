@@ -56,13 +56,13 @@ ChannelManagerImpl::ChannelManagerImpl(
       pending_messages_(), channels_ids_(), rpc_timings_(),
       delete_channels_cond_(), online_status_id_(0), rpc_request_(),
       rpc_reponse_(), data_sent_(), timeout_() {
-  rpc_request_ = udt_transport_->signals().ConnectOnRpcRequestReceived(
+  rpc_request_ = udt_transport_->signals()->ConnectOnRpcRequestReceived(
                      boost::bind(&ChannelManagerImpl::RequestArrive,
                                  this, _1, _2, _3));
-  data_sent_ = udt_transport_->signals().ConnectOnSend(
+  data_sent_ = udt_transport_->signals()->ConnectOnSend(
                    boost::bind(&ChannelManagerImpl::RpcMessageSent,
                                this, _1, _2));
-  timeout_ = udt_transport_->signals().ConnectOnReceive(
+  timeout_ = udt_transport_->signals()->ConnectOnReceive(
                  boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
 }
 
@@ -145,15 +145,15 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
     return false;
   }
   pending_request.rpc_reponse =
-      pending_request.controller->udt_transport()->signals().
+      pending_request.controller->udt_transport()->signals()->
           ConnectOnRpcResponseReceived(
               boost::bind(&ChannelManagerImpl::ResponseArrive,
                           this, _1, _2, _3));
   pending_request.data_sent =
-      pending_request.controller->udt_transport()->signals().ConnectOnSend(
+      pending_request.controller->udt_transport()->signals()->ConnectOnSend(
           boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
   pending_request.timeout =
-      pending_request.controller->udt_transport()->signals().ConnectOnReceive(
+      pending_request.controller->udt_transport()->signals()->ConnectOnReceive(
           boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
   std::pair<std::map<SocketId, PendingMessage>::iterator, bool> p;
   {
