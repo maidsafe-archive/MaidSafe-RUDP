@@ -24,6 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #include <boost/asio/ip/address.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -129,12 +130,14 @@ class MessageHandler {
   }
   void OnManagedEndpointReceived(const ManagedEndpointId &managed_endpoint_id,
                                  const ManagedEndpointMessage &message) {
- //std::cout << message_handler_id_ << " CATCHING OnManagedEndpointReceived" << std::endl;
+//    std::cout << message_handler_id_ << " CATCHING OnManagedEndpointReceived"
+//        << std::endl;
     boost::mutex::scoped_lock lock(mutex_);
     managed_endpoint_ids_.insert(managed_endpoint_id);
   }
   void OnManagedEndpointLost(const ManagedEndpointId &managed_endpoint_id) {
- //std::cout << message_handler_id_ << " CATCHING OnManagedEndpointLost" << std::endl;
+//    std::cout << message_handler_id_ << " CATCHING OnManagedEndpointLost" <<
+//        std::endl;
     boost::mutex::scoped_lock lock(mutex_);
     managed_endpoint_ids_.erase(managed_endpoint_id);
     lost_managed_endpoint_ids_.insert(managed_endpoint_id);
@@ -161,7 +164,8 @@ class MessageHandler {
       DLOG(INFO) << "\tTime elapsed:      " <<
           udt_stats->performance_monitor_.msTimeStamp << " ms" << std::endl;
       DLOG(INFO) << "\tSent:              " <<
-          udt_stats->performance_monitor_.pktSentTotal << " packets" << std::endl;
+          udt_stats->performance_monitor_.pktSentTotal << " packets" <<
+          std::endl;
       DLOG(INFO) << "\tLost:              " <<
           udt_stats->performance_monitor_.pktSndLoss << " packets" << std::endl;
       DLOG(INFO) << "\tRetransmitted:     " <<
@@ -339,13 +343,9 @@ TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
   int count(0);
   while (count < kTimeout &&
          message_handler1.messages_received() != num_listening_ports) {
-//    LOG(INFO) << "Sent: " << message_handler1.messages_sent() << std::endl;
-//    LOG(INFO) << "Recd: " << message_handler1.messages_received() << std::endl;
     boost::this_thread::sleep(boost::posix_time::milliseconds(30));
     count += 30;
   }
-//  LOG(INFO) << "Sent: " << message_handler1.messages_sent() << std::endl;
-//  LOG(INFO) << "Recd: " << message_handler1.messages_received() << std::endl;
   EXPECT_EQ(num_listening_ports, message_handler1.messages_received());
   EXPECT_EQ(message_handler1.messages_sent(),
             message_handler1.messages_received());
@@ -397,12 +397,7 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   }
   node1_transudt.StopAllListening();
   node2_transudt.StopAllListening();
-  //for (size_t i = 0; i < kRepeats; ++i) {
-  //  EXPECT_EQ(sent_message, message_handler2.messages().front());
-  //  message_handler2.messages().pop_front();
-  //}
   EXPECT_EQ(static_cast<int>(kRepeats), message_handler1.messages_sent());
-                      //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
@@ -433,11 +428,9 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
   for (int i =0; i < 20 ; ++i) {
     node[i].StopAllListening();
   }
-                      //boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
-  UdtConnection udt_connection;
   TransportUDT node1, node2, node3, node4, node5;
   MessageHandler message_handler1(&node1, "Node 1", false);
   MessageHandler message_handler3(&node3, "Node 3", false);

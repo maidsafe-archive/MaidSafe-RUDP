@@ -183,8 +183,8 @@ class TransportUDT : public Transport {
   boost::condition_variable managed_endpoints_cond_var_;
   boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
   Port managed_endpoint_listening_port_;
-  base::Threadpool listening_threadpool_;
-  base::Threadpool general_threadpool_;
+  boost::shared_ptr<base::Threadpool> listening_threadpool_;
+  boost::shared_ptr<base::Threadpool> general_threadpool_;
   boost::shared_ptr<boost::thread> check_connections_;
 };
 

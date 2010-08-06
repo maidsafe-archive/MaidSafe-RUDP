@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/signals2.hpp>
 #include <boost/thread/thread.hpp>
 #include <maidsafe/transport/transport.h>
+#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
@@ -56,6 +57,8 @@ namespace transport {
 
 class TransportUDT;
 class TransportMessage;
+
+typedef int UdtConnectionId;
 
 const int kDefaultSendTimeout(10000);  // milliseconds
 
@@ -75,56 +78,60 @@ struct UdtStats : public SocketPerformanceStats {
 
 class UdtConnection {
  public:
-  UdtConnection();
-  explicit UdtConnection(TransportUDT *transport_udt);
-  ~UdtConnection();
-  SocketId Send(const TransportMessage &transport_message,
-                const IP &remote_ip,
+  UdtConnection(const IP &remote_ip,
                 const Port &remote_port,
-                const int &response_timeout);
-  void SendResponse(const TransportMessage &transport_message,
-                    const SocketId &socket_id);
-  boost::shared_ptr<Signals> signals() { return signals_; }
+                const IP &rendezvous_ip,
+                const Port &rendezvous_port);
+  UdtConnection(const UdtConnection &other);
+  UdtConnection& operator=(const UdtConnection &other);
+  ~UdtConnection();
+  void Send(const TransportMessage &transport_message,
+            const int &response_timeout);
+  boost::shared_ptr<Signals> signals() const { return signals_; }
+  UdtConnectionId udt_connection_id() const { return udt_connection_id_; }
   friend class TransportUDT;
  private:
-  SocketId PrepareToSend(const TransportMessage &transport_message,
-                         const IP &remote_ip,
-                         const Port &remote_port);
+  UdtConnection(TransportUDT *transport_udt,
+                const IP &remote_ip,
+                const Port &remote_port,
+                const IP &rendezvous_ip,
+                const Port &rendezvous_port);
+  UdtConnection(TransportUDT *transport_udt,
+                const UdtConnectionId &udt_connection_id);
+  void Init();
+  // Method to allow sending on a socket which is already connected to a peer.
+  void SendResponse(const TransportMessage &transport_message);
   // General method for connecting then sending data
-  void ConnectThenSend(const TransportMessage &transport_message,
-                       const UdtSocketId &udt_socket_id,
-                       const int &send_timeout,
-                       const int &receive_timeout,
-                       boost::shared_ptr<addrinfo const> peer);
+  void ConnectThenSend(const int &send_timeout,
+                       const int &receive_timeout);
   // General method for sending data once connection made.  Unlike public Send,
-  // the socket is only closed iff receive_timeout == 0.  For receive_timeout >
-  // 0, the socket switches to receive after sending.  For receive_timeout < 0,
-  // the socket is simply left open.
-  void SendData(const TransportMessage &transport_message,
-                const UdtSocketId &udt_socket_id,
-                const int &send_timeout,
+  // the socket is only closed if receive_timeout == 0 (or on send failure).
+  // For receive_timeout > 0, the socket switches to receive after sending.
+  // For receive_timeout < 0 the socket is simply left open.
+  void SendData(const int &send_timeout,
                 const int &receive_timeout);
   // Send the size of the pending message
-  TransportCondition SendDataSize(const TransportMessage &transport_message,
-                                  const UdtSocketId &udt_socket_id);
+  TransportCondition SendDataSize();
   // Send the content of the message
-  TransportCondition SendDataContent(const TransportMessage &transport_message,
-                                     const UdtSocketId &udt_socket_id);
+  TransportCondition SendDataContent();
   // General method for receiving data
-  void ReceiveData(const UdtSocketId &udt_socket_id,
-                   const int &receive_timeout);
+  void ReceiveData(const int &receive_timeout);
   // Receive the size of the forthcoming message
-  DataSize ReceiveDataSize(const UdtSocketId &udt_socket_id);
+  DataSize ReceiveDataSize();
   // Receive the content of the message
-  bool ReceiveDataContent(const UdtSocketId &udt_socket_id,
-                          const DataSize &data_size,
-                          TransportMessage *transport_message);
-  bool HandleTransportMessage(const TransportMessage &transport_message,
-                              const UdtSocketId &udt_socket_id,
-                              const float &rtt);
+  bool ReceiveDataContent(const DataSize &data_size);
+  bool HandleTransportMessage(const float &rtt);
   TransportUDT *transport_udt_;
   boost::shared_ptr<Signals> signals_;
-  boost::shared_ptr<boost::thread> send_worker_, receive_worker_;
+  boost::shared_ptr<base::Threadpool> threadpool_;
+  boost::shared_ptr<boost::thread> worker_;
+  UdtConnectionId udt_connection_id_;
+  IP remote_ip_;
+  Port remote_port_;
+  IP rendezvous_ip_;
+  Port rendezvous_port_;
+  boost::shared_ptr<addrinfo const> peer_;
+  TransportMessage transport_message_;
 };
 
 }  // namespace transport

@@ -32,99 +32,165 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/descriptor.h>
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/threadpool.h"
-#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/transportudt.h"
 
 namespace transport {
 
-UdtConnection::UdtConnection() : transport_udt_(NULL),
-                                 signals_(new Signals),
-                                 send_worker_(),
-                                 receive_worker_() {}
-
-UdtConnection::UdtConnection(TransportUDT *transport_udt)
-    : transport_udt_(transport_udt),
-      signals_(transport_udt->signals()),
-      send_worker_(),
-      receive_worker_() {}
-
-UdtConnection::~UdtConnection() {
-  if (send_worker_.get() != NULL)
-    send_worker_->join();
-  if (receive_worker_.get() != NULL)
-    receive_worker_->join();
+UdtConnection::UdtConnection(const IP &remote_ip,
+                             const Port &remote_port,
+                             const IP &rendezvous_ip,
+                             const Port &rendezvous_port)
+    : transport_udt_(NULL),
+      signals_(new Signals),
+      threadpool_(),
+      worker_(),
+      udt_connection_id_(UDT::INVALID_SOCK),
+      remote_ip_(remote_ip),
+      remote_port_(remote_port),
+      rendezvous_ip_(rendezvous_ip),
+      rendezvous_port_(rendezvous_port),
+      peer_(),
+      transport_message_() {
+  Init();
 }
 
-SocketId UdtConnection::Send(const TransportMessage &transport_message,
+UdtConnection::UdtConnection(TransportUDT *transport_udt,
                              const IP &remote_ip,
                              const Port &remote_port,
-                             const int &response_timeout) {
-  UdtSocketId udt_socket_id(UDT::INVALID_SOCK);
-  boost::shared_ptr<addrinfo const> peer;
-  if (udtutils::GetNewSocket(remote_ip, remote_port, false, &udt_socket_id,
-                             &peer) != kSuccess)
-    return UDT::INVALID_SOCK;
-  int timeout(response_timeout < 0 ? 0 : response_timeout);
-  send_worker_.reset(new boost::thread(&UdtConnection::ConnectThenSend, this,
-      transport_message, udt_socket_id, timeout, timeout, peer));
-  return udt_socket_id;
+                             const IP &rendezvous_ip,
+                             const Port &rendezvous_port)
+    : transport_udt_(transport_udt),
+      signals_(transport_udt->signals()),
+      threadpool_(transport_udt->general_threadpool_),
+      worker_(),
+      udt_connection_id_(UDT::INVALID_SOCK),
+      remote_ip_(remote_ip),
+      remote_port_(remote_port),
+      rendezvous_ip_(rendezvous_ip),
+      rendezvous_port_(rendezvous_port),
+      peer_(),
+      transport_message_() {
+  Init();
 }
 
-void UdtConnection::SendResponse(const TransportMessage &transport_message,
-                                 const SocketId &socket_id) {
-  if (transport_udt_) {
-    SendData(transport_message, socket_id, kDefaultSendTimeout, 0);
+UdtConnection::UdtConnection(TransportUDT *transport_udt,
+                             const UdtConnectionId &udt_connection_id)
+    : transport_udt_(transport_udt),
+      signals_(transport_udt->signals()),
+      threadpool_(transport_udt->general_threadpool_),
+      worker_(),
+      udt_connection_id_(udt_connection_id),
+      remote_ip_(""),
+      remote_port_(0),
+      rendezvous_ip_(""),
+      rendezvous_port_(0),
+      peer_(),
+      transport_message_() {}
+
+UdtConnection::UdtConnection(const UdtConnection &other)
+    : transport_udt_(other.transport_udt_),
+      signals_(other.signals_),
+      threadpool_(other.threadpool_),
+      worker_(other.worker_),
+      udt_connection_id_(other.udt_connection_id_),
+      remote_ip_(other.remote_ip_),
+      remote_port_(other.remote_port_),
+      rendezvous_ip_(other.rendezvous_ip_),
+      rendezvous_port_(other.rendezvous_port_),
+      peer_(other.peer_),
+      transport_message_(other.transport_message_) {}
+
+UdtConnection& UdtConnection::operator=(const UdtConnection &other) {
+  transport_udt_ = other.transport_udt_;
+  signals_ = other.signals_;
+  threadpool_ = other.threadpool_;
+  worker_ = other.worker_;
+  udt_connection_id_ = other.udt_connection_id_;
+  remote_ip_ = other.remote_ip_;
+  remote_port_ = other.remote_port_;
+  rendezvous_ip_ = other.rendezvous_ip_;
+  rendezvous_port_ = other.rendezvous_port_;
+  peer_ = other.peer_;
+  transport_message_ = other.transport_message_;
+  return *this;
+}
+
+UdtConnection::~UdtConnection() {
+  if (worker_.get() != NULL)
+    worker_->join();
+}
+
+void UdtConnection::Init() {
+  if (udtutils::GetNewSocket(remote_ip_, remote_port_, false,
+                             &udt_connection_id_, &peer_) != kSuccess)
+    udt_connection_id_ = UDT::INVALID_SOCK;
+}
+
+void UdtConnection::Send(const TransportMessage &transport_message,
+                         const int &response_timeout) {
+  transport_message_ = transport_message;
+  int timeout(response_timeout < 0 ? 0 : response_timeout);
+  boost::function<void()> functor =
+      boost::bind(&UdtConnection::ConnectThenSend, this, timeout, timeout);
+  if (threadpool_.get()) {
+//    threadpool_->EnqueueTask(functor);
+    worker_.reset(new boost::thread(functor));
   } else {
-    send_worker_.reset(new boost::thread(&UdtConnection::SendData, this,
-        transport_message, socket_id, kDefaultSendTimeout, 0));
+    worker_.reset(new boost::thread(functor));
   }
 }
 
-void UdtConnection::ConnectThenSend(
-    const TransportMessage &transport_message,
-    const UdtSocketId &udt_socket_id,
-    const int &send_timeout,
-    const int &receive_timeout,
-    boost::shared_ptr<addrinfo const> peer) {
+void UdtConnection::SendResponse(const TransportMessage &transport_message) {
+  transport_message_ = transport_message;
+  boost::function<void()> functor =
+      boost::bind(&UdtConnection::SendData, this, kDefaultSendTimeout, 0);
+  if (threadpool_.get()) {
+//    threadpool_->EnqueueTask(functor);
+    worker_.reset(new boost::thread(functor));
+  } else {
+    worker_.reset(new boost::thread(functor));
+  }
+}
+
+void UdtConnection::ConnectThenSend(const int &send_timeout,
+                                    const int &receive_timeout) {
   TransportCondition transport_condition =
-      udtutils::Connect(udt_socket_id, peer);
+      udtutils::Connect(udt_connection_id_, peer_);
   if (transport_condition != kSuccess) {
-    signals_->on_send_(udt_socket_id, kSendUdtFailure);
+    signals_->on_send_(udt_connection_id_, kSendUdtFailure);
     return;
   }
-  SendData(transport_message, udt_socket_id, send_timeout, receive_timeout);
+  SendData(send_timeout, receive_timeout);
 }
 
-void UdtConnection::SendData(const TransportMessage &transport_message,
-                             const UdtSocketId &udt_socket_id,
-                             const int &send_timeout,
+void UdtConnection::SendData(const int &send_timeout,
                              const int &receive_timeout) {
   // Set timeout
   if (send_timeout > 0) {
-    UDT::setsockopt(udt_socket_id, 0, UDT_SNDTIMEO, &send_timeout,
+    UDT::setsockopt(udt_connection_id_, 0, UDT_SNDTIMEO, &send_timeout,
                     sizeof(send_timeout));
   }
 
   // Send the message size
-  TransportCondition result = SendDataSize(transport_message, udt_socket_id);
+  TransportCondition result = SendDataSize();
   if (result != kSuccess) {
-    signals_->on_send_(udt_socket_id, result);
-    UDT::close(udt_socket_id);
+    signals_->on_send_(udt_connection_id_, result);
+    UDT::close(udt_connection_id_);
     return;
   }
 
   // Send the message
-  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_socket_id,
+  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_connection_id_,
                                                      UdtStats::kSend));
-  result = SendDataContent(transport_message, udt_socket_id);
-  signals_->on_send_(udt_socket_id, result);
+  result = SendDataContent();
+  signals_->on_send_(udt_connection_id_, result);
   if (result != kSuccess) {
-    UDT::close(udt_socket_id);
+    UDT::close(udt_connection_id_);
     return;
   }
 
   // Get stats
-  if (UDT::ERROR == UDT::perfmon(udt_socket_id,
+  if (UDT::ERROR == UDT::perfmon(udt_connection_id_,
                                  &udt_stats->performance_monitor_)) {
 #ifdef DEBUG
     if (UDT::getlasterror().getErrorCode() != 2001)
@@ -135,18 +201,15 @@ void UdtConnection::SendData(const TransportMessage &transport_message,
     signals_->on_stats_(udt_stats);
   }
   if (receive_timeout > 0) {
-    receive_worker_.reset(new boost::thread(&UdtConnection::ReceiveData, this,
-                                            udt_socket_id, receive_timeout));
+    ReceiveData(receive_timeout);
   } else if (receive_timeout == 0) {
-    UDT::close(udt_socket_id);
+    UDT::close(udt_connection_id_);
   }
 }
 
-TransportCondition UdtConnection::SendDataSize(
-    const TransportMessage &transport_message,
-    const UdtSocketId &udt_socket_id) {
-  DataSize data_size = static_cast<DataSize>(transport_message.ByteSize());
-  if (data_size != transport_message.ByteSize()) {
+TransportCondition UdtConnection::SendDataSize() {
+  DataSize data_size = static_cast<DataSize>(transport_message_.ByteSize());
+  if (data_size != transport_message_.ByteSize()) {
     LOG(INFO) << "TransportUDT::SendDataSize: data > max buffer size." <<
         std::endl;
     return kSendUdtFailure;
@@ -154,27 +217,25 @@ TransportCondition UdtConnection::SendDataSize(
   DataSize data_buffer_size = sizeof(DataSize);
 
   int sent_count;
-  if (UDT::ERROR == (sent_count = UDT::send(udt_socket_id,
+  if (UDT::ERROR == (sent_count = UDT::send(udt_connection_id_,
       reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
-    DLOG(ERROR) << "Cannot send data size to " << udt_socket_id << ": " <<
+    DLOG(ERROR) << "Cannot send data size to " << udt_connection_id_ << ": " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     return kSendUdtFailure;
   } else if (sent_count != data_buffer_size) {
-    LOG(INFO) << "Sending socket " << udt_socket_id << " timed out" <<
+    LOG(INFO) << "Sending socket " << udt_connection_id_ << " timed out" <<
         std::endl;
     return kSendTimeout;
   }
   return kSuccess;
 }
 
-TransportCondition UdtConnection::SendDataContent(
-    const TransportMessage &transport_message,
-    const UdtSocketId &udt_socket_id) {
-  DataSize data_size = static_cast<DataSize>(transport_message.ByteSize());
+TransportCondition UdtConnection::SendDataContent() {
+  DataSize data_size = static_cast<DataSize>(transport_message_.ByteSize());
   boost::scoped_array<char> serialised_message(new char[data_size]);
   // Check for valid message
-  if (!transport_message.SerializeToArray(serialised_message.get(),
-                                          data_size)) {
+  if (!transport_message_.SerializeToArray(serialised_message.get(),
+                                           data_size)) {
     DLOG(ERROR) << "TransportUDT::SendDataContent: failed to serialise." <<
         std::endl;
     return kInvalidData;
@@ -182,13 +243,13 @@ TransportCondition UdtConnection::SendDataContent(
   DataSize sent_total = 0;
   int sent_size = 0;
   while (sent_total < data_size) {
-    if (UDT::ERROR == (sent_size = UDT::send(udt_socket_id,
+    if (UDT::ERROR == (sent_size = UDT::send(udt_connection_id_,
         serialised_message.get() + sent_total, data_size - sent_total, 0))) {
       LOG(ERROR) << "Send: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
       return kSendUdtFailure;
     } else if (sent_size == 0) {
-      LOG(INFO) << "Sending socket " << udt_socket_id << " timed out" <<
+      LOG(INFO) << "Sending socket " << udt_connection_id_ << " timed out" <<
           std::endl;
       return kSendTimeout;
     }
@@ -197,30 +258,28 @@ TransportCondition UdtConnection::SendDataContent(
   return kSuccess;
 }
 
-void UdtConnection::ReceiveData(const UdtSocketId &udt_socket_id,
-                                const int &receive_timeout) {
-
+void UdtConnection::ReceiveData(const int &receive_timeout) {
   // Set timeout
   if (receive_timeout > 0) {
-    UDT::setsockopt(udt_socket_id, 0, UDT_RCVTIMEO, &receive_timeout,
+    UDT::setsockopt(udt_connection_id_, 0, UDT_RCVTIMEO, &receive_timeout,
                     sizeof(receive_timeout));
   }
 
   // Get the incoming message size
-  DataSize data_size = ReceiveDataSize(udt_socket_id);
+  DataSize data_size = ReceiveDataSize();
   if (data_size == 0)
     return;
 
   // Get message
-  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_socket_id,
+  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(udt_connection_id_,
                                                      UdtStats::kReceive));
-  TransportMessage transport_message;
-  if (!ReceiveDataContent(udt_socket_id, data_size, &transport_message))
+  transport_message_.Clear();
+  if (!ReceiveDataContent(data_size))
     return;
 
   // Get stats
   float rtt;
-  if (UDT::ERROR == UDT::perfmon(udt_socket_id,
+  if (UDT::ERROR == UDT::perfmon(udt_connection_id_,
                                  &udt_stats->performance_monitor_)) {
 #ifdef DEBUG
     if (UDT::getlasterror().getErrorCode() != 2001)
@@ -233,126 +292,121 @@ void UdtConnection::ReceiveData(const UdtSocketId &udt_socket_id,
   }
 
   // Handle message
-  HandleTransportMessage(transport_message, udt_socket_id, rtt);
+  HandleTransportMessage(rtt);
 }
 
-DataSize UdtConnection::ReceiveDataSize(const UdtSocketId &udt_socket_id) {
+DataSize UdtConnection::ReceiveDataSize() {
   DataSize data_buffer_size = sizeof(DataSize);
   DataSize data_size;
   int received_count;
   UDT::getlasterror().clear();
-  if (UDT::ERROR == (received_count = UDT::recv(udt_socket_id,
+  if (UDT::ERROR == (received_count = UDT::recv(udt_connection_id_,
       reinterpret_cast<char*>(&data_size), data_buffer_size, 0))) {
     LOG(ERROR) << "Cannot get data size: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
-    signals_->on_receive_(udt_socket_id, kReceiveUdtFailure);
-    UDT::close(udt_socket_id);
+    signals_->on_receive_(udt_connection_id_, kReceiveUdtFailure);
+    UDT::close(udt_connection_id_);
     return 0;
   } else if (received_count == 0) {
-    LOG(INFO) << "Receiving socket " << udt_socket_id << " timed out" <<
+    LOG(INFO) << "Receiving socket " << udt_connection_id_ << " timed out" <<
         std::endl;
-    signals_->on_receive_(udt_socket_id, kReceiveTimeout);
-    UDT::close(udt_socket_id);
+    signals_->on_receive_(udt_connection_id_, kReceiveTimeout);
+    UDT::close(udt_connection_id_);
     return 0;
   }
   if (data_size < 1) {
     LOG(ERROR) << "Data size is " << data_size << std::endl;
-    signals_->on_receive_(udt_socket_id, kReceiveSizeFailure);
-    UDT::close(udt_socket_id);
+    signals_->on_receive_(udt_connection_id_, kReceiveSizeFailure);
+    UDT::close(udt_connection_id_);
     return 0;
   }
   return data_size;
 }
 
-bool UdtConnection::ReceiveDataContent(
-    const UdtSocketId &udt_socket_id,
-    const DataSize &data_size,
-    TransportMessage *transport_message) {
+bool UdtConnection::ReceiveDataContent(const DataSize &data_size) {
   boost::scoped_array<char> serialised_message(new char[data_size]);
   DataSize received_total = 0;
   int received_size = 0;
   while (received_total < data_size) {
-    if (UDT::ERROR == (received_size = UDT::recv(udt_socket_id,
+    if (UDT::ERROR == (received_size = UDT::recv(udt_connection_id_,
         serialised_message.get() + received_total, data_size - received_total,
         0))) {
       LOG(ERROR) << "Recv: " << UDT::getlasterror().getErrorMessage() <<
           std::endl;
-      signals_->on_receive_(udt_socket_id, kReceiveUdtFailure);
-      UDT::close(udt_socket_id);
+      signals_->on_receive_(udt_connection_id_, kReceiveUdtFailure);
+      UDT::close(udt_connection_id_);
       return false;
     } else if (received_size == 0) {
-      LOG(INFO) << "Receiving socket " << udt_socket_id << " timed out" <<
+      LOG(INFO) << "Receiving socket " << udt_connection_id_ << " timed out" <<
           std::endl;
-      signals_->on_receive_(udt_socket_id, kReceiveTimeout);
-      UDT::close(udt_socket_id);
+      signals_->on_receive_(udt_connection_id_, kReceiveTimeout);
+      UDT::close(udt_connection_id_);
       return false;
     }
     received_total += received_size;
   }
-  return transport_message->ParseFromArray(serialised_message.get(), data_size);
+  return transport_message_.ParseFromArray(serialised_message.get(), data_size);
 }
 
-bool UdtConnection::HandleTransportMessage(
-    const TransportMessage &transport_message,
-    const UdtSocketId &udt_socket_id,
-    const float &rtt) {
-  bool is_request(transport_message.type() == TransportMessage::kRequest);
+bool UdtConnection::HandleTransportMessage(const float &rtt) {
+  bool is_request(transport_message_.type() == TransportMessage::kRequest);
   // message data should contain exactly one optional field
   const google::protobuf::Message::Reflection *reflection =
-      transport_message.data().GetReflection();
+      transport_message_.data().GetReflection();
   std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
-  reflection->ListFields(transport_message.data(), &field_descriptors);
+  reflection->ListFields(transport_message_.data(), &field_descriptors);
   if (field_descriptors.size() != 1U) {
     LOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
     if (!is_request)
-      signals_->on_receive_(udt_socket_id, kReceiveParseFailure);
-    UDT::close(udt_socket_id);
+      signals_->on_receive_(udt_connection_id_, kReceiveParseFailure);
+    UDT::close(udt_connection_id_);
     return false;
   }
   switch (field_descriptors.at(0)->number()) {
     case TransportMessage::Data::kRawMessageFieldNumber:
-      signals_->on_message_received_(transport_message.data().raw_message(),
-                                    udt_socket_id, rtt);
+      signals_->on_message_received_(transport_message_.data().raw_message(),
+                                    udt_connection_id_, rtt);
       break;
     case TransportMessage::Data::kRpcMessageFieldNumber:
       if (is_request) {
         signals_->on_rpc_request_received_(
-            transport_message.data().rpc_message(), udt_socket_id, rtt);
+            transport_message_.data().rpc_message(), udt_connection_id_, rtt);
         // Leave socket open to send response on.
       } else {
         signals_->on_rpc_response_received_(
-            transport_message.data().rpc_message(), udt_socket_id, rtt);
-        UDT::close(udt_socket_id);
+            transport_message_.data().rpc_message(), udt_connection_id_, rtt);
+        UDT::close(udt_connection_id_);
       }
       break;
     case TransportMessage::Data::kHolePunchingMessageFieldNumber:
-      // HandleRendezvousMessage(transport_message.data().hole_punching_message());
-      UDT::close(udt_socket_id);
+//      HandleRendezvousMessage(
+//          transport_message_.data().hole_punching_message());
+      UDT::close(udt_connection_id_);
       break;
     case TransportMessage::Data::kPingFieldNumber:
-      UDT::close(udt_socket_id);
+      UDT::close(udt_connection_id_);
       break;
     case TransportMessage::Data::kProxyPingFieldNumber:
-      UDT::close(udt_socket_id);
+      UDT::close(udt_connection_id_);
       break;
     case TransportMessage::Data::kManagedEndpointMessageFieldNumber:
       if (transport_udt_) {
         if (is_request) {
-          transport_udt_->HandleManagedSocketRequest(udt_socket_id,
-              transport_message.data().managed_endpoint_message());
+          transport_udt_->HandleManagedSocketRequest(udt_connection_id_,
+              transport_message_.data().managed_endpoint_message());
           // Leave socket open.
         } else {
-          transport_udt_->HandleManagedSocketResponse(udt_socket_id,
-              transport_message.data().managed_endpoint_message());
+          transport_udt_->HandleManagedSocketResponse(udt_connection_id_,
+              transport_message_.data().managed_endpoint_message());
           // Leave socket open.
         }
       } else {
-        UDT::close(udt_socket_id);
+        UDT::close(udt_connection_id_);
       }
       break;
     default:
       LOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
-      UDT::close(udt_socket_id);
+      UDT::close(udt_connection_id_);
       return false;
   }
   return true;
