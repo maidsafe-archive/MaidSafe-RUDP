@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/base/routingtable.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/base/log.h"
@@ -104,7 +104,7 @@ class TestKnodes : public testing::Test {
       boost::int16_t id;
       msg_handlers_.push_back(new MessageHandler);
       trans_handlers_.push_back(new transport::TransportHandler);
-      trans_handlers_[i]->Register(new transport::TransportUDT, &id);
+      trans_handlers_[i]->Register(new transport::UdtTransport, &id);
       transports_.push_back(id);
       ch_managers_.push_back(new
         rpcprotocol::ChannelManager(trans_handlers_[i]));
@@ -127,8 +127,8 @@ class TestKnodes : public testing::Test {
     }
   }
   void TearDown() {
-    transport::TransportUDT * trans_temp =
-      static_cast<transport::TransportUDT*>(trans_handlers_[0]->Get(0));
+    transport::UdtTransport * trans_temp =
+      static_cast<transport::UdtTransport*>(trans_handlers_[0]->Get(0));
     trans_temp->CleanUp();
     for (int i = 0; i < 2; ++i) {
       trans_handlers_[i]->Stop(transports_[i]);

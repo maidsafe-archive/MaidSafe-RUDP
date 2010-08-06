@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
 #include "maidsafe/rpcprotocol/rpcstructs.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 
 namespace rpcprotocol {
 
@@ -55,7 +55,7 @@ void ControllerImpl::Reset() {
 
 ChannelImpl::ChannelImpl(
     boost::shared_ptr<ChannelManager> channel_manager,
-    boost::shared_ptr<transport::TransportUDT> udt_transport)
+    boost::shared_ptr<transport::UdtTransport> udt_transport)
     : channel_manager_(channel_manager), udt_transport_(udt_transport),
       service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(), remote_port_(0),
       local_port_(0), rendezvous_port_(0), id_(0), local_transport_(false) {
@@ -70,7 +70,7 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
       remote_ip_(), local_ip_(), rendezvous_ip_(), remote_port_(remote_port),
       local_port_(local_port), rendezvous_port_(rendezvous_port), id_(0),
       local_transport_(true) {
-  udt_transport_.reset(new transport::TransportUDT);
+  udt_transport_.reset(new transport::UdtTransport);
   channel_manager_->AddChannelId(&id_);
 
   // To send we need ip in decimal dotted format

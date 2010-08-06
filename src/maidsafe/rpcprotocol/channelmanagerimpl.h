@@ -46,7 +46,7 @@ class Stats;
 }  // namespace base
 
 namespace transport {
-class TransportUDT;
+class UdtTransport;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -61,7 +61,7 @@ class ChannelManagerImpl {
  public:
   ChannelManagerImpl();
   explicit ChannelManagerImpl(
-      boost::shared_ptr<transport::TransportUDT> udt_transport);
+      boost::shared_ptr<transport::UdtTransport> udt_transport);
   ~ChannelManagerImpl();
   void RegisterChannel(const std::string &service_name, Channel* channel);
   void UnRegisterChannel(const std::string &service_name);
@@ -91,7 +91,7 @@ class ChannelManagerImpl {
                       const float &rtt);
   void RpcStatus(const SocketId &socket_id,
                  const transport::TransportCondition &tc);
-  boost::shared_ptr<transport::TransportUDT> udt_transport_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
   bool is_started_;
   boost::mutex message_mutex_, channels_mutex_, id_mutex_, channels_ids_mutex_,
                timings_mutex_;

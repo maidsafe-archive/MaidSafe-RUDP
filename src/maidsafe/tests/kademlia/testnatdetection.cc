@@ -37,7 +37,7 @@
 // #include "maidsafe/tests/kademlia/fake_callbacks.h"
 // #include "maidsafe/base/log.h"
 // #include "maidsafe/transport/transport.h"
-// #include "maidsafe/transport/transportudt.h"
+// #include "maidsafe/transport/udttransport.h"
 //
 // namespace fs = boost::filesystem;
 //
@@ -73,7 +73,7 @@
 //     boost::int16_t transport_id;
 //     for (boost::uint8_t i = 0; i < 3; ++i) {
 //       trans_handlers_.push_back(new transport::TransportHandler);
-//       transport::TransportUDT *temp_trans = new transport::TransportUDT;
+//       transport::UdtTransport *temp_trans = new transport::UdtTransport;
 //       trans_handlers_[i]->Register(temp_trans, &transport_id);
 //       transports_.push_back(transport_id);
 //     }
@@ -233,8 +233,8 @@
 //   }
 //
 //   virtual void TearDown() {
-//     transport::TransportUDT * trans_temp =
-//       static_cast<transport::TransportUDT*>(trans_handlers_[0]->Get(0));
+//     transport::UdtTransport * trans_temp =
+//       static_cast<transport::UdtTransport*>(trans_handlers_[0]->Get(0));
 //     trans_temp->CleanUp();
 //     for (boost::uint16_t i = 0; i < 3; ++i) {
 //       trans_handlers_[i]->Stop(transports_[i]);

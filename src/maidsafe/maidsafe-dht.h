@@ -45,7 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/kademlia/contact.h>
 #include <maidsafe/base/online.h>
 #include <maidsafe/base/routingtable.h>
-#include <maidsafe/transport/transportudt.h>
+#include <maidsafe/transport/udttransport.h>
 #include <maidsafe/base/utils.h>
 #include <maidsafe/base/validationinterface.h>
 

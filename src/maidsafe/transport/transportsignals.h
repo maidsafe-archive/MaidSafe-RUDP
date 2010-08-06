@@ -48,7 +48,7 @@ class RpcMessage;
 namespace transport {
 
 struct SocketPerformanceStats;
-class TransportUDT;
+class UdtTransport;
 class TransportTCP;
 class UdtConnection;
 
@@ -169,7 +169,7 @@ class Signals {
     return on_stats_.connect(group, slot);
   }
 
-  friend class TransportUDT;
+  friend class UdtTransport;
   friend class TransportTCP;
   friend class UdtConnection;
  private:

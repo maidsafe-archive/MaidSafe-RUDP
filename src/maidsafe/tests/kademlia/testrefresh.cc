@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 
 namespace kad {
@@ -46,7 +46,7 @@ class TestRefresh : public testing::Test {
       base::RandomUint32());
   }
   ~TestRefresh() {
-    transport::TransportUDT::CleanUp();
+    transport::UdtTransport::CleanUp();
   }
  protected:
   void SetUp() {
@@ -62,7 +62,7 @@ class TestRefresh : public testing::Test {
     for (boost::int16_t i = 0; i < testNetworkSize_; ++i) {
       trans_handlers_.push_back(boost::shared_ptr<transport::TransportHandler>(
           new transport::TransportHandler));
-      trans_handlers_.at(i)->Register(new transport::TransportUDT,
+      trans_handlers_.at(i)->Register(new transport::UdtTransport,
                                       &transport_id);
       transports_ids_.push_back(transport_id);
       ch_managers_.push_back(boost::shared_ptr<rpcprotocol::ChannelManager>(
@@ -224,7 +224,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   ASSERT_EQ(testK_, indxs.size());
   transport::TransportHandler trans_handler;
   boost::int16_t transport_id;
-  trans_handler.Register(new transport::TransportUDT, &transport_id);
+  trans_handler.Register(new transport::UdtTransport, &transport_id);
   rpcprotocol::ChannelManager ch_manager(&trans_handler);
   std::string local_dir = test_dir_ + std::string("/datastorenewnode");
   boost::filesystem::create_directories(local_dir);
@@ -282,7 +282,7 @@ class TestRefreshSignedValues : public testing::Test {
         boost::lexical_cast<std::string>(base::RandomUint32());
   }
   ~TestRefreshSignedValues() {
-    transport::TransportUDT::CleanUp();
+    transport::UdtTransport::CleanUp();
   }
  protected:
   void SetUp() {
@@ -300,7 +300,7 @@ class TestRefreshSignedValues : public testing::Test {
     for (boost::int16_t i = 0; i < testNetworkSize_; i++) {
       trans_handlers_.push_back(boost::shared_ptr<transport::TransportHandler>(
           new transport::TransportHandler));
-      trans_handlers_.at(i)->Register(new transport::TransportUDT,
+      trans_handlers_.at(i)->Register(new transport::UdtTransport,
                                       &transport_id);
       transport_ids_.push_back(transport_id);
       ch_managers_.push_back(boost::shared_ptr<rpcprotocol::ChannelManager>(
@@ -509,7 +509,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   ASSERT_EQ(testK_, indxs.size());
   transport::TransportHandler trans_handler;
   boost::int16_t transport_id;
-  trans_handler.Register(new transport::TransportUDT, &transport_id);
+  trans_handler.Register(new transport::UdtTransport, &transport_id);
   rpcprotocol::ChannelManager ch_manager(&trans_handler);
   std::string local_dir = test_dir_ + std::string("/datastorenewnode");
   boost::filesystem::create_directories(local_dir);
@@ -596,7 +596,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
 
   transport::TransportHandler trans_handler;
-  transport::TransportUDT *temp_trans = new transport::TransportUDT;
+  transport::UdtTransport *temp_trans = new transport::UdtTransport;
   boost::int16_t transport_id;
   trans_handler.Register(temp_trans, &transport_id);
   rpcprotocol::ChannelManager ch_manager(&trans_handler);

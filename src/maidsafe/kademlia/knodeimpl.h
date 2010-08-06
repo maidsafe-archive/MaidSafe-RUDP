@@ -323,13 +323,13 @@ struct BootstrapArgs {
 class KNodeImpl {
  public:
   KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-            boost::shared_ptr<transport::TransportUDT> udt_transport,
+            boost::shared_ptr<transport::UdtTransport> udt_transport,
             NodeType type, const std::string &private_key,
             const std::string &public_key, const bool &port_forwarded,
             const bool &use_upnp, const boost::uint16_t &k);
   // constructor used to set up parameters k, alpha, and beta for kademlia
   KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-            boost::shared_ptr<transport::TransportUDT> udt_transport,
+            boost::shared_ptr<transport::UdtTransport> udt_transport,
             NodeType type, const boost::uint16_t &k,
             const boost::uint16_t &alpha, const boost::uint16_t &beta,
             const boost::uint32_t &refresh_time, const std::string &private_key,
@@ -521,7 +521,7 @@ class KNodeImpl {
                pendingcts_mutex_;
   boost::shared_ptr<base::CallLaterTimer> ptimer_;
   boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
-  boost::shared_ptr<transport::TransportUDT> udt_transport_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
   boost::shared_ptr<rpcprotocol::Channel> pservice_channel_;
   boost::shared_ptr<DataStore> pdata_store_;
   base::AlternativeStore *alternative_store_;

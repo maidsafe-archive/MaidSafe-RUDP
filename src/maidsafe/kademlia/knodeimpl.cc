@@ -137,7 +137,7 @@ void InsertKadContact(const KadId &key,
 
 KNodeImpl::KNodeImpl(
     boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-    boost::shared_ptr<transport::TransportUDT> udt_transport, NodeType type,
+    boost::shared_ptr<transport::UdtTransport> udt_transport, NodeType type,
     const std::string &private_key, const std::string &public_key,
     const bool &port_forwarded, const bool &use_upnp, const boost::uint16_t &k)
     : routingtable_mutex_(), kadconfig_mutex_(), extendshortlist_mutex_(),
@@ -159,7 +159,7 @@ KNodeImpl::KNodeImpl(
 
 KNodeImpl::KNodeImpl(
     boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-    boost::shared_ptr<transport::TransportUDT> udt_transport, NodeType type,
+    boost::shared_ptr<transport::UdtTransport> udt_transport, NodeType type,
     const boost::uint16_t &k, const boost::uint16_t &alpha,
     const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
     const std::string &private_key, const std::string &public_key,
@@ -1371,11 +1371,11 @@ void KNodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
       for (unsigned int i = 0; i < ctcs.size(); ++i) {
         // checking connection
 /******************************************************************************/
-//        if (udt_transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
-//          udt_transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
-//                                          ctcs[i].host_port());
+//     if (udt_transport_->CanConnect(ctcs[i].host_ip(), ctcs[i].host_port())) {
+//       udt_transport_->StartPingRendezvous(false, ctcs[i].host_ip(),
+//                                           ctcs[i].host_port());
 //          return;
-//        }
+//     }
 /******************************************************************************/
       }
     }
@@ -1461,12 +1461,12 @@ ConnectionType KNodeImpl::CheckContactLocalAddress(const KadId &id,
     case UNKNOWN: ext_ip_dec = base::IpBytesToAscii(ext_ip);
                   if (host_ip_ != ext_ip_dec) {
                     conn_type = REMOTE;
-                  } /*else if (udt_transport_->CanConnect(ip, port)) {
-                    conn_type = LOCAL;
-                    (*base::PublicRoutingTable::GetInstance())
-                        [base::IntToString(host_port_)]->UpdateContactLocal(
-                            str_id, ip, conn_type);
-                  } */else {
+//                  } else if (udt_transport_->CanConnect(ip, port)) {
+//                    conn_type = LOCAL;
+//                    (*base::PublicRoutingTable::GetInstance())
+//                        [base::IntToString(host_port_)]->UpdateContactLocal(
+//                            str_id, ip, conn_type);
+                  } else {
                     conn_type = REMOTE;
                     (*base::PublicRoutingTable::GetInstance())[
                         base::IntToString(host_port_)]->UpdateContactLocal(

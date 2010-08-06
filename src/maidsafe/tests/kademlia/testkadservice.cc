@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
@@ -106,7 +106,7 @@ class KadServicesTest: public testing::Test {
     contact_.set_rendezvous_ip("127.0.0.3");
     contact_.set_rendezvous_port(1236);
 
-    trans_handler_.Register(new transport::TransportUDT, &transport_id_);
+    trans_handler_.Register(new transport::UdtTransport, &transport_id_);
   }
 
   virtual void SetUp() {

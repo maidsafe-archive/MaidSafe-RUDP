@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 
 namespace transport {
-class TransportUDT;
+class UdtTransport;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -83,10 +83,10 @@ class ControllerImpl {
   void set_method(const std::string &method) { method_ = method; }
   std::string method() const { return method_; }
   void set_udt_transport(
-      boost::shared_ptr<transport::TransportUDT> udt_transport) {
+      boost::shared_ptr<transport::UdtTransport> udt_transport) {
     udt_transport_ = udt_transport;
   }
-  boost::shared_ptr<transport::TransportUDT> udt_transport() const {
+  boost::shared_ptr<transport::UdtTransport> udt_transport() const {
     return udt_transport_;
   }
  private:
@@ -97,13 +97,13 @@ class ControllerImpl {
   RpcId rpc_id_;
   SocketId socket_id_;
   std::string method_;
-  boost::shared_ptr<transport::TransportUDT> udt_transport_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
 };
 
 class ChannelImpl {
  public:
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              boost::shared_ptr<transport::TransportUDT> udt_transport);
+              boost::shared_ptr<transport::UdtTransport> udt_transport);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
@@ -125,7 +125,7 @@ class ChannelImpl {
                     boost::shared_ptr<Controller> controller);
   std::string GetServiceName(const std::string &full_name);
   boost::shared_ptr<ChannelManager> channel_manager_;
-  boost::shared_ptr<transport::TransportUDT> udt_transport_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
   google::protobuf::Service *service_;
   IP remote_ip_, local_ip_, rendezvous_ip_;
   Port remote_port_, local_port_, rendezvous_port_;

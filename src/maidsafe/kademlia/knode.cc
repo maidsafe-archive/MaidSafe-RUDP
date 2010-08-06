@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kad {
 
 KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-             boost::shared_ptr<transport::TransportUDT> udt_transport,
+             boost::shared_ptr<transport::UdtTransport> udt_transport,
              NodeType type, const std::string &private_key,
              const std::string &public_key, const bool &port_forwarded,
              const bool &use_upnp, const boost::uint16_t &k)
@@ -39,7 +39,7 @@ KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
                            public_key, port_forwarded, use_upnp, k)) {}
 
 KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-             boost::shared_ptr<transport::TransportUDT> udt_transport,
+             boost::shared_ptr<transport::UdtTransport> udt_transport,
              NodeType type, const boost::uint16_t &k,
              const boost::uint16_t &alpha, const boost::uint16_t &beta,
              const boost::uint32_t &refresh_time,

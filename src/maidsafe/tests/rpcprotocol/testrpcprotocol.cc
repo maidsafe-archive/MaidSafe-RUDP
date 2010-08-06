@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 
 class PingTestService : public tests::PingTest {
  public:
@@ -177,7 +177,7 @@ class ResultHolder {
 class RpcProtocolTest : public testing::Test {
  protected:
   static void SetUpTestCase() {
-    server_udt_transport.reset(new transport::TransportUDT);
+    server_udt_transport.reset(new transport::UdtTransport);
     transport::TransportCondition tc;
     server_port = server_udt_transport->StartListening("127.0.0.1", 0, &tc);
     ASSERT_EQ(transport::kSuccess, tc);
@@ -201,13 +201,13 @@ class RpcProtocolTest : public testing::Test {
     server_chann_manager->Stop();
   }
   static rpcprotocol::Port server_port;
-  static boost::shared_ptr<transport::TransportUDT> server_udt_transport;
+  static boost::shared_ptr<transport::UdtTransport> server_udt_transport;
   static boost::shared_ptr<rpcprotocol::ChannelManager> server_chann_manager,
                                                         client_chann_manager;
 };
 
 rpcprotocol::Port RpcProtocolTest::server_port = 5000;
-boost::shared_ptr<transport::TransportUDT>
+boost::shared_ptr<transport::UdtTransport>
     RpcProtocolTest::server_udt_transport;
 boost::shared_ptr<rpcprotocol::ChannelManager>
     RpcProtocolTest::server_chann_manager,
@@ -629,7 +629,7 @@ TEST_F(RpcProtocolTest, BEH_RPC_ResetTimeout) {
 
 TEST_F(RpcProtocolTest, FUNC_RPC_ChannelManagerLocalTransport) {
   transport::TransportHandler local_transport_handler;
-  transport::TransportUDT local_udt_transport;
+  transport::UdtTransport local_udt_transport;
   boost::int16_t local_transport_id;
   local_transport_handler.Register(&local_udt_transport, &local_transport_id);
   rpcprotocol::ChannelManager chman(&local_transport_handler);
@@ -704,7 +704,7 @@ TEST_F(RpcProtocolTest, FUNC_RPC_ChannelManagerLocalTransport) {
 TEST_F(RpcProtocolTest, FUNC_RPC_RestartLocalTransport) {
   transport::TransportHandler local_transport_handler;
   boost::int16_t local_transport_id;
-  local_transport_handler.Register(new transport::TransportUDT,
+  local_transport_handler.Register(new transport::UdtTransport,
                                    &local_transport_id);
   rpcprotocol::ChannelManager chman(&local_transport_handler);
   ASSERT_EQ(1, chman.Start());

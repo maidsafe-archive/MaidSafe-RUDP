@@ -37,10 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/kademlia_service.pb.h"
 #include "maidsafe/maidsafe-dht_config.h"
 
-namespace transport {
-class TransportUDT;
-}  // namespace transport
-
 namespace rpcprotocol {
 class Controller;
 }  // namespace rpcprotocol

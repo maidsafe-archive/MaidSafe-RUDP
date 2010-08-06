@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transportsignals.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/udtconnection.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
@@ -55,7 +55,7 @@ namespace test {
 
 class MessageHandler {
  public:
-  MessageHandler(TransportUDT *transport,
+  MessageHandler(UdtTransport *transport,
                  const std::string &message_handler_id,
                  bool display_stats)
       : messages_(),
@@ -279,7 +279,7 @@ class MessageHandler {
   std::list<SocketId> ids_, raw_ids_;
   std::set<ManagedEndpointId> managed_endpoint_ids_;
   std::set<ManagedEndpointId> lost_managed_endpoint_ids_;
-  TransportUDT *transport_;
+  UdtTransport *transport_;
   int messages_sent_, messages_received_, messages_confirmed_, messages_unsent_;
   bool keep_messages_;
   std::string message_handler_id_;
@@ -308,7 +308,7 @@ class TransportUdtTest: public testing::Test {
 
 TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
   boost::uint16_t num_listening_ports = 12;
-  TransportUDT node;
+  UdtTransport node;
   MessageHandler message_handler1(&node, "Node 1", false);
   Port lp_node[100];
   TransportMessage transport_message;
@@ -355,7 +355,7 @@ TEST_F(TransportUdtTest, BEH_TRANS_MultipleListeningPorts) {
 TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   const std::string args = base::RandomString(256 * 1024);
   const size_t kRepeats = 1;
-  TransportUDT node1_transudt, node2_transudt;
+  UdtTransport node1_transudt, node2_transudt;
   MessageHandler message_handler1(&node1_transudt, "Node 1", false);
   MessageHandler message_handler2(&node2_transudt, "Node 2", false);
   Port lp_node1 = node1_transudt.StartListening("", 0, NULL);
@@ -401,8 +401,8 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
-  TransportUDT node1;
-  TransportUDT node[20];
+  UdtTransport node1;
+  UdtTransport node[20];
   MessageHandler message_handler4(&node1, "Node 1", false);
   Port lp_node4 = node1.StartListening("", 0, NULL);
   TransportMessage transport_message;
@@ -431,7 +431,7 @@ TEST_F(TransportUdtTest, BEH_TRANS_SendMessagesFromManyToOne) {
 }
 
 TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
-  TransportUDT node1, node2, node3, node4, node5;
+  UdtTransport node1, node2, node3, node4, node5;
   MessageHandler message_handler1(&node1, "Node 1", false);
   MessageHandler message_handler3(&node3, "Node 3", false);
   Port node1_port = node1.StartListening("", 0, NULL);
@@ -481,8 +481,8 @@ TEST_F(TransportUdtTest, BEH_TRANS_AddRemoveManagedEndpoints) {
 
 TEST_F(TransportUdtTest, BEH_TRANS_CrashManagedEndpoints) {
   // Setup managed connections between three nodes.
-  boost::shared_ptr<TransportUDT> node1_ptr(new TransportUDT());
-  TransportUDT node2, node3;
+  boost::shared_ptr<UdtTransport> node1_ptr(new UdtTransport());
+  UdtTransport node2, node3;
   MessageHandler message_handler2(&node2, "Node 2", false);
   MessageHandler message_handler3(&node3, "Node 3", false);
   Port node1_port = node1_ptr->StartListening("", 0, NULL);

@@ -55,10 +55,8 @@ class Threadpool;
 
 namespace transport {
 
-class TransportUDT;
+class UdtTransport;
 class TransportMessage;
-
-typedef int UdtConnectionId;
 
 const int kDefaultSendTimeout(10000);  // milliseconds
 
@@ -88,16 +86,16 @@ class UdtConnection {
   void Send(const TransportMessage &transport_message,
             const int &response_timeout);
   boost::shared_ptr<Signals> signals() const { return signals_; }
-  UdtConnectionId udt_connection_id() const { return udt_connection_id_; }
-  friend class TransportUDT;
+  UdtSocketId udt_socket_id() const { return udt_socket_id_; }
+  friend class UdtTransport;
  private:
-  UdtConnection(TransportUDT *transport_udt,
+  UdtConnection(UdtTransport *udt_transport,
                 const IP &remote_ip,
                 const Port &remote_port,
                 const IP &rendezvous_ip,
                 const Port &rendezvous_port);
-  UdtConnection(TransportUDT *transport_udt,
-                const UdtConnectionId &udt_connection_id);
+  UdtConnection(UdtTransport *udt_transport,
+                const UdtSocketId &udt_socket_id);
   void Init();
   // Method to allow sending on a socket which is already connected to a peer.
   void SendResponse(const TransportMessage &transport_message);
@@ -121,11 +119,11 @@ class UdtConnection {
   // Receive the content of the message
   bool ReceiveDataContent(const DataSize &data_size);
   bool HandleTransportMessage(const float &rtt);
-  TransportUDT *transport_udt_;
+  UdtTransport *udt_transport_;
   boost::shared_ptr<Signals> signals_;
   boost::shared_ptr<base::Threadpool> threadpool_;
   boost::shared_ptr<boost::thread> worker_;
-  UdtConnectionId udt_connection_id_;
+  UdtSocketId udt_socket_id_;
   IP remote_ip_;
   Port remote_port_;
   IP rendezvous_ip_;

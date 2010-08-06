@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class TransportUDT;
+class UdtTransport;
 }  // namespace transport
 
 
@@ -84,7 +84,7 @@ class ChannelManager {
   * @param transport Pointer to a Transport object
   */
   explicit ChannelManager(
-      boost::shared_ptr<transport::TransportUDT> udt_transport);
+      boost::shared_ptr<transport::UdtTransport> udt_transport);
   ~ChannelManager();
   /**
   * Registers a channel and identifies it with the name of the RPC service that

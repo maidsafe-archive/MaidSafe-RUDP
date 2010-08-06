@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/rpcstructs.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 
 
 namespace rpcprotocol {
@@ -49,7 +49,7 @@ ChannelManagerImpl::ChannelManagerImpl()
       rpc_reponse_(), data_sent_(), timeout_() {}
 
 ChannelManagerImpl::ChannelManagerImpl(
-    boost::shared_ptr<transport::TransportUDT> udt_transport)
+    boost::shared_ptr<transport::UdtTransport> udt_transport)
     : udt_transport_ (udt_transport), is_started_(false), message_mutex_(),
       channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
       current_rpc_id_(0), current_channel_id_(0), channels_(),

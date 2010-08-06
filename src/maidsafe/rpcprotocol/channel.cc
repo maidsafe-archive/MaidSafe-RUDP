@@ -115,16 +115,16 @@ std::string Controller::method() const {
 }
 
 void Controller::set_udt_transport(
-    boost::shared_ptr<transport::TransportUDT> udt_transport) {
+    boost::shared_ptr<transport::UdtTransport> udt_transport) {
   controller_pimpl_->set_udt_transport(udt_transport);
 }
 
-boost::shared_ptr<transport::TransportUDT> Controller::udt_transport() const {
+boost::shared_ptr<transport::UdtTransport> Controller::udt_transport() const {
   return controller_pimpl_->udt_transport();
 }
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::TransportUDT> udt_transport)
+                 boost::shared_ptr<transport::UdtTransport> udt_transport)
     : pimpl_(new ChannelImpl(channel_manager, udt_transport)) {}
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,

@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 
 namespace po = boost::program_options;
 
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     port = vm["port"].as<boost::uint16_t>();
     transport::TransportHandler trans_handler;
     boost::int16_t transport_id;
-    trans_handler.Register(new transport::TransportUDT, &transport_id);
+    trans_handler.Register(new transport::UdtTransport, &transport_id);
     rpcprotocol::ChannelManager chmanager(&trans_handler);
     kad::NodeType type;
     if (vm["client"].as<bool>())

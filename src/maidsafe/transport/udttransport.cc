@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-TransportUDT::TransportUDT()
+UdtTransport::UdtTransport()
     : Transport(),
       listening_map_(),
       managed_endpoint_sockets_(),
@@ -55,22 +55,22 @@ TransportUDT::TransportUDT()
   UDT::startup();
 }
 
-TransportUDT::~TransportUDT() {
+UdtTransport::~UdtTransport() {
   StopAllListening();
   StopManagedConnections();
 }
 
-void TransportUDT::CleanUp() {
+void UdtTransport::CleanUp() {
   UDT::cleanup();
 }
 
-Port TransportUDT::StartListening(const IP &ip,
+Port UdtTransport::StartListening(const IP &ip,
                                   const Port &try_port,
                                   TransportCondition *transport_condition) {
   return DoStartListening(ip, try_port, false, transport_condition);
 }
 
-Port TransportUDT::DoStartListening(const IP &ip,
+Port UdtTransport::DoStartListening(const IP &ip,
                                     const Port &try_port,
                                     bool managed_connection_listener,
                                     TransportCondition *transport_condition) {
@@ -152,7 +152,7 @@ Port TransportUDT::DoStartListening(const IP &ip,
   }
 
   listening_threadpool_->EnqueueTask(
-      boost::bind(&TransportUDT::AcceptConnection, this, listening_port,
+      boost::bind(&UdtTransport::AcceptConnection, this, listening_port,
                   listening_socket_id));
   if (managed_connection_listener) {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -165,7 +165,7 @@ Port TransportUDT::DoStartListening(const IP &ip,
   return listening_port;
 }
 
-bool TransportUDT::StopListening(const Port &port) {
+bool UdtTransport::StopListening(const Port &port) {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
   listening_ports_.erase(
       std::remove(listening_ports_.begin(), listening_ports_.end(), port),
@@ -179,7 +179,7 @@ bool TransportUDT::StopListening(const Port &port) {
   return true;
 }
 
-bool TransportUDT::StopAllListening() {
+bool UdtTransport::StopAllListening() {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
   listening_ports_.clear();
   std::map<Port, UdtSocketId>::iterator it = listening_map_.begin();
@@ -188,7 +188,7 @@ bool TransportUDT::StopAllListening() {
   return true;
 }
 
-void TransportUDT::StopManagedConnections() {
+void UdtTransport::StopManagedConnections() {
   try {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     stop_managed_connections_ = true;
@@ -216,31 +216,31 @@ void TransportUDT::StopManagedConnections() {
   }
 }
 
-void TransportUDT::ReAllowIncomingManagedConnections() {
+void UdtTransport::ReAllowIncomingManagedConnections() {
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
   stop_managed_connections_ = false;
 }
 
-TransportCondition TransportUDT::PunchHole(const IP &remote_ip,
+TransportCondition UdtTransport::PunchHole(const IP &remote_ip,
                                            const Port &remote_port,
                                            const IP &rendezvous_ip,
                                            const Port &rendezvous_port) {
   return kSuccess;
 }
 
-SocketId TransportUDT::Send(const TransportMessage &transport_message,
+SocketId UdtTransport::Send(const TransportMessage &transport_message,
                             const IP &remote_ip,
                             const Port &remote_port,
                             const int &response_timeout) {
   UdtConnection udt_connection(this, remote_ip, remote_port, "", 0);
-  UdtSocketId udt_socket_id(udt_connection.udt_connection_id());
+  UdtSocketId udt_socket_id(udt_connection.udt_socket_id());
   if (udt_socket_id == UDT::INVALID_SOCK)
     return UDT::INVALID_SOCK;
   udt_connection.Send(transport_message, response_timeout);
   return udt_socket_id;
 }
 
-void TransportUDT::SendWithRendezvous(const TransportMessage &transport_message,
+void UdtTransport::SendWithRendezvous(const TransportMessage &transport_message,
                                       const IP &remote_ip,
                                       const Port &remote_port,
                                       const IP &rendezvous_ip,
@@ -249,16 +249,16 @@ void TransportUDT::SendWithRendezvous(const TransportMessage &transport_message,
                                       SocketId *socket_id) {
 }
 
-void TransportUDT::SendResponse(const TransportMessage &transport_message,
+void UdtTransport::SendResponse(const TransportMessage &transport_message,
                                 const SocketId &socket_id) {
   UdtConnection udt_connection(this, socket_id);
   udt_connection.SendResponse(transport_message);
 }
 
-void TransportUDT::SendFile(fs::path &path, const SocketId &socket_id) {
+void UdtTransport::SendFile(fs::path &path, const SocketId &socket_id) {
 }
 
-ManagedEndpointId TransportUDT::AddManagedEndpoint(
+ManagedEndpointId UdtTransport::AddManagedEndpoint(
     const IP &remote_ip,
     const Port &remote_port,
     const IP &rendezvous_ip,
@@ -297,7 +297,7 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
         std::pair<UdtSocketId, UdtSocketId>(initial_peer_socket_id, 0));
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
         boost::posix_time::milliseconds(kAddManagedConnectionTimeout * 10),
-        boost::bind(&TransportUDT::PendingManagedSocketReplied, this,
+        boost::bind(&UdtTransport::PendingManagedSocketReplied, this,
                     initial_peer_socket_id));
     UDT::close(initial_peer_socket_id);
     if (success) {
@@ -323,7 +323,7 @@ ManagedEndpointId TransportUDT::AddManagedEndpoint(
   }
 }
 
-TransportCondition TransportUDT::StartManagedEndpointListener(
+TransportCondition UdtTransport::StartManagedEndpointListener(
     const UdtSocketId &initial_peer_socket_id,
     boost::shared_ptr<addrinfo const> peer) {
   // Check not already started and set managed_endpoint_listening_port_ to 1 to
@@ -361,7 +361,7 @@ TransportCondition TransportUDT::StartManagedEndpointListener(
   return kSuccess;
 }
 
-TransportCondition TransportUDT::SetManagedSocketOptions(
+TransportCondition UdtTransport::SetManagedSocketOptions(
     const UdtSocketId &udt_socket_id,
     bool receive_synchronously) {
   if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
@@ -413,7 +413,7 @@ TransportCondition TransportUDT::SetManagedSocketOptions(
   return kSuccess;
 }
 
-UdtSocketId TransportUDT::GetNewManagedEndpointSocket(
+UdtSocketId UdtTransport::GetNewManagedEndpointSocket(
     const IP &remote_ip,
     const Port &remote_port,
     const IP &rendezvous_ip,
@@ -480,7 +480,7 @@ UdtSocketId TransportUDT::GetNewManagedEndpointSocket(
   return initial_peer_socket_id;
 }
 
-bool TransportUDT::RemoveManagedEndpoint(
+bool UdtTransport::RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id) {
   // Send '-' to peer to indicate socket closure.
   char close_indicator('-');
@@ -496,7 +496,7 @@ bool TransportUDT::RemoveManagedEndpoint(
   return true;
 }
 
-void TransportUDT::AcceptConnection(const Port &port,
+void UdtTransport::AcceptConnection(const Port &port,
                                     const UdtSocketId &udt_socket_id) {
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
@@ -546,7 +546,7 @@ void TransportUDT::AcceptConnection(const Port &port,
   }
 }
 
-void TransportUDT::CheckManagedSockets() {
+void UdtTransport::CheckManagedSockets() {
   int result;
   std::vector<UdtSocketId>::iterator socket_iterator;
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -598,7 +598,7 @@ void TransportUDT::CheckManagedSockets() {
 //  std::cout << "  CheckManagedSockets STOP " << indicator << std::endl;
 }
 
-void TransportUDT::HandleManagedSocketRequest(
+void UdtTransport::HandleManagedSocketRequest(
     const UdtSocketId &udt_socket_id,
     const ManagedEndpointMessage &request) {
   {
@@ -661,7 +661,7 @@ void TransportUDT::HandleManagedSocketRequest(
       return;
     if (managed_connections_stopped_) {
       check_connections_.reset(new boost::thread(
-                               &TransportUDT::CheckManagedSockets, this));
+                               &UdtTransport::CheckManagedSockets, this));
     }
     managed_endpoint_sockets_.push_back(managed_socket_id);
   }
@@ -674,7 +674,7 @@ void TransportUDT::HandleManagedSocketRequest(
   signals_->on_managed_endpoint_received_(managed_socket_id, request);
 }
 
-void TransportUDT::HandleManagedSocketResponse(
+void UdtTransport::HandleManagedSocketResponse(
     const UdtSocketId &managed_socket_id,
     const ManagedEndpointMessage &response) {
   // Check response has correct entries
@@ -723,7 +723,7 @@ void TransportUDT::HandleManagedSocketResponse(
     // this is the first
     if (managed_connections_stopped_) {
       check_connections_.reset(new boost::thread(
-                               &TransportUDT::CheckManagedSockets, this));
+                               &UdtTransport::CheckManagedSockets, this));
     }
     managed_endpoint_sockets_.push_back(managed_socket_id);
     managed_endpoints_cond_var_.notify_all();
@@ -734,7 +734,7 @@ void TransportUDT::HandleManagedSocketResponse(
   UDT::send(managed_socket_id, &open_indicator, 1, 0);
 }
 
-bool TransportUDT::PendingManagedSocketReplied(
+bool UdtTransport::PendingManagedSocketReplied(
     const UdtSocketId &udt_socket_id) {
   std::map<UdtSocketId, UdtSocketId>::iterator it =
       pending_managed_endpoint_sockets_.find(udt_socket_id);

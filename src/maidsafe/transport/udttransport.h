@@ -54,8 +54,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 16: Provide channel level encryption (diffie Hellman -> AES xfer)
 */
 
-#ifndef MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
-#define MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
+#ifndef MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
+#define MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 
 #include <boost/cstdint.hpp>
 #include <boost/shared_array.hpp>
@@ -92,10 +92,10 @@ const int kAddManagedConnectionTimeout(1000);  // milliseconds
 const boost::uint16_t kDefaultThreadpoolSize(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
-class TransportUDT : public Transport {
+class UdtTransport : public Transport {
  public:
-  TransportUDT();
-  ~TransportUDT();
+  UdtTransport();
+  ~UdtTransport();
   static void CleanUp();
   Port StartListening(const IP &ip,
                       const Port &try_port,
@@ -151,8 +151,8 @@ class TransportUDT : public Transport {
   friend class UdtConnection;
   friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
  private:
-  TransportUDT& operator=(const TransportUDT&);
-  TransportUDT(const TransportUDT&);
+  UdtTransport& operator=(const UdtTransport&);
+  UdtTransport(const UdtTransport&);
   Port DoStartListening(const IP &ip,
                         const Port &try_port,
                         bool managed_connection_listener,
@@ -190,5 +190,5 @@ class TransportUDT : public Transport {
 
 }  // namespace transport
 
-#endif  // MAIDSAFE_TRANSPORT_TRANSPORTUDT_H_
+#endif  // MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 

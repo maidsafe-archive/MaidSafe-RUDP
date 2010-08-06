@@ -50,7 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transportudt.h"
+#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 
 namespace fs = boost::filesystem;
@@ -151,7 +151,7 @@ class Env: public testing::Environment {
     for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
       trans_handlers_.push_back(boost::shared_ptr<transport::TransportHandler>
           (new transport::TransportHandler()));
-      trans_handlers_.at(i).get()->Register(new transport::TransportUDT,
+      trans_handlers_.at(i).get()->Register(new transport::UdtTransport,
                                             &transport_id);
       transport_ids_.push_back(transport_id);
       boost::shared_ptr<rpcprotocol::ChannelManager>
@@ -292,14 +292,14 @@ class Env: public testing::Environment {
     node_ids_.clear();
     ports_.clear();
     printf("TestKNode, TearDown Finished\n");
-    transport::TransportUDT::CleanUp();
+    transport::UdtTransport::CleanUp();
   }
 };
 
 TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   transport::TransportHandler trans_handler;
   boost::int16_t transport_id;
-  trans_handler.Register(new transport::TransportUDT, &transport_id);
+  trans_handler.Register(new transport::UdtTransport, &transport_id);
   rpcprotocol::ChannelManager channel_manager_local_(&trans_handler);
   std::string db_local = test_dir_ + std::string("/datastore") +
       boost::lexical_cast<std::string>(kNetworkSize + 1);
@@ -338,7 +338,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
 
   transport::TransportHandler trans_handler1;
   boost::int16_t transport_id1;
-  trans_handler1.Register(new transport::TransportUDT, &transport_id1);
+  trans_handler1.Register(new transport::UdtTransport, &transport_id1);
   rpcprotocol::ChannelManager channel_manager_local1(&trans_handler1);
   db_local = test_dir_ + std::string("/datastore") +
       boost::lexical_cast<std::string>(kNetworkSize + 1);
@@ -1523,7 +1523,7 @@ TEST_F(KNodeTest, FUNC_KAD_Issue13Bootstrap) {
     FAIL();
   }
 
-  transport::TransportUDT trudtL;
+  transport::UdtTransport trudtL;
   boost::int16_t id_L;
   transport::TransportHandler thandlerL;
   thandlerL.Register(&trudtL, &id_L);
@@ -1577,7 +1577,7 @@ TEST_F(KNodeTest, FUNC_KAD_Issue13Bootstrap) {
   outputP.close();
 
   //  Node M
-  transport::TransportUDT trudtM;
+  transport::UdtTransport trudtM;
   boost::int16_t id_M;
   transport::TransportHandler thandlerM;
   thandlerM.Register(&trudtM, &id_M);
@@ -1604,7 +1604,7 @@ TEST_F(KNodeTest, FUNC_KAD_Issue13Bootstrap) {
   thandlerM.Stop(id_M);
 
   //  Node N
-  transport::TransportUDT trudtN;
+  transport::UdtTransport trudtN;
   boost::int16_t id_N;
   transport::TransportHandler thandlerN;
   thandlerN.Register(&trudtN, &id_N);
@@ -1634,7 +1634,7 @@ TEST_F(KNodeTest, FUNC_KAD_Issue13Bootstrap) {
   EXPECT_FALSE(nodeL.GetContact(nodeM.node_id(), &c));
 
   //  Node P
-  transport::TransportUDT trudtP;
+  transport::UdtTransport trudtP;
   boost::int16_t id_P;
   transport::TransportHandler thandlerP;
   thandlerP.Register(&trudtP, &id_P);
