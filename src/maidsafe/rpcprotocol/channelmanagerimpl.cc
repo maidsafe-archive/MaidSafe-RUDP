@@ -27,7 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
 #include <google/protobuf/descriptor.h>
+
 #include <list>
+#include <vector>
+
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/base/network_interface.h"
@@ -41,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace rpcprotocol {
 
 ChannelManagerImpl::ChannelManagerImpl()
-    : udt_transport_ (), is_started_(false), message_mutex_(),
+    : udt_transport_(), is_started_(false), message_mutex_(),
       channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
       current_rpc_id_(0), current_channel_id_(0), channels_(),
       pending_messages_(), channels_ids_(), rpc_timings_(),
@@ -50,7 +53,7 @@ ChannelManagerImpl::ChannelManagerImpl()
 
 ChannelManagerImpl::ChannelManagerImpl(
     boost::shared_ptr<transport::UdtTransport> udt_transport)
-    : udt_transport_ (udt_transport), is_started_(false), message_mutex_(),
+    : udt_transport_(udt_transport), is_started_(false), message_mutex_(),
       channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
       current_rpc_id_(0), current_channel_id_(0), channels_(),
       pending_messages_(), channels_ids_(), rpc_timings_(),
@@ -144,17 +147,34 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
   if (!is_started_) {
     return false;
   }
-  pending_request.rpc_reponse =
-      pending_request.controller->udt_transport()->signals()->
-          ConnectOnRpcResponseReceived(
-              boost::bind(&ChannelManagerImpl::ResponseArrive,
-                          this, _1, _2, _3));
-  pending_request.data_sent =
-      pending_request.controller->udt_transport()->signals()->ConnectOnSend(
-          boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
-  pending_request.timeout =
-      pending_request.controller->udt_transport()->signals()->ConnectOnReceive(
-          boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
+  pending_request.controller->set_rpc_id(socket_id);
+  if (pending_request.local_transport) {
+    pending_request.rpc_reponse =
+        pending_request.controller->udt_connection()->signals()->
+            ConnectOnRpcResponseReceived(
+                boost::bind(&ChannelManagerImpl::ResponseArrive,
+                            this, _1, _2, _3));
+    pending_request.data_sent =
+        pending_request.controller->udt_connection()->signals()->ConnectOnSend(
+            boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
+    pending_request.timeout =
+        pending_request.controller->udt_connection()->signals()->
+            ConnectOnReceive(boost::bind(&ChannelManagerImpl::RpcStatus, this,
+                                         _1, _2));
+  } else {
+    pending_request.rpc_reponse =
+        pending_request.controller->udt_transport()->signals()->
+            ConnectOnRpcResponseReceived(
+                boost::bind(&ChannelManagerImpl::ResponseArrive,
+                            this, _1, _2, _3));
+    pending_request.data_sent =
+        pending_request.controller->udt_transport()->signals()->ConnectOnSend(
+            boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
+    pending_request.timeout =
+        pending_request.controller->udt_transport()->signals()->
+            ConnectOnReceive(boost::bind(&ChannelManagerImpl::RpcStatus, this,
+                                         _1, _2));
+  }
   std::pair<std::map<SocketId, PendingMessage>::iterator, bool> p;
   {
     boost::mutex::scoped_lock loch_nan_clar(message_mutex_);
@@ -164,7 +184,7 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
   return p.second;
 }
 
-bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
+bool ChannelManagerImpl::TriggerPendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
@@ -183,7 +203,7 @@ bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
   return true;
 }
 
-bool ChannelManagerImpl::CancelPendingRequest(const SocketId &socket_id) {
+bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
   if (!is_started_) {
     return false;
   }
@@ -209,7 +229,6 @@ RpcId ChannelManagerImpl::CreateNewId() {
 void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
                                        const SocketId &socket_id,
                                        const float &rtt) {
-  DLOG(ERROR) << "CMImpl::RequestArriveMessage arrived" << std::endl;
   rpcprotocol::RpcMessage decoded_msg = msg;
   std::map<std::string, Channel*>::iterator it;
   channels_mutex_.lock();
@@ -242,7 +261,7 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
   rpcprotocol::RpcMessage decoded_msg = msg;
   if (!decoded_msg.has_method()) {
     DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
-                << " - request arrived cannot parse message" << std::endl;
+                << " - response arrived cannot parse message" << std::endl;
     return;
   }
   std::map<SocketId, PendingMessage>::iterator it;
@@ -254,30 +273,49 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
                   << " - response not expected" << std::endl;
       return;
     }
-  }
-  if ((*it).second.status != kRequestSent) {
-    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
-                << " - response not expected" << std::endl;
-    return;
-  }
+    if ((*it).second.status != kRequestSent) {
+      DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                  << " - response weird req status: "
+                  << (*it).second.status << std::endl;
+      return;
+    }
 
-  if (!(*it).second.callback) {
-    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
-                << " - callback null" << std::endl;
-    return;
+    if (!(*it).second.callback) {
+      DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                  << " - callback null" << std::endl;
+      return;
+    }
+    // Extract the optional field which is the actual RPC payload.
+    // The field must be a proto message itself and is an extension.
+    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+    decoded_msg.detail().GetReflection()->ListFields(decoded_msg.detail(),
+                                                     &field_descriptors);
+
+    // Check only one field exists
+    if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0) ||
+        field_descriptors.at(0)->type() !=
+            google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
+      DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request."
+                  << std::endl;
+      return;
+    }
+
+    // Copy the payload to a new message (DescriptorProto inherits from Message)
+    const google::protobuf::Message &args =
+        decoded_msg.detail().GetReflection()->GetMessage(
+            decoded_msg.detail(), field_descriptors.at(0));
+    (*it).second.args->MergeFrom(args);
+    google::protobuf::Closure* done = (*it).second.callback;
+    done->Run();
+    (*it).second.rpc_reponse.disconnect();
+    (*it).second.data_sent.disconnect();
+    (*it).second.timeout.disconnect();
+    pending_messages_.erase(it);
   }
-  google::protobuf::Closure* done = (*it).second.callback;
-  (*it).second.rpc_reponse.disconnect();
-  (*it).second.data_sent.disconnect();
-  (*it).second.timeout.disconnect();
-  pending_messages_.erase(it);
-  done->Run();
 }
 
 void ChannelManagerImpl::RpcMessageSent(
     const SocketId &socket_id, const transport::TransportCondition &success) {
-  DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id << " - "
-             << success << std::endl;
   std::map<SocketId, PendingMessage>::iterator it;
   boost::mutex::scoped_lock loch_hope(message_mutex_);
   it = pending_messages_.find(socket_id);
@@ -285,11 +323,14 @@ void ChannelManagerImpl::RpcMessageSent(
     return;
   if (success != transport::kSuccess) {
     DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id
-               << " failed to send: " << std::endl;
-    (*it).second.callback->Run();
-    (*it).second.rpc_reponse.disconnect();
-    (*it).second.data_sent.disconnect();
-    (*it).second.timeout.disconnect();
+               << " failed to send. " << std::endl;
+    if ((*it).second.status == kRequestSent ||
+        (*it).second.status == kAwaitingRequestSend) {
+      (*it).second.callback->Run();
+      (*it).second.rpc_reponse.disconnect();
+      (*it).second.data_sent.disconnect();
+      (*it).second.timeout.disconnect();
+    }
     pending_messages_.erase(it);
     return;
   }
@@ -300,7 +341,7 @@ void ChannelManagerImpl::RpcMessageSent(
     case kAwaitingResponseSend: delete (*it).second.callback;
     case kPending: pending_messages_.erase(it);
                    break;
-    default:;
+    default:break;
   }
 }
 

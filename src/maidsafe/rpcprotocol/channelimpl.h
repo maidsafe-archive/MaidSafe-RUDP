@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 
 namespace transport {
+class UdtConnection;
 class UdtTransport;
 }  // namespace transport
 
@@ -51,7 +52,7 @@ class ControllerImpl {
  public:
   ControllerImpl() : timeout_(kRpcTimeout), time_sent_(0), time_received_(0),
                      rtt_(0.0), failure_(), rpc_id_(0), socket_id_(0),
-                     method_(), udt_transport_() {}
+                     method_(), udt_transport_(), udt_connection_() {}
   void SetFailed(const std::string &failure) { failure_ = failure; }
   void Reset();
   bool Failed() const { return !failure_.empty(); }
@@ -89,15 +90,23 @@ class ControllerImpl {
   boost::shared_ptr<transport::UdtTransport> udt_transport() const {
     return udt_transport_;
   }
+  void set_udt_connection(
+      boost::shared_ptr<transport::UdtConnection> udt_connection) {
+    udt_connection_ = udt_connection;
+  }
+  boost::shared_ptr<transport::UdtConnection> udt_connection() const {
+    return udt_connection_;
+  }
+
  private:
-  boost::uint64_t timeout_;
-  boost::uint64_t time_sent_, time_received_;
+  boost::uint64_t timeout_, time_sent_, time_received_;
   float rtt_;
   std::string failure_;
   RpcId rpc_id_;
   SocketId socket_id_;
   std::string method_;
   boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<transport::UdtConnection> udt_connection_;
 };
 
 class ChannelImpl {
@@ -126,6 +135,7 @@ class ChannelImpl {
   std::string GetServiceName(const std::string &full_name);
   boost::shared_ptr<ChannelManager> channel_manager_;
   boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<transport::UdtConnection> udt_connection_;
   google::protobuf::Service *service_;
   IP remote_ip_, local_ip_, rendezvous_ip_;
   Port remote_port_, local_port_, rendezvous_port_;

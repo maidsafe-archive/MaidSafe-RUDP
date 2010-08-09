@@ -45,12 +45,12 @@ bool ChannelManager::AddPendingRequest(const SocketId &socket_id,
   return pimpl_->AddPendingRequest(socket_id, pending_request);
 }
 
-bool ChannelManager::DeletePendingRequest(const SocketId &socket_id) {
-  return pimpl_->DeletePendingRequest(socket_id);
+bool ChannelManager::TriggerPendingRequest(const SocketId &socket_id) {
+  return pimpl_->TriggerPendingRequest(socket_id);
 }
 
-bool ChannelManager::CancelPendingRequest(const SocketId &socket_id) {
-  return pimpl_->CancelPendingRequest(socket_id);
+bool ChannelManager::DeletePendingRequest(const SocketId &socket_id) {
+  return pimpl_->DeletePendingRequest(socket_id);
 }
 
 RpcId ChannelManager::CreateNewId() {
@@ -80,12 +80,6 @@ void ChannelManager::ClearChannels() {
 void ChannelManager::ClearCallLaters() {
   pimpl_->ClearCallLaters();
 }
-
-//void ChannelManager::AddTimeOutRequest(const ConnectionId &connection_id,
-//                                       const SocketId &socket_id,
-//                                       const int &timeout) {
-//  pimpl_->AddTimeOutRequest(connection_id, socket_id, timeout);
-//}
 
 void ChannelManager::AddChannelId(boost::uint32_t *id) {
   pimpl_->AddChannelId(id);

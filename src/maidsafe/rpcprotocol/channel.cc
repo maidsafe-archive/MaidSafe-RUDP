@@ -114,6 +114,15 @@ std::string Controller::method() const {
   return controller_pimpl_->method();
 }
 
+void Controller::set_udt_connection(
+    boost::shared_ptr<transport::UdtConnection> udt_connection) {
+  controller_pimpl_->set_udt_connection(udt_connection);
+}
+
+boost::shared_ptr<transport::UdtConnection> Controller::udt_connection() const {
+  return controller_pimpl_->udt_connection();
+}
+
 void Controller::set_udt_transport(
     boost::shared_ptr<transport::UdtTransport> udt_transport) {
   controller_pimpl_->set_udt_transport(udt_transport);

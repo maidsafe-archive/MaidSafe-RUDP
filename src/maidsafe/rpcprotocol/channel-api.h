@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
+class UdtConnection;
 class UdtTransport;
 }  // namespace transport
 
@@ -147,6 +148,16 @@ class Controller : public google::protobuf::RpcController {
   * Get the UDT transport being used, if not NULL.
   */
   boost::shared_ptr<transport::UdtTransport> udt_transport() const;
+  /**
+  * Set the UDT connection being used for the operation.
+  * @param udt_connection The connection used.
+  */
+  void set_udt_connection(
+      boost::shared_ptr<transport::UdtConnection> udt_connection);
+  /**
+  * Get the UDT connection being used, if not NULL.
+  */
+  boost::shared_ptr<transport::UdtConnection> udt_connection() const;
  private:
   boost::shared_ptr<ControllerImpl> controller_pimpl_;
 };

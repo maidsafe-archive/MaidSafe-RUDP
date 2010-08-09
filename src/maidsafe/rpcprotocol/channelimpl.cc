@@ -29,7 +29,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/message.h>
+
 #include <typeinfo>
+#include <vector>
+
 #include "maidsafe/base/log.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/rpcmessage.pb.h"
@@ -57,8 +60,9 @@ ChannelImpl::ChannelImpl(
     boost::shared_ptr<ChannelManager> channel_manager,
     boost::shared_ptr<transport::UdtTransport> udt_transport)
     : channel_manager_(channel_manager), udt_transport_(udt_transport),
-      service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(), remote_port_(0),
-      local_port_(0), rendezvous_port_(0), id_(0), local_transport_(false) {
+      udt_connection_(), service_(0), remote_ip_(), local_ip_(),
+      rendezvous_ip_(), remote_port_(0), local_port_(0), rendezvous_port_(0),
+      id_(0), local_transport_(false) {
   channel_manager_->AddChannelId(&id_);
 }
 
@@ -66,11 +70,13 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
                          const IP &remote_ip, const Port &remote_port,
                          const IP &local_ip, const Port &local_port,
                          const IP &rendezvous_ip, const Port &rendezvous_port)
-    : channel_manager_(channel_manager), udt_transport_(), service_(0),
-      remote_ip_(), local_ip_(), rendezvous_ip_(), remote_port_(remote_port),
-      local_port_(local_port), rendezvous_port_(rendezvous_port), id_(0),
-      local_transport_(true) {
-  udt_transport_.reset(new transport::UdtTransport);
+    : channel_manager_(channel_manager), udt_transport_(), udt_connection_(),
+      service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(),
+      remote_port_(remote_port), local_port_(local_port),
+      rendezvous_port_(rendezvous_port), id_(0), local_transport_(true) {
+  udt_connection_.reset(new transport::UdtConnection(remote_ip, remote_port,
+                                                     rendezvous_ip,
+                                                     rendezvous_port));
   channel_manager_->AddChannelId(&id_);
 
   // To send we need ip in decimal dotted format
@@ -107,8 +113,8 @@ std::string ChannelImpl::GetServiceName(const std::string &full_name) {
     advance(beg, no_tokens - 1);
     service_name = *beg;
   } catch(const std::exception &e) {
-    LOG(ERROR) << "ChannelImpl::GetServiceName. " <<
-        "Error with full method name format: " << e.what() << std::endl;
+    DLOG(ERROR) << "ChannelImpl::GetServiceName - full method name format: "
+                << e.what() << std::endl;
   }
   return service_name;
 }
@@ -163,29 +169,26 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   pending_request.controller->set_rpc_id(rpc_message->rpc_id());
   pending_request.controller->set_method(method->name());
   if (local_transport_) {
-    pending_request.controller->set_udt_transport(udt_transport_);
+    pending_request.controller->set_udt_connection(udt_connection_);
     pending_request.local_transport = true;
   }
-  SocketId socket_id;
-  if (rendezvous_ip_.empty() && rendezvous_port_ == 0) {
-    socket_id = udt_transport_->Send(transport_message, remote_ip_,
-                                     remote_port_,
-                                     pending_request.controller->timeout());
-  } else {
-    socket_id = udt_transport_->Send(transport_message, remote_ip_,
-                                     remote_port_,
-                                     pending_request.controller->timeout());
-  }
+
+  SocketId socket_id = udt_connection_->udt_socket_id();
   if (socket_id < 0 ||
       !channel_manager_->AddPendingRequest(socket_id, pending_request)) {
     DLOG(INFO) << "Failed to send the RPC request(" << rpc_message->method()
-               << ") - " << socket_id << "to " << remote_ip_ << ":"
+               << ") - " << socket_id << " to " << remote_ip_ << ":"
                << remote_port_ << std::endl;
     done->Run();
     return;
   }
-  DLOG(INFO) << "Sending rpc " << rpc_message->method() << " to " << remote_ip_
-             << ":" << remote_port_ << " -- id = " << socket_id << std::endl;
+
+  udt_connection_->Send(transport_message,
+                        pending_request.controller->timeout());
+
+//  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
+//             << socket_id << " to " << remote_ip_ << ":" << remote_port_
+//             << std::endl;
 }
 
 void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
@@ -204,41 +207,31 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
     return;
   }
 
+//  DLOG(ERROR) << "ChannelImpl::HandleRequest - " << rpc_message.method()
+//              << std::endl;
   const google::protobuf::MethodDescriptor* method =
       service_->GetDescriptor()->FindMethodByName(rpc_message.method());
   google::protobuf::Message *response  =
       service_->GetResponsePrototype(method).New();
-//  google::protobuf::Message *args  =
-//      service_->GetRequestPrototype(method).New();
 
   // Extract the optional field which is the actual RPC payload.  The field must
   // be a proto message itself and is an extension.
   std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
   rpc_message.detail().GetReflection()->ListFields(rpc_message.detail(),
                                                    &field_descriptors);
-  DLOG(ERROR) << rpc_message.detail().DebugString() << std::endl;
-//  rpcprotocol::RpcMessage rpcmsg = rpc_message;
-//  google::protobuf::Message *args;
-//  *args = rpc_message.detail().GetReflection()->GetMessage(rpc_message.detail(),
-//                                                          field_descriptors.at(0));
+
   // Check only one field exists
-  if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0)) {
+  if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0) ||
+      field_descriptors.at(0)->type() !=
+          google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
     DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
     return;
   }
-  // Get the payload message's descriptor
-  if (field_descriptors.at(0)->type() !=
-      google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
-    DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request." << std::endl;
-    return;
-  }
-  DLOG(ERROR) << "ChannelImpl::HandleRequest - "
-              << field_descriptors.at(0)->full_name() << std::endl;
 
   // Copy the payload to a new message (DescriptorProto inherits from Message)
-  google::protobuf::DescriptorProto proto_request;
-//  field_descriptors.at(0)->message_type()->CopyTo(args);
-  field_descriptors.at(0)->message_type()->CopyTo(&proto_request);
+  const google::protobuf::Message &args =
+      rpc_message.detail().GetReflection()->GetMessage(rpc_message.detail(),
+                                                       field_descriptors.at(0));
 
   boost::shared_ptr<Controller> controller(new Controller);
   controller->set_rtt(rtt);
@@ -249,10 +242,7 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                                     const google::protobuf::Message*,
                                     boost::shared_ptr<Controller> >
       (this, &ChannelImpl::SendResponse, response, controller);
-//  service_->CallMethod(method, controller.get(), args, response,
-  service_->CallMethod(method, controller.get(), &proto_request, response,
-                       done);
-//  delete args;
+  service_->CallMethod(method, controller.get(), &args, response, done);
 }
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,
@@ -262,6 +252,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
                 << controller->Failed() << "." << std::endl;
     return;
   }
+
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kResponse);
@@ -272,16 +263,13 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
   rpc_message->set_service("done");
 
   // Get field descriptor for RPC payload
-/******************************************************************************/
   const google::protobuf::FieldDescriptor *field_descriptor =
       response->GetDescriptor()->extension(0);
-//  if (!field_descriptor) {
-//    DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists."
-//                << std::endl;
-//    done->Run();
-//    return;
-//  }
-/******************************************************************************/
+  if (!field_descriptor) {
+    DLOG(ERROR) << "ChannelImpl::CallMethod - No such RPC extension exists."
+                << std::endl;
+    return;
+  }
 
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
@@ -290,11 +278,20 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
   google::protobuf::Message *mutable_message =
       rpc_message_detail->GetReflection()->MutableMessage(
           rpc_message_detail, field_descriptor);
-  mutable_message->CopyFrom(*response);
+  try {
+    mutable_message->CopyFrom(*response);
+  }
+  catch (const std::exception &e) {
+    DLOG(ERROR) << "ChannelImpl::CallMethod - Error merging message:"
+                << e.what() << std::endl;
+    delete response;
+    return;
+  }
 
   udt_transport_->SendResponse(transport_message, controller->socket_id());
-  DLOG(INFO) << "Response to req " << controller->socket_id() << std::endl;
   delete response;
+//  DLOG(ERROR) << "ChannelImpl::CallMethod - Response sent - "
+//              << controller->socket_id() << std::endl;
 }
 
 }  // namespace rpcprotocol

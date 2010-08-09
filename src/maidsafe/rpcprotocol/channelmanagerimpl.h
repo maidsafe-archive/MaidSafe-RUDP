@@ -74,8 +74,8 @@ class ChannelManagerImpl {
   RpcId CreateNewId();
   bool AddPendingRequest(const SocketId &socket_id,
                          PendingMessage pending_request);
+  bool TriggerPendingRequest(const SocketId &socket_id);
   bool DeletePendingRequest(const SocketId &socket_id);
-  bool CancelPendingRequest(const SocketId &socket_id);
   RpcStatsMap RpcTimings();
   void ClearRpcTimings();
  private:

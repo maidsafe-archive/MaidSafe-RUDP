@@ -6,17 +6,17 @@ message TestPingRequest{
   extend rpcprotocol.RpcMessage.Detail {
     optional TestPingRequest ping_request = 19;
   }
-  required string ping = 2;
-  required string ip = 3;
-  required int32 port = 4;
+  required string ping = 1;
+  required string ip = 2;
+  required int32 port = 3;
 }
 
 message TestPingResponse{
   extend rpcprotocol.RpcMessage.Detail {
     optional TestPingResponse ping_response = 20;
   }
-  required string result = 2;
-  required string pong = 3;
+  required string result = 1;
+  required string pong = 2;
 }
 
 message BinaryOpRequest {
@@ -48,7 +48,7 @@ message StringMirrorRequest {
 
 message StringMirrorResponse {
   extend rpcprotocol.RpcMessage.Detail {
-    optional BinaryOpResponse mirror_response = 24;
+    optional StringMirrorResponse mirror_response = 24;
   }
   required string mirrored_string = 1;
 }

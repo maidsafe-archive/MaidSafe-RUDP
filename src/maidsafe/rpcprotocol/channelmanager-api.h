@@ -144,14 +144,15 @@ class ChannelManager {
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool DeletePendingRequest(const SocketId &socket_id);
+  bool TriggerPendingRequest(const SocketId &socket_id);
   /**
-  * Removes a pending request from the list.
+  * Removes a pending request from the list. Doesn't run the callback. When the
+  * response arrives, it will be silently dropped.
   * @param rpc_id id of the request
   * @return True if success, False if status of the object is stopped or
   * no request was found for the id.
   */
-  bool CancelPendingRequest(const SocketId &socket_id);
+  bool DeletePendingRequest(const SocketId &socket_id);
   /**
   * Creates and adds the id of a Channel to a list that holds all the channels
   * using the objet.

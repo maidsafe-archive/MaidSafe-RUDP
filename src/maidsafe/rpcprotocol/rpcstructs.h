@@ -48,10 +48,10 @@ struct PendingMessage {
                      controller(), rpc_reponse(), data_sent(), timeout(),
                      local_transport(false) {}
   PendingMessage(const PendingMessage &pm)
-      : status(pm.status), args(pm.args),
-        callback(pm.callback), controller(pm.controller),
-        rpc_reponse(pm.rpc_reponse), data_sent(pm.data_sent),
-        timeout(pm.timeout), local_transport(pm.local_transport) {}
+      : status(pm.status), args(pm.args), callback(pm.callback),
+        controller(pm.controller), rpc_reponse(pm.rpc_reponse),
+        data_sent(pm.data_sent), timeout(pm.timeout),
+        local_transport(pm.local_transport) {}
   PendingMessage &operator=(const PendingMessage &pm) {
     if (this != &pm) {
       status = pm.status;
@@ -68,7 +68,6 @@ struct PendingMessage {
   MessageStatus status;
   google::protobuf::Message *args;
   google::protobuf::Closure *callback;
-//  boost::shared_ptr<Controller> controller;
   Controller *controller;
   boost::signals2::connection rpc_reponse;
   boost::signals2::connection data_sent;

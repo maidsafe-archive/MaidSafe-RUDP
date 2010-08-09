@@ -40,7 +40,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/signals2.hpp>
 #include <boost/thread/thread.hpp>
 #include <maidsafe/transport/transport.h>
-#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
