@@ -83,6 +83,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ifaddrs.h>  // used for implementation of LocalIPPort()
 #endif
 
+#if defined(_WIN32) && defined(GetMessage)
+#undef GetMessage
+#endif
+
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>

@@ -184,7 +184,8 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   }
 
   udt_connection_->Send(transport_message,
-                        pending_request.controller->timeout());
+                        static_cast<int>
+						    (pending_request.controller->timeout()));
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
 //             << socket_id << " to " << remote_ip_ << ":" << remote_port_
