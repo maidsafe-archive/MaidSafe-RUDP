@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -66,10 +66,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/base/threadpool.h>
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/transport/udtconnection.h>
-#include <list>
 #include <map>
-#include <set>
 #include <string>
+#include <vector>
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
@@ -83,7 +82,7 @@ class HolePunchingMessage;
 // struct IncomingMessages;
 
 namespace test {
-class TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
+class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
 }  // namespace test
 
 typedef int UdtSocketId;
@@ -149,7 +148,8 @@ class UdtTransport : public Transport {
   bool RemoveManagedEndpoint(
       const ManagedEndpointId &managed_endpoint_id);
   friend class UdtConnection;
-  friend class test::TransportUdtTest_BEH_TRANS_AddRemoveManagedEndpoints_Test;
+  friend class
+      test::UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
  private:
   UdtTransport& operator=(const UdtTransport&);
   UdtTransport(const UdtTransport&);
@@ -172,7 +172,7 @@ class UdtTransport : public Transport {
                                   const ManagedEndpointMessage &request);
   void HandleManagedSocketResponse(const UdtSocketId &managed_socket_id,
                                    const ManagedEndpointMessage &response);
-  // This is only meant to be used as a predicate where 
+  // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
   bool PendingManagedSocketReplied(const UdtSocketId &udt_socket_id);
   std::map<Port, UdtSocketId> listening_map_;

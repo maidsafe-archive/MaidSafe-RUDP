@@ -26,8 +26,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/udtutils.h"
-#include <string>
 #include <boost/lexical_cast.hpp>
+#include <string>
 #include "maidsafe/base/log.h"
 
 namespace transport {
@@ -116,7 +116,6 @@ TransportCondition Connect(const UdtSocketId &udt_socket_id,
   }
   return kSuccess;
 }
-
 
 }  // namespace udtutils
 

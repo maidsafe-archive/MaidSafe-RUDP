@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+﻿/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -18,56 +18,27 @@ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
 SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This API is unlikely to have any breaking changes applied.  However,  *
- *       it should not be regarded as a final API until this notice is removed.*
- ******************************************************************************/
-
-#ifndef MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
-#define MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
+#include "maidsafe/transport/transportutils.h"
+#include <boost/asio/ip/address.hpp>
+#include <boost/system/error_code.hpp>
 
 namespace transport {
 
-enum TransportCondition {
-  kSuccess = 0,
-  kError = -1,
-  kRemoteUnreachable = -2,
-  kNoConnection = -3,
-  kNoNetwork = -4,
-  kInvalidIP = -5,
-  kInvalidPort = -6,
-  kInvalidData = -7,
-  kNoSocket = -8,
-  kInvalidAddress = -9,
-  kNoRendezvous = -10,
-  kBehindFirewall = -11,
-  kBindError = -12,
-  kConnectError = -13,
-  kAlreadyStarted = -14,
-  kListenError = -15,
-  kThreadResourceError = -16,
-  kCloseSocketError = -17,
-  kSendUdtFailure = -18,
-  kSendTimeout = -19,
-  kSendParseFailure = -20,
-  kSendSizeFailure = -21,
-  kReceiveUdtFailure = -22,
-  kReceiveTimeout = -23,
-  kReceiveParseFailure = -24,
-  kReceiveSizeFailure = -25,
-  kAddManagedEndpointError = -26,
-  kAddManagedEndpointTimeout = -27,
-  kSetOptionFailure = -28,
-  kMessageSizeTooLarge = -29
-};
+bool ValidIP(const IP &ip) {
+  boost::system::error_code ec;
+  boost::asio::ip::address::from_string(ip, ec);
+  return ec == boost::system::errc::success;
+}
+
+bool ValidPort(const Port &port) {
+  return port > 5000;
+}
 
 }  // namespace transport
-
-#endif  // MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_

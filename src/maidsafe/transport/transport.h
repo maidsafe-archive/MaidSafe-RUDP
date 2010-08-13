@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -33,14 +33,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_TRANSPORT_H_
 
-#include <boost/asio/ip/address.hpp>
-#include <boost/system/error_code.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include <maidsafe/protobuf/transport_message.pb.h>
 #include <maidsafe/maidsafe-dht_config.h>
 #include <maidsafe/transport/transportconditions.h>
 #include <maidsafe/transport/transportsignals.h>
-#include <string>
+#include <maidsafe/transport/transportutils.h>
+#include <vector>
 
 #if MAIDSAFE_DHT_VERSION < 23
 #error This API is not compatible with the installed library.
@@ -51,22 +51,7 @@ namespace  fs = boost::filesystem;
 
 namespace transport {
 
-typedef boost::int64_t DataSize;
-
-inline bool ValidIP(const IP &ip) {
-  boost::system::error_code ec;
-  boost::asio::ip::address::from_string(ip, ec);
-  return ec == boost::system::errc::success;
-}
-
-inline bool ValidPort(const Port &port) {
-  return ((5000 < port) && (port < 65535));
-}
-
-struct SocketPerformanceStats {
- public:
-  virtual ~SocketPerformanceStats() {}
-};
+class TransportMessage;
 
 class Transport {
   // Base class for all transport types.

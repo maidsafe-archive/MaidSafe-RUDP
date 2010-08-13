@@ -123,7 +123,7 @@ class ChannelImpl {
                   const google::protobuf::Message *request,
                   google::protobuf::Message *response,
                   google::protobuf::Closure *done);
-  void SetService(google::protobuf::Service *service) { service_ = service; };
+  void SetService(google::protobuf::Service *service) { service_ = service; }
   void HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
                      const SocketId &socket_id,
                      const float &rtt);

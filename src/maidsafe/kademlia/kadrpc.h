@@ -50,7 +50,8 @@ class KadId;
 
 class KadRpcs {
  public:
-  KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager);
+  explicit KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager>
+                   channel_manager);
   void FindNode(const KadId &key, const IP &ip,
       const Port &port, const IP &rendezvous_ip,
       const Port &rendezvous_port, FindResponse *resp,

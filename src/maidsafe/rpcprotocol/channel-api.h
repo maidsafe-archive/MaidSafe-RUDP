@@ -33,10 +33,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_RPCPROTOCOL_CHANNEL_API_H_
 #define MAIDSAFE_RPCPROTOCOL_CHANNEL_API_H_
 
-#include <string>
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
 #include <google/protobuf/service.h>
+#include <string>
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/maidsafe-dht_config.h"
 

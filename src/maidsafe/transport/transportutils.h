@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,41 +25,30 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_KADEMLIA_NATRPC_H_
-#define MAIDSAFE_KADEMLIA_NATRPC_H_
+/*******************************************************************************
+ * NOTE: This header is unlikely to have any breaking changes applied.         *
+ *       However, it should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
+ ******************************************************************************/
 
-#include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
-#include <string>
-#include "maidsafe/protobuf/kademlia_service.pb.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
+#ifndef MAIDSAFE_TRANSPORT_TRANSPORTUTILS_H_
+#define MAIDSAFE_TRANSPORT_TRANSPORTUTILS_H_
 
-namespace rpcprotocol {
-class Controller;
-}  // namespace rpcprotocol
+#include <maidsafe/maidsafe-dht_config.h>
 
-namespace kad {
-const boost::uint32_t kRpcNatPingTimeout = 3;
-class NatRpcs {
+
+namespace transport {
+
+bool ValidIP(const IP &ip);
+
+bool ValidPort(const Port &port);
+
+struct SocketPerformanceStats {
  public:
-  explicit NatRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager);
-  void NatDetection(const std::string &newcomer,
-                    const std::string &bootstrap_node,
-                    const boost::uint32_t &type,
-                    const std::string &sender_id, const IP &remote_ip,
-                    const Port &remote_port, const IP &rendezvous_ip,
-                    const Port &rendezvous_port, NatDetectionResponse *resp,
-                    rpcprotocol::Controller *ctler,
-                    google::protobuf::Closure *callback);
-  void NatDetectionPing(const IP &remote_ip, const Port &remote_port,
-                        const IP &rendezvous_ip, const Port &rendezvous_port,
-                        NatDetectionPingResponse *resp,
-                        rpcprotocol::Controller *ctler,
-                        google::protobuf::Closure *callback);
- private:
-  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
+  virtual ~SocketPerformanceStats() {}
 };
 
-}  // namespace kad
+}  // namespace transport
 
-#endif  // MAIDSAFE_KADEMLIA_NATRPC_H_
+#endif  // MAIDSAFE_TRANSPORT_TRANSPORTUTILS_H_
+

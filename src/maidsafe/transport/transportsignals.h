@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/signals2/signal.hpp>
 #include <maidsafe/maidsafe-dht_config.h>
 #include <maidsafe/transport/transportconditions.h>
+#include <string>
 
 
 namespace  bs2 = boost::signals2;
@@ -47,10 +48,11 @@ class RpcMessage;
 
 namespace transport {
 
-struct SocketPerformanceStats;
-class UdtTransport;
-class TransportTCP;
 class UdtConnection;
+class UdtTransport;
+class TcpTransport;
+class ManagedEndpointMessage;
+struct SocketPerformanceStats;
 
 typedef bs2::signal<void(const std::string&,
                          const SocketId&,
@@ -170,7 +172,7 @@ class Signals {
   }
 
   friend class UdtTransport;
-  friend class TransportTCP;
+  friend class TcpTransport;
   friend class UdtConnection;
  private:
   OnMessageReceived on_message_received_;

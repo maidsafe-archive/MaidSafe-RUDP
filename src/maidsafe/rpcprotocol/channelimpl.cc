@@ -185,7 +185,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
 
   udt_connection_->Send(transport_message,
                         static_cast<int>
-						    (pending_request.controller->timeout()));
+                        (pending_request.controller->timeout()));
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
 //             << socket_id << " to " << remote_ip_ << ":" << remote_port_
@@ -282,7 +282,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
   try {
     mutable_message->CopyFrom(*response);
   }
-  catch (const std::exception &e) {
+  catch(const std::exception &e) {
     DLOG(ERROR) << "ChannelImpl::CallMethod - Error merging message:"
                 << e.what() << std::endl;
     delete response;

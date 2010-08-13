@@ -653,7 +653,7 @@ TEST_F(RpcProtocolTest, BEH_RPC_DeletePendingRequest) {
 
 void SendPingsThread(
     rpcprotocol::Port server_port,
-    boost::shared_ptr<std::vector<
+    boost::shared_ptr< std::vector<
         boost::shared_ptr<rpcprotocol::ChannelManager> > > p_clients,
     std::vector<bool> *res_pings) {
   for (size_t n = 0; n < p_clients->size(); ++n) {
@@ -687,7 +687,7 @@ void SendPingsThread(
 
 void SendOpsThread(
     rpcprotocol::Port server_port,
-    boost::shared_ptr<std::vector<
+    boost::shared_ptr< std::vector<
         boost::shared_ptr<rpcprotocol::ChannelManager> > > o_clients,
     std::vector<bool> *res_ops) {
   for (size_t n = 0; n < o_clients->size(); ++n) {
@@ -711,7 +711,7 @@ void SendOpsThread(
     stubservice2.Add(&controller, &req2, &resp2, done2);
     while (resultholder.op_res.result() == -1)
       boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-    if(5 == resultholder.op_res.result())
+    if (5 == resultholder.op_res.result())
       res_ops->at(n) = true;
     printf("+++++++ Finished TestOp #%i\n", n);
   }
@@ -719,7 +719,7 @@ void SendOpsThread(
 
 void SendMirrorsThread(
     rpcprotocol::Port server_port,
-    boost::shared_ptr<std::vector<
+    boost::shared_ptr< std::vector<
         boost::shared_ptr<rpcprotocol::ChannelManager> > > m_clients,
     std::vector<bool> *res_mirrors) {
   for (size_t n = 0; n < m_clients->size(); ++n) {
@@ -745,7 +745,7 @@ void SendMirrorsThread(
     while (resultholder.mirror_res.mirrored_string() == "-")
       boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
-    if("9876543210" == resultholder.mirror_res.mirrored_string().substr(0, 10))
+    if ("9876543210" == resultholder.mirror_res.mirrored_string().substr(0, 10))
       res_mirrors->at(n) = true;
     printf("******* Finished MirrorTest #%i\n", n);
   }
@@ -776,16 +776,16 @@ TEST_F(RpcProtocolTest, FUNC_RPC_ThreadedClientsOneServer) {
                                         &service_channel3);
 
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          ping_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          ping_clients(new std::vector< boost::shared_ptr<
                        rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          op_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          op_clients(new std::vector< boost::shared_ptr<
                      rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          mirror_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          mirror_clients(new std::vector< boost::shared_ptr<
                          rpcprotocol::ChannelManager> >);
 
   std::vector<bool> res_pings(test_rpcprotocol::clients, false);
@@ -916,16 +916,16 @@ TEST_F(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
 
   /******************************** Clients A *********************************/
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Aping_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Aping_clients(new std::vector< boost::shared_ptr<
                        rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Aop_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Aop_clients(new std::vector< boost::shared_ptr<
                      rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Amirror_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Amirror_clients(new std::vector< boost::shared_ptr<
                          rpcprotocol::ChannelManager> >);
 
   std::vector<bool> Ares_pings(test_rpcprotocol::clients, false);
@@ -946,16 +946,16 @@ TEST_F(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
 
   /******************************** Clients B *********************************/
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Bping_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Bping_clients(new std::vector< boost::shared_ptr<
                        rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Bop_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Bop_clients(new std::vector< boost::shared_ptr<
                      rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Bmirror_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Bmirror_clients(new std::vector< boost::shared_ptr<
                          rpcprotocol::ChannelManager> >);
 
   std::vector<bool> Bres_pings(test_rpcprotocol::clients, false);
@@ -976,16 +976,16 @@ TEST_F(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
 
   /******************************** Clients C *********************************/
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Cping_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Cping_clients(new std::vector< boost::shared_ptr<
                        rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Cop_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Cop_clients(new std::vector< boost::shared_ptr<
                      rpcprotocol::ChannelManager> >);
   boost::shared_ptr<
-      std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > >
-          Cmirror_clients(new std::vector<boost::shared_ptr<
+      std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > >
+          Cmirror_clients(new std::vector< boost::shared_ptr<
                          rpcprotocol::ChannelManager> >);
 
   std::vector<bool> Cres_pings(test_rpcprotocol::clients, false);

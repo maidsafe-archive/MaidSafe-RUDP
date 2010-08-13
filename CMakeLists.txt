@@ -586,11 +586,11 @@ IF(MSVC)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testcontact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testknode.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/testnatpmp.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransportudt.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testudttransport.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warning 4996 disabled due to generation through use of Boost Signals2
-  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transportudt.cc
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/udttransport.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/udtconnection.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4996")
 

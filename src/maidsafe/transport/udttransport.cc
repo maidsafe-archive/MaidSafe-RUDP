@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2009 maidsafe.net limited
+﻿/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -288,7 +288,9 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
   managed_endpoint_message->set_identifier(our_identifier);
 //  managed_endpoint_message->set_identifier(std::string(1500, 'A'));
 //  std::cout << "SIZE 2: " << transport_message.ByteSize() << std::endl;
-  udt_connection.SendData(kAddManagedConnectionTimeout, -1);
+  udt_connection.send_timeout_ = kAddManagedConnectionTimeout;
+  udt_connection.receive_timeout_ = -1;
+  udt_connection.SendData();
 
   // Wait for peer to send response to managed_endpoint_listening_port_
   try {
@@ -540,8 +542,9 @@ void UdtTransport::AcceptConnection(const Port &port,
       return;
     } else {
       UdtConnection udt_connection(this, receiver_socket_id);
+      udt_connection.receive_timeout_ = -1;
       general_threadpool_->EnqueueTask(boost::bind(
-          &UdtConnection::ReceiveData, udt_connection, -1));
+          &UdtConnection::ReceiveData, udt_connection));
     }
   }
 }
@@ -651,7 +654,9 @@ void UdtTransport::HandleManagedSocketRequest(
   managed_endpoint_message->set_message_id(request.message_id());
   // std::cout << "SIZE 1: " << transport_message.ByteSize() << std::endl;
   // managed_endpoint_message->set_identifier(our_identifier);
-  udt_connection.SendData(kAddManagedConnectionTimeout, -1);
+  udt_connection.send_timeout_ = kAddManagedConnectionTimeout;
+  udt_connection.receive_timeout_ = -1;
+  udt_connection.SendData();
 
   // Add newly connected socket to managed endpoints - start checking thread if
   // this is the first

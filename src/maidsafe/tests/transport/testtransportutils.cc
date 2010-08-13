@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,41 +25,41 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_KADEMLIA_NATRPC_H_
-#define MAIDSAFE_KADEMLIA_NATRPC_H_
-
-#include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
+#include <boost/lexical_cast.hpp>
+#include <gtest/gtest.h>
+#include <maidsafe/base/utils.h>
 #include <string>
-#include "maidsafe/protobuf/kademlia_service.pb.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
+#include "maidsafe/transport/transportutils.h"
 
-namespace rpcprotocol {
-class Controller;
-}  // namespace rpcprotocol
 
-namespace kad {
-const boost::uint32_t kRpcNatPingTimeout = 3;
-class NatRpcs {
- public:
-  explicit NatRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager);
-  void NatDetection(const std::string &newcomer,
-                    const std::string &bootstrap_node,
-                    const boost::uint32_t &type,
-                    const std::string &sender_id, const IP &remote_ip,
-                    const Port &remote_port, const IP &rendezvous_ip,
-                    const Port &rendezvous_port, NatDetectionResponse *resp,
-                    rpcprotocol::Controller *ctler,
-                    google::protobuf::Closure *callback);
-  void NatDetectionPing(const IP &remote_ip, const Port &remote_port,
-                        const IP &rendezvous_ip, const Port &rendezvous_port,
-                        NatDetectionPingResponse *resp,
-                        rpcprotocol::Controller *ctler,
-                        google::protobuf::Closure *callback);
- private:
-  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
-};
+namespace transport {
 
-}  // namespace kad
+namespace test {
 
-#endif  // MAIDSAFE_KADEMLIA_NATRPC_H_
+TEST(TransportUtilsTest, BEH_TRANS_ValidIp) {
+  EXPECT_FALSE(ValidIP("Rubbish"));
+  EXPECT_FALSE(ValidIP(
+      "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch"));
+  EXPECT_FALSE(ValidIP(""));
+  const int kRepeats(1000);
+  for (int n = 0; n < kRepeats; ++n) {
+    std::string ip;
+    for (int i = 0; i < 4; ++i)
+      ip += boost::lexical_cast<std::string>((base::RandomInt32() % 256)) +
+            (i < 3 ? "." : "");
+    EXPECT_TRUE(ValidIP(ip)) << "IP " << ip << " is not valid";
+  }
+}
+
+TEST(TransportUtilsTest, BEH_TRANS_ValidPort) {
+  for (Port i = 0; i < 5001; ++i)
+    EXPECT_FALSE(ValidPort(i)) << "Port " << i << " is valid";
+  Port max_port(-1);
+  for (Port j = 5001; j < max_port ; ++j)
+    EXPECT_TRUE(ValidPort(j)) << "Port " << j << " is not valid";
+  EXPECT_TRUE(ValidPort(max_port)) << "Port " << max_port << " is not valid";
+}
+
+}  // namespace test
+
+}  // namespace transport
