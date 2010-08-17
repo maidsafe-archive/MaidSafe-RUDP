@@ -86,17 +86,8 @@ Port UdtTransport::DoStartListening(const IP &ip,
 
   // Set socket options
   if (managed_connection_listener) {
-    if (SetManagedSocketOptions(listening_socket_id, false) != kSuccess) {
+    if (SetManagedSocketOptions(listening_socket_id) != kSuccess) {
       DLOG(ERROR) << "DoStartListening setsockopt error." << std::endl;
-      UDT::close(listening_socket_id);
-      return 0;
-    }
-  } else {
-    bool receive_synchronously = false;
-    if (UDT::ERROR == UDT::setsockopt(listening_socket_id, 0, UDT_RCVSYN,
-        &receive_synchronously, sizeof(receive_synchronously))) {
-      DLOG(ERROR) << "DoStartListening setsockopt UDT_RCVSYN error: " <<
-          UDT::getlasterror().getErrorMessage() << std::endl;
       UDT::close(listening_socket_id);
       return 0;
     }
@@ -162,7 +153,7 @@ Port UdtTransport::DoStartListening(const IP &ip,
 
   listening_threadpool_->EnqueueTask(
       boost::bind(&UdtTransport::AcceptConnection, this, listening_port,
-                  listening_socket_id, true));
+                  listening_socket_id));
   if (managed_connection_listener) {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     managed_endpoint_listening_addrinfo_ = address_info;
@@ -373,14 +364,7 @@ TransportCondition UdtTransport::StartManagedEndpointListener(
 }
 
 TransportCondition UdtTransport::SetManagedSocketOptions(
-    const UdtSocketId &udt_socket_id,
-    bool receive_synchronously) {
-  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
-      &receive_synchronously, sizeof(receive_synchronously))) {
-    DLOG(ERROR) << "SetManagedSocketOptions UDT_RCVSYN error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    return kSetOptionFailure;
-  }
+    const UdtSocketId &udt_socket_id) {
   // Buffer will be set to minimum of requested size and socket's MSS (maximum
   // packet size).
   int mtu(100);
@@ -438,7 +422,7 @@ UdtSocketId UdtTransport::GetNewManagedEndpointSocket(
         UDT::getlasterror().getErrorMessage() << std::endl;
     return kNoSocket;
   }
-  if (SetManagedSocketOptions(initial_peer_socket_id, false) != kSuccess) {
+  if (SetManagedSocketOptions(initial_peer_socket_id) != kSuccess) {
     DLOG(ERROR) << "GetNewManagedEndpointSocket setsockopt error." << std::endl;
     UDT::close(initial_peer_socket_id);
     return kNoSocket;
@@ -508,8 +492,17 @@ bool UdtTransport::RemoveManagedEndpoint(
 }
 
 void UdtTransport::AcceptConnection(const Port &port,
-                                    const UdtSocketId &udt_socket_id,
-                                    bool receive_synchronously) {
+                                    const UdtSocketId &udt_socket_id) {
+  // Accept incoming connections asynchronously
+  bool accept_synchronously(false);
+  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
+      &accept_synchronously, sizeof(accept_synchronously))) {
+    DLOG(ERROR) << "AcceptConnection UDT_RCVSYN error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    UDT::close(udt_socket_id);
+    return;
+  }
+
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
   UdtSocketId receiver_socket_id;
@@ -556,6 +549,7 @@ void UdtTransport::AcceptConnection(const Port &port,
       }
       return;
     } else {
+      bool receive_synchronously(true);
       if (UDT::ERROR == UDT::setsockopt(receiver_socket_id, 0, UDT_RCVSYN,
           &receive_synchronously, sizeof(receive_synchronously))) {
         LOG(ERROR) << "UDT::accept (UDT_RCVSYN) error: " <<
@@ -563,7 +557,6 @@ void UdtTransport::AcceptConnection(const Port &port,
         continue;
       }
       UdtConnection udt_connection(this, receiver_socket_id);
-      //udt_connection.SetTimeout(10000, false);
       general_threadpool_->EnqueueTask(boost::bind(
           &UdtConnection::ReceiveData, udt_connection));
     }
@@ -692,9 +685,11 @@ void UdtTransport::HandleManagedSocketRequest(
     managed_endpoint_sockets_.push_back(managed_socket_id);
   }
 
-  // Send single char to allow for fast closing on peer side if socket dropped
-  char open_indicator('+');
-  UDT::send(managed_socket_id, &open_indicator, 1, 0);
+  // Set to asynchronous 
+  if (!SetAsynchronous(managed_socket_id)) {
+    UDT::close(managed_socket_id);
+    return;
+  }
 
 //  std::cout << "FIRING on_managed_endpoint_received_" << std::endl;
   signals_->on_managed_endpoint_received_(managed_socket_id, request);
@@ -714,14 +709,8 @@ void UdtTransport::HandleManagedSocketResponse(
   // Check response indicates success and set managed socket to asynchronous
   // TODO(Fraser#5#): 2010-07-31 - Use authentication to check identifier()
   UdtSocketId pending_managed_socket_id = response.message_id();
-  bool success(response.has_result() && response.result());
-  bool receive_synchronously = false;
-  if (UDT::ERROR == UDT::setsockopt(managed_socket_id, 0, UDT_RCVSYN,
-      &receive_synchronously, sizeof(receive_synchronously))) {
-    DLOG(ERROR) << "HandleManagedSocketResponse UDT_RCVSYN error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
-    success = false;
-  }
+  bool success(response.has_result() && response.result() &&
+               SetAsynchronous(managed_socket_id));
 
   {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -754,10 +743,23 @@ void UdtTransport::HandleManagedSocketResponse(
     managed_endpoint_sockets_.push_back(managed_socket_id);
     managed_endpoints_cond_var_.notify_all();
   }
+}
 
-  // Send single char to allow for fast closing on peer side if socket dropped
-  char open_indicator('+');
-  UDT::send(managed_socket_id, &open_indicator, 1, 0);
+bool UdtTransport::SetAsynchronous(const UdtSocketId &udt_socket_id) {
+  bool synchronous = false;
+  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
+      &synchronous, sizeof(synchronous))) {
+    DLOG(ERROR) << "SetAsynchronous UDT_RCVSYN error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    return false;
+  }
+  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_SNDSYN,
+      &synchronous, sizeof(synchronous))) {
+    DLOG(ERROR) << "SetAsynchronous UDT_SNDSYN error: " <<
+        UDT::getlasterror().getErrorMessage() << std::endl;
+    return false;
+  }
+  return true;
 }
 
 bool UdtTransport::PendingManagedSocketReplied(

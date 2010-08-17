@@ -231,7 +231,7 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
       request.data().rpc_message().SerializeAsString();
 
   // Send messages
-  const int kTimeout(kTestMessageSize > 256 * 1024 ? 2000 : 120000);
+  const int kTimeout(kTestMessageSize > 256 * 1024 ? 200000 : 10000);
   for (boost::uint16_t i = 0; i < kRepeats; ++i)
     send_connections.at(i).Send(request, kTimeout);
   int count(0);

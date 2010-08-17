@@ -160,20 +160,18 @@ class UdtTransport : public Transport {
   TransportCondition StartManagedEndpointListener(
       const UdtSocketId &initial_peer_socket_id,
       boost::shared_ptr<addrinfo const> peer);
-  TransportCondition SetManagedSocketOptions(const UdtSocketId &udt_socket_id,
-                                             bool receive_synchronously);
+  TransportCondition SetManagedSocketOptions(const UdtSocketId &udt_socket_id);
   UdtSocketId GetNewManagedEndpointSocket(const IP &remote_ip,
                                           const Port &remote_port,
                                           const IP &rendezvous_ip,
                                           const Port &rendezvous_port);
-  void AcceptConnection(const Port &port,
-                        const UdtSocketId &udt_socket_id,
-                        bool receive_synchronously);
+  void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
   void CheckManagedSockets();
   void HandleManagedSocketRequest(const UdtSocketId &udt_socket_id,
                                   const ManagedEndpointMessage &request);
   void HandleManagedSocketResponse(const UdtSocketId &managed_socket_id,
                                    const ManagedEndpointMessage &response);
+  bool SetAsynchronous(const UdtSocketId &udt_socket_id);
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
   bool PendingManagedSocketReplied(const UdtSocketId &udt_socket_id);
