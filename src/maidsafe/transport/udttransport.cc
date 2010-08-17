@@ -84,10 +84,19 @@ Port UdtTransport::DoStartListening(const IP &ip,
     return 0;
   }
 
-  // Set socket options if a managed connection is being created
+  // Set socket options
   if (managed_connection_listener) {
-    if (SetManagedSocketOptions(listening_socket_id, true) != kSuccess) {
+    if (SetManagedSocketOptions(listening_socket_id, false) != kSuccess) {
       DLOG(ERROR) << "DoStartListening setsockopt error." << std::endl;
+      UDT::close(listening_socket_id);
+      return 0;
+    }
+  } else {
+    bool receive_synchronously = false;
+    if (UDT::ERROR == UDT::setsockopt(listening_socket_id, 0, UDT_RCVSYN,
+        &receive_synchronously, sizeof(receive_synchronously))) {
+      DLOG(ERROR) << "DoStartListening setsockopt UDT_RCVSYN error: " <<
+          UDT::getlasterror().getErrorMessage() << std::endl;
       UDT::close(listening_socket_id);
       return 0;
     }
@@ -153,7 +162,7 @@ Port UdtTransport::DoStartListening(const IP &ip,
 
   listening_threadpool_->EnqueueTask(
       boost::bind(&UdtTransport::AcceptConnection, this, listening_port,
-                  listening_socket_id));
+                  listening_socket_id, true));
   if (managed_connection_listener) {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     managed_endpoint_listening_addrinfo_ = address_info;
@@ -288,15 +297,15 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
   managed_endpoint_message->set_identifier(our_identifier);
 //  managed_endpoint_message->set_identifier(std::string(1500, 'A'));
 //  std::cout << "SIZE 2: " << transport_message.ByteSize() << std::endl;
-  udt_connection.send_timeout_ = kAddManagedConnectionTimeout;
-  udt_connection.receive_timeout_ = -1;
-  udt_connection.SendData();
+  udt_connection.SetTimeout(kAddManagedConnectionTimeout, true);
+  udt_connection.SetTimeout(0, false);
 
   // Wait for peer to send response to managed_endpoint_listening_port_
   try {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     pending_managed_endpoint_sockets_.insert(
         std::pair<UdtSocketId, UdtSocketId>(initial_peer_socket_id, 0));
+    udt_connection.SendData(true);
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
         boost::posix_time::milliseconds(kAddManagedConnectionTimeout * 10),
         boost::bind(&UdtTransport::PendingManagedSocketReplied, this,
@@ -499,7 +508,8 @@ bool UdtTransport::RemoveManagedEndpoint(
 }
 
 void UdtTransport::AcceptConnection(const Port &port,
-                                    const UdtSocketId &udt_socket_id) {
+                                    const UdtSocketId &udt_socket_id,
+                                    bool receive_synchronously) {
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
   UdtSocketId receiver_socket_id;
@@ -521,28 +531,39 @@ void UdtTransport::AcceptConnection(const Port &port,
       port_iterator =
           find(listening_ports_.begin(), listening_ports_.end(), port);
       if (port_iterator != listening_ports_.end()) {
-        LOG(ERROR) << "UDT::accept error: " <<
-            UDT::getlasterror().getErrorMessage() << std::endl;
-        listening_ports_.erase(port_iterator);
-        std::map<Port, UdtSocketId>::iterator it = listening_map_.find(port);
-        if (it != listening_map_.end())
-          listening_map_.erase(it);
-        listening_threadpool_->Resize(listening_ports_.size());
-        UDT::close(udt_socket_id);
-        // If this is managed_endpoint_listening_port_, reset it to allow
-        // restart if required
-        {
-          boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
-          if (managed_endpoint_listening_port_ == *port_iterator) {
-            managed_endpoint_listening_addrinfo_.reset();
-            managed_endpoint_listening_port_ = 0;
+        if (UDT::getlasterror().getErrorCode() == UDT::ERRORINFO::EASYNCRCV) {
+          boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+          continue;
+        } else {
+          LOG(ERROR) << "UDT::accept error: " <<
+              UDT::getlasterror().getErrorMessage() << std::endl;
+          listening_ports_.erase(port_iterator);
+          std::map<Port, UdtSocketId>::iterator it = listening_map_.find(port);
+          if (it != listening_map_.end())
+            listening_map_.erase(it);
+          listening_threadpool_->Resize(listening_ports_.size());
+          UDT::close(udt_socket_id);
+          // If this is managed_endpoint_listening_port_, reset it to allow
+          // restart if required
+          {
+            boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
+            if (managed_endpoint_listening_port_ == *port_iterator) {
+              managed_endpoint_listening_addrinfo_.reset();
+              managed_endpoint_listening_port_ = 0;
+            }
           }
         }
       }
       return;
     } else {
+      if (UDT::ERROR == UDT::setsockopt(receiver_socket_id, 0, UDT_RCVSYN,
+          &receive_synchronously, sizeof(receive_synchronously))) {
+        LOG(ERROR) << "UDT::accept (UDT_RCVSYN) error: " <<
+            UDT::getlasterror().getErrorMessage() << std::endl;
+        continue;
+      }
       UdtConnection udt_connection(this, receiver_socket_id);
-      udt_connection.receive_timeout_ = -1;
+      //udt_connection.SetTimeout(10000, false);
       general_threadpool_->EnqueueTask(boost::bind(
           &UdtConnection::ReceiveData, udt_connection));
     }
@@ -654,9 +675,9 @@ void UdtTransport::HandleManagedSocketRequest(
   managed_endpoint_message->set_message_id(request.message_id());
   // std::cout << "SIZE 1: " << transport_message.ByteSize() << std::endl;
   // managed_endpoint_message->set_identifier(our_identifier);
-  udt_connection.send_timeout_ = kAddManagedConnectionTimeout;
-  udt_connection.receive_timeout_ = -1;
-  udt_connection.SendData();
+  udt_connection.SetTimeout(kAddManagedConnectionTimeout, true);
+  udt_connection.SetTimeout(0, false);
+  udt_connection.SendData(true);
 
   // Add newly connected socket to managed endpoints - start checking thread if
   // this is the first

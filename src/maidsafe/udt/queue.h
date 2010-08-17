@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 04/07/2010
+   Yunhong Gu, last updated 08/06/2010
 *****************************************************************************/
 
 
@@ -47,6 +47,7 @@ written by
 #include "channel.h"
 #include <vector>
 #include <map>
+#include <queue>
 
 class CUDT;
 
@@ -484,13 +485,13 @@ private:
 
 private:
    pthread_mutex_t m_LSLock;
-   volatile CUDT* m_pListener;			// pointer to the (unique, if any) listening UDT entity
-   CRendezvousQueue* m_pRendezvousQueue;	// The list of sockets in rendezvous mode
+   volatile CUDT* m_pListener;                          // pointer to the (unique, if any) listening UDT entity
+   CRendezvousQueue* m_pRendezvousQueue;                // The list of sockets in rendezvous mode
 
-   std::vector<CUDT*> m_vNewEntry;              // newly added entries, to be inserted
+   std::vector<CUDT*> m_vNewEntry;                      // newly added entries, to be inserted
    pthread_mutex_t m_IDLock;
 
-   std::map<int32_t, CPacket*> m_mBuffer;	// temporary buffer for rendezvous connection request
+   std::map<int32_t, std::queue<CPacket*> > m_mBuffer;	// temporary buffer for rendezvous connection request
    pthread_mutex_t m_PassLock;
    pthread_cond_t m_PassCond;
 

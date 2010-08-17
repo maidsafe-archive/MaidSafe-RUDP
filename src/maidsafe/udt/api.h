@@ -198,6 +198,8 @@ private:
    pthread_mutex_t m_IDLock;                         // used to synchronize ID generation
    UDTSOCKET m_SocketID;                             // seed to generate a new unique socket ID
 
+   std::map<int64_t, std::set<UDTSOCKET> > m_PeerRec;// record sockets from peers to avoid repeated connection request, int64_t = (socker_id << 30) + isn
+
 private:
    pthread_key_t m_TLSError;                         // thread local error record (last error)
    #ifndef WIN32

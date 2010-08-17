@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 04/08/2010
+   Yunhong Gu, last updated 08/06/2010
 *****************************************************************************/
 
 #include <cstring>
@@ -378,7 +378,7 @@ int CRcvBuffer::addData(CUnit* unit, int offset)
 
    if (NULL != m_pUnit[pos])
       return -1;
-   
+
    m_pUnit[pos] = unit;
 
    unit->m_iFlag = 1;
@@ -437,6 +437,8 @@ int CRcvBuffer::readBufferToFile(fstream& ofs, const int& len)
          unitsize = rs;
 
       ofs.write(m_pUnit[p]->m_Packet.m_pcData + m_iNotch, unitsize);
+      if (ofs.fail())
+         break;
 
       if ((rs > unitsize) || (rs == m_pUnit[p]->m_Packet.getLength() - m_iNotch))
       {
@@ -457,6 +459,10 @@ int CRcvBuffer::readBufferToFile(fstream& ofs, const int& len)
    }
 
    m_iStartPos = p;
+
+   if (ofs.fail())
+      throw CUDTException(4, 4);
+
    return len - rs;
 }
 

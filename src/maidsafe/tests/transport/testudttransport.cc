@@ -54,7 +54,8 @@ namespace transport {
 
 namespace test {
 
-TransportMessage MakeDummyTransportMessage(bool is_request) {
+TransportMessage MakeDummyTransportMessage(bool is_request,
+                                           const size_t &message_size) {
   TransportMessage transport_message;
   if (is_request)
     transport_message.set_type(TransportMessage::kRequest);
@@ -67,7 +68,7 @@ TransportMessage MakeDummyTransportMessage(bool is_request) {
   rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
   kad::NatDetectionPingRequest *request = payload->MutableExtension(
       kad::NatDetectionPingRequest::nat_detection_ping_request);
-  request->set_ping(base::RandomString(256 * 1024));
+  request->set_ping(base::RandomString(message_size));
   rpc_message->set_service("Service");
   return transport_message;
 }
@@ -78,30 +79,36 @@ class UdtTransportTest: public testing::Test {
                        listening_message_handler_(listening_node_.signals(),
                                                   "Listening", false),
                        listening_port_(0),
-                       loopback_ip_("127.0.0.1") {}
+                       loopback_ip_("127.0.0.1"),
+                       sockets_for_closing_() {}
   void SetUp() {
     listening_port_ = listening_node_.StartListening("", 0, NULL);
     ASSERT_TRUE(ValidPort(listening_port_));
+  }
+  void TearDown() {
+    std::for_each(sockets_for_closing_.begin(), sockets_for_closing_.end(),
+                  boost::bind(&UDT::close, _1));
   }
   UdtTransport listening_node_;
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
+  std::vector<UdtSocketId> sockets_for_closing_;
 };
 
 TEST_F(UdtTransportTest, BEH_TRANS_UdtSendOneMessageFromOneToAnother) {
   // Set up sending node and message
   UdtTransport sending_node;
   MessageHandler sending_message_handler(sending_node.signals(), "Send", false);
-  TransportMessage request = MakeDummyTransportMessage(true);
+  TransportMessage request = MakeDummyTransportMessage(true, 256 * 1024);
   const std::string kSentRpcRequest =
       request.data().rpc_message().SerializeAsString();
 
   // Send message
-  UdtSocketId sending_socket_id =
-      sending_node.Send(request, loopback_ip_, listening_port_, 10000);
-  ASSERT_GT(sending_socket_id, 0);
   const int kTimeout(10000);
+  UdtSocketId sending_socket_id =
+      sending_node.Send(request, loopback_ip_, listening_port_, kTimeout);
+  ASSERT_GT(sending_socket_id, 0);
   int count(0);
   while (count < kTimeout &&
          listening_message_handler_.rpc_requests().empty()) {
@@ -123,7 +130,7 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtSendOneMessageFromOneToAnother) {
   UdtSocketId receiving_socket_id = signalled_rpc_message.get<1>();
 
   // Send reply
-  TransportMessage response = MakeDummyTransportMessage(false);
+  TransportMessage response = MakeDummyTransportMessage(false, 256 * 1024);
   const std::string kSentRpcResponse =
       response.data().rpc_message().SerializeAsString();
   listening_node_.SendResponse(response, receiving_socket_id);
@@ -161,10 +168,10 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtMultipleListeningPorts) {
   EXPECT_EQ(kNumberOfListeningPorts, listening_node_.listening_ports().size());
 
   // Send a message to each
-  TransportMessage transport_message = MakeDummyTransportMessage(true);
+  TransportMessage message = MakeDummyTransportMessage(true, 256 * 1024);
   for (int i = 0; i < kNumberOfListeningPorts ; ++i) {
-    listening_node_.Send(transport_message, loopback_ip_, listening_ports.at(i),
-                         0);
+    sockets_for_closing_.push_back(listening_node_.Send(message, loopback_ip_,
+                                   listening_ports.at(i), 0));
   }
   const int kTimeout(10000);
   int count(0);
@@ -181,65 +188,133 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtMultipleListeningPorts) {
   EXPECT_TRUE(listening_node_.StopAllListening());
 }
 
-TEST_F(UdtTransportTest, BEH_TRANS_UdtSendMessagesFromManyToOne) {
-  UdtTransport node1;
-  UdtTransport node[20];
-  MessageHandler message_handler4(node1.signals(), "Node 1", false);
-  Port lp_node4 = node1.StartListening("", 0, NULL);
-  TransportMessage transport_message;
-  transport_message.set_type(TransportMessage::kRequest);
-  rpcprotocol::RpcMessage *rpc_message =
-  transport_message.mutable_data()->mutable_rpc_message();
-  rpc_message->set_rpc_id(2000);
-  rpc_message->set_method("Test");
-  rpcprotocol::RpcMessage::Detail *payload = rpc_message->mutable_detail();
-  kad::NatDetectionPingRequest *request = payload->MutableExtension(
-      kad::NatDetectionPingRequest::nat_detection_ping_request);
-  const std::string args = base::RandomString(256 * 1024);
-  request->set_ping(args);
-  rpc_message->set_service("Service");
-  std::string sent_message;
-  rpc_message->SerializeToString(&sent_message);
-//  sent_messages.push_back(sent_message);
-  for (int i =0; i < 20 ; ++i) {
-    node[i].Send(transport_message, loopback_ip_, lp_node4, 0);
+class UdtTransportVPTest: public testing::TestWithParam<size_t> {
+ protected:
+  UdtTransportVPTest() : listening_node_(),
+                         listening_message_handler_(listening_node_.signals(),
+                                                    "Listening", false),
+                         listening_port_(0),
+                         loopback_ip_("127.0.0.1"),
+                         sockets_for_closing_() {}
+  void SetUp() {
+    listening_port_ = listening_node_.StartListening("", 0, NULL);
+    ASSERT_TRUE(ValidPort(listening_port_));
   }
-  node1.StopAllListening();
-  for (int i =0; i < 20 ; ++i) {
-    node[i].StopAllListening();
+  void TearDown() {
+    std::for_each(sockets_for_closing_.begin(), sockets_for_closing_.end(),
+                  boost::bind(&UDT::close, _1));
   }
+  UdtTransport listening_node_;
+  MessageHandler listening_message_handler_;
+  Port listening_port_;
+  IP loopback_ip_;
+  std::vector<UdtSocketId> sockets_for_closing_;
+};
+
+TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
+  // Set up sending connections and message
+  const size_t kTestMessageSize(GetParam());
+  const boost::uint16_t kRepeats(kTestMessageSize > 256 * 1024 ? 5 : 50);
+  std::vector<UdtConnection> send_connections;
+  std::vector< boost::shared_ptr<MessageHandler> > send_message_handlers;
+  for (boost::uint16_t i = 0; i < kRepeats; ++i) {
+    UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
+    ASSERT_GT(udt_connection.udt_socket_id(), 0);
+    sockets_for_closing_.push_back(udt_connection.udt_socket_id());
+    send_connections.push_back(udt_connection);
+    boost::shared_ptr<MessageHandler> message_handler(new MessageHandler(
+        udt_connection.signals(), boost::lexical_cast<std::string>(i), false));
+    send_message_handlers.push_back(message_handler);
+  }
+  TransportMessage request(MakeDummyTransportMessage(true, kTestMessageSize));
+  const std::string kSentRpcRequest =
+      request.data().rpc_message().SerializeAsString();
+
+  // Send messages
+  const int kTimeout(kTestMessageSize > 256 * 1024 ? 2000 : 120000);
+  for (boost::uint16_t i = 0; i < kRepeats; ++i)
+    send_connections.at(i).Send(request, kTimeout);
+  int count(0);
+  while (count < kTimeout * 2 &&
+         listening_message_handler_.rpc_requests().size() < kRepeats) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+
+  // Assess results and get receiving sockets' IDs
+  boost::tuple<SocketId, TransportCondition> signalled_sent_result;
+  size_t send_success_count(0);
+  for (boost::uint16_t i = 0; i < kRepeats; ++i) {
+    ASSERT_EQ(1U, send_message_handlers.at(i)->sent_results().size());
+    signalled_sent_result = send_message_handlers.at(i)->sent_results().back();
+    EXPECT_EQ(sockets_for_closing_.at(i), signalled_sent_result.get<0>());
+    if (signalled_sent_result.get<1>() == kSuccess)
+      ++send_success_count;
+  }
+  if (kTestMessageSize > 256 * 1024)
+    ASSERT_LT(0, send_success_count);
+  else
+    ASSERT_EQ(kRepeats, send_success_count);
+  ASSERT_EQ(send_success_count, listening_message_handler_.rpc_requests().size());
+  std::vector<UdtSocketId> receiving_socket_ids;
+  boost::tuple<rpcprotocol::RpcMessage, SocketId, float> signalled_rpc_message;
+  MessageHandler::RpcMessageList copy_of_signalled_messages =
+      listening_message_handler_.rpc_requests();
+  for (boost::uint16_t i = 0; i < send_success_count; ++i) {
+    signalled_rpc_message = copy_of_signalled_messages.front();
+    copy_of_signalled_messages.pop_front();
+    EXPECT_EQ(kSentRpcRequest,
+              signalled_rpc_message.get<0>().SerializeAsString());
+    receiving_socket_ids.push_back(signalled_rpc_message.get<1>());
+  }
+
+  // Send reply
+  request.Clear();
+  TransportMessage response(MakeDummyTransportMessage(false, kTestMessageSize));
+  const std::string kSentRpcResponse =
+      response.data().rpc_message().SerializeAsString();
+  std::for_each(receiving_socket_ids.begin(), receiving_socket_ids.end(),
+      boost::bind(&UdtTransport::SendResponse, &listening_node_, response, _1));
+  count = 0;
+  while (count < kTimeout * 5 &&
+         listening_message_handler_.sent_results().size() < kRepeats) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+
+  // Assess results
+  ASSERT_EQ(send_success_count,
+            listening_message_handler_.sent_results().size());
+  MessageHandler::MessageResultList copy_of_signalled_results =
+      listening_message_handler_.sent_results();
+  size_t reply_success_count = 0;
+  for (boost::uint16_t i = 0; i < send_success_count; ++i) {
+    signalled_sent_result = copy_of_signalled_results.front();
+    copy_of_signalled_results.pop_front();
+    if (signalled_sent_result.get<1>() == kSuccess)
+      ++reply_success_count;
+    count = 0;
+    while (count < kTimeout &&
+           send_message_handlers.at(i)->rpc_responses().empty()) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+      count += 10;
+    }
+    if (!send_message_handlers.at(i)->rpc_responses().empty()) {
+      ASSERT_EQ(1U, send_message_handlers.at(i)->rpc_responses().size());
+      signalled_rpc_message =
+          send_message_handlers.at(i)->rpc_responses().back();
+      EXPECT_EQ(kSentRpcResponse,
+                signalled_rpc_message.get<0>().SerializeAsString());
+    }
+  }
+  if (kTestMessageSize > 256 * 1024)
+    ASSERT_LT(0, reply_success_count);
+  else
+    ASSERT_EQ(kRepeats, reply_success_count);
 }
 
-TEST_F(UdtTransportTest, BEH_TRANS_UdtManyBigMessages) {
-/*
-  TransportMessage sent_message;
-  std::string *sent_raw_message =
-      sent_message.mutable_data()->mutable_raw_message();
-  try {
-    sent_raw_message->assign(base::RandomString(kMaxTransportMessageSize - 12));
-  }
-  catch(const std::exception &e) {
-    FAIL() << e.what() << std::endl;
-  }
-  sent_message.set_type(TransportMessage::kResponse);
-  UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
-  UdtSocketId sending_socket_id = udt_connection.udt_socket_id();
-  ASSERT_GT(sending_socket_id, 0);
-  MessageHandler message_handler(udt_connection.signals(), "BigSend", false);
-  udt_connection.Send(sent_message, -1);
-  const int kTimeout(10000);
-  UdtSocketId receiving_socket_id;
-
-  //EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, 1,
-  //            &listening_message_handler_, &receiving_socket_id));
-  ASSERT_EQ(1U, message_handler.sent_results().size());
-  boost::tuple<SocketId, TransportCondition> signalled_message_result =
-      message_handler.sent_results().back();
-  EXPECT_EQ(sending_socket_id, signalled_message_result.get<0>());
-  EXPECT_EQ(kSuccess, signalled_message_result.get<1>());
-  EXPECT_FALSE(SocketAlive(sending_socket_id));
-  EXPECT_FALSE(SocketAlive(receiving_socket_id));  */
-}
+INSTANTIATE_TEST_CASE_P(VPTest, UdtTransportVPTest,
+    testing::Values(100, 1024 * 256, kMaxTransportMessageSize / 2));
 
 TEST_F(UdtTransportTest, BEH_TRANS_UdtAddRemoveManagedEndpoints) {
   UdtTransport node1, node2, node3, node4, node5;

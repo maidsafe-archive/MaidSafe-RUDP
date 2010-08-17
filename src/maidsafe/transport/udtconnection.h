@@ -64,8 +64,8 @@ class UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataFull_Test;
 
 class UdtTransport;
 
-const int kDefaultSendTimeout(10000);  // milliseconds
-const int kDefaultReceiveTimeout(10000);  // milliseconds
+const int kDefaultSendTimeout(10000);
+const int kDefaultReceiveTimeout(10000);
 
 struct UdtStats : public SocketPerformanceStats {
  public:
@@ -90,8 +90,6 @@ class UdtConnection {
   UdtConnection(const UdtConnection &other);
   UdtConnection& operator=(const UdtConnection &other);
   ~UdtConnection();
-  // If data transmission stops at any time for a period of response_timeout
-  // milliseconds, the function signals failure.
   void Send(const TransportMessage &transport_message,
             const int &response_timeout);
   boost::shared_ptr<Signals> signals() const { return signals_; }
@@ -112,15 +110,15 @@ class UdtConnection {
   UdtConnection(UdtTransport *udt_transport,
                 const UdtSocketId &udt_socket_id);
   void Init();
+  bool SetTimeout(const int &timeout, bool send);
   // Method to allow sending on a socket which is already connected to a peer.
   void SendResponse(const TransportMessage &transport_message);
   // General method for connecting then sending data
   void ConnectThenSend();
-  // General method for sending data once connection made.  Unlike public Send,
-  // the socket is only closed if receive_timeout_ == 0 (or on send failure).
-  // For receive_timeout_ > 0, the socket switches to receive after sending.
-  // For receive_timeout_ < 0 the socket is simply left open.
-  void SendData();
+  // General method for sending data once connection made.  If
+  // keep_alive_after_send is true, the socket switches to receive after sending
+  // (where receive_timeout_ > 0) or is simply left open.
+  void SendData(bool keep_alive_after_send);
   // Send the size of the pending message
   TransportCondition SendDataSize();
   // Send the content of the message.

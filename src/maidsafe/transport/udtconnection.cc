@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <google/protobuf/descriptor.h>
+#include <algorithm>
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/threadpool.h"
 #include "maidsafe/transport/udttransport.h"
@@ -149,30 +150,64 @@ void UdtConnection::Init() {
     udt_socket_id_ = UDT::INVALID_SOCK;
 }
 
+bool UdtConnection::SetTimeout(const int &timeout, bool send) {
+  if (send) {
+    if (send_timeout_ == timeout)
+      return true;
+    else
+      send_timeout_ = timeout;
+  } else {
+    if (receive_timeout_ == timeout)
+      return true;
+    else
+      receive_timeout_ = timeout;
+  }
+  int result = UDT::setsockopt(udt_socket_id_, 0,
+      (send ? UDT_SNDTIMEO : UDT_RCVTIMEO), &timeout, sizeof(timeout));
+  if (result == UDT::ERROR) {
+    DLOG(ERROR) << "UDT SetTimeout error: " <<
+                   UDT::getlasterror().getErrorMessage() << std::endl;
+    return false;
+  } else {
+    return true;
+  }
+}
+
 void UdtConnection::Send(const TransportMessage &transport_message,
                          const int &response_timeout) {
   transport_message_ = transport_message;
-  send_timeout_ = response_timeout < 0 ? kDefaultSendTimeout : response_timeout;
-  receive_timeout_ = response_timeout < 0 ? 0 : response_timeout;
-  boost::function<void()> functor =
-      boost::bind(&UdtConnection::ConnectThenSend, *this);
-  if (threadpool_.get()) {
-    threadpool_->EnqueueTask(functor);
-  } else {
-    worker_.reset(new boost::thread(functor));
+  if (!SetTimeout(response_timeout, true) ||
+      !SetTimeout(response_timeout, false)) {
+    signals_->on_send_(udt_socket_id_, kSendUdtFailure);
+  }
+  try {
+    boost::function<void()> functor =
+        boost::bind(&UdtConnection::ConnectThenSend, *this);
+    if (threadpool_.get()) {
+      threadpool_->EnqueueTask(functor);
+    } else {
+      worker_.reset(new boost::thread(functor));
+    }
+  }
+  catch(const std::exception &e) {
+    LOG(ERROR) << "In UdtConnection::Send: " << e.what() << std::endl;
+    signals_->on_send_(udt_socket_id_, kSendUdtFailure);
   }
 }
 
 void UdtConnection::SendResponse(const TransportMessage &transport_message) {
   transport_message_ = transport_message;
-  send_timeout_ = kDefaultSendTimeout;
-  receive_timeout_ = 0;
-  boost::function<void()> functor =
-      boost::bind(&UdtConnection::SendData, *this);
-  if (threadpool_.get()) {
-    threadpool_->EnqueueTask(functor);
-  } else {
-    worker_.reset(new boost::thread(functor));
+  try {
+    boost::function<void()> functor =
+        boost::bind(&UdtConnection::SendData, *this, false);
+    if (threadpool_.get()) {
+      threadpool_->EnqueueTask(functor);
+    } else {
+      worker_.reset(new boost::thread(functor));
+    }
+  }
+  catch(const std::exception &e) {
+    LOG(ERROR) << "In UdtConnection::SendResponse: " << e.what() << std::endl;
   }
 }
 
@@ -183,16 +218,10 @@ void UdtConnection::ConnectThenSend() {
     signals_->on_send_(udt_socket_id_, kSendUdtFailure);
     return;
   }
-  SendData();
+  SendData(receive_timeout_ > 0);
 }
 
-void UdtConnection::SendData() {
-  // Set timeout
-  if (send_timeout_ > 0) {
-    UDT::setsockopt(udt_socket_id_, 0, UDT_SNDTIMEO, &send_timeout_,
-                    sizeof(send_timeout_));
-  }
-
+void UdtConnection::SendData(bool keep_alive_after_send) {
   // Send the message size
   TransportCondition result = SendDataSize();
   if (result != kSuccess) {
@@ -222,10 +251,12 @@ void UdtConnection::SendData() {
   } else {
     signals_->on_stats_(udt_stats);
   }
-  if (receive_timeout_ > 0) {
-    ReceiveData();
-  } else if (receive_timeout_ == 0) {
+  if (!keep_alive_after_send) {
     UDT::close(udt_socket_id_);
+  } else if (receive_timeout_ == 0) {
+    return;
+  } else {
+    ReceiveData();
   }
 }
 
@@ -259,12 +290,6 @@ TransportCondition UdtConnection::SendDataContent() {
 }
 
 void UdtConnection::ReceiveData() {
-  // Set timeout
-  if (receive_timeout_ > 0) {
-    UDT::setsockopt(udt_socket_id_, 0, UDT_RCVTIMEO, &receive_timeout_,
-                    sizeof(receive_timeout_));
-  }
-
   // Get the incoming message size
   DataSize data_size = ReceiveDataSize();
   if (data_size == 0)
@@ -347,11 +372,6 @@ TransportCondition UdtConnection::MoveData(bool sending,
                                            char *data) {
   DataSize moved_total = 0;
   int moved_size = 0;
-  boost::posix_time::time_duration timeout =
-      (sending ? boost::posix_time::milliseconds(send_timeout_) :
-                 boost::posix_time::milliseconds(receive_timeout_));
-  boost::posix_time::ptime last_success =
-      boost::posix_time::microsec_clock::universal_time();
   while (moved_total < data_size) {
     if (sending) {
       moved_size = UDT::send(udt_socket_id_, data + moved_total,
@@ -365,17 +385,10 @@ TransportCondition UdtConnection::MoveData(bool sending,
           UDT::getlasterror().getErrorMessage() << std::endl;
       return (sending ? kSendUdtFailure : kReceiveUdtFailure);
     } else if (moved_size == 0) {
-      if ((boost::posix_time::microsec_clock::universal_time() - last_success) >
-          timeout) {
-        LOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
-            udt_socket_id_ << " timed out in MoveData." << std::endl;
-        return (sending ? kSendTimeout : kReceiveTimeout);
-      } else {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-        continue;
-      }
+      LOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
+          udt_socket_id_ << " timed out in MoveData." << std::endl;
+      return (sending ? kSendTimeout : kReceiveTimeout);
     }
-    last_success = boost::posix_time::microsec_clock::universal_time();
     moved_total += moved_size;
   }
   return kSuccess;

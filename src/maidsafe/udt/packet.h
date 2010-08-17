@@ -199,6 +199,8 @@ protected:
 class CHandShake
 {
 public:
+   CHandShake();
+
    int serialize(char* buf, const int& size);
    int deserialize(const char* buf, const int& size);
 

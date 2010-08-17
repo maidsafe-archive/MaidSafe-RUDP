@@ -106,10 +106,12 @@ void MessageHandler::OnRpcMessageReceived(
     const int &socket_id,
     const float &rtt,
     bool is_request) {
-//  if (is_request)
-//    printf("%s - OnRpcRequestReceived", message_handler_id_.c_str());
-//  else
-//    printf("%s - OnRpcResponseReceived", message_handler_id_.c_str());
+/*
+  if (is_request)
+    printf("%s - OnRpcRequest (%i)\n", message_handler_id_.c_str(), socket_id);
+  else
+    printf("%s - OnRpcResponse (%i)\n", message_handler_id_.c_str(), socket_id);
+*/
   boost::mutex::scoped_lock lock(mutex_);
 //  if (!target_message_.empty() && message == target_message_)
 //    ++messages_confirmed_;

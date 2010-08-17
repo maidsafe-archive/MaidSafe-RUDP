@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 04/25/2010
+   Yunhong Gu, last updated 07/20/2010
 *****************************************************************************/
 
 
@@ -117,9 +117,9 @@ written by
 //              Control Info: first sequence number of the message
 //                            last seqeunce number of the message
 //      0x7FFF: Explained by bits 16 - 31
-//              
+//
 //   bit 16 - 31:
-//      This space is used for future expansion or user defined control packets. 
+//      This space is used for future expansion or user defined control packets.
 //
 //    0                   1                   2                   3
 //    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -188,7 +188,7 @@ void CPacket::pack(const int& pkttype, void* lparam, void* rparam, const int& si
       if (NULL != lparam)
          m_nHeader[1] = *(int32_t *)lparam;
 
-      // data ACK seq. no. 
+      // data ACK seq. no.
       // optional: RTT (microsends), RTT variance (microseconds) advertised flow window size (packets), and estimated link capacity (packets per second)
       m_PacketVector[1].iov_base = (char *)rparam;
       m_PacketVector[1].iov_len = size;
@@ -218,7 +218,7 @@ void CPacket::pack(const int& pkttype, void* lparam, void* rparam, const int& si
       // but "writev" does not allow this
       m_PacketVector[1].iov_base = (char *)&__pad; //NULL;
       m_PacketVector[1].iov_len = 4; //0;
-  
+
       break;
 
    case 1: //0001 - Keep-alive
@@ -245,7 +245,7 @@ void CPacket::pack(const int& pkttype, void* lparam, void* rparam, const int& si
       break;
 
    case 7: //0111 - Message Drop Request
-      // msg id 
+      // msg id
       m_nHeader[1] = *(int32_t *)lparam;
 
       //first seq no, last seq no
@@ -334,6 +334,19 @@ CPacket* CPacket::clone() const
    pkt->m_PacketVector[1].iov_len = m_PacketVector[1].iov_len;
 
    return pkt;
+}
+
+CHandShake::CHandShake():
+m_iVersion(0),
+m_iType(0),
+m_iISN(0),
+m_iMSS(0),
+m_iFlightFlagSize(0),
+m_iReqType(0),
+m_iID(0),
+m_iCookie(0),
+m_piPeerIP()
+{
 }
 
 int CHandShake::serialize(char* buf, const int& size)

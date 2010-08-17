@@ -155,6 +155,15 @@ public:
 
    static void waitForEvent();
 
+      // Functionality:
+      //    sleep for a short interval. exact sleep time does not matter
+      // Parameters:
+      //    None.
+      // Returned value:
+      //    None.
+
+   static void sleep();
+
 private:
    uint64_t m_ullSchedTime;             // next schedulled time
 
@@ -177,8 +186,15 @@ public:
    CGuard(pthread_mutex_t& lock);
    ~CGuard();
 
+public:
    static void enterCS(pthread_mutex_t& lock);
    static void leaveCS(pthread_mutex_t& lock);
+
+   static void createMutex(pthread_mutex_t& lock);
+   static void releaseMutex(pthread_mutex_t& lock);
+
+   static void createCond(pthread_cond_t& cond);
+   static void releaseCond(pthread_cond_t& cond);
 
 private:
    pthread_mutex_t& m_Mutex;            // Alias name of the mutex to be protected

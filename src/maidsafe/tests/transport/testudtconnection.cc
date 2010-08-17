@@ -331,10 +331,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_EQ(extra_char_count, received_size);
 
   // Send too few chars - should fail and close sockets
-  int receive_timeout = 1000;
-  ASSERT_EQ(kSuccess, UDT::setsockopt(receiving_udt_connection1.udt_socket_id_,
-            0, UDT_RCVTIMEO, &receive_timeout, sizeof(receive_timeout)));
-  receiving_udt_connection1.receive_timeout_ = receive_timeout;
+  ASSERT_TRUE(receiving_udt_connection1.SetTimeout(1000, false));
   boost::uint8_t missing_char_count = 1;
   ASSERT_LE(missing_char_count, sizeof(DataSize));
   boost::uint8_t wee_data_buffer_size = sizeof(DataSize) - missing_char_count;
@@ -403,10 +400,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_EQ(sending_data_size, received_data_size);
 
   // Set small timeout and repeat sending until first one times out
-  int send_timeout = 1;  // milliseconds
-  ASSERT_EQ(kSuccess, UDT::setsockopt(sending_udt_connection3.udt_socket_id_, 0,
-            UDT_SNDTIMEO, &send_timeout, sizeof(send_timeout)));
-  receiving_udt_connection1.send_timeout_ = send_timeout;
+  ASSERT_TRUE(sending_udt_connection3.SetTimeout(1, true));
   int result = kSuccess;
   while (result == kSuccess)
     result = sending_udt_connection3.SendDataSize();
@@ -597,13 +591,9 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
                             receiving_udt_connection3.transport_message_));
   // Set small timeout, large data size and repeat sending until first one times
   // out
-  int send_timeout = 1;  // milliseconds
   (sending_udt_connection3.transport_message_.mutable_data()->
       mutable_raw_message())->assign(10000000, 'A');
-
-  ASSERT_EQ(kSuccess, UDT::setsockopt(sending_udt_connection3.udt_socket_id_, 0,
-            UDT_SNDTIMEO, &send_timeout, sizeof(send_timeout)));
-  sending_udt_connection3.send_timeout_ = send_timeout;
+  ASSERT_TRUE(sending_udt_connection3.SetTimeout(1, true));
   int result = kSuccess;
   while (result == kSuccess)
     result = sending_udt_connection3.SendDataContent();
@@ -884,7 +874,6 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   EXPECT_FALSE(SocketAlive(udt_connections.at(13).udt_socket_id_));
   EXPECT_TRUE(SingleSignalFired(udt_connections.at(13).transport_message_,
                                 message_handlers.at(13), false));
-
   // Set up connections with valid pointers to transport objects
   std::vector< boost::shared_ptr<UdtTransport> > udt_transports;
   std::vector<UdtConnection> udt_connections2;

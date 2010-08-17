@@ -166,7 +166,9 @@ class UdtTransport : public Transport {
                                           const Port &remote_port,
                                           const IP &rendezvous_ip,
                                           const Port &rendezvous_port);
-  void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
+  void AcceptConnection(const Port &port,
+                        const UdtSocketId &udt_socket_id,
+                        bool receive_synchronously);
   void CheckManagedSockets();
   void HandleManagedSocketRequest(const UdtSocketId &udt_socket_id,
                                   const ManagedEndpointMessage &request);

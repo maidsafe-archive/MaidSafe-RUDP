@@ -400,8 +400,10 @@ private: // Timers
    volatile uint64_t m_ullSYNInt;		// SYN interval
    volatile uint64_t m_ullACKInt;		// ACK interval
    volatile uint64_t m_ullNAKInt;		// NAK interval
-   volatile uint64_t m_ullMinEXPInt;		// Minimum EXP interval
+   volatile uint64_t m_ullEXPInt;		// EXP interval
    volatile int64_t m_llLastRspTime;		// time stamp of last response from the peer
+
+   uint64_t m_ullMinExpInt;			// timeout lower bound threshold: too small timeout can cause problem
 
    int m_iPktCount;				// packet counter for ACK
    int m_iLightACKCount;			// light ACK counter
