@@ -473,8 +473,6 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
       TransportMessage::kResponse);
-  DataSize sending_data_size =
-      sending_udt_connection1.transport_message_.ByteSize();
   EXPECT_EQ(kSendUdtFailure, sending_udt_connection1.SendDataContent());
 
   // Connect to listening socket, then try with invalid message

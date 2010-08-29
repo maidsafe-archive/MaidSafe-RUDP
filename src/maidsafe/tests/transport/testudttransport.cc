@@ -320,7 +320,7 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtAddRemoveManagedEndpoints) {
   UdtTransport node1, node2, node3, node4, node5;
   MessageHandler message_handler1(node1.signals(), "Node 1", false);
   MessageHandler message_handler3(node3.signals(), "Node 3", false);
-  Port node1_port = node1.StartListening("", 0, NULL);
+  node1.StartListening("", 0, NULL);
   Port node2_port = node2.StartListening("", 0, NULL);
   Port node3_port = node3.StartListening("", 0, NULL);
   Port node4_port = node4.StartListening("", 0, NULL);

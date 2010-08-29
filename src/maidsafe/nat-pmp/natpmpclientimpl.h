@@ -33,6 +33,7 @@ Created by Julian Cain on 11/3/09.
 
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/function.hpp>
 
 #include <deque>
 #include <utility>
