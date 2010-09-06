@@ -6,8 +6,8 @@ message TestPingRequest{
   extend rpcprotocol.RpcMessage.Detail {
     optional TestPingRequest ping_request = 19;
   }
-  required string ping = 1;
-  required string ip = 2;
+  required bytes ping = 1;
+  required bytes ip = 2;
   required int32 port = 3;
 }
 
@@ -15,8 +15,8 @@ message TestPingResponse{
   extend rpcprotocol.RpcMessage.Detail {
     optional TestPingResponse ping_response = 20;
   }
-  required string result = 1;
-  required string pong = 2;
+  required bytes result = 1;
+  required bytes pong = 2;
 }
 
 message BinaryOpRequest {
@@ -25,7 +25,7 @@ message BinaryOpRequest {
   }
   required int32 first = 1;
   required int32 second = 2;
-  required string ip = 3;
+  required bytes ip = 3;
   required int32 port = 4;
 }
 
@@ -40,8 +40,8 @@ message StringMirrorRequest {
   extend rpcprotocol.RpcMessage.Detail {
     optional StringMirrorRequest mirror_request = 23;
   }
-  required string message = 1;
-  required string ip = 2;
+  required bytes message = 1;
+  required bytes ip = 2;
   required int32 port = 3;
   optional bool not_pause = 4;
 }
@@ -50,7 +50,7 @@ message StringMirrorResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional StringMirrorResponse mirror_response = 24;
   }
-  required string mirrored_string = 1;
+  required bytes mirrored_string = 1;
 }
 
 service PingTest {
