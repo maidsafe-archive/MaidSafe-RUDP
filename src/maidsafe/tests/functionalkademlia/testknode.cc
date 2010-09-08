@@ -54,7 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace fs = boost::filesystem;
 
 namespace test_knode {
-  static const boost::uint16_t K = 16;
+  static const boost::uint16_t K = 8;
 }  // namespace test_knode
 
 const boost::int16_t kNetworkSize = test_knode::K + 1;
