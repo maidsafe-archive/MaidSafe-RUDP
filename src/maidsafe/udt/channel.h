@@ -160,11 +160,7 @@ private:
 private:
    int m_iIPversion;                    // IP version
 
-   #ifndef WIN32
-      int m_iSocket;                    // socket descriptor
-   #else
-      SOCKET m_iSocket;
-   #endif
+   UDPSOCKET m_iSocket;                 // socket descriptor
 
    int m_iSndBufSize;                   // UDP sending buffer size
    int m_iRcvBufSize;                   // UDP receiving buffer size
