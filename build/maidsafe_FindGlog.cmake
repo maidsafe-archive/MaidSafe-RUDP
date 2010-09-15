@@ -52,6 +52,7 @@ IF(WIN32 AND NOT MSVC)
   MESSAGE(FATAL_ERROR "\nThis module is only applicable on Windows when building for Microsoft Visual Studio.\n\n")
 ENDIF()
 
+UNSET(WARNING_MESSAGE)
 UNSET(Glog_INCLUDE_DIR CACHE)
 UNSET(Glog_LIBRARY_DIR CACHE)
 UNSET(Glog_LIBRARY_DIR_DEBUG CACHE)

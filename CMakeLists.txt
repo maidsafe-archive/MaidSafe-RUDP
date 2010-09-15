@@ -182,7 +182,7 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
 ENDIF()
 
 # Create CTestCustom.cmake to avoid inclusion of coverage results from third-party code
-FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \"protobuf/\" \"tests/\" \"cryptopp/\"  \"libupnp/\"  \"upnp/\" \"nat-pmp/\"  \"udt/\")\n\n")
+FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"udt/\" \"upnp/\")\n\n")
 
 ###################################################################################################
 # Set default directories to be searched for included files and libs                              #
@@ -233,6 +233,16 @@ INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGtest.cmake)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gtest_INCLUDE_DIR})
 SET(LIBS_DIRS ${LIBS_DIRS} ${Gtest_LIBRARY_DIR})
 SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Gtest_LIBRARY_DIR_DEBUG})
+
+###################################################################################################
+# MySQL++ library search                                                                          #
+###################################################################################################
+INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindMysqlpp.cmake)
+IF(Mysqlpp_FOUND)
+  SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Mysqlpp_INCLUDE_DIR} ${Mysql_INCLUDE_DIR})
+  SET(LIBS_DIRS ${LIBS_DIRS} ${Mysqlpp_LIBRARY_DIR} ${Mysql_LIBRARY_DIR})
+  SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Mysqlpp_LIBRARY_DIR_DEBUG} ${Mysql_LIBRARY_DIR_DEBUG})
+ENDIF()
 
 ###################################################################################################
 # Protocol Buffers library search                                                                 #
@@ -294,8 +304,6 @@ ELSE()
   SET(SYS_LIB ${SYS_LIB} ${Glog_LIBRARY} ${Protobuf_LIBRARY})
 ENDIF()
 
-SET(LIBS_DIRS ${LIBS_DIRS})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG})
 LIST(REMOVE_DUPLICATES LIBS_DIRS)
 LIST(REMOVE_DUPLICATES LIBS_DIRS_DEBUG)
 LINK_DIRECTORIES(${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
@@ -382,13 +390,13 @@ SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
 
 LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
                              ${ALL_FILES_KADEMLIA_DIR}
-							 ${ALL_FILES_TRANSPORT_DIR}
-							 ${ALL_FILES_PROTOBUF_DIR}
-							 ${ALL_FILES_RPCPROTO_DIR}
-							 ${ALL_FILES_LIBUPNP_DIR}
-							 ${ALL_FILES_UPNP_DIR}
-							 ${ALL_FILES_NATPMP_DIR}
-							 ${ALL_FILES_MAIDSAFE_DIR})
+                             ${ALL_FILES_TRANSPORT_DIR}
+                             ${ALL_FILES_PROTOBUF_DIR}
+                             ${ALL_FILES_RPCPROTO_DIR}
+                             ${ALL_FILES_LIBUPNP_DIR}
+                             ${ALL_FILES_UPNP_DIR}
+                             ${ALL_FILES_NATPMP_DIR}
+                             ${ALL_FILES_MAIDSAFE_DIR})
 
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"
@@ -416,7 +424,10 @@ FILE(GLOB ALL_FILES_TEST_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/t
                                        "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*.h")
 FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.cc"
                                   "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.h")
-
+IF(Mysqlpp_FOUND)
+  FILE(GLOB ALL_FILES_NETWORK_TEST_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/distributed_network/*.cc"
+                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/distributed_network/*.h")
+ENDIF()
 
 ###################################################################################################
 # Traverse subdirs for imported 3rd party libs                                                    #
@@ -440,6 +451,9 @@ ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR})
 ADD_EXECUTABLE(kaddemo_static ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 #ADD_EXECUTABLE(benchmark ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(benchmark_static ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+IF(Mysqlpp_FOUND)
+  ADD_EXECUTABLE(distributed_net_clients ${ALL_FILES_NETWORK_TEST_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 IF(NOT MSVC)
@@ -483,6 +497,12 @@ IF(NOT MSVC)
                           DEBUG_OUTPUT_NAME TESTboost${CMAKE_DEBUG_POSTFIX}
                           RELWITHDEBINFO_OUTPUT_NAME TESTboost${CMAKE_RELWITHDEBINFO_POSTFIX}
                           MINSIZEREL_OUTPUT_NAME TESTboost${CMAKE_MINSIZEREL_POSTFIX})
+  IF(Mysqlpp_FOUND)
+    SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES
+                            DEBUG_OUTPUT_NAME distributed_net_clients${CMAKE_DEBUG_POSTFIX}
+                            RELWITHDEBINFO_OUTPUT_NAME distributed_net_clients${CMAKE_RELWITHDEBINFO_POSTFIX}
+                            MINSIZEREL_OUTPUT_NAME distributed_net_clients${CMAKE_MINSIZEREL_POSTFIX})
+  ENDIF()
 ENDIF()
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
@@ -552,6 +572,9 @@ IF(NOT MSVC)
 #  ENDIF()
   TARGET_LINK_LIBRARIES(kaddemo_static maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
   TARGET_LINK_LIBRARIES(benchmark_static maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
+  IF(Mysqlpp_FOUND)
+    TARGET_LINK_LIBRARIES(distributed_net_clients maidsafe_dht_static udt_static cryptopp_static ${Mysqlpp_LIBRARY} ${SYS_LIB})
+  ENDIF()
 ENDIF()
 
 IF(CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -591,7 +614,7 @@ IF(MSVC)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testcontact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/testknode.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/testnatpmp.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testudttransport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransport.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warning 4996 disabled due to generation through use of Boost Signals2
@@ -619,6 +642,14 @@ IF(MSVC)
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
+  IF(Mysqlpp_FOUND)
+    SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES
+                            LINK_FLAGS "/STACK:1048576"
+                            LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
+                            LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
+                            LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
+                            LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
+  ENDIF()
 
   # Next version of CMake accommodates per-build-type STATIC_LIBRARY_FLAGS.  Until then, this has no effect.
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
@@ -638,6 +669,9 @@ IF(MSVC)
   TARGET_LINK_LIBRARIES(kaddemo_static maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
   TARGET_LINK_LIBRARIES(benchmark_static maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
   TARGET_LINK_LIBRARIES(TESTboost ${SYS_LIB})
+  IF(Mysqlpp_FOUND)
+    TARGET_LINK_LIBRARIES(distributed_net_clients maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
+  ENDIF()
 
 #  TARGET_LINK_LIBRARIES(maidsafe_dht udt_static cryptopp_static iphlpapi.lib)
 #  TARGET_LINK_LIBRARIES(kaddemo maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
@@ -654,6 +688,9 @@ IF(MSVC)
     TARGET_LINK_LIBRARIES(kaddemo_static debug ${DLIB})
     TARGET_LINK_LIBRARIES(benchmark_static debug ${DLIB})
     TARGET_LINK_LIBRARIES(TESTboost debug ${DLIB})
+    IF(Mysqlpp_FOUND)
+      TARGET_LINK_LIBRARIES(distributed_net_clients debug ${DLIB})
+    ENDIF()
 #    TARGET_LINK_LIBRARIES(maidsafe_dht debug ${DLIB})
 #    TARGET_LINK_LIBRARIES(kaddemo debug ${DLIB})
 #    TARGET_LINK_LIBRARIES(benchmark debug ${DLIB})
@@ -666,6 +703,9 @@ IF(MSVC)
   TARGET_LINK_LIBRARIES(TESTtransport debug ${Gtest_LIBRARY_DEBUG})
   TARGET_LINK_LIBRARIES(TESTupnp debug ${Gtest_LIBRARY_DEBUG})
   TARGET_LINK_LIBRARIES(TESTboost debug ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY_DEBUG} debug ${Gtest_LIBRARY_DEBUG})
+  IF(Mysqlpp_FOUND)
+    TARGET_LINK_LIBRARIES(distributed_net_clients debug ${Mysqlpp_LIBRARY_DEBUG} ${Mysql_LIBRARY_DEBUG})
+  ENDIF()
 
   FOREACH(RLIB ${RELEASE_LIBS})
     TARGET_LINK_LIBRARIES(TESTbase optimized ${RLIB})
@@ -678,6 +718,9 @@ IF(MSVC)
     TARGET_LINK_LIBRARIES(kaddemo_static optimized ${RLIB})
     TARGET_LINK_LIBRARIES(benchmark_static optimized ${RLIB})
     TARGET_LINK_LIBRARIES(TESTboost optimized ${RLIB})
+    IF(Mysqlpp_FOUND)
+      TARGET_LINK_LIBRARIES(distributed_net_clients optimized ${RLIB})
+    ENDIF()
 #    TARGET_LINK_LIBRARIES(maidsafe_dht optimized ${RLIB})
 #    TARGET_LINK_LIBRARIES(kaddemo optimized ${RLIB})
 #    TARGET_LINK_LIBRARIES(benchmark optimized ${RLIB})
@@ -690,12 +733,15 @@ IF(MSVC)
   TARGET_LINK_LIBRARIES(TESTtransport optimized ${Gtest_LIBRARY})
   TARGET_LINK_LIBRARIES(TESTupnp optimized ${Gtest_LIBRARY})
   TARGET_LINK_LIBRARIES(TESTboost optimized ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY_RELEASE} optimized ${Gtest_LIBRARY})
+  IF(Mysqlpp_FOUND)
+    TARGET_LINK_LIBRARIES(distributed_net_clients optimized ${Mysqlpp_LIBRARY} ${Mysql_LIBRARY})
+  ENDIF()
 ENDIF()
 
 
 IF(UNIX)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -ggdb -pg -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem ${PROJECT_NAME}_SOURCE_DIR}/maidsafe/protobuf/ -W -Wall -Wextra -pedantic -pedantic-errors -std=c++0x -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/protobuf/ -isystem ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/rpcprotocol/ -W -Wall -Wextra -pedantic -pedantic-errors -std=c++0x -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg -fprofile-arcs -ftest-coverage")
@@ -724,6 +770,9 @@ ELSEIF(WIN32 AND NOT MSVC)
     SET_TARGET_PROPERTIES(TESTbase TESTtransport TESTrpcprotocol TESTkademlia TESTknode TESTnatpmp TESTupnp PROPERTIES LINK_FLAGS "-lgcov -pg -fprofile-arcs -ftest-coverage")
   ENDIF()
   SET_TARGET_PROPERTIES(TESTbase TESTtransport TESTrpcprotocol TESTkademlia TESTknode TESTnatpmp TESTupnp kaddemo_static benchmark_static PROPERTIES LINK_FLAGS "-mthreads")
+  IF(Mysqlpp_FOUND)
+    SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES LINK_FLAGS "-mthreads")
+  ENDIF()
 ENDIF()
 
 
