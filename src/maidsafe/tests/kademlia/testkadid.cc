@@ -32,28 +32,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/crypto.h"
 #include "maidsafe/base/utils.h"
 
-std::string IncreaseHex(char hex_char) {
-  std::string res;
-  switch (hex_char) {
-    case '0' : res = "1"; break;
-    case '1' : res = "2"; break;
-    case '2' : res = "3"; break;
-    case '3' : res = "4"; break;
-    case '4' : res = "5"; break;
-    case '5' : res = "6"; break;
-    case '6' : res = "7"; break;
-    case '7' : res = "8"; break;
-    case '8' : res = "9"; break;
-    case '9' : res = "a"; break;
-    case 'a' : res = "b"; break;
-    case 'b' : res = "c"; break;
-    case 'c' : res = "d"; break;
-    case 'd' : res = "e"; break;
-    case 'e' : res = "f"; break;
-    case 'f' : res = "ff"; break;
-    default: res = "0";
+namespace kad {
+
+namespace test {
+
+KadId IncreaseId(const KadId &kad_id) {
+  std::string raw(kad_id.String());
+  std::string::reverse_iterator rit = raw.rbegin();
+  while (rit != raw.rend()) {
+    if (++(*rit) == 0)
+      ++rit;
+    else
+      break;
   }
-  return res;
+  return KadId(raw);
 }
 
 const std::string ToBinary(const std::string &raw_id)  {
@@ -85,51 +77,51 @@ const std::string ToBinary(const std::string &raw_id)  {
 }
 
 TEST(TestKadId, BEH_KAD_BitToByteCount) {
-  for (size_t i = 0; i < kad::kKeySizeBytes; ++i) {
-    ASSERT_EQ(i, kad::BitToByteCount(8 * i));
+  for (size_t i = 0; i < kKeySizeBytes; ++i) {
+    ASSERT_EQ(i, BitToByteCount(8 * i));
     for (size_t j = 1; j < 8; ++j) {
-      ASSERT_EQ(i + 1, kad::BitToByteCount((8 * i) + j));
+      ASSERT_EQ(i + 1, BitToByteCount((8 * i) + j));
     }
   }
 }
 
 TEST(TestKadId, BEH_KAD_DefaultCtr) {
-  kad::KadId kadid;
-  ASSERT_EQ(kad::kKeySizeBytes, kadid.String().size());
+  KadId kadid;
+  ASSERT_EQ(kKeySizeBytes, kadid.String().size());
   for (size_t i = 0; i < kadid.String().size(); ++i)
     ASSERT_EQ('\0', kadid.String()[i]);
-  std::string hex_id(kad::kKeySizeBytes * 2, '0');
-  ASSERT_EQ(hex_id, kadid.ToStringEncoded(kad::KadId::kHex));
-  std::string bin_id(kad::kKeySizeBits, '0');
-  ASSERT_EQ(bin_id, kadid.ToStringEncoded(kad::KadId::kBinary));
+  std::string hex_id(kKeySizeBytes * 2, '0');
+  ASSERT_EQ(hex_id, kadid.ToStringEncoded(KadId::kHex));
+  std::string bin_id(kKeySizeBits, '0');
+  ASSERT_EQ(bin_id, kadid.ToStringEncoded(KadId::kBinary));
 }
 
 TEST(TestKadId, BEH_KAD_CopyCtr) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
-  kad::KadId kadid2(kadid1);
+  KadId kadid1(KadId::kRandomId);
+  KadId kadid2(kadid1);
   ASSERT_TRUE(kadid1 == kadid2);
   for (size_t i = 0; i < kadid1.String().size(); ++i)
     ASSERT_EQ(kadid1.String()[i], kadid2.String()[i]);
-  ASSERT_EQ(kadid1.ToStringEncoded(kad::KadId::kBinary),
-            kadid2.ToStringEncoded(kad::KadId::kBinary));
-  ASSERT_EQ(kadid1.ToStringEncoded(kad::KadId::kHex),
-            kadid2.ToStringEncoded(kad::KadId::kHex));
+  ASSERT_EQ(kadid1.ToStringEncoded(KadId::kBinary),
+            kadid2.ToStringEncoded(KadId::kBinary));
+  ASSERT_EQ(kadid1.ToStringEncoded(KadId::kHex),
+            kadid2.ToStringEncoded(KadId::kHex));
   ASSERT_EQ(kadid1.String(), kadid2.String());
 }
 
 TEST(TestKadId, BEH_KAD_KadIdTypeCtr) {
-  std::string min_id = kad::kClientId;
-  ASSERT_EQ(kad::kKeySizeBytes, min_id.size());
-  for (int i = 0; i < kad::kKeySizeBytes; ++i)
+  std::string min_id = kClientId;
+  ASSERT_EQ(kKeySizeBytes, min_id.size());
+  for (int i = 0; i < kKeySizeBytes; ++i)
     ASSERT_EQ(min_id[i], '\0');
-  kad::KadId max_id(kad::KadId::kMaxId);
-  ASSERT_EQ(kad::kKeySizeBytes, max_id.String().size());
-  for (int i = 0; i < kad::kKeySizeBytes; ++i)
+  KadId max_id(KadId::kMaxId);
+  ASSERT_EQ(kKeySizeBytes, max_id.String().size());
+  for (int i = 0; i < kKeySizeBytes; ++i)
     ASSERT_TRUE((max_id.String()[i] == 255) || (max_id.String()[i] == -1));
-  kad::KadId rand_id(kad::KadId::kRandomId);
-  ASSERT_EQ(kad::kKeySizeBytes, rand_id.String().size());
+  KadId rand_id(KadId::kRandomId);
+  ASSERT_EQ(kKeySizeBytes, rand_id.String().size());
   // TODO(Fraser#5#): 2010-06-06 - Test for randomness properly
-  ASSERT_NE(rand_id.String(), kad::KadId(kad::KadId::kRandomId).String());
+  ASSERT_NE(rand_id.String(), KadId(KadId::kRandomId).String());
 }
 
 TEST(TestKadId, BEH_KAD_StringCtr) {
@@ -137,53 +129,53 @@ TEST(TestKadId, BEH_KAD_StringCtr) {
   co.set_hash_algorithm(crypto::SHA_512);
   std::string rand_str(co.Hash(base::RandomString(200), "",
                                crypto::STRING_STRING, false));
-  kad::KadId id(rand_str);
+  KadId id(rand_str);
   ASSERT_TRUE(id.String() == rand_str);
 }
 
 TEST(TestKadId, BEH_KAD_EncodingCtr) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  std::string known_raw(kad::kKeySizeBytes, 0);
-  for (char c = 0; c < kad::kKeySizeBytes; ++c)
+  std::string known_raw(kKeySizeBytes, 0);
+  for (char c = 0; c < kKeySizeBytes; ++c)
     known_raw.at(static_cast<boost::uint8_t>(c)) = c;
   for (int i = 0; i < 4; ++i) {
     std::string rand_str(co.Hash(base::RandomString(200), "",
                                  crypto::STRING_STRING, false));
     std::string bad_encoded("Bad Encoded"), encoded, known_encoded;
-    kad::KadId::EncodingType type = static_cast<kad::KadId::EncodingType>(i);
+    KadId::EncodingType type = static_cast<KadId::EncodingType>(i);
     switch (type) {
-      case kad::KadId::kBinary :
+      case KadId::kBinary :
         encoded = ToBinary(rand_str);
         known_encoded = ToBinary(known_raw);
         break;
-      case kad::KadId::kHex :
+      case KadId::kHex :
         encoded = base::EncodeToHex(rand_str);
         known_encoded = base::EncodeToHex(known_raw);
         break;
-      case kad::KadId::kBase32 :
+      case KadId::kBase32 :
         encoded = base::EncodeToBase32(rand_str);
         known_encoded = base::EncodeToBase32(known_raw);
         break;
-      case kad::KadId::kBase64 :
+      case KadId::kBase64 :
         encoded = base::EncodeToBase64(rand_str);
         known_encoded = base::EncodeToBase64(known_raw);
         break;
       default :
         break;
     }
-    kad::KadId bad_id(bad_encoded, type);
+    KadId bad_id(bad_encoded, type);
     ASSERT_TRUE(bad_id.String().empty());
     ASSERT_FALSE(bad_id.IsValid());
     ASSERT_TRUE(bad_id.ToStringEncoded(type).empty());
-    kad::KadId rand_id(encoded, type);
+    KadId rand_id(encoded, type);
     ASSERT_EQ(rand_str, rand_id.String());
     ASSERT_EQ(encoded, rand_id.ToStringEncoded(type));
-    kad::KadId known_id(known_encoded, type);
+    KadId known_id(known_encoded, type);
     ASSERT_EQ(known_raw, known_id.String());
     ASSERT_EQ(known_encoded, known_id.ToStringEncoded(type));
     switch (i) {
-      case kad::KadId::kBinary :
+      case KadId::kBinary :
         ASSERT_EQ("000000000000000100000010000000110000010000000101000001100000"
                   "011100001000000010010000101000001011000011000000110100001110"
                   "000011110001000000010001000100100001001100010100000101010001"
@@ -194,16 +186,16 @@ TEST(TestKadId, BEH_KAD_EncodingCtr) {
                   "010000110101001101100011011100111000001110010011101000111011"
                   "00111100001111010011111000111111", known_encoded);
         break;
-      case kad::KadId::kHex :
+      case KadId::kHex :
         ASSERT_EQ("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d"
                   "1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b"
                   "3c3d3e3f", known_encoded);
         break;
-      case kad::KadId::kBase32 :
+      case KadId::kBase32 :
         ASSERT_EQ("aaasea2eawdaqcajbifs2diqb6ibcesvcsktnf22depbyha7d2ruaijcenuc"
                   "kjthfawuwk3nfwzc8nbtgi3vipjyg66duqt5hs8v6r2", known_encoded);
         break;
-      case kad::KadId::kBase64 :
+      case KadId::kBase64 :
         ASSERT_EQ("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKiss"
                   "LS4vMDEyMzQ1Njc4OTo7PD0+Pw==", known_encoded);
         break;
@@ -214,123 +206,123 @@ TEST(TestKadId, BEH_KAD_EncodingCtr) {
 }
 
 TEST(TestKadId, BEH_KAD_CtrPower) {
-  kad::KadId kadid(-2);
+  KadId kadid(-2);
   ASSERT_FALSE(kadid.IsValid());
-  kadid = kad::KadId(kad::kKeySizeBits + 1);
+  kadid = KadId(kKeySizeBits + 1);
   ASSERT_FALSE(kadid.IsValid());
-  std::string bin_id(kad::kKeySizeBits, '0');
-  for (boost::int16_t i = 0; i < kad::kKeySizeBits; ++i) {
-    kad::KadId kadid(i);
-    bin_id[kad::kKeySizeBits - 1 - i] = '1';
-    ASSERT_EQ(bin_id, kadid.ToStringEncoded(kad::KadId::kBinary))
+  std::string bin_id(kKeySizeBits, '0');
+  for (boost::int16_t i = 0; i < kKeySizeBits; ++i) {
+    KadId kadid(i);
+    bin_id[kKeySizeBits - 1 - i] = '1';
+    ASSERT_EQ(bin_id, kadid.ToStringEncoded(KadId::kBinary))
         << "Fail to construct 2^" << i << std::endl;
-    bin_id[kad::kKeySizeBits - 1 - i] = '0';
+    bin_id[kKeySizeBits - 1 - i] = '0';
   }
 }
 
 TEST(TestKadId, BEH_KAD_CtrBetweenIds) {
-  kad::KadId id1(kad::KadId::kRandomId), id2(kad::KadId::kRandomId);
-  kad::KadId bad_id(-2);
-  kad::KadId id(id1, bad_id);
+  KadId id1(KadId::kRandomId), id2(KadId::kRandomId);
+  KadId bad_id(-2);
+  KadId id(id1, bad_id);
   ASSERT_FALSE(id.IsValid());
-  id = kad::KadId(bad_id, id2);
+  id = KadId(bad_id, id2);
   ASSERT_FALSE(id.IsValid());
-  id = kad::KadId(id1, id1);
+  id = KadId(id1, id1);
   ASSERT_TRUE(id.IsValid());
   ASSERT_EQ(id1.String(), id.String());
   for (int i = 0; i < 100; ++i) {
-    id1 = kad::KadId(kad::KadId::kRandomId);
-    id2 = kad::KadId(kad::KadId::kRandomId);
-    std::string test_raw_id1 = id1.ToStringEncoded(kad::KadId::kBinary);
-    std::string test_raw_id2 = id2.ToStringEncoded(kad::KadId::kBinary);
-    id = kad::KadId(id1, id2);
+    id1 = KadId(KadId::kRandomId);
+    id2 = KadId(KadId::kRandomId);
+    std::string test_raw_id1 = id1.ToStringEncoded(KadId::kBinary);
+    std::string test_raw_id2 = id2.ToStringEncoded(KadId::kBinary);
+    id = KadId(id1, id2);
     ASSERT_TRUE(id.IsValid());
     ASSERT_TRUE(id >= std::min(id1, id2)) << "id  = " <<
-        id.ToStringEncoded(kad::KadId::kBinary) << std::endl << "id1 = "
-        << id1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "id2 = "
-        << id2.ToStringEncoded(kad::KadId::kBinary) << std::endl << "min = "
-        << std::min(id1, id2).ToStringEncoded(kad::KadId::kBinary) << std::endl;
+        id.ToStringEncoded(KadId::kBinary) << std::endl << "id1 = "
+        << id1.ToStringEncoded(KadId::kBinary) << std::endl << "id2 = "
+        << id2.ToStringEncoded(KadId::kBinary) << std::endl << "min = "
+        << std::min(id1, id2).ToStringEncoded(KadId::kBinary) << std::endl;
     ASSERT_TRUE(id <= std::max(id1, id2)) << "id  = " <<
-        id.ToStringEncoded(kad::KadId::kBinary) << std::endl << "id1 = "
-        << id1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "id2 = "
-        << id2.ToStringEncoded(kad::KadId::kBinary) << std::endl << "max = "
-        << std::max(id1, id2).ToStringEncoded(kad::KadId::kBinary) << std::endl;
+        id.ToStringEncoded(KadId::kBinary) << std::endl << "id1 = "
+        << id1.ToStringEncoded(KadId::kBinary) << std::endl << "id2 = "
+        << id2.ToStringEncoded(KadId::kBinary) << std::endl << "max = "
+        << std::max(id1, id2).ToStringEncoded(KadId::kBinary) << std::endl;
   }
-  kad::KadId min_range, max_range(kad::KadId::kMaxId);
-  for (int i = 0; i < kad::kKeySizeBits - 1; ++i) {
-    min_range = kad::KadId(i);
-    max_range = kad::KadId(i + 1);
-    id = kad::KadId(min_range, max_range);
+  KadId min_range, max_range(KadId::kMaxId);
+  for (int i = 0; i < kKeySizeBits - 1; ++i) {
+    min_range = KadId(i);
+    max_range = KadId(i + 1);
+    id = KadId(min_range, max_range);
     ASSERT_TRUE(id >= min_range) << "id = " <<
-        id.ToStringEncoded(kad::KadId::kBinary) << std::endl << "min_range = "
-        << min_range.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+        id.ToStringEncoded(KadId::kBinary) << std::endl << "min_range = "
+        << min_range.ToStringEncoded(KadId::kBinary) << std::endl;
     ASSERT_TRUE(max_range >= id) << "id = " <<
-        id.ToStringEncoded(kad::KadId::kBinary) << std::endl << "max_range = "
-        << max_range.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+        id.ToStringEncoded(KadId::kBinary) << std::endl << "max_range = "
+        << max_range.ToStringEncoded(KadId::kBinary) << std::endl;
   }
 }
 
 TEST(TestKadId, BEH_KAD_SplitRange) {
-  kad::KadId min, max1, min1, max(kad::KadId::kMaxId);
-  kad::KadId::SplitRange(min, max, &max1, &min1);
-  std::string exp_min(kad::kKeySizeBits, '0');
+  KadId min, max1, min1, max(KadId::kMaxId);
+  KadId::SplitRange(min, max, &max1, &min1);
+  std::string exp_min(kKeySizeBits, '0');
   exp_min[0] = '1';
-  std::string exp_max(kad::kKeySizeBits, '1');
+  std::string exp_max(kKeySizeBits, '1');
   exp_max[0] = '0';
-  EXPECT_EQ(exp_min, min1.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max1.ToStringEncoded(kad::KadId::kBinary));
+  EXPECT_EQ(exp_min, min1.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max1.ToStringEncoded(KadId::kBinary));
 
-  kad::KadId min2, max2;
+  KadId min2, max2;
   exp_min[0] = '0';
   exp_min[1] = '1';
   exp_max[1] = '0';
-  kad::KadId::SplitRange(min, max1, &max2, &min2);
-  EXPECT_EQ(exp_min, min2.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max2.ToStringEncoded(kad::KadId::kBinary));
+  KadId::SplitRange(min, max1, &max2, &min2);
+  EXPECT_EQ(exp_min, min2.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max2.ToStringEncoded(KadId::kBinary));
 
-  kad::KadId min3, max3;
+  KadId min3, max3;
   exp_min[0] = '1';
   exp_max[0] = '1';
-  kad::KadId::SplitRange(min1, max, &max3, &min3);
-  EXPECT_EQ(exp_min, min3.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max3.ToStringEncoded(kad::KadId::kBinary));
+  KadId::SplitRange(min1, max, &max3, &min3);
+  EXPECT_EQ(exp_min, min3.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max3.ToStringEncoded(KadId::kBinary));
 
-  kad::KadId min4, max4;
+  KadId min4, max4;
   exp_min[1] = '0';
   exp_min[2] = '1';
   exp_max[1] = '0';
   exp_max[2] = '0';
-  kad::KadId::SplitRange(min1, max3, &max4, &min4);
-  EXPECT_EQ(exp_min, min4.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max4.ToStringEncoded(kad::KadId::kBinary));
+  KadId::SplitRange(min1, max3, &max4, &min4);
+  EXPECT_EQ(exp_min, min4.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max4.ToStringEncoded(KadId::kBinary));
 
-  kad::KadId min5, max5;
+  KadId min5, max5;
   exp_min[0] = '0';
   exp_max[0] = '0';
-  kad::KadId::SplitRange(min, max2, &max5, &min5);
-  EXPECT_EQ(exp_min, min5.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max5.ToStringEncoded(kad::KadId::kBinary));
+  KadId::SplitRange(min, max2, &max5, &min5);
+  EXPECT_EQ(exp_min, min5.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max5.ToStringEncoded(KadId::kBinary));
 
-  kad::KadId min6, max6;
+  KadId min6, max6;
   exp_min[2] = '0';
   exp_min[3] = '1';
   exp_max[3] = '0';
-  kad::KadId::SplitRange(min, max5, &max6, &min6);
-  EXPECT_EQ(exp_min, min6.ToStringEncoded(kad::KadId::kBinary));
-  EXPECT_EQ(exp_max, max6.ToStringEncoded(kad::KadId::kBinary));
+  KadId::SplitRange(min, max5, &max6, &min6);
+  EXPECT_EQ(exp_min, min6.ToStringEncoded(KadId::kBinary));
+  EXPECT_EQ(exp_max, max6.ToStringEncoded(KadId::kBinary));
 }
 
 TEST(TestKadId, BEH_KAD_InsertKadContact) {
-  std::vector<kad::Contact> contacts;
+  std::vector<Contact> contacts;
   for (char c = '9'; c >= '0'; --c)
-    contacts.push_back(kad::Contact(std::string(64, c), "IP", 10000));
+    contacts.push_back(Contact(std::string(64, c), "IP", 10000));
   ASSERT_EQ(size_t(10), contacts.size());
   // Copy the vector.
-  std::vector<kad::Contact> contacts_before(contacts);
+  std::vector<Contact> contacts_before(contacts);
   std::string key(64, 'b');
-  kad::KadId kad_key(key);
-  kad::Contact new_contact(std::string(64, 'a'), "IP", 10000);
-  kad::InsertKadContact(kad_key, new_contact, &contacts);
+  KadId kad_key(key);
+  Contact new_contact(std::string(64, 'a'), "IP", 10000);
+  InsertKadContact(kad_key, new_contact, &contacts);
   ASSERT_EQ(size_t(11), contacts.size());
   // Check contacts have been re-ordered correctly.
   ASSERT_TRUE(contacts.at(0).node_id() == new_contact.node_id());
@@ -347,133 +339,107 @@ TEST(TestKadId, BEH_KAD_InsertKadContact) {
 }
 
 TEST(TestKadId, BEH_KAD_OperatorEqual) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
+  KadId kadid1(KadId::kRandomId);
   std::string id(kadid1.String());
-  kad::KadId kadid2(id);
+  KadId kadid2(id);
   ASSERT_TRUE(kadid1 == kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid2 = " <<
-      kadid2.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid2 = " <<
+      kadid2.ToStringEncoded(KadId::kBinary) << std::endl;
   std::string id1;
-  for (size_t i = 0; i < kad::BitToByteCount(kad::kKeySizeBits) * 2;
+  for (size_t i = 0; i < BitToByteCount(kKeySizeBits) * 2;
        ++i) {
     id1 += "f";
   }
-  kad::KadId kadid3(id1, kad::KadId::kHex);
+  KadId kadid3(id1, KadId::kHex);
   ASSERT_FALSE(kadid1 == kadid3) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid3 = " <<
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorDifferent) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
+  KadId kadid1(KadId::kRandomId);
   std::string id(kadid1.String());
-  kad::KadId kadid2(id);
+  KadId kadid2(id);
   ASSERT_FALSE(kadid1 != kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) <<
-      std::endl << "kadid2 = " << kadid2.ToStringEncoded(kad::KadId::kBinary) <<
+      kadid1.ToStringEncoded(KadId::kBinary) <<
+      std::endl << "kadid2 = " << kadid2.ToStringEncoded(KadId::kBinary) <<
       std::endl;
   std::string id1;
-  for (size_t i = 0; i < kad::BitToByteCount(kad::kKeySizeBits) * 2;
-       ++i) {
+  for (size_t i = 0; i < BitToByteCount(kKeySizeBits) * 2; ++i)
     id1 += "f";
-  }
-  kad::KadId kadid3(id1, kad::KadId::kHex);
+  KadId kadid3(id1, KadId::kHex);
   ASSERT_TRUE(kadid1 != kadid3) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid3 = " <<
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorGreaterThan) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
-  std::string id(kadid1.ToStringEncoded(kad::KadId::kHex));
-  kad::KadId kadid2(id, kad::KadId::kHex);
+  KadId kadid1(KadId::kRandomId);
+  while (kadid1 == KadId(KadId::kMaxId))
+    kadid1 = KadId(KadId::kRandomId);
+  KadId kadid2(kadid1);
   ASSERT_FALSE(kadid1 > kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid2 = " <<
-      kadid2.ToStringEncoded(kad::KadId::kBinary) << std::endl;
-  char first = id[0];
-  std::string rep(IncreaseHex(first));
-  if (first == 'f') {
-    id.replace(0, 2, rep);
-  } else {
-    id.replace(0, 1, rep);
-  }
-  kad::KadId kadid3(id, kad::KadId::kHex);
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid2 = " <<
+      kadid2.ToStringEncoded(KadId::kBinary) << std::endl;
+  KadId kadid3(IncreaseId(kadid1));
   ASSERT_TRUE(kadid3 > kadid1) << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl << "kadid1 = " <<
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl;
   ASSERT_FALSE(kadid1 > kadid3) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid3 = " <<
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorLessThan) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
-  std::string id(kadid1.ToStringEncoded(kad::KadId::kHex));
-  kad::KadId kadid2(id, kad::KadId::kHex);
+  KadId kadid1(KadId::kRandomId);
+  while (kadid1 == KadId(KadId::kMaxId))
+    kadid1 = KadId(KadId::kRandomId);
+  KadId kadid2(kadid1);
   ASSERT_FALSE(kadid1 < kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid2 = " <<
-      kadid2.ToStringEncoded(kad::KadId::kBinary) << std::endl;
-  char first = id[0];
-  std::string rep = IncreaseHex(first);
-  if (first == 'f') {
-    id.replace(0, 2, rep);
-  } else {
-    id.replace(0, 1, rep);
-  }
-  kad::KadId kadid3(id, kad::KadId::kHex);
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid2 = " <<
+      kadid2.ToStringEncoded(KadId::kBinary) << std::endl;
+  KadId kadid3(IncreaseId(kadid1));
   ASSERT_TRUE(kadid1 < kadid3) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid3 = " <<
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl;
   ASSERT_FALSE(kadid3 < kadid1) << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl << "kadid1 = " <<
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorGreaterEqual) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
-  std::string id(kadid1.ToStringEncoded(kad::KadId::kHex));
-  kad::KadId kadid2(id, kad::KadId::kHex);
+  KadId kadid1(KadId::kRandomId);
+  while (kadid1 == KadId(KadId::kMaxId))
+    kadid1 = KadId(KadId::kRandomId);
+  KadId kadid2(kadid1);
   ASSERT_TRUE(kadid1 >= kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid2 = " <<
-      kadid2.ToStringEncoded(kad::KadId::kBinary) << std::endl;
-  char first = id[0];
-  std::string rep(IncreaseHex(first));
-  if (first == 'f') {
-    id.replace(0, 2, rep);
-  } else {
-    id.replace(0, 1, rep);
-  }
-  kad::KadId kadid3(id, kad::KadId::kHex);
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid2 = " <<
+      kadid2.ToStringEncoded(KadId::kBinary) << std::endl;
+  KadId kadid3(IncreaseId(kadid1));
   ASSERT_TRUE(kadid3 >= kadid1) << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl << "kadid1 = " <<
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorLessEqual) {
-  kad::KadId kadid1(kad::KadId::kRandomId);
-  std::string id(kadid1.ToStringEncoded(kad::KadId::kHex));
-  kad::KadId kadid2(id, kad::KadId::kHex);
+  KadId kadid1(KadId::kRandomId);
+  while (kadid1 == KadId(KadId::kMaxId))
+    kadid1 = KadId(KadId::kRandomId);
+  KadId kadid2(kadid1);
   ASSERT_TRUE(kadid1 <= kadid2) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid2 = " <<
-      kadid2.ToStringEncoded(kad::KadId::kBinary) << std::endl;
-  char first = id[0];
-  std::string rep(IncreaseHex(first));
-  if (first == 'f') {
-    id.replace(0, 2, rep);
-  } else {
-    id.replace(0, 1, rep);
-  }
-  kad::KadId kadid3(id, kad::KadId::kHex);
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid2 = " <<
+      kadid2.ToStringEncoded(KadId::kBinary) << std::endl;
+  KadId kadid3(IncreaseId(kadid1));
   ASSERT_TRUE(kadid1 <= kadid3) << "kadid1 = " <<
-      kadid1.ToStringEncoded(kad::KadId::kBinary) << std::endl << "kadid3 = " <<
-      kadid3.ToStringEncoded(kad::KadId::kBinary) << std::endl;
+      kadid1.ToStringEncoded(KadId::kBinary) << std::endl << "kadid3 = " <<
+      kadid3.ToStringEncoded(KadId::kBinary) << std::endl;
 }
 
 TEST(TestKadId, BEH_KAD_OperatorXOR) {
-  kad::KadId kadid1(kad::KadId::kRandomId), kadid2(kad::KadId::kRandomId);
-  kad::KadId kadid3(kadid1 ^ kadid2);
-  std::string binid1(kadid1.ToStringEncoded(kad::KadId::kBinary));
-  std::string binid2(kadid2.ToStringEncoded(kad::KadId::kBinary));
+  KadId kadid1(KadId::kRandomId), kadid2(KadId::kRandomId);
+  KadId kadid3(kadid1 ^ kadid2);
+  std::string binid1(kadid1.ToStringEncoded(KadId::kBinary));
+  std::string binid2(kadid2.ToStringEncoded(KadId::kBinary));
   std::string binresult;
   for (size_t i = 0; i < binid1.size(); ++i) {
     if (binid1[i] == binid2[i]) {
@@ -485,28 +451,32 @@ TEST(TestKadId, BEH_KAD_OperatorXOR) {
   std::string binzero;
   for (size_t i = 0; i < binid1.size(); ++i)
     binzero += "0";
-  ASSERT_NE(binzero, kadid3.ToStringEncoded(kad::KadId::kBinary));
-  ASSERT_EQ(binresult, kadid3.ToStringEncoded(kad::KadId::kBinary));
-  kad::KadId kadid4(kadid2 ^ kadid1);
-  ASSERT_EQ(binresult, kadid4.ToStringEncoded(kad::KadId::kBinary));
-  kad::KadId kadid5(kadid1.String());
-  kad::KadId kadid6(kadid1 ^ kadid5);
-  ASSERT_EQ(binzero, kadid6.ToStringEncoded(kad::KadId::kBinary));
+  ASSERT_NE(binzero, kadid3.ToStringEncoded(KadId::kBinary));
+  ASSERT_EQ(binresult, kadid3.ToStringEncoded(KadId::kBinary));
+  KadId kadid4(kadid2 ^ kadid1);
+  ASSERT_EQ(binresult, kadid4.ToStringEncoded(KadId::kBinary));
+  KadId kadid5(kadid1.String());
+  KadId kadid6(kadid1 ^ kadid5);
+  ASSERT_EQ(binzero, kadid6.ToStringEncoded(KadId::kBinary));
   std::string zero(kadid6.String());
-  ASSERT_EQ(kad::BitToByteCount(kad::kKeySizeBits), zero.size());
+  ASSERT_EQ(BitToByteCount(kKeySizeBits), zero.size());
   for (size_t i = 0; i < zero.size(); ++i)
     ASSERT_EQ('\0', zero[i]);
 }
 
 TEST(TestKadId, BEH_KAD_OperatorEql) {
-  kad::KadId kadid1(kad::KadId::kRandomId), kadid2;
+  KadId kadid1(KadId::kRandomId), kadid2;
   kadid2 = kadid1;
   ASSERT_TRUE(kadid1 == kadid2);
   for (size_t i = 0; i < kadid1.String().size(); ++i)
     ASSERT_EQ(kadid1.String()[i], kadid2.String()[i]);
-  ASSERT_EQ(kadid1.ToStringEncoded(kad::KadId::kBinary),
-            kadid2.ToStringEncoded(kad::KadId::kBinary));
-  ASSERT_EQ(kadid1.ToStringEncoded(kad::KadId::kHex),
-            kadid2.ToStringEncoded(kad::KadId::kHex));
+  ASSERT_EQ(kadid1.ToStringEncoded(KadId::kBinary),
+            kadid2.ToStringEncoded(KadId::kBinary));
+  ASSERT_EQ(kadid1.ToStringEncoded(KadId::kHex),
+            kadid2.ToStringEncoded(KadId::kHex));
   ASSERT_EQ(kadid1.String(), kadid2.String());
 }
+
+}  // namespace test
+
+}  // namespace kad

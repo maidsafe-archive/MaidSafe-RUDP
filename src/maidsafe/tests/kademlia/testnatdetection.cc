@@ -49,28 +49,28 @@ namespace test_nat_detection {
 namespace kad {
 
 class Callback {
-public:
+ public:
   Callback() : response_() {}
   explicit Callback(BootstrapResponse *response) : response_(response) {}
   void CallbackFunction() {}
   void CallbackSendNatDet() {
     response_->set_result(kRpcResultSuccess);
   }
-private:
+ private:
   BootstrapResponse *response_;
 };
 
 class NatDetectionTest: public testing::Test {
-protected:
+ protected:
   NatDetectionTest() : trans_handlers_(), transports_(),
-                      channel_managerA_(NULL), channel_managerB_(NULL),
-                      channel_managerC_(NULL), contactA_(), contactB_(),
-                      contactC_(), remote_contact_(), contact_strA_(),
-                      contact_strB_(), contact_strC_(), remote_node_id_(),
-                      serviceA_(), serviceB_(), serviceC_(), datastoreA_(),
-                      datastoreB_(), datastoreC_(), routingtableA_(),
-                      routingtableB_(), routingtableC_(), channelA_(),
-                      channelB_(), channelC_() {
+                       channel_managerA_(NULL), channel_managerB_(NULL),
+                       channel_managerC_(NULL), contactA_(), contactB_(),
+                       contactC_(), remote_contact_(), contact_strA_(),
+                       contact_strB_(), contact_strC_(), remote_node_id_(),
+                       serviceA_(), serviceB_(), serviceC_(), datastoreA_(),
+                       datastoreB_(), datastoreC_(), routingtableA_(),
+                       routingtableB_(), routingtableC_(), channelA_(),
+                       channelB_(), channelC_() {
     boost::int16_t transport_id;
     for (boost::uint8_t i = 0; i < 3; ++i) {
       trans_handlers_.push_back(new transport::TransportHandler);
@@ -133,14 +133,14 @@ protected:
     serviceA_->set_node_joined(true);
     node_info.Clear();
     channelA_.reset(new rpcprotocol::Channel(&channel_managerA_,
-                                            trans_handlers_[0]));
+                                             trans_handlers_[0]));
     channelA_->SetService(serviceA_.get());
     channel_managerA_.RegisterChannel(serviceA_->GetDescriptor()->name(),
                                       channelA_.get());
 
     // Node B.
     hex_id = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     ASSERT_TRUE(channel_managerB_.RegisterNotifiersToTransport());
     ASSERT_TRUE(trans_handlers_[1]->RegisterOnServerDown(
                 boost::bind(&NatDetectionTest::HandleDeadRVServer, this, _1)));
@@ -173,14 +173,14 @@ protected:
     serviceB_->set_node_joined(true);
     node_info.Clear();
     channelB_.reset(new rpcprotocol::Channel(&channel_managerB_,
-                                            trans_handlers_[1]));
+                                             trans_handlers_[1]));
     channelB_->SetService(serviceB_.get());
     channel_managerB_.RegisterChannel(serviceB_->GetDescriptor()->name(),
                                       channelB_.get());
 
     // Node C.
     hex_id = "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+             "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
     ASSERT_TRUE(channel_managerC_.RegisterNotifiersToTransport());
     ASSERT_TRUE(trans_handlers_[2]->RegisterOnServerDown(
                 boost::bind(&NatDetectionTest::HandleDeadRVServer, this, _1)));
@@ -212,7 +212,7 @@ protected:
     serviceC_->set_node_joined(true);
     node_info.Clear();
     channelC_.reset(new rpcprotocol::Channel(&channel_managerC_,
-                                            trans_handlers_[2]));
+                                             trans_handlers_[2]));
     channelC_->SetService(serviceC_.get());
     channel_managerC_.RegisterChannel(serviceC_->GetDescriptor()->name(),
                                       channelC_.get());
@@ -222,7 +222,7 @@ protected:
 
     // Set up another contact
     hex_id = "22222222222222222222222222222222222222222222222222222222222222222"
-            "222222222222222222222222222222222222222222222222222222222222222";
+             "222222222222222222222222222222222222222222222222222222222222222";
     remote_node_id_ = kad::KadId(hex_id, kad::KadId::kHex);
     remote_contact_.set_node_id(remote_node_id_.String());
     remote_contact_.set_ip("127.0.0.5");
@@ -264,7 +264,7 @@ protected:
   boost::shared_ptr<DataStore> datastoreA_, datastoreB_, datastoreC_;
   boost::shared_ptr<RoutingTable>routingtableA_, routingtableB_, routingtableC_;
   boost::shared_ptr<rpcprotocol::Channel> channelA_, channelB_, channelC_;
-private:
+ private:
   int AddCtc(Contact ctc, const float&, const bool &only_db, const int &rt_id) {
     int result = -1;
     if (!only_db) {
@@ -328,19 +328,19 @@ private:
                 std::vector<Contact> *ctcs, const boost::uint16_t &rt_id) {
     switch (rt_id) {
       case 1: routingtableA_->FindCloseNodes(key, test_nat_detection::K,
-                                            ex_ctcs, ctcs);
+                                             ex_ctcs, ctcs);
               break;
       case 2: routingtableB_->FindCloseNodes(key, test_nat_detection::K,
-                                            ex_ctcs, ctcs);
+                                             ex_ctcs, ctcs);
               break;
       case 3: routingtableC_->FindCloseNodes(key, test_nat_detection::K,
-                                            ex_ctcs, ctcs);
+                                             ex_ctcs, ctcs);
               break;
     }
   }
   void Ping(const Contact &ctc, VoidFunctorOneString callback) {
     boost::thread thrd(boost::bind(&NatDetectionTest::ExePingCb, this,
-                                  ctc.node_id(), callback));
+                                   ctc.node_id(), callback));
   }
   void ExePingCb(const kad::KadId&, VoidFunctorOneString callback) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));

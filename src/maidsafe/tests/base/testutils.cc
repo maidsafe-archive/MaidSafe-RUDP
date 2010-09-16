@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread.hpp>
 #include <algorithm>
 #include <cstdlib>
-#include <list>
+#include <set>
 #include "maidsafe/base/crypto.h"
 #include "maidsafe/base/utils.h"
 
@@ -46,7 +46,7 @@ void GenerateRandomStrings(const int &string_count,
 
 }  // namespace test_utils
 
-TEST(UtilsTest, BEH_BASE_RandomStringMultiThread) {
+TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
   int thread_count(20);
   int string_count(1000);
   size_t string_size(4096);
@@ -101,87 +101,82 @@ TEST(UtilsTest, BEH_BASE_Stats) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_IntegersAndStrings) {
-  std::string p_str, n_str;
-  int p = 1234567890;
-  int n = -1234567890;
-  p_str = "1234567890";
-  n_str = "-1234567890";
-  ASSERT_EQ(p, boost::lexical_cast<int>(base::IntToString(p))) <<
-            "int -> string -> int failed for positive int.";
-  ASSERT_EQ(n, boost::lexical_cast<int>(base::IntToString(n))) <<
-            "int -> string -> int failed for negative int.";
-  ASSERT_EQ(p_str, base::IntToString(boost::lexical_cast<int>(p_str))) <<
-            "string -> int -> string failed for positive int.";
-  ASSERT_EQ(n_str, base::IntToString(boost::lexical_cast<int>(n_str))) <<
-            "string -> int -> string failed for negative int.";
+TEST(UtilsTest, BEH_BASE_IntToString) {
+  EXPECT_EQ("1234567890", base::IntToString(1234567890));
+  EXPECT_EQ("-1234567890", base::IntToString(-1234567890));
+  EXPECT_EQ("0", base::IntToString(0));
+  EXPECT_EQ("0", base::IntToString(-0));
 }
 
 
 TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
-  unsigned int length = 4096;
-  std::string first = base::RandomString(length);
-  std::string second = base::RandomString(length);
-  ASSERT_EQ(length, first.length()) <<
-            "Size of first string is not the requested size: " << length;
-  ASSERT_EQ(length, second.length()) <<
-            "Size of second string is not the requested size: " << length;
-  ASSERT_NE(first, second) << "The two 'random' strings are the same.";
-  for (int i = 0; i < static_cast<int>(length); i++) {
-    ASSERT_GT(127, static_cast<int>(first[i]));
-    ASSERT_GT(127, static_cast<int>(second[i]));
-    // checking all characters are ascii characters
-    ASSERT_TRUE(((47 < static_cast<int>(first[i])) &&
-                 (static_cast<int>(first[i] <  58))) ||
-                ((64 < static_cast<int>(first[i])) &&
-                 (static_cast<int>(first[i] < 91))) ||
-                ((96 < static_cast<int>(first[i])) &&
-                 (static_cast<int>(first[i]) < 123)));
-    ASSERT_TRUE(((47 < static_cast<int>(second[i])) &&
-                 (static_cast<int>(second[i] <  58))) ||
-                ((64 < static_cast<int>(second[i])) &&
-                 (static_cast<int>(second[i] < 91))) ||
-                ((96 < static_cast<int>(second[i])) &&
-                 (static_cast<int>(second[i]) < 123)));
+  const size_t kStringSize = 4096;
+  std::string test1 = base::RandomAlphaNumericString(kStringSize);
+  std::string test2 = base::RandomAlphaNumericString(kStringSize);
+  EXPECT_EQ(kStringSize, test1.size());
+  EXPECT_EQ(kStringSize, test2.size());
+  EXPECT_NE(test1, test2);
+  const std::string kAlphaNumeric("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
+                                  "ijklmnopqrstuvwxyz");
+  for (size_t i = 0; i < kStringSize; ++i) {
+    EXPECT_NE(std::string::npos, kAlphaNumeric.find(test1.at(i)));
+    EXPECT_NE(std::string::npos, kAlphaNumeric.find(test2.at(i)));
   }
 }
 
 TEST(UtilsTest, BEH_BASE_HexEncodeDecode) {
-  crypto::Crypto co;
-  co.set_hash_algorithm(crypto::SHA_512);
+  const std::string kKnownEncoded("0123456789abcdef");
+  const std::string kKnownDecoded("\x1\x23\x45\x67\x89\xab\xcd\xef");
+  EXPECT_EQ(kKnownEncoded, base::EncodeToHex(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, base::DecodeFromHex(kKnownEncoded));
+  EXPECT_TRUE(base::EncodeToHex("").empty());
+  EXPECT_TRUE(base::DecodeFromHex("").empty());
+  EXPECT_TRUE(base::DecodeFromHex("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = co.Hash(base::RandomString(200), "",
-                                   crypto::STRING_STRING, false);
+    std::string original = base::RandomString(100);
     std::string encoded = base::EncodeToHex(original);
-    ASSERT_EQ(128U, encoded.size()) << "Encoding failed.";
+    EXPECT_EQ(200U, encoded.size());
     std::string decoded = base::DecodeFromHex(encoded);
-    ASSERT_EQ(original, decoded) << "encoded -> decoded failed.";
+    EXPECT_EQ(original, decoded);
   }
 }
 
 TEST(UtilsTest, BEH_BASE_Base64EncodeDecode) {
-  crypto::Crypto co;
-  co.set_hash_algorithm(crypto::SHA_512);
+  const std::string kKnownEncoded("BCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
+                                  "stuvwxyz0123456789+/A");
+  const std::string kKnownDecoded("\x04\x20\xc4\x14\x61\xc8\x24\xa2\xcc\x34\xe3"
+      "\xd0\x45\x24\xd4\x55\x65\xd8\x65\xa6\xdc\x75\xe7\xe0\x86\x28\xe4\x96\x69"
+      "\xe8\xa6\xaa\xec\xb6\xeb\xf0\xc7\x2c\xf4\xd7\x6d\xf8\xe7\xae\xfc\xf7\xef"
+      "\xc0");
+  EXPECT_EQ(kKnownEncoded, base::EncodeToBase64(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, base::DecodeFromBase64(kKnownEncoded));
+  EXPECT_TRUE(base::EncodeToBase64("").empty());
+  EXPECT_TRUE(base::DecodeFromBase64("").empty());
+  EXPECT_TRUE(base::DecodeFromBase64("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = co.Hash(base::RandomString(200), "",
-                                   crypto::STRING_STRING, false);
+    std::string original = base::RandomString(100);
     std::string encoded = base::EncodeToBase64(original);
-    ASSERT_EQ(88U, encoded.size()) << "Encoding failed.";
+    EXPECT_EQ(136U, encoded.size()) << "Encoding failed.";
     std::string decoded = base::DecodeFromBase64(encoded);
-    ASSERT_EQ(original, decoded) << "encoded -> decoded failed.";
+    EXPECT_EQ(original, decoded) << "encoded -> decoded failed.";
   }
 }
 
 TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
-  crypto::Crypto co;
-  co.set_hash_algorithm(crypto::SHA_512);
+  const std::string kKnownEncoded("bcdefghijkmnpqrstuvwxyz23456789a");
+  const std::string kKnownDecoded("\x08\x86\x42\x98\xe8\x4a\x96\xc6\xb9\xf0\x8c"
+                                  "\xa7\x4a\xda\xf8\xce\xb7\xce\xfb\xe0");
+  EXPECT_EQ(kKnownEncoded, base::EncodeToBase32(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, base::DecodeFromBase32(kKnownEncoded));
+  EXPECT_TRUE(base::EncodeToBase32("").empty());
+  EXPECT_TRUE(base::DecodeFromBase32("").empty());
+  EXPECT_TRUE(base::DecodeFromBase32("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = co.Hash(base::RandomString(200), "",
-                                   crypto::STRING_STRING, false);
+    std::string original = base::RandomString(100);
     std::string encoded = base::EncodeToBase32(original);
-    ASSERT_EQ(103U, encoded.size()) << "Encoding failed.";
+    EXPECT_EQ(160U, encoded.size()) << "Encoding failed.";
     std::string decoded = base::DecodeFromBase32(encoded);
-    ASSERT_EQ(original, decoded) << "encoded -> decoded failed.";
+    EXPECT_EQ(original, decoded) << "encoded -> decoded failed.";
   }
 }
 
@@ -189,25 +184,24 @@ TEST(UtilsTest, BEH_BASE_BytesAndAscii) {
   std::string good_string_v4("71.111.111.100");
   std::string good_string_v6("2001:db8:85a3::8a2e:370:7334");
   std::string bad_string("Not an IP");
-  ASSERT_EQ("Good", base::IpAsciiToBytes(good_string_v4));
-  ASSERT_EQ(good_string_v4, base::IpBytesToAscii("Good"));
+  EXPECT_EQ("Good", base::IpAsciiToBytes(good_string_v4));
+  EXPECT_EQ(good_string_v4, base::IpBytesToAscii("Good"));
   std::string result_v6 = base::IpAsciiToBytes(good_string_v6);
-  ASSERT_FALSE(result_v6.empty());
-  ASSERT_EQ(good_string_v6, base::IpBytesToAscii(result_v6));
-  ASSERT_TRUE(base::IpAsciiToBytes(bad_string).empty());
-  ASSERT_TRUE(base::IpBytesToAscii(bad_string).empty());
+  EXPECT_FALSE(result_v6.empty());
+  EXPECT_EQ(good_string_v6, base::IpBytesToAscii(result_v6));
+  EXPECT_TRUE(base::IpAsciiToBytes(bad_string).empty());
+  EXPECT_TRUE(base::IpBytesToAscii(bad_string).empty());
 }
 
 TEST(UtilsTest, BEH_BASE_DecimalAndAscii) {
   std::string dotted("121.12.121.1");
-  char *ipbuf = new char[32];
+  boost::scoped_array<char> ipbuf(new char[32]);
   boost::uint32_t n = base::IpAsciiToNet(dotted.c_str());
   boost::uint32_t g = 2030860545;
-  ASSERT_EQ(g, n) << "Conversion to decimal failed.";
-  base::IpNetToAscii(n, ipbuf);
-  std::string reformed(ipbuf);
-  ASSERT_EQ(dotted, reformed) << "Conversion to ASCII failed.";
-  delete []ipbuf;
+  EXPECT_EQ(g, n);
+  base::IpNetToAscii(n, ipbuf.get());
+  std::string reformed(ipbuf.get());
+  EXPECT_EQ(dotted, reformed);
 }
 
 TEST(UtilsTest, BEH_BASE_TimeFunctions) {
@@ -217,61 +211,44 @@ TEST(UtilsTest, BEH_BASE_TimeFunctions) {
   s = base::GetEpochTime();
 
   // Within a second
-  ASSERT_NEAR(s*1000, ms, 1000) << "s vs. ms failed.";
+  EXPECT_NEAR(s*1000, ms, 1000) << "s vs. ms failed.";
   // Within a second
-  ASSERT_NEAR(s*1000000000, ns, 1000000000) << "s vs. ns failed.";
+  EXPECT_NEAR(s*1000000000, ns, 1000000000) << "s vs. ns failed.";
   // Within quarter of a second
-  ASSERT_NEAR(ms*1000000, ns, 250000000) << "ms vs. ns failed.";
+  EXPECT_NEAR(ms*1000000, ns, 250000000) << "ms vs. ns failed.";
 }
 
 TEST(UtilsTest, BEH_BASE_NextTransactionId) {
   boost::uint32_t id1 = base::GenerateNextTransactionId(0);
   boost::uint32_t id2 = base::GenerateNextTransactionId(0);
-
-  ASSERT_NE(static_cast<boost::uint32_t>(0), id1) <<
-            "Transaction id1 came back as 0.";
-  ASSERT_NE(static_cast<boost::uint32_t>(0), id2) <<
-            "Transaction id2 came back as 0.";
-  ASSERT_NE(id1, id2) << "Transaction id1 and id2 came back the same.";
-
-  id1 = 2147483646;
+  EXPECT_NE(0U, id1);
+  EXPECT_NE(0U, id2);
+  EXPECT_NE(id1, id2);
+  id1 = 2147483645;
   id2 = base::GenerateNextTransactionId(id1);
-  ASSERT_EQ(static_cast<boost::uint32_t>(1), id2) <<
-            "Transaction id2 came back different from 1: " << id2;
+  EXPECT_EQ(1U, id2);
 }
 
 TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
   std::vector<base::DeviceStruct> alldevices;
   base::GetNetInterfaces(&alldevices);
-  ASSERT_NE(static_cast<boost::uint32_t>(0), alldevices.size());
-  for (unsigned int n = 0; n < alldevices.size(); n++) {
+  EXPECT_FALSE(alldevices.empty());
+  for (size_t n = 0; n < alldevices.size(); ++n) {
     base::DeviceStruct ds = alldevices[n];
     printf("%d - %s\n", n, ds.ip_address.to_string().c_str());
   }
 }
 
 TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
-  std::list<boost::uint32_t>uall_nums;
-  std::list<boost::uint32_t>all_nums;
-  int uall = 0;
-  int uwith_random_removed = 0;
-  int all = 0;
-  int with_random_removed = 0;
-
-  double finish = 1000;
-  for (int i = 0;i < finish; ++i) {
-    all_nums.push_front(base::RandomUint32());
-    uall_nums.push_front(base::RandomInt32());
+  std::set<boost::int32_t>random_ints;
+  std::set<boost::uint32_t>random_uints;
+  const size_t kCount(10000);
+  // look for less than 0.01% duplicates
+  const size_t kMaxDuplicates(kCount * 0.0001);
+  for (size_t i = 0; i < kCount; ++i) {
+    random_ints.insert(base::RandomInt32());
+    random_uints.insert(base::RandomUint32());
   }
-  all = all_nums.size();
-  uall = all_nums.size();
-  all_nums.unique();
-  with_random_removed = all_nums.size();
-  uall_nums.unique();
-  uwith_random_removed = uall_nums.size();
-  // look for less than 1% duplicates
-  ASSERT_EQ(finish, all);
-  ASSERT_GT(finish * 0.01, all - with_random_removed);
-  ASSERT_EQ(finish, uall);
-  ASSERT_GT(finish * 0.01, uall - uwith_random_removed);
+  EXPECT_GE(kMaxDuplicates, kCount - random_ints.size());
+  EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());
 }

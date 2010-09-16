@@ -58,7 +58,7 @@ class NatPmpClientImpl {
   * Constructor
   * @param ios The boost::asio::io_service object to use.
   */
-  explicit NatPmpClientImpl(boost::asio::io_service & ios);
+  explicit NatPmpClientImpl(boost::asio::io_service *ios);
 
 /**
   * Destructor
@@ -167,7 +167,7 @@ class NatPmpClientImpl {
 /**
   * A reference to the boost::asio::io_service.
   */
-  boost::asio::io_service & io_service_;
+  boost::asio::io_service *io_service_;
 
 /**
   * The request retry timer.

@@ -40,7 +40,7 @@ namespace kad {
 class TestRefresh : public testing::Test {
  public:
   TestRefresh() : trans_handlers_(), ch_managers_(), nodes_(), datadirs_(),
-    test_dir_("TestKnodes_"), testK_(4), testRefresh_(10),
+    test_dir_("temp/TestKnodes_"), testK_(4), testRefresh_(10),
     testNetworkSize_(10), transports_ids_() {
     test_dir_ += boost::lexical_cast<std::string>(
       base::RandomUint32());

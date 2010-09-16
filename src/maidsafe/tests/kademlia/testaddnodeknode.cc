@@ -90,7 +90,7 @@ class TestKnodes : public testing::Test {
  protected:
   void SetUp() {
     transports_.clear();
-    test_dir_ = std::string("TestKnodes") +
+    test_dir_ = std::string("temp/TestKnodes") +
                 boost::lexical_cast<std::string>(base::RandomUint32());
     try {
       if (boost::filesystem::exists(test_dir_))

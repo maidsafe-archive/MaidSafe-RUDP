@@ -131,7 +131,7 @@ class Env: public testing::Environment {
   virtual ~Env() {}
 
   virtual void SetUp() {
-    test_dir_ = std::string("KnodeTest") +
+    test_dir_ = std::string("temp/KnodeTest") +
         boost::lexical_cast<std::string>(base::RandomUint32());
     kad_config_file_ = test_dir_ + std::string("/.kadconfig");
     try {

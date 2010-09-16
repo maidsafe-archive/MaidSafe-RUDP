@@ -42,7 +42,7 @@ class NATPMPTest : public testing::Test {
 TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
   boost::asio::io_service ios;
 
-  natpmp::NatPmpClient client(ios);
+  natpmp::NatPmpClient client(&ios);
 
   boost::uint16_t tcp_port = 33333;
   boost::uint16_t udp_port = 33333;

@@ -67,36 +67,46 @@ boost::uint32_t RandomUint32() {
 }
 
 std::string IntToString(const int &value) {
-  std::string str_value(boost::lexical_cast<std::string>(value));
-  return str_value;
+  return boost::lexical_cast<std::string>(value);
 }
 
 std::string RandomString(const size_t &length) {
   std::string random_string;
   random_string.reserve(length);
   while (random_string.size() < length) {
-    size_t iter_length = std::min(length - random_string.size(), 65536U);
-    boost::scoped_array<byte> random_bytes(new byte[iter_length + 1]);
+#ifdef MAIDSAFE_APPLE
+     size_t iter_length = (length - random_string.size()) < 65536U ?
+                          (length - random_string.size()) : 65536U;
+#else
+    size_t iter_length = std::min(length - random_string.size(), size_t(65536));
+#endif
+    boost::scoped_array<byte> random_bytes(new byte[iter_length]);
     {
       boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
       g_random_number_generator.GenerateBlock(random_bytes.get(), iter_length);
     }
-    std::string random_substring(iter_length, 0);
-    for (size_t i = 0; i < iter_length; ++i) {
-      random_bytes[i] = random_bytes[i] % 122;
-      if (48 > random_bytes[i])
-        random_bytes[i] += 48;
-      if ((57 < random_bytes[i]) && (65 > random_bytes[i]))
-        random_bytes[i] += 7;
-      if ((90 < random_bytes[i]) && (97 > random_bytes[i]))
-        random_bytes[i] += 6;
-      random_substring[i] = random_bytes[i];
-    }
+    std::string random_substring;
+    CryptoPP::StringSink string_sink(random_substring);
+    string_sink.Put(random_bytes.get(), iter_length);
     random_string += random_substring;
   }
   return random_string;
 }
 
+std::string RandomAlphaNumericString(const size_t &length) {
+  std::string random_string(RandomString(length));
+  for (std::string::iterator it = random_string.begin();
+       it != random_string.end(); ++it) {
+    *it = (*it + 128) % 122;
+    if (48 > *it)
+      *it += 48;
+    if ((57 < *it) && (65 > *it))
+      *it += 7;
+    if ((90 < *it) && (97 > *it))
+      *it += 6;
+  }
+  return random_string;
+}
 
 std::string EncodeToHex(const std::string &non_hex_input) {
   std::string hex_output;
@@ -162,18 +172,12 @@ boost::uint64_t GetEpochNanoseconds() {
 }
 
 boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {
-  boost::uint32_t next_id;
-  boost::uint32_t kMaxId = 2147483646;
+  const boost::uint32_t kMaxId = 2147483645;
   if (id == 0) {
-    next_id = (RandomInt32() + GetEpochTime() % 10000) % kMaxId;
-    if (next_id == 0)
-      next_id = 1;
+    return (RandomUint32() % kMaxId) + 1;
   } else {
-    next_id = (id + 1) % kMaxId;
-    if (next_id == 0)
-      next_id = 1;
+    return (id % kMaxId) + 1;
   }
-  return next_id;
 }
 
 std::string IpAsciiToBytes(const std::string &decimal_ip) {
@@ -208,13 +212,12 @@ std::string IpBytesToAscii(const std::string &bytes_ip) {
       boost::asio::ip::address_v6::bytes_type bytes_type_ip;
       for (int i = 0; i < 16; ++i)
         bytes_type_ip[i] = bytes_ip.at(i);
-      *bytes_type_ip.c_array() = *bytes_ip.c_str();
       boost::asio::ip::address_v6 address(bytes_type_ip);
       return address.to_string();
     }
   }
   catch(const std::exception &e) {
-     DLOG(ERROR) << e.what() << std::endl;
+    DLOG(ERROR) << e.what() << std::endl;
   }
   return "";
 }

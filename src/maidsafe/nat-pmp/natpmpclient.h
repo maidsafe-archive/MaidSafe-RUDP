@@ -49,12 +49,12 @@ class NatPmpClient {
   * Constructor
   * @param ios The boost::asio::io_service object to use.
   */
-  explicit NatPmpClient(boost::asio::io_service &ios);
+  explicit NatPmpClient(boost::asio::io_service *ios)  : io_service_(ios) {}
 
 /**
   * Destructor
   */
-  ~NatPmpClient();
+  ~NatPmpClient() {}
 
 /**
   * Start the underlying subsystem.
@@ -92,9 +92,9 @@ class NatPmpClient {
  protected:
 
 /**
-  * Reference to the boost::asio::io_service object.
+  * Pointer to the boost::asio::io_service object.
   */
-  boost::asio::io_service & io_service_;
+  boost::asio::io_service *io_service_;
 
 /**
   * The underlying nat-pmp implementation.

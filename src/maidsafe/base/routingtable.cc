@@ -1,9 +1,9 @@
 /* Copyright (c) 2009 maidsafe.net limited
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
- 
+
     * Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@ are permitted provided that the following conditions are met:
     * Neither the name of the maidsafe.net limited nor the names of its
     contributors may be used to endorse or promote products derived from this
     software without specific prior written permission.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -118,7 +118,7 @@ int PublicRoutingTableHandler::GetClosestContacts(
     tuples->assign(temp.begin(), temp.end());
   } else {
     std::vector< boost::reference_wrapper<
-                const PublicRoutingTableTuple> >::iterator itr = temp.begin();
+                 const PublicRoutingTableTuple> >::iterator itr = temp.begin();
     itr += count;
     tuples->assign(temp.begin(), itr);
   }
@@ -222,7 +222,7 @@ int PublicRoutingTableHandler::UpdatePublicKey(
 }
 
 int PublicRoutingTableHandler::UpdateRtt(const std::string &kademlia_id,
-                                        const float &new_rtt) {
+                                         const float &new_rtt) {
   boost::mutex::scoped_lock guard(mutex_);
   routingtable::index<t_key>::type& key_indx = routingtable_.get<t_key>();
   routingtable::index<t_key>::type::iterator it = key_indx.find(kademlia_id);
@@ -248,7 +248,7 @@ int PublicRoutingTableHandler::UpdateRank(const std::string &kademlia_id,
 }
 
 int PublicRoutingTableHandler::UpdateSpace(const std::string &kademlia_id,
-                                          const boost::uint32_t &new_space) {
+                                           const boost::uint32_t &new_space) {
   boost::mutex::scoped_lock guard(mutex_);
   routingtable::index<t_key>::type& key_indx = routingtable_.get<t_key>();
   routingtable::index<t_key>::type::iterator it = key_indx.find(kademlia_id);
@@ -313,7 +313,7 @@ PublicRoutingTable* PublicRoutingTable::GetInstance() {
 boost::shared_ptr<PublicRoutingTableHandler> PublicRoutingTable::operator[] (
     const std::string &name) {
   std::map<std::string,
-          boost::shared_ptr<PublicRoutingTableHandler> >::iterator it;
+           boost::shared_ptr<PublicRoutingTableHandler> >::iterator it;
   it = pdroutingtablehdls_.find(name);
   if (it == pdroutingtablehdls_.end()) {
     pdroutingtablehdls_.insert(std::pair<std::string,

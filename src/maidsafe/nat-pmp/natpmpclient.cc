@@ -37,11 +37,6 @@ Created by Julian Cain on 11/3/09.
 
 namespace natpmp {
 
-NatPmpClient::NatPmpClient(boost::asio::io_service & ios) : io_service_(ios),
-                                                            impl_() {}
-
-NatPmpClient::~NatPmpClient() {}
-
 void NatPmpClient::Start() {
   if (impl_) {
     // ...
