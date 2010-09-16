@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/distributed_network/mysqlppwrap.h"
+#include "maidsafe/distributed_network/operator.h"
 #include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 
@@ -160,7 +161,30 @@ void RunSmallTest() {
   }
 }
 
-}  // namespace net_client
+void StartTest(boost::shared_ptr<Operator> op, boost::shared_ptr<kad::KNode> kn,
+               const std::string &public_key, const std::string &private_key) {
+  op.reset(new Operator(kn, public_key, private_key));
+  op->Run();
+}
+
+bool KadConfigOK() {
+//  base::KadConfig kadconfig;
+//  fs::path kadconfig_path("/.kadconfig");
+//  try {
+//    fs::ifstream input(kadconfig_path.string().c_str(),
+//                       std::ios::in | std::ios::binary);
+//    if (!kadconfig.ParseFromIstream(&input)) {
+//      return false;
+//    }
+//    input.close();
+//    if (kadconfig.contact_size() == 0)
+//      return false;
+//  }
+//  catch(const std::exception &) {
+//    return false;
+//  }
+  return true;
+}
 
 class JoinCallback {
  public:
@@ -211,24 +235,34 @@ class JoinCallback {
   bool result_arrived_, success_;
 };
 
-bool KadConfigOK() {
-  base::KadConfig kadconfig;
-  fs::path kadconfig_path("/.kadconfig");
-  try {
-    fs::ifstream input(kadconfig_path.string().c_str(),
-                       std::ios::in | std::ios::binary);
-    if (!kadconfig.ParseFromIstream(&input)) {
-      return false;
-    }
-    input.close();
-    if (kadconfig.contact_size() == 0)
-      return false;
+class NetworkTestValidator : public base::SignatureValidator {
+ public:
+  NetworkTestValidator() : SignatureValidator() {}
+  /**
+   * Signer Id is not validated, return always true
+   */
+  bool ValidateSignerId(const std::string&, const std::string&,
+                        const std::string&) {
+    return true;
   }
-  catch(const std::exception &) {
-    return false;
+  /**
+   * Validates the request signed with private key that corresponds
+   * to public_key
+   */
+  bool ValidateRequest(const std::string &signed_request,
+                       const std::string &public_key,
+                       const std::string &signed_public_key,
+                       const std::string &key) {
+    if (signed_request == kad::kAnonymousSignedRequest)
+      return true;
+    crypto::Crypto co;
+    return co.AsymCheckSig(co.Hash(public_key + signed_public_key + key, "",
+                                   crypto::STRING_STRING, true),
+                           signed_request, public_key, crypto::STRING_STRING);
   }
-  return true;
-}
+};
+
+}  // namespace net_client
 
 volatile int ctrlc_pressed = 0;
 
@@ -237,19 +271,20 @@ void CtrlcHandler(int b) {
   ctrlc_pressed = b;
 }
 
-int main(int argc, char **argv) {
+int main(int, char **argv) {
   google::InitGoogleLogging(argv[0]);
 #ifndef HAVE_GLOG
   bool FLAGS_logtostderr;
 #endif
   FLAGS_logtostderr = true;
 
-  if (!KadConfigOK()) {
+  if (!net_client::KadConfigOK()) {
     DLOG(ERROR) << "Can't find .kadconfig" << std::endl;
     return 1;
   }
 
   // Create required objects
+  net_client::NetworkTestValidator ntv;
   transport::TransportHandler transport_handler;
   transport::TransportUDT transport_udt;
   boost::int16_t transport_id;
@@ -257,30 +292,40 @@ int main(int argc, char **argv) {
   rpcprotocol::ChannelManager channel_manager(&transport_handler);
   crypto::RsaKeyPair rsa_key_pair;
   rsa_key_pair.GenerateKeys(4096);
-  kad::KNode node(&channel_manager, &transport_handler, kad::CLIENT,
-                  rsa_key_pair.private_key(), rsa_key_pair.public_key(),
-                  false, false, net_client::K);
-  node.set_transport_id(transport_id);
+  boost::shared_ptr<kad::KNode> node(
+      new kad::KNode(&channel_manager, &transport_handler, kad::CLIENT,
+                     rsa_key_pair.private_key(), rsa_key_pair.public_key(),
+                     false, false, net_client::K));
+  node->set_transport_id(transport_id);
+  node->set_signature_validator(&ntv);
   if (!channel_manager.RegisterNotifiersToTransport() ||
-      !transport_handler.RegisterOnServerDown(boost::bind(
-      &kad::KNode::HandleDeadRendezvousServer, &node, _1))) {
+      !transport_handler.RegisterOnServerDown(
+          boost::bind(&kad::KNode::HandleDeadRendezvousServer,
+                      node.get(), _1))) {
     return 2;
   }
+
   if (0 != transport_handler.Start(0, transport_id) ||
       0 != channel_manager.Start()) {
     return 3;
   }
 
-  // Join the test network
-  JoinCallback callback;
-  node.Join("/.kadconfig",
-            boost::bind(&JoinCallback::AssessResult, &callback, _1));
-  if (!callback.JoinedNetwork()) {
-    transport_handler.Stop(transport_id);
-    channel_manager.Stop();
-    return 4;
-  }
-  printf("Node info: %s", node.contact_info().DebugString().c_str());
+//  // Join the test network
+//  net_client::JoinCallback callback;
+//  node->Join("/.kadconfig",
+//             boost::bind(&net_client::JoinCallback::AssessResult,
+//                         &callback, _1));
+//  if (!callback.JoinedNetwork()) {
+//    transport_handler.Stop(transport_id);
+//    channel_manager.Stop();
+//    return 4;
+//  }
+
+  boost::shared_ptr<net_client::Operator> op;
+  boost::thread th(&net_client::StartTest, op, node, rsa_key_pair.public_key(),
+                   rsa_key_pair.private_key());
+
+  printf("Node info: %s", node->contact_info().DebugString().c_str());
   printf("=====================================\n");
   printf("Press Ctrl+C to exit\n");
   printf("=====================================\n\n");
@@ -288,10 +333,13 @@ int main(int argc, char **argv) {
   while (!ctrlc_pressed) {
     boost::this_thread::sleep(boost::posix_time::seconds(1));
   }
+
+  printf("\n");
   transport_handler.StopPingRendezvous();
-  node.Leave();
+  node->Leave();
   transport_handler.Stop(transport_id);
   channel_manager.Stop();
+
   return 0;
 }
 
