@@ -33,20 +33,18 @@
 #                                                                              #
 #==============================================================================#
 #                                                                              #
-#  Module used to locate MySQL libs and headers for MSVC builds.               #
+#  Module used to locate MySQL libs and headers.                               #
 #                                                                              #
 #  Settable variables to aid with finding MySQL are:                           #
-#    MYSQL_ROOT_DIR                                                            #
+#    MYSQL_LIB_DIR, MYSQL_INC_DIR and MYSQL_ROOT_DIR                           #
 #                                                                              #
 #  Variables set and cached by this module are:                                #
-#    Mysql_INCLUDE_DIR, Mysql_LIBRARY_DIR, Mysql_LIBRARY_DIR_DEBUG,            #
-#    Mysql_LIBRARY, Mysql_LIBRARY_DEBUG and Mysql_FOUND                        #
+#    Mysql_INCLUDE_DIR, Mysql_LIBRARY_DIR, Mysql_LIBRARY and Mysql_FOUND.      #
+#                                                                              #
+#  For MSVC, Mysql_LIBRARY_DIR_DEBUG and Mysql_LIBRARY_DEBUG are also set and  #
+#  cached.                                                                     #
 #                                                                              #
 #==============================================================================#
-
-IF(NOT MSVC)
-  MESSAGE(FATAL_ERROR "\nThis module is only applicable when building for Microsoft Visual Studio.\n\n")
-ENDIF()
 
 UNSET(WARNING_MESSAGE)
 UNSET(Mysql_INCLUDE_DIR CACHE)
@@ -56,53 +54,95 @@ UNSET(Mysql_LIBRARY CACHE)
 UNSET(Mysql_LIBRARY_DEBUG CACHE)
 UNSET(Mysql_FOUND CACHE)
 
+IF(MYSQL_LIB_DIR)
+  SET(MYSQL_LIB_DIR ${MYSQL_LIB_DIR} CACHE PATH "Path to MySQL libraries directory" FORCE)
+ENDIF()
+IF(MYSQL_INC_DIR)
+  SET(MYSQL_INC_DIR ${MYSQL_INC_DIR} CACHE PATH "Path to MySQL include directory" FORCE)
+ENDIF()
 IF(MYSQL_ROOT_DIR)
   SET(MYSQL_ROOT_DIR ${MYSQL_ROOT_DIR} CACHE PATH "Path to MySQL root directory" FORCE)
 ENDIF()
 
-FIND_LIBRARY(Mysql_LIBRARY NAMES libmysql PATHS ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib/opt)
-FIND_LIBRARY(Mysql_LIBRARY_DEBUG NAMES libmysql PATHS ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib/debug)
+FIND_LIBRARY(Mysql_LIBRARY NAMES mysqlclient libmysql PATHS ${MYSQLPP_LIB_DIR} ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib lib64 lib/opt)
+IF(MSVC)
+  FIND_LIBRARY(Mysql_LIBRARY_DEBUG NAMES libmysql PATHS ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib/debug)
+ENDIF()
 
-FIND_PATH(Mysql_INCLUDE_DIR mysql.h PATHS ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES include)
+FIND_PATH(Mysql_INCLUDE_DIR mysql.h PATHS ${MYSQL_INC_DIR}/mysql ${MYSQL_INC_DIR} ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES include)
 
 GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR ${Mysql_LIBRARY} PATH)
 SET(Mysql_LIBRARY_DIR ${MYSQL_LIBRARY_DIR} CACHE PATH "Path to MySQL release libraries directory" FORCE)
-GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR_DEBUG ${Mysql_LIBRARY_DEBUG} PATH)
-SET(Mysql_LIBRARY_DIR_DEBUG ${MYSQL_LIBRARY_DIR_DEBUG} CACHE PATH "Path to MySQL debug libraries directory" FORCE)
+IF(MSVC)
+  GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR_DEBUG ${Mysql_LIBRARY_DEBUG} PATH)
+  SET(Mysql_LIBRARY_DIR_DEBUG ${MYSQL_LIBRARY_DIR_DEBUG} CACHE PATH "Path to MySQL debug libraries directory" FORCE)
 
-FIND_FILE(MYSQL_DLL libmysql.dll PATHS ${Mysql_LIBRARY_DIR})
-FIND_FILE(MYSQL_DLL_DEBUG libmysql.dll PATHS ${Mysql_LIBRARY_DIR_DEBUG})
-IF(MYSQL_DLL AND MYSQL_DLL_DEBUG)
-  UNSET(COPIED_MYSQL_DLL_DEBUG CACHE)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL_DEBUG} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
-  FIND_FILE(COPIED_MYSQL_DLL_DEBUG libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
-  UNSET(COPIED_MYSQL_DLL_RELEASE CACHE)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
-  FIND_FILE(COPIED_MYSQL_DLL_RELEASE libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
-  UNSET(COPIED_MYSQL_DLL_RELWITHDEBINFO CACHE)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
-  FIND_FILE(COPIED_MYSQL_DLL_RELWITHDEBINFO libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
-  UNSET(COPIED_MYSQL_DLL_MINSIZEREL CACHE)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
-  FIND_FILE(COPIED_MYSQL_DLL_MINSIZEREL libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
+  FIND_FILE(MYSQL_DLL libmysql.dll PATHS ${Mysql_LIBRARY_DIR})
+  FIND_FILE(MYSQL_DLL_DEBUG libmysql.dll PATHS ${Mysql_LIBRARY_DIR_DEBUG})
+  IF(MYSQL_DLL AND MYSQL_DLL_DEBUG)
+    UNSET(COPIED_MYSQL_DLL_DEBUG CACHE)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL_DEBUG} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
+    FIND_FILE(COPIED_MYSQL_DLL_DEBUG libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/)
+    UNSET(COPIED_MYSQL_DLL_RELEASE CACHE)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
+    FIND_FILE(COPIED_MYSQL_DLL_RELEASE libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/)
+    UNSET(COPIED_MYSQL_DLL_RELWITHDEBINFO CACHE)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
+    FIND_FILE(COPIED_MYSQL_DLL_RELWITHDEBINFO libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/)
+    UNSET(COPIED_MYSQL_DLL_MINSIZEREL CACHE)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy ${MYSQL_DLL} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
+    FIND_FILE(COPIED_MYSQL_DLL_MINSIZEREL libmysql.dll PATHS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/)
+  ENDIF()
+
+  IF(NOT MYSQL_DLL)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Did not find MySQL DLL")
+  ENDIF()
+
+  IF(NOT MYSQL_DLL_DEBUG)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Did not find MySQL Debug DLL")
+  ENDIF()
+
+  IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_DEBUG)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Failed to copy MySQL Debug DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/")
+  ENDIF()
+
+  IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_RELEASE)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/")
+  ENDIF()
+
+  IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_RELWITHDEBINFO)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/")
+  ENDIF()
+
+  IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_MINSIZEREL)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/")
+  ENDIF()
 ENDIF()
 
 IF(NOT Mysql_LIBRARY)
   SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find MySQL library")
+  MESSAGE("-- Did not find MySQL Client library")
 ELSE()
-  MESSAGE("-- Found MySQL library")
+  MESSAGE("-- Found MySQL Client library")
 ENDIF()
 
-IF(NOT Mysql_LIBRARY_DEBUG)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find MySQL Debug library")
-ELSE()
-  MESSAGE("-- Found MySQL Debug library")
+IF(MSVC)
+  IF(NOT Mysql_LIBRARY_DEBUG)
+    SET(WARNING_MESSAGE TRUE)
+    MESSAGE("-- Did not find MySQL Debug library")
+  ELSE()
+    MESSAGE("-- Found MySQL Debug library")
+  ENDIF()
 ENDIF()
 
 IF(NOT Mysql_INCLUDE_DIR)
@@ -110,40 +150,12 @@ IF(NOT Mysql_INCLUDE_DIR)
   MESSAGE("-- Did not find MySQL library headers")
 ENDIF()
 
-IF(NOT MYSQL_DLL)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find MySQL DLL")
-ENDIF()
-
-IF(NOT MYSQL_DLL_DEBUG)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find MySQL Debug DLL")
-ENDIF()
-
-IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_DEBUG)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Failed to copy MySQL Debug DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/")
-ENDIF()
-
-IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_RELEASE)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/")
-ENDIF()
-
-IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_RELWITHDEBINFO)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/RelWithDebInfo/")
-ENDIF()
-
-IF(NOT WARNING_MESSAGE AND NOT COPIED_MYSQL_DLL_MINSIZEREL)
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Failed to copy MySQL DLL to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MinSizeRel/")
-ENDIF()
-
 IF(WARNING_MESSAGE)
   SET(WARNING_MESSAGE "   You can download the MySQL Community Server at http://www.mysql.com/downloads/mysql\n")
   SET(WARNING_MESSAGE "${WARNING_MESSAGE}   If MySQL is already installed, run:\n")
-  SET(WARNING_MESSAGE "${WARNING_MESSAGE}   ${ERROR_MESSAGE_CMAKE_PATH} -DMYSQL_ROOT_DIR=<Path to MySQL root directory>")
+  SET(WARNING_MESSAGE "${WARNING_MESSAGE}   ${ERROR_MESSAGE_CMAKE_PATH} -DMYSQL_LIB_DIR=<Path to MySQL lib directory> and/or")
+  SET(WARNING_MESSAGE "${WARNING_MESSAGE}\n   ${ERROR_MESSAGE_CMAKE_PATH} -DMYSQL_INC_DIR=<Path to MySQL include directory> and/or")
+  SET(WARNING_MESSAGE "${WARNING_MESSAGE}\n   ${ERROR_MESSAGE_CMAKE_PATH} -DMYSQL_ROOT_DIR=<Path to MySQL root directory>")
   MESSAGE("${WARNING_MESSAGE}")
   SET(Mysql_FOUND FALSE CACHE INTERNAL "Found MySQL library and headers" FORCE)
   UNSET(Mysql_INCLUDE_DIR CACHE)
