@@ -77,8 +77,7 @@ class Work {
 
 class ThreadpoolTest : public testing::Test {
  protected:
-  ThreadpoolTest() : kMaxTaskDuration_(110),
-                     kMinTaskDuration_(10),
+  ThreadpoolTest() : kMinTaskDuration_(10), kMaxTaskDuration_(110),
                      work_(kMinTaskDuration_, kMaxTaskDuration_ - 10) {}
   virtual ~ThreadpoolTest() {}
   virtual void SetUp() {}
@@ -86,8 +85,8 @@ class ThreadpoolTest : public testing::Test {
   void Sleep(const boost::uint32_t &duration) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(duration));
   }
-  Work work_;
   const boost::uint8_t kMinTaskDuration_, kMaxTaskDuration_;
+  Work work_;
  private:
   ThreadpoolTest(const ThreadpoolTest&);
   ThreadpoolTest& operator=(const ThreadpoolTest&);

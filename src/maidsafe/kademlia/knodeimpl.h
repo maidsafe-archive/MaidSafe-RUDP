@@ -320,21 +320,28 @@ struct BootstrapArgs {
   bool is_callbacked, dir_connected;
 };
 
+struct KnodeConstructionParameters {
+  KnodeConstructionParameters()
+      : type(VAULT), k(4), alpha(3), beta(2), refresh_time(0), private_key(),
+        public_key(), port_forwarded(false), use_upnp(false), port(0) {}
+  NodeType type;
+  boost::uint16_t k;
+  boost::uint16_t alpha;
+  boost::uint16_t beta;
+  boost::uint32_t refresh_time;
+  std::string private_key;
+  std::string public_key;
+  bool port_forwarded;
+  bool use_upnp;
+  Port port;
+};
+
 class KNodeImpl {
  public:
-  KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-            boost::shared_ptr<transport::UdtTransport> udt_transport,
-            NodeType type, const std::string &private_key,
-            const std::string &public_key, const bool &port_forwarded,
-            const bool &use_upnp, const boost::uint16_t &k);
   // constructor used to set up parameters k, alpha, and beta for kademlia
   KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
             boost::shared_ptr<transport::UdtTransport> udt_transport,
-            NodeType type, const boost::uint16_t &k,
-            const boost::uint16_t &alpha, const boost::uint16_t &beta,
-            const boost::uint32_t &refresh_time, const std::string &private_key,
-            const std::string &public_key, const bool &port_forwarded,
-            const bool &use_upnp);
+            const KnodeConstructionParameters &knode_parameters);
   ~KNodeImpl();
 
   void Join(const KadId &node_id, const std::string &kad_config_file,
@@ -361,12 +368,10 @@ class KNodeImpl {
   void DeleteValue(const KadId &key, const SignedValue &signed_value,
                    const SignedRequest &signed_request,
                    VoidFunctorOneString callback);
-  void UpdateValue(const KadId &key,
-                   const SignedValue &old_value,
+  void UpdateValue(const KadId &key, const SignedValue &old_value,
                    const SignedValue &new_value,
                    const SignedRequest &signed_request,
-                   boost::uint32_t ttl,
-                   VoidFunctorOneString callback);
+                   boost::uint32_t ttl, VoidFunctorOneString callback);
   void FindValue(const KadId &key, const bool &check_alternative_store,
                  VoidFunctorOneString callback);
   void GetNodeContactDetails(const KadId &node_id,
@@ -391,10 +396,8 @@ class KNodeImpl {
                          const std::vector<Contact> &exclude_contacts,
                          std::vector<Contact> *contacts);
   void HandleDeadRendezvousServer(const bool &dead_server);
-  ConnectionType CheckContactLocalAddress(const KadId &id,
-                                          const IP &ip,
-                                          const Port &port,
-                                          const IP &ext_ip);
+  ConnectionType CheckContactLocalAddress(const KadId &id, const IP &ip,
+                                          const Port &port, const IP &ext_ip);
   void UpdatePDRTContactToRemote(const KadId &node_id,
                                  const IP &host_ip);
   ContactInfo contact_info() const;
@@ -412,7 +415,7 @@ class KNodeImpl {
   inline IP rendezvous_ip() const { return rv_ip_; }
   inline Port rendezvous_port() const { return rv_port_; }
   inline bool is_joined() const { return is_joined_; }
-  inline KadRpcs* kadrpcs() { return &kadrpcs_; }
+  inline boost::shared_ptr<KadRpcs> kadrpcs() { return kadrpcs_; }
   bool HasRSAKeys();
   boost::int32_t KeyValueTTL(const KadId &key, const std::string &value) const;
   inline void set_alternative_store(base::AlternativeStore* alt_store) {
@@ -430,6 +433,7 @@ class KNodeImpl {
   }
   inline NatType host_nat_type() { return host_nat_type_; }
   inline bool recheck_nat_type() { return recheck_nat_type_; }
+
  private:
   KNodeImpl &operator=(const KNodeImpl&);
   KNodeImpl(const KNodeImpl&);
@@ -485,13 +489,11 @@ class KNodeImpl {
                                   VoidFunctorOneString callback);
   void DelValue_IterativeDeleteValue(const DeleteResponse *response,
                                      DeleteCallbackArgs callback_data);
-  void ExecuteUpdateRPCs(const std::string &result,
-                         const KadId &key,
+  void ExecuteUpdateRPCs(const std::string &result, const KadId &key,
                          const SignedValue &old_value,
                          const SignedValue &new_value,
                          const SignedRequest &sig_req,
-                         boost::uint32_t ttl,
-                         VoidFunctorOneString callback);
+                         boost::uint32_t ttl, VoidFunctorOneString callback);
   void UpdateValueResponses(boost::shared_ptr<UpdateCallbackArgs> uca);
   void FindNode_GetNode(const std::string &result, const KadId &node_id,
                         VoidFunctorOneString callback);
@@ -516,46 +518,38 @@ class KNodeImpl {
                             boost::shared_ptr<boost::uint32_t> refreshes_done);
   void RecheckNatRoutine();
   void RecheckNatRoutineJoinCallback(const std::string &result);
+
   boost::mutex routingtable_mutex_, kadconfig_mutex_, extendshortlist_mutex_,
                joinbootstrapping_mutex_, leave_mutex_, activeprobes_mutex_,
                pendingcts_mutex_;
   boost::shared_ptr<base::CallLaterTimer> ptimer_;
-  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
   boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
   boost::shared_ptr<rpcprotocol::Channel> pservice_channel_;
   boost::shared_ptr<DataStore> pdata_store_;
-  base::AlternativeStore *alternative_store_;
   boost::shared_ptr<KadService> premote_service_;
-  KadRpcs kadrpcs_;
-  NatRpcs natrpcs_;
-  volatile bool is_joined_;
   boost::shared_ptr<RoutingTable> prouting_table_;
-  KadId node_id_, fake_kClientId_;
-  IP host_ip_;
-  NodeType type_;
-  Port host_port_;
-  IP rv_ip_;
-  Port rv_port_;
-  std::vector<Contact> bootstrapping_nodes_;
-  const boost::uint16_t K_, alpha_, beta_;
-  bool refresh_routine_started_;
-  boost::filesystem::path kad_config_path_;
-  IP local_host_ip_;
-  Port local_host_port_;
-  bool stopping_, port_forwarded_, use_upnp_;
-  std::list<Contact> contacts_to_add_;
+  boost::shared_ptr<KadRpcs> kadrpcs_;
   boost::shared_ptr<boost::thread> addcontacts_routine_;
+  base::AlternativeStore *alternative_store_;
+  base::SignatureValidator *signature_validator_;
+  NatRpcs natrpcs_;
+  upnp::UpnpIgdClient upnp_;
+  KadId node_id_, fake_kClientId_;
+  IP host_ip_, rv_ip_, local_host_ip_;
+  Port host_port_, rv_port_, local_host_port_, upnp_mapped_port_;
+  NodeType type_;
+  NatType host_nat_type_;
+  std::vector<Contact> bootstrapping_nodes_, exclude_bs_contacts_;
+  std::list<Contact> contacts_to_add_;
+  const boost::uint16_t K_, alpha_, beta_;
+  bool is_joined_, refresh_routine_started_, stopping_, port_forwarded_,
+       use_upnp_, recheck_nat_type_;
+  boost::filesystem::path kad_config_path_;
   boost::condition_variable add_ctc_cond_;
   std::string private_key_, public_key_;
-  NatType host_nat_type_;
-  bool recheck_nat_type_;
-  // for UPnP
-  upnp::UpnpIgdClient upnp_;
-  Port upnp_mapped_port_;
-  //
-  base::SignatureValidator *signature_validator_;
-  std::vector<Contact> exclude_bs_contacts_;
 };
 
 }  // namespace kad
+
 #endif  // MAIDSAFE_KADEMLIA_KNODEIMPL_H_

@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/base/log.h"
+#include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/kadroutingtable.h"
 #include "maidsafe/base/crypto.h"
@@ -92,8 +93,9 @@ TEST_F(TestRoutingTable, FUNC_KAD_PartFilltable) {
     contacts.unique();
   }
   for (std::list<kad::KadId>::iterator j = contacts.begin();
-      j!= contacts.end() ; ++j) {
-    kad::Contact contact(*j, ip, ++port , ip, ++port);
+       j!= contacts.end() ; ++j) {
+    ++port;
+    kad::Contact contact(*j, ip, port, ip, ++port);
     // table will not be full but should only fail on full bucket [2] or
     // works [0]
     ASSERT_TRUE(routingtable.AddContact(contact) == 0 ||
@@ -549,7 +551,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   ++port;
   id = std::string(64, 255);
   id[0] = 127;
-  id[63] = 254;
+  id[63] = static_cast<char>(254);
   kad::Contact furthest_contact2(id, ip, port, ip, port);
   furthest_contact2.set_last_seen(now);  // make sure this peer has the highest
                                          // score

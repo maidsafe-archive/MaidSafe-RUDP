@@ -35,7 +35,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/utils.h"
 
+namespace rpcprotocol {
+typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
+}  // namespace rpcprotocol
 
 namespace kad {
 class KNode;
@@ -55,7 +59,7 @@ struct CallbackData {
 
 class Operations {
  public:
-  explicit Operations(kad::KNode *node);
+  explicit Operations(boost::shared_ptr<kad::KNode> node);
   void TestFindAndPing(const std::vector<kad::KadId> &nodes,
                        const int &iterations);
   void TestStoreAndFind(const std::vector<kad::KadId> &nodes,
@@ -71,7 +75,7 @@ class Operations {
                      boost::shared_ptr<CallbackData> data);
   void FindValueCallback(const std::string &result,
                          boost::shared_ptr<CallbackData> data);
-  kad::KNode *node_;
+  boost::shared_ptr<kad::KNode> node_;
   crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_signature_;
 };

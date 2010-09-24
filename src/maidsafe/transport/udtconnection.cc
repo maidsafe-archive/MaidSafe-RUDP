@@ -276,8 +276,8 @@ TransportCondition UdtConnection::SendDataContent() {
   boost::scoped_array<char> serialised_message(new char[data_size]);
   // Check for valid message
   if (!transport_message_.IsInitialized()) {
-    DLOG(ERROR) << "UdtTransport::SendDataContent: uninitialised message." <<
-        std::endl;
+    DLOG(ERROR) << "UdtTransport::SendDataContent: uninitialised message."
+                << std::endl;
     return kInvalidData;
   }
   if (!transport_message_.SerializeToArray(serialised_message.get(),

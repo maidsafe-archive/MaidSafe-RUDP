@@ -32,8 +32,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
-#include "maidsafe/kademlia/datastore.h"
+#include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/utils.h"
+#include "maidsafe/kademlia/datastore.h"
 
 class DataStoreTest: public testing::Test {
  protected:

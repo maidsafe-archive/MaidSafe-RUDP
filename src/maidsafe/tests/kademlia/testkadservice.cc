@@ -70,6 +70,7 @@ class DummyAltStore : public base::AlternativeStore {
   DummyAltStore() : keys_() {}
   bool Has(const std::string &key) { return keys_.find(key) != keys_.end();}
   void Store(const std::string &key) { keys_.insert(key); }
+
  private:
   std::set<std::string> keys_;
 };
@@ -87,7 +88,7 @@ class Callback {
 
 class KadServicesTest: public testing::Test {
  protected:
-  KadServicesTest() : trans_handler_(), channel_manager_(&trans_handler_),
+  KadServicesTest() : transport_(), channel_manager_(), transport_port_(0),
                       contact_(), crypto_(), node_id_(), service_(),
                       datastore_(), routingtable_(), validator_() {
     crypto_.set_hash_algorithm(crypto::SHA_512);
@@ -105,15 +106,19 @@ class KadServicesTest: public testing::Test {
     contact_.set_local_port(1235);
     contact_.set_rendezvous_ip("127.0.0.3");
     contact_.set_rendezvous_port(1236);
-
-    trans_handler_.Register(new transport::UdtTransport, &transport_id_);
   }
 
   virtual void SetUp() {
+    transport_.reset(new transport::UdtTransport);
+    transport::TransportCondition tc;
+    transport_port_ = transport_->StartListening("", 0, &tc);
+    ASSERT_EQ(transport::kSuccess, tc);
+    ASSERT_LT(0, transport_port_);
+    channel_manager_.reset(new rpcprotocol::ChannelManager(transport_));
+    ASSERT_EQ(0, channel_manager_->Start());
     datastore_.reset(new DataStore(kRefreshTime));
     routingtable_.reset(new RoutingTable(node_id_, test_kadservice::K));
-    service_.reset(new KadService(NatRpcs(&channel_manager_, &trans_handler_),
-        datastore_, true,
+    service_.reset(new KadService(NatRpcs(channel_manager_), datastore_, true,
         boost::bind(&KadServicesTest::AddCtc, this, _1, _2, _3),
         boost::bind(&KadServicesTest::GetRandCtcs, this, _1, _2, _3),
         boost::bind(&KadServicesTest::GetCtc, this, _1, _2),
@@ -132,15 +137,13 @@ class KadServicesTest: public testing::Test {
   }
 
   virtual void TearDown() {
-    trans_handler_.StopAll();
-    delete trans_handler_.Get(transport_id_);
-    trans_handler_.Remove(transport_id_);
-    channel_manager_.Stop();
+    transport_->StopListening(transport_port_);
+    channel_manager_->Stop();
   }
 
-  transport::TransportHandler trans_handler_;
-  boost::int16_t transport_id_;
-  rpcprotocol::ChannelManager channel_manager_;
+  boost::shared_ptr<transport::UdtTransport> transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
+  rpcprotocol::Port transport_port_;
   ContactInfo contact_;
   crypto::Crypto crypto_;
   kad::KadId node_id_;
@@ -148,6 +151,7 @@ class KadServicesTest: public testing::Test {
   boost::shared_ptr<DataStore> datastore_;
   boost::shared_ptr<RoutingTable> routingtable_;
   base::TestValidator validator_;
+
  private:
   int AddCtc(Contact ctc, const float&, const bool &only_db) {
     if (!only_db)
@@ -200,7 +204,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   PingResponse ping_response;
   Callback cb_obj;
   google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
+                                     (&cb_obj, &Callback::CallbackFunction);
   service_->Ping(&controller, &ping_request, &ping_response, done1);
   EXPECT_TRUE(ping_response.IsInitialized());
   EXPECT_EQ(kRpcResultFailure, ping_response.result());
@@ -208,11 +212,11 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   Contact contactback;
   EXPECT_FALSE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
-      &contactback));
+                                         &contactback));
   // Check success.
   ping_request.set_ping("ping");
   google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
+                                     (&cb_obj, &Callback::CallbackFunction);
   ping_response.Clear();
   service_->Ping(&controller, &ping_request, &ping_response, done2);
   EXPECT_TRUE(ping_response.IsInitialized());
@@ -220,7 +224,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   EXPECT_EQ("pong", ping_response.echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
-      &contactback));
+                                        &contactback));
 }
 
 TEST_F(KadServicesTest, BEH_KAD_ServicesFindValue) {

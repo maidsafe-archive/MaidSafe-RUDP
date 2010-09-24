@@ -49,39 +49,39 @@ typedef boost::function <void (
     boost::uint16_t public_port)> NatPmpMapPortSuccessCbType;
 
 /**
-  * Implements the underlying NAT-PMP client implementation.
-  */
+* Implements the underlying NAT-PMP client implementation.
+*/
 class NatPmpClientImpl {
  public:
 
-/**
+  /**
   * Constructor
   * @param ios The boost::asio::io_service object to use.
   */
   explicit NatPmpClientImpl(boost::asio::io_service *ios);
 
-/**
+  /**
   * Destructor
   */
   ~NatPmpClientImpl();
 
-/**
+  /**
   * Start the nat-pmp client.
   */
   void Start();
 
-/**
+  /**
   * Stops the nat-pmp client removing all mappings.
   */
   void Stop();
 
-/**
+  /**
   * Set the port map success callback.
   */
   void SetMapPortSuccessCallback(
       const NatPmpMapPortSuccessCbType &map_port_success_cb);
 
-/**
+  /**
   * Sends a mapping request by posting it to the
   * boost::asio::io_service object with the given protocol,
   * private port, public port and lifetime.
@@ -98,7 +98,10 @@ class NatPmpClientImpl {
 
  private:
 
-/**
+  NatPmpClientImpl(const NatPmpClientImpl&);
+  NatPmpClientImpl &operator=(const NatPmpClientImpl&);
+
+  /**
   * Sends a mapping.
   */
   void DoSendMappingRequest(boost::uint16_t protocol,
@@ -106,111 +109,111 @@ class NatPmpClientImpl {
                             boost::uint16_t public_port,
                             boost::uint32_t lifetime);
 
-/**
+  /**
   * Sends a public address request to the gateway.
   */
   void SendPublicAddressRequest();
 
-/**
+  /**
   * Performs a public address request re-transmission.
   */
   void RetransmitPublicAdddressRequest(const boost::system::error_code & ec);
 
-/**
+  /**
   * Sends a request to the gateway.
   */
   void SendRequest(Protocol::MappingRequest & req);
 
-/**
+  /**
   * Sends any queued requests.
   */
   void SendQueuedRequests();
 
-/**
+  /**
   * Sends buf of size len to the gateway.
   */
   void Send(const char * buf, std::size_t len);
 
-/**
+  /**
   * Asynchronous send handler.
   */
   void HandleSend(const boost::system::error_code & ec, std::size_t);
 
-/**
+  /**
   * Asynchronous cannot handler.
   */
   void HandleConnect(const boost::system::error_code & ec);
 
-/**
+  /**
   * Asynchronous receive from handler.
   */
   void HandleReceiveFrom(const boost::system::error_code & ec,
                          std::size_t bytes);
 
-/**
+  /**
   * Asynchronous response handler.
   */
   void HandleResponse(const char * buf, std::size_t);
 
-/**
+  /**
   * The ip address of the gateway.
   */
   boost::asio::ip::address m_gateway_address_;
 
-/**
+  /**
   * The ip address on the WAN side of the gateway.
   */
   boost::asio::ip::address m_public_ip_address_;
 
  protected:
 
-/**
+  /**
   * A reference to the boost::asio::io_service.
   */
   boost::asio::io_service *io_service_;
 
-/**
+  /**
   * The request retry timer.
   */
   boost::asio::deadline_timer retry_timer_;
 
-/**
+  /**
   * The udp socket.
   */
   boost::shared_ptr<boost::asio::ip::udp::socket> socket_;
 
-/**
+  /**
   * The gateway endpoint.
   */
   boost::asio::ip::udp::endpoint endpoint_;
 
-/**
+  /**
   * The non-parallel public ip address request.
   */
   Protocol::MappingRequest public_ip_request_;
 
-/**
+  /**
   * The parallel reuqest queue.
   */
   std::deque<Protocol::MappingRequest> request_queue_;
 
-/**
+  /**
   * The receive buffer length.
   */
   enum { kReceiveBufferLength = 512 };
 
-/**
+  /**
   * The receive buffer.
   */
   char data_[kReceiveBufferLength];
 
-/**
+  /**
   * Mappings that we are responsible for.
   */
-  std::vector< std::pair<Protocol::MappingRequest, Protocol::MappingResponse> >
-      mappings_;
+  std::vector<std::pair<Protocol::MappingRequest,
+                        Protocol::MappingResponse> > mappings_;
 
-/**
+  /**
   * Map port success callback.
   */
   NatPmpMapPortSuccessCbType nat_pmp_map_port_success_cb_;

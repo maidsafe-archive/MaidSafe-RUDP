@@ -147,7 +147,7 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
   if (!is_started_) {
     return false;
   }
-  pending_request.controller->set_rpc_id(socket_id);
+  pending_request.controller->set_socket_id(socket_id);
   if (pending_request.local_transport) {
     pending_request.rpc_reponse =
         pending_request.controller->udt_connection()->signals()->
@@ -159,19 +159,6 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
             boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
     pending_request.timeout =
         pending_request.controller->udt_connection()->signals()->
-            ConnectOnReceive(boost::bind(&ChannelManagerImpl::RpcStatus, this,
-                                         _1, _2));
-  } else {
-    pending_request.rpc_reponse =
-        pending_request.controller->udt_transport()->signals()->
-            ConnectOnRpcResponseReceived(
-                boost::bind(&ChannelManagerImpl::ResponseArrive,
-                            this, _1, _2, _3));
-    pending_request.data_sent =
-        pending_request.controller->udt_transport()->signals()->ConnectOnSend(
-            boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
-    pending_request.timeout =
-        pending_request.controller->udt_transport()->signals()->
             ConnectOnReceive(boost::bind(&ChannelManagerImpl::RpcStatus, this,
                                          _1, _2));
   }
@@ -218,12 +205,6 @@ bool ChannelManagerImpl::DeletePendingRequest(const SocketId &socket_id) {
   pending_messages_.erase(it);
   message_mutex_.unlock();
   return true;
-}
-
-RpcId ChannelManagerImpl::CreateNewId() {
-  boost::mutex::scoped_lock guard(id_mutex_);
-  current_rpc_id_ = base::GenerateNextTransactionId(current_rpc_id_);
-  return current_rpc_id_;
 }
 
 void ChannelManagerImpl::RequestArrive(const rpcprotocol::RpcMessage &msg,
@@ -273,45 +254,50 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
                   << " - response not expected" << std::endl;
       return;
     }
-    if ((*it).second.status != kRequestSent) {
-      DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
-                  << " - response weird req status: "
-                  << (*it).second.status << std::endl;
-      return;
-    }
+  }
+  if ((*it).second.status != kRequestSent) {
+    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                << " - response weird req status: "
+                << (*it).second.status << std::endl;
+    return;
+  }
 
-    if (!(*it).second.callback) {
-      DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
-                  << " - callback null" << std::endl;
-      return;
-    }
-    // Extract the optional field which is the actual RPC payload.
-    // The field must be a proto message itself and is an extension.
-    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
-    decoded_msg.detail().GetReflection()->ListFields(decoded_msg.detail(),
-                                                     &field_descriptors);
+  if (!(*it).second.callback) {
+    DLOG(ERROR) << "CMImpl::ResponseArrive - " << socket_id
+                << " - callback null" << std::endl;
+    return;
+  }
+  // Extract the optional field which is the actual RPC payload.
+  // The field must be a proto message itself and is an extension.
+  std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+  decoded_msg.detail().GetReflection()->ListFields(decoded_msg.detail(),
+                                                   &field_descriptors);
 
-    // Check only one field exists
-    if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0) ||
-        field_descriptors.at(0)->type() !=
-            google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
-      DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request."
-                  << std::endl;
-      return;
-    }
+  // Check only one field exists
+  if (field_descriptors.size() != size_t(1) || !field_descriptors.at(0) ||
+      field_descriptors.at(0)->type() !=
+          google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
+    DLOG(ERROR) << "ChannelImpl::HandleRequest - invalid request."
+                << std::endl;
+    return;
+  }
 
-    // Copy the payload to a new message (DescriptorProto inherits from Message)
-    const google::protobuf::Message &args =
-        decoded_msg.detail().GetReflection()->GetMessage(
-            decoded_msg.detail(), field_descriptors.at(0));
+  const google::protobuf::Message &args =
+      decoded_msg.detail().GetReflection()->GetMessage(
+          decoded_msg.detail(), field_descriptors.at(0));
+
+  google::protobuf::Closure *done;
+  {
+    boost::mutex::scoped_lock loch_coire(message_mutex_);
     (*it).second.args->MergeFrom(args);
-    google::protobuf::Closure* done = (*it).second.callback;
-    done->Run();
     (*it).second.rpc_reponse.disconnect();
     (*it).second.data_sent.disconnect();
     (*it).second.timeout.disconnect();
+    (*it).second.controller->udt_connection().reset();
+    done = (*it).second.callback;
     pending_messages_.erase(it);
   }
+  done->Run();
 }
 
 void ChannelManagerImpl::RpcMessageSent(

@@ -32,12 +32,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iostream>  //  NOLINT
+
 #include "maidsafe/base/log.h"
-#include "maidsafe/tests/benchmark/operations.h"
+#include "maidsafe/kademlia/knode-api.h"
+#include "maidsafe/kademlia/knodeimpl.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/transport/transport.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
+#include "maidsafe/tests/benchmark/operations.h"
 
 namespace po = boost::program_options;
 
@@ -230,42 +233,49 @@ int main(int argc, char **argv) {
 
     // Starting transport on port
     port = vm["port"].as<boost::uint16_t>();
-    transport::TransportHandler trans_handler;
-    boost::int16_t transport_id;
-    trans_handler.Register(new transport::UdtTransport, &transport_id);
-    rpcprotocol::ChannelManager chmanager(&trans_handler);
-    kad::KNode node(&chmanager, &trans_handler, kad::CLIENT, test_benchmark::K,
-                    kad::kAlpha, kad::kBeta, kad::kRefreshTime, "", "",
-                    vm["port_fw"].as<bool>(), vm["upnp"].as<bool>());
-    node.set_transport_id(transport_id);
-    if (!chmanager.RegisterNotifiersToTransport() ||
-        !trans_handler.RegisterOnServerDown(boost::bind(
-        &kad::KNode::HandleDeadRendezvousServer, &node, _1))) {
+    boost::shared_ptr<transport::UdtTransport> tra(new transport::UdtTransport);
+    transport::TransportCondition tc;
+    tra->StartListening("", port, &tc);
+    if (transport::kSuccess != tc) {
+      printf("Node failed to start transport on port %d.\n", port);
       return 1;
     }
-    if (0 != trans_handler.Start(port, transport_id) || 0!= chmanager.Start()) {
-      printf("Unable to start node on port %d\n", port);
+    boost::shared_ptr<rpcprotocol::ChannelManager> cm(
+        new rpcprotocol::ChannelManager(tra));
+    if (0 != cm->Start()) {
+      printf("Node failed to start ChannelManager.\n");
+      tra->StopListening(port);
       return 1;
     }
+    kad::KnodeConstructionParameters kcp;
+    kcp.alpha = kad::kAlpha;
+    kcp.beta = kad::kBeta;
+    kcp.k = test_benchmark::K;
+    kcp.port_forwarded = false;
+    kcp.refresh_time = kad::kRefreshTime;
+    kcp.use_upnp = false;
+    kcp.type = kad::CLIENT;
+    kcp.port = port;
+    boost::shared_ptr<kad::KNode> node(new kad::KNode(cm, tra, kcp));
+
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
-      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(
-         trans_handler.listening_port(transport_id));
+      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(port);
       boost::filesystem::create_directories(kadconfigpath);
       kadconfigpath += "/.kadconfig";
     }
 
     // Joining the node to the network
     JoinCallback callback;
-    node.Join(kadconfigpath, boost::bind(&JoinCallback::Callback, &callback,
-                                         _1));
+    node->Join(kadconfigpath,
+               boost::bind(&JoinCallback::Callback, &callback, _1));
     while (!callback.result_arrived())
       boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     // Checking result of callback
     if (!callback.success()) {
       printf("Node failed to join the network.\n");
-      trans_handler.Stop(transport_id);
-      chmanager.Stop();
+      tra->StopListening(port);
+      cm->Stop();
       return 1;
     }
 
@@ -298,7 +308,7 @@ int main(int argc, char **argv) {
     printf("Read %d node IDs from list, running tests on %d of them.\n",
            nodes_count, nodes.size());
 
-    benchmark::Operations ops(&node);
+    benchmark::Operations ops(node);
 
     printf("\n[ Testing GetNodeContactDetails and Ping ]\n");
     ops.TestFindAndPing(nodes, iterations);
@@ -312,12 +322,11 @@ int main(int argc, char **argv) {
       printf("\n[ Skipping tests of StoreValue and FindValue ]\n");
     }
 
-    trans_handler.StopPingRendezvous();
-    node.Leave();
-    trans_handler.Stop(transport_id);
-    chmanager.Stop();
+    node->Leave();
+    tra->StopListening(port);
+    cm->Stop();
     printf("\nNode stopped successfully.\n\n");
-    benchmark::Operations::PrintRpcTimings(chmanager.RpcTimings());
+    benchmark::Operations::PrintRpcTimings(cm->RpcTimings());
   }
   catch(const std::exception &e) {
     printf("Error: %s\n", e.what());

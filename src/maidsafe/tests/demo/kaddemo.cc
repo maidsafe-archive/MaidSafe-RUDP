@@ -33,12 +33,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iostream>  //  NOLINT
+
 #include "maidsafe/base/log.h"
-#include "maidsafe/tests/demo/commands.h"
+#include "maidsafe/kademlia/contact.h"
+#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/knode-api.h"
+#include "maidsafe/kademlia/knodeimpl.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/transport/transport.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
+#include "maidsafe/tests/demo/commands.h"
 
 namespace po = boost::program_options;
 
@@ -154,9 +159,9 @@ int main(int argc, char **argv) {
         po::value(&kadconfigpath)->default_value(kadconfigpath),
         "Complete pathname of kadconfig file. Default is KNode<port>/."
         "kadconfig")
-      ("client,c", po::bool_switch(), "Start the node as a client node.")
+      ("client,c", po::bool_switch(), "Start the node as a client node->")
       ("port,p", po::value(&port)->default_value(port),
-        "Local port to start node.  Default is 0, that starts in random port.")
+        "Local port to start node->  Default is 0, that starts in random port.")
       ("bs_ip", po::value(&bs_ip), "Bootstrap node ip.")
       ("bs_port", po::value(&bs_port), "Bootstrap node port.")
       ("bs_local_ip", po::value(&bs_local_ip), "Bootstrap node local ip.")
@@ -271,32 +276,37 @@ int main(int argc, char **argv) {
 
     // Starting transport on port
     port = vm["port"].as<boost::uint16_t>();
-    transport::TransportHandler trans_handler;
-    boost::int16_t transport_id;
-    trans_handler.Register(new transport::UdtTransport, &transport_id);
-    rpcprotocol::ChannelManager chmanager(&trans_handler);
-    kad::NodeType type;
+    boost::shared_ptr<transport::UdtTransport> tra(new transport::UdtTransport);
+    transport::TransportCondition tc;
+    tra->StartListening("", port, &tc);
+    if (transport::kSuccess != tc) {
+      printf("Node failed to start transport on port %d.\n", port);
+      return 1;
+    }
+    boost::shared_ptr<rpcprotocol::ChannelManager> cm(
+        new rpcprotocol::ChannelManager(tra));
+    if (0 != cm->Start()) {
+      printf("Node failed to start ChannelManager.\n");
+      tra->StopListening(port);
+      return 1;
+    }
+    kad::KnodeConstructionParameters kcp;
+    kcp.alpha = kad::kAlpha;
+    kcp.beta = kad::kBeta;
+    kcp.k = test_kaddemo::K;
+    kcp.port_forwarded = false;
+    kcp.refresh_time = kad::kRefreshTime;
+    kcp.use_upnp = false;
     if (vm["client"].as<bool>())
-      type = kad::CLIENT;
+      kcp.type = kad::CLIENT;
     else
-      type = kad::VAULT;
-    kad::KNode node(&chmanager, &trans_handler, type, test_kaddemo::K,
-                    kad::kAlpha, kad::kBeta, refresh_time, "", "",
-                    vm["port_fw"].as<bool>(), vm["upnp"].as<bool>());
-    node.set_transport_id(transport_id);
-    if (!chmanager.RegisterNotifiersToTransport() ||
-        !trans_handler.RegisterOnServerDown(boost::bind(
-        &kad::KNode::HandleDeadRendezvousServer, &node, _1))) {
-      return 1;
-    }
-    if (0 != trans_handler.Start(port, transport_id) || 0!= chmanager.Start()) {
-      printf("Unable to start node on port %d\n", port);
-      return 1;
-    }
+      kcp.type = kad::VAULT;
+    kcp.port = port;
+    boost::shared_ptr<kad::KNode> node(new kad::KNode(cm, tra, kcp));
+
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
-      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(
-         trans_handler.listening_port(transport_id));
+      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(port);
       boost::filesystem::create_directories(kadconfigpath);
       kadconfigpath += "/.kadconfig";
     }
@@ -309,8 +319,8 @@ int main(int argc, char **argv) {
           vm["bs_local_ip"].as<std::string>(),
           vm["bs_local_port"].as<boost::uint16_t>())) {
         printf("Unable to write kadconfig file to %s\n", kadconfigpath.c_str());
-        trans_handler.Stop(transport_id);
-        chmanager.Stop();
+        tra->StopListening(port);
+        cm->Stop();
         return 1;
       }
     }
@@ -318,30 +328,30 @@ int main(int argc, char **argv) {
     // Joining the node to the network
     JoinCallback callback;
     if (first_node)
-      node.Join(kadconfigpath, vm["externalip"].as<std::string>(),
-          vm["externalport"].as<boost::uint16_t>(), boost::bind(
-          &JoinCallback::Callback, &callback, _1));
+      node->Join(kadconfigpath, vm["externalip"].as<std::string>(),
+                 vm["externalport"].as<boost::uint16_t>(),
+                 boost::bind(&JoinCallback::Callback, &callback, _1));
     else
-      node.Join(kadconfigpath, boost::bind(&JoinCallback::Callback, &callback,
-                _1));
+      node->Join(kadconfigpath,
+                 boost::bind(&JoinCallback::Callback, &callback, _1));
     while (!callback.result_arrived())
       boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     // Checking result of callback
     if (!callback.success()) {
       printf("Node failed to join the network.\n");
-      trans_handler.Stop(transport_id);
-      chmanager.Stop();
+      tra->StopListening(port);
+      cm->Stop();
       return 1;
     }
     // Printing Node Info
-    printf_info(node.contact_info());
+    printf_info(node->contact_info());
 
     // append ID to text file
     if (vm.count("append_id")) {
       try {
         boost::filesystem::ofstream of(vm["append_id"].as<std::string>(),
                                        std::ios::out | std::ios::app);
-        of << node.node_id().ToStringEncoded(kad::KadId::kHex) << "\n";
+        of << node->node_id().ToStringEncoded(kad::KadId::kHex) << "\n";
         of.close();
       }
       catch(const std::exception &) {
@@ -357,21 +367,23 @@ int main(int argc, char **argv) {
           boost::filesystem::create_directories(thisconfig);
           thisconfig /= ".kadconfig";
           write_to_kadconfig(thisconfig.string(),
-              node.node_id().ToStringEncoded(kad::KadId::kHex), node.host_ip(),
-              node.host_port(), node.local_host_ip(), node.local_host_port());
+                             node->node_id().ToStringEncoded(kad::KadId::kHex),
+                             node->host_ip(), node->host_port(),
+                             node->local_host_ip(), node->local_host_port());
         }
         catch(const std::exception &e) {
         }
       } else {
         thisconfig /= ".kadconfig";
         write_to_kadconfig(thisconfig.string(),
-            node.node_id().ToStringEncoded(kad::KadId::kHex), node.host_ip(),
-            node.host_port(), node.local_host_ip(), node.local_host_port());
+                           node->node_id().ToStringEncoded(kad::KadId::kHex),
+                           node->host_ip(), node->host_port(),
+                           node->local_host_ip(), node->local_host_port());
       }
     }
 
     if (!vm["noconsole"].as<bool>()) {
-      kaddemo::Commands cmds(&node, &chmanager, test_kaddemo::K);
+      kaddemo::Commands cmds(node, cm, test_kaddemo::K);
       cmds.Run();
     } else {
       printf("=====================================\n");
@@ -382,10 +394,9 @@ int main(int argc, char **argv) {
         boost::this_thread::sleep(boost::posix_time::seconds(1));
       }
     }
-    trans_handler.StopPingRendezvous();
-    node.Leave();
-    trans_handler.Stop(transport_id);
-    chmanager.Stop();
+    node->Leave();
+    tra->StopListening(port);
+    cm->Stop();
     printf("\nNode stopped successfully.\n");
   }
   catch(const std::exception &e) {

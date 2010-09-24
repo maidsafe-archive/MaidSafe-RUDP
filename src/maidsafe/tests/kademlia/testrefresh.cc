@@ -29,26 +29,28 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/base/log.h"
+#include "maidsafe/base/utils.h"
+#include "maidsafe/kademlia/knode-api.h"
+#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
+#include "maidsafe/tests/kademlia/fake_callbacks.h"
 
 namespace kad {
 
 class TestRefresh : public testing::Test {
  public:
-  TestRefresh() : trans_handlers_(), ch_managers_(), nodes_(), datadirs_(),
-    test_dir_("temp/TestKnodes_"), testK_(4), testRefresh_(10),
-    testNetworkSize_(10), transports_ids_() {
-    test_dir_ += boost::lexical_cast<std::string>(
-      base::RandomUint32());
+  TestRefresh() : transports_(), ch_managers_(), nodes_(), datadirs_(),
+                  test_dir_("temp/TestKnodes_"), testK_(4), testRefresh_(10),
+                  testNetworkSize_(10), transport_ports_() {
+    test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
   }
-  ~TestRefresh() {
-    transport::UdtTransport::CleanUp();
-  }
- protected:
+
+  ~TestRefresh() { transport::UdtTransport::CleanUp(); }
+
   void SetUp() {
     try {
       if (boost::filesystem::exists(test_dir_))
@@ -57,41 +59,51 @@ class TestRefresh : public testing::Test {
     catch(const std::exception &e) {
       LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
-    // Creating the nodes_
-    boost::int16_t transport_id;
+
+    // Creating the nodes
+    transports_.resize(testNetworkSize_);
+    ch_managers_.resize(testNetworkSize_);
+    nodes_.resize(testNetworkSize_);
+    datadirs_.resize(testNetworkSize_);
+    transport_ports_.resize(testNetworkSize_);
+    KnodeConstructionParameters kcp;
+    kcp.type = VAULT;
+    kcp.alpha = kad::kAlpha;
+    kcp.beta = kad::kBeta;
+    kcp.k = testK_;
+    kcp.port_forwarded = false;
+    kcp.private_key = "";
+    kcp.public_key = "";
+    kcp.refresh_time = testRefresh_;
+    kcp.use_upnp = false;
     for (boost::int16_t i = 0; i < testNetworkSize_; ++i) {
-      trans_handlers_.push_back(boost::shared_ptr<transport::TransportHandler>(
-          new transport::TransportHandler));
-      trans_handlers_.at(i)->Register(new transport::UdtTransport,
-                                      &transport_id);
-      transports_ids_.push_back(transport_id);
-      ch_managers_.push_back(boost::shared_ptr<rpcprotocol::ChannelManager>(
-          new rpcprotocol::ChannelManager(trans_handlers_[i].get())));
-      std::string datadir = test_dir_ + std::string("/datastore") +
-          boost::lexical_cast<std::string>(i);
-      boost::filesystem::create_directories(datadir);
-      nodes_.push_back(boost::shared_ptr<KNode>(new KNode(ch_managers_[i].get(),
-          trans_handlers_[i].get(), VAULT, testK_, kAlpha, kBeta,
-          testRefresh_, "", "", false, false)));
-      nodes_[i]->set_transport_id(transport_id);
-//       ASSERT_TRUE(ch_managers_[i]->RegisterNotifiersToTransport());
-//       ASSERT_TRUE(trans_handlers_[i]->RegisterOnServerDown(boost::bind(
-//         &kad::KNode::HandleDeadRendezvousServer, nodes_[i].get(), _1)));
-//       EXPECT_EQ(0, trans_handlers_[i]->Start(0, transport_id));
+      transports_[i].reset(new transport::UdtTransport);
+      transport::TransportCondition tc;
+      transport_ports_[i] = transports_[i]->StartListening("", 0, &tc);
+      EXPECT_EQ(transport::kSuccess, tc);
+      kcp.port = transport_ports_[i];
+      ch_managers_[i].reset(new rpcprotocol::ChannelManager(transports_[i]));
       EXPECT_EQ(0, ch_managers_[i]->Start());
-      datadirs_.push_back(datadir);
+      std::string datadir = test_dir_ + std::string("/datastore") +
+                            boost::lexical_cast<std::string>(i);
+      boost::filesystem::create_directories(datadir);
+      nodes_[i].reset(new KNode(ch_managers_[i], transports_[i], kcp));
+      datadirs_[i] = datadir;
     }
+
     GeneralKadCallback callback;
-    LOG(INFO) << "starting node 0" << std::endl;
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-    nodes_[0]->Join(datadirs_[0] + "/.kadconfig",
-      local_ip.to_string(), trans_handlers_[0]->listening_port(0),
-      boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+    LOG(INFO) << "starting node 0" << std::endl;
+    nodes_[0]->Join(datadirs_[0] + "/.kadconfig", local_ip.to_string(),
+                    transport_ports_[0],
+                    boost::bind(&GeneralKadCallback::CallbackFunc, &callback,
+                                _1));
     wait_result(&callback);
     ASSERT_EQ(kRpcResultSuccess, callback.result());
     callback.Reset();
     ASSERT_TRUE(nodes_[0]->is_joined());
+
     for (boost::int16_t i = 1; i < testNetworkSize_; ++i) {
       LOG(INFO) << "starting node " <<  i << std::endl;
       std::string kconfig_file1 = datadirs_[i] + "/.kadconfig";
@@ -103,13 +115,15 @@ class TestRefresh : public testing::Test {
       kad_contact->set_port(nodes_[0]->host_port());
       kad_contact->set_local_ip(nodes_[0]->local_host_ip());
       kad_contact->set_local_port(nodes_[0]->local_host_port());
-      std::fstream output1(kconfig_file1.c_str(),
-        std::ios::out | std::ios::trunc | std::ios::binary);
+      std::fstream output1(kconfig_file1.c_str(), std::ios::out |
+                                                  std::ios::trunc |
+                                                  std::ios::binary);
       EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
       output1.close();
 
       nodes_[i]->Join(kconfig_file1,
-          boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+                      boost::bind(&GeneralKadCallback::CallbackFunc, &callback,
+                                  _1));
       wait_result(&callback);
       ASSERT_EQ(kRpcResultSuccess, callback.result());
       callback.Reset();
@@ -118,18 +132,12 @@ class TestRefresh : public testing::Test {
   }
 
   void TearDown() {
-    // Stopping nodes_
-    for (boost::int16_t i = 0; i < testNetworkSize_; ++i) {
-      trans_handlers_[i]->StopPingRendezvous();
-    }
     for (boost::int16_t i = testNetworkSize_-1; i >= 0; --i) {
       LOG(INFO) << "stopping node " << i << std::endl;
       nodes_[i]->Leave();
       EXPECT_FALSE(nodes_[i]->is_joined());
-      trans_handlers_[i]->Stop(0);
+      transports_[i]->StopListening(transport_ports_[i]);
       ch_managers_[i]->Stop();
-      delete trans_handlers_[i]->Get(transports_ids_[i]);
-      trans_handlers_[i]->Remove(transports_ids_[i]);
     }
     try {
       boost::filesystem::remove_all(test_dir_);
@@ -139,30 +147,33 @@ class TestRefresh : public testing::Test {
     }
     nodes_.clear();
     ch_managers_.clear();
-    trans_handlers_.clear();
-    transports_ids_.clear();
+    transports_.clear();
+    transport_ports_.clear();
+    datadirs_.clear();
   }
 
-  std::vector< boost::shared_ptr<transport::TransportHandler> > trans_handlers_;
-  std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
-  std::vector< boost::shared_ptr<KNode> > nodes_;
+  std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
+  std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
+  std::vector<boost::shared_ptr<KNode> > nodes_;
   std::vector<std::string> datadirs_;
   std::string test_dir_;
   boost::uint16_t testK_;
   boost::uint32_t testRefresh_;
   boost::int16_t testNetworkSize_;
-  std::vector<boost::int16_t> transports_ids_;
+  std::vector<rpcprotocol::Port> transport_ports_;
 };
 
 TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
+/**/
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
-  nodes_[4]->StoreValue(key, value, 24*3600, boost::bind(
-      &StoreValueCallback::CallbackFunc, &store_cb, _1));
+  nodes_[4]->StoreValue(key, value, 24*3600,
+                        boost::bind(&StoreValueCallback::CallbackFunc,
+                                    &store_cb, _1));
   wait_result(&store_cb);
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
   std::vector<boost::int16_t> indxs;
@@ -189,9 +200,10 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
     EXPECT_EQ(value, values[0]);
     EXPECT_EQ(expire_times[i], nodes_[indxs[i]]->KeyExpireTime(key, value));
     EXPECT_LT(last_refresh_times[i],
-        nodes_[indxs[i]]->KeyLastRefreshTime(key, value)) << "FAILED  WITH NODE"
-        << indxs[i];
+              nodes_[indxs[i]]->KeyLastRefreshTime(key, value))
+              << "FAILED  WITH NODE " << indxs[i];
   }
+/**/
 }
 
 TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
@@ -201,8 +213,9 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
-  nodes_[4]->StoreValue(key, value, 24*3600, boost::bind(
-      &StoreValueCallback::CallbackFunc, &store_cb, _1));
+  nodes_[4]->StoreValue(key, value, 24*3600,
+                        boost::bind(&StoreValueCallback::CallbackFunc,
+                                    &store_cb, _1));
   wait_result(&store_cb);
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
   std::vector<boost::int16_t> indxs;
@@ -222,21 +235,30 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
     }
   }
   ASSERT_EQ(testK_, indxs.size());
-  transport::TransportHandler trans_handler;
-  boost::int16_t transport_id;
-  trans_handler.Register(new transport::UdtTransport, &transport_id);
-  rpcprotocol::ChannelManager ch_manager(&trans_handler);
-  std::string local_dir = test_dir_ + std::string("/datastorenewnode");
+
+  boost::shared_ptr<transport::UdtTransport> trans(new transport::UdtTransport);
+  boost::shared_ptr<rpcprotocol::ChannelManager> chm(
+      new rpcprotocol::ChannelManager(trans));
+  std::string local_dir(test_dir_ + std::string("/datastorenewnode"));
   boost::filesystem::create_directories(local_dir);
-  KNode node(&ch_manager, &trans_handler, VAULT, testK_, kAlpha, kBeta,
-    testRefresh_, "", "", false, false);
-  node.set_transport_id(transport_id);
-//   ASSERT_TRUE(ch_manager.RegisterNotifiersToTransport());
-//   ASSERT_TRUE(trans_handler.RegisterOnServerDown(boost::bind(
-//       &kad::KNode::HandleDeadRendezvousServer, &node, _1)));
-  ASSERT_EQ(0, trans_handler.Start(0, transport_id));
-  ASSERT_EQ(0, ch_manager.Start());
-  std::string kconfig_file1 = local_dir + "/.kadconfig";
+  transport::TransportCondition tc;
+  transport::Port p = trans->StartListening("", 0, &tc);
+  ASSERT_EQ(transport::kSuccess, tc);
+  ASSERT_EQ(0, chm->Start());
+  KnodeConstructionParameters kcp;
+  kcp.type = VAULT;
+  kcp.alpha = kad::kAlpha;
+  kcp.beta = kad::kBeta;
+  kcp.k = testK_;
+  kcp.port_forwarded = false;
+  kcp.private_key = "";
+  kcp.public_key = "";
+  kcp.refresh_time = testRefresh_;
+  kcp.use_upnp = false;
+  kcp.port = p;
+  KNode node(chm, trans, kcp);
+
+  std::string kconfig_file1(local_dir + "/.kadconfig");
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
@@ -244,47 +266,47 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   kad_contact->set_port(nodes_[0]->host_port());
   kad_contact->set_local_ip(nodes_[0]->local_host_ip());
   kad_contact->set_local_port(nodes_[0]->local_host_port());
-  std::fstream output1(kconfig_file1.c_str(),
-    std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
+                                              std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
   output1.close();
   GeneralKadCallback callback;
   // joining node with id == key of value stored
   node.Join(key, kconfig_file1,
-    boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+            boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
 
-  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_+8));
+  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_ + 8));
   std::vector<std::string> values;
   EXPECT_TRUE(node.FindValueLocal(key, &values));
   EXPECT_EQ(value, values[0]);
   EXPECT_NE(0, node.KeyExpireTime(key, value)) << "key/value pair not found";
   EXPECT_NE(0, node.KeyLastRefreshTime(key, value))
-     << "key/value pair not found";
+            << "key/value pair not found";
 
   node.Leave();
   EXPECT_FALSE(node.is_joined());
-  trans_handler.Stop(transport_id);
-  ch_manager.Stop();
-  delete trans_handler.Get(transport_id);
-  trans_handler.Remove(transport_id);
+  trans->StopListening(p);
+  chm->Stop();
 }
 
+/*
 class TestRefreshSignedValues : public testing::Test {
- public:
-  TestRefreshSignedValues() : trans_handlers_(), ch_managers_(), nodes_(),
-    datadirs_(), test_dir_("TestKnodes_"), testK_(4), testRefresh_(10),
-    testNetworkSize_(10), validator(), transport_ids_() {
-      test_dir_ +=
-        boost::lexical_cast<std::string>(base::RandomUint32());
+ protected:
+  TestRefreshSignedValues() : transports_(), ch_managers_(), nodes_(),
+                              datadirs_(), test_dir_("TestKnodes_"), testK_(4),
+                              testRefresh_(10), testNetworkSize_(10),
+                              validator(), transport_ports_() {
+      test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
   }
+
   ~TestRefreshSignedValues() {
     transport::UdtTransport::CleanUp();
   }
- protected:
+
   void SetUp() {
     try {
       if (boost::filesystem::exists(test_dir_))
@@ -293,39 +315,50 @@ class TestRefreshSignedValues : public testing::Test {
     catch(const std::exception &e) {
       LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
-    // Creating the nodes_
+
+    // Creating the nodes
+    transports_.resize(testNetworkSize_);
+    ch_managers_.resize(testNetworkSize_);
+    nodes_.resize(testNetworkSize_);
+    datadirs_.resize(testNetworkSize_);
+    transport_ports_.resize(testNetworkSize_);
+
     crypto::RsaKeyPair keys;
-    keys.GenerateKeys(4096);
-    boost::int16_t transport_id;
+    KnodeConstructionParameters kcp;
+    kcp.type = VAULT;
+    kcp.alpha = kad::kAlpha;
+    kcp.beta = kad::kBeta;
+    kcp.k = testK_;
+    kcp.port_forwarded = false;
+    kcp.refresh_time = testRefresh_;
+    kcp.use_upnp = false;
     for (boost::int16_t i = 0; i < testNetworkSize_; i++) {
-      trans_handlers_.push_back(boost::shared_ptr<transport::TransportHandler>(
-          new transport::TransportHandler));
-      trans_handlers_.at(i)->Register(new transport::UdtTransport,
-                                      &transport_id);
-      transport_ids_.push_back(transport_id);
-      ch_managers_.push_back(boost::shared_ptr<rpcprotocol::ChannelManager>(
-          new rpcprotocol::ChannelManager(trans_handlers_[i].get())));
-      std::string datadir = test_dir_ + std::string("/datastore") +
-          boost::lexical_cast<std::string>(i);
-      boost::filesystem::create_directories(datadir);
-      nodes_.push_back(boost::shared_ptr<KNode>(new KNode(ch_managers_[i].get(),
-          trans_handlers_[i].get(), VAULT, testK_, kAlpha, kBeta, testRefresh_,
-          keys.private_key(), keys.public_key(), false, false)));
-      nodes_[i]->set_transport_id(transport_id);
-//       ASSERT_TRUE(ch_managers_[i]->RegisterNotifiersToTransport());
-//       ASSERT_TRUE(trans_handlers_[i]->RegisterOnServerDown(boost::bind(
-//         &kad::KNode::HandleDeadRendezvousServer, nodes_[i].get(), _1)));
-      EXPECT_EQ(0, trans_handlers_[i]->Start(0, transport_id));
+      keys.ClearKeys();
+      keys.GenerateKeys(4096);
+      kcp.private_key = keys.private_key();
+      kcp.public_key = keys.public_key();
+      transports_[i].reset(new transport::UdtTransport);
+      transport::TransportCondition tc;
+      transport_ports_[i] = transports_[i]->StartListening("", 0, &tc);
+      EXPECT_EQ(transport::kSuccess, tc);
+      kcp.port = transport_ports_[i];
+      ch_managers_[i].reset(new rpcprotocol::ChannelManager(transports_[i]));
       EXPECT_EQ(0, ch_managers_[i]->Start());
-      datadirs_.push_back(datadir);
+      std::string datadir = test_dir_ + std::string("/datastore") +
+                            boost::lexical_cast<std::string>(i);
+      boost::filesystem::create_directories(datadir);
+      nodes_[i].reset(new KNode(ch_managers_[i], transports_[i], kcp));
+      datadirs_[i] = datadir;
     }
+
     GeneralKadCallback callback;
     LOG(INFO) << "starting node 0" << std::endl;
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-    nodes_[0]->Join(datadirs_[0] + "/.kadconfig",
-      local_ip.to_string(), trans_handlers_[0]->listening_port(0),
-      boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+    nodes_[0]->Join(datadirs_[0] + "/.kadconfig", local_ip.to_string(),
+                    transport_ports_[0],
+                    boost::bind(&GeneralKadCallback::CallbackFunc, &callback,
+                                _1));
     wait_result(&callback);
     ASSERT_EQ(kRpcResultSuccess, callback.result());
     nodes_[0]->set_signature_validator(&validator);
@@ -342,13 +375,15 @@ class TestRefreshSignedValues : public testing::Test {
       kad_contact->set_port(nodes_[0]->host_port());
       kad_contact->set_local_ip(nodes_[0]->local_host_ip());
       kad_contact->set_local_port(nodes_[0]->local_host_port());
-      std::fstream output1(kconfig_file1.c_str(),
-        std::ios::out | std::ios::trunc | std::ios::binary);
+      std::fstream output1(kconfig_file1.c_str(), std::ios::out |
+                                                  std::ios::trunc |
+                                                  std::ios::binary);
       EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
       output1.close();
 
       nodes_[i]->Join(kconfig_file1,
-        boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+                      boost::bind(&GeneralKadCallback::CallbackFunc, &callback,
+                                  _1));
       wait_result(&callback);
       ASSERT_EQ(kRpcResultSuccess, callback.result());
       callback.Reset();
@@ -358,18 +393,12 @@ class TestRefreshSignedValues : public testing::Test {
   }
 
   void TearDown() {
-    // Stopping nodes_
-    for (boost::int16_t i = 0; i < testNetworkSize_; ++i) {
-      trans_handlers_[i]->StopPingRendezvous();
-    }
     for (boost::int16_t i = testNetworkSize_-1; i >= 0; --i) {
       LOG(INFO) << "stopping node " << i << std::endl;
       nodes_[i]->Leave();
       EXPECT_FALSE(nodes_[i]->is_joined());
-      trans_handlers_[i]->Stop(0);
+      transports_[i]->StopListening(transport_ports_[i]);
       ch_managers_[i]->Stop();
-      delete trans_handlers_[i]->Get(transport_ids_[i]);
-      trans_handlers_[i]->Remove(transport_ids_[i]);
     }
     try {
       boost::filesystem::remove_all(test_dir_);
@@ -377,23 +406,23 @@ class TestRefreshSignedValues : public testing::Test {
     catch(const std::exception &e) {
       LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
-
     nodes_.clear();
     ch_managers_.clear();
-    trans_handlers_.clear();
-    transport_ids_.clear();
+    transports_.clear();
+    transport_ports_.clear();
+    datadirs_.clear();
   }
 
-  std::vector< boost::shared_ptr<transport::TransportHandler> > trans_handlers_;
-  std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
-  std::vector< boost::shared_ptr<KNode> > nodes_;
+  std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
+  std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
+  std::vector<boost::shared_ptr<KNode> > nodes_;
   std::vector<std::string> datadirs_;
   std::string test_dir_;
   boost::uint16_t testK_;
   boost::uint32_t testRefresh_;
   boost::int16_t testNetworkSize_;
   base::TestValidator validator;
-  std::vector<boost::int16_t> transport_ids_;
+  std::vector<transport::Port> transport_ports_;
 };
 
 TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
@@ -407,14 +436,15 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   keys.GenerateKeys(4096);
   std::string signed_public_key, signed_request;
   signed_public_key = co.AsymSign(keys.public_key(), "", keys.private_key(),
-      crypto::STRING_STRING);
+                                  crypto::STRING_STRING);
   signed_request = co.AsymSign(co.Hash(keys.public_key()+signed_public_key+
-      key.String(), "", crypto::STRING_STRING, true), "",
-      keys.private_key(), crypto::STRING_STRING);
+                                       key.String(), "",
+                                       crypto::STRING_STRING, true),
+                               "", keys.private_key(), crypto::STRING_STRING);
   kad::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", keys.private_key(),
-      crypto::STRING_STRING));
+                                            crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
   kad::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
@@ -422,7 +452,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   req.set_signed_public_key(signed_public_key);
   req.set_signed_request(signed_request);
   nodes_[4]->StoreValue(key, sig_value, req, 24*3600,
-    boost::bind(&StoreValueCallback::CallbackFunc, &store_cb, _1));
+                        boost::bind(&StoreValueCallback::CallbackFunc,
+                                    &store_cb, _1));
   wait_result(&store_cb);
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
   std::vector<boost::int16_t> indxs;
@@ -433,12 +464,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
     if (nodes_[i]->FindValueLocal(key, &values)) {
       ASSERT_EQ(ser_sig_value, values[0]);
       indxs.push_back(i);
-      boost::uint32_t last_refresh = nodes_[i]->KeyLastRefreshTime(key,
-          ser_sig_value);
+      boost::uint32_t last_refresh =
+          nodes_[i]->KeyLastRefreshTime(key, ser_sig_value);
       ASSERT_NE(0, last_refresh) << "key/value pair not found";
       last_refresh_times.push_back(last_refresh);
-      boost::uint32_t expire_time = nodes_[i]->KeyExpireTime(key,
-        ser_sig_value);
+      boost::uint32_t expire_time =
+          nodes_[i]->KeyExpireTime(key, ser_sig_value);
       ASSERT_NE(0, expire_time) << "key/value pair not found";
       expire_times.push_back(expire_time);
     }
@@ -449,11 +480,11 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
     std::vector<std::string> values;
     EXPECT_TRUE(nodes_[indxs[i]]->FindValueLocal(key, &values));
     EXPECT_EQ(ser_sig_value, values[0]);
-    EXPECT_EQ(expire_times[i], nodes_[indxs[i]]->KeyExpireTime(key,
-        ser_sig_value));
+    EXPECT_EQ(expire_times[i],
+              nodes_[indxs[i]]->KeyExpireTime(key, ser_sig_value));
     EXPECT_LT(last_refresh_times[i],
-        nodes_[indxs[i]]->KeyLastRefreshTime(key,
-            ser_sig_value)) << "FAILED  WITH NODE" << indxs[i];
+              nodes_[indxs[i]]->KeyLastRefreshTime(key, ser_sig_value))
+              << "FAILED  WITH NODE " << indxs[i];
   }
 }
 
@@ -470,13 +501,13 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   std::string priv_key = keys.private_key();
   std::string signed_public_key, signed_request;
   signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+
-      key.String(), "", crypto::STRING_STRING, true), "", priv_key,
-      crypto::STRING_STRING);
+  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
+                                       "", crypto::STRING_STRING, true),
+                               "", priv_key, crypto::STRING_STRING);
   kad::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-      crypto::STRING_STRING));
+                                            crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
   keys.GenerateKeys(4096);
   kad::SignedRequest req;
@@ -485,7 +516,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   req.set_signed_public_key(signed_public_key);
   req.set_signed_request(signed_request);
   nodes_[4]->StoreValue(key, sig_value, req, 24*3600,
-    boost::bind(&StoreValueCallback::CallbackFunc, &store_cb, _1));
+                        boost::bind(&StoreValueCallback::CallbackFunc,
+                                    &store_cb, _1));
   wait_result(&store_cb);
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
   std::vector<boost::int16_t> indxs;
@@ -496,31 +528,40 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
     if (nodes_[i]->FindValueLocal(key, &values)) {
       ASSERT_EQ(ser_sig_value, values[0]);
       indxs.push_back(i);
-      boost::uint32_t last_refresh = nodes_[i]->KeyLastRefreshTime(key,
-          ser_sig_value);
+      boost::uint32_t last_refresh =
+          nodes_[i]->KeyLastRefreshTime(key, ser_sig_value);
       ASSERT_NE(0, last_refresh) << "key/value pair not found";
       last_refresh_times.push_back(last_refresh);
-      boost::uint32_t expire_time = nodes_[i]->KeyExpireTime(key,
-        ser_sig_value);
+      boost::uint32_t expire_time =
+          nodes_[i]->KeyExpireTime(key, ser_sig_value);
       ASSERT_NE(0, expire_time) << "key/value pair not found";
       expire_times.push_back(expire_time);
     }
   }
   ASSERT_EQ(testK_, indxs.size());
-  transport::TransportHandler trans_handler;
-  boost::int16_t transport_id;
-  trans_handler.Register(new transport::UdtTransport, &transport_id);
-  rpcprotocol::ChannelManager ch_manager(&trans_handler);
-  std::string local_dir = test_dir_ + std::string("/datastorenewnode");
+
+  boost::shared_ptr<transport::UdtTransport> trans(new transport::UdtTransport);
+  boost::shared_ptr<rpcprotocol::ChannelManager> chm(
+      new rpcprotocol::ChannelManager(trans));
+  std::string local_dir(test_dir_ + std::string("/datastorenewnode"));
   boost::filesystem::create_directories(local_dir);
-  KNode node(&ch_manager, &trans_handler, VAULT, testK_, kAlpha, kBeta,
-      testRefresh_, keys.private_key(), keys.public_key(), false, false);
-  node.set_transport_id(transport_id);
-//   ASSERT_TRUE(ch_manager.RegisterNotifiersToTransport());
-//   ASSERT_TRUE(trans_handler.RegisterOnServerDown(boost::bind(
-//       &kad::KNode::HandleDeadRendezvousServer, &node, _1)));
-  ASSERT_EQ(0, trans_handler.Start(0, transport_id));
-  ASSERT_EQ(0, ch_manager.Start());
+  transport::TransportCondition tc;
+  transport::Port p = trans->StartListening("", 0, &tc);
+  ASSERT_EQ(transport::kSuccess, tc);
+  ASSERT_EQ(0, chm->Start());
+  KnodeConstructionParameters kcp;
+  kcp.type = VAULT;
+  kcp.alpha = kad::kAlpha;
+  kcp.beta = kad::kBeta;
+  kcp.k = testK_;
+  kcp.port_forwarded = false;
+  kcp.private_key = "";
+  kcp.public_key = "";
+  kcp.refresh_time = testRefresh_;
+  kcp.use_upnp = false;
+  kcp.port = p;
+  KNode node(chm, trans, kcp);
+
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
@@ -529,26 +570,27 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   kad_contact->set_port(nodes_[0]->host_port());
   kad_contact->set_local_ip(nodes_[0]->local_host_ip());
   kad_contact->set_local_port(nodes_[0]->local_host_port());
-  std::fstream output1(kconfig_file1.c_str(),
-    std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
+                                              std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
   output1.close();
   GeneralKadCallback callback;
   // joining node with id == key of value stored
   node.Join(key, kconfig_file1,
-    boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+            boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   node.set_signature_validator(&validator);
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
 
-  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_+8));
+  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_ + 8));
   std::vector<std::string> values;
   if (!node.FindValueLocal(key, &values)) {
     node.Leave();
-    trans_handler.Stop(transport_id);
-    ch_manager.Stop();
+    EXPECT_FALSE(node.is_joined());
+    trans->StopListening(p);
+    chm->Stop();
     FAIL();
   }
   EXPECT_EQ(ser_sig_value, values[0]);
@@ -557,10 +599,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
 
   node.Leave();
   EXPECT_FALSE(node.is_joined());
-  trans_handler.Stop(transport_id);
-  ch_manager.Stop();
-  delete trans_handler.Get(transport_id);
-  trans_handler.Remove(transport_id);
+  trans->StopListening(p);
+  chm->Stop();
 }
 
 TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
@@ -576,13 +616,13 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   std::string priv_key = keys.private_key();
   std::string signed_public_key, signed_request;
   signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+
-      key.String(), "", crypto::STRING_STRING, true), "", priv_key,
-      crypto::STRING_STRING);
+  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
+                                       "", crypto::STRING_STRING, true),
+                               "", priv_key, crypto::STRING_STRING);
   kad::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-      crypto::STRING_STRING));
+                                            crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
   keys.GenerateKeys(4096);
   kad::SignedRequest req;
@@ -591,25 +631,33 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   req.set_signed_public_key(signed_public_key);
   req.set_signed_request(signed_request);
   nodes_[4]->StoreValue(key, sig_value, req, 24*3600,
-    boost::bind(&StoreValueCallback::CallbackFunc, &store_cb, _1));
+                        boost::bind(&StoreValueCallback::CallbackFunc,
+                                    &store_cb, _1));
   wait_result(&store_cb);
   ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
 
-  transport::TransportHandler trans_handler;
-  transport::UdtTransport *temp_trans = new transport::UdtTransport;
-  boost::int16_t transport_id;
-  trans_handler.Register(temp_trans, &transport_id);
-  rpcprotocol::ChannelManager ch_manager(&trans_handler);
-  std::string local_dir = test_dir_ + std::string("/datastorenewnode");
+  boost::shared_ptr<transport::UdtTransport> trans(new transport::UdtTransport);
+  boost::shared_ptr<rpcprotocol::ChannelManager> chm(
+      new rpcprotocol::ChannelManager(trans));
+  std::string local_dir(test_dir_ + std::string("/datastorenewnode"));
   boost::filesystem::create_directories(local_dir);
-  KNode node(&ch_manager, &trans_handler, VAULT, testK_, kAlpha,
-    kBeta, testRefresh_, keys.private_key(), keys.public_key(), false, false);
-  node.set_transport_id(transport_id);
-//   ASSERT_TRUE(ch_manager.RegisterNotifiersToTransport());
-//   ASSERT_TRUE(trans_handler.RegisterOnServerDown(boost::bind(
-//       &kad::KNode::HandleDeadRendezvousServer, &node, _1)));
-  ASSERT_EQ(0, trans_handler.Start(0, transport_id));
-  ASSERT_EQ(0, ch_manager.Start());
+  transport::TransportCondition tc;
+  transport::Port p = trans->StartListening("", 0, &tc);
+  ASSERT_EQ(transport::kSuccess, tc);
+  ASSERT_EQ(0, chm->Start());
+  KnodeConstructionParameters kcp;
+  kcp.type = VAULT;
+  kcp.alpha = kad::kAlpha;
+  kcp.beta = kad::kBeta;
+  kcp.k = testK_;
+  kcp.port_forwarded = false;
+  kcp.private_key = "";
+  kcp.public_key = "";
+  kcp.refresh_time = testRefresh_;
+  kcp.use_upnp = false;
+  kcp.port = p;
+  KNode node(chm, trans, kcp);
+
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
@@ -618,26 +666,27 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   kad_contact->set_port(nodes_[0]->host_port());
   kad_contact->set_local_ip(nodes_[0]->local_host_ip());
   kad_contact->set_local_port(nodes_[0]->local_host_port());
-  std::fstream output1(kconfig_file1.c_str(),
-    std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
+                                              std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
   output1.close();
   GeneralKadCallback callback;
   // joining node with id == key of value stored
   node.Join(key, kconfig_file1,
-    boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+            boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   node.set_signature_validator(&validator);
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
 
-  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_+8));
+  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_ + 8));
   std::vector<std::string> values;
   if (!node.FindValueLocal(key, &values)) {
     node.Leave();
-    trans_handler.Stop(transport_id);
-    ch_manager.Stop();
+    EXPECT_FALSE(node.is_joined());
+    trans->StopListening(p);
+    chm->Stop();
     FAIL();
   }
   EXPECT_EQ(ser_sig_value, values[0]);
@@ -654,7 +703,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   // Deleating the value
   DeleteValueCallback del_cb;
   nodes_[counter]->DeleteValue(key, sig_value, req,
-    boost::bind(&DeleteValueCallback::CallbackFunc, &del_cb, _1));
+                               boost::bind(&DeleteValueCallback::CallbackFunc,
+                                           &del_cb, _1));
   wait_result(&del_cb);
   EXPECT_EQ(kad::kRpcResultSuccess, del_cb.result());
 
@@ -667,33 +717,35 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   }
   if (counter == testNetworkSize_) {
     node.Leave();
-    trans_handler.Stop(transport_id);
-    ch_manager.Stop();
+    EXPECT_FALSE(node.is_joined());
+    trans->StopListening(p);
+    chm->Stop();
     FAIL() << "All values have been deleted, it will not be refreshed";
   }
-  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_*2));
+  boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_ * 2));
   for (counter = 0; counter < testNetworkSize_; counter++) {
     values.clear();
     if (nodes_[counter]->FindValueLocal(key, &values))
       break;
   }
   values.clear();
-  if (counter < testNetworkSize_ ||
-      node.FindValueLocal(key, &values)) {
+  if (counter < testNetworkSize_ || node.FindValueLocal(key, &values)) {
     node.Leave();
-    trans_handler.Stop(transport_id);
-    ch_manager.Stop();
-    FAIL() << "Key Value pair was not deleted.";
+    EXPECT_FALSE(node.is_joined());
+    trans->StopListening(p);
+    chm->Stop();
+    FAIL() << "Key/pair was not deleted";
   }
   FindCallback find_cb;
   node.FindValue(key, false, boost::bind(&FindCallback::CallbackFunc,
-    &find_cb, _1));
+                                         &find_cb, _1));
   wait_result(&find_cb);
   EXPECT_EQ(kad::kRpcResultFailure, find_cb.result());
 
   node.Leave();
   EXPECT_FALSE(node.is_joined());
-  trans_handler.Stop(transport_id);
-  ch_manager.Stop();
+  trans->StopListening(p);
+  chm->Stop();
 }
+*/
 }

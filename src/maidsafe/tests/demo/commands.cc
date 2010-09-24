@@ -40,12 +40,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
+#include "maidsafe/kademlia/contact.h"
+#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/knode-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 
 
 namespace kaddemo {
 
-Commands::Commands(kad::KNode *node, rpcprotocol::ChannelManager *chmanager,
+Commands::Commands(boost::shared_ptr<kad::KNode> node,
+                   boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
                    const boost::uint16_t &K)
       : node_(node), chmanager_(chmanager), result_arrived_(false),
         finish_(false), min_succ_stores_(K * kad::kMinSuccessfulPecentageStore),
@@ -70,8 +75,8 @@ void Commands::Run() {
   }
 }
 
-void Commands::StoreCallback(const std::string &result,
-    const kad::KadId &key, const boost::int32_t &ttl) {
+void Commands::StoreCallback(const std::string &result, const kad::KadId &key,
+                             const boost::int32_t &ttl) {
   kad::StoreResponse msg;
   if (!msg.ParseFromString(result)) {
     printf("ERROR. Invalid response. Kademlia Store Value key %s\n",

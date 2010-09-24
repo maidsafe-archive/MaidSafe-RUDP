@@ -40,13 +40,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
+#include "maidsafe/kademlia/contact.h"
+#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/knode-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 
 
 namespace benchmark {
 
-Operations::Operations(kad::KNode *node)
-      : node_(node), cryobj_() {
+Operations::Operations(boost::shared_ptr<kad::KNode> node)
+    : node_(node), cryobj_(), private_key_(), public_key_(),
+      public_key_signature_() {
   cryobj_.set_symm_algorithm(crypto::AES_256);
   cryobj_.set_hash_algorithm(crypto::SHA_512);
   crypto::RsaKeyPair kp;
@@ -68,8 +72,11 @@ void Operations::TestFindAndPing(const std::vector<kad::KadId> &nodes,
     boost::mutex::scoped_lock lock(data->mutex);
     for (size_t i = 0; i < nodes.size(); ++i) {
       boost::uint64_t t = base::GetEpochMilliseconds();
-      node_->GetNodeContactDetails(nodes[i], boost::bind(
-          &Operations::GetNodeContactDetailsCallback, this, _1, data), false);
+      node_->GetNodeContactDetails(
+            nodes[i],
+            boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
+                        data),
+            false);
       while (static_cast<size_t>(data->returned_count) <= i)
         data->condition.wait(lock);
       stats.Add(base::GetEpochMilliseconds() - t);

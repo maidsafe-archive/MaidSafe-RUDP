@@ -68,6 +68,7 @@ class KadRpcs;
 class KNodeImpl;
 class SignedValue;
 class SignedRequest;
+struct KnodeConstructionParameters;
 
 /**
 * @class KNode
@@ -97,38 +98,9 @@ class KNode {
   * @param k Maximum number of elements in the node's kbuckets
   */
   KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-        boost::shared_ptr<transport::UdtTransport> udt_transport, NodeType type,
-        const std::string &private_key, const std::string &public_key,
-        const bool &port_forwarded, const bool &use_upnp,
-        const boost::uint16_t &k);
-  /**
-  * Constructor where the kaemlia values for k, alpha, beta, and
-  * refresh time are set by the user.
-  * @param channel_manager a reference to the channel manager, where the
-  * services are going to be registered
-  * @param transport a pointer to the transport object in charge of
-  * transmitting data from the node to a specific node
-  * @param type the type of node VAULT or CLIENT
-  * @param k Maximum number of elements in the node's kbuckets
-  * @param alpha Number of parallelisation during iterative find procedure
-  * @param beta Number of responses to be received before starting a new
-  * iteration
-  * @param refresh_time time in seconds to refresh values stored in the node
-  * @param private_key private key for the node, if no digitally signed values
-  * are used, pass an empty string
-  * @param public_key public key for the node, if no digitally signed values
-  * are used, pass an empty string
-  * @param port_forwarded indicate if the port where the Transport object is
-  * listening has been manually forwarded in the router
-  * @param use_upnp indicate if UPnP is going to be used as the first option
-  * for NAT traversal
-  */
-  KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-        boost::shared_ptr<transport::UdtTransport> udt_transport, NodeType type,
-        const boost::uint16_t &k, const boost::uint16_t &alpha,
-        const boost::uint16_t &beta, const boost::uint32_t &refresh_time,
-        const std::string &private_key, const std::string &public_key,
-        const bool &port_forwarded, const bool &use_upnp);
+        boost::shared_ptr<transport::UdtTransport> udt_transport,
+        const KnodeConstructionParameters &knode_parameters);
+
   ~KNode();
 
   /**
@@ -158,8 +130,7 @@ class KNode {
   * @param callback callback function where result of the operation is notified
   */
   void Join(const KadId &node_id, const std::string &kad_config_file,
-            const IP &external_ip,
-            const Port &external_port,
+            const IP &external_ip, const Port &external_port,
             VoidFunctorOneString callback);
   /**
   * Join the first node of the network using a random id.
@@ -171,8 +142,7 @@ class KNode {
   * @param callback callback function where result of the operation is notified
   */
   void Join(const std::string &kad_config_file, const IP &external_ip,
-            const Port &external_port,
-            VoidFunctorOneString callback);
+            const Port &external_port, VoidFunctorOneString callback);
   /**
   * Leave the kademlia network.  All values stored in the node are erased and
   * nodes from the routing table are saved as bootstrapping nodes in the
@@ -388,10 +358,10 @@ class KNode {
   Port rendezvous_port() const;
   bool is_joined() const;
   /**
-  * Returns a reference to the KadRpcs object inside the knode
-  * @return Reference to KadRpcs object
+  * Returns a shared pointer to KadRpcs
+  * @return Shared pointer to KadRpcs
   */
-  KadRpcs* kadrpcs();
+  boost::shared_ptr<KadRpcs> kadrpcs();
   /**
   * Get the time of the last time a key/value pair stored in the node was
   * refreshed

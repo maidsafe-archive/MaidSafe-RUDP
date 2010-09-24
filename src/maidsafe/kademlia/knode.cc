@@ -32,22 +32,8 @@ namespace kad {
 
 KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
              boost::shared_ptr<transport::UdtTransport> udt_transport,
-             NodeType type, const std::string &private_key,
-             const std::string &public_key, const bool &port_forwarded,
-             const bool &use_upnp, const boost::uint16_t &k)
-    : pimpl_(new KNodeImpl(channel_manager, udt_transport, type, private_key,
-                           public_key, port_forwarded, use_upnp, k)) {}
-
-KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-             boost::shared_ptr<transport::UdtTransport> udt_transport,
-             NodeType type, const boost::uint16_t &k,
-             const boost::uint16_t &alpha, const boost::uint16_t &beta,
-             const boost::uint32_t &refresh_time,
-             const std::string &private_key, const std::string &public_key,
-             const bool &port_forwarded, const bool &use_upnp)
-    : pimpl_(new KNodeImpl(channel_manager, udt_transport, type, k, alpha,
-                           beta, refresh_time, private_key, public_key,
-                           port_forwarded, use_upnp)) {}
+             const KnodeConstructionParameters &knode_parameters)
+    : pimpl_(new KNodeImpl(channel_manager, udt_transport, knode_parameters)) {}
 
 KNode::~KNode() {}
 
@@ -211,7 +197,7 @@ bool KNode::is_joined() const {
   return pimpl_->is_joined();
 }
 
-KadRpcs* KNode::kadrpcs() {
+boost::shared_ptr<KadRpcs> KNode::kadrpcs() {
   return pimpl_->kadrpcs();
 }
 

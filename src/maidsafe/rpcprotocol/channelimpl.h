@@ -51,8 +51,8 @@ class RpcMessage;
 class ControllerImpl {
  public:
   ControllerImpl() : timeout_(kRpcTimeout), time_sent_(0), time_received_(0),
-                     rtt_(0.0), failure_(), rpc_id_(0), socket_id_(0),
-                     method_(), udt_transport_(), udt_connection_() {}
+                     rtt_(0.0), failure_(), method_(), socket_id_(0),
+                     udt_connection_() {}
   void SetFailed(const std::string &failure) { failure_ = failure; }
   void Reset();
   bool Failed() const { return !failure_.empty(); }
@@ -60,12 +60,6 @@ class ControllerImpl {
   void StartCancel() {}
   bool IsCanceled() const { return false; }
   void NotifyOnCancel(google::protobuf::Closure*) {}
-  // input is in seconds
-  void set_timeout(const boost::uint32_t &seconds) {
-    timeout_ = static_cast<boost::uint64_t>(seconds)*1000;
-  }
-  // returns timeout in milliseconds
-  boost::uint64_t timeout() const { return timeout_; }
   // returns time between sending and receiving the RPC in milliseconds
   boost::uint64_t Duration() const {
     return time_sent_ < time_received_ ? time_received_ - time_sent_ : 0;
@@ -77,19 +71,12 @@ class ControllerImpl {
   // rtt in milliseconds
   void set_rtt(const float &rtt) { rtt_ = rtt; }
   float rtt() const { return rtt_; }
-  void set_rpc_id(const RpcId &id) { rpc_id_ = id; }
-  RpcId rpc_id() const { return rpc_id_; }
   void set_socket_id(const SocketId &socket_id) { socket_id_ = socket_id; }
   SocketId socket_id() const { return socket_id_; }
   void set_method(const std::string &method) { method_ = method; }
   std::string method() const { return method_; }
-  void set_udt_transport(
-      boost::shared_ptr<transport::UdtTransport> udt_transport) {
-    udt_transport_ = udt_transport;
-  }
-  boost::shared_ptr<transport::UdtTransport> udt_transport() const {
-    return udt_transport_;
-  }
+  void set_timeout(const boost::uint64_t &timeout) { timeout_ = timeout; }
+  boost::uint64_t timeout() const { return timeout_; }
   void set_udt_connection(
       boost::shared_ptr<transport::UdtConnection> udt_connection) {
     udt_connection_ = udt_connection;
@@ -101,11 +88,8 @@ class ControllerImpl {
  private:
   boost::uint64_t timeout_, time_sent_, time_received_;
   float rtt_;
-  std::string failure_;
-  RpcId rpc_id_;
+  std::string failure_, method_;
   SocketId socket_id_;
-  std::string method_;
-  boost::shared_ptr<transport::UdtTransport> udt_transport_;
   boost::shared_ptr<transport::UdtConnection> udt_connection_;
 };
 
@@ -114,6 +98,11 @@ class ChannelImpl {
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
               boost::shared_ptr<transport::UdtTransport> udt_transport);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
+              const IP &remote_ip, const Port &remote_port,
+              const IP &local_ip, const Port &local_port,
+              const IP &rendezvous_ip, const Port &rendezvous_port);
+  ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
+              boost::shared_ptr<transport::UdtTransport> udt_transport,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
               const IP &rendezvous_ip, const Port &rendezvous_port);

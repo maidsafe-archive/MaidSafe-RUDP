@@ -92,16 +92,6 @@ class Controller : public google::protobuf::RpcController {
   */
   void StopRpcTimer();
   /**
-  * Sets the timeout for the RPC request.
-  * @param id timeout time in seconds.
-  */
-  void set_timeout(const boost::uint32_t &seconds);
-  /**
-  * Returns the timeout for the RPC request.
-  * @return the timeout time in milliseconds.
-  */
-  boost::uint64_t timeout() const;
-  /**
   * Sets the RTT of the communication between the client who is requesting
   * a remote procedure and the server that is executing the procedure.
   * @param rtt RTT in milliseconds
@@ -111,15 +101,6 @@ class Controller : public google::protobuf::RpcController {
   * @return The RTT in milliseconds
   */
   float rtt() const;
-  /**
-  * Sets the ID of the RPC request.
-  * @param id Identifier of the rpc request/response
-  */
-  void set_rpc_id(const RpcId &rpc_id);
-  /**
-  * @return the identifier of the rpc request/response
-  */
-  RpcId rpc_id() const;
   /**
   * Sets the ID of the transport socket being used by the RPC.
   * @param id Identifier of the transport socket
@@ -139,15 +120,14 @@ class Controller : public google::protobuf::RpcController {
   */
   std::string method() const;
   /**
-  * Set the UDT transport being used for the operation.
-  * @param udt_transport The transport used.
+  * Set the timeout for the operation.
+  * @param timeout The timeout for the operation.
   */
-  void set_udt_transport(
-      boost::shared_ptr<transport::UdtTransport> udt_transport);
+  void set_timeout(const boost::uint64_t &timeout);
   /**
-  * Get the UDT transport being used, if not NULL.
+  * Get the timeout of the operation.
   */
-  boost::shared_ptr<transport::UdtTransport> udt_transport() const;
+  boost::uint64_t timeout() const;
   /**
   * Set the UDT connection being used for the operation.
   * @param udt_connection The connection used.
@@ -179,7 +159,6 @@ class Channel : public google::protobuf::RpcChannel {
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object
-  * @param transport Pointer to a Transport object
   * @param remote_ip remote ip of the endpoint that is going to receive the RPC
   * @param remote_port remote port of the endpoint that is going to receive
   * the RPC
@@ -191,6 +170,25 @@ class Channel : public google::protobuf::RpcChannel {
           const IP &remote_ip, const Port &remote_port,
           const IP &local_ip, const Port &local_port,
           const IP &rendezvous_ip, const Port &rendezvous_port);
+  /**
+  * Constructor. Used for the client that is going to send an RPC.
+  * @param channelmanager Pointer to a ChannelManager object
+  * @param transport Pointer to a Transport object
+  * @param remote_ip remote ip of the endpoint that is going to receive the RPC
+  * @param remote_port remote port of the endpoint that is going to receive
+  * the RPC
+  * @param local_ip local ip of the endpoint that is going to receive the RPC
+  * @param local_port local port of the endpoint that is going to receive
+  * the RPC
+  */
+  Channel(boost::shared_ptr<ChannelManager> channel_manager,
+          boost::shared_ptr<transport::UdtTransport> udt_transport,
+          const IP &remote_ip, const Port &remote_port,
+          const IP &local_ip, const Port &local_port,
+          const IP &rendezvous_ip, const Port &rendezvous_port);
+  /**
+  * Destructor.
+  */
   ~Channel();
   /**
   * Implementation of virtual method of the interface.

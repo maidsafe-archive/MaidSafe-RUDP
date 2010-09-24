@@ -71,7 +71,6 @@ class ChannelManagerImpl {
   void ClearCallLaters();
   int Start();
   int Stop();
-  RpcId CreateNewId();
   bool AddPendingRequest(const SocketId &socket_id,
                          PendingMessage pending_request);
   bool TriggerPendingRequest(const SocketId &socket_id);

@@ -117,7 +117,8 @@ TEST(TestKadId, BEH_KAD_KadIdTypeCtr) {
   KadId max_id(KadId::kMaxId);
   ASSERT_EQ(kKeySizeBytes, max_id.String().size());
   for (int i = 0; i < kKeySizeBytes; ++i)
-    ASSERT_TRUE((max_id.String()[i] == 255) || (max_id.String()[i] == -1));
+    ASSERT_TRUE((max_id.String()[i] == static_cast<char>(255)) ||
+                (max_id.String()[i] == -1));
   KadId rand_id(KadId::kRandomId);
   ASSERT_EQ(kKeySizeBytes, rand_id.String().size());
   // TODO(Fraser#5#): 2010-06-06 - Test for randomness properly

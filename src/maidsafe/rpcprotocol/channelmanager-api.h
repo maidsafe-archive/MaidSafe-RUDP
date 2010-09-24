@@ -125,11 +125,6 @@ class ChannelManager {
   */
   bool RegisterNotifiersToTransport();
   /**
-  * Creates a new id for the pending requests.
-  * @return the id created
-  */
-  RpcId CreateNewId();
-  /**
   * Adds a new pending request after an RPC has been sent.
   * @param rpc_id id to identify the request
   * @param pending_request structure holding all the information of the request

@@ -38,9 +38,11 @@ Created by Julian Cain on 11/3/09.
 namespace natpmp {
 
 NatPmpClientImpl::NatPmpClientImpl(boost::asio::io_service *ios)
-    : m_public_ip_address_(boost::asio::ip::address_v4::any()),
-      io_service_(ios),
-      retry_timer_(*ios) {}
+    : m_gateway_address_(),
+      m_public_ip_address_(boost::asio::ip::address_v4::any()),
+      io_service_(ios), retry_timer_(*ios), socket_(), endpoint_(),
+      public_ip_request_(), request_queue_(), mappings_(),
+      nat_pmp_map_port_success_cb_() {}
 
 NatPmpClientImpl::~NatPmpClientImpl() {
   // If the socket is valid call stop.

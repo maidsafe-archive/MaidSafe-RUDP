@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <boost/bind.hpp>
+#include "maidsafe/base/utils.h"
 #include "maidsafe/upnp/upnpclient.h"
 
 // Test depends on external UPnP device, but doesn't fail if none found

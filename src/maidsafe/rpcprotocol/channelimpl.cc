@@ -53,7 +53,7 @@ void ControllerImpl::Reset() {
   time_received_ = 0;
   rtt_ = 0.0;
   failure_.clear();
-  rpc_id_ = 0;
+  udt_connection_.reset();
 }
 
 ChannelImpl::ChannelImpl(
@@ -74,24 +74,60 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
       service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(),
       remote_port_(remote_port), local_port_(local_port),
       rendezvous_port_(rendezvous_port), id_(0), local_transport_(true) {
-  udt_connection_.reset(new transport::UdtConnection(remote_ip, remote_port,
-                                                     rendezvous_ip,
-                                                     rendezvous_port));
   channel_manager_->AddChannelId(&id_);
 
   // To send we need ip in decimal dotted format
-  if (remote_ip.size() == 4)
+  if (remote_ip.size() == 4) {
     remote_ip_ = base::IpBytesToAscii(remote_ip);
-  else
+  } else {
     remote_ip_ = remote_ip;
-  if (local_ip.size() == 4)
+  }
+
+  if (local_ip.size() == 4) {
     local_ip_ = base::IpBytesToAscii(local_ip);
-  else
+  } else {
     local_ip_ = local_ip;
-  if (rendezvous_ip.size() == 4)
+  }
+
+  if (rendezvous_ip.size() == 4) {
     rendezvous_ip_ = base::IpBytesToAscii(rendezvous_ip);
-  else
+  } else {
     rendezvous_ip_ = rendezvous_ip;
+  }
+  udt_connection_.reset(new transport::UdtConnection(remote_ip_, remote_port_,
+                                                     rendezvous_ip_,
+                                                     rendezvous_port_));
+}
+
+ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
+              boost::shared_ptr<transport::UdtTransport> udt_transport,
+              const IP &remote_ip, const Port &remote_port,
+              const IP &local_ip, const Port &local_port,
+              const IP &rendezvous_ip, const Port &rendezvous_port)
+    : channel_manager_(channel_manager), udt_transport_(udt_transport),
+      udt_connection_(), service_(0), remote_ip_(), local_ip_(),
+      rendezvous_ip_(), remote_port_(remote_port), local_port_(local_port),
+      rendezvous_port_(rendezvous_port), id_(0), local_transport_(false) {
+  channel_manager_->AddChannelId(&id_);
+
+  // To send we need ip in decimal dotted format
+  if (remote_ip.size() == 4) {
+    remote_ip_ = base::IpBytesToAscii(remote_ip);
+  } else {
+    remote_ip_ = remote_ip;
+  }
+
+  if (local_ip.size() == 4) {
+    local_ip_ = base::IpBytesToAscii(local_ip);
+  } else {
+    local_ip_ = local_ip;
+  }
+
+  if (rendezvous_ip.size() == 4) {
+    rendezvous_ip_ = base::IpBytesToAscii(rendezvous_ip);
+  } else {
+    rendezvous_ip_ = rendezvous_ip;
+  }
 }
 
 ChannelImpl::~ChannelImpl() {
@@ -124,6 +160,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
                              const google::protobuf::Message *request,
                              google::protobuf::Message *response,
                              google::protobuf::Closure *done) {
+//  printf("fffffffffffffffff\n");
   if ((remote_ip_.empty()) || (remote_port_ == 0)) {
     DLOG(ERROR) << "ChannelImpl::CallMethod. No remote_ip or remote_port"
                 << std::endl;
@@ -131,12 +168,12 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
 
+//  printf("ggggggggggggggggg\n");
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
   rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
-  rpc_message->set_rpc_id(channel_manager_->CreateNewId());
   rpc_message->set_method(method->name());
   rpc_message->set_service(GetServiceName(method->full_name()));
 
@@ -150,6 +187,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
 
+//  printf("hhhhhhhhhhhhhhhhh\n");
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();
@@ -166,14 +204,20 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   pending_request.args = response;
   pending_request.callback = done;
   pending_request.controller = static_cast<Controller*>(rpc_controller);
-  pending_request.controller->set_rpc_id(rpc_message->rpc_id());
   pending_request.controller->set_method(method->name());
   if (local_transport_) {
     pending_request.controller->set_udt_connection(udt_connection_);
     pending_request.local_transport = true;
   }
 
-  SocketId socket_id = udt_connection_->udt_socket_id();
+  SocketId socket_id;
+  if (local_transport_)
+    socket_id = udt_connection_->udt_socket_id();
+//  else
+//    socket_id = udt_transport_->PrepareToSend(remote_ip_, remote_port_,
+//                                              rendezvous_ip_, rendezvous_port_);
+  pending_request.controller->set_socket_id(socket_id);
+//  printf("iiiiiiiiiiiiiiiii\n");
   if (socket_id < 0 ||
       !channel_manager_->AddPendingRequest(socket_id, pending_request)) {
     DLOG(INFO) << "Failed to send the RPC request(" << rpc_message->method()
@@ -182,10 +226,15 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     done->Run();
     return;
   }
+  rpc_message->set_rpc_id(socket_id);
 
-  udt_connection_->Send(transport_message,
-                        static_cast<int>
-                        (pending_request.controller->timeout()));
+//  printf("jjjjjjjjjjjjjjjjj\n");
+  if (local_transport_) {
+//    udt_connection_->Send(transport_message);
+  } else {
+//    udt_transport_->Send(transport_message,
+//                         pending_request.controller->timeout());
+  }
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
 //             << socket_id << " to " << remote_ip_ << ":" << remote_port_
@@ -236,7 +285,6 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
 
   boost::shared_ptr<Controller> controller(new Controller);
   controller->set_rtt(rtt);
-  controller->set_rpc_id(rpc_message.rpc_id());
   controller->set_socket_id(socket_id);
   google::protobuf::Closure *done =
       google::protobuf::NewCallback<ChannelImpl,
@@ -248,6 +296,7 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,
                                boost::shared_ptr<Controller> controller) {
+
   if (!response->IsInitialized()) {
     DLOG(ERROR) << "ChannelImpl::SendResponse - response uninitialised - "
                 << controller->Failed() << "." << std::endl;
@@ -259,7 +308,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
   transport_message.set_type(transport::TransportMessage::kResponse);
   rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
-  rpc_message->set_rpc_id(controller->rpc_id());
+  rpc_message->set_rpc_id(controller->socket_id());
   rpc_message->set_method(controller->method());
   rpc_message->set_service("done");
 

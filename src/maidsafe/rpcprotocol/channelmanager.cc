@@ -53,10 +53,6 @@ bool ChannelManager::DeletePendingRequest(const SocketId &socket_id) {
   return pimpl_->DeletePendingRequest(socket_id);
 }
 
-RpcId ChannelManager::CreateNewId() {
-  return pimpl_->CreateNewId();
-}
-
 void ChannelManager::RegisterChannel(const std::string &service_name,
                                      Channel* channel) {
   pimpl_->RegisterChannel(service_name, channel);

@@ -45,14 +45,14 @@ size_t clients = 24;
 
 class PingTestService : public tests::PingTest {
  public:
-  void TestPing(google::protobuf::RpcController *controller,
+  void TestPing(google::protobuf::RpcController*,
                 const tests::TestPingRequest *request,
                 tests::TestPingResponse *response,
                 google::protobuf::Closure *done) {
 //    DLOG(INFO) << "TestPing -- waiting for 1 second" << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(1));
-    rpcprotocol::Controller *ctrler = static_cast<rpcprotocol::Controller*>
-                                      (controller);
+//    rpcprotocol::Controller *ctrler = static_cast<rpcprotocol::Controller*>
+//                                      (controller);
     if (request->IsInitialized()) {
       if (request->ping() == "ping") {
         response->set_result("S");
@@ -72,33 +72,33 @@ class PingTestService : public tests::PingTest {
 
 class TestOpService : public tests::TestOp {
  public:
-  void Add(google::protobuf::RpcController *controller,
+  void Add(google::protobuf::RpcController*,
            const tests::BinaryOpRequest *request,
            tests::BinaryOpResponse *response,
            google::protobuf::Closure *done) {
     if (request->IsInitialized())
       response->set_result(request->first() + request->second());
-    rpcprotocol::Controller *ctrler =
-        static_cast<rpcprotocol::Controller*>(controller);
+//    rpcprotocol::Controller *ctrler =
+//        static_cast<rpcprotocol::Controller*>(controller);
 //    LOG(INFO) << "AddRpc request!!!!!" << std::endl;
     done->Run();
   }
-  void Multiplyl(google::protobuf::RpcController *controller,
+  void Multiplyl(google::protobuf::RpcController*,
            const tests::BinaryOpRequest *request,
            tests::BinaryOpResponse *response,
            google::protobuf::Closure *done) {
     if (request->IsInitialized())
       response->set_result(request->first() * request->second());
-    rpcprotocol::Controller *ctrler =
-        static_cast<rpcprotocol::Controller*>(controller);
-    DLOG(INFO) << "MultiplyRpc request rtt " << ctrler->rtt() << std::endl;
+//    rpcprotocol::Controller *ctrler =
+//        static_cast<rpcprotocol::Controller*>(controller);
+//    DLOG(INFO) << "MultiplyRpc request rtt " << ctrler->rtt() << std::endl;
     done->Run();
   }
 };
 
 class MirrorTestService : public tests::MirrorTest {
  public:
-  void Mirror(google::protobuf::RpcController *controller,
+  void Mirror(google::protobuf::RpcController*,
               const tests::StringMirrorRequest *request,
               tests::StringMirrorResponse *response,
               google::protobuf::Closure *done) {
@@ -111,8 +111,8 @@ class MirrorTestService : public tests::MirrorTest {
     } else {
       DLOG(INFO) << "Un-initialised request" << std::endl;
     }
-    rpcprotocol::Controller *ctrler =
-        static_cast<rpcprotocol::Controller*>(controller);
+//    rpcprotocol::Controller *ctrler =
+//        static_cast<rpcprotocol::Controller*>(controller);
 //    DLOG(INFO) << "MirrorRpc request rtt " << ctrler->rtt() << std::endl;
     if (!request->has_not_pause() || !request->not_pause()) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
@@ -234,6 +234,9 @@ class ResultHolder {
 };
 
 class RpcProtocolTest : public testing::Test {
+ public:
+  RpcProtocolTest() : server_port(0), server_udt_transport(),
+                      server_chann_manager(), client_chann_manager() {}
  protected:
   virtual void SetUp() {
     server_udt_transport.reset(new transport::UdtTransport);
@@ -262,11 +265,8 @@ TEST(RpcControllerTest, BEH_RPC_RpcController) {
   rpcprotocol::Controller controller;
   ASSERT_FALSE(controller.Failed());
   ASSERT_TRUE(controller.ErrorText().empty());
-  ASSERT_EQ(0, controller.rpc_id());
   controller.SetFailed(rpcprotocol::kTimeOut);
-  rpcprotocol::SocketId id = 1234;
-  controller.set_rpc_id(id);
-  ASSERT_EQ(id, controller.rpc_id());
+//  rpcprotocol::SocketId id = 1234;
   ASSERT_TRUE(controller.Failed());
   ASSERT_EQ(rpcprotocol::kTimeOut, controller.ErrorText());
   controller.StartCancel();
@@ -274,7 +274,6 @@ TEST(RpcControllerTest, BEH_RPC_RpcController) {
   controller.Reset();
   ASSERT_FALSE(controller.Failed());
   ASSERT_TRUE(controller.ErrorText().empty());
-  ASSERT_EQ(0, controller.rpc_id());
   ASSERT_EQ(0, controller.Duration());
   controller.StartRpcTimer();
   boost::this_thread::sleep(boost::posix_time::milliseconds(10));
@@ -538,8 +537,8 @@ TEST_F(RpcProtocolTest, BEH_RPC_ServerAndClientCommunication) {
 
   rpcprotocol::Controller controller1;
   controller1.set_timeout(5);
-  rpcprotocol::Channel out_channel1(server_chann_manager, "127.0.0.1", p, "", 0,
-                                    "", 0);
+  rpcprotocol::Channel out_channel1(server_chann_manager, server_udt_transport,
+                                    "127.0.0.1", p, "", 0, "", 0);
 
   tests::TestOp::Stub stubservice1(&out_channel1);
   tests::BinaryOpRequest req1;
@@ -615,7 +614,8 @@ TEST_F(RpcProtocolTest, BEH_RPC_TriggerPendingRequest) {
        &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
 
-  ASSERT_TRUE(client_chann_manager->TriggerPendingRequest(controller.rpc_id()));
+  ASSERT_TRUE(
+      client_chann_manager->TriggerPendingRequest(controller.socket_id()));
   boost::this_thread::sleep(boost::posix_time::seconds(11));
   ASSERT_EQ(std::string("-"), resultholder.mirror_result().mirrored_string());
   ASSERT_EQ(rpcprotocol::kCancelled, controller.ErrorText());
@@ -638,7 +638,8 @@ TEST_F(RpcProtocolTest, BEH_RPC_TriggerPendingRequest) {
       (&resultholder, &ResultHolder::HandleMirrorResponse, &resp2,
        &controller);
   stubservice2.Mirror(&controller, &req2, &resp2, done2);
-  ASSERT_TRUE(client_chann_manager->TriggerPendingRequest(controller.rpc_id()));
+  ASSERT_TRUE(
+      client_chann_manager->TriggerPendingRequest(controller.socket_id()));
   boost::this_thread::sleep(boost::posix_time::seconds(4));
   ASSERT_EQ(std::string("-"), resultholder.mirror_result().mirrored_string());
   ASSERT_EQ(rpcprotocol::kCancelled, controller.ErrorText());
@@ -671,8 +672,10 @@ TEST_F(RpcProtocolTest, BEH_RPC_DeletePendingRequest) {
                                     const rpcprotocol::Controller*>
       (&resultholder, &ResultHolder::HandleMirrorResponse, &resp1, &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
-  ASSERT_TRUE(client_chann_manager->DeletePendingRequest(controller.rpc_id()));
-  ASSERT_FALSE(client_chann_manager->DeletePendingRequest(controller.rpc_id()));
+  ASSERT_TRUE(
+      client_chann_manager->DeletePendingRequest(controller.socket_id()));
+  ASSERT_FALSE(
+      client_chann_manager->DeletePendingRequest(controller.socket_id()));
   controller.Reset();
   ASSERT_EQ(std::string(""), controller.ErrorText());
 
@@ -693,8 +696,10 @@ TEST_F(RpcProtocolTest, BEH_RPC_DeletePendingRequest) {
       (&resultholder, &ResultHolder::HandleMirrorResponse, &resp2,
        p_controller.get());
   stubservice2.Mirror(&controller, &req2, &resp2, done2);
-  ASSERT_TRUE(client_chann_manager->DeletePendingRequest(controller.rpc_id()));
-  ASSERT_FALSE(client_chann_manager->DeletePendingRequest(controller.rpc_id()));
+  ASSERT_TRUE(
+      client_chann_manager->DeletePendingRequest(controller.socket_id()));
+  ASSERT_FALSE(
+      client_chann_manager->DeletePendingRequest(controller.socket_id()));
 }
 
 void SendPingsThread(

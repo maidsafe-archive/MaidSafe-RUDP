@@ -32,11 +32,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/utils.h"
 
 namespace rpcprotocol {
 class ChannelManager;
 class KadId;
-}  // namespace kad
+typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
+}  // namespace rpcprotocol
 
 namespace kad {
 class KNode;
@@ -47,14 +49,15 @@ namespace kaddemo {
 
 class Commands {
  public:
-  Commands(kad::KNode *node, rpcprotocol::ChannelManager *chmanager,
+  Commands(boost::shared_ptr<kad::KNode> node,
+           boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
            const boost::uint16_t &K);
   void Run();
  private:
   void FindValueCallback(const std::string &result, const kad::KadId &key,
-     const bool &write_to_file, const std::string &path);
+                         const bool &write_to_file, const std::string &path);
   void StoreCallback(const std::string &result, const kad::KadId &key,
-      const boost::int32_t &ttl);
+                     const boost::int32_t &ttl);
   void PingCallback(const std::string &result, const kad::KadId &id);
   void GetNodeContactDetailsCallback(const std::string &result,
                                      const kad::KadId &id);
@@ -64,10 +67,10 @@ class Commands {
   void WriteToFile(const std::string &path, const std::string &content);
   void Store50Values(const std::string &prefix);
   void Store50Callback(const std::string &result, const std::string &key,
-      bool *arrived);
+                       bool *arrived);
   void PrintRpcTimings();
-  kad::KNode *node_;
-  rpcprotocol::ChannelManager *chmanager_;
+  boost::shared_ptr<kad::KNode> node_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> chmanager_;
   bool result_arrived_, finish_;
   double min_succ_stores_;
   crypto::Crypto cryobj_;

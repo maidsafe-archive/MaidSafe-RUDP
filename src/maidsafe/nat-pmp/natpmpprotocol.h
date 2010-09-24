@@ -111,18 +111,17 @@ class Protocol {
   * Mapping response structure.
   */
   struct MappingResponse {
+    MappingResponse() : type(0), result_code(0), private_port(0),
+                        public_port(0), epoch(0), lifetime(0),
+                        public_address() {}
     bool operator == (const MappingResponse & other) const {
       return (private_port == other.private_port &&
               public_port == other.public_port);
     }
 
-    boost::uint16_t type;
-    boost::uint16_t result_code;
-    boost::uint32_t epoch;
+    boost::uint16_t type, result_code, private_port, public_port;
+    boost::uint32_t epoch, lifetime;
     boost::asio::ip::address public_address;
-    boost::uint16_t private_port;
-    boost::uint16_t public_port;
-    boost::uint32_t lifetime;
   };
 
 /**

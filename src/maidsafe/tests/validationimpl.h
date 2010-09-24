@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_VALIDATIONIMPL_H_
 
 #include <string>
+#include "maidsafe/base/crypto.h"
 #include "maidsafe/base/validationinterface.h"
 
 
@@ -40,8 +41,8 @@ class TestValidator : public SignatureValidator {
   /**
    * Signer Id is not validated, return always true
    */
-  bool ValidateSignerId(const std::string &, const std::string &,
-      const std::string &) {
+  bool ValidateSignerId(const std::string&, const std::string&,
+                        const std::string&) {
     return true;
   }
   /**
@@ -49,16 +50,19 @@ class TestValidator : public SignatureValidator {
    * to public_key
    */
   bool ValidateRequest(const std::string &signed_request,
-      const std::string &public_key, const std::string &signed_public_key,
-      const std::string &key) {
+                       const std::string &public_key,
+                       const std::string &signed_public_key,
+                       const std::string &key) {
     if (signed_request == kad::kAnonymousSignedRequest)
       return true;
     crypto::Crypto checker;
-    return checker.AsymCheckSig(checker.Hash(public_key + signed_public_key
-      + key, "", crypto::STRING_STRING, true), signed_request, public_key,
-      crypto::STRING_STRING);
+    return checker.AsymCheckSig(
+               checker.Hash(public_key + signed_public_key + key, "",
+                            crypto::STRING_STRING, true),
+               signed_request, public_key, crypto::STRING_STRING);
   }
 };
 
 }  // namespace base
+
 #endif  // MAIDSAFE_TESTS_VALIDATIONIMPL_H_
