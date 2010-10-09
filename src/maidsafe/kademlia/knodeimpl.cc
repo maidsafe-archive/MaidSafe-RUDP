@@ -795,7 +795,8 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
             KNodeImpl, const StoreResponse*, StoreCallbackArgs > (this,
             &KNodeImpl::StoreValue_IterativeStoreValue, resp, callback_data);
         if (HasRSAKeys()) {
-          kadrpcs_->Store(callback_data.data->key, callback_data.data->sig_value,
+          kadrpcs_->Store(callback_data.data->key,
+              callback_data.data->sig_value,
               callback_data.data->sig_request,
               callback_data.remote_ctc.host_ip(),
               callback_data.remote_ctc.host_port(),

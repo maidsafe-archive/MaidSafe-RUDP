@@ -47,7 +47,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/knodeimpl.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
-#include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
@@ -1071,8 +1070,7 @@ TEST_F(KNodeTest, FUNC_KAD_Downlist) {
   ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
   // Wait for a RPC timeout interval until the downlist are handled in the
   // network
-  boost::this_thread::sleep(
-      boost::posix_time::seconds(rpcprotocol::kRpcTimeout/1000));
+  boost::this_thread::sleep(boost::posix_time::seconds(11));
   // Compute the sum of the nodes whose routing table contain r_node again
   boost::int16_t sum_1(0);
   for (boost::int16_t i = 1; i < kNetworkSize; i++) {
@@ -1206,8 +1204,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindDeadNode) {
       false);
   wait_result(&cb_1);
   ASSERT_EQ(kad::kRpcResultFailure, cb_1.result());
-  boost::this_thread::sleep(
-      boost::posix_time::seconds(3 * (rpcprotocol::kRpcTimeout / 1000 + 1)));
+  boost::this_thread::sleep(boost::posix_time::seconds(33));
   // Restart dead node
   LOG(INFO) << "+++++++++++++++++Restarting " << r_node << "\n";
 //  ASSERT_TRUE(channel_managers_[r_node]->RegisterNotifiersToTransport());
@@ -1258,7 +1255,7 @@ TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
 
 TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
   // prepare small size of values
-  kad::KadId key(cry_obj_.Hash(base::RandomString(5), "",crypto::STRING_STRING,
+  kad::KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
                                false));
   std::string value(base::RandomString(1024 * 5));  // 5KB
   kad::SignedValue sig_value;

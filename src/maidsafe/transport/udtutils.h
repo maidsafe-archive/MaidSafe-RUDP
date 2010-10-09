@@ -67,6 +67,9 @@ TransportCondition GetNewSocket(bool reuse_address,
 TransportCondition Connect(const UdtSocketId &udt_socket_id,
                            boost::shared_ptr<addrinfo const> peer);
 
+TransportCondition SetSyncMode(const UdtSocketId &udt_socket_id,
+                               bool synchronous);
+
 }  // namespace udtutils
 
 }  // namespace transport

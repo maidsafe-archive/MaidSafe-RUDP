@@ -56,16 +56,18 @@ enum TransportCondition {
   kCloseSocketError = -17,
   kSendUdtFailure = -18,
   kSendTimeout = -19,
-  kSendParseFailure = -20,
-  kSendSizeFailure = -21,
-  kReceiveUdtFailure = -22,
-  kReceiveTimeout = -23,
-  kReceiveParseFailure = -24,
-  kReceiveSizeFailure = -25,
-  kAddManagedEndpointError = -26,
-  kAddManagedEndpointTimeout = -27,
-  kSetOptionFailure = -28,
-  kMessageSizeTooLarge = -29
+  kSendStalled = -20,
+  kSendParseFailure = -21,
+  kSendSizeFailure = -22,
+  kReceiveUdtFailure = -23,
+  kReceiveTimeout = -24,
+  kReceiveStalled = -25,
+  kReceiveParseFailure = -26,
+  kReceiveSizeFailure = -27,
+  kAddManagedEndpointError = -28,
+  kAddManagedEndpointTimeout = -29,
+  kSetOptionFailure = -30,
+  kMessageSizeTooLarge = -31
 };
 
 }  // namespace transport

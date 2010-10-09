@@ -117,6 +117,23 @@ TransportCondition Connect(const UdtSocketId &udt_socket_id,
   return kSuccess;
 }
 
+TransportCondition SetSyncMode(const UdtSocketId &udt_socket_id,
+                               bool synchronous) {
+  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
+      &synchronous, sizeof(synchronous))) {
+    DLOG(ERROR) << "SetSyncMode " << (synchronous ? "on" : "off") << " UDT_RCVS"
+        "YN error: " << UDT::getlasterror().getErrorMessage() << std::endl;
+    return kSetOptionFailure;
+  }
+  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_SNDSYN,
+      &synchronous, sizeof(synchronous))) {
+    DLOG(ERROR) << "SetSyncMode " << (synchronous ? "on" : "off") << " UDT_SNDS"
+        "YN error: " << UDT::getlasterror().getErrorMessage() << std::endl;
+    return kSetOptionFailure;
+  }
+  return kSuccess;
+}
+
 }  // namespace udtutils
 
 }  // namespace transport

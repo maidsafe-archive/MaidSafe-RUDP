@@ -44,9 +44,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace base {
 
 namespace test {
-class ThreadpoolTest_BEH_BASE_ThreadpoolSingleTask_Test;
-class ThreadpoolTest_BEH_BASE_ThreadpoolMultipleTasks_Test;
-class ThreadpoolTest_BEH_BASE_ThreadpoolResize_Test;
+class ThreadpoolTest_BEH_BASE_SingleTask_Test;
+class ThreadpoolTest_BEH_BASE_MultipleTasks_Test;
+class ThreadpoolTest_BEH_BASE_Resize_Test;
+class ThreadpoolTest_BEH_BASE_TimedWait_Test;
 }  // namespace test
 
 class Threadpool {
@@ -57,17 +58,26 @@ class Threadpool {
   ~Threadpool();
   // Returns false if a thread resource error is thrown
   bool Resize(const boost::uint16_t &thread_count);
-  void EnqueueTask(const VoidFunctor &functor);
-  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolSingleTask_Test;
-  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolMultipleTasks_Test;
-  friend class test::ThreadpoolTest_BEH_BASE_ThreadpoolResize_Test;
+  bool EnqueueTask(const VoidFunctor &functor);
+  bool WaitForTasksToFinish(const boost::posix_time::milliseconds &duration);
+  friend class test::ThreadpoolTest_BEH_BASE_SingleTask_Test;
+  friend class test::ThreadpoolTest_BEH_BASE_MultipleTasks_Test;
+  friend class test::ThreadpoolTest_BEH_BASE_Resize_Test;
+  friend class test::ThreadpoolTest_BEH_BASE_TimedWait_Test;
  private:
   Threadpool(const Threadpool&);
   Threadpool &operator=(const Threadpool&);
   void Run();
-  bool ThreadCountCorrect();
   bool Continue();
+  bool TimedWait(const boost::posix_time::milliseconds &duration,
+                 boost::function<bool()> predicate);
+  bool ThreadCountCorrect() {
+    return requested_thread_count_ == running_thread_count_;
+  }
+  bool AllTasksDone() { return remaining_tasks_ == 0U; }
   boost::uint16_t requested_thread_count_, running_thread_count_;
+  boost::posix_time::milliseconds default_wait_timeout_;
+  size_t remaining_tasks_;
   boost::mutex mutex_;
   boost::condition_variable condition_;
   std::queue<VoidFunctor> functors_;

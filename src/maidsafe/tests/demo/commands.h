@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_DEMO_COMMANDS_H_
 
 #include <boost/function.hpp>
+#include <map>
 #include <string>
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/base/crypto.h"

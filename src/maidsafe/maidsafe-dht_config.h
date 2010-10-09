@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*******************************************************************************
  * maidsafe-dht Version                                                        *
  ******************************************************************************/
-#define MAIDSAFE_DHT_VERSION 23
+#define MAIDSAFE_DHT_VERSION 25
 
 
 /*******************************************************************************

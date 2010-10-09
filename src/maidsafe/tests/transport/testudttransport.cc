@@ -105,10 +105,11 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtSendOneMessageFromOneToAnother) {
       request.data().rpc_message().SerializeAsString();
 
   // Send message
-  const int kTimeout(10000);
   UdtSocketId sending_socket_id =
-      sending_node.Send(request, loopback_ip_, listening_port_, kTimeout);
+      sending_node.PrepareToSend(loopback_ip_, listening_port_, "", 0);
   ASSERT_GT(sending_socket_id, 0);
+  const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
+  sending_node.Send(request, sending_socket_id, rpcprotocol::kRpcTimeout);
   int count(0);
   while (count < kTimeout &&
          listening_message_handler_.rpc_requests().empty()) {
@@ -133,7 +134,7 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtSendOneMessageFromOneToAnother) {
   TransportMessage response = MakeDummyTransportMessage(false, 256 * 1024);
   const std::string kSentRpcResponse =
       response.data().rpc_message().SerializeAsString();
-  listening_node_.SendResponse(response, receiving_socket_id);
+  listening_node_.Send(response, receiving_socket_id, 0);
   count = 0;
   while (count < kTimeout &&
          sending_message_handler.rpc_responses().empty()) {
@@ -170,10 +171,12 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtMultipleListeningPorts) {
   // Send a message to each
   TransportMessage message = MakeDummyTransportMessage(true, 256 * 1024);
   for (int i = 0; i < kNumberOfListeningPorts ; ++i) {
-    sockets_for_closing_.push_back(listening_node_.Send(message, loopback_ip_,
-                                   listening_ports.at(i), 0));
+    sockets_for_closing_.push_back(listening_node_.PrepareToSend(loopback_ip_,
+                                   listening_ports.at(i), "", 0));
+    listening_node_.Send(message, sockets_for_closing_.at(i),
+                         rpcprotocol::kRpcTimeout);
   }
-  const int kTimeout(10000);
+  const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
   int count(0);
   while (count < kTimeout &&
          listening_message_handler_.rpc_requests().size() !=
@@ -231,7 +234,8 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
       request.data().rpc_message().SerializeAsString();
 
   // Send messages
-  const int kTimeout(kTestMessageSize > 256 * 1024 ? 200000 : 10000);
+  const int kTimeout(kTestMessageSize > 256 * 1024 ?
+                     rpcprotocol::kRpcTimeout * 10 : rpcprotocol::kRpcTimeout);
   for (boost::uint16_t i = 0; i < kRepeats; ++i)
     send_connections.at(i).Send(request, kTimeout);
   int count(0);
@@ -255,7 +259,8 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
     ASSERT_LT(0, send_success_count);
   else
     ASSERT_EQ(kRepeats, send_success_count);
-  ASSERT_EQ(send_success_count, listening_message_handler_.rpc_requests().size());
+  ASSERT_EQ(send_success_count,
+            listening_message_handler_.rpc_requests().size());
   std::vector<UdtSocketId> receiving_socket_ids;
   boost::tuple<rpcprotocol::RpcMessage, SocketId, float> signalled_rpc_message;
   MessageHandler::RpcMessageList copy_of_signalled_messages =
@@ -274,7 +279,7 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
   const std::string kSentRpcResponse =
       response.data().rpc_message().SerializeAsString();
   std::for_each(receiving_socket_ids.begin(), receiving_socket_ids.end(),
-      boost::bind(&UdtTransport::SendResponse, &listening_node_, response, _1));
+      boost::bind(&UdtTransport::Send, &listening_node_, response, _1, 0));
   count = 0;
   while (count < kTimeout * 5 &&
          listening_message_handler_.sent_results().size() < kRepeats) {
@@ -387,7 +392,7 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtCrashManagedEndpoints) {
   // Stop Node 1's managed connections - Nodes 2 & 3 should each detect a lost
   // connection.
   node1_ptr->StopManagedConnections();
-  const int kTimeout(kAddManagedConnectionTimeout * 2);
+  const int kTimeout(kAddManagedConnectionTimeout);
   int count(0);
   while (count < kTimeout &&
          message_handler2.lost_managed_endpoint_ids().empty()) {

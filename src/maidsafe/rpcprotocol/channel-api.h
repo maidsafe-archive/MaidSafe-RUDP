@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/maidsafe-dht_config.h"
 
-#if MAIDSAFE_DHT_VERSION < 23
+#if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif
@@ -123,11 +123,11 @@ class Controller : public google::protobuf::RpcController {
   * Set the timeout for the operation.
   * @param timeout The timeout for the operation.
   */
-  void set_timeout(const boost::uint64_t &timeout);
+  void set_timeout(const boost::uint32_t &timeout);
   /**
   * Get the timeout of the operation.
   */
-  boost::uint64_t timeout() const;
+  boost::uint32_t timeout() const;
   /**
   * Set the UDT connection being used for the operation.
   * @param udt_connection The connection used.

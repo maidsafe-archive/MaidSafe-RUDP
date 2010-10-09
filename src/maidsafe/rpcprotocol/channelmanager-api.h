@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/base/utils.h"
 
-#if MAIDSAFE_DHT_VERSION < 23
+#if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif

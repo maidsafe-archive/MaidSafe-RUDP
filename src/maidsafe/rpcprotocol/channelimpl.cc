@@ -48,7 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace rpcprotocol {
 
 void ControllerImpl::Reset() {
-  timeout_ = kRpcTimeout;
+  timeout_ = -1;
   time_sent_ = 0;
   time_received_ = 0;
   rtt_ = 0.0;
@@ -160,7 +160,6 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
                              const google::protobuf::Message *request,
                              google::protobuf::Message *response,
                              google::protobuf::Closure *done) {
-//  printf("fffffffffffffffff\n");
   if ((remote_ip_.empty()) || (remote_port_ == 0)) {
     DLOG(ERROR) << "ChannelImpl::CallMethod. No remote_ip or remote_port"
                 << std::endl;
@@ -168,7 +167,6 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
 
-//  printf("ggggggggggggggggg\n");
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
   transport_message.set_type(transport::TransportMessage::kRequest);
@@ -187,7 +185,6 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
 
-//  printf("hhhhhhhhhhhhhhhhh\n");
   // Get mutable payload field
   rpcprotocol::RpcMessage::Detail *rpc_message_detail =
       rpc_message->mutable_detail();
@@ -213,11 +210,11 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   SocketId socket_id;
   if (local_transport_)
     socket_id = udt_connection_->udt_socket_id();
-//  else
-//    socket_id = udt_transport_->PrepareToSend(remote_ip_, remote_port_,
-//                                              rendezvous_ip_, rendezvous_port_);
+  else
+    socket_id = udt_transport_->PrepareToSend(remote_ip_, remote_port_,
+                                              rendezvous_ip_, rendezvous_port_);
   pending_request.controller->set_socket_id(socket_id);
-//  printf("iiiiiiiiiiiiiiiii\n");
+
   if (socket_id < 0 ||
       !channel_manager_->AddPendingRequest(socket_id, pending_request)) {
     DLOG(INFO) << "Failed to send the RPC request(" << rpc_message->method()
@@ -228,12 +225,12 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   }
   rpc_message->set_rpc_id(socket_id);
 
-//  printf("jjjjjjjjjjjjjjjjj\n");
   if (local_transport_) {
-//    udt_connection_->Send(transport_message);
+    udt_connection_->Send(transport_message,
+                          pending_request.controller->timeout());
   } else {
-//    udt_transport_->Send(transport_message,
-//                         pending_request.controller->timeout());
+    udt_transport_->Send(transport_message, socket_id,
+                         pending_request.controller->timeout());
   }
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
@@ -296,7 +293,6 @@ void ChannelImpl::HandleRequest(const rpcprotocol::RpcMessage &rpc_message,
 
 void ChannelImpl::SendResponse(const google::protobuf::Message *response,
                                boost::shared_ptr<Controller> controller) {
-
   if (!response->IsInitialized()) {
     DLOG(ERROR) << "ChannelImpl::SendResponse - response uninitialised - "
                 << controller->Failed() << "." << std::endl;
@@ -338,7 +334,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
     return;
   }
 
-  udt_transport_->SendResponse(transport_message, controller->socket_id());
+  udt_transport_->Send(transport_message, controller->socket_id(), 0);
   delete response;
 //  DLOG(ERROR) << "ChannelImpl::CallMethod - Response sent - "
 //              << controller->socket_id() << std::endl;

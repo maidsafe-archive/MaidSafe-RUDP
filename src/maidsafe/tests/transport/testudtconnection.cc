@@ -308,7 +308,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id1);
   UdtConnection receiving_udt_connection1(&listening_node_,
                                           receiving_socket_id1);
-  DataSize received_data_size = receiving_udt_connection1.ReceiveDataSize();
+  DataSize received_data_size = receiving_udt_connection1.ReceiveDataSize(1000);
   EXPECT_EQ(sending_data_size, received_data_size);
 
   // Send too many chars - should only retrieve correct number on receiving
@@ -323,7 +323,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   int sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
       big_data_size.get(), big_data_buffer_size, 0);
   EXPECT_EQ(big_data_buffer_size, sent_count);
-  received_data_size = receiving_udt_connection1.ReceiveDataSize();
+  received_data_size = receiving_udt_connection1.ReceiveDataSize(1000);
   EXPECT_EQ(10, received_data_size);
   // remove extra chars from receive buffer to allow test to continue
   boost::scoped_array<char> temp(new char[256]);
@@ -331,7 +331,6 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_EQ(extra_char_count, received_size);
 
   // Send too few chars - should fail and close sockets
-  ASSERT_TRUE(receiving_udt_connection1.SetTimeout(1000, false));
   boost::uint8_t missing_char_count = 1;
   ASSERT_LE(missing_char_count, sizeof(DataSize));
   boost::uint8_t wee_data_buffer_size = sizeof(DataSize) - missing_char_count;
@@ -344,7 +343,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(listening_message_handler_.received_results().empty());
   EXPECT_TRUE(SocketAlive(receiving_socket_id1));
-  received_data_size = receiving_udt_connection1.ReceiveDataSize();
+  received_data_size = receiving_udt_connection1.ReceiveDataSize(1000);
   EXPECT_EQ(0, received_data_size);
   EXPECT_FALSE(SocketAlive(receiving_socket_id1));
   ASSERT_EQ(1U, listening_message_handler_.received_results().size());
@@ -365,7 +364,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id2);
   UdtConnection receiving_udt_connection2(&listening_node_,
                                           receiving_socket_id2);
-  received_data_size = receiving_udt_connection2.ReceiveDataSize();
+  received_data_size = receiving_udt_connection2.ReceiveDataSize(1000);
   EXPECT_EQ(sending_data_size, received_data_size);
 
   // Send negative data size - should fail and close sockets
@@ -375,7 +374,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
      reinterpret_cast<char*>(&sending_data_size), data_buffer_size, 0);
   EXPECT_EQ(data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id2));
-  received_data_size = receiving_udt_connection2.ReceiveDataSize();
+  received_data_size = receiving_udt_connection2.ReceiveDataSize(1000);
   EXPECT_EQ(0, received_data_size);
   EXPECT_FALSE(SocketAlive(receiving_socket_id2));
   ASSERT_EQ(2U, listening_message_handler_.received_results().size());
@@ -395,45 +394,22 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id3);
   UdtConnection receiving_udt_connection3(&listening_node_,
                                           receiving_socket_id3);
-  received_data_size = receiving_udt_connection3.ReceiveDataSize();
+  received_data_size = receiving_udt_connection3.ReceiveDataSize(1000);
   sending_data_size = sending_udt_connection3.transport_message_.ByteSize();
-  EXPECT_EQ(sending_data_size, received_data_size);
-
-  // Set small timeout and repeat sending until first one times out
-  ASSERT_TRUE(sending_udt_connection3.SetTimeout(1, true));
-  int result = kSuccess;
-  while (result == kSuccess)
-    result = sending_udt_connection3.SendDataSize();
-  EXPECT_EQ(kSendTimeout, result);
-
-  // Get new sockets
-  UdtConnection sending_udt_connection4(loopback_ip_, listening_port, "", 0);
-  sending_udt_connection4.transport_message_ =
-     sending_udt_connection1.transport_message_;
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection4.udt_socket_id_,
-                                        sending_udt_connection4.peer_));
-  EXPECT_EQ(kSuccess, sending_udt_connection4.SendDataSize());
-  UdtSocketId receiving_socket_id4 = UDT::accept(listening_socket_id,
-        reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
-  EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id4);
-  UdtConnection receiving_udt_connection4(&listening_node_,
-                                          receiving_socket_id4);
-  received_data_size = receiving_udt_connection4.ReceiveDataSize();
-  sending_data_size = sending_udt_connection4.transport_message_.ByteSize();
   EXPECT_EQ(sending_data_size, received_data_size);
 
   // Try with excessively large message - should fail and close sockets
   sending_data_size = kMaxTransportMessageSize + 1;
-  sent_count = UDT::send(sending_udt_connection4.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection3.udt_socket_id_,
      reinterpret_cast<char*>(&sending_data_size), data_buffer_size, 0);
   EXPECT_EQ(data_buffer_size, sent_count);
-  EXPECT_TRUE(SocketAlive(receiving_socket_id4));
-  received_data_size = receiving_udt_connection4.ReceiveDataSize();
+  EXPECT_TRUE(SocketAlive(receiving_socket_id3));
+  received_data_size = receiving_udt_connection3.ReceiveDataSize(1000);
   EXPECT_EQ(0, received_data_size);
-  EXPECT_FALSE(SocketAlive(receiving_socket_id4));
+  EXPECT_FALSE(SocketAlive(receiving_socket_id3));
   ASSERT_EQ(3U, listening_message_handler_.received_results().size());
   message_result = listening_message_handler_.received_results().back();
-  EXPECT_EQ(message_result.get<0>(), receiving_socket_id4);
+  EXPECT_EQ(message_result.get<0>(), receiving_socket_id3);
   EXPECT_EQ(message_result.get<1>(), kMessageSizeTooLarge);
 
   TransportMessage big_message;
@@ -445,10 +421,6 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   catch(const std::exception &e) {
     FAIL() << e.what() << std::endl;
   }
-  big_message.set_type(TransportMessage::kResponse);
-  ASSERT_GT(big_message.ByteSize(), kMaxTransportMessageSize);
-  sending_udt_connection4.transport_message_ = big_message;
-  EXPECT_EQ(kMessageSizeTooLarge, sending_udt_connection4.SendDataSize());
 }
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
@@ -492,9 +464,11 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   UdtSocketId receiving_socket_id1 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id1);
+  EXPECT_EQ(kSuccess, udtutils::SetSyncMode(receiving_socket_id1, true));
   UdtConnection receiving_udt_connection1(&listening_node_,
                                           receiving_socket_id1);
-  EXPECT_TRUE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize));
+  EXPECT_TRUE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize,
+                                                           kDynamicTimeout));
   EXPECT_TRUE(MessagesMatch(sending_udt_connection1.transport_message_,
                             receiving_udt_connection1.transport_message_));
 
@@ -509,7 +483,8 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   int sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
       big_data_content.get(), big_data_buffer_size, 0);
   EXPECT_EQ(big_data_buffer_size, sent_count);
-  EXPECT_TRUE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize));
+  EXPECT_TRUE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize,
+                                                           kDynamicTimeout));
   EXPECT_TRUE(MessagesMatch(sending_udt_connection1.transport_message_,
                             receiving_udt_connection1.transport_message_));
   // remove extra chars from receive buffer to allow test to continue
@@ -531,7 +506,8 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
       wee_data_content.get(), wee_data_buffer_size, 0);
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id1));
-  EXPECT_FALSE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize));
+  EXPECT_FALSE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize,
+                                                            kDynamicTimeout));
   EXPECT_FALSE(MessagesMatch(sending_udt_connection1.transport_message_,
                              receiving_udt_connection1.transport_message_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id1));
@@ -553,7 +529,8 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id2);
   UdtConnection receiving_udt_connection2(&listening_node_,
                                           receiving_socket_id2);
-  EXPECT_TRUE(receiving_udt_connection2.ReceiveDataContent(kProperDataSize));
+  EXPECT_TRUE(receiving_udt_connection2.ReceiveDataContent(kProperDataSize,
+                                                           kDynamicTimeout));
   EXPECT_TRUE(MessagesMatch(sending_udt_connection2.transport_message_,
                             receiving_udt_connection2.transport_message_));
 
@@ -563,7 +540,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id2));
   EXPECT_FALSE(receiving_udt_connection2.ReceiveDataContent(
-               wee_data_buffer_size));
+               wee_data_buffer_size, kDynamicTimeout));
   EXPECT_FALSE(MessagesMatch(sending_udt_connection2.transport_message_,
                              receiving_udt_connection2.transport_message_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id2));
@@ -571,32 +548,69 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   message_result = listening_message_handler_.received_results().back();
   EXPECT_EQ(message_result.get<0>(), receiving_socket_id2);
   EXPECT_EQ(message_result.get<1>(), kReceiveUdtFailure);
+}
 
-  // Get new sockets
-  UdtConnection sending_udt_connection3(loopback_ip_, listening_port, "", 0);
-  sending_udt_connection3.transport_message_ =
-     sending_udt_connection1.transport_message_;
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection3.udt_socket_id_,
-                                        sending_udt_connection3.peer_));
-  EXPECT_EQ(kSuccess, sending_udt_connection3.SendDataContent());
-  UdtSocketId receiving_socket_id3 = UDT::accept(listening_socket_id,
+TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
+  // Get a new socket for listening
+  UdtSocketId listening_socket_id(UDT::INVALID_SOCK);
+  boost::shared_ptr<addrinfo const> address_info;
+  ASSERT_EQ(kSuccess, udtutils::GetNewSocket("", 0, true, &listening_socket_id,
+                                             &address_info));
+  ASSERT_NE(UDT::ERROR, UDT::bind(listening_socket_id, address_info->ai_addr,
+                                  address_info->ai_addrlen));
+  struct sockaddr_in name;
+  int name_size;
+  UDT::getsockname(listening_socket_id, reinterpret_cast<sockaddr*>(&name),
+                   &name_size);
+  Port listening_port = ntohs(name.sin_port);
+  ASSERT_NE(UDT::ERROR, UDT::listen(listening_socket_id, 1));
+
+  // Get a new socket for sending
+  UdtConnection sending_udt_connection(loopback_ip_, listening_port, "", 0);
+  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection.udt_socket_id_);
+  *(sending_udt_connection.transport_message_.mutable_data()->
+      mutable_raw_message()) = "Test";
+  sending_udt_connection.transport_message_.set_type(
+      TransportMessage::kResponse);
+  DataSize sending_data_size =
+      sending_udt_connection.transport_message_.ByteSize();
+
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection.udt_socket_id_,
+                                        sending_udt_connection.peer_));
+  EXPECT_EQ(kSuccess, sending_udt_connection.SendDataSize());
+  sockaddr_storage clientaddr;
+  int addrlen = sizeof(clientaddr);
+  UdtSocketId receiving_socket_id = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
-  EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id3);
-  UdtConnection receiving_udt_connection3(&listening_node_,
-                                          receiving_socket_id3);
-  EXPECT_TRUE(receiving_udt_connection3.ReceiveDataContent(kProperDataSize));
-  EXPECT_TRUE(MessagesMatch(sending_udt_connection3.transport_message_,
-                            receiving_udt_connection3.transport_message_));
-  // Set small timeout, large data size and repeat sending until first one times
-  // out
-  (sending_udt_connection3.transport_message_.mutable_data()->
-      mutable_raw_message())->assign(10000000, 'A');
-  ASSERT_TRUE(sending_udt_connection3.SetTimeout(1, true));
-  int result = kSuccess;
-  while (result == kSuccess)
-    result = sending_udt_connection3.SendDataContent();
+  EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id);
+  UdtConnection receiving_udt_connection(&listening_node_, receiving_socket_id);
+  DataSize received_data_size = receiving_udt_connection.ReceiveDataSize(1000);
+  sending_data_size = sending_udt_connection.transport_message_.ByteSize();
+  EXPECT_EQ(sending_data_size, received_data_size);
 
+  // Send large data with tiny timeout to trigger timeout
+  (sending_udt_connection.transport_message_.mutable_data()->
+      mutable_raw_message())->assign(10000000, 'A');
+  sending_data_size = sending_udt_connection.transport_message_.ByteSize();
+  boost::scoped_array<char> serialised_message(new char[sending_data_size]);
+  ASSERT_TRUE(sending_udt_connection.transport_message_.
+      SerializeToArray(serialised_message.get(), sending_data_size));
+  sending_udt_connection.send_timeout_ = 1;
+  int result = kSuccess;
+  result = sending_udt_connection.MoveData(true, sending_data_size,
+                                           serialised_message.get());
   EXPECT_EQ(kSendTimeout, result);
+
+  // Send large data with large timeout to trigger stall
+  sending_udt_connection.send_timeout_ = -1;
+  result = kSuccess;
+  int count(0);
+  while (result == kSuccess && count < 1000) {
+    ++count;
+    result = sending_udt_connection.MoveData(true, sending_data_size,
+                                             serialised_message.get());
+  }
+  EXPECT_EQ(kSendStalled, result);
 }
 
 TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
@@ -917,7 +931,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   std::vector<UdtConnection> send_connections;
   std::vector< boost::shared_ptr<MessageHandler> > send_message_handlers;
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 3; ++i) {
     UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
     ASSERT_GT(udt_connection.udt_socket_id_, 0);
     send_connections.push_back(udt_connection);
@@ -932,11 +946,16 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   sent_message.set_type(TransportMessage::kResponse);
   UdtSocketId receiving_socket_id;
 
-  // Send with negative timeout (no response expected)
+  // Send response (no response expected)
   size_t test_count(0);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
-  send_connections.at(test_count).Send(sent_message, -1);
-  const int kTimeout(10000);
+  // Explicitly connect as responses are usually sent on pre-connected sockets
+  ASSERT_EQ(kSuccess,
+            udtutils::Connect(send_connections.at(test_count).udt_socket_id_,
+                              send_connections.at(test_count).peer_));
+  const int kTimeout(5000);
+  const boost::uint32_t kTestRpcTimeout(kTimeout - 1000);
+  send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
               &listening_message_handler_, &receiving_socket_id));
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
@@ -949,28 +968,12 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id));
 
-  // Send with zero timeout (no response expected)
+  // Send request (response expected) and don't send response
   ++test_count;  // 1
   *sent_raw_message = base::RandomString(100);
+  sent_message.set_type(TransportMessage::kRequest);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
-  send_connections.at(test_count).Send(sent_message, 0);
-  EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
-              &listening_message_handler_, &receiving_socket_id));
-  ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
-  signalled_message_result =
-      send_message_handlers.at(test_count)->sent_results().back();
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
-            signalled_message_result.get<0>());
-  EXPECT_EQ(kSuccess, signalled_message_result.get<1>());
-  EXPECT_FALSE(send_connections.at(test_count).worker_.get() == NULL);
-  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
-  EXPECT_FALSE(SocketAlive(receiving_socket_id));
-
-  // Send with positive timeout (response expected) and don't send response
-  ++test_count;  // 2
-  *sent_raw_message = base::RandomString(100);
-  EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
-  send_connections.at(test_count).Send(sent_message, 100);
+  send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
               &listening_message_handler_, &receiving_socket_id));
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
@@ -996,11 +999,11 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id));
 
-  // Send with positive timeout and send response
-  ++test_count;  // 3
+  // Send request and send response
+  ++test_count;  // 2
   *sent_raw_message = base::RandomString(100);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
-  send_connections.at(test_count).Send(sent_message, 10000);
+  send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
               &listening_message_handler_, &receiving_socket_id));
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
@@ -1015,7 +1018,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
       reply_message.mutable_data()->mutable_raw_message();
   *reply_raw_message = base::RandomString(100);
   reply_message.set_type(TransportMessage::kResponse);
-  reply_connection.SendResponse(reply_message);
+  reply_connection.Send(reply_message, 0);
   count = 0;
   while (count < kTimeout &&
          send_message_handlers.at(test_count)->raw_messages().empty()) {
@@ -1049,8 +1052,12 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnBigMessage) {
   UdtSocketId sending_socket_id = udt_connection.udt_socket_id();
   ASSERT_GT(sending_socket_id, 0);
   MessageHandler message_handler(udt_connection.signals(), "BigSend", false);
-  udt_connection.Send(sent_message, -1);
+  // Explicitly connect as responses are usually sent on pre-connected sockets
+  ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.udt_socket_id_,
+                                        udt_connection.peer_));
   const int kTimeout(10000);
+  const boost::uint32_t kTestRpcTimeout(kTimeout - 1000);
+  udt_connection.Send(sent_message, kTestRpcTimeout);
   UdtSocketId receiving_socket_id;
 
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, 1,

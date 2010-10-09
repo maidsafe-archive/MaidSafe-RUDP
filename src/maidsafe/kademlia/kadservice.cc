@@ -595,9 +595,9 @@ void KadService::StoreValueLocal(const std::string &key,
     } else if (!result && !ser_del_request.empty()) {
       SignedRequest *req = response->mutable_signed_request();
       req->ParseFromString(ser_del_request);
-        DLOG(WARNING) << "Weird Failed. - adding signed req to resp.";
+      DLOG(WARNING) << "Weird Fail. - adding signed req to resp." << std::endl;
     } else if (!result) {
-        DLOG(WARNING) << "pdatastore_->RefreshItem Failed.";
+      DLOG(WARNING) << "pdatastore_->RefreshItem Failed.";
     }
   }
   if (result) {

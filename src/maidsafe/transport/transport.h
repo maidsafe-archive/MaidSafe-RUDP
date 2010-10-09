@@ -42,7 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/transport/transportutils.h>
 #include <vector>
 
-#if MAIDSAFE_DHT_VERSION < 23
+#if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif
@@ -69,17 +69,21 @@ class Transport {
   virtual bool StopListening(const Port &port) = 0;
   // Stops all listening ports and clears listening_ports_ vector.
   virtual bool StopAllListening() = 0;
-  // Used to create a new socket and send data.  It assumes a
-  // response is expected if timeout is > 0, and keeps the socket alive.
-  // The result is signalled with the new socket ID the appropriate
-  // TransportCondition.
-  virtual SocketId Send(const TransportMessage &transport_message,
-                        const IP &remote_ip,
-                        const Port &remote_port,
-                        const int &response_timeout) = 0;
-  // Used to send a response to a request received on socket_id.
-  virtual void SendResponse(const TransportMessage &transport_message,
-                            const SocketId &socket_id) = 0;
+  // Used to create a new socket for sending data.
+  virtual SocketId PrepareToSend(const IP &remote_ip,
+                                 const Port &remote_port,
+                                 const IP &rendezvous_ip,
+                                 const Port &rendezvous_port) = 0;
+  // Used to send transport_message on socket_id.  If the message is a request,
+  // the socket is kept alive awaiting a response for timeout_wait_for_response
+  // milliseconds, after which it is closed.  Internal sending of message has
+  // its own timeout, so method may signal failure before
+  // timeout_wait_for_response milliseconds have passed if sending times out.
+  // If the message is a response, the socket is closed immediately after
+  // sending.  Result is signalled by on_send_.
+  virtual void Send(const TransportMessage &transport_message,
+                    const SocketId &socket_id,
+                    const boost::uint32_t &timeout_wait_for_response) = 0;
   // Used to send a file in response to a request received on socket_id.
   virtual void SendFile(fs::path &path, const SocketId &socket_id) = 0;
   boost::shared_ptr<Signals> signals() { return signals_; }

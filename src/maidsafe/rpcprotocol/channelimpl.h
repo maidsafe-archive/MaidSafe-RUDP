@@ -50,7 +50,7 @@ class RpcMessage;
 
 class ControllerImpl {
  public:
-  ControllerImpl() : timeout_(kRpcTimeout), time_sent_(0), time_received_(0),
+  ControllerImpl() : timeout_(-1), time_sent_(0), time_received_(0),
                      rtt_(0.0), failure_(), method_(), socket_id_(0),
                      udt_connection_() {}
   void SetFailed(const std::string &failure) { failure_ = failure; }
@@ -61,8 +61,9 @@ class ControllerImpl {
   bool IsCanceled() const { return false; }
   void NotifyOnCancel(google::protobuf::Closure*) {}
   // returns time between sending and receiving the RPC in milliseconds
-  boost::uint64_t Duration() const {
-    return time_sent_ < time_received_ ? time_received_ - time_sent_ : 0;
+  boost::uint32_t Duration() const {
+    return time_sent_ < time_received_ ?
+        static_cast<boost::uint32_t>(time_received_ - time_sent_) : 0;
   }
   // set sending time
   void StartRpcTimer() { time_sent_ = base::GetEpochMilliseconds(); }
@@ -75,8 +76,8 @@ class ControllerImpl {
   SocketId socket_id() const { return socket_id_; }
   void set_method(const std::string &method) { method_ = method; }
   std::string method() const { return method_; }
-  void set_timeout(const boost::uint64_t &timeout) { timeout_ = timeout; }
-  boost::uint64_t timeout() const { return timeout_; }
+  void set_timeout(const boost::uint32_t &timeout) { timeout_ = timeout; }
+  boost::uint32_t timeout() const { return timeout_; }
   void set_udt_connection(
       boost::shared_ptr<transport::UdtConnection> udt_connection) {
     udt_connection_ = udt_connection;
@@ -86,7 +87,8 @@ class ControllerImpl {
   }
 
  private:
-  boost::uint64_t timeout_, time_sent_, time_received_;
+  boost::uint32_t timeout_;
+  boost::uint64_t time_sent_, time_received_;
   float rtt_;
   std::string failure_, method_;
   SocketId socket_id_;

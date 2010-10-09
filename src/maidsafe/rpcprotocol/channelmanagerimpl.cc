@@ -62,6 +62,9 @@ ChannelManagerImpl::ChannelManagerImpl(
   rpc_request_ = udt_transport_->signals()->ConnectOnRpcRequestReceived(
                      boost::bind(&ChannelManagerImpl::RequestArrive,
                                  this, _1, _2, _3));
+  rpc_reponse_ = udt_transport_->signals()->ConnectOnRpcResponseReceived(
+                     boost::bind(&ChannelManagerImpl::ResponseArrive,
+                                 this, _1, _2, _3));
   data_sent_ = udt_transport_->signals()->ConnectOnSend(
                    boost::bind(&ChannelManagerImpl::RpcMessageSent,
                                this, _1, _2));

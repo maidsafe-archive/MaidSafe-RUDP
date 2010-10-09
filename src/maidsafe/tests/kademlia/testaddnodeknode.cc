@@ -134,6 +134,7 @@ class TestKnodes : public testing::Test {
       transports_[i]->StopListening(transport_ports_[i]);
       ch_managers_[i]->Stop();
       delete msg_handlers_[i];
+      nodes_[i].Leave();
     }
     transports_.clear();
     try {

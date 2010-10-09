@@ -87,8 +87,9 @@ class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
 
 typedef int UdtSocketId;
 
-const int kAddManagedConnectionTimeout(1000);  // milliseconds
+const boost::uint32_t kAddManagedConnectionTimeout(10000);  // milliseconds
 const boost::uint16_t kDefaultThreadpoolSize(10);
+const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
 class UdtTransport : public Transport {
@@ -111,20 +112,26 @@ class UdtTransport : public Transport {
                                const Port &remote_port,
                                const IP &rendezvous_ip,
                                const Port &rendezvous_port);
-  SocketId Send(const TransportMessage &transport_message,
-                const IP &remote_ip,
-                const Port &remote_port,
-                const int &response_timeout);
+  SocketId PrepareToSend(const IP &remote_ip,
+                         const Port &remote_port,
+                         const IP &rendezvous_ip,
+                         const Port &rendezvous_port);
+  // Send message on connected socket.  If message is a request, then
+  // timeout_wait_for_response defines timeout for receiving response in
+  // milliseconds.  If 0, no response is expected and the socket is closed
+  // after sending message.  Internal sending of message has its own timeout, so
+  // method may signal failure before timeout_wait_for_response if sending
+  // times out.
+  void Send(const TransportMessage &transport_message,
+            const SocketId &socket_id,
+            const boost::uint32_t &timeout_wait_for_response);
   // Convenience function - calls PunchHole followed by Send.
   void SendWithRendezvous(const TransportMessage &transport_message,
                           const IP &remote_ip,
                           const Port &remote_port,
                           const IP &rendezvous_ip,
                           const Port &rendezvous_port,
-                          int &response_timeout,
                           SocketId *socket_id);
-  void SendResponse(const TransportMessage &transport_message,
-                    const SocketId &socket_id);
   // Used to send a file in response to a request received on socket_id.
   void SendFile(fs::path &path, const SocketId &socket_id);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
@@ -151,6 +158,8 @@ class UdtTransport : public Transport {
   friend class
       test::UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
  private:
+  typedef std::map< UdtSocketId, boost::shared_ptr<addrinfo const> >
+      UnusedSockets;
   UdtTransport& operator=(const UdtTransport&);
   UdtTransport(const UdtTransport&);
   Port DoStartListening(const IP &ip,
@@ -171,11 +180,11 @@ class UdtTransport : public Transport {
                                   const ManagedEndpointMessage &request);
   void HandleManagedSocketResponse(const UdtSocketId &managed_socket_id,
                                    const ManagedEndpointMessage &response);
-  bool SetAsynchronous(const UdtSocketId &udt_socket_id);
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
   bool PendingManagedSocketReplied(const UdtSocketId &udt_socket_id);
   std::map<Port, UdtSocketId> listening_map_;
+  UnusedSockets unused_sockets_;
   std::vector<UdtSocketId> managed_endpoint_sockets_;
   std::map<UdtSocketId, UdtSocketId> pending_managed_endpoint_sockets_;
   volatile bool stop_managed_connections_, managed_connections_stopped_;

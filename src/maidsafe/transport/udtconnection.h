@@ -58,14 +58,19 @@ namespace transport {
 namespace test {
 class UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataSize_Test;
 class UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataContent_Test;
+class UdtConnectionTest_BEH_TRANS_UdtMoveDataTimeout_Test;
 class UdtConnectionTest_FUNC_TRANS_UdtConnHandleTransportMessage_Test;
 class UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataFull_Test;
+class UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
 }  // namespace test
 
 class UdtTransport;
 
-const int kDefaultSendTimeout(10000);
-const int kDefaultReceiveTimeout(10000);
+const boost::uint32_t kDefaultInitialTimeout(rpcprotocol::kRpcTimeout);
+const boost::uint32_t kDynamicTimeout(-1);
+const boost::uint32_t kMinTimeout(500);
+const float kTimeoutFactor(0.01);
+const boost::uint32_t kStallTimeout(3000);
 
 struct UdtStats : public SocketPerformanceStats {
  public:
@@ -87,21 +92,28 @@ class UdtConnection {
                 const Port &remote_port,
                 const IP &rendezvous_ip,
                 const Port &rendezvous_port);
-  UdtConnection(const UdtConnection &other);
-  UdtConnection& operator=(const UdtConnection &other);
   ~UdtConnection();
+  // Send message on connected socket.  If message is a request, then
+  // timeout_wait_for_response defines timeout for receiving response in
+  // milliseconds.  If 0, no response is expected and the socket is closed
+  // after sending message.  Internal sending of message has its own timeout, so
+  // method may signal failure before timeout_wait_for_response if sending
+  // times out.
   void Send(const TransportMessage &transport_message,
-            const int &response_timeout);
+            const boost::uint32_t &timeout_wait_for_response);
   boost::shared_ptr<Signals> signals() const { return signals_; }
   UdtSocketId udt_socket_id() const { return udt_socket_id_; }
   friend class UdtTransport;
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataSize_Test;
   friend class
      test::UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataContent_Test;
+  friend class test::UdtConnectionTest_BEH_TRANS_UdtMoveDataTimeout_Test;
   friend class
      test::UdtConnectionTest_FUNC_TRANS_UdtConnHandleTransportMessage_Test;
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataFull_Test;
+  friend class test::UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
  private:
+  enum ActionAfterSend { kClose, kKeepAlive, kReceive};
   UdtConnection(UdtTransport *udt_transport,
                 const IP &remote_ip,
                 const Port &remote_port,
@@ -110,25 +122,27 @@ class UdtConnection {
   UdtConnection(UdtTransport *udt_transport,
                 const UdtSocketId &udt_socket_id);
   void Init();
-  bool SetTimeout(const int &timeout, bool send);
-  // Method to allow sending on a socket which is already connected to a peer.
-  void SendResponse(const TransportMessage &transport_message);
-  // General method for connecting then sending data
-  void ConnectThenSend();
-  // General method for sending data once connection made.  If
-  // keep_alive_after_send is true, the socket switches to receive after sending
-  // (where receive_timeout_ > 0) or is simply left open.
-  void SendData(bool keep_alive_after_send);
+  bool SetDataSizeSendTimeout();
+  bool SetDataSizeReceiveTimeout(const boost::uint32_t &timeout);
+  bool SetDataContentSendTimeout();
+  bool SetDataContentReceiveTimeout(const DataSize &data_size,
+                                    const boost::uint32_t &timeout);
+  bool SetTimeout(const boost::uint32_t &timeout, bool send);
+  TransportCondition CheckMessage(bool *is_request);
+  // General method for sending data once connection made.
+  void SendData(const ActionAfterSend &action_after_send,
+                const boost::uint32_t &timeout_wait_for_response);
   // Send the size of the pending message
   TransportCondition SendDataSize();
   // Send the content of the message.
   TransportCondition SendDataContent();
   // General method for receiving data
-  void ReceiveData();
+  void ReceiveData(const boost::uint32_t &timeout);
   // Receive the size of the forthcoming message
-  DataSize ReceiveDataSize();
+  DataSize ReceiveDataSize(const boost::uint32_t &timeout);
   // Receive the content of the message
-  bool ReceiveDataContent(const DataSize &data_size);
+  bool ReceiveDataContent(const DataSize &data_size,
+                          const boost::uint32_t &timeout);
   // Send or receive contents of a buffer
   TransportCondition MoveData(bool sending,
                               const DataSize &data_size,
@@ -145,7 +159,7 @@ class UdtConnection {
   Port rendezvous_port_;
   boost::shared_ptr<addrinfo const> peer_;
   TransportMessage transport_message_;
-  int send_timeout_, receive_timeout_;
+  boost::uint32_t send_timeout_, receive_timeout_;
 };
 
 }  // namespace transport

@@ -98,11 +98,11 @@ std::string Controller::method() const {
   return controller_pimpl_->method();
 }
 
-void Controller::set_timeout(const boost::uint64_t &timeout) {
+void Controller::set_timeout(const boost::uint32_t &timeout) {
   controller_pimpl_->set_timeout(timeout);
 }
 
-boost::uint64_t Controller::timeout() const {
+boost::uint32_t Controller::timeout() const {
   return controller_pimpl_->timeout();
 }
 

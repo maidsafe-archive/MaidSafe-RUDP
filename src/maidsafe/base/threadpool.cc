@@ -33,17 +33,25 @@ namespace base {
 Threadpool::Threadpool(const boost::uint16_t &thread_count)
     : requested_thread_count_(thread_count),
       running_thread_count_(0),
+      default_wait_timeout_(100),
+      remaining_tasks_(0),
       mutex_(),
       condition_(),
       functors_() {
   Resize(requested_thread_count_);
+  TimedWait(default_wait_timeout_,
+            boost::bind(&Threadpool::ThreadCountCorrect, this));
 }
 
 Threadpool::~Threadpool() {
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (!functors_.empty())
+      functors_.pop();
+  }
   Resize(0);
-  boost::mutex::scoped_lock lock(mutex_);
-  while (requested_thread_count_ != running_thread_count_)
-    condition_.wait(lock);
+  TimedWait(default_wait_timeout_,
+            boost::bind(&Threadpool::ThreadCountCorrect, this));
 }
 
 bool Threadpool::Resize(const boost::uint16_t &thread_count) {
@@ -67,14 +75,14 @@ bool Threadpool::Resize(const boost::uint16_t &thread_count) {
   return true;
 }
 
-void Threadpool::EnqueueTask(const VoidFunctor &functor) {
+bool Threadpool::EnqueueTask(const VoidFunctor &functor) {
   boost::mutex::scoped_lock lock(mutex_);
+  if (requested_thread_count_ == 0)
+    return false;
   functors_.push(functor);
+  ++remaining_tasks_;
   condition_.notify_all();
-}
-
-bool Threadpool::ThreadCountCorrect() {
-  return requested_thread_count_ == running_thread_count_;
+  return true;
 }
 
 bool Threadpool::Continue() {
@@ -86,17 +94,15 @@ void Threadpool::Run() {
   {
     boost::mutex::scoped_lock lock(mutex_);
     ++running_thread_count_;
+    condition_.notify_all();
   }
-  while (true) {
+  bool run(true);
+  while (run) {
     boost::mutex::scoped_lock lock(mutex_);
     condition_.wait(lock, boost::bind(&Threadpool::Continue, this));
-    if (requested_thread_count_ < running_thread_count_) {
+    run = requested_thread_count_ >= running_thread_count_;
+    if (!run) {
       --running_thread_count_;
-      // Notify to destructor
-      if (running_thread_count_ == 0) {
-        condition_.notify_one();
-      }
-      return;
     } else {
       // grab the first functor from the queue, but allow other threads to
       // operate while executing it
@@ -105,7 +111,26 @@ void Threadpool::Run() {
       lock.unlock();
       functor();
       lock.lock();
+      --remaining_tasks_;
     }
+    condition_.notify_all();
+  }
+}
+
+bool Threadpool::WaitForTasksToFinish(
+    const boost::posix_time::milliseconds &duration) {
+  return TimedWait(duration, boost::bind(&Threadpool::AllTasksDone, this));
+}
+
+bool Threadpool::TimedWait(const boost::posix_time::milliseconds &duration,
+                           boost::function<bool()> predicate) {
+  try {
+    boost::mutex::scoped_lock lock(mutex_);
+    return condition_.timed_wait(lock, duration, predicate);
+  }
+  catch(const std::exception &e) {
+    DLOG(ERROR) << "Threadpool::TimedWait: " << e.what() << std::endl;
+    return false;
   }
 }
 

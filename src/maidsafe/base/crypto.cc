@@ -272,7 +272,6 @@ std::string Crypto::AsymEncrypt(const std::string &input,
     CryptoPP::RSAES_OAEP_SHA_Encryptor pub(pubkey);
     CryptoPP::AutoSeededRandomPool rand_pool;
     std::string result;
-
     switch (operation_type) {
       case STRING_STRING:
         CryptoPP::StringSource(input, true,
@@ -390,7 +389,6 @@ bool Crypto::AsymCheckSig(const std::string &input_data,
     return false;
   try {
     CryptoPP::StringSource pubkey(key, true);
-
     CryptoPP::RSASS<CryptoPP::PKCS1v15, CryptoPP::SHA512>::Verifier
         verifier(pubkey);
     bool result = false;
