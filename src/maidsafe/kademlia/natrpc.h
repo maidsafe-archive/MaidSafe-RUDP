@@ -39,7 +39,9 @@ class Controller;
 }  // namespace rpcprotocol
 
 namespace kad {
-const boost::uint32_t kRpcNatPingTimeout = 3;
+
+const boost::uint32_t kRpcNatPingTimeout = 3000;  // milliseconds
+
 class NatRpcs {
  public:
   explicit NatRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager);
@@ -57,7 +59,8 @@ class NatRpcs {
                         rpcprotocol::Controller *ctler,
                         google::protobuf::Closure *callback);
  private:
-  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
 };
 
 }  // namespace kad

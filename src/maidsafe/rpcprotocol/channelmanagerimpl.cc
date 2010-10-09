@@ -305,37 +305,48 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
 
 void ChannelManagerImpl::RpcMessageSent(
     const SocketId &socket_id, const transport::TransportCondition &success) {
-  std::map<SocketId, PendingMessage>::iterator it;
-  boost::mutex::scoped_lock loch_hope(message_mutex_);
-  it = pending_messages_.find(socket_id);
-  if (it == pending_messages_.end())
-    return;
-  if (success != transport::kSuccess) {
-    DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id
-               << " failed to send. " << std::endl;
-    if ((*it).second.status == kRequestSent ||
-        (*it).second.status == kAwaitingRequestSend) {
-      (*it).second.callback->Run();
-      (*it).second.rpc_reponse.disconnect();
-      (*it).second.data_sent.disconnect();
-      (*it).second.timeout.disconnect();
+  PendingMessage message;
+  {
+    boost::mutex::scoped_lock loch_hope(message_mutex_);
+    std::map<SocketId, PendingMessage>::iterator it;
+    it = pending_messages_.find(socket_id);
+    if (it == pending_messages_.end())
+      return;
+    if (success == transport::kSuccess) {
+      switch ((*it).second.status) {
+        case kAwaitingRequestSend:
+          (*it).second.status = kRequestSent;
+          break;
+        case kAwaitingResponseSend:
+          delete (*it).second.callback;
+        case kPending:
+          pending_messages_.erase(it);
+          break;
+        default:
+          break;
+      }
+      return;
+    } else {
+      DLOG(INFO) << "CMImpl::RpcMessageSent - id = " << socket_id
+                 << " failed to send. " << std::endl;
+      if ((*it).second.status == kRequestSent ||
+          (*it).second.status == kAwaitingRequestSend) {
+        message = (*it).second;
+      }
+      pending_messages_.erase(it);
     }
-    pending_messages_.erase(it);
-    return;
   }
-
-  switch ((*it).second.status) {
-    case kAwaitingRequestSend: (*it).second.status = kRequestSent;
-                               break;
-    case kAwaitingResponseSend: delete (*it).second.callback;
-    case kPending: pending_messages_.erase(it);
-                   break;
-    default:break;
+  if (message.callback != NULL) {
+    message.callback->Run();
+    message.rpc_reponse.disconnect();
+    message.data_sent.disconnect();
+    message.timeout.disconnect();
   }
 }
 
 void ChannelManagerImpl::RpcStatus(const SocketId &socket_id,
                                    const transport::TransportCondition &tc) {
+  PendingMessage message;
   if (tc != transport::kSuccess) {
     boost::mutex::scoped_lock loch_urigill(message_mutex_);
     std::map<SocketId, PendingMessage>::iterator it;
@@ -344,14 +355,16 @@ void ChannelManagerImpl::RpcStatus(const SocketId &socket_id,
       if ((*it).second.status == kRequestSent) {
         DLOG(ERROR) << "CMImpl::RpcStatus - " << socket_id
                     << " - request timeout" << std::endl;
-        if ((*it).second.callback)
-          (*it).second.callback->Run();
-        (*it).second.rpc_reponse.disconnect();
-        (*it).second.data_sent.disconnect();
-        (*it).second.timeout.disconnect();
+        message = (*it).second;
         pending_messages_.erase(it);
       }
     }
+  }
+  if (message.callback != NULL) {
+    message.callback->Run();
+    message.rpc_reponse.disconnect();
+    message.data_sent.disconnect();
+    message.timeout.disconnect();
   }
 }
 

@@ -48,8 +48,8 @@ class Controller;
 
 namespace kad {
 // different RPCs have different timeouts, normally it is 5 seconds
-const boost::uint32_t kRpcPingTimeout = 3;  // 3 secs
-const boost::uint32_t kRpcBootstrapTimeout = 7;  // 7secs
+const boost::uint32_t kRpcPingTimeout = 3000;  // milliseconds
+const boost::uint32_t kRpcBootstrapTimeout = 7000;  // milliseconds
 
 class KadId;
 
@@ -109,8 +109,8 @@ class KadRpcs {
   KadRpcs(const KadRpcs&);
   KadRpcs& operator=(const KadRpcs&);
   ContactInfo info_;
-  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
-  boost::shared_ptr<transport::UdtTransport> pudt_transport_;
+  boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
+  boost::shared_ptr<transport::UdtTransport> udt_transport_;
   bool has_transport_;
 };
 

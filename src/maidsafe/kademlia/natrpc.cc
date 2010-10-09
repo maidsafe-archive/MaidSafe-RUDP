@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kad {
 
 NatRpcs::NatRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager)
-    : pchannel_manager_(ch_manager) {}
+    : channel_manager_(ch_manager) {}
 
 void NatRpcs::NatDetection(const std::string &newcomer,
                            const std::string &bootstrap_node,
@@ -49,10 +49,10 @@ void NatRpcs::NatDetection(const std::string &newcomer,
   args.set_bootstrap_node(bootstrap_node);
   args.set_type(type);
   args.set_sender_id(sender_id);
-  rpcprotocol::Channel channel(pchannel_manager_, remote_ip, remote_port, "", 0,
+  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, "", 0,
                                rendezvous_ip, rendezvous_port);
   if (type == 2)
-    ctler->set_timeout(18);
+    ctler->set_timeout(18000);
   KademliaService::Stub service(&channel);
   service.NatDetection(ctler, &args, resp, callback);
 }
@@ -67,7 +67,7 @@ void NatRpcs::NatDetectionPing(const IP &remote_ip, const Port &remote_port,
   args.set_ping("nat_detection_ping");
   rpcprotocol::Controller controller;
   controller.set_timeout(kRpcNatPingTimeout);
-  rpcprotocol::Channel channel(pchannel_manager_, remote_ip, remote_port, "", 0,
+  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, "", 0,
                                rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.NatDetectionPing(ctler, &args, resp, callback);

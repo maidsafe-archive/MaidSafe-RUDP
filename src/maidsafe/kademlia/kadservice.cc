@@ -239,8 +239,8 @@ void KadService::Bootstrap(google::protobuf::RpcController *controller,
   }
   Contact newcomer;
   // set rendezvous IP/Port
-  if (request->newcomer_ext_ip() == request->newcomer_local_ip()
-      &&request->newcomer_ext_port() == request->newcomer_local_port()) {
+  if (request->newcomer_ext_ip() == request->newcomer_local_ip() &&
+      request->newcomer_ext_port() == request->newcomer_local_port()) {
     // Newcomer is directly connected to the Internet
     newcomer = Contact(request->newcomer_id(), request->newcomer_local_ip(),
         request->newcomer_local_port(), request->newcomer_local_ip(),

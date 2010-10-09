@@ -446,12 +446,12 @@ class KNodeImpl {
                  const bool &dir_connected);
   void Join_Bootstrapping_Iteration_Client(
       const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
-      const IP bootstrap_ip, const Port bootstrap_port,
-      const IP local_bs_ip, const Port local_bs_port);
+      const IP &bootstrap_ip, const Port &bootstrap_port,
+      const IP &local_bs_ip, const Port &local_bs_port);
   void Join_Bootstrapping_Iteration(
       const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
-      const IP bootstrap_ip, const Port bootstrap_port,
-      const IP local_bs_ip, const Port local_bs_port);
+      const IP &bootstrap_ip, const Port &bootstrap_port,
+      const IP &local_bs_ip, const Port &local_bs_port);
   void Join_Bootstrapping(VoidFunctorOneString callback,
                           std::vector<Contact> &cached_nodes,
                           const bool &got_external_address);

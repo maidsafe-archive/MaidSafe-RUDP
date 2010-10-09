@@ -152,28 +152,53 @@ KNodeImpl::KNodeImpl(
     boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
     boost::shared_ptr<transport::UdtTransport> udt_transport,
     const KnodeConstructionParameters &knode_parameters)
-    : routingtable_mutex_(), kadconfig_mutex_(), extendshortlist_mutex_(),
-      joinbootstrapping_mutex_(), leave_mutex_(), activeprobes_mutex_(),
-      pendingcts_mutex_(), ptimer_(new base::CallLaterTimer),
-      udt_transport_(udt_transport), pchannel_manager_(channel_manager),
-      pservice_channel_(),
-      pdata_store_(new DataStore(knode_parameters.refresh_time)),
-      premote_service_(), prouting_table_(),
-      kadrpcs_(new KadRpcs(channel_manager)), addcontacts_routine_(),
-      alternative_store_(NULL), signature_validator_(NULL),
-      natrpcs_(channel_manager), upnp_(), node_id_(), fake_kClientId_(),
-      host_ip_(), rv_ip_(), local_host_ip_(), host_port_(knode_parameters.port),
-      rv_port_(0), local_host_port_(0), upnp_mapped_port_(0),
-      type_(knode_parameters.type), host_nat_type_(NONE),
-      bootstrapping_nodes_(), exclude_bs_contacts_(), contacts_to_add_(),
-      K_(knode_parameters.k), alpha_(knode_parameters.alpha),
-      beta_(knode_parameters.beta), is_joined_(false),
-      refresh_routine_started_(false), stopping_(false),
-      port_forwarded_(knode_parameters.port_forwarded),
-      use_upnp_(knode_parameters.use_upnp), recheck_nat_type_(false),
-      kad_config_path_(""), add_ctc_cond_(),
-      private_key_(knode_parameters.private_key),
-      public_key_(knode_parameters.public_key) {}
+        : routingtable_mutex_(),
+          kadconfig_mutex_(),
+          extendshortlist_mutex_(),
+          joinbootstrapping_mutex_(),
+          leave_mutex_(),
+          activeprobes_mutex_(),
+          pendingcts_mutex_(),
+          ptimer_(new base::CallLaterTimer),
+          udt_transport_(udt_transport),
+          pchannel_manager_(channel_manager),
+          pservice_channel_(),
+          pdata_store_(new DataStore(knode_parameters.refresh_time)),
+          premote_service_(),
+          prouting_table_(),
+          kadrpcs_(new KadRpcs(channel_manager, udt_transport)),
+          addcontacts_routine_(),
+          alternative_store_(NULL),
+          signature_validator_(NULL),
+          natrpcs_(channel_manager),
+          upnp_(),
+          node_id_(),
+          fake_kClientId_(),
+          host_ip_(),
+          rv_ip_(),
+          local_host_ip_(),
+          host_port_(knode_parameters.port),
+          rv_port_(0),
+          local_host_port_(0),
+          upnp_mapped_port_(0),
+          type_(knode_parameters.type),
+          host_nat_type_(NONE),
+          bootstrapping_nodes_(),
+          exclude_bs_contacts_(),
+          contacts_to_add_(),
+          K_(knode_parameters.k),
+          alpha_(knode_parameters.alpha),
+          beta_(knode_parameters.beta),
+          is_joined_(false),
+          refresh_routine_started_(false),
+          stopping_(false),
+          port_forwarded_(knode_parameters.port_forwarded),
+          use_upnp_(knode_parameters.use_upnp),
+          recheck_nat_type_(false),
+          kad_config_path_(""),
+          add_ctc_cond_(),
+          private_key_(knode_parameters.private_key),
+          public_key_(knode_parameters.public_key) {}
 
 
 KNodeImpl::~KNodeImpl() {
@@ -228,9 +253,9 @@ void KNodeImpl::Bootstrap(const IP &bootstrap_ip,
 }
 
 void KNodeImpl::Join_Bootstrapping_Iteration_Client(
-      const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
-      const IP bootstrap_ip, const Port bootstrap_port,
-      const IP local_bs_ip, const Port local_bs_port) {
+    const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
+    const IP &bootstrap_ip, const Port &bootstrap_port,
+    const IP &local_bs_ip, const Port &local_bs_port) {
   if (args->is_callbacked || stopping_)
     return;
   --args->active_process;
@@ -277,8 +302,8 @@ void KNodeImpl::Join_Bootstrapping_Iteration_Client(
 
 void KNodeImpl::Join_Bootstrapping_Iteration(
     const std::string &result, boost::shared_ptr<struct BootstrapArgs> args,
-    const IP bootstrap_ip, const Port bootstrap_port, const IP local_bs_ip,
-    const Port local_bs_port) {
+    const IP &bootstrap_ip, const Port &bootstrap_port, const IP &local_bs_ip,
+    const Port &local_bs_port) {
   if (args->is_callbacked || stopping_)
     return;
   --args->active_process;
@@ -346,7 +371,7 @@ void KNodeImpl::Join_Bootstrapping_Iteration(
     recheck_nat_type_ = false;
   } else if (result_msg.result() == kRpcResultFailure &&
              !result_msg.has_nat_type()) {
-    DLOG(INFO) << "Going to have to re-check that NAT, mister" << std::endl;
+    DLOG(INFO) << "Re-check NAT." << std::endl;
     recheck_nat_type_ = true;
     rv_ip_ = "";
     rv_port_ = 0;
@@ -509,7 +534,7 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
 //    host_port_ = udt_transport_->listening_port();
     host_port_ = 1;
 //  local_host_port_ = udt_transport_->listening_port();
-  local_host_port_ = 2;
+  local_host_port_ = host_port_;
 /******************************************************************************/
   // Adding the services
   RegisterKadService();

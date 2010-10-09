@@ -120,12 +120,12 @@ class Controller : public google::protobuf::RpcController {
   */
   std::string method() const;
   /**
-  * Set the timeout for the operation.
+  * Set the timeout for the operation (in milliseconds).
   * @param timeout The timeout for the operation.
   */
   void set_timeout(const boost::uint32_t &timeout);
   /**
-  * Get the timeout of the operation.
+  * Get the timeout of the operation in milliseconds.
   */
   boost::uint32_t timeout() const;
   /**
