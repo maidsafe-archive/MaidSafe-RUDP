@@ -464,7 +464,7 @@ UdtSocketId UdtTransport::GetNewManagedEndpointSocket(
         if (attempts == kMaxAttempts)
           return kListenError;
       }
-    } else if (listening_port == -1) {  // Startup is already in progress
+    } else if (listening_port == Port(-1)) {  // Startup is already in progress
       boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     }
   }
@@ -584,7 +584,6 @@ void UdtTransport::AcceptConnection(const Port &port,
 }
 
 void UdtTransport::CheckManagedSockets() {
-  int result;
   std::vector<UdtSocketId>::iterator socket_iterator;
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
   managed_connections_stopped_ = false;

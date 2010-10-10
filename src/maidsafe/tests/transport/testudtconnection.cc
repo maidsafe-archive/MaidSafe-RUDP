@@ -240,6 +240,7 @@ class UdtConnectionTest: public testing::Test {
   void SetUp() {
     listening_port_ = listening_node_.StartListening("", 0, NULL);
     ASSERT_TRUE(ValidPort(listening_port_));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(1));
   }
   UdtTransport listening_node_;
   MessageHandler listening_message_handler_;
@@ -597,14 +598,18 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
       SerializeToArray(serialised_message.get(), sending_data_size));
   sending_udt_connection.send_timeout_ = 1;
   int result = kSuccess;
-  result = sending_udt_connection.MoveData(true, sending_data_size,
-                                           serialised_message.get());
+  int count(0);
+  while (result == kSuccess && count < 1000) {
+    ++count;
+    result = sending_udt_connection.MoveData(true, sending_data_size,
+                                             serialised_message.get());
+  }
   EXPECT_EQ(kSendTimeout, result);
 
   // Send large data with large timeout to trigger stall
   sending_udt_connection.send_timeout_ = -1;
   result = kSuccess;
-  int count(0);
+  count = 0;
   while (result == kSuccess && count < 1000) {
     ++count;
     result = sending_udt_connection.MoveData(true, sending_data_size,
@@ -915,6 +920,12 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       signalled_managed_endpoint_message =
           message_handlers2.at(0)->managed_endpoint_messages().back();
   EXPECT_FALSE(SocketAlive(udt_connections2.at(0).udt_socket_id_));
+  int count(0), timeout(1000);
+  while(count < timeout &&
+        SocketAlive(signalled_managed_endpoint_message.get<0>())) {
+    ++count;
+    boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+  }
   EXPECT_FALSE(SocketAlive(signalled_managed_endpoint_message.get<0>()));
   EXPECT_EQ(sent_managed_endpoint_message->SerializeAsString(),
             signalled_managed_endpoint_message.get<1>().SerializeAsString());
