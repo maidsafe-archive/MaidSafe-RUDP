@@ -418,7 +418,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
       if (moved_total == data_size)
         return kSuccess;
       if (moved_total > data_size) {
-        LOG(ERROR) << (sending ? "Send: " : "Recv: ") <<
+        LOG(ERROR) << (sending ? "Send " : "Recv ") << udt_socket_id_ << ": " <<
             "Exceeded expected size." << std::endl;
         return (sending ? kSendUdtFailure : kReceiveUdtFailure);
       }
@@ -453,7 +453,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
     if (UDT::ERROR == moved_size &&
         UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCSND &&
         UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCRCV) {
-      LOG(ERROR) << (sending ? "Send: " : "Recv: ") <<
+      LOG(ERROR) << (sending ? "Send " : "Recv ") << udt_socket_id_ << ": " <<
           UDT::getlasterror().getErrorMessage() << std::endl;
       return (sending ? kSendUdtFailure : kReceiveUdtFailure);
     }

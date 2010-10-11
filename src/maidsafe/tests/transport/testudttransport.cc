@@ -173,8 +173,7 @@ TEST_F(UdtTransportTest, BEH_TRANS_UdtMultipleListeningPorts) {
   for (int i = 0; i < kNumberOfListeningPorts ; ++i) {
     sockets_for_closing_.push_back(listening_node_.PrepareToSend(loopback_ip_,
                                    listening_ports.at(i), "", 0));
-    listening_node_.Send(message, sockets_for_closing_.at(i),
-                         rpcprotocol::kRpcTimeout);
+    listening_node_.Send(message, sockets_for_closing_.at(i), 0);
   }
   const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
   int count(0);
