@@ -148,8 +148,10 @@ Contact::Contact(const Contact &other)
       local_port_(other.local_port_) {}
 
 bool Contact::Equals(const Contact &other) const {
-  return (node_id_ == other.node_id_) ||
-         (host_ip_ == other.host_ip_ && host_port_ == other.host_port_);
+  if (node_id_ == other.node_id_)
+    return (node_id_.String() != kClientId) ||
+           (host_ip_ == other.host_ip_ && host_port_ == other.host_port_);
+  return false;
 }
 
 Contact& Contact::operator=(const Contact &other) {

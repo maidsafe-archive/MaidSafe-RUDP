@@ -73,7 +73,7 @@ TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
   ASSERT_TRUE(contact1.Equals(contact4));
   kad::Contact contact5(cry_obj.Hash("5612348", "", crypto::STRING_STRING,
       false), ip, port, ip, port);
-  ASSERT_TRUE(contact1.Equals(contact5));
+  ASSERT_FALSE(contact1.Equals(contact5));
   kad::Contact contact6(cry_obj.Hash("5612348", "", crypto::STRING_STRING,
       false), ip, 8889, ip, 8889);
   ASSERT_FALSE(contact1.Equals(contact6));
@@ -83,6 +83,11 @@ TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
   ASSERT_TRUE(contact1.Equals(contact6));
   kad::Contact contact8(contact1);
   ASSERT_TRUE(contact1.Equals(contact8));
+  kad::Contact contact9(kad::kClientId, "127.0.0.1", 1234);
+  kad::Contact contact10(kad::kClientId, "127.0.0.2", 1234);
+  ASSERT_FALSE(contact9.Equals(contact10));
+  kad::Contact contact11(contact9);
+  ASSERT_TRUE(contact9.Equals(contact11));
 }
 
 TEST_F(TestContact, BEH_KAD_IncreaseGetFailedRPC) {

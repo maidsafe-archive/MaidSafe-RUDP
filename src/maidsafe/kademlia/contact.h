@@ -67,7 +67,7 @@ class Contact {
           const Port &local_port);
   explicit Contact(const ContactInfo &contact_info);
   Contact(const Contact &other);
-  // Equality is based on node id or (IP and port)
+  // Equality is based on node id or (IP and port) if dummy
   bool Equals(const Contact &other) const;
   Contact& operator=(const Contact &other);
   bool SerialiseToString(std::string *serialised_output);
