@@ -33,30 +33,46 @@ MySqlppWrap::MySqlppWrap() : connection_(false), connected_(false), table_() {}
 int MySqlppWrap::Init(const std::string &db, const std::string &server,
                       const std::string &user, const std::string &pass,
                       const std::string &table) {
-  if (!connection_.connect(db.c_str(), server.c_str(), user.c_str(),
-                           pass.c_str()))
-    return -1;
+  try {
+    if (!connection_.connect(NULL, server.c_str(), user.c_str(), pass.c_str()))
+      return -1;
+    if (!connection_.select_db(db))
+      if (!connection_.create_db(db) || !connection_.select_db(db))
+        return -1;
 
-  connected_ = true;
-  table_ = table;
+    mysqlpp::Query query = connection_.query();
+    query.exec("create table IF NOT EXISTS " + table +
+                   "(kadkey LONGBLOB NOT NULL, kadvalue LONGBLOB NOT NULL)");
+    connected_ = true;
+    table_ = table;
+  }
+  catch(const std::exception &e) {
+    printf("MySqlppWrap::Init - %s\n", e.what());
+    return -1;
+  }
 
   return 0;
 }
 
 int MySqlppWrap::Insert(const std::string &key, const std::string &value) {
-  if (!connected_)
+  if (!connected_) {
+    printf("MySqlppWrap::Insert - Not Connected\n");
     return -2;
+  }
 
   try {
     mysqlpp::Query query = connection_.query();
     query << "INSERT INTO " << table_ << " VALUES('" << mysqlpp::escape << key
           << "', '" << mysqlpp::escape << value << "')";
     mysqlpp::SimpleResult res = query.execute();
-    if (res.rows() != 1)
+    if (res.rows() != 1) {
+      printf("MySqlppWrap::Insert - Inserted %d instead\n",
+             static_cast<int>(res.rows()));
       return -1;
+    }
   }
   catch(const std::exception &e) {
-    printf("%s\n", e.what());
+    printf("MySqlppWrap::Insert - %s\n", e.what());
     return -1;
   }
 
@@ -81,7 +97,7 @@ int MySqlppWrap::Update(const std::string &key, const std::string &old_value,
     }
   }
   catch(const std::exception &e) {
-    printf("%s\n", e.what());
+    printf("MySqlppWrap::Update - %s\n", e.what());
     return -1;
   }
 
@@ -104,14 +120,15 @@ int MySqlppWrap::Delete(const std::string &key, const std::string &value) {
       query << "DELETE FROM " << table_ << " WHERE kadkey='"
             << mysqlpp::escape << key << "'";
     } else {
-      printf("Unbelievable query you're trying to do. Shame on you!\n");
+      printf("MySqlppWrap::Delete - Unbelievable query you're trying to do. "
+             "Shame on you!\n");
       return -1;
     }
     mysqlpp::SimpleResult res = query.execute();
     return res.rows();
   }
   catch(const std::exception &e) {
-    printf("%s\n", e.what());
+    printf("MySqlppWrap::Delete - %s\n", e.what());
     return -1;
   }
 }
@@ -132,7 +149,8 @@ int MySqlppWrap::Get(const std::string &key, std::vector<std::string> *values) {
             << mysqlpp::escape << key << "'";
     mysqlpp::StoreQueryResult res = query.store();
     if (!res) {
-      printf("Failed getting values for key %s\n", key.c_str());
+      printf("MySqlppWrap::GetValues - Failed getting values for key %s\n",
+             key.c_str());
       return -1;
     }
 
@@ -140,7 +158,36 @@ int MySqlppWrap::Get(const std::string &key, std::vector<std::string> *values) {
       values->push_back(static_cast<std::string>(res[i][0]));
   }
   catch(const std::exception &e) {
-    printf("%s\n", e.what());
+    printf("MySqlppWrap::GetValues - %s\n", e.what());
+    return -1;
+  }
+  return 0;
+}
+
+int MySqlppWrap::GetKeys(std::vector<std::string> *keys) {
+  if (!connected_) {
+    printf("MySqlppWrap::Get - Not connected\n");
+    return -2;
+  }
+
+  keys->clear();
+  try {
+    mysqlpp::Query query = connection_.query();
+    query << "SELECT kadkey FROM " << table_;
+    mysqlpp::StoreQueryResult res = query.store();
+    if (!res) {
+      printf("MySqlppWrap::GetKeys - Failed getting keys.\n");
+      return -1;
+    }
+
+    for (size_t i = 0; i < res.num_rows(); ++i) {
+      std::string s;
+      res[i][0].to_string(s);
+      keys->push_back(s);
+    }
+  }
+  catch(const std::exception &e) {
+    printf("MySqlppWrap::GetKeys - %s\n", e.what());
     return -1;
   }
   return 0;

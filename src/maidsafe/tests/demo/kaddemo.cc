@@ -48,8 +48,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace po = boost::program_options;
 
 namespace test_kaddemo {
-  static const boost::uint16_t K = 16;
-}  // namespace test_kaddemo
+
+static const boost::uint16_t K = 16;
 
 class JoinCallback {
  public:
@@ -131,6 +131,13 @@ bool write_to_kadconfig(const std::string &path, const std::string &node_id,
   return boost::filesystem::exists(path);
 }
 
+void printf_info(kad::ContactInfo info) {
+  kad::Contact ctc(info);
+  printf("Node info: %s", ctc.DebugString().c_str());
+}
+
+}  // namespace test_kaddemo
+
 volatile int ctrlc_pressed = 0;
 
 void ctrlc_handler(int b) {
@@ -138,15 +145,10 @@ void ctrlc_handler(int b) {
   ctrlc_pressed = b;
 }
 
-void printf_info(kad::ContactInfo info) {
-  kad::Contact ctc(info);
-  printf("Node info: %s", ctc.DebugString().c_str());
-}
-
 int main(int argc, char **argv) {
   try {
     std::string logpath, kadconfigpath, bs_ip, bs_id, ext_ip, configfile,
-        bs_local_ip, thisnodekconfigpath, idpath;
+                bs_local_ip, thisnodekconfigpath, idpath;
     boost::uint16_t bs_port(0), bs_local_port(0), port(0), ext_port(0);
     boost::uint32_t refresh_time(0);
     bool first_node = false;
@@ -169,6 +171,8 @@ int main(int argc, char **argv) {
       ("bs_id", po::value(&bs_id), "Bootstrap node id.")
       ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
       ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
+      ("secure", po::bool_switch(),
+       "Node with keys. Can only communicate with other secure nodes")
       ("externalip", po::value(&ext_ip),
         "Node's external ip. "
         "Use only when it is the first node in the network.")
@@ -191,21 +195,21 @@ int main(int argc, char **argv) {
       std::cout << desc << "\n";
       return 0;
     }
-    option_dependency(vm, "bs_id", "bs_ip");
-    option_dependency(vm, "bs_ip", "bs_id");
-    option_dependency(vm, "bs_id", "bs_port");
-    option_dependency(vm, "bs_port", "bs_id");
-    option_dependency(vm, "bs_id", "bs_local_ip");
-    option_dependency(vm, "bs_id", "bs_local_port");
-    option_dependency(vm, "bs_local_ip", "bs_id");
-    option_dependency(vm, "bs_local_port", "bs_id");
-    option_dependency(vm, "externalip", "externalport");
-    option_dependency(vm, "externalport", "externalip");
-    option_dependency(vm, "externalport", "port");
-    conflicting_options(vm, "upnp", "port_fw");
-    conflicting_options(vm, "client", "noconsole");
-    conflicting_options(vm, "bs_id", "externalip");
-    conflicting_options(vm, "verbose", "logfilepath");
+    test_kaddemo::option_dependency(vm, "bs_id", "bs_ip");
+    test_kaddemo::option_dependency(vm, "bs_ip", "bs_id");
+    test_kaddemo::option_dependency(vm, "bs_id", "bs_port");
+    test_kaddemo::option_dependency(vm, "bs_port", "bs_id");
+    test_kaddemo::option_dependency(vm, "bs_id", "bs_local_ip");
+    test_kaddemo::option_dependency(vm, "bs_id", "bs_local_port");
+    test_kaddemo::option_dependency(vm, "bs_local_ip", "bs_id");
+    test_kaddemo::option_dependency(vm, "bs_local_port", "bs_id");
+    test_kaddemo::option_dependency(vm, "externalip", "externalport");
+    test_kaddemo::option_dependency(vm, "externalport", "externalip");
+    test_kaddemo::option_dependency(vm, "externalport", "port");
+    test_kaddemo::conflicting_options(vm, "upnp", "port_fw");
+    test_kaddemo::conflicting_options(vm, "client", "noconsole");
+    test_kaddemo::conflicting_options(vm, "bs_id", "externalip");
+    test_kaddemo::conflicting_options(vm, "verbose", "logfilepath");
 
     if (vm.count("externalip"))
       first_node = true;
@@ -238,7 +242,8 @@ int main(int argc, char **argv) {
             }
         }
       } else {
-        if (kadconfig_empty(kadconfigpath) && !vm.count("bs_id")) {
+        if (test_kaddemo::kadconfig_empty(kadconfigpath) &&
+            !vm.count("bs_id")) {
           printf("No bootstrapping info.\n");
           return 1;
         }
@@ -302,6 +307,12 @@ int main(int argc, char **argv) {
     else
       kcp.type = kad::VAULT;
     kcp.port = port;
+    if (vm["secure"].as<bool>()) {
+      crypto::RsaKeyPair rsa_key_pair;
+      rsa_key_pair.GenerateKeys(4096);
+      kcp.public_key = rsa_key_pair.public_key();
+      kcp.private_key = rsa_key_pair.private_key();
+    }
     boost::shared_ptr<kad::KNode> node(new kad::KNode(cm, tra, kcp));
 
     // setting kadconfig file if it was not in the options
@@ -314,10 +325,12 @@ int main(int argc, char **argv) {
     // if not the first vault, write to kadconfig file bootstrapping info
     // if provided in options
     if (!first_node && vm.count("bs_id")) {
-      if (!write_to_kadconfig(kadconfigpath, vm["bs_id"].as<std::string>(),
-          vm["bs_ip"].as<std::string>(), vm["bs_port"].as<boost::uint16_t>(),
-          vm["bs_local_ip"].as<std::string>(),
-          vm["bs_local_port"].as<boost::uint16_t>())) {
+      if (!test_kaddemo::write_to_kadconfig(
+              kadconfigpath, vm["bs_id"].as<std::string>(),
+              vm["bs_ip"].as<std::string>(),
+              vm["bs_port"].as<boost::uint16_t>(),
+              vm["bs_local_ip"].as<std::string>(),
+              vm["bs_local_port"].as<boost::uint16_t>())) {
         printf("Unable to write kadconfig file to %s\n", kadconfigpath.c_str());
         tra->StopListening(port);
         cm->Stop();
@@ -326,14 +339,16 @@ int main(int argc, char **argv) {
     }
 
     // Joining the node to the network
-    JoinCallback callback;
+    test_kaddemo::JoinCallback callback;
     if (first_node)
-      node->Join(kadconfigpath, vm["externalip"].as<std::string>(),
-                 vm["externalport"].as<boost::uint16_t>(),
-                 boost::bind(&JoinCallback::Callback, &callback, _1));
+      node->JoinFirstNode(kadconfigpath, vm["externalip"].as<std::string>(),
+                          vm["externalport"].as<boost::uint16_t>(),
+                          boost::bind(&test_kaddemo::JoinCallback::Callback,
+                                      &callback, _1));
     else
       node->Join(kadconfigpath,
-                 boost::bind(&JoinCallback::Callback, &callback, _1));
+                 boost::bind(&test_kaddemo::JoinCallback::Callback,
+                             &callback, _1));
     while (!callback.result_arrived())
       boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     // Checking result of callback
@@ -344,7 +359,7 @@ int main(int argc, char **argv) {
       return 1;
     }
     // Printing Node Info
-    printf_info(node->contact_info());
+    test_kaddemo::printf_info(node->contact_info());
 
     // append ID to text file
     if (vm.count("append_id")) {
@@ -366,19 +381,21 @@ int main(int argc, char **argv) {
         try {
           boost::filesystem::create_directories(thisconfig);
           thisconfig /= ".kadconfig";
-          write_to_kadconfig(thisconfig.string(),
-                             node->node_id().ToStringEncoded(kad::KadId::kHex),
-                             node->host_ip(), node->host_port(),
-                             node->local_host_ip(), node->local_host_port());
+          test_kaddemo::write_to_kadconfig(
+              thisconfig.string(),
+              node->node_id().ToStringEncoded(kad::KadId::kHex),
+              node->host_ip(), node->host_port(), node->local_host_ip(),
+              node->local_host_port());
         }
         catch(const std::exception &e) {
         }
       } else {
         thisconfig /= ".kadconfig";
-        write_to_kadconfig(thisconfig.string(),
-                           node->node_id().ToStringEncoded(kad::KadId::kHex),
-                           node->host_ip(), node->host_port(),
-                           node->local_host_ip(), node->local_host_port());
+        test_kaddemo::write_to_kadconfig(
+            thisconfig.string(),
+            node->node_id().ToStringEncoded(kad::KadId::kHex),
+            node->host_ip(), node->host_port(), node->local_host_ip(),
+            node->local_host_port());
       }
     }
 

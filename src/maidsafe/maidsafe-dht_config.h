@@ -148,7 +148,7 @@ const boost::uint16_t kAlpha = 3;
 
 // The number of replies required in a search iteration to allow the next
 // iteration to begin.
-const boost::uint16_t kBeta = 1;
+const boost::uint16_t kBeta = 2;
 
 // The frequency (in seconds) of the refresh routine.
 const boost::uint32_t kRefreshTime = 3600;  // 1 hour

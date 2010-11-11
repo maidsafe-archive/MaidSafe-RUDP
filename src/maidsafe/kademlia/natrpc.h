@@ -60,7 +60,6 @@ class NatRpcs {
                         google::protobuf::Closure *callback);
  private:
   boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
-  boost::shared_ptr<transport::UdtTransport> udt_transport_;
 };
 
 }  // namespace kad

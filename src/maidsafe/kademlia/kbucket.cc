@@ -61,14 +61,21 @@ KBucketExitCode KBucket::AddContact(const Contact &new_contact) {
     Contact current_element = *it;
     if (new_contact_local.Equals(current_element))
       position = i;
-    ++i;
+    else
+      ++i;
   }
+
+//  printf("11111111\n");
   if (position != -1) {
     std::list<Contact>::iterator it = contacts_.begin();
     std::advance(it, position);
+//    printf("33333333 %s\n%s\n",
+//           (*it).node_id().ToStringEncoded(KadId::kHex).c_str(),
+//           new_contact.node_id().ToStringEncoded(KadId::kHex).c_str());
     contacts_.erase(it);
   }
 
+//  printf("22222222\n");
   if (contacts_.size() == K_)
     return FULL;
 

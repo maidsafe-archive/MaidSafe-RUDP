@@ -27,24 +27,34 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef MAIDSAFE_KADEMLIA_KADSERVICE_H_
 #define MAIDSAFE_KADEMLIA_KADSERVICE_H_
+
+#include <gtest/gtest_prod.h>
+
 #include <memory>
 #include <string>
 #include <vector>
-#include "gtest/gtest_prod.h"
+
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/protobuf/kademlia_service.pb.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/natrpc.h"
+#include "maidsafe/protobuf/kademlia_service.pb.h"
 
 namespace base {
 class SignatureValidator;
 class AlternativeStore;
-}
+}  // namespace base
+
+namespace rpcprotocol {
+class Controller;
+}  // namespace rpcprotocol
 
 namespace kad {
 class DataStore;
 class Contact;
 class KadId;
+
+namespace test_kadservice {
+class KadServicesTest_BEH_KAD_UpdateValue_Test;
+}
 
 typedef boost::function<int(Contact, const float&, const bool&)>  // NOLINT
     AddContactFunctor;
@@ -63,26 +73,9 @@ typedef boost::function<void(const KadId&, const std::vector<Contact>&,
 typedef boost::function<void(const Contact&, VoidFunctorOneString)>
     PingFunctor;
 
-struct NatDetectionData {
-  Contact newcomer;
-  std::string bootstrap_node;
-  Contact node_c;
-  BootstrapResponse *response;
-  google::protobuf::Closure *done;
-  rpcprotocol::Controller *controller;
-  std::vector<Contact> ex_contacts;
-};
-
-struct NatDetectionPingData {
-  std::string sender_id;
-  NatDetectionResponse *response;
-  google::protobuf::Closure *done;
-  rpcprotocol::Controller *controller;
-};
-
 class KadService : public KademliaService {
  public:
-  KadService(const NatRpcs &nat_rpcs, boost::shared_ptr<DataStore> datastore,
+  KadService(boost::shared_ptr<DataStore> datastore,
              const bool &hasRSAkeys, AddContactFunctor add_cts,
              GetRandomContactsFunctor rand_cts, GetContactFunctor get_ctc,
              GetKClosestFunctor get_kcts, PingFunctor ping,
@@ -102,17 +95,6 @@ class KadService : public KademliaService {
   void Downlist(google::protobuf::RpcController *controller,
                 const DownlistRequest *request, DownlistResponse *response,
                 google::protobuf::Closure *done);
-  void NatDetection(google::protobuf::RpcController *controller,
-                    const NatDetectionRequest *request,
-                    NatDetectionResponse *response,
-                    google::protobuf::Closure *done);
-  void NatDetectionPing(google::protobuf::RpcController *controller,
-                        const NatDetectionPingRequest *request,
-                        NatDetectionPingResponse *response,
-                        google::protobuf::Closure *done);
-  void Bootstrap(google::protobuf::RpcController *controller,
-                 const BootstrapRequest *request, BootstrapResponse *response,
-                 google::protobuf::Closure *done);
   void Delete(google::protobuf::RpcController *controller,
               const DeleteRequest *request, DeleteResponse *response,
               google::protobuf::Closure *done);
@@ -120,12 +102,8 @@ class KadService : public KademliaService {
               const UpdateRequest *request,
               UpdateResponse *response,
               google::protobuf::Closure *done);
-  inline void set_node_joined(const bool &joined) {
-    node_joined_ = joined;
-  }
-  inline void set_node_info(const ContactInfo &info) {
-    node_info_ = info;
-  }
+  inline void set_node_joined(const bool &joined) { node_joined_ = joined; }
+  inline void set_node_info(const ContactInfo &info) { node_info_ = info; }
   inline void set_alternative_store(base::AlternativeStore* alt_store) {
     alternative_store_ = alt_store;
   }
@@ -133,21 +111,8 @@ class KadService : public KademliaService {
     signature_validator_ = sig_validator;
   }
  private:
-  FRIEND_TEST(NatDetectionTest, BEH_KAD_SendNatDet);
-  FRIEND_TEST(NatDetectionTest, BEH_KAD_BootstrapNatDetRv);
-  FRIEND_TEST(NatDetectionTest, FUNC_KAD_CompleteBootstrapNatDet);
-  FRIEND_TEST(KadServicesTest, BEH_KAD_UpdateValue);
+  friend class test_kadservice::KadServicesTest_BEH_KAD_UpdateValue_Test;
   bool GetSender(const ContactInfo &sender_info, Contact *sender);
-  void Bootstrap_NatDetectionRv(const NatDetectionResponse *response,
-                                struct NatDetectionData data);
-  void Bootstrap_NatDetection(const NatDetectionResponse *response,
-                              struct NatDetectionData data);
-  void Bootstrap_NatDetectionPing(const NatDetectionPingResponse *response,
-                                  struct NatDetectionPingData data);
-  void Bootstrap_NatDetectionRzPing(
-      const NatDetectionPingResponse *response,
-      struct NatDetectionPingData data);
-  void SendNatDetection(struct NatDetectionData data);
   bool CheckStoreRequest(const StoreRequest *request, Contact *sender);
   void StoreValueLocal(const std::string &key, const std::string &value,
                        Contact sender, const boost::int32_t &ttl,
@@ -159,7 +124,7 @@ class KadService : public KademliaService {
                        rpcprotocol::Controller *ctrl);
   bool CanStoreSignedValueHashable(const std::string &key,
                                    const std::string &value, bool *hashable);
-  NatRpcs nat_rpcs_;
+//  NatRpcs nat_rpcs_;
   boost::shared_ptr<DataStore> pdatastore_;
   bool node_joined_, node_hasRSAkeys_;
   ContactInfo node_info_;

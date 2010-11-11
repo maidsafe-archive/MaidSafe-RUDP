@@ -52,10 +52,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace fs = boost::filesystem;
 
-namespace test_knode {
-  static const boost::uint16_t K = 8;
-}  // namespace test_knode
+namespace kad {
 
+namespace test_knode {
+
+static const boost::uint16_t K = 8;
 const boost::int16_t kNetworkSize = test_knode::K + 1;
 const boost::int16_t kTestK = test_knode::K;
 
@@ -101,15 +102,15 @@ std::string get_app_directory() {
   return app_path.string();
 }
 
-void ConstructKcp(kad::KnodeConstructionParameters *kcp) {
-  kcp->type = kad::VAULT;
-  kcp->alpha = kad::kAlpha;
-  kcp->beta = kad::kBeta;
+void ConstructKcp(KnodeConstructionParameters *kcp) {
+  kcp->type = VAULT;
+  kcp->alpha = kAlpha;
+  kcp->beta = kBeta;
   kcp->k = test_knode::K;
   kcp->port_forwarded = false;
   kcp->private_key = "";
   kcp->public_key = "";
-  kcp->refresh_time = kad::kRefreshTime;
+  kcp->refresh_time = kRefreshTime;
   kcp->use_upnp = false;
 }
 
@@ -123,16 +124,16 @@ std::string kad_config_file_;
 std::vector<rpcprotocol::Port> transport_ports_;
 std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
 std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > channel_managers_;
-std::vector<boost::shared_ptr<kad::KNode> > knodes_;
+std::vector<boost::shared_ptr<KNode> > knodes_;
 std::vector<std::string> dbs_;
 crypto::Crypto cry_obj_;
 GeneralKadCallback cb_;
-std::vector<kad::KadId> node_ids_;
+std::vector<KadId> node_ids_;
 std::set<boost::uint16_t> ports_;
 std::string test_dir_;
 base::TestValidator validator;
 
-class Env: public testing::Environment {
+class Env : public testing::Environment {
  public:
   Env() {
     cry_obj_.set_symm_algorithm(crypto::AES_256);
@@ -160,7 +161,7 @@ class Env: public testing::Environment {
     channel_managers_.resize(kNetworkSize);
     transports_.resize(kNetworkSize);
     transport_ports_.resize(kNetworkSize);
-    kad::KnodeConstructionParameters kcp;
+    KnodeConstructionParameters kcp;
     ConstructKcp(&kcp);
     for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
       transports_[i].reset(new transport::UdtTransport);
@@ -181,30 +182,30 @@ class Env: public testing::Environment {
       create_rsakeys(&pub_key, &priv_key);
       kcp.public_key = pub_key;
       kcp.private_key = priv_key;
-      knodes_[i].reset(new kad::KNode(channel_managers_[i], transports_[i],
-                                      kcp));
+      knodes_[i].reset(new KNode(channel_managers_[i], transports_[i], kcp));
     }
 
     kad_config_file_ = dbs_[0] + "/.kadconfig";
     cb_.Reset();
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-    knodes_[0]->Join(kad_config_file_, local_ip.to_string(),
-                     transport_ports_[0],
-                     boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
+    knodes_[0]->JoinFirstNode(kad_config_file_, local_ip.to_string(),
+                              transport_ports_[0],
+                              boost::bind(&GeneralKadCallback::CallbackFunc,
+                                          &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+    ASSERT_EQ(kRpcResultSuccess, cb_.result());
     ASSERT_TRUE(knodes_[0]->is_joined());
     knodes_[0]->set_signature_validator(&validator);
     LOG(INFO) << "Node 0 joined "
-              << knodes_[0]->node_id().ToStringEncoded(kad::KadId::kHex)
+              << knodes_[0]->node_id().ToStringEncoded(KadId::kHex)
                  .substr(0, 12)
               << std::endl;
     node_ids_.push_back(knodes_[0]->node_id());
     base::KadConfig kad_config;
     base::KadConfig::Contact *kad_contact = kad_config.add_contact();
     kad_contact->set_node_id(
-          knodes_[0]->node_id().ToStringEncoded(kad::KadId::kHex));
+        knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
     kad_contact->set_ip(knodes_[0]->host_ip());
     kad_contact->set_port(knodes_[0]->host_port());
     kad_contact->set_local_ip(knodes_[0]->local_host_ip());
@@ -226,11 +227,11 @@ class Env: public testing::Environment {
                        boost::bind(&GeneralKadCallback::CallbackFunc,
                                    &cb_, _1));
       wait_result(&cb_);
-      ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+      ASSERT_EQ(kRpcResultSuccess, cb_.result());
       ASSERT_TRUE(knodes_[i]->is_joined());
       knodes_[i]->set_signature_validator(&validator);
       LOG(INFO) << "Node " << i << " joined "
-                << knodes_[i]->node_id().ToStringEncoded(kad::KadId::kHex)
+                << knodes_[i]->node_id().ToStringEncoded(KadId::kHex)
                    .substr(0, 12)
                 << std::endl;
       node_ids_.push_back(knodes_[i]->node_id());
@@ -247,7 +248,7 @@ class Env: public testing::Environment {
   }
 
   virtual void TearDown() {
-    printf("TestKNode, TearDown Starting..\n");
+    printf("TestKNode, TearDown Starting...\n");
     boost::this_thread::sleep(boost::posix_time::seconds(5));
 
 #ifdef WIN32
@@ -295,7 +296,7 @@ class Env: public testing::Environment {
 };
 
 TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
-  kad::KnodeConstructionParameters kcp;
+  KnodeConstructionParameters kcp;
   ConstructKcp(&kcp);
 
   boost::shared_ptr<transport::UdtTransport> t1(new transport::UdtTransport);
@@ -314,15 +315,15 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
 
   std::string privkey, pubkey;
   create_rsakeys(&pubkey, &privkey);
-  kcp.type = kad::CLIENT_PORT_MAPPED;
+  kcp.type = CLIENT;
   kcp.public_key = pubkey;
   kcp.private_key = privkey;
-  kad::KNode knode_local_1(cm1, t1, kcp);
+  KNode knode_local_1(cm1, t1, kcp);
 
   std::string config_file = db_local + "/.kadconfig";
   base::KadConfig conf;
   base::KadConfig::Contact *ctc1 = conf.add_contact();
-  ctc1->set_node_id(knodes_[0]->node_id().ToStringEncoded(kad::KadId::kHex));
+  ctc1->set_node_id(knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
   ctc1->set_ip(knodes_[0]->host_ip());
   ctc1->set_port(knodes_[0]->host_port());
   ctc1->set_local_ip(knodes_[0]->local_host_ip());
@@ -331,20 +332,13 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                        std::ios::out | std::ios::trunc | std::ios::binary);
   ASSERT_TRUE(conf.SerializeToOstream(&output2));
   output2.close();
-//  knode_local_.set_transport_id(transport_id);
-//  EXPECT_TRUE(channel_manager_local_.RegisterNotifiersToTransport());
-//   EXPECT_TRUE(trans_handler.RegisterOnServerDown(boost::bind(
-//     &kad::KNode::HandleDeadRendezvousServer, &knode_local_, _1)));
-//  ASSERT_EQ(0, trans_handler.Start(0, transport_id));
-//  EXPECT_EQ(0, channel_manager_local_.Start());
-//  ports_.insert(knode_local_.host_port());
-  ASSERT_EQ(kad::NONE, knode_local_1.host_nat_type());
+  ASSERT_EQ(NONE, knode_local_1.host_nat_type());
   knode_local_1.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
-  ASSERT_EQ(kad::kClientId, knode_local_1.node_id().String());
-  ASSERT_EQ(kad::DIRECT_CONNECTED, knode_local_1.host_nat_type());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kClientId, knode_local_1.node_id().String());
+  ASSERT_EQ(DIRECT_CONNECTED, knode_local_1.host_nat_type());
 
   boost::shared_ptr<transport::UdtTransport> t2(new transport::UdtTransport);
   transport::Port p2 = t2->StartListening("", 0, &tc);
@@ -357,17 +351,17 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
 
 //  std::string privkey, pubkey;
   create_rsakeys(&pubkey, &privkey);
-  kcp.type = kad::CLIENT_PORT_MAPPED;
+  kcp.type = CLIENT;
   kcp.public_key = pubkey;
   kcp.private_key = privkey;
-  kad::KNode knode_local_2(cm2, t2, kcp);
+  KNode knode_local_2(cm2, t2, kcp);
   db_local = test_dir_ + std::string("/datastore") +
              boost::lexical_cast<std::string>(kNetworkSize + 2);
   boost::filesystem::create_directories(db_local);
   config_file = db_local + "/.kadconfig";
   conf.Clear();
   base::KadConfig::Contact *ctc2 = conf.add_contact();
-  ctc2->set_node_id(knodes_[0]->node_id().ToStringEncoded(kad::KadId::kHex));
+  ctc2->set_node_id(knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
   ctc2->set_ip(knodes_[0]->host_ip());
   ctc2->set_port(knodes_[0]->host_port());
   ctc2->set_local_ip(knodes_[0]->local_host_ip());
@@ -376,31 +370,20 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                        std::ios::out | std::ios::trunc | std::ios::binary);
   ASSERT_TRUE(conf.SerializeToOstream(&output3));
   output3.close();
-//  kad::KNode knode_local1(&channel_manager_local1, &trans_handler1,
-//    kad::CLIENT, kTestK, kad::kAlpha, kad::kBeta, kad::kRefreshTime,
-//    pubkey,  privkey, false, false);
-//  knode_local1.set_transport_id(transport_id1);
-//  EXPECT_TRUE(channel_manager_local1.RegisterNotifiersToTransport());
-//   EXPECT_TRUE(trans_handler1.RegisterOnServerDown(boost::bind(
-//     &kad::KNode::HandleDeadRendezvousServer, &knode_local1, _1)));
-//  ASSERT_EQ(0, trans_handler1.Start(0, transport_id));
-//  EXPECT_EQ(0, channel_manager_local1.Start());
   ports_.insert(knode_local_2.host_port());
-  ASSERT_EQ(kad::NONE, knode_local_2.host_nat_type());
+  ASSERT_EQ(NONE, knode_local_2.host_nat_type());
   cb_.Reset();
   knode_local_2.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
-  ASSERT_EQ(kad::kClientId, knode_local_2.node_id().String());
-  ASSERT_EQ(kad::NONE, knode_local_2.host_nat_type());
-
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kClientId, knode_local_2.node_id().String());
+  ASSERT_EQ(DIRECT_CONNECTED, knode_local_2.host_nat_type());
 
   // Doing a storevalue
-  kad::KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 10);  // 10KB
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   StoreValueCallback cb_1;
   std::string sig_pub_key, sig_req;
   create_rsakeys(&pubkey, &privkey);
@@ -409,16 +392,16 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", privkey,
                                                   crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knode_local_1.node_id().String());
   req.set_public_key(pubkey);
   req.set_signed_public_key(sig_pub_key);
   req.set_signed_request(sig_req);
-  knode_local_1.StoreValue(key, sig_value, req, 24*3600,
+  knode_local_1.StoreValue(key, sig_value, req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
 
   // loading the value with another existing node
   FindCallback cb_2;
@@ -426,7 +409,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                                  boost::bind(&FindCallback::CallbackFunc,
                                              &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -443,7 +426,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_1.FindValue(key, false,
                           boost::bind(&FindCallback::CallbackFunc, &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -460,7 +443,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_2.FindValue(key, false,
                           boost::bind(&FindCallback::CallbackFunc, &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -474,36 +457,35 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   cb_2.Reset();
 
   // Doing a find closest nodes with the client
-  kad::KadId key1(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING,
-                                false));
+  KadId key1(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING, false));
   FindCallback cb_3;
   knode_local_1.FindKClosestNodes(key1,
-                                 boost::bind(&FindCallback::CallbackFunc,
-                                             &cb_3, _1));
+                                  boost::bind(&FindCallback::CallbackFunc,
+                                              &cb_3, _1));
   wait_result(&cb_3);
   // make sure the nodes returned are what we expect.
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_3.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_3.result());
   ASSERT_FALSE(cb_3.closest_nodes().empty());
   std::list<std::string> closest_nodes_str;  // = cb_3.closest_nodes();
   for (size_t i = 0; i < cb_3.closest_nodes().size(); i++)
     closest_nodes_str.push_back(cb_3.closest_nodes()[i]);
   std::list<std::string>::iterator it;
-  std::list<kad::Contact> closest_nodes;
+  std::list<Contact> closest_nodes;
   for (it = closest_nodes_str.begin(); it != closest_nodes_str.end();
       it++) {
-    kad::Contact node;
+    Contact node;
     node.ParseFromString(*it);
     closest_nodes.push_back(node);
   }
   ASSERT_EQ(kTestK, closest_nodes.size());
-  std::list<kad::Contact> all_nodes;
+  std::list<Contact> all_nodes;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    kad::Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
+    Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
         knodes_[i]->host_port());
     all_nodes.push_back(node);
   }
-  kad::SortContactList(&all_nodes, key1);
-  std::list<kad::Contact>::iterator it1, it2;
+  SortContactList(key1, &all_nodes);
+  std::list<Contact>::iterator it1, it2;
   it2= closest_nodes.begin();
   for (it1 = closest_nodes.begin(); it1 != closest_nodes.end();
       it1++, it2++) {
@@ -512,7 +494,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
 
   // Checking no node has stored the clients node in its routing table
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    kad::Contact client_node;
+    Contact client_node;
     ASSERT_FALSE(knodes_[i]->GetContact(knode_local_1.node_id(), &client_node));
   }
   cb_.Reset();
@@ -528,38 +510,37 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
 }
 
 TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
-  kad::KadId key(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING, false));
   FindCallback cb_1;
   knodes_[kTestK/2]->FindKClosestNodes(key,
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
   // make sure the nodes returned are what we expect.
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_FALSE(cb_1.closest_nodes().empty());
   std::list<std::string> closest_nodes_str;  // = cb_1.closest_nodes();
   for (size_t i = 0; i < cb_1.closest_nodes().size(); i++)
     closest_nodes_str.push_back(cb_1.closest_nodes()[i]);
   std::list<std::string>::iterator it;
-  std::list<kad::Contact> closest_nodes;
+  std::list<Contact> closest_nodes;
   for (it = closest_nodes_str.begin(); it != closest_nodes_str.end();
       it++) {
-    kad::Contact node;
+    Contact node;
     node.ParseFromString(*it);
     closest_nodes.push_back(node);
   }
   ASSERT_EQ(kTestK, closest_nodes.size());
-  std::list<kad::Contact> all_nodes;
+  std::list<Contact> all_nodes;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    kad::Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
+    Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
         knodes_[i]->host_port(), knodes_[i]->local_host_ip(),
         knodes_[i]->local_host_port(), knodes_[i]->rendezvous_ip(),
         knodes_[i]->rendezvous_port());
     all_nodes.push_back(node);
   }
-  kad::SortContactList(&all_nodes, key);
-  std::list<kad::Contact>::iterator it1, it2;
+  SortContactList(key, &all_nodes);
+  std::list<Contact>::iterator it1, it2;
   it2= closest_nodes.begin();
   for (it1 = closest_nodes.begin(); it1 != closest_nodes.end(); it1++, it2++) {
     ASSERT_TRUE(it1->Equals(*it2));
@@ -568,34 +549,35 @@ TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
 
 TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   // prepare small size of values
-  kad::KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING,
-      false));
-  std::string value = base::RandomString(1024*5);  // 5KB
-  kad::SignedValue sig_value;
+  KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
+  std::string value = base::RandomString(1024 * 5);  // 5KB
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from a node
   StoreValueCallback cb_;
   std::string pub_key, priv_key, sig_pub_key, sig_req;
   create_rsakeys(&pub_key, &priv_key);
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
   req.set_signed_request(sig_req);
 
-  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24*3600,
-    boost::bind(&StoreValueCallback::CallbackFunc, &cb_, _1));
+  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
+                                  boost::bind(&StoreValueCallback::CallbackFunc,
+                                              &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_.result());
+  ASSERT_EQ(kRpcResultFailure, cb_.result());
   cb_.Reset();
 
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
       crypto::STRING_STRING));
-  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24*3600,
-    boost::bind(&StoreValueCallback::CallbackFunc, &cb_, _1));
+  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
+                                  boost::bind(&StoreValueCallback::CallbackFunc,
+                                              &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::int16_t number(0);
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
@@ -604,7 +586,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
     knodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
       for (boost::uint32_t n = 0; n < values.size() && !b; ++n) {
-        kad::SignedValue sig_value;
+        SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
           number++;
@@ -614,7 +596,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
     }
   }
   boost::int16_t d = static_cast<boost::int16_t>
-    (kTestK * kad::kMinSuccessfulPecentageStore);
+    (kTestK * kMinSuccessfulPecentageStore);
   ASSERT_LE(d, number);
   // load the value from no.kNetworkSize-1 node
   cb_.Reset();
@@ -622,7 +604,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   knodes_[kNetworkSize - 2]->FindValue(key, false, boost::bind(
     &FindCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -638,9 +620,9 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   cb_1.Reset();
   ASSERT_TRUE(knodes_[0]->is_joined());
   knodes_[0]->FindValue(key, false, boost::bind(&FakeCallback::CallbackFunc,
-    &cb_1, _1));
+                                                &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -657,10 +639,9 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
 
 TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   // prepare big size of values
-  kad::KadId key(cry_obj_.Hash("vcdrer434dccdwwt", "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash("vcdrer43dccdwwt", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 1024);  // 1MB
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from a node
   StoreValueCallback cb_;
@@ -669,7 +650,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
@@ -678,7 +659,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::int16_t number = 0;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
@@ -687,7 +668,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
     knodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
       for (boost::uint32_t n = 0; n < values.size(); ++n) {
-        kad::SignedValue sig_value;
+        SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
           number++;
@@ -697,7 +678,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
     }
   }
   boost::int16_t d(static_cast<boost::int16_t>
-    (kTestK * kad::kMinSuccessfulPecentageStore));
+    (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
   // load the value from the node
   FindCallback cb_1;
@@ -705,7 +686,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                  boost::bind(&FindCallback::CallbackFunc,
                                              &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -722,7 +703,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                      boost::bind(&FindCallback::CallbackFunc,
                                                  &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -735,38 +716,38 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
     FAIL();
 }
 
-TEST_F(KNodeTest, FUNC_KAD_StoreAndLoad100Values) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   boost::int16_t count(100);
-  std::vector<kad::KadId> keys(count);
-  std::vector<kad::SignedValue> values(count);
+  std::vector<KadId> keys(count);
+  std::vector<SignedValue> values(count);
   std::vector<StoreValueCallback> cbs(count);
   std::string pub_key, priv_key, sig_pub_key, sig_req;
   create_rsakeys(&pub_key, &priv_key);
   printf("Store: ");
   for (boost::int16_t n = 0; n < count; ++n) {
-    keys[n] = kad::KadId(cry_obj_.Hash("key" + base::IntToString(n), "",
+    keys[n] = KadId(cry_obj_.Hash("key" + base::IntToString(n), "",
                   crypto::STRING_STRING, false));
     values[n].set_value(base::RandomString(1024));
     create_req(pub_key, priv_key, keys[n].String(), &sig_pub_key, &sig_req);
     values[n].set_value_signature(cry_obj_.AsymSign(values[n].value(), "",
                                   priv_key, crypto::STRING_STRING));
-    kad::SignedRequest req;
+    SignedRequest req;
     int a(n % (kNetworkSize - 1));
     req.set_signer_id(knodes_[a]->node_id().String());
     req.set_public_key(pub_key);
     req.set_signed_public_key(sig_pub_key);
     req.set_signed_request(sig_req);
-    knodes_[a]->StoreValue(keys[n], values[n], req, 24*3600,
+    knodes_[a]->StoreValue(keys[n], values[n], req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cbs[n], _1));
     if (!(n % 5))
       printf(".");
   }
-  printf("\nLoad:  ");
+  printf("\nLoad: ");
   for (boost::int16_t p = 0; p < count; ++p) {
     wait_result(&cbs[p]);
-    EXPECT_EQ(kad::kRpcResultSuccess, cbs[p].result())
-              << "Failed to store " << kad::kMinSuccessfulPecentageStore
+    EXPECT_EQ(kRpcResultSuccess, cbs[p].result())
+              << "Failed to store " << kMinSuccessfulPecentageStore
               << "% of K copies of the " << p << "th value";
   }
   for (boost::int16_t p = 0; p < count; ++p) {
@@ -775,7 +756,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoad100Values) {
                                    boost::bind(&FindCallback::CallbackFunc,
                                                &cb_1, _1));
     wait_result(&cb_1);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result())
+    ASSERT_EQ(kRpcResultSuccess, cb_1.result())
               << "No copies of the " << p <<"th value where stored.";
     ASSERT_EQ(1U, cb_1.signed_values().size());
     ASSERT_EQ(values[p].value(), cb_1.signed_values()[0].value());
@@ -786,15 +767,14 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoad100Values) {
 }
 
 TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
-  kad::KadId key(cry_obj_.Hash("bbffddnnoooo8822", "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash("bbffddnnooo8822", "", crypto::STRING_STRING, false));
   // load the value from last node
   FindCallback cb_1;
   knodes_[kNetworkSize - 1]->FindValue(key, false,
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_1.result());
+  ASSERT_EQ(kRpcResultFailure, cb_1.result());
   ASSERT_FALSE(cb_1.closest_nodes().empty());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_TRUE(cb_1.signed_values().empty());
@@ -802,35 +782,34 @@ TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
 
 TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
   // find an existing node
-  kad::KadId node_id1(knodes_[kTestK / 3]->node_id());
+  KadId node_id1(knodes_[kTestK / 3]->node_id());
   GetNodeContactDetailsCallback cb_1;
   knodes_[kNetworkSize-1]->GetNodeContactDetails(
       node_id1,
       boost::bind(&GetNodeContactDetailsCallback::CallbackFunc, &cb_1, _1),
       false);
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
-  kad::Contact expect_node1;
-  kad::Contact target_node1(knodes_[kTestK / 3]->node_id(),
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  Contact expect_node1;
+  Contact target_node1(knodes_[kTestK / 3]->node_id(),
                             knodes_[kTestK / 3]->host_ip(),
                             knodes_[kTestK / 3]->host_port());
   expect_node1.ParseFromString(cb_1.contact());
   ASSERT_TRUE(target_node1.Equals(expect_node1));
   // find a non-existing node
   GetNodeContactDetailsCallback cb_2;
-  kad::KadId node_id2(cry_obj_.Hash("bccddde34333", "", crypto::STRING_STRING,
-                                    false));
+  KadId node_id2(cry_obj_.Hash("bcdde34333", "", crypto::STRING_STRING, false));
   knodes_[kNetworkSize-1]->GetNodeContactDetails(
       node_id2,
       boost::bind(&GetNodeContactDetailsCallback::CallbackFunc, &cb_2, _1),
       false);
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_2.result());
+  ASSERT_EQ(kRpcResultFailure, cb_2.result());
 }
 
 TEST_F(KNodeTest, FUNC_KAD_Ping) {
   // ping by contact
-  kad::Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
+  Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
                       knodes_[kTestK * 3 / 4]->host_ip(),
                       knodes_[kTestK * 3 / 4]->host_port(),
                       knodes_[kTestK * 3 / 4]->local_host_ip(),
@@ -839,23 +818,23 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
   knodes_[kNetworkSize-1]->Ping(remote, boost::bind(&PingCallback::CallbackFunc,
                                                     &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   // ping by node id
-  kad::KadId remote_id(knodes_[kTestK / 4]->node_id());
+  KadId remote_id(knodes_[kTestK / 4]->node_id());
   PingCallback cb_2;
   knodes_[kNetworkSize-2]->Ping(remote_id,
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_2, _1));
   wait_result(&cb_2);
-  // ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
-  if (kad::kRpcResultSuccess != cb_2.result()) {
+  // ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  if (kRpcResultSuccess != cb_2.result()) {
     for (boost::int16_t i = 0; i < kNetworkSize; ++i) {
-      kad::Contact ctc;
+      Contact ctc;
       if (knodes_[i]->GetContact(remote_id, &ctc))
         printf("node %d port %d, has node %d\n", i, knodes_[i]->host_port(),
                kTestK / 4);
     }
-    kad::KadId zero_id;
+    KadId zero_id;
     if (remote_id == zero_id) {
       printf("remote id is a kClientId\n");
     }
@@ -864,7 +843,7 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
     FAIL();
   }
   // ping a dead node
-  kad::KadId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING,
+  KadId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING,
                                    false));
 
   boost::uint16_t port(4242);
@@ -876,27 +855,27 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
     it = ports_.find(port);
   }
 
-  kad::Contact dead_remote(dead_id, "127.0.0.1", port);
+  Contact dead_remote(dead_id, "127.0.0.1", port);
   PingCallback cb_3;
   knodes_[kNetworkSize-1]->Ping(dead_remote,
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_3, _1));
   wait_result(&cb_3);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_3.result());
+  ASSERT_EQ(kRpcResultFailure, cb_3.result());
   PingCallback cb_4;
   knodes_[kNetworkSize-1]->Ping(dead_id,
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_4, _1));
   wait_result(&cb_4);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_4.result());
+  ASSERT_EQ(kRpcResultFailure, cb_4.result());
 }
 
-TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   // Store a small value
   // prepair small size of values
-  kad::KadId key(cry_obj_.Hash("rrvvdcccdd", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(3*1024);  // 3KB
-  kad::SignedValue sig_value;
+  KadId key(cry_obj_.Hash("rrvvdcccdd", "", crypto::STRING_STRING, false));
+  std::string value = base::RandomString(3 * 1024);  // 3KB
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_1;
@@ -905,16 +884,16 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK * 3 / 4]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
   req.set_signed_request(sig_req);
-  knodes_[kTestK * 3 / 4]->StoreValue(key, sig_value, req, 24*3600,
+  knodes_[kTestK * 3 / 4]->StoreValue(key, sig_value, req, 24 * 3600,
                                       boost::bind(&FakeCallback::CallbackFunc,
                                                   &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   // kill k-1 nodes, there should be at least one node left which holds this
   // value
   for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
@@ -930,7 +909,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
                                        boost::bind(&FakeCallback::CallbackFunc,
                                                    &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); ++i) {
@@ -943,7 +922,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
     FAIL();
   }
   for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
-    kad::Contact ctc(knodes_[2 + i]->node_id(),
+    Contact ctc(knodes_[2 + i]->node_id(),
                      knodes_[2 + i]->host_ip(),
                      knodes_[2 + i]->host_port(),
                      knodes_[2 + i]->local_host_ip(),
@@ -952,24 +931,24 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
     knodes_[0]->Ping(ctc, boost::bind(&PingCallback::CallbackFunc,
                                       &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kad::kRpcResultFailure, ping_cb.result());
+    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
     ping_cb.Reset();
     knodes_[1]->Ping(ctc, boost::bind(&PingCallback::CallbackFunc,
                                       &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kad::kRpcResultFailure, ping_cb.result());
+    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
      ping_cb.Reset();
     knodes_[kNetworkSize - 1]->Ping(ctc,
                                     boost::bind(&PingCallback::CallbackFunc,
                                                 &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kad::kRpcResultFailure, ping_cb.result());
+    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
   }
   // Restart dead nodes
   base::KadConfig kad_config;
   base::KadConfig::Contact *kad_contact = kad_config.add_contact();
   kad_contact->set_node_id(
-      knodes_[0]->node_id().ToStringEncoded(kad::KadId::kHex));
+      knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
   kad_contact->set_ip(knodes_[0]->host_ip());
   kad_contact->set_port(knodes_[0]->host_port());
   kad_contact->set_local_ip(knodes_[0]->local_host_ip());
@@ -980,13 +959,10 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
     std::string conf_file = dbs_[2 + i] + "/.kadconfig";
 
     std::fstream output(conf_file.c_str(),
-      std::ios::out | std::ios::trunc | std::ios::binary);
+                        std::ios::out | std::ios::trunc | std::ios::binary);
     ASSERT_TRUE(kad_config.SerializeToOstream(&output));
     output.close();
 
-//    EXPECT_TRUE(channel_managers_[2 + i]->RegisterNotifiersToTransport());
-//     EXPECT_TRUE(trans_handlers_[2 + i]->RegisterOnServerDown(boost::bind(
-//       &kad::KNode::HandleDeadRendezvousServer, knodes_[2 + i].get(), _1)));
     transport::TransportCondition tc;
     transports_[i]->StartListening("", transport_ports_[2 + i], &tc);
     EXPECT_EQ(transport::kSuccess, tc);
@@ -996,26 +972,26 @@ TEST_F(KNodeTest, FUNC_KAD_FindValueWithDeadNodes) {
                          boost::bind(&GeneralKadCallback::CallbackFunc,
                                      &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+    ASSERT_EQ(kRpcResultSuccess, cb_.result());
     ASSERT_TRUE(knodes_[2 + i]->is_joined());
     knodes_[2 + i]->set_signature_validator(&validator);
     ASSERT_TRUE(node_ids_[2 + i] == knodes_[2 + i]->node_id());
   }
 }
 
-TEST_F(KNodeTest, FUNC_KAD_Downlist) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
   boost::this_thread::sleep(boost::posix_time::seconds(2));
   // select a random node from node 1 to node kNetworkSize
   int r_node = 1 + base::RandomInt32() % (kNetworkSize - 1);
-  kad::KadId r_node_id(knodes_[r_node]->node_id());
+  KadId r_node_id(knodes_[r_node]->node_id());
   // Compute the sum of the nodes whose routing table contain r_node
   int sum_0 = 0;
   std::vector<boost::int16_t> holders;
   for (boost::int16_t i = 1; i < kNetworkSize; ++i) {
     if (i != r_node) {
-      kad::Contact test_contact;
+      Contact test_contact;
       if (knodes_[i]->GetContact(r_node_id, &test_contact)) {
-        if (test_contact.failed_rpc() == kad::kFailedRpc) {
+        if (test_contact.failed_rpc() == kFailedRpc) {
           ++sum_0;
           holders.push_back(i);
         }
@@ -1025,36 +1001,36 @@ TEST_F(KNodeTest, FUNC_KAD_Downlist) {
   cb_.Reset();
   // finding the closest node to the dead node
   boost::int16_t closest_node(0);
-  kad::KadId holder_id(knodes_[holders[0]]->node_id());
-  kad::KadId smallest_distance = r_node_id ^ holder_id;
+  KadId holder_id(knodes_[holders[0]]->node_id());
+  KadId smallest_distance = r_node_id ^ holder_id;
   for (size_t i = 0; i < holders.size(); i++) {
-    kad::KadId distance = r_node_id ^ knodes_[holders[i]]->node_id();
+    KadId distance = r_node_id ^ knodes_[holders[i]]->node_id();
     if (smallest_distance > distance) {
       smallest_distance = distance;
       closest_node = i;
     }
   }
 
-  kad::Contact holder(knodes_[holders[closest_node]]->node_id(),
-                      knodes_[holders[closest_node]]->host_ip(),
-                      knodes_[holders[closest_node]]->host_port(),
-                      knodes_[holders[closest_node]]->local_host_ip(),
-                      knodes_[holders[closest_node]]->local_host_port());
+  Contact holder(knodes_[holders[closest_node]]->node_id(),
+                 knodes_[holders[closest_node]]->host_ip(),
+                 knodes_[holders[closest_node]]->host_port(),
+                 knodes_[holders[closest_node]]->local_host_ip(),
+                 knodes_[holders[closest_node]]->local_host_port());
   PingCallback cb_3;
   knodes_[0]->Ping(holder, boost::bind(&PingCallback::CallbackFunc, &cb_3, _1));
   wait_result(&cb_3);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_3.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_3.result());
 
   GetNodeContactDetailsCallback cb_1;
-  kad::Contact dead_node(r_node_id, knodes_[r_node]->host_ip(),
-                         knodes_[r_node]->host_port(),
-                         knodes_[r_node]->local_host_ip(),
-                         knodes_[r_node]->local_host_port());
+  Contact dead_node(r_node_id, knodes_[r_node]->host_ip(),
+                    knodes_[r_node]->host_port(),
+                    knodes_[r_node]->local_host_ip(),
+                    knodes_[r_node]->local_host_port());
   PingCallback cb_2;
   knodes_[0]->Ping(dead_node, boost::bind(&PingCallback::CallbackFunc,
                                           &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_2.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   // Kill r_node
   GeneralKadCallback cb_;
   knodes_[r_node]->Leave();
@@ -1067,7 +1043,7 @@ TEST_F(KNodeTest, FUNC_KAD_Downlist) {
       r_node_id, boost::bind(&GetNodeContactDetailsCallback::CallbackFunc,
                              &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   // Wait for a RPC timeout interval until the downlist are handled in the
   // network
   boost::this_thread::sleep(boost::posix_time::seconds(11));
@@ -1075,11 +1051,11 @@ TEST_F(KNodeTest, FUNC_KAD_Downlist) {
   boost::int16_t sum_1(0);
   for (boost::int16_t i = 1; i < kNetworkSize; i++) {
     if (i != r_node) {
-      kad::Contact test_contact;
+      Contact test_contact;
       if (knodes_[i]->GetContact(r_node_id, &test_contact)) {
         ++sum_1;
       } else {
-        if (test_contact.failed_rpc() > kad::kFailedRpc)
+        if (test_contact.failed_rpc() > kFailedRpc)
           ++sum_1;
       }
     }
@@ -1098,16 +1074,15 @@ TEST_F(KNodeTest, FUNC_KAD_Downlist) {
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
   knodes_[r_node]->set_signature_validator(&validator);
 }
 
 TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
-  kad::KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value(base::RandomString(1024));  // 1KB
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
@@ -1117,35 +1092,35 @@ TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
   req.set_signed_request("bad request");
 
-  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24*3600,
+  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_.result());
+  ASSERT_EQ(kRpcResultFailure, cb_.result());
   std::string new_pub_key, new_priv_key;
   create_rsakeys(&new_pub_key, &new_priv_key);
   ASSERT_NE(pub_key, new_pub_key);
   cb_.Reset();
   req.set_signed_request(sig_req);
   req.set_public_key(new_pub_key);
-  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24*3600,
+  knodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_.result());
+  ASSERT_EQ(kRpcResultFailure, cb_.result());
 }
 
 TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    ASSERT_EQ(kad::DIRECT_CONNECTED, knodes_[i]->host_nat_type());
-    std::vector<kad::Contact> exclude_contacts;
-    std::vector<kad::Contact> contacts;
+    ASSERT_EQ(DIRECT_CONNECTED, knodes_[i]->host_nat_type());
+    std::vector<Contact> exclude_contacts;
+    std::vector<Contact> contacts;
     knodes_[i]->GetRandomContacts(static_cast<size_t>(kNetworkSize),
                                   exclude_contacts, &contacts);
     ASSERT_FALSE(contacts.empty());
@@ -1157,7 +1132,7 @@ TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
 }
 
 TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
-  kad::Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
+  Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
                       knodes_[kTestK * 3 / 4]->host_ip(),
                       knodes_[kTestK * 3 / 4]->host_port(),
                       knodes_[kTestK * 3 / 4]->local_host_ip(),
@@ -1167,10 +1142,10 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
                             boost::bind(&PingCallback::CallbackFunc,
                                         &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
 
   // now ping the node that has changed its local address
-  kad::Contact remote1(knodes_[kTestK / 4]->node_id(),
+  Contact remote1(knodes_[kTestK / 4]->node_id(),
                        knodes_[kTestK / 4]->host_ip(),
                        knodes_[kTestK / 4]->host_port(),
                        knodes_[kTestK / 2]->local_host_ip(),
@@ -1180,15 +1155,15 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
 }
 
-TEST_F(KNodeTest, FUNC_KAD_FindDeadNode) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   // find an existing node that has gone down
   // select a random node from node 1 to node kNetworkSize
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
-  LOG(INFO) << "+++++++++++++++++ r_node = " << r_node << "\n";
-  kad::KadId r_node_id = knodes_[r_node]->node_id();
+  LOG(INFO) << "+++++++++++++++++ r_node = " << r_node << std::endl;
+  KadId r_node_id = knodes_[r_node]->node_id();
   boost::uint16_t r_port = knodes_[r_node]->host_port();
   knodes_[r_node]->Leave();
   ASSERT_FALSE(knodes_[r_node]->is_joined());
@@ -1196,20 +1171,17 @@ TEST_F(KNodeTest, FUNC_KAD_FindDeadNode) {
   channel_managers_[r_node]->Stop();
   ports_.erase(r_port);
   // Do a find node
-  LOG(INFO) << "+++++++++++++++++ Node " << r_node << " stopped\n";
+  LOG(INFO) << "+++++++++++++++++ Node " << r_node << " stopped" << std::endl;
   GetNodeContactDetailsCallback cb_1;
   knodes_[kNetworkSize - 1]->GetNodeContactDetails(
       r_node_id, boost::bind(&GetNodeContactDetailsCallback::CallbackFunc,
                              &cb_1, _1),
       false);
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_1.result());
+  ASSERT_EQ(kRpcResultFailure, cb_1.result());
   boost::this_thread::sleep(boost::posix_time::seconds(33));
   // Restart dead node
-  LOG(INFO) << "+++++++++++++++++Restarting " << r_node << "\n";
-//  ASSERT_TRUE(channel_managers_[r_node]->RegisterNotifiersToTransport());
-//   ASSERT_TRUE(trans_handlers_[r_node]->RegisterOnServerDown(boost::bind(
-//     &kad::KNode::HandleDeadRendezvousServer, knodes_[r_node].get(), _1)));
+  LOG(INFO) << "+++++++++++++++++ Restarting " << r_node << std::endl;
   transport::TransportCondition tc;
   transports_[r_node]->StartListening("", transport_ports_[r_node], &tc);
   ASSERT_EQ(transport::kSuccess, tc);
@@ -1220,7 +1192,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindDeadNode) {
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
   knodes_[r_node]->set_signature_validator(&validator);
 }
@@ -1241,24 +1213,24 @@ TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
   ASSERT_LT(0, kconf.contact_size());
   cb_.Reset();
   std::string conf_file = dbs_[r_node] + "/.kadconfig";
-  ASSERT_EQ(kad::NONE, knodes_[r_node]->host_nat_type());
+  ASSERT_EQ(NONE, knodes_[r_node]->host_nat_type());
   knodes_[r_node]->Join(knodes_[r_node]->node_id(), conf_file,
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
-  ASSERT_EQ(kad::DIRECT_CONNECTED, knodes_[r_node]->host_nat_type());
+  ASSERT_EQ(DIRECT_CONNECTED, knodes_[r_node]->host_nat_type());
   knodes_[r_node]->set_signature_validator(&validator);
   cb_.Reset();
 }
 
-TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   // prepare small size of values
-  kad::KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
+                          false));
   std::string value(base::RandomString(1024 * 5));  // 5KB
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
@@ -1267,7 +1239,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
@@ -1277,7 +1249,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::uint16_t number = 0;
   for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
@@ -1286,7 +1258,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
     knodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
       for (size_t n = 0; n < values.size() && !b; ++n) {
-        kad::SignedValue sig_value;
+        SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
           number++;
@@ -1296,7 +1268,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
     }
   }
   boost::uint16_t d(static_cast<boost::uint16_t>
-    (kTestK * kad::kMinSuccessfulPecentageStore));
+    (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
   // load the value from no.kNetworkSize-1 node
   cb_.Reset();
@@ -1305,7 +1277,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1324,7 +1296,7 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, del_cb.result());
+  ASSERT_EQ(kRpcResultSuccess, del_cb.result());
   // Checking no node returns the value
   for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
@@ -1338,18 +1310,18 @@ TEST_F(KNodeTest, FUNC_KAD_DeleteValue) {
   knodes_[0]->FindValue(key, false,
                         boost::bind(&FakeCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultFailure, cb_1.result());
+  ASSERT_EQ(kRpcResultFailure, cb_1.result());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_TRUE(cb_1.signed_values().empty());
   cb_1.Reset();
 }
 
-TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   // prepare small size of values
-  kad::KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
+                          false));
   std::string value = base::RandomString(1024 * 5);  // 5KB
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
@@ -1358,7 +1330,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
@@ -1368,7 +1340,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_.result());
 
   // load the value from no.kNetworkSize-1 node
   cb_.Reset();
@@ -1377,7 +1349,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1404,7 +1376,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kad::kRpcResultFailure, del_cb.result());
+  ASSERT_EQ(kRpcResultFailure, del_cb.result());
 
   del_cb.Reset();
   req.Clear();
@@ -1416,7 +1388,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kad::kRpcResultFailure, del_cb.result());
+  ASSERT_EQ(kRpcResultFailure, del_cb.result());
 
   del_cb.Reset();
   req.set_public_key(pub_key);
@@ -1425,7 +1397,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&FakeCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kad::kRpcResultFailure, del_cb.result());
+  ASSERT_EQ(kRpcResultFailure, del_cb.result());
 
   // trying to load the value from no.1 node
   cb_1.Reset();
@@ -1433,7 +1405,7 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
                                        boost::bind(&FakeCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1447,21 +1419,21 @@ TEST_F(KNodeTest, FUNC_KAD_InvalidRequestDeleteValue) {
   }
 }
 
-TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
+TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   // prepare small size of values
-  kad::KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
-                               false));
+  KadId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
+                          false));
   std::string value(base::RandomString(1024 * 5));  // 5KB
   std::string pub_key, priv_key, sig_pub_key, sig_req;
   create_rsakeys(&pub_key, &priv_key);
   create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
 
-  kad::SignedValue sig_value;
+  SignedValue sig_value;
   sig_value.set_value(value);
   StoreValueCallback svcb;
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
-  kad::SignedRequest req;
+  SignedRequest req;
   req.set_signer_id(knodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(sig_pub_key);
@@ -1471,7 +1443,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &svcb, _1));
   wait_result(&svcb);
-  ASSERT_EQ(kad::kRpcResultSuccess, svcb.result());
+  ASSERT_EQ(kRpcResultSuccess, svcb.result());
 
   // calculate number of nodes which hold this key/value pair
   boost::uint16_t number(0);
@@ -1482,7 +1454,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
     knodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
       for (size_t n = 0; n < values.size() && !b; ++n) {
-        kad::SignedValue sig_value;
+        SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
           ++number;
@@ -1495,7 +1467,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
   }
   ASSERT_NE(-1, no_value_node);
   boost::uint16_t d(static_cast<boost::uint16_t>
-                    (kTestK * kad::kMinSuccessfulPecentageStore));
+                    (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
 
   // load the value from no.kNetworkSize-1 node
@@ -1504,7 +1476,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
                                     boost::bind(&FindCallback::CallbackFunc,
                                                 &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size() && !got_value; i++)
@@ -1517,7 +1489,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
 
   // Deleting Value
   UpdateValueCallback update_cb;
-  kad::SignedValue new_sig_value;
+  SignedValue new_sig_value;
   std::string new_value(base::RandomString(4 * 1024));  // 4KB
   new_sig_value.set_value(new_value);
   new_sig_value.set_value_signature(cry_obj_.AsymSign(new_value, "", priv_key,
@@ -1526,7 +1498,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
       key, sig_value, new_sig_value, req, 86400,
       boost::bind(&UpdateValueCallback::CallbackFunc, &update_cb, _1));
   wait_result(&update_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, update_cb.result());
+  ASSERT_EQ(kRpcResultSuccess, update_cb.result());
   number = 0;
   for (boost::uint16_t i = 0; i < kNetworkSize; ++i) {
     std::vector<std::string> values;
@@ -1534,7 +1506,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
     knodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
       for (size_t n = 0; n < values.size() && !b; ++n) {
-        kad::SignedValue sig_value;
+        SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (new_value == sig_value.value()) {
           ++number;
@@ -1543,7 +1515,7 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
       }
     }
   }
-  d = static_cast<boost::uint16_t>(kTestK * kad::kMinSuccessfulPecentageStore);
+  d = static_cast<boost::uint16_t>(kTestK * kMinSuccessfulPecentageStore);
   ASSERT_LE(d, number);
 
   // trying to load the value from no.1 node
@@ -1551,12 +1523,16 @@ TEST_F(KNodeTest, FUNC_KAD_UpdateValue) {
   knodes_[0]->FindValue(key, false,
                         boost::bind(&FindCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_1.result());
+  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_EQ(1U, cb_1.signed_values().size());
-  kad::SignedValue el_valiu = cb_1.signed_values()[0];
+  SignedValue el_valiu = cb_1.signed_values()[0];
   ASSERT_EQ(new_sig_value.SerializeAsString(), el_valiu.SerializeAsString());
 }
+
+}  // namespace test_knode
+
+}  // namespace kad
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
@@ -1565,6 +1541,6 @@ int main(int argc, char **argv) {
 #endif
   FLAGS_logtostderr = true;
   testing::InitGoogleTest(&argc, argv);
-  testing::AddGlobalTestEnvironment(new Env);
+  testing::AddGlobalTestEnvironment(new kad::test_knode::Env);
   return RUN_ALL_TESTS();
 }

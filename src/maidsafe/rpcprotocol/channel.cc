@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/rpcprotocol/channelimpl.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
+#include "maidsafe/rpcprotocol/channelimpl.h"
 
 namespace rpcprotocol {
 

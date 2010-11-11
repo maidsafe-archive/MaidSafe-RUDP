@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
+
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/kademlia/contact.h"
@@ -38,11 +39,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
-namespace test_add_knode {
-  static const boost::uint16_t K = 16;
-}  // namespace test_add_knode
 
 namespace kad {
+
+namespace test_add_knode {
+
+static const boost::uint16_t K = 16;
 
 class MessageHandler {
  public:
@@ -168,8 +170,10 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
   kad::KadId kadid(id, kad::KadId::kHex);
-  nodes_[0].Join(kadid, kconfig_file, local_ip.to_string(), transport_ports_[0],
-                 boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+  nodes_[0].JoinFirstNode(kadid, kconfig_file, local_ip.to_string(),
+                          transport_ports_[0],
+                          boost::bind(&GeneralKadCallback::CallbackFunc,
+                                      &callback, _1));
   wait_result(&callback);
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   callback.Reset();
@@ -260,8 +264,10 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
   kad::KadId kid(id, kad::KadId::kHex), kid2(id2, kad::KadId::kHex);
-  nodes_[0].Join(kid, kconfig_file, local_ip.to_string(), transport_ports_[0],
-                 boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
+  nodes_[0].JoinFirstNode(kid, kconfig_file, local_ip.to_string(),
+                          transport_ports_[0],
+                          boost::bind(&GeneralKadCallback::CallbackFunc,
+                                      &callback, _1));
   wait_result(&callback);
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   callback.Reset();
@@ -374,5 +380,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   ASSERT_FALSE(nodes_[0].is_joined());
   ASSERT_FALSE(nodes_[1].is_joined());
 }
+
+}  // namespace test_add_knode
 
 }  // namespace kad

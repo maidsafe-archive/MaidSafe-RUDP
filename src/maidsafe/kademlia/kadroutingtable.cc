@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/kadroutingtable.h"
 #include <boost/cstdint.hpp>
+#include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
@@ -332,9 +333,7 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact) {
   // the peer
   int v = K_ - k_buckets_[bucket_of_holder_]->Size();
   if (v == 0) {
-#ifdef DEBUG
-    printf("RT::ForceKAcceptNewPeer - (v == 0)\n");
-#endif
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v == 0)" << std::endl;
     return 1;
   }
   // Getting all contacts of the brother kbucket of the peer
@@ -352,17 +351,16 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact) {
   it = candidates_for_l.begin();
   advance(it, v - 1);
   if (it == candidates_for_l.end()) {
-#ifdef DEBUG
-    printf("RT::ForceKAcceptNewPeer - (it == candidates_for_l.end())\n");
-#endif
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - "
+                     "(it == candidates_for_l.end())" << std::endl;
     return 1;
   }
+
   if (KadId::CloserToTarget(it->contact.node_id(), new_contact.node_id(),
                             holder_id_)) {
     // new peer isn't among the k closest neighbours
-#ifdef DEBUG
-    printf("RT::ForceKAcceptNewPeer - new peer isn't among the k closest\n");
-#endif
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - "
+                     "new peer isn't among the k closest" << std::endl;
     return 1;
   }
   // new peer is among the k closest neighbours
@@ -378,9 +376,8 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact) {
     k_buckets_[brother_bucket_of_holder_]->AddContact(new_contact);
     return 0;
   }
-#ifdef DEBUG
-  printf("RT::ForceKAcceptNewPeer - -1 at the end\n");
-#endif
+
+  DLOG(WARNING) << "RT::ForceKAcceptNewPeer - -1 at the end" << std::endl;
   return -1;
 }
 

@@ -89,8 +89,7 @@ class Transport {
   boost::shared_ptr<Signals> signals() { return signals_; }
   std::vector<Port> listening_ports() { return listening_ports_; }
  protected:
-  Transport() : signals_(new Signals),
-                listening_ports_(),
+  Transport() : signals_(new Signals), listening_ports_(),
                 listening_ports_mutex_() {}
   boost::shared_ptr<Signals> signals_;
   std::vector<Port> listening_ports_;

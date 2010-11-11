@@ -45,262 +45,16 @@ namespace kad {
 
 static void downlist_ping_cb(const std::string&) {}
 
-KadService::KadService(const NatRpcs &nat_rpcs,
-                       boost::shared_ptr<DataStore> datastore,
+KadService::KadService(boost::shared_ptr<DataStore> datastore,
                        const bool &hasRSAkeys, AddContactFunctor add_cts,
                        GetRandomContactsFunctor rand_cts,
-                       GetContactFunctor get_ctc,
-                       GetKClosestFunctor get_kcts,
-                       PingFunctor ping,
-                       RemoveContactFunctor remove_contact)
-    : nat_rpcs_(nat_rpcs), pdatastore_(datastore), node_joined_(false),
-      node_hasRSAkeys_(hasRSAkeys), node_info_(), alternative_store_(NULL),
-      add_contact_(add_cts), get_random_contacts_(rand_cts),
-      get_contact_(get_ctc), get_closestK_contacts_(get_kcts), ping_(ping),
+                       GetContactFunctor get_ctc, GetKClosestFunctor get_kcts,
+                       PingFunctor ping, RemoveContactFunctor remove_contact)
+    : pdatastore_(datastore), node_joined_(false), node_hasRSAkeys_(hasRSAkeys),
+      node_info_(), alternative_store_(NULL), add_contact_(add_cts),
+      get_random_contacts_(rand_cts), get_contact_(get_ctc),
+      get_closestK_contacts_(get_kcts), ping_(ping),
       remove_contact_(remove_contact), signature_validator_(NULL) {}
-
-void KadService::Bootstrap_NatDetectionRv(const NatDetectionResponse *response,
-                                          struct NatDetectionData data) {
-  Contact sender(data.newcomer.node_id(), data.newcomer.host_ip(),
-      data.newcomer.host_port(), node_info_.ip(), node_info_.port());
-  if (response->IsInitialized()) {
-    if (response->result() == kRpcResultSuccess) {
-      // Node B replies to A with A's external IP and PORT and a flag stating A
-      // can only be contacted via rendezvous - END
-      data.response->set_nat_type(2);
-    } else {
-      // Node B replies to node A with a flag stating no communication} - END
-      // (later we can do tunneling for clients if needed)
-      data.response->set_nat_type(3);
-    }
-    if (data.controller != NULL) {
-      add_contact_(sender, data.controller->rtt(), false);
-      delete data.controller;
-      data.controller = NULL;
-    } else {
-      add_contact_(sender, 0.0, false);
-    }
-    delete response;
-    data.done->Run();
-  } else {
-    data.ex_contacts.push_back(data.node_c);
-    delete response;
-    SendNatDetection(data);
-  }
-}
-
-void KadService::Bootstrap_NatDetection(const NatDetectionResponse *response,
-                                        struct NatDetectionData data) {
-  if (response->IsInitialized()) {
-    if (response->result() == kRpcResultSuccess) {
-      // If true - node B replies to node A - DIRECT connected - END
-      data.response->set_nat_type(1);
-      // Try to get the sender's address from the local routingtable
-      // if find no result in the local routingtable, do a find node
-      Contact sender(data.newcomer.node_id(), data.newcomer.host_ip(),
-          data.newcomer.host_port(), data.newcomer.local_ip(),
-          data.newcomer.local_port());  // No rendezvous info
-      if (data.controller != NULL) {
-        add_contact_(sender, data.controller->rtt(), false);
-        delete data.controller;
-        data.controller = NULL;
-      } else {
-        add_contact_(sender, 0.0, false);
-      }
-      data.done->Run();
-    } else {
-      // Node B asks C to try a rendezvous to A with B as rendezvous
-      NatDetectionResponse *resp = new NatDetectionResponse;
-      google::protobuf::Closure *done = google::protobuf::NewCallback<
-        KadService, const NatDetectionResponse*, struct NatDetectionData>(this,
-        &KadService::Bootstrap_NatDetectionRv, resp, data);
-      std::string newcomer_str;
-      data.newcomer.SerialiseToString(&newcomer_str);
-      // no need to send using rendezvous server of node C because it has
-      // already made contact with it, it can connect to it directly
-      nat_rpcs_.NatDetection(newcomer_str, data.bootstrap_node, 2,
-          node_info_.node_id(), data.node_c.host_ip(), data.node_c.host_port(),
-          "", 0, resp, data.controller, done);
-    }
-  } else {
-    data.ex_contacts.push_back(data.node_c);
-    SendNatDetection(data);
-  }
-  delete response;
-}
-
-void KadService::Bootstrap_NatDetectionPing(
-    const NatDetectionPingResponse *response,
-    struct NatDetectionPingData data) {
-  if (response->IsInitialized() && response->result() == kRpcResultSuccess) {
-    data.response->set_result(kRpcResultSuccess);
-  } else {
-    data.response->set_result(kRpcResultFailure);
-  }
-  delete data.controller;
-  delete response;
-  data.done->Run();
-}
-
-void KadService::Bootstrap_NatDetectionRzPing(
-    const NatDetectionPingResponse *response,
-    struct NatDetectionPingData data) {
-  Bootstrap_NatDetectionPing(response, data);
-}
-
-void KadService::NatDetection(google::protobuf::RpcController*,
-                              const NatDetectionRequest *request,
-                              NatDetectionResponse *response,
-                              google::protobuf::Closure *done) {
-  if (request->IsInitialized()) {
-    if (request->type() == 1) {
-      // C tries to ping A
-      Contact node_a;
-      if (node_a.ParseFromString(request->newcomer())) {
-        NatDetectionPingResponse *resp = new NatDetectionPingResponse;
-        struct NatDetectionPingData data = {request->sender_id(), response,
-            done, NULL};
-//        rpcprotocol::Controller *ctrler =
-//            static_cast<rpcprotocol::Controller*>(controller);
-        data.controller = new rpcprotocol::Controller;
-        google::protobuf::Closure *done =
-            google::protobuf::NewCallback<KadService,
-            const NatDetectionPingResponse*, struct NatDetectionPingData>
-            (this, &KadService::Bootstrap_NatDetectionPing, resp, data);
-        nat_rpcs_.NatDetectionPing(node_a.host_ip(), node_a.host_port(), "", 0,
-            resp, data.controller, done);
-        return;
-      }
-    } else if (request->type() == 2) {
-      // C tries a rendezvous to A with B as rendezvous
-      Contact node_b;
-      Contact node_a;
-      if (node_a.ParseFromString(request->newcomer()) &&
-          node_b.ParseFromString(request->bootstrap_node()) &&
-          node_a.node_id().String() != kClientId) {
-        NatDetectionPingResponse *resp = new NatDetectionPingResponse;
-        struct NatDetectionPingData data =
-          {request->sender_id(), response, done, NULL};
-//        rpcprotocol::Controller *ctrler =
-//            static_cast<rpcprotocol::Controller*>(controller);
-        data.controller = new rpcprotocol::Controller;
-        google::protobuf::Closure *done =
-          google::protobuf::NewCallback<KadService,
-            const NatDetectionPingResponse*,
-            struct NatDetectionPingData>(this,
-              &KadService::Bootstrap_NatDetectionRzPing,
-              resp,
-              data);
-        nat_rpcs_.NatDetectionPing(node_a.host_ip(), node_a.host_port(),
-            node_a.rendezvous_ip(), node_a.rendezvous_port(), resp,
-            data.controller, done);
-        return;
-      }
-    }
-  }
-  response->set_result(kRpcResultFailure);
-  done->Run();
-}
-
-void KadService::NatDetectionPing(google::protobuf::RpcController *,
-                                  const NatDetectionPingRequest *request,
-                                  NatDetectionPingResponse *response,
-                                  google::protobuf::Closure *done) {
-  Contact sender;
-  if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
-  } else if (request->ping() == "nat_detection_ping") {
-    response->set_echo("pong");
-    response->set_result(kRpcResultSuccess);
-  } else {
-    response->set_result(kRpcResultFailure);
-  }
-  response->set_node_id(node_info_.node_id());
-  done->Run();
-}
-
-void KadService::Bootstrap(google::protobuf::RpcController *controller,
-                           const BootstrapRequest *request,
-                           BootstrapResponse *response,
-                           google::protobuf::Closure *done) {
-  if (!request->IsInitialized() || !node_joined_) {
-    response->set_result(kRpcResultFailure);
-    done->Run();
-    return;
-  }
-  // Checking if it is a client to return its external ip/port
-  if (static_cast<NodeType>(request->node_type()) == CLIENT) {
-    response->set_bootstrap_id(node_info_.node_id());
-    response->set_newcomer_ext_ip(request->newcomer_ext_ip());
-    response->set_newcomer_ext_port(request->newcomer_ext_port());
-    response->set_result(kRpcResultSuccess);
-    done->Run();
-    return;
-  }
-  Contact newcomer;
-  // set rendezvous IP/Port
-  if (request->newcomer_ext_ip() == request->newcomer_local_ip() &&
-      request->newcomer_ext_port() == request->newcomer_local_port()) {
-    // Newcomer is directly connected to the Internet
-    newcomer = Contact(request->newcomer_id(), request->newcomer_local_ip(),
-        request->newcomer_local_port(), request->newcomer_local_ip(),
-        request->newcomer_local_port());
-  } else {
-    // Behind firewall
-    newcomer = Contact(request->newcomer_id(), request->newcomer_ext_ip(),
-          request->newcomer_ext_port(), request->newcomer_local_ip(),
-          request->newcomer_local_port(), node_info_.ip(), node_info_.port());
-  }
-  response->set_bootstrap_id(node_info_.node_id());
-  response->set_newcomer_ext_ip(request->newcomer_ext_ip());
-  response->set_newcomer_ext_port(request->newcomer_ext_port());
-  response->set_result(kRpcResultSuccess);
-
-  std::string this_node_str(node_info_.SerializeAsString());
-  Contact node_c;
-  std::vector<Contact> ex_contacs;
-  ex_contacs.push_back(newcomer);
-  struct NatDetectionData data = {newcomer, this_node_str, node_c,
-                                  response, done,
-                                  static_cast<rpcprotocol::Controller*>
-                                      (controller),
-                                  ex_contacs};
-  SendNatDetection(data);
-}
-
-void KadService::SendNatDetection(NatDetectionData data) {
-  std::vector<Contact> random_contacts;
-  get_random_contacts_(1, data.ex_contacts, &random_contacts);
-  if (random_contacts.size() != 1) {
-    if (data.ex_contacts.size() > 1) {
-      data.response->set_result(kRpcResultFailure);
-    }
-    for (size_t n = 0; n < data.ex_contacts.size(); ++n) {
-      // remove contact from routing table
-      remove_contact_(data.ex_contacts[n].node_id());
-    }
-    data.done->Run();
-    return;
-  } else {
-    Contact node_c = random_contacts.front();
-    data.node_c = node_c;
-    // Node B asks C to try ping A
-    std::string newcomer_str;
-    data.newcomer.SerialiseToString(&newcomer_str);
-//    rpcprotocol::Controller *temp_controller =
-//        static_cast<rpcprotocol::Controller*>(data.controller);
-    data.controller = new rpcprotocol::Controller;
-    NatDetectionResponse *resp = new NatDetectionResponse;
-    google::protobuf::Closure *done = google::protobuf::NewCallback
-        <KadService, const NatDetectionResponse*, struct NatDetectionData>
-        (this, &KadService::Bootstrap_NatDetection, resp, data);
-    nat_rpcs_.NatDetection(newcomer_str, data.bootstrap_node, 1,
-                           node_info_.node_id(), node_c.host_ip(),
-                           node_c.host_port(), node_c.rendezvous_ip(),
-                           node_c.rendezvous_port(), resp, data.controller,
-                           done);
-  }
-}
 
 void KadService::Ping(google::protobuf::RpcController *controller,
                       const PingRequest *request, PingResponse *response,
@@ -370,6 +124,7 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
     }
     rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
                                     (controller);
+//    printf("KadService::FindNode - %s\n", sender.DebugString().c_str());
     if (ctrl != NULL) {
       add_contact_(sender, ctrl->rtt(), false);
     } else {
@@ -440,9 +195,11 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
 void KadService::Store(google::protobuf::RpcController *controller,
                        const StoreRequest *request, StoreResponse *response,
                        google::protobuf::Closure *done) {
+  DLOG(WARNING) << "KadService::Store - " << node_info_.port() << std::endl;
   if (!node_joined_) {
     response->set_result(kRpcResultFailure);
     done->Run();
+    DLOG(WARNING) << "Not joined? How'd I get the message, then?" << std::endl;
     return;
   }
   Contact sender;
@@ -473,163 +230,6 @@ void KadService::Store(google::protobuf::RpcController *controller,
   }
   response->set_node_id(node_info_.node_id());
   done->Run();
-}
-
-void KadService::Downlist(google::protobuf::RpcController *controller,
-                          const DownlistRequest *request,
-                          DownlistResponse *response,
-                          google::protobuf::Closure *done) {
-  if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
-    done->Run();
-    return;
-  }
-  Contact sender;
-  if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
-  } else if (GetSender(request->sender_info(), &sender)) {
-    for (int i = 0; i < request->downlist_size(); ++i) {
-      Contact dead_node;
-      if (!dead_node.ParseFromString(request->downlist(i)))
-        continue;
-    // A sophisticated attacker possibly send a random downlist. We only verify
-    // the offline status of the nodes in our routing table.
-      Contact contact_to_ping;
-      response->set_result(kRpcResultSuccess);
-      if (get_contact_(dead_node.node_id(), &contact_to_ping)) {
-        ping_(dead_node, boost::bind(&downlist_ping_cb, _1));
-      }
-    }
-    rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
-        (controller);
-    if (ctrl != NULL) {
-      add_contact_(sender, ctrl->rtt(), false);
-    } else {
-      add_contact_(sender, 0.0, false);
-    }
-  } else {
-    response->set_result(kRpcResultFailure);
-  }
-  response->set_node_id(node_info_.node_id());
-  done->Run();
-}
-
-bool KadService::GetSender(const ContactInfo &sender_info, Contact *sender) {
-  std::string ser_info(sender_info.SerializeAsString());
-  return sender->ParseFromString(ser_info);
-}
-
-bool KadService::CheckStoreRequest(const StoreRequest *request,
-                                   Contact *sender) {
-  if (!request->IsInitialized())
-    return false;
-  if (node_hasRSAkeys_) {
-    if (!request->has_signed_request() || !request->has_sig_value())
-      return false;
-  } else {
-    if (!request->has_value())
-      return false;
-  }
-  return GetSender(request->sender_info(), sender);
-}
-
-void KadService::StoreValueLocal(const std::string &key,
-                                 const std::string &value, Contact sender,
-                                 const boost::int32_t &ttl,
-                                 const bool &publish, StoreResponse *response,
-                                 rpcprotocol::Controller *ctrl) {
-  bool result;
-  if (publish) {
-    result = pdatastore_->StoreItem(key, value, ttl, false);
-  } else {
-    std::string ser_del_request;
-    result = pdatastore_->RefreshItem(key, value, &ser_del_request);
-    if (!result && ser_del_request.empty()) {
-      result = pdatastore_->StoreItem(key, value, ttl, false);
-    } else if (!result && !ser_del_request.empty()) {
-      SignedRequest *req = response->mutable_signed_request();
-      req->ParseFromString(ser_del_request);
-    }
-  }
-  if (result) {
-    response->set_result(kRpcResultSuccess);
-    if (ctrl != NULL) {
-      add_contact_(sender, ctrl->rtt(), false);
-    } else {
-      add_contact_(sender, 0.0, false);
-    }
-  } else {
-    response->set_result(kRpcResultFailure);
-  }
-}
-
-void KadService::StoreValueLocal(const std::string &key,
-                                 const SignedValue &value, Contact sender,
-                                 const boost::int32_t &ttl, const bool &publish,
-                                 StoreResponse *response,
-                                 rpcprotocol::Controller *ctrl) {
-  bool result, hashable;
-  std::string ser_value(value.value() + value.value_signature());
-  if (publish) {
-    if (CanStoreSignedValueHashable(key, ser_value, &hashable)) {
-      result = pdatastore_->StoreItem(key, value.SerializeAsString(), ttl,
-                                      hashable);
-      if (!result) {
-        DLOG(WARNING) << "pdatastore_->StoreItem 1 Failed.";
-      }
-    } else {
-      DLOG(WARNING) << "CanStoreSignedValueHashable Failed.";
-      result = false;
-    }
-  } else {
-    std::string ser_del_request;
-    result = pdatastore_->RefreshItem(key, value.SerializeAsString(),
-                                      &ser_del_request);
-
-    if (!result && CanStoreSignedValueHashable(key, ser_value, &hashable) &&
-        ser_del_request.empty()) {
-      result = pdatastore_->StoreItem(key, value.SerializeAsString(), ttl,
-                                      hashable);
-      if (!result)
-        DLOG(WARNING) << "pdatastore_->StoreItem 2 Failed.";
-    } else if (!result && !ser_del_request.empty()) {
-      SignedRequest *req = response->mutable_signed_request();
-      req->ParseFromString(ser_del_request);
-      DLOG(WARNING) << "Weird Fail. - adding signed req to resp." << std::endl;
-    } else if (!result) {
-      DLOG(WARNING) << "pdatastore_->RefreshItem Failed.";
-    }
-  }
-  if (result) {
-    response->set_result(kRpcResultSuccess);
-    if (ctrl != NULL) {
-      add_contact_(sender, ctrl->rtt(), false);
-    } else {
-      add_contact_(sender, 0.0, false);
-    }
-  } else {
-    response->set_result(kRpcResultFailure);
-  }
-}
-
-bool KadService::CanStoreSignedValueHashable(const std::string &key,
-                                             const std::string &value,
-                                             bool *hashable) {
-  std::vector< std::pair<std::string, bool> > attr;
-  attr = pdatastore_->LoadKeyAppendableAttr(key);
-  *hashable = false;
-  if (attr.empty()) {
-    crypto::Crypto cobj;
-    cobj.set_hash_algorithm(crypto::SHA_512);
-    if (key == cobj.Hash(value, "", crypto::STRING_STRING, false))
-      *hashable = true;
-  } else if (attr.size() == 1) {
-    *hashable = attr[0].second;
-    if (*hashable && value != attr[0].first) {
-      return false;
-    }
-  }
-  return true;
 }
 
 void KadService::Delete(google::protobuf::RpcController *controller,
@@ -835,6 +435,163 @@ hashable replacement values.
   }
 
   done->Run();
+}
+
+void KadService::Downlist(google::protobuf::RpcController *controller,
+                          const DownlistRequest *request,
+                          DownlistResponse *response,
+                          google::protobuf::Closure *done) {
+  if (!node_joined_) {
+    response->set_result(kRpcResultFailure);
+    done->Run();
+    return;
+  }
+  Contact sender;
+  if (!request->IsInitialized()) {
+    response->set_result(kRpcResultFailure);
+  } else if (GetSender(request->sender_info(), &sender)) {
+    for (int i = 0; i < request->downlist_size(); ++i) {
+      Contact dead_node;
+      if (!dead_node.ParseFromString(request->downlist(i)))
+        continue;
+    // A sophisticated attacker possibly send a random downlist. We only verify
+    // the offline status of the nodes in our routing table.
+      Contact contact_to_ping;
+      response->set_result(kRpcResultSuccess);
+      if (get_contact_(dead_node.node_id(), &contact_to_ping)) {
+        ping_(dead_node, boost::bind(&downlist_ping_cb, _1));
+      }
+    }
+    rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
+        (controller);
+    if (ctrl != NULL) {
+      add_contact_(sender, ctrl->rtt(), false);
+    } else {
+      add_contact_(sender, 0.0, false);
+    }
+  } else {
+    response->set_result(kRpcResultFailure);
+  }
+  response->set_node_id(node_info_.node_id());
+  done->Run();
+}
+
+bool KadService::GetSender(const ContactInfo &sender_info, Contact *sender) {
+  std::string ser_info(sender_info.SerializeAsString());
+  return sender->ParseFromString(ser_info);
+}
+
+bool KadService::CheckStoreRequest(const StoreRequest *request,
+                                   Contact *sender) {
+  if (!request->IsInitialized())
+    return false;
+  if (node_hasRSAkeys_) {
+    if (!request->has_signed_request() || !request->has_sig_value())
+      return false;
+  } else {
+    if (!request->has_value())
+      return false;
+  }
+  return GetSender(request->sender_info(), sender);
+}
+
+void KadService::StoreValueLocal(const std::string &key,
+                                 const std::string &value, Contact sender,
+                                 const boost::int32_t &ttl,
+                                 const bool &publish, StoreResponse *response,
+                                 rpcprotocol::Controller *ctrl) {
+  bool result;
+  if (publish) {
+    result = pdatastore_->StoreItem(key, value, ttl, false);
+  } else {
+    std::string ser_del_request;
+    result = pdatastore_->RefreshItem(key, value, &ser_del_request);
+    if (!result && ser_del_request.empty()) {
+      result = pdatastore_->StoreItem(key, value, ttl, false);
+    } else if (!result && !ser_del_request.empty()) {
+      SignedRequest *req = response->mutable_signed_request();
+      req->ParseFromString(ser_del_request);
+    }
+  }
+  if (result) {
+    response->set_result(kRpcResultSuccess);
+    if (ctrl != NULL) {
+      add_contact_(sender, ctrl->rtt(), false);
+    } else {
+      add_contact_(sender, 0.0, false);
+    }
+  } else {
+    response->set_result(kRpcResultFailure);
+  }
+}
+
+void KadService::StoreValueLocal(const std::string &key,
+                                 const SignedValue &value, Contact sender,
+                                 const boost::int32_t &ttl, const bool &publish,
+                                 StoreResponse *response,
+                                 rpcprotocol::Controller *ctrl) {
+  bool result, hashable;
+  std::string ser_value(value.value() + value.value_signature());
+  if (publish) {
+    if (CanStoreSignedValueHashable(key, ser_value, &hashable)) {
+      result = pdatastore_->StoreItem(key, value.SerializeAsString(), ttl,
+                                      hashable);
+      if (!result) {
+        DLOG(WARNING) << "pdatastore_->StoreItem 1 Failed.";
+      }
+    } else {
+      DLOG(WARNING) << "CanStoreSignedValueHashable Failed.";
+      result = false;
+    }
+  } else {
+    std::string ser_del_request;
+    result = pdatastore_->RefreshItem(key, value.SerializeAsString(),
+                                      &ser_del_request);
+
+    if (!result && CanStoreSignedValueHashable(key, ser_value, &hashable) &&
+        ser_del_request.empty()) {
+      result = pdatastore_->StoreItem(key, value.SerializeAsString(), ttl,
+                                      hashable);
+      if (!result)
+        DLOG(WARNING) << "pdatastore_->StoreItem 2 Failed.";
+    } else if (!result && !ser_del_request.empty()) {
+      SignedRequest *req = response->mutable_signed_request();
+      req->ParseFromString(ser_del_request);
+      DLOG(WARNING) << "Weird Fail. - adding signed req to resp." << std::endl;
+    } else if (!result) {
+      DLOG(WARNING) << "pdatastore_->RefreshItem Failed.";
+    }
+  }
+  if (result) {
+    response->set_result(kRpcResultSuccess);
+    if (ctrl != NULL) {
+      add_contact_(sender, ctrl->rtt(), false);
+    } else {
+      add_contact_(sender, 0.0, false);
+    }
+  } else {
+    response->set_result(kRpcResultFailure);
+  }
+}
+
+bool KadService::CanStoreSignedValueHashable(const std::string &key,
+                                             const std::string &value,
+                                             bool *hashable) {
+  std::vector< std::pair<std::string, bool> > attr;
+  attr = pdatastore_->LoadKeyAppendableAttr(key);
+  *hashable = false;
+  if (attr.empty()) {
+    crypto::Crypto cobj;
+    cobj.set_hash_algorithm(crypto::SHA_512);
+    if (key == cobj.Hash(value, "", crypto::STRING_STRING, false))
+      *hashable = true;
+  } else if (attr.size() == 1) {
+    *hashable = attr[0].second;
+    if (*hashable && value != attr[0].first) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace kad

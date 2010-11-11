@@ -921,8 +921,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
           message_handlers2.at(0)->managed_endpoint_messages().back();
   EXPECT_FALSE(SocketAlive(udt_connections2.at(0).udt_socket_id_));
   int count(0), timeout(1000);
-  while(count < timeout &&
-        SocketAlive(signalled_managed_endpoint_message.get<0>())) {
+  while (count < timeout &&
+         SocketAlive(signalled_managed_endpoint_message.get<0>())) {
     ++count;
     boost::this_thread::sleep(boost::posix_time::milliseconds(1));
   }

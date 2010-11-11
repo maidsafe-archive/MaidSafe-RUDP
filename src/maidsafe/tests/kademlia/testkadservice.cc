@@ -27,16 +27,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/kademlia/kadservice.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+
 #include "maidsafe/base/alternativestore.h"
 #include "maidsafe/base/crypto.h"
-#include "maidsafe/tests/kademlia/fake_callbacks.h"
-#include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/log.h"
+#include "maidsafe/base/utils.h"
+#include "maidsafe/kademlia/datastore.h"
+#include "maidsafe/kademlia/kadservice.h"
+#include "maidsafe/kademlia/kadroutingtable.h"
+#include "maidsafe/protobuf/signed_kadvalue.pb.h"
+#include "maidsafe/rpcprotocol/channel-api.h"
+#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
+#include "maidsafe/tests/kademlia/fake_callbacks.h"
+
+namespace kad {
+
+namespace test_kadservice {
+
+static const boost::uint16_t K = 16;
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
@@ -75,12 +86,6 @@ class DummyAltStore : public base::AlternativeStore {
   std::set<std::string> keys_;
 };
 
-namespace test_kadservice {
-  static const boost::uint16_t K = 16;
-}  // namespace test_kadservice
-
-namespace kad {
-
 class Callback {
  public:
   void CallbackFunction() {}
@@ -88,8 +93,7 @@ class Callback {
 
 class KadServicesTest: public testing::Test {
  protected:
-  KadServicesTest() : transport_(), channel_manager_(), transport_port_(0),
-                      contact_(), crypto_(), node_id_(), service_(),
+  KadServicesTest() : contact_(), crypto_(), node_id_(), service_(),
                       datastore_(), routingtable_(), validator_() {
     crypto_.set_hash_algorithm(crypto::SHA_512);
     crypto_.set_symm_algorithm(crypto::AES_256);
@@ -109,16 +113,10 @@ class KadServicesTest: public testing::Test {
   }
 
   virtual void SetUp() {
-    transport_.reset(new transport::UdtTransport);
-    transport::TransportCondition tc;
-    transport_port_ = transport_->StartListening("", 0, &tc);
-    ASSERT_EQ(transport::kSuccess, tc);
-    ASSERT_LT(0, transport_port_);
-    channel_manager_.reset(new rpcprotocol::ChannelManager(transport_));
-    ASSERT_EQ(0, channel_manager_->Start());
     datastore_.reset(new DataStore(kRefreshTime));
     routingtable_.reset(new RoutingTable(node_id_, test_kadservice::K));
-    service_.reset(new KadService(NatRpcs(channel_manager_), datastore_, true,
+    service_.reset(new KadService(
+        datastore_, true,
         boost::bind(&KadServicesTest::AddCtc, this, _1, _2, _3),
         boost::bind(&KadServicesTest::GetRandCtcs, this, _1, _2, _3),
         boost::bind(&KadServicesTest::GetCtc, this, _1, _2),
@@ -136,14 +134,8 @@ class KadServicesTest: public testing::Test {
     service_->set_node_joined(true);
   }
 
-  virtual void TearDown() {
-    transport_->StopListening(transport_port_);
-    channel_manager_->Stop();
-  }
+  virtual void TearDown() {}
 
-  boost::shared_ptr<transport::UdtTransport> transport_;
-  boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
-  rpcprotocol::Port transport_port_;
   ContactInfo contact_;
   crypto::Crypto crypto_;
   kad::KadId node_id_;
@@ -182,7 +174,7 @@ class KadServicesTest: public testing::Test {
   }
   void Ping(const Contact &ctc, VoidFunctorOneString callback) {
     boost::thread thrd(boost::bind(&KadServicesTest::ExePingCb, this,
-        ctc.node_id(), callback));
+                                   ctc.node_id(), callback));
   }
   void ExePingCb(const kad::KadId &id, VoidFunctorOneString callback) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));
@@ -206,6 +198,8 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
                                      (&cb_obj, &Callback::CallbackFunction);
   service_->Ping(&controller, &ping_request, &ping_response, done1);
+  while (!ping_response.IsInitialized())
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(ping_response.IsInitialized());
   EXPECT_EQ(kRpcResultFailure, ping_response.result());
   EXPECT_FALSE(ping_response.has_echo());
@@ -219,6 +213,8 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
                                      (&cb_obj, &Callback::CallbackFunction);
   ping_response.Clear();
   service_->Ping(&controller, &ping_request, &ping_response, done2);
+  while (!ping_response.IsInitialized())
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(ping_response.IsInitialized());
   EXPECT_EQ(kRpcResultSuccess, ping_response.result());
   EXPECT_EQ("pong", ping_response.echo());
@@ -1399,5 +1395,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
     ASSERT_EQ(node_id_.String(), response.node_id());
   }
 }
+
+}  // namespace test_kadservice
 
 }  // namespace kad

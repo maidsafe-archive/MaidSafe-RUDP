@@ -34,7 +34,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kad {
 
-namespace test {
+namespace test_kadid {
+
+void InsertKadContact(const KadId &key, const kad::Contact &new_contact,
+                      std::vector<kad::Contact> *contacts) {
+  std::list<kad::Contact> contact_list(contacts->begin(), contacts->end());
+  contact_list.push_back(new_contact);
+  kad::SortContactList(key, &contact_list);
+  contacts->clear();
+  for (std::list<kad::Contact>::iterator it = contact_list.begin();
+       it != contact_list.end(); ++it) {
+    contacts->push_back(*it);
+  }
+}
 
 KadId IncreaseId(const KadId &kad_id) {
   std::string raw(kad_id.String());
@@ -478,6 +490,6 @@ TEST(TestKadId, BEH_KAD_OperatorEql) {
   ASSERT_EQ(kadid1.String(), kadid2.String());
 }
 
-}  // namespace test
+}  // namespace test_kadid
 
 }  // namespace kad

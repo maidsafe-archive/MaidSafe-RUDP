@@ -1,37 +1,16 @@
-﻿/* Copyright (c) 2010 maidsafe.net limited
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
-    * Neither the name of the maidsafe.net limited nor the names of its
-    contributors may be used to endorse or promote products derived from this
-    software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+﻿// Copyright 2010 maidsafe.net limited
 
 #include "maidsafe/transport/udtconnection.h"
+
 #include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <google/protobuf/descriptor.h>
+
 #include <algorithm>
+#include <vector>
+
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/threadpool.h"
 #include "maidsafe/transport/udttransport.h"
@@ -42,17 +21,10 @@ UdtConnection::UdtConnection(const IP &remote_ip,
                              const Port &remote_port,
                              const IP &rendezvous_ip,
                              const Port &rendezvous_port)
-    : udt_transport_(NULL),
-      signals_(new Signals),
-      threadpool_(),
-      worker_(),
-      udt_socket_id_(UDT::INVALID_SOCK),
-      remote_ip_(remote_ip),
-      remote_port_(remote_port),
-      rendezvous_ip_(rendezvous_ip),
-      rendezvous_port_(rendezvous_port),
-      peer_(),
-      transport_message_(),
+    : udt_transport_(NULL), signals_(new Signals), threadpool_(),
+      worker_(), udt_socket_id_(UDT::INVALID_SOCK), remote_ip_(remote_ip),
+      remote_port_(remote_port), rendezvous_ip_(rendezvous_ip),
+      rendezvous_port_(rendezvous_port), peer_(), transport_message_(),
       send_timeout_(kDefaultInitialTimeout),
       receive_timeout_(kDefaultInitialTimeout) {
   Init();
@@ -63,35 +35,51 @@ UdtConnection::UdtConnection(UdtTransport *udt_transport,
                              const Port &remote_port,
                              const IP &rendezvous_ip,
                              const Port &rendezvous_port)
-    : udt_transport_(udt_transport),
-      signals_(udt_transport->signals()),
-      threadpool_(udt_transport->general_threadpool_),
-      worker_(),
-      udt_socket_id_(UDT::INVALID_SOCK),
-      remote_ip_(remote_ip),
-      remote_port_(remote_port),
-      rendezvous_ip_(rendezvous_ip),
-      rendezvous_port_(rendezvous_port),
-      peer_(),
-      transport_message_(),
+    : udt_transport_(udt_transport), signals_(udt_transport->signals()),
+      threadpool_(udt_transport->general_threadpool_), worker_(),
+      udt_socket_id_(UDT::INVALID_SOCK), remote_ip_(remote_ip),
+      remote_port_(remote_port), rendezvous_ip_(rendezvous_ip),
+      rendezvous_port_(rendezvous_port), peer_(), transport_message_(),
       send_timeout_(kDefaultInitialTimeout),
       receive_timeout_(kDefaultInitialTimeout) {
   Init();
 }
 
+UdtConnection::UdtConnection(const UdtConnection &other)
+    : udt_transport_(other.udt_transport_), signals_(other.signals_),
+      threadpool_(other.threadpool_), worker_(other.worker_),
+      udt_socket_id_(other.udt_socket_id_), remote_ip_(other.remote_ip_),
+      remote_port_(other.remote_port_), rendezvous_ip_(other.rendezvous_ip_),
+      rendezvous_port_(other.rendezvous_port_), peer_(other.peer_),
+      transport_message_(other.transport_message_),
+      send_timeout_(other.send_timeout_),
+      receive_timeout_(other.receive_timeout_) { }
+
+UdtConnection& UdtConnection::operator=(const UdtConnection &other) {
+  if (this != &other) {
+    udt_transport_ = other.udt_transport_;
+    signals_ = other.signals_;
+    threadpool_ = other.threadpool_;
+    worker_ = other.worker_;
+    udt_socket_id_ = other.udt_socket_id_;
+    remote_ip_ = other.remote_ip_;
+    remote_port_ = other.remote_port_;
+    rendezvous_ip_ = other.rendezvous_ip_;
+    rendezvous_port_ = other.rendezvous_port_;
+    peer_ = other.peer_;
+    transport_message_ = other.transport_message_;
+    send_timeout_ = other.send_timeout_;
+    receive_timeout_ = other.receive_timeout_;
+  }
+  return *this;
+}
+
 UdtConnection::UdtConnection(UdtTransport *udt_transport,
                              const UdtSocketId &udt_socket_id)
-    : udt_transport_(udt_transport),
-      signals_(udt_transport->signals()),
-      threadpool_(udt_transport->general_threadpool_),
-      worker_(),
-      udt_socket_id_(udt_socket_id),
-      remote_ip_(""),
-      remote_port_(0),
-      rendezvous_ip_(""),
-      rendezvous_port_(0),
-      peer_(),
-      transport_message_(),
+    : udt_transport_(udt_transport), signals_(udt_transport->signals()),
+      threadpool_(udt_transport->general_threadpool_), worker_(),
+      udt_socket_id_(udt_socket_id), remote_ip_(), remote_port_(0),
+      rendezvous_ip_(), rendezvous_port_(0), peer_(), transport_message_(),
       send_timeout_(kDefaultInitialTimeout),
       receive_timeout_(kDefaultInitialTimeout) {}
 

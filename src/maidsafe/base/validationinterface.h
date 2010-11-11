@@ -72,8 +72,9 @@ class SignatureValidator {
                                const std::string &key) = 0;
   inline std::string id() const { return id_; }
   inline void set_id(const std::string &id) { id_ = id; }
-  private:
-    std::string id_;
+
+ private:
+  std::string id_;
 };
 
 }  // namespace base

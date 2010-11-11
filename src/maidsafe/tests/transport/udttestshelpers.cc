@@ -26,7 +26,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/tests/transport/udttestshelpers.h"
+
+#include <string>
 #include <vector>
+
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/udt/api.h"
 

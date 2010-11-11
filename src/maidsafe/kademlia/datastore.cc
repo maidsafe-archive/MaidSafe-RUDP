@@ -203,11 +203,14 @@ bool DataStore::RefreshItem(const std::string &key,
                             std::string *str_delete_req) {
   boost::mutex::scoped_lock guard(mutex_);
   datastore::iterator it = datastore_.find(boost::make_tuple(key, value));
-  if (it == datastore_.end())
+  if (it == datastore_.end()) {
+    printf("Look it up, it's in the dictionary.\n");
     return false;
+  }
   if (it->del_status_ != NOT_DELETED) {
     str_delete_req->clear();
     *str_delete_req = it->ser_delete_req_;
+    printf("It's there, next to fuck you.\n");
     return false;
   }
   boost::uint32_t time_stamp = base::GetEpochTime();

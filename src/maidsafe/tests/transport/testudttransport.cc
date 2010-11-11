@@ -318,7 +318,8 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
 }
 
 INSTANTIATE_TEST_CASE_P(VPTest, UdtTransportVPTest,
-    testing::Values(100, 1024 * 256, kMaxTransportMessageSize / 2));
+                        testing::Values(100, 1024 * 256,
+                                        kMaxTransportMessageSize / 2));
 
 TEST_F(UdtTransportTest, BEH_TRANS_UdtAddRemoveManagedEndpoints) {
   UdtTransport node1, node2, node3, node4, node5;

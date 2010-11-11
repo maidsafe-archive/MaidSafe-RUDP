@@ -88,10 +88,10 @@ struct UdtStats : public SocketPerformanceStats {
 
 class UdtConnection {
  public:
-  UdtConnection(const IP &remote_ip,
-                const Port &remote_port,
-                const IP &rendezvous_ip,
-                const Port &rendezvous_port);
+  UdtConnection(const IP &remote_ip, const Port &remote_port,
+                const IP &rendezvous_ip, const Port &rendezvous_port);
+  UdtConnection(const UdtConnection &other);
+  UdtConnection& operator=(const UdtConnection &other);
   ~UdtConnection();
   // Send message on connected socket.  If message is a request, then
   // timeout_wait_for_response defines timeout for receiving response in

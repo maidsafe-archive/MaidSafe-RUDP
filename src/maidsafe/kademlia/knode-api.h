@@ -49,16 +49,13 @@ class AlternativeStore;
 class SignatureValidator;
 }  // namespace base
 
-
 namespace rpcprotocol {
 class ChannelManager;
 }  // namespace rpcprotocol
 
-
 namespace transport {
 class UdtTransport;
 }  // namespace transport
-
 
 namespace kad {
 
@@ -129,9 +126,9 @@ class KNode {
   * @param external_port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void Join(const KadId &node_id, const std::string &kad_config_file,
-            const IP &external_ip, const Port &external_port,
-            VoidFunctorOneString callback);
+  void JoinFirstNode(const KadId &node_id, const std::string &kad_config_file,
+                     const IP &external_ip, const Port &external_port,
+                     VoidFunctorOneString callback);
   /**
   * Join the first node of the network using a random id.
   * This is a non-blocking operation.
@@ -141,8 +138,8 @@ class KNode {
   * @param external_port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void Join(const std::string &kad_config_file, const IP &external_ip,
-            const Port &external_port, VoidFunctorOneString callback);
+  void JoinFirstNode(const std::string &kad_config_file, const IP &external_ip,
+                     const Port &external_port, VoidFunctorOneString callback);
   /**
   * Leave the kademlia network.  All values stored in the node are erased and
   * nodes from the routing table are saved as bootstrapping nodes in the
@@ -408,12 +405,7 @@ class KNode {
   * @return type of nat
   */
   NatType host_nat_type();
-  /**
-  * Returns a boolean indicating if the node will have to recheck its NAT type
-  * when it knows more nodes.
-  * @return recheck happening
-  */
-  bool recheck_nat_type();
+
  private:
   boost::shared_ptr<KNodeImpl> pimpl_;
 };

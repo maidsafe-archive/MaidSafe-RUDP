@@ -161,8 +161,8 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
                              google::protobuf::Message *response,
                              google::protobuf::Closure *done) {
   if ((remote_ip_.empty()) || (remote_port_ == 0)) {
-    DLOG(ERROR) << "ChannelImpl::CallMethod. No remote_ip or remote_port"
-                << std::endl;
+    DLOG(ERROR) << "ChannelImpl::CallMethod. No remote_ip or remote_port: "
+                << method->full_name() << std::endl;
     done->Run();
     return;
   }

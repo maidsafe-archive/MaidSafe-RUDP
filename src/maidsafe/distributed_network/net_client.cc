@@ -167,6 +167,33 @@ void StartTest(boost::shared_ptr<Operator> op, boost::shared_ptr<kad::KNode> kn,
   op->Run();
 }
 
+bool WriteKadConfig() {
+  base::KadConfig kadconfig;
+  fs::path kadconfig_path("/.kadconfig");
+  try {
+    base::KadConfig::Contact *contact = kadconfig.add_contact();
+    contact->set_ip("173.230.145.156");
+    contact->set_node_id("916a6578803acd5ee57c5ffcba76e2e0688dcc079cf3912bab87d"
+                         "43d5213cfedfb337ec8a62664fd85a11e02ca58724623abe17f1f"
+                         "699a43fcbe970c77578266");
+    contact->set_port(33818);
+    contact->set_local_ip("173.230.145.156");
+    contact->set_local_port(9000);
+    boost::filesystem::fstream output(kadconfig_path.string().c_str(),
+                                      std::ios::out | std::ios::trunc |
+                                      std::ios::binary);
+    if (!kadconfig.SerializeToOstream(&output)) {
+      output.close();
+      return false;
+    }
+    output.close();
+    return fs::exists(kadconfig_path);
+  }
+  catch(const std::exception &) {
+    return false;
+  }
+}
+
 bool KadConfigOK() {
 //  base::KadConfig kadconfig;
 //  fs::path kadconfig_path("/.kadconfig");
@@ -285,17 +312,20 @@ int main(int, char **argv) {
 
   // Create required objects
   net_client::NetworkTestValidator ntv;
-  transport::TransportHandler transport_handler;
-  transport::TransportUDT transport_udt;
+  transport::UdtTransport transport_udt;
   boost::int16_t transport_id;
   transport_handler.Register(&transport_udt, &transport_id);
   rpcprotocol::ChannelManager channel_manager(&transport_handler);
   crypto::RsaKeyPair rsa_key_pair;
   rsa_key_pair.GenerateKeys(4096);
+  kad::KnodeConstructionParameters kcp;
+  kcp.type = kad::CLIENT;
+  kcp.public_key = rsa_key_pair.public_key();
+  kcp.private_key = rsa_key_pair.private_key();
+  kcp.k = net_client::K;
+  kcp.refresh_time = kad::kRefreshTime;
   boost::shared_ptr<kad::KNode> node(
-      new kad::KNode(&channel_manager, &transport_handler, kad::CLIENT,
-                     rsa_key_pair.private_key(), rsa_key_pair.public_key(),
-                     false, false, net_client::K));
+      new kad::KNode(&channel_manager, &transport_handler, kcp));
   node->set_transport_id(transport_id);
   node->set_signature_validator(&ntv);
   if (!channel_manager.RegisterNotifiersToTransport() ||
@@ -305,7 +335,7 @@ int main(int, char **argv) {
     return 2;
   }
 
-  if (0 != transport_handler.Start(0, transport_id) ||
+  if (0 != transport_udt.Start(0) ||
       0 != channel_manager.Start()) {
     return 3;
   }
