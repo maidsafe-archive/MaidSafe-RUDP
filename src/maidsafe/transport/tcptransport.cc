@@ -46,17 +46,15 @@ TcpTransport::TcpTransport()
 }
 
 TcpTransport::~TcpTransport() {
-  {
-    boost::mutex::scoped_lock lock(listening_ports_mutex_);
-    keep_alive_.reset();
-  }
-
-  StopAllListening();
+  boost::mutex::scoped_lock lock(listening_ports_mutex_);
+  keep_alive_.reset();
 
   BOOST_FOREACH(ConnectionMap::value_type const& connection, connections_) {
-    connection.second->Close();
+    io_service_.post(boost::bind(&TcpConnection::Close, connection.second));
   }
+  lock.unlock();
 
+  StopAllListening();
   worker_thread_.join();
 }
 
