@@ -25,161 +25,238 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <maidsafe/transport/tcptransport.h>
+#include <maidsafe/transport/tcpconnection.h>
+#include <maidsafe/transport/udtconnection.h> // for timeout constants
+#include <maidsafe/protobuf/transport_message.pb.h>
+#include <maidsafe/base/log.h>
+
+#include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
 #include <boost/bind.hpp>
-#include "maidsafe/base/log.h"
-#include "maidsafe/transport/tcpconnection.h"
+#include <boost/foreach.hpp>
+#include <google/protobuf/descriptor.h>
+
+namespace asio = boost::asio;
+namespace bs = boost::system;
+namespace ip = asio::ip;
+namespace pt = boost::posix_time;
 
 namespace transport {
 
-TCPConnection::TCPConnection(boost::asio::io_service &io_service,  // NOLINT
-    boost::function<void(const boost::uint32_t&, const bool&, const bool&,
-    const boost::system::error_code&)> send_notifier,
-    boost::function<void(const std::string, const boost::uint32_t&,
-    const boost::system::error_code&)> read_notifier)
-    : socket_(io_service), in_data_(), out_data_(), tmp_data_(),
-      in_data_size_(0), connection_id_(0), send_notifier_(send_notifier),
-      read_notifier_(read_notifier), out_port_(0), send_once_(true),
-      sending_rpc_(false), closed_(false), receiving_(false) {
+TcpConnection::TcpConnection(TcpTransport &tcp_transport,
+                             ip::tcp::endpoint const& remote_ep)
+  : transport_(tcp_transport)
+  , socket_(transport_.IOService())
+  , timer_(transport_.IOService())
+  , remote_endpoint_(remote_ep)
+  , timeout_for_response_(kDefaultInitialTimeout) {}
+
+TcpConnection::~TcpConnection() {
 }
 
-boost::asio::ip::tcp::endpoint TCPConnection::RemoteEndPoint(
-    boost::system::error_code &ec) {
-  boost::asio::ip::tcp::endpoint remote = socket_.remote_endpoint(ec);
-  return remote;
+void TcpConnection::Close() {
+  socket_.close();
+  timer_.cancel();
+  transport_.RemoveConnection(socket_id_);
 }
 
-void TCPConnection::StartReceiving() {
-  if (closed_ || receiving_)
-    return;
-  in_data_.clear();
-  in_data_size_ = 0;
-  sending_rpc_ = false;
-
-  socket_.async_read_some(boost::asio::buffer(
-      reinterpret_cast<char*>(&in_data_size_), sizeof(size_t)),
-      boost::bind(&TCPConnection::ReadHandle, shared_from_this(), true,
-        boost::asio::placeholders::error,
-        boost::asio::placeholders::bytes_transferred));
-  receiving_ = true;
+void TcpConnection::SetSocketId(SocketId id) {
+  socket_id_ = id;
 }
 
-void TCPConnection::Send(const std::string &data) {
-  if (closed_)
-    return;
-  out_data_ = data;
-  size_t size = out_data_.size();
-  boost::asio::async_write(socket_,
-    boost::asio::buffer(reinterpret_cast<char*>(&size), sizeof(size_t)),
-    boost::bind(&TCPConnection::WriteHandle, shared_from_this(),
-      boost::asio::placeholders::error, true));
+ip::tcp::socket &TcpConnection::Socket() {
+  return socket_;
 }
 
-void TCPConnection::ReadHandle(const bool &read_size,
-    const boost::system::error_code &ec, size_t bytes_read) {
-  if (closed_)
-    return;
+void TcpConnection::StartTimeout(int seconds) {
+  timer_.expires_from_now(pt::seconds(seconds));
+  timer_.async_wait(boost::bind(&TcpConnection::HandleTimeout,
+                                shared_from_this(), _1));
+}
+
+void TcpConnection::StartReceiving() {
+  // Start by receiving the message size.
+  // socket_.async_receive(...);
+  buffer_.Allocate(sizeof(DataSize));
+  asio::async_read(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+                   boost::bind(&TcpConnection::HandleSize,
+                               shared_from_this(), _1));
+  StartTimeout(timeout_for_response_);
+}
+
+void TcpConnection::HandleTimeout(boost::system::error_code const& ec) {
+  if (ec) return;
+  socket_.close();
+}
+
+void TcpConnection::HandleSize(boost::system::error_code const& ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.is_open()) {
+    transport_.signals()->on_receive_(socket_id_, kReceiveTimeout);
+    return Close();
+  }
 
   if (ec) {
-    receiving_ = false;
-    // io service has been stopped, no need to notify
-    if (ec == boost::asio::error::operation_aborted) {
+    transport_.signals()->on_receive_(socket_id_, kReceiveUdtFailure);
+    return Close();
+  }
+
+  DataSize size = *reinterpret_cast<DataSize*>(buffer_.Data());
+  buffer_.Allocate(size);
+
+  asio::async_read(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+                   boost::bind(&TcpConnection::HandleRead,
+                               shared_from_this(), _1));
+}
+
+void TcpConnection::HandleRead(boost::system::error_code const& ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.is_open()) {
+    transport_.signals()->on_receive_(socket_id_, kReceiveTimeout);
+    return Close();
+  }
+
+  if (ec) {
+    transport_.signals()->on_receive_(socket_id_, kReceiveUdtFailure);
+    return Close();
+  }
+
+  TransportMessage msg;
+  if (!msg.ParseFromArray(buffer_.Data(), buffer_.Size())) {
+    transport_.signals()->on_receive_(socket_id_, kReceiveParseFailure);
+    return Close();
+  }
+
+  timer_.cancel();
+
+  DispatchMessage(msg);
+}
+
+void TcpConnection::DispatchMessage(const TransportMessage &msg) {
+  bool is_request(msg.type() == TransportMessage::kRequest);
+  // message data should contain exactly one optional field
+  const google::protobuf::Message::Reflection *reflection =
+      msg.data().GetReflection();
+  std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+  reflection->ListFields(msg.data(), &field_descriptors);
+  if (field_descriptors.size() != 1U) {
+    LOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
+    if (!is_request)
+      transport_.signals()->on_receive_(socket_id_, kReceiveParseFailure);
+    return Close();
+  }
+
+  float rtt = 0.f;
+
+  switch (field_descriptors.at(0)->number()) {
+    case TransportMessage::Data::kRawMessageFieldNumber:
+      transport_.signals()->on_message_received_(msg.data().raw_message(),
+                                                 socket_id_, rtt);
+      break;
+    case TransportMessage::Data::kRpcMessageFieldNumber:
+      if (is_request) {
+        transport_.signals()->on_rpc_request_received_(
+            msg.data().rpc_message(), socket_id_, rtt);
+        // Leave socket open to send response on.
+      } else {
+        transport_.signals()->on_rpc_response_received_(
+            msg.data().rpc_message(), socket_id_, rtt);
+        Close();
+      }
+      break;
+    case TransportMessage::Data::kHolePunchingMessageFieldNumber:
       Close();
-      return;
-    }
-    DLOG(ERROR) << "error reading in a connection: " << ec << " - "
-      << ec.message() << "\n";
-    read_notifier_(in_data_, connection_id_, ec);
-    return;
-  }
-
-  if (!read_size) {
-    if (bytes_read == 0) {
-      receiving_ = false;
-      read_notifier_(in_data_, connection_id_, ec);
-      return;
-    }
-    std::string rec_string(tmp_data_.data(), bytes_read);
-    in_data_ += rec_string;
-    if (in_data_.size() >= in_data_size_) {
-      receiving_ = false;
-      read_notifier_(in_data_, connection_id_, ec);
-      return;
-    }
-  }
-
-  socket_.async_read_some(boost::asio::buffer(tmp_data_, 1024),
-    boost::bind(&TCPConnection::ReadHandle, shared_from_this(), false,
-      boost::asio::placeholders::error,
-        boost::asio::placeholders::bytes_transferred));
-}
-
-void TCPConnection::WriteHandle(const boost::system::error_code &ec,
-    const bool &size_sent) {
-  if (closed_)
-    return;
-  if (ec) {
-    // io service has been stopped, no need to notify
-    if (ec == boost::asio::error::operation_aborted) {
+      break;
+    case TransportMessage::Data::kPingFieldNumber:
       Close();
-      return;
-    }
-    DLOG(ERROR) << "error sending in a connection: " << ec << " - "
-      << ec.message() << "\n";
-    send_notifier_(connection_id_, send_once_, sending_rpc_, ec);
-    return;
-  }
-  if (size_sent) {
-    boost::asio::async_write(socket_,
-      boost::asio::buffer(out_data_.c_str(), out_data_.size()),
-      boost::bind(&TCPConnection::WriteHandle, shared_from_this(),
-        boost::asio::placeholders::error, false));
-  } else {
-    send_notifier_(connection_id_, send_once_, sending_rpc_, ec);
+      break;
+    case TransportMessage::Data::kProxyPingFieldNumber:
+      Close();
+      break;
+    case TransportMessage::Data::kManagedEndpointMessageFieldNumber:
+      Close();
+      break;
+    default:
+      LOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
+      Close();
   }
 }
 
-void TCPConnection::Close() {
-  if (closed_)
-    return;
-  boost::system::error_code ec;
-  socket_.close(ec);
-  if (ec)
-    DLOG(WARNING) << "error closing a socket: " << ec << " : " <<
-      ec.message() << "\n";
-  closed_ = true;
+void TcpConnection::Send(const TransportMessage &msg,
+                         boost::uint32_t timeout_wait_for_response) {
+  // Serialize message to internal buffer
+  DataSize msg_size = msg.ByteSize();
+  buffer_.Allocate(msg_size + sizeof(DataSize));
+  *reinterpret_cast<DataSize*>(buffer_.Data()) = msg_size;
+  msg.SerializeToArray(buffer_.Data() + sizeof(DataSize), msg_size);
+
+  bool is_request = msg.type() == TransportMessage::kRequest;
+
+  if (is_request) {
+    assert(!socket_.is_open());
+    timeout_for_response_ = timeout_wait_for_response;
+    StartTimeout(kDefaultInitialTimeout);
+    socket_.async_connect(remote_endpoint_,
+                          boost::bind(&TcpConnection::HandleConnect,
+                                      shared_from_this(), _1));
+  }
+  else {
+    assert(socket_.is_open());
+    timeout_for_response_ = 0;
+    boost::uint32_t timeout(
+        std::max(static_cast<boost::uint32_t>(buffer_.Size() *
+                                              kTimeoutFactor), kMinTimeout));
+    StartTimeout(timeout);
+    asio::async_write(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+                      boost::bind(&TcpConnection::HandleWrite,
+                                  shared_from_this(), _1));
+  }
 }
 
-bool TCPConnection::Connect(const boost::asio::ip::tcp::endpoint &remote_addr,
-    const boost::uint16_t &out_port) {
-  boost::system::error_code ec;
-  socket_.open(boost::asio::ip::tcp::v4());
-  socket_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
-  socket_.bind(boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(),
-    out_port_));
-  socket_.connect(remote_addr, ec);
+void TcpConnection::HandleConnect(const bs::error_code &ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.is_open()) {
+    transport_.signals()->on_receive_(socket_id_, kSendTimeout);
+    return Close();
+  }
+
   if (ec) {
-    DLOG(ERROR) << "error trying to connect: " << ec << " - "
-      << ec.message() << "\n";
-    return false;
+    transport_.signals()->on_receive_(socket_id_, kSendUdtFailure);
+    return Close();
   }
-  out_port_ = out_port;
-  return true;
+
+  boost::uint32_t timeout(
+      std::max(static_cast<boost::uint32_t>(buffer_.Size() *
+                                            kTimeoutFactor), kMinTimeout));
+  StartTimeout(timeout);
+
+  asio::async_write(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+                    boost::bind(&TcpConnection::HandleWrite,
+                                shared_from_this(), _1));
 }
 
-bool TCPConnection::Connect(const boost::asio::ip::tcp::endpoint &remote_addr) {
-  boost::system::error_code ec;
-  socket_.open(boost::asio::ip::tcp::v4());
-  socket_.set_option(boost::asio::ip::tcp::socket::reuse_address(true));
-  boost::asio::socket_base::keep_alive option(true);
-  socket_.set_option(option);
-  socket_.connect(remote_addr, ec);
-  if (ec) {
-    out_port_ = 0;
-    DLOG(ERROR) << "error trying to connect to " << remote_addr << ": "
-      << ec << " - " << ec.message() << "\n";
-    return false;
+void TcpConnection::HandleWrite(const bs::error_code &ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.is_open()) {
+    transport_.signals()->on_receive_(socket_id_, kSendTimeout);
+    return Close();
   }
-  out_port_ = socket_.local_endpoint(ec).port();
-  return true;
+
+  if (ec) {
+    transport_.signals()->on_receive_(socket_id_, kSendUdtFailure);
+    return Close();
+  }
+
+  transport_.signals()->on_send_(socket_id_, kSuccess);
+
+  // Start receiving response
+  if (timeout_for_response_ != 0) {
+    StartReceiving();
+  }
+  else {
+    Close();
+  }
 }
-}
+
+}  // namespace transport

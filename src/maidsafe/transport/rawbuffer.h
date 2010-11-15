@@ -25,55 +25,50 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
-# define MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
+#ifndef MAIDSAFE_TRANSPORT_RAWBUFFER_H_
+# define MAIDSAFE_TRANSPORT_RAWBUFFER_H_
 
-# include <maidsafe/transport/transport.h>
-# include <maidsafe/transport/rawbuffer.h>
-# include <boost/asio/deadline_timer.hpp>
-# include <boost/asio/io_service.hpp>
-# include <boost/asio/ip/tcp.hpp>
-# include <boost/enable_shared_from_this.hpp>
+# include <memory>
 
 namespace transport {
 
-class TcpTransport;
+class RawBuffer {
+public:
+  RawBuffer() : storage_(0),
+                max_size_(0),
+                size_(0) {}
 
-class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
- public:
-   TcpConnection(TcpTransport &tcp_transport,
-                 const boost::asio::ip::tcp::endpoint &remote =
-                    boost::asio::ip::tcp::endpoint());
-   ~TcpConnection();
+  ~RawBuffer() {
+    ::operator delete(storage_);
+  }
 
-   void SetSocketId(SocketId id);
-   boost::asio::ip::tcp::socket &Socket();
-   void StartReceiving();
-   void Send(const TransportMessage &msg,
-             boost::uint32_t timeout_wait_for_response);
+  char* Allocate(std::size_t bytes) {
+    if (!storage_ || bytes > max_size_) {
+      ::operator delete(storage_);
+      storage_ = ::operator new(bytes);
+      max_size_ = bytes;
+    }
+    size_ = bytes;
+    return (char*)storage_;
+  }
 
-   void Close();
+  std::size_t Size() const {
+    return size_;
+  }
 
- private:
-   void StartTimeout(int seconds);
+  char* Data() {
+    return (char*)storage_;
+  }
 
-   void HandleTimeout(boost::system::error_code const& ec);
-   void HandleSize(boost::system::error_code const& ec);
-   void HandleRead(boost::system::error_code const& ec);
-   void HandleConnect(boost::system::error_code const& ec);
-   void HandleWrite(const boost::system::error_code &ec);
+private:
+  RawBuffer(const RawBuffer&);
+  RawBuffer& operator=(const RawBuffer&);
 
-   void DispatchMessage(const TransportMessage &msg);
-
-   TcpTransport& transport_;
-   SocketId socket_id_;
-   boost::asio::ip::tcp::socket socket_;
-   boost::asio::deadline_timer timer_;
-   boost::asio::ip::tcp::endpoint remote_endpoint_;
-   RawBuffer buffer_;
-   boost::uint32_t timeout_for_response_;
+  void* storage_;
+  std::size_t max_size_;
+  std::size_t size_;
 };
 
 }  // namespace transport
 
-#endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
+#endif  // MAIDSAFE_TRANSPORT_RAWBUFFER_H_

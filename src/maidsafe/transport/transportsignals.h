@@ -174,6 +174,7 @@ class Signals {
   friend class UdtTransport;
   friend class TcpTransport;
   friend class UdtConnection;
+  friend class TcpConnection;
  private:
   OnMessageReceived on_message_received_;
   OnRpcRequestReceived on_rpc_request_received_;
