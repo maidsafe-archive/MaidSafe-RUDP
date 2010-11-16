@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transportsignals.h"
 #include "maidsafe/transport/udtconnection.h"
 #include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/tcptransport.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/base/utils.h"
@@ -54,7 +55,11 @@ namespace transport {
 
 namespace test {
 
-TransportMessage MakeDummyTransportMessage(bool is_request,
+  // NOTE: Put any new transport objects in here.
+  //typedef testing::Types<UdtTransport, TcpTransport > Implementations;
+  typedef testing::Types<TcpTransport > Implementations;
+
+TransportMessage MakeTransportMessage(bool is_request,
                                            const size_t &message_size) {
   TransportMessage transport_message;
   if (is_request)
@@ -73,30 +78,151 @@ TransportMessage MakeDummyTransportMessage(bool is_request,
   return transport_message;
 }
 
-class UdtTransportTest: public testing::Test {
+// All transport objects constructed in same manner
+// No need for factory methods 
+template <class T>
+Transport * CreateTransport() {
+  return new T; }
+
+
+
+template <class T>
+class TransportAPITest: public testing::Test {
  protected:
-  UdtTransportTest() : listening_node_(),
-                       listening_message_handler_(listening_node_.signals(),
-                                                  "Listening", false),
+  TransportAPITest() : trans1_(CreateTransport<T>()),
+                       trans2_(CreateTransport<T>()),
+                       listening_message_handler_(this->trans1_->signals(),
+                                                 "Listening", false),
                        listening_port_(0),
                        loopback_ip_("127.0.0.1"),
                        sockets_for_closing_() {}
+    virtual ~TransportAPITest() { delete trans1_; delete trans2_; }
+    
   void SetUp() {
-    listening_port_ = listening_node_.StartListening("", 0, NULL);
-    ASSERT_TRUE(ValidPort(listening_port_));
+    listening_port_ = this->trans1_->StartListening("", 0, NULL);
+    //ASSERT_TRUE(ValidPort(listening_port_));
+    ASSERT_GT(listening_port_, 0);
   }
   void TearDown() {
     std::for_each(sockets_for_closing_.begin(), sockets_for_closing_.end(),
                   boost::bind(&UDT::close, _1));
   }
-  UdtTransport listening_node_;
+  //Transport listening_node_;
+  Transport * const trans1_;
+  Transport * const trans2_;
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
   std::vector<UdtSocketId> sockets_for_closing_;
+  
 };
 
 
+
+TYPED_TEST_CASE(TransportAPITest, Implementations);
+
+TYPED_TEST(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
+  // Set up sending node and message
+  Transport * const sending_node = this->trans2_;
+  MessageHandler sending_message_handler(sending_node->signals(),
+           "Send", false);
+  TransportMessage request = MakeTransportMessage(true, 256 * 1024);
+  const std::string kSentRpcRequest =
+      request.data().rpc_message().SerializeAsString();
+
+  // Send message
+  SocketId sending_socket_id =
+      this->trans2_->PrepareToSend(this->loopback_ip_,
+                                 this->listening_port_, "", 0);
+  ASSERT_GT(sending_socket_id, 0);
+  const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
+  sending_node->Send(request, sending_socket_id, rpcprotocol::kRpcTimeout);
+  int count(0);
+  while (count < kTimeout &&
+         this->listening_message_handler_.rpc_requests().empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+
+  // Assess results and get receiving socket's ID
+  ASSERT_EQ(1U, sending_message_handler.sent_results().size());
+  boost::tuple<SocketId, TransportCondition> signalled_sent_result =
+      sending_message_handler.sent_results().back();
+  EXPECT_EQ(sending_socket_id, signalled_sent_result.get<0>());
+  EXPECT_EQ(kSuccess, signalled_sent_result.get<1>());
+  ASSERT_EQ(1U, this->listening_message_handler_.rpc_requests().size());
+  boost::tuple<rpcprotocol::RpcMessage, SocketId, float> signalled_rpc_message =
+      this->listening_message_handler_.rpc_requests().back();
+  EXPECT_EQ(kSentRpcRequest,
+            signalled_rpc_message.get<0>().SerializeAsString());
+  UdtSocketId receiving_socket_id = signalled_rpc_message.get<1>();
+
+  // Send reply
+  TransportMessage response = MakeTransportMessage(false, 256 * 1024);
+  const std::string kSentRpcResponse =
+      response.data().rpc_message().SerializeAsString();
+  this->trans1_->Send(response, receiving_socket_id, 0);
+  count = 0;
+  while (count < kTimeout &&
+         sending_message_handler.rpc_responses().empty()) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    count += 10;
+  }
+
+  // Assess results
+  ASSERT_EQ(1U, this->listening_message_handler_.sent_results().size());
+  signalled_sent_result = this->listening_message_handler_.sent_results().back();
+  EXPECT_EQ(receiving_socket_id, signalled_sent_result.get<0>());
+  EXPECT_EQ(kSuccess, signalled_sent_result.get<1>());
+  ASSERT_EQ(1U, sending_message_handler.rpc_responses().size());
+  signalled_rpc_message = sending_message_handler.rpc_responses().back();
+  EXPECT_EQ(kSentRpcResponse,
+            signalled_rpc_message.get<0>().SerializeAsString());
+  EXPECT_EQ(sending_socket_id, signalled_rpc_message.get<1>());
+  EXPECT_FALSE(SocketAlive(sending_socket_id));
+  EXPECT_FALSE(SocketAlive(receiving_socket_id));
+}
+
+
+TYPED_TEST(TransportAPITest, BEH_TRANS_MultipleListeningPorts) {
+  // Start listening ports
+  Transport * const listening_node = this->trans2_;
+  const boost::uint16_t kNumberOfListeningPorts = 12;
+  std::vector<Port> listening_ports;
+  listening_ports.push_back(this->listening_port_);
+  for (int i = 0; i < kNumberOfListeningPorts - 1 ; ++i) {
+    Port listening_port = this->trans1_->StartListening("", 0, NULL);
+    // We need to tell tranports what is valid not measure it
+    // only TODO:(dirvine)
+    // EXPECT_TRUE(ValidPort(listening_port));
+    ASSERT_GT(this->listening_port_, 0);
+    listening_ports.push_back(listening_port);
+  }
+  EXPECT_EQ(kNumberOfListeningPorts, this->trans1_->listening_ports().size());
+
+  // Send a message to each
+  TransportMessage message = MakeTransportMessage(true, 256 * 1024);
+  for (int i = 0; i < kNumberOfListeningPorts ; ++i) {
+    this->sockets_for_closing_.push_back(this->trans1_->PrepareToSend(this->loopback_ip_,
+                                   listening_ports.at(i), "", 0));
+    listening_node->Send(message, this->sockets_for_closing_.at(i), 0);
+  }
+  const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
+  int count(0);
+  while (count < kTimeout &&
+         this->listening_message_handler_.rpc_requests().size() !=
+         kNumberOfListeningPorts) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(30));
+    count += 30;
+  }
+
+  EXPECT_EQ(this->listening_message_handler_.rpc_requests().size(),
+            this->listening_message_handler_.sent_results().size());
+  EXPECT_TRUE(listening_node->StopAllListening());
+}
+
+ // This is where is all changes
+/*
 class UdtTransportVPTest: public testing::TestWithParam<size_t> {
  protected:
   UdtTransportVPTest() : listening_node_(),
@@ -226,127 +352,8 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
 
 INSTANTIATE_TEST_CASE_P(VPTest, UdtTransportVPTest,
                         testing::Values(100, 1024 * 256,
-                                        kMaxTransportMessageSize / 2));
+                                        kMaxTransportMessageSize / 2));*/
 
-TEST_F(UdtTransportTest, BEH_TRANS_UdtAddRemoveManagedEndpoints) {
-  UdtTransport node1, node2, node3, node4, node5;
-  MessageHandler message_handler1(node1.signals(), "Node 1", false);
-  MessageHandler message_handler3(node3.signals(), "Node 3", false);
-  node1.StartListening("", 0, NULL);
-  Port node2_port = node2.StartListening("", 0, NULL);
-  Port node3_port = node3.StartListening("", 0, NULL);
-  Port node4_port = node4.StartListening("", 0, NULL);
-  Port node5_port = node5.StartListening("", 0, NULL);
-  ManagedEndpointId node1_end1 =
-    node1.AddManagedEndpoint(loopback_ip_, node2_port, "", 0, "Node1", 0, 0, 0);
-  EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
-  ManagedEndpointId node1_end2 =
-    node1.AddManagedEndpoint(loopback_ip_, node3_port, "", 0, "Node1", 0, 0, 0);
-  EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
-  EXPECT_TRUE(node1.RemoveManagedEndpoint(node1_end2));
-  const int kTimeout(10000);
-  int count(0);
-  while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids().empty()) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids().size());
-  EXPECT_EQ(1, node1.managed_endpoint_sockets_.size());
-  node1_end2 =
-    node1.AddManagedEndpoint(loopback_ip_, node3_port, "", 0, "Node1", 0, 0, 0);
-  EXPECT_EQ(2, node1.managed_endpoint_sockets_.size());
-  ManagedEndpointId node1_end3 =
-    node1.AddManagedEndpoint(loopback_ip_, node4_port, "", 0, "Node1", 0, 0, 0);
-  EXPECT_EQ(3, node1.managed_endpoint_sockets_.size());
-  ManagedEndpointId node1_end4 =
-    node1.AddManagedEndpoint(loopback_ip_, node5_port, "", 0, "Node1", 0, 0, 0);
-  EXPECT_EQ(4, node1.managed_endpoint_sockets_.size());
-  EXPECT_TRUE(SocketAlive(node1_end1));
-  node1.StopManagedConnections();
-  ASSERT_TRUE(node1.stop_managed_connections_);
-  EXPECT_FALSE(SocketAlive(node1_end1));
-  EXPECT_FALSE(SocketAlive(node1_end2));
-  EXPECT_FALSE(SocketAlive(node1_end3));
-  EXPECT_FALSE(SocketAlive(node1_end4));
-  count = 0;
-  while (count < kTimeout && !node1.managed_endpoint_sockets_.empty()) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(0, node1.managed_endpoint_sockets_.size());
-}
-
-TEST_F(UdtTransportTest, BEH_TRANS_UdtCrashManagedEndpoints) {
-  // Setup managed connections between three nodes.
-  boost::shared_ptr<UdtTransport> node1_ptr(new UdtTransport());
-  UdtTransport node2, node3;
-  MessageHandler message_handler2(node2.signals(), "Node 2", false);
-  MessageHandler message_handler3(node3.signals(), "Node 3", false);
-  Port node1_port = node1_ptr->StartListening("", 0, NULL);
-  Port node2_port = node2.StartListening("", 0, NULL);
-  Port node3_port = node3.StartListening("", 0, NULL);
-  ManagedEndpointId node1_to_node2 = node1_ptr->AddManagedEndpoint(loopback_ip_,
-      node2_port, "", 0, "Node1", 0, 0, 0);
-  ASSERT_LT(0, node1_to_node2);
-  ManagedEndpointId node2_to_node3 = node2.AddManagedEndpoint(loopback_ip_,
-      node3_port, "", 0, "Node2", 0, 0, 0);
-  ASSERT_LT(0, node2_to_node3);
-  ManagedEndpointId node3_to_node1 = node3.AddManagedEndpoint(loopback_ip_,
-      node1_port, "", 0, "Node3", 0, 0, 0);
-  ASSERT_LT(0, node3_to_node1);
-
-  // Stop Node 1's managed connections - Nodes 2 & 3 should each detect a lost
-  // connection.
-  node1_ptr->StopManagedConnections();
-  const int kTimeout(kAddManagedConnectionTimeout);
-  int count(0);
-  while (count < kTimeout &&
-         message_handler2.lost_managed_endpoint_ids().empty()) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids().size());
-  count = 0;
-  while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids().empty()) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(1), message_handler3.lost_managed_endpoint_ids().size());
-
-  // Stop Node 2's managed connections - Node 3 should detect a lost connection.
-  node2.StopManagedConnections();
-  count = 0;
-  while (count < kTimeout &&
-         message_handler3.lost_managed_endpoint_ids().size() != size_t(2)) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(1), message_handler2.lost_managed_endpoint_ids().size());
-  EXPECT_EQ(size_t(2), message_handler3.lost_managed_endpoint_ids().size());
-
-  // Try to reconnect to Node 2 - should fail.
-  node1_to_node2 = node1_ptr->AddManagedEndpoint(loopback_ip_, node2_port, "",
-                                                 0, "Node1", 0, 0, 0);
-  ASSERT_GE(0, node1_to_node2);
-
-  // Re-enable managed connections on Node 2 & try to reconnect - should pass.
-  node2.ReAllowIncomingManagedConnections();
-  node1_to_node2 = node1_ptr->AddManagedEndpoint(loopback_ip_, node2_port, "",
-                                                 0, "Node1", 0, 0, 0);
-  ASSERT_LT(0, node1_to_node2);
-
-  // Destroy Node 1 - Node 2 should detect a lost connection.
-  node1_ptr.reset();
-  count = 0;
-  while (count < kTimeout &&
-         message_handler2.lost_managed_endpoint_ids().size() != size_t(2)) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    count += 10;
-  }
-  EXPECT_EQ(size_t(2), message_handler2.lost_managed_endpoint_ids().size());
-}
 
 }  // namespace test
 
