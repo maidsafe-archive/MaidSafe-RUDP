@@ -20,7 +20,7 @@ Directory structure
     • tools
 • doc (documentation including API structure [To be completed])
 • src
-    • maidsafe (all source files)
+    • maidsafe (all source files, inc 3rd party)
 
 
 For full build instructions, see http://code.google.com/p/maidsafe-dht/wiki/DevBuild
