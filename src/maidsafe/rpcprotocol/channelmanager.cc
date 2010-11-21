@@ -35,8 +35,8 @@ namespace rpcprotocol {
 ChannelManager::ChannelManager() : pimpl_(new ChannelManagerImpl()) {}
 
 ChannelManager::ChannelManager(
-    boost::shared_ptr<transport::UdtTransport> udt_transport)
-    : pimpl_(new ChannelManagerImpl(udt_transport)) {}
+    boost::shared_ptr<transport::Transport> transport)
+    : pimpl_(new ChannelManagerImpl(transport)) {}
 
 ChannelManager::~ChannelManager() {}
 

@@ -128,7 +128,7 @@ void SortLookupContact(const KadId &target_key,
 
 KNodeImpl::KNodeImpl(
     boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-    boost::shared_ptr<transport::UdtTransport> udt_transport,
+    boost::shared_ptr<transport::Transport> transport,
     const KnodeConstructionParameters &knode_parameters)
         : routingtable_mutex_(),
           kadconfig_mutex_(),
@@ -138,13 +138,13 @@ KNodeImpl::KNodeImpl(
           activeprobes_mutex_(),
           pendingcts_mutex_(),
           ptimer_(new base::CallLaterTimer),
-          udt_transport_(udt_transport),
+          transport_(transport),
           pchannel_manager_(channel_manager),
           pservice_channel_(),
           pdata_store_(new DataStore(knode_parameters.refresh_time)),
           premote_service_(),
           prouting_table_(),
-          kadrpcs_(new KadRpcs(channel_manager, udt_transport)),
+          kadrpcs_(new KadRpcs(channel_manager, transport)),
           addcontacts_routine_(),
           prth_(),
           alternative_store_(NULL),
@@ -283,8 +283,8 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   }
 
   if (host_port_ == 0) {
-    if (!udt_transport_->listening_ports().empty())
-      host_port_ = udt_transport_->listening_ports().at(0);
+    if (!transport_->listening_ports().empty())
+      host_port_ = transport_->listening_ports().at(0);
     else
       printf("Well, I don't really know what to do in this case yet!\n");
   }
@@ -1194,7 +1194,7 @@ void KNodeImpl::RegisterKadService() {
   premote_service_->set_alternative_store(alternative_store_);
   premote_service_->set_signature_validator(signature_validator_);
   pservice_channel_.reset(new rpcprotocol::Channel(pchannel_manager_,
-                                                   udt_transport_));
+                                                   transport_));
   pservice_channel_->SetService(premote_service_.get());
   pchannel_manager_->RegisterChannel(
       premote_service_->GetDescriptor()->name(), pservice_channel_.get());

@@ -44,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace rpcprotocol {
 
 ChannelManagerImpl::ChannelManagerImpl()
-    : udt_transport_(), is_started_(false), message_mutex_(),
+    : transport_(), is_started_(false), message_mutex_(),
       channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
       current_rpc_id_(0), current_channel_id_(0), channels_(),
       pending_messages_(), channels_ids_(), rpc_timings_(),
@@ -52,23 +52,23 @@ ChannelManagerImpl::ChannelManagerImpl()
       rpc_reponse_(), data_sent_(), timeout_() {}
 
 ChannelManagerImpl::ChannelManagerImpl(
-    boost::shared_ptr<transport::UdtTransport> udt_transport)
-    : udt_transport_(udt_transport), is_started_(false), message_mutex_(),
+    boost::shared_ptr<transport::Transport> transport)
+    : transport_(transport), is_started_(false), message_mutex_(),
       channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
       current_rpc_id_(0), current_channel_id_(0), channels_(),
       pending_messages_(), channels_ids_(), rpc_timings_(),
       delete_channels_cond_(), online_status_id_(0), rpc_request_(),
       rpc_reponse_(), data_sent_(), timeout_() {
-  rpc_request_ = udt_transport_->signals()->ConnectOnRpcRequestReceived(
+  rpc_request_ = transport_->signals()->ConnectOnRpcRequestReceived(
                      boost::bind(&ChannelManagerImpl::RequestArrive,
                                  this, _1, _2, _3));
-  rpc_reponse_ = udt_transport_->signals()->ConnectOnRpcResponseReceived(
+  rpc_reponse_ = transport_->signals()->ConnectOnRpcResponseReceived(
                      boost::bind(&ChannelManagerImpl::ResponseArrive,
                                  this, _1, _2, _3));
-  data_sent_ = udt_transport_->signals()->ConnectOnSend(
+  data_sent_ = transport_->signals()->ConnectOnSend(
                    boost::bind(&ChannelManagerImpl::RpcMessageSent,
                                this, _1, _2));
-  timeout_ = udt_transport_->signals()->ConnectOnReceive(
+  timeout_ = transport_->signals()->ConnectOnReceive(
                  boost::bind(&ChannelManagerImpl::RpcStatus, this, _1, _2));
 }
 

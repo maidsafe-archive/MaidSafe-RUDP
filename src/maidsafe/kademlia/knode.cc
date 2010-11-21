@@ -31,9 +31,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kad {
 
 KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-             boost::shared_ptr<transport::UdtTransport> udt_transport,
+             boost::shared_ptr<transport::Transport> transport,
              const KnodeConstructionParameters &knode_parameters)
-    : pimpl_(new KNodeImpl(channel_manager, udt_transport, knode_parameters)) {}
+    : pimpl_(new KNodeImpl(channel_manager, transport, knode_parameters)) {}
 
 KNode::~KNode() {}
 

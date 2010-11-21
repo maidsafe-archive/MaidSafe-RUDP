@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class UdtTransport;
+class Transport;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -58,7 +58,7 @@ class KadRpcs {
   explicit KadRpcs(
       boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager);
   KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-          boost::shared_ptr<transport::UdtTransport> udt_transport);
+          boost::shared_ptr<transport::Transport> transport);
   void FindNode(const KadId &key, const IP &ip, const Port &port,
                 const IP &rendezvous_ip, const Port &rendezvous_port,
                 FindResponse *resp, rpcprotocol::Controller *ctler,
@@ -110,7 +110,7 @@ class KadRpcs {
   KadRpcs& operator=(const KadRpcs&);
   ContactInfo info_;
   boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager_;
-  boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<transport::Transport> transport_;
   bool has_transport_;
 };
 

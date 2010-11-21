@@ -95,7 +95,7 @@ class KNode {
   * @param k Maximum number of elements in the node's kbuckets
   */
   KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-        boost::shared_ptr<transport::UdtTransport> udt_transport,
+        boost::shared_ptr<transport::Transport> transport,
         const KnodeConstructionParameters &knode_parameters);
 
   ~KNode();

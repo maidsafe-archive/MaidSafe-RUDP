@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 class UdtConnection;
-class UdtTransport;
+class Transport;
 }  // namespace transport
 
 namespace rpcprotocol {
@@ -98,13 +98,13 @@ class ControllerImpl {
 class ChannelImpl {
  public:
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              boost::shared_ptr<transport::UdtTransport> udt_transport);
+              boost::shared_ptr<transport::Transport> transport);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
               const IP &rendezvous_ip, const Port &rendezvous_port);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              boost::shared_ptr<transport::UdtTransport> udt_transport,
+              boost::shared_ptr<transport::Transport> transport,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
               const IP &rendezvous_ip, const Port &rendezvous_port);
@@ -125,7 +125,7 @@ class ChannelImpl {
                     boost::shared_ptr<Controller> controller);
   std::string GetServiceName(const std::string &full_name);
   boost::shared_ptr<ChannelManager> channel_manager_;
-  boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<transport::Transport> transport_;
   boost::shared_ptr<transport::UdtConnection> udt_connection_;
   google::protobuf::Service *service_;
   IP remote_ip_, local_ip_, rendezvous_ip_;

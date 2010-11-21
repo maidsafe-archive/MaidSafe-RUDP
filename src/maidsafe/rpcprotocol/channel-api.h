@@ -48,7 +48,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 class UdtConnection;
-class UdtTransport;
+// class UdtTransport;
+// class TcpTransport;
+class Transport;
 }  // namespace transport
 
 
@@ -154,8 +156,12 @@ class Channel : public google::protobuf::RpcChannel {
   * @param channelmanager Pointer to a ChannelManager object
   * @param transport Pointer to a Transport object
   */
+//   Channel(boost::shared_ptr<ChannelManager> channel_manager,
+//           boost::shared_ptr<transport::UdtTransport> transport);
+//   Channel(boost::shared_ptr<ChannelManager> channel_manager,
+//           boost::shared_ptr<transport::TcpTransport> transport);
   Channel(boost::shared_ptr<ChannelManager> channel_manager,
-          boost::shared_ptr<transport::UdtTransport> udt_transport);
+          boost::shared_ptr<transport::Transport> transport);
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object
@@ -182,7 +188,7 @@ class Channel : public google::protobuf::RpcChannel {
   * the RPC
   */
   Channel(boost::shared_ptr<ChannelManager> channel_manager,
-          boost::shared_ptr<transport::UdtTransport> udt_transport,
+          boost::shared_ptr<transport::Transport> transport,
           const IP &remote_ip, const Port &remote_port,
           const IP &local_ip, const Port &local_port,
           const IP &rendezvous_ip, const Port &rendezvous_port);

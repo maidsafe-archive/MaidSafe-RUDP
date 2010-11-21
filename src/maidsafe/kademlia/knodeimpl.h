@@ -84,7 +84,7 @@ class KNodeImpl {
  public:
   // constructor used to set up parameters k, alpha, and beta for kademlia
   KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-            boost::shared_ptr<transport::UdtTransport> udt_transport,
+            boost::shared_ptr<transport::Transport> transport,
             const KnodeConstructionParameters &knode_parameters);
   virtual ~KNodeImpl();
 
@@ -253,7 +253,7 @@ class KNodeImpl {
                joinbootstrapping_mutex_, leave_mutex_, activeprobes_mutex_,
                pendingcts_mutex_;
   boost::shared_ptr<base::CallLaterTimer> ptimer_;
-  boost::shared_ptr<transport::UdtTransport> udt_transport_;
+  boost::shared_ptr<transport::Transport> transport_;
   boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
   boost::shared_ptr<rpcprotocol::Channel> pservice_channel_;
   boost::shared_ptr<DataStore> pdata_store_;

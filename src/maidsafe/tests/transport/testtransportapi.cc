@@ -81,8 +81,9 @@ TransportMessage MakeTransportMessage(bool is_request,
 // All transport objects constructed in same manner
 // No need for factory methods 
 template <class T>
-Transport * CreateTransport() {
-  return new T; }
+boost::shared_ptr<Transport> CreateTransport() {
+  return  boost::shared_ptr<Transport>(new T);
+}
 
 
 
@@ -96,7 +97,7 @@ class TransportAPITest: public testing::Test {
                        listening_port_(0),
                        loopback_ip_("127.0.0.1"),
                        sockets_for_closing_() {}
-    virtual ~TransportAPITest() { delete trans1_; delete trans2_; }
+    virtual ~TransportAPITest() {}
     
   void SetUp() {
     listening_port_ = this->trans1_->StartListening("", 0, NULL);
@@ -108,8 +109,8 @@ class TransportAPITest: public testing::Test {
                   boost::bind(&UDT::close, _1));
   }
   //Transport listening_node_;
-  Transport * const trans1_;
-  Transport * const trans2_;
+  boost::shared_ptr<Transport> trans1_;
+  boost::shared_ptr<Transport> trans2_;
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
@@ -118,12 +119,11 @@ class TransportAPITest: public testing::Test {
 };
 
 
-
 TYPED_TEST_CASE(TransportAPITest, Implementations);
 
 TYPED_TEST(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
   // Set up sending node and message
-  Transport * const sending_node = this->trans2_;
+  boost::shared_ptr<Transport> sending_node = this->trans2_;
   MessageHandler sending_message_handler(sending_node->signals(),
            "Send", false);
   TransportMessage request = MakeTransportMessage(true, 256 * 1024);
@@ -186,7 +186,7 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 
 TYPED_TEST(TransportAPITest, BEH_TRANS_MultipleListeningPorts) {
   // Start listening ports
-  Transport * const listening_node = this->trans2_;
+  boost::shared_ptr<Transport> listening_node = this->trans2_;
   const boost::uint16_t kNumberOfListeningPorts = 12;
   std::vector<Port> listening_ports;
   listening_ports.push_back(this->listening_port_);

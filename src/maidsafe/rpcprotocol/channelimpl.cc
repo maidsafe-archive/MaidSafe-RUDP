@@ -58,8 +58,8 @@ void ControllerImpl::Reset() {
 
 ChannelImpl::ChannelImpl(
     boost::shared_ptr<ChannelManager> channel_manager,
-    boost::shared_ptr<transport::UdtTransport> udt_transport)
-    : channel_manager_(channel_manager), udt_transport_(udt_transport),
+    boost::shared_ptr<transport::Transport> transport)
+    : channel_manager_(channel_manager), transport_(transport),
       udt_connection_(), service_(0), remote_ip_(), local_ip_(),
       rendezvous_ip_(), remote_port_(0), local_port_(0), rendezvous_port_(0),
       id_(0), local_transport_(false) {
@@ -70,7 +70,7 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
                          const IP &remote_ip, const Port &remote_port,
                          const IP &local_ip, const Port &local_port,
                          const IP &rendezvous_ip, const Port &rendezvous_port)
-    : channel_manager_(channel_manager), udt_transport_(), udt_connection_(),
+    : channel_manager_(channel_manager), transport_(), udt_connection_(),
       service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(),
       remote_port_(remote_port), local_port_(local_port),
       rendezvous_port_(rendezvous_port), id_(0), local_transport_(true) {
@@ -100,11 +100,11 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
 }
 
 ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              boost::shared_ptr<transport::UdtTransport> udt_transport,
+              boost::shared_ptr<transport::Transport> transport,
               const IP &remote_ip, const Port &remote_port,
               const IP &local_ip, const Port &local_port,
               const IP &rendezvous_ip, const Port &rendezvous_port)
-    : channel_manager_(channel_manager), udt_transport_(udt_transport),
+    : channel_manager_(channel_manager), transport_(transport),
       udt_connection_(), service_(0), remote_ip_(), local_ip_(),
       rendezvous_ip_(), remote_port_(remote_port), local_port_(local_port),
       rendezvous_port_(rendezvous_port), id_(0), local_transport_(false) {
@@ -211,7 +211,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   if (local_transport_)
     socket_id = udt_connection_->udt_socket_id();
   else
-    socket_id = udt_transport_->PrepareToSend(remote_ip_, remote_port_,
+    socket_id = transport_->PrepareToSend(remote_ip_, remote_port_,
                                               rendezvous_ip_, rendezvous_port_);
   pending_request.controller->set_socket_id(socket_id);
 
@@ -229,7 +229,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     udt_connection_->Send(transport_message,
                           pending_request.controller->timeout());
   } else {
-    udt_transport_->Send(transport_message, socket_id,
+    transport_->Send(transport_message, socket_id,
                          pending_request.controller->timeout());
   }
 
@@ -334,7 +334,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
     return;
   }
 
-  udt_transport_->Send(transport_message, controller->socket_id(), 0);
+  transport_->Send(transport_message, controller->socket_id(), 0);
   delete response;
 //  DLOG(ERROR) << "ChannelImpl::CallMethod - Response sent - "
 //              << controller->socket_id() << std::endl;

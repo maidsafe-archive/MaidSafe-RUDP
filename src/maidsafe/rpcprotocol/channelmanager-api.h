@@ -47,7 +47,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class UdtTransport;
+// class UdtTransport;
+// class TcpTransport;
+class Transport;
 }  // namespace transport
 
 
@@ -73,6 +75,12 @@ struct PendingMessage;
 * and KNode.
 */
 
+// template <class T>
+// boost::shared_ptr<Transport> CreateTransport() {
+//   return  boost::shared_ptr<Transport>(new T);
+// }
+// 
+// template <class T>
 class ChannelManager {
  public:
   /**
@@ -83,8 +91,12 @@ class ChannelManager {
   * Constructor
   * @param transport Pointer to a Transport object
   */
-  explicit ChannelManager(
-      boost::shared_ptr<transport::UdtTransport> udt_transport);
+//   explicit ChannelManager(
+//       boost::shared_ptr<transport::UdtTransport> transport);
+//   explicit ChannelManager(
+//       boost::shared_ptr<transport::TcpTransport> transport);
+     explicit ChannelManager(
+       boost::shared_ptr<transport::Transport> transport_);
   ~ChannelManager();
   /**
   * Registers a channel and identifies it with the name of the RPC service that
@@ -170,6 +182,7 @@ class ChannelManager {
   void ClearRpcTimings();
  private:
   boost::shared_ptr<ChannelManagerImpl> pimpl_;
+  boost::shared_ptr<transport::Transport> transport_;
 };
 
 }  // namespace rpcprotocol

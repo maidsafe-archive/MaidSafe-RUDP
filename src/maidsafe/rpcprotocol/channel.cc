@@ -116,8 +116,8 @@ boost::shared_ptr<transport::UdtConnection> Controller::udt_connection() const {
 }
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::UdtTransport> udt_transport)
-    : pimpl_(new ChannelImpl(channel_manager, udt_transport)) {}
+                 boost::shared_ptr<transport::Transport> transport)
+    : pimpl_(new ChannelImpl(channel_manager, transport)) {}
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
                  const IP &remote_ip, const Port &remote_port,
@@ -128,11 +128,11 @@ Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
                              rendezvous_port)) {}
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::UdtTransport> udt_transport,
+                 boost::shared_ptr<transport::Transport> transport,
                  const IP &remote_ip, const Port &remote_port,
                  const IP &local_ip, const Port &local_port,
                  const IP &rendezvous_ip, const Port &rendezvous_port)
-    : pimpl_(new ChannelImpl(channel_manager, udt_transport, remote_ip,
+    : pimpl_(new ChannelImpl(channel_manager, transport, remote_ip,
                              remote_port, local_ip, local_port, rendezvous_ip,
                              rendezvous_port)) {}
 

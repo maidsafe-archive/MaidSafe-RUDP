@@ -33,13 +33,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kad {
 
 KadRpcs::KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager)
-    : info_(), channel_manager_(channel_manager), udt_transport_(),
+    : info_(), channel_manager_(channel_manager), transport_(),
       has_transport_(false) {}
 
 KadRpcs::KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::UdtTransport> udt_transport)
+                 boost::shared_ptr<transport::Transport> transport)
     : info_(), channel_manager_(channel_manager),
-      udt_transport_(udt_transport), has_transport_(true) {}
+      transport_(transport), has_transport_(true) {}
 
 
 void KadRpcs::FindNode(const KadId &key, const IP &ip, const Port &port,
@@ -57,7 +57,7 @@ void KadRpcs::FindNode(const KadId &key, const IP &ip, const Port &port,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -78,7 +78,7 @@ void KadRpcs::FindValue(const KadId &key, const IP &ip, const Port &port,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -99,7 +99,7 @@ void KadRpcs::Ping(const IP &ip, const Port &port, const IP &rendezvous_ip,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -129,7 +129,7 @@ void KadRpcs::Store(const KadId &key, const SignedValue &value,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -155,7 +155,7 @@ void KadRpcs::Store(const KadId &key, const std::string &value,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -179,7 +179,7 @@ void KadRpcs::Downlist(const std::vector<std::string> downlist,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -202,7 +202,7 @@ void KadRpcs::Bootstrap(const KadId &local_id, const IP &local_ip,
   args.set_node_type(type);
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_,
                                        remote_ip, remote_port, "", 0, "", 0);
   else
     channel = new rpcprotocol::Channel(channel_manager_, remote_ip,
@@ -228,7 +228,7 @@ void KadRpcs::Delete(const KadId &key, const SignedValue &value,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
@@ -259,7 +259,7 @@ void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, udt_transport_, ip,
+    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
                                        port, "", 0, rendezvous_ip,
                                        rendezvous_port);
   else
