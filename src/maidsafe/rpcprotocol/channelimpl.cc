@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/rpcprotocol/channelmanagerimpl.h"
 #include "maidsafe/rpcprotocol/rpcstructs.h"
-#include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/transport.h"
 
 namespace rpcprotocol {
 
@@ -53,26 +53,26 @@ void ControllerImpl::Reset() {
   time_received_ = 0;
   rtt_ = 0.0;
   failure_.clear();
-  udt_connection_.reset();
+  transport_.reset();
 }
 
 ChannelImpl::ChannelImpl(
-    boost::shared_ptr<ChannelManager> channel_manager,
-    boost::shared_ptr<transport::Transport> transport)
-    : channel_manager_(channel_manager), transport_(transport),
-      udt_connection_(), service_(0), remote_ip_(), local_ip_(),
-      rendezvous_ip_(), remote_port_(0), local_port_(0), rendezvous_port_(0),
+    boost::shared_ptr<ChannelManager> channel_manager)
+    : channel_manager_(channel_manager),
+    transport_(channel_manager_->transport()),
+      service_(0), remote_ip_(), 
+      rendezvous_ip_(), remote_port_(0), rendezvous_port_(0),
       id_(0), local_transport_(false) {
   channel_manager_->AddChannelId(&id_);
 }
 
 ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
                          const IP &remote_ip, const Port &remote_port,
-                         const IP &local_ip, const Port &local_port,
                          const IP &rendezvous_ip, const Port &rendezvous_port)
-    : channel_manager_(channel_manager), transport_(), udt_connection_(),
-      service_(0), remote_ip_(), local_ip_(), rendezvous_ip_(),
-      remote_port_(remote_port), local_port_(local_port),
+    : channel_manager_(channel_manager),
+      transport_(channel_manager_->transport()),
+      service_(0), remote_ip_(), rendezvous_ip_(),
+      remote_port_(remote_port),
       rendezvous_port_(rendezvous_port), id_(0), local_transport_(true) {
   channel_manager_->AddChannelId(&id_);
 
@@ -83,52 +83,15 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
     remote_ip_ = remote_ip;
   }
 
-  if (local_ip.size() == 4) {
-    local_ip_ = base::IpBytesToAscii(local_ip);
-  } else {
-    local_ip_ = local_ip;
-  }
-
-  if (rendezvous_ip.size() == 4) {
-    rendezvous_ip_ = base::IpBytesToAscii(rendezvous_ip);
-  } else {
-    rendezvous_ip_ = rendezvous_ip;
-  }
-  udt_connection_.reset(new transport::UdtConnection(remote_ip_, remote_port_,
-                                                     rendezvous_ip_,
-                                                     rendezvous_port_));
-}
-
-ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              boost::shared_ptr<transport::Transport> transport,
-              const IP &remote_ip, const Port &remote_port,
-              const IP &local_ip, const Port &local_port,
-              const IP &rendezvous_ip, const Port &rendezvous_port)
-    : channel_manager_(channel_manager), transport_(transport),
-      udt_connection_(), service_(0), remote_ip_(), local_ip_(),
-      rendezvous_ip_(), remote_port_(remote_port), local_port_(local_port),
-      rendezvous_port_(rendezvous_port), id_(0), local_transport_(false) {
-  channel_manager_->AddChannelId(&id_);
-
-  // To send we need ip in decimal dotted format
-  if (remote_ip.size() == 4) {
-    remote_ip_ = base::IpBytesToAscii(remote_ip);
-  } else {
-    remote_ip_ = remote_ip;
-  }
-
-  if (local_ip.size() == 4) {
-    local_ip_ = base::IpBytesToAscii(local_ip);
-  } else {
-    local_ip_ = local_ip;
-  }
-
+ 
   if (rendezvous_ip.size() == 4) {
     rendezvous_ip_ = base::IpBytesToAscii(rendezvous_ip);
   } else {
     rendezvous_ip_ = rendezvous_ip;
   }
 }
+
+
 
 ChannelImpl::~ChannelImpl() {
   channel_manager_->RemoveChannelId(id_);
@@ -203,14 +166,15 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   pending_request.controller = static_cast<Controller*>(rpc_controller);
   pending_request.controller->set_method(method->name());
   if (local_transport_) {
-    pending_request.controller->set_udt_connection(udt_connection_);
+    pending_request.controller->set_connection(transport_);
     pending_request.local_transport = true;
   }
 
   SocketId socket_id;
-  if (local_transport_)
-    socket_id = udt_connection_->udt_socket_id();
-  else
+  // TODO (dirvine)
+//   if (local_transport_)
+//     socket_id = transport_->socket_id();
+//   else
     socket_id = transport_->PrepareToSend(remote_ip_, remote_port_,
                                               rendezvous_ip_, rendezvous_port_);
   pending_request.controller->set_socket_id(socket_id);
@@ -224,14 +188,14 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
   rpc_message->set_rpc_id(socket_id);
-
-  if (local_transport_) {
-    udt_connection_->Send(transport_message,
-                          pending_request.controller->timeout());
-  } else {
+// TODO (dirvine)
+//   if (local_transport_) {
+//     transport_->Send(transport_message,
+//                           pending_request.controller->timeout());
+//  // } else {
     transport_->Send(transport_message, socket_id,
                          pending_request.controller->timeout());
-  }
+  //}
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
 //             << socket_id << " to " << remote_ip_ << ":" << remote_port_

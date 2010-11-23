@@ -1193,8 +1193,7 @@ void KNodeImpl::RegisterKadService() {
   premote_service_->set_node_info(contact_info());
   premote_service_->set_alternative_store(alternative_store_);
   premote_service_->set_signature_validator(signature_validator_);
-  pservice_channel_.reset(new rpcprotocol::Channel(pchannel_manager_,
-                                                   transport_));
+  pservice_channel_.reset(new rpcprotocol::Channel(pchannel_manager_));
   pservice_channel_->SetService(premote_service_.get());
   pchannel_manager_->RegisterChannel(
       premote_service_->GetDescriptor()->name(), pservice_channel_.get());

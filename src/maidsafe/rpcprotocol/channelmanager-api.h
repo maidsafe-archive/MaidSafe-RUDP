@@ -180,6 +180,10 @@ class ChannelManager {
   * Remove all entries from the RPC timings map.
   */
   void ClearRpcTimings();
+  /**
+  * Get the transport connection being used, if not NULL.
+  */
+  boost::shared_ptr<transport::Transport> transport() const;
  private:
   boost::shared_ptr<ChannelManagerImpl> pimpl_;
   boost::shared_ptr<transport::Transport> transport_;

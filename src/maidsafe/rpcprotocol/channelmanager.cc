@@ -32,11 +32,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace rpcprotocol {
 
-ChannelManager::ChannelManager() : pimpl_(new ChannelManagerImpl()) {}
+ChannelManager::ChannelManager() : pimpl_(new ChannelManagerImpl()),
+                                   transport_() {}
 
 ChannelManager::ChannelManager(
     boost::shared_ptr<transport::Transport> transport)
-    : pimpl_(new ChannelManagerImpl(transport)) {}
+    : pimpl_(new ChannelManagerImpl(transport)),
+    transport_() {}
 
 ChannelManager::~ChannelManager() {}
 
@@ -92,6 +94,10 @@ RpcStatsMap ChannelManager::RpcTimings() {
 
 void ChannelManager::ClearRpcTimings() {
   return pimpl_->ClearRpcTimings();
+}
+
+boost::shared_ptr<transport::Transport> ChannelManager::transport() const {
+  return pimpl_->transport();
 }
 
 }  // namespace rpcprotocol

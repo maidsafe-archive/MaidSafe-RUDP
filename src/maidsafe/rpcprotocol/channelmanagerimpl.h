@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/transport/transportconditions.h"
+#include "maidsafe/transport/transport.h"
 
 namespace base {
 template <typename T>
@@ -48,6 +49,7 @@ class Stats;
 namespace transport {
 class Transport;
 }  // namespace transport
+
 
 namespace rpcprotocol {
 
@@ -77,6 +79,9 @@ class ChannelManagerImpl {
   bool DeletePendingRequest(const SocketId &socket_id);
   RpcStatsMap RpcTimings();
   void ClearRpcTimings();
+  boost::shared_ptr<transport::Transport> transport() const {
+    return transport_;
+  }
  private:
   ChannelManagerImpl(const ChannelManagerImpl&);
   ChannelManagerImpl& operator=(const ChannelManagerImpl&);

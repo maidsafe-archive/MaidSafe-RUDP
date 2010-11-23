@@ -106,34 +106,27 @@ boost::uint32_t Controller::timeout() const {
   return controller_pimpl_->timeout();
 }
 
-void Controller::set_udt_connection(
-    boost::shared_ptr<transport::UdtConnection> udt_connection) {
-  controller_pimpl_->set_udt_connection(udt_connection);
+boost::shared_ptr<transport::Transport> Controller::transport() const {
+  return controller_pimpl_->transport();
 }
 
-boost::shared_ptr<transport::UdtConnection> Controller::udt_connection() const {
-  return controller_pimpl_->udt_connection();
+void Controller::set_connection(
+    boost::shared_ptr<transport::Transport> transport) {
+  controller_pimpl_->set_connection(transport);
 }
 
-Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::Transport> transport)
-    : pimpl_(new ChannelImpl(channel_manager, transport)) {}
+// boost::shared_ptr<transport::UdtConnection> Controller::udt_connection() const {
+//   return controller_pimpl_->udt_connection();
+// }
+
+Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager)
+    : pimpl_(new ChannelImpl(channel_manager)) {}
 
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
                  const IP &remote_ip, const Port &remote_port,
-                 const IP &local_ip, const Port &local_port,
                  const IP &rendezvous_ip, const Port &rendezvous_port)
     : pimpl_(new ChannelImpl(channel_manager, remote_ip, remote_port,
-                             local_ip, local_port, rendezvous_ip,
-                             rendezvous_port)) {}
-
-Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::Transport> transport,
-                 const IP &remote_ip, const Port &remote_port,
-                 const IP &local_ip, const Port &local_port,
-                 const IP &rendezvous_ip, const Port &rendezvous_port)
-    : pimpl_(new ChannelImpl(channel_manager, transport, remote_ip,
-                             remote_port, local_ip, local_port, rendezvous_ip,
+                             rendezvous_ip,
                              rendezvous_port)) {}
 
 Channel::~Channel() {}

@@ -57,11 +57,11 @@ void KadRpcs::FindNode(const KadId &key, const IP &ip, const Port &port,
   *sender_info = info_;
   rpcprotocol::Channel *channel;
   if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
+    channel = new rpcprotocol::Channel(channel_manager_, ip,
+                                       port, rendezvous_ip,
                                        rendezvous_port);
   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.FindNode(ctler, &args, resp, callback);
@@ -77,12 +77,12 @@ void KadRpcs::FindValue(const KadId &key, const IP &ip, const Port &port,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.FindValue(ctler, &args, resp, callback);
@@ -98,12 +98,12 @@ void KadRpcs::Ping(const IP &ip, const Port &port, const IP &rendezvous_ip,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Ping(ctler, &args, resp, callback);
@@ -128,12 +128,12 @@ void KadRpcs::Store(const KadId &key, const SignedValue &value,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Store(ctler, &args, resp, callback);
@@ -154,12 +154,12 @@ void KadRpcs::Store(const KadId &key, const std::string &value,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Store(ctler, &args, resp, callback);
@@ -178,12 +178,12 @@ void KadRpcs::Downlist(const std::vector<std::string> downlist,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Downlist(ctler, &args, resp, callback);
@@ -201,12 +201,12 @@ void KadRpcs::Bootstrap(const KadId &local_id, const IP &local_ip,
   args.set_newcomer_local_port(local_port);
   args.set_node_type(type);
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_,
-                                       remote_ip, remote_port, "", 0, "", 0);
-  else
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_,
+//                                        remote_ip, remote_port, "", 0, "", 0);
+//   else
     channel = new rpcprotocol::Channel(channel_manager_, remote_ip,
-                                       remote_port, "", 0, "", 0);
+                                       remote_port, "", 0);
   KademliaService::Stub service(channel);
   service.Bootstrap(ctler, &args, resp, callback);
   delete channel;
@@ -227,12 +227,12 @@ void KadRpcs::Delete(const KadId &key, const SignedValue &value,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port, 
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Delete(ctler, &args, resp, callback);
@@ -258,12 +258,12 @@ void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
   rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-                                       port, "", 0, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, "", 0,
+//   if (has_transport_)
+//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
+//                                        port, "", 0, rendezvous_ip,
+//                                        rendezvous_port);
+//   else
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Update(ctler, &args, resp, callback);

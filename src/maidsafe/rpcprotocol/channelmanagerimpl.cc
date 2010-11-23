@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/rpcprotocol/rpcstructs.h"
-#include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/transport.h"
 
 
 namespace rpcprotocol {
@@ -150,18 +150,19 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
   if (!is_started_) {
     return false;
   }
+  
   pending_request.controller->set_socket_id(socket_id);
   if (pending_request.local_transport) {
     pending_request.rpc_reponse =
-        pending_request.controller->udt_connection()->signals()->
+        pending_request.controller->transport()->signals()->
             ConnectOnRpcResponseReceived(
                 boost::bind(&ChannelManagerImpl::ResponseArrive,
                             this, _1, _2, _3));
     pending_request.data_sent =
-        pending_request.controller->udt_connection()->signals()->ConnectOnSend(
+        pending_request.controller->transport()->signals()->ConnectOnSend(
             boost::bind(&ChannelManagerImpl::RpcMessageSent, this, _1, _2));
     pending_request.timeout =
-        pending_request.controller->udt_connection()->signals()->
+        pending_request.controller->transport()->signals()->
             ConnectOnReceive(boost::bind(&ChannelManagerImpl::RpcStatus, this,
                                          _1, _2));
   }
@@ -296,7 +297,7 @@ void ChannelManagerImpl::ResponseArrive(const rpcprotocol::RpcMessage &msg,
     (*it).second.rpc_reponse.disconnect();
     (*it).second.data_sent.disconnect();
     (*it).second.timeout.disconnect();
-    (*it).second.controller->udt_connection().reset();
+    (*it).second.controller->transport().reset();
     done = (*it).second.callback;
     pending_messages_.erase(it);
   }

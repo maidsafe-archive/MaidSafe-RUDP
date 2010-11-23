@@ -49,7 +49,7 @@ void NatRpcs::NatDetection(const std::string &newcomer,
   args.set_bootstrap_node(bootstrap_node);
   args.set_type(type);
   args.set_sender_id(sender_id);
-  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, "", 0,
+  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port,
                                rendezvous_ip, rendezvous_port);
   if (type == 2)
     ctler->set_timeout(18000);
@@ -67,7 +67,7 @@ void NatRpcs::NatDetectionPing(const IP &remote_ip, const Port &remote_port,
   args.set_ping("nat_detection_ping");
   rpcprotocol::Controller controller;
   controller.set_timeout(kRpcNatPingTimeout);
-  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, "", 0,
+  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, 
                                rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.NatDetectionPing(ctler, &args, resp, callback);

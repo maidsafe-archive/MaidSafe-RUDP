@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-class UdtConnection;
+//class UdtConnection;
 // class UdtTransport;
 // class TcpTransport;
 class Transport;
@@ -131,21 +131,21 @@ class Controller : public google::protobuf::RpcController {
   */
   boost::uint32_t timeout() const;
   /**
-  * Set the UDT connection being used for the operation.
-  * @param udt_connection The connection used.
+  * Set the transport connection being used for the operation.
+  * @param connection The connection used.
   */
-  void set_udt_connection(
-      boost::shared_ptr<transport::UdtConnection> udt_connection);
+  void set_connection(
+      boost::shared_ptr<transport::Transport> transport);
   /**
-  * Get the UDT connection being used, if not NULL.
+  * Get the transport connection being used, if not NULL.
   */
-  boost::shared_ptr<transport::UdtConnection> udt_connection() const;
+  boost::shared_ptr<transport::Transport> transport() const;
  private:
   boost::shared_ptr<ControllerImpl> controller_pimpl_;
 };
 
 /**
-* @class Controller
+* @class Channel
 * Implementation of Google Protocol Buffers RpcChannel interface.
 */
 class Channel : public google::protobuf::RpcChannel {
@@ -154,43 +154,17 @@ class Channel : public google::protobuf::RpcChannel {
   * Constructor. Used for the server that is going to receive RPC's of a service
   * through this object.
   * @param channelmanager Pointer to a ChannelManager object
-  * @param transport Pointer to a Transport object
   */
-//   Channel(boost::shared_ptr<ChannelManager> channel_manager,
-//           boost::shared_ptr<transport::UdtTransport> transport);
-//   Channel(boost::shared_ptr<ChannelManager> channel_manager,
-//           boost::shared_ptr<transport::TcpTransport> transport);
-  Channel(boost::shared_ptr<ChannelManager> channel_manager,
-          boost::shared_ptr<transport::Transport> transport);
+  Channel(boost::shared_ptr<ChannelManager> channel_manager);
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object
   * @param remote_ip remote ip of the endpoint that is going to receive the RPC
   * @param remote_port remote port of the endpoint that is going to receive
   * the RPC
-  * @param local_ip local ip of the endpoint that is going to receive the RPC
-  * @param local_port local port of the endpoint that is going to receive
-  * the RPC
   */
   Channel(boost::shared_ptr<ChannelManager> channel_manager,
           const IP &remote_ip, const Port &remote_port,
-          const IP &local_ip, const Port &local_port,
-          const IP &rendezvous_ip, const Port &rendezvous_port);
-  /**
-  * Constructor. Used for the client that is going to send an RPC.
-  * @param channelmanager Pointer to a ChannelManager object
-  * @param transport Pointer to a Transport object
-  * @param remote_ip remote ip of the endpoint that is going to receive the RPC
-  * @param remote_port remote port of the endpoint that is going to receive
-  * the RPC
-  * @param local_ip local ip of the endpoint that is going to receive the RPC
-  * @param local_port local port of the endpoint that is going to receive
-  * the RPC
-  */
-  Channel(boost::shared_ptr<ChannelManager> channel_manager,
-          boost::shared_ptr<transport::Transport> transport,
-          const IP &remote_ip, const Port &remote_port,
-          const IP &local_ip, const Port &local_port,
           const IP &rendezvous_ip, const Port &rendezvous_port);
   /**
   * Destructor.
