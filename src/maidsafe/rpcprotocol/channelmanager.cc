@@ -32,13 +32,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace rpcprotocol {
 
-ChannelManager::ChannelManager() : pimpl_(new ChannelManagerImpl()),
-                                   transport_() {}
-
 ChannelManager::ChannelManager(
     boost::shared_ptr<transport::Transport> transport)
-    : pimpl_(new ChannelManagerImpl(transport)),
-    transport_() {}
+    : pimpl_(new ChannelManagerImpl(transport)) {}
 
 ChannelManager::~ChannelManager() {}
 

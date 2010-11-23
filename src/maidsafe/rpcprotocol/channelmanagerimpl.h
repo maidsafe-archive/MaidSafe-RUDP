@@ -61,7 +61,6 @@ typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 
 class ChannelManagerImpl {
  public:
-  ChannelManagerImpl();
   explicit ChannelManagerImpl(
       boost::shared_ptr<transport::Transport> transport);
   ~ChannelManagerImpl();

@@ -55,9 +55,8 @@ namespace transport {
 
 namespace test {
 
-  // NOTE: Put any new transport objects in here.
-  typedef testing::Types<UdtTransport, TcpTransport > Implementations;
-//  typedef testing::Types<TcpTransport > Implementations;
+// NOTE: Put any new transport objects in here.
+typedef testing::Types<UdtTransport, TcpTransport> Implementations;
 
 TransportMessage MakeTransportMessage(bool is_request,
                                            const size_t &message_size) {

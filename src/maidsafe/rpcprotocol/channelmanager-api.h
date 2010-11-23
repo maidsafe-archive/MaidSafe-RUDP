@@ -85,18 +85,13 @@ class ChannelManager {
  public:
   /**
   * Constructor
-  */
-  ChannelManager();
-  /**
-  * Constructor
   * @param transport Pointer to a Transport object
   */
 //   explicit ChannelManager(
 //       boost::shared_ptr<transport::UdtTransport> transport);
 //   explicit ChannelManager(
 //       boost::shared_ptr<transport::TcpTransport> transport);
-     explicit ChannelManager(
-       boost::shared_ptr<transport::Transport> transport_);
+  explicit ChannelManager(boost::shared_ptr<transport::Transport> transport);
   ~ChannelManager();
   /**
   * Registers a channel and identifies it with the name of the RPC service that
@@ -186,7 +181,6 @@ class ChannelManager {
   boost::shared_ptr<transport::Transport> transport() const;
  private:
   boost::shared_ptr<ChannelManagerImpl> pimpl_;
-  boost::shared_ptr<transport::Transport> transport_;
 };
 
 }  // namespace rpcprotocol

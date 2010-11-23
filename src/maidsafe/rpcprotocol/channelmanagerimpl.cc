@@ -40,16 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/rpcprotocol/rpcstructs.h"
 #include "maidsafe/transport/transport.h"
 
-
 namespace rpcprotocol {
-
-ChannelManagerImpl::ChannelManagerImpl()
-    : transport_(), is_started_(false), message_mutex_(),
-      channels_mutex_(), id_mutex_(), channels_ids_mutex_(), timings_mutex_(),
-      current_rpc_id_(0), current_channel_id_(0), channels_(),
-      pending_messages_(), channels_ids_(), rpc_timings_(),
-      delete_channels_cond_(), online_status_id_(0), rpc_request_(),
-      rpc_reponse_(), data_sent_(), timeout_() {}
 
 ChannelManagerImpl::ChannelManagerImpl(
     boost::shared_ptr<transport::Transport> transport)

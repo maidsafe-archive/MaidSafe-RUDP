@@ -1542,5 +1542,7 @@ int main(int argc, char **argv) {
   FLAGS_logtostderr = true;
   testing::InitGoogleTest(&argc, argv);
   testing::AddGlobalTestEnvironment(new kad::test_knode::Env);
-  return RUN_ALL_TESTS();
+  int result(RUN_ALL_TESTS());
+  int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
+  return (test_count == 0) ? -1 : result;
 }
