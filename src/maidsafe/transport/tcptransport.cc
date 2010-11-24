@@ -40,14 +40,21 @@ namespace pt = boost::posix_time;
 namespace transport {
 
 TcpTransport::TcpTransport()
-  : keep_alive_(new asio::io_service::work(io_service_))
-  , current_socket_id_(1) {
+    : Transport(),
+      keep_alive_(new asio::io_service::work(io_service_)),
+      current_socket_id_(1) {
   worker_thread_ = boost::thread(&TcpTransport::Run, this);
 }
 
 TcpTransport::~TcpTransport() {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
+
   keep_alive_.reset();
+
+//  if (!keep_alive_)
+//    printf("NOT KEEPING ALIVE\n");
+//  else 
+//    printf("KEEPING ALIVE\n");
 
   BOOST_FOREACH(ConnectionMap::value_type const& connection, connections_) {
     io_service_.post(boost::bind(&TcpConnection::Close, connection.second));
@@ -168,7 +175,6 @@ void TcpTransport::HandleAccept(const AcceptorPtr &acceptor,
     return;
 
   if (!ec) {
-
     SocketId socket_id = NextSocketId();
     connection->SetSocketId(socket_id);
     connections_.insert(std::make_pair(socket_id, connection));
@@ -227,7 +233,7 @@ void TcpTransport::Send(const TransportMessage &msg,
   connection->Send(msg, timeout_wait_for_response);
 }
 
-void TcpTransport::SendFile(boost::filesystem::path &path,
+void TcpTransport::SendFile(const boost::filesystem::path &path,
                             const SocketId &socket_id) {
   (void)path;
   (void)socket_id;

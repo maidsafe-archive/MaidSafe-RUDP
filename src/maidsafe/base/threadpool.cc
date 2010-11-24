@@ -91,29 +91,35 @@ bool Threadpool::Continue() {
 }
 
 void Threadpool::Run() {
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    ++running_thread_count_;
-    condition_.notify_all();
-  }
-  bool run(true);
-  while (run) {
-    boost::mutex::scoped_lock lock(mutex_);
-    condition_.wait(lock, boost::bind(&Threadpool::Continue, this));
-    run = requested_thread_count_ >= running_thread_count_;
-    if (!run) {
-      --running_thread_count_;
-    } else {
-      // grab the first functor from the queue, but allow other threads to
-      // operate while executing it
-      VoidFunctor functor = functors_.front();
-      functors_.pop();
-      lock.unlock();
-      functor();
-      lock.lock();
-      --remaining_tasks_;
+  try {
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      ++running_thread_count_;
+      condition_.notify_all();
     }
-    condition_.notify_all();
+    bool run(true);
+    while (run) {
+      boost::mutex::scoped_lock lock(mutex_);
+      condition_.wait(lock, boost::bind(&Threadpool::Continue, this));
+      run = requested_thread_count_ >= running_thread_count_;
+      if (!run) {
+        --running_thread_count_;
+      } else {
+        // grab the first functor from the queue, but allow other threads to
+        // operate while executing it
+        VoidFunctor functor = functors_.front();
+        functors_.pop();
+        lock.unlock();
+        functor();
+        lock.lock();
+        --remaining_tasks_;
+      }
+      condition_.notify_all();
+    }
+  }
+  catch(const std::exception &e) {
+    DLOG(ERROR) << "Exception RUNNING: " << e.what() << std::endl;
+    return;
   }
 }
 

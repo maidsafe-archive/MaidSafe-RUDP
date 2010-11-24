@@ -249,7 +249,7 @@ void UdtTransport::Send(const TransportMessage &transport_message,
   udt_connection.Send(transport_message, timeout_wait_for_response);
 }
 
-void UdtTransport::SendFile(fs::path &path, const SocketId &socket_id) {
+void UdtTransport::SendFile(const fs::path &path, const SocketId &socket_id) {
 }
 
 ManagedEndpointId UdtTransport::AddManagedEndpoint(

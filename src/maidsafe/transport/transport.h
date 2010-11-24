@@ -85,7 +85,7 @@ class Transport {
                     const SocketId &socket_id,
                     const boost::uint32_t &timeout_wait_for_response) = 0;
   // Used to send a file in response to a request received on socket_id.
-  virtual void SendFile(fs::path &path, const SocketId &socket_id) = 0;
+  virtual void SendFile(const fs::path &path, const SocketId &socket_id) = 0;
   boost::shared_ptr<Signals> signals() { return signals_; }
   std::vector<Port> listening_ports() { return listening_ports_; }
  protected:

@@ -133,7 +133,7 @@ class UdtTransport : public Transport {
                           const Port &rendezvous_port,
                           SocketId *socket_id);
   // Used to send a file in response to a request received on socket_id.
-  void SendFile(fs::path &path, const SocketId &socket_id);
+  void SendFile(const fs::path &path, const SocketId &socket_id);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
   // alive the connection if frequency == 0.  Checking persists until
   // RemoveManagedEndpoint called, or endpoint is unavailable.

@@ -257,7 +257,7 @@ class RpcProtocolTest : public testing::Test {
   }
   virtual void TearDown() {
     client_channel_manager_->Stop();
-    server_channel_manager_->transport()->StopListening(server_port_);
+//    server_channel_manager_->transport()->StopListening(server_port_);
     server_channel_manager_->Stop();
   }
   Port server_port_;

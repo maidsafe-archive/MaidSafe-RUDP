@@ -46,11 +46,11 @@ namespace transport {
 
 TcpConnection::TcpConnection(TcpTransport &tcp_transport,
                              ip::tcp::endpoint const& remote_ep)
-  : transport_(tcp_transport)
-  , socket_(transport_.IOService())
-  , timer_(transport_.IOService())
-  , remote_endpoint_(remote_ep)
-  , timeout_for_response_(kDefaultInitialTimeout) {}
+  : transport_(tcp_transport),
+    socket_(transport_.IOService()),
+    timer_(transport_.IOService()),
+    remote_endpoint_(remote_ep),
+    timeout_for_response_(kDefaultInitialTimeout) {}
 
 TcpConnection::~TcpConnection() {
 }
@@ -217,12 +217,12 @@ void TcpConnection::Send(const TransportMessage &msg,
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_receive_(socket_id_, kSendTimeout);
+    transport_.signals()->on_send_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kSendUdtFailure);
+    transport_.signals()->on_send_(socket_id_, kSendUdtFailure);
     return Close();
   }
 
@@ -239,12 +239,12 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_receive_(socket_id_, kSendTimeout);
+    transport_.signals()->on_send_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kSendUdtFailure);
+    transport_.signals()->on_send_(socket_id_, kSendUdtFailure);
     return Close();
   }
 

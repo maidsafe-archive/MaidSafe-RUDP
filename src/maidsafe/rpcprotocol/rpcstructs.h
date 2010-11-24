@@ -65,6 +65,11 @@ struct PendingMessage {
     }
     return *this;
   }
+  ~PendingMessage() {
+    rpc_reponse.disconnect();
+    data_sent.disconnect();
+    timeout.disconnect();
+  }
   MessageStatus status;
   google::protobuf::Message *args;
   google::protobuf::Closure *callback;

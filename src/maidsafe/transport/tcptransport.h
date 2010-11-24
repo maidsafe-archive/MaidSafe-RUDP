@@ -59,7 +59,8 @@ class TcpTransport : public Transport {
              const SocketId &socket_id,
              const boost::uint32_t &timeout_wait_for_response);
 
-   void SendFile(boost::filesystem::path &path, const SocketId &socket_id);
+   void SendFile(const boost::filesystem::path &path,
+                 const SocketId &socket_id);
 
  private:
    friend class TcpConnection;
