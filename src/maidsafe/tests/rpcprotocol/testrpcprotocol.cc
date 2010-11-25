@@ -47,9 +47,9 @@ namespace rpcprotocol {
 namespace test {
 
 // NOTE: Put any new transport objects in here.
+
 typedef testing::Types<transport::UdtTransport,
                        transport::TcpTransport> Implementations;
-
 class PingTestService : public tests::PingTest {
  public:
   void TestPing(google::protobuf::RpcController*,

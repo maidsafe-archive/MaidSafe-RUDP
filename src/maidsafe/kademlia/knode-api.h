@@ -54,7 +54,7 @@ class ChannelManager;
 }  // namespace rpcprotocol
 
 namespace transport {
-class UdtTransport;
+class Transport;
 }  // namespace transport
 
 namespace kad {

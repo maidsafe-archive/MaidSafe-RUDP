@@ -53,7 +53,7 @@ TransportCondition GetNewSocket(
     const IP &ip,
     const Port &port,
     bool reuse_address,
-    UdtSocketId *udt_socket_id,
+    SocketId *udt_socket_id,
     boost::shared_ptr<addrinfo const> *address_info) {
   if (udt_socket_id == NULL)
     return kConnectError;
@@ -77,7 +77,7 @@ TransportCondition GetNewSocket(
 
 TransportCondition GetNewSocket(
     bool reuse_address,
-    UdtSocketId *udt_socket_id,
+    SocketId *udt_socket_id,
     boost::shared_ptr<addrinfo const> address_info) {
   if (udt_socket_id == NULL)
     return kConnectError;

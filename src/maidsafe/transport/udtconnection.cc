@@ -183,7 +183,7 @@ void UdtConnection::Send(const TransportMessage &transport_message,
   if (is_request) {
     result = udtutils::Connect(udt_socket_id_, peer_);
     if (result != kSuccess) {
-      signals_->on_send_(udt_socket_id_, kSendUdtFailure);
+      signals_->on_send_(udt_socket_id_, kSendFailure);
       return;
     }
     if (timeout_wait_for_response > 0)
@@ -196,7 +196,7 @@ void UdtConnection::Send(const TransportMessage &transport_message,
       if (!threadpool_->EnqueueTask(functor)) {
         LOG(ERROR) << "In UdtConnection::Send: failed to enqueue task." <<
             std::endl;
-        signals_->on_send_(udt_socket_id_, kSendUdtFailure);
+        signals_->on_send_(udt_socket_id_, kSendFailure);
       }
     } else {
       worker_.reset(new boost::thread(functor));
@@ -204,7 +204,7 @@ void UdtConnection::Send(const TransportMessage &transport_message,
   }
   catch(const std::exception &e) {
     LOG(ERROR) << "In UdtConnection::Send: " << e.what() << std::endl;
-    signals_->on_send_(udt_socket_id_, kSendUdtFailure);
+    signals_->on_send_(udt_socket_id_, kSendFailure);
   }
 }
 
@@ -373,7 +373,7 @@ bool UdtConnection::ReceiveDataContent(const DataSize &data_size,
   if (!transport_message_.ParseFromArray(serialised_message.get(), data_size)) {
     DLOG(ERROR) << "UdtTransport::ReceiveDataContent: failed to parse." <<
         std::endl;
-    signals_->on_receive_(udt_socket_id_, kReceiveUdtFailure);
+    signals_->on_receive_(udt_socket_id_, kReceiveFailure);
     UDT::close(udt_socket_id_);
     return false;
   }
@@ -408,7 +408,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
       if (moved_total > data_size) {
         LOG(ERROR) << (sending ? "Send " : "Recv ") << udt_socket_id_ << ": " <<
             "Exceeded expected size." << std::endl;
-        return (sending ? kSendUdtFailure : kReceiveUdtFailure);
+        return (sending ? kSendFailure : kReceiveFailure);
       }
       last_success_time = boost::posix_time::ptime(
           boost::posix_time::microsec_clock::universal_time());
@@ -443,7 +443,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
         UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCRCV) {
       LOG(ERROR) << (sending ? "Send " : "Recv ") << udt_socket_id_ << ": " <<
           UDT::getlasterror().getErrorMessage() << std::endl;
-      return (sending ? kSendUdtFailure : kReceiveUdtFailure);
+      return (sending ? kSendFailure : kReceiveFailure);
     }
   }
 }

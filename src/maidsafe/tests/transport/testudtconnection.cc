@@ -296,7 +296,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
       TransportMessage::kResponse);
   DataSize sending_data_size =
       sending_udt_connection1.transport_message_.ByteSize();
-  EXPECT_EQ(kSendUdtFailure, sending_udt_connection1.SendDataSize());
+  EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataSize());
 
   // Connect to listening socket, then send and receive data size
   ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.udt_socket_id_,
@@ -446,7 +446,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
       TransportMessage::kResponse);
-  EXPECT_EQ(kSendUdtFailure, sending_udt_connection1.SendDataContent());
+  EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataContent());
 
   // Connect to listening socket, then try with invalid message
   ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.udt_socket_id_,
@@ -548,7 +548,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   ASSERT_EQ(2U, listening_message_handler_.received_results().size());
   message_result = listening_message_handler_.received_results().back();
   EXPECT_EQ(message_result.get<0>(), receiving_socket_id2);
-  EXPECT_EQ(message_result.get<1>(), kReceiveUdtFailure);
+  EXPECT_EQ(message_result.get<1>(), kReceiveFailure);
 }
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {

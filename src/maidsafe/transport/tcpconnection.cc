@@ -98,7 +98,7 @@ void TcpConnection::HandleSize(boost::system::error_code const& ec) {
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveUdtFailure);
+    transport_.signals()->on_receive_(socket_id_, kReceiveFailure);
     return Close();
   }
 
@@ -118,7 +118,7 @@ void TcpConnection::HandleRead(boost::system::error_code const& ec) {
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveUdtFailure);
+    transport_.signals()->on_receive_(socket_id_, kReceiveFailure);
     return Close();
   }
 
@@ -222,7 +222,7 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
   }
 
   if (ec) {
-    transport_.signals()->on_send_(socket_id_, kSendUdtFailure);
+    transport_.signals()->on_send_(socket_id_, kSendFailure);
     return Close();
   }
 
@@ -244,7 +244,7 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
   }
 
   if (ec) {
-    transport_.signals()->on_send_(socket_id_, kSendUdtFailure);
+    transport_.signals()->on_send_(socket_id_, kSendFailure);
     return Close();
   }
 

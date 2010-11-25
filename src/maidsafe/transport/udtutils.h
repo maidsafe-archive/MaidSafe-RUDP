@@ -61,13 +61,13 @@ TransportCondition GetNewSocket(
     boost::shared_ptr<addrinfo const> *address_info);
 
 TransportCondition GetNewSocket(bool reuse_address,
-                                UdtSocketId *udt_socket_id,
+                                SocketId *udt_socket_id,
                                 boost::shared_ptr<addrinfo const> address_info);
 
-TransportCondition Connect(const UdtSocketId &udt_socket_id,
+TransportCondition Connect(const SocketId &udt_socket_id,
                            boost::shared_ptr<addrinfo const> peer);
 
-TransportCondition SetSyncMode(const UdtSocketId &udt_socket_id,
+TransportCondition SetSyncMode(const SocketId &udt_socket_id,
                                bool synchronous);
 
 }  // namespace udtutils
