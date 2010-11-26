@@ -206,7 +206,7 @@ testing::AssertionResult WaitForRawMessage(
     const std::string &sent_raw_message,
     const size_t &expected_count,
     MessageHandler *listening_message_handler,
-    UdtSocketId *receiving_socket_id) {
+    SocketId *receiving_socket_id) {
   *receiving_socket_id = UDT::INVALID_SOCK;
   if (expected_count < 1)
     return testing::AssertionFailure() << "expected_count (" << expected_count
@@ -251,30 +251,30 @@ class UdtConnectionTest: public testing::Test {
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnInit) {
   // Bad remote IP
   UdtConnection udt_connection1("Rubbish", 5001, loopback_ip_, 5001);
-  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection1.udt_socket_id());
+  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection1.socket_id());
   // Bad remote Port
   UdtConnection udt_connection2(loopback_ip_, 5000, loopback_ip_, 5001);
-  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection2.udt_socket_id());
+  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection2.socket_id());
   // Bad rendezvous IP
   UdtConnection udt_connection3(loopback_ip_, 5001, "Rubbish", 5001);
-  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection3.udt_socket_id());
+  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection3.socket_id());
   // Bad rendezvous Port
   UdtConnection udt_connection4(loopback_ip_, 5001, loopback_ip_, 5000);
-  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection4.udt_socket_id());
+  EXPECT_EQ(UDT::INVALID_SOCK, udt_connection4.socket_id());
 
   // All good - no rendezvous
   UdtConnection udt_connection5(loopback_ip_, -1, "", 0);
-  EXPECT_NE(UDT::INVALID_SOCK, udt_connection5.udt_socket_id());
-  EXPECT_GT(udt_connection5.udt_socket_id(), 0);
+  EXPECT_NE(UDT::INVALID_SOCK, udt_connection5.socket_id());
+  EXPECT_GT(udt_connection5.socket_id(), 0);
   // All good - no rendezvous
   UdtConnection udt_connection6(loopback_ip_, -1, "", 1);
-  EXPECT_NE(UDT::INVALID_SOCK, udt_connection6.udt_socket_id());
-  EXPECT_GT(udt_connection6.udt_socket_id(), 0);
+  EXPECT_NE(UDT::INVALID_SOCK, udt_connection6.socket_id());
+  EXPECT_GT(udt_connection6.socket_id(), 0);
 }
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   // Get a new socket for listening
-  UdtSocketId listening_socket_id(UDT::INVALID_SOCK);
+  SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;
   ASSERT_EQ(kSuccess, udtutils::GetNewSocket("", 0, true, &listening_socket_id,
                                              &address_info));
@@ -289,7 +289,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
 
   // Try with message before connected
   UdtConnection sending_udt_connection1(loopback_ip_, listening_port, "", 0);
-  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection1.udt_socket_id_);
+  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection1.socket_id_);
   *(sending_udt_connection1.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
@@ -299,12 +299,12 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataSize());
 
   // Connect to listening socket, then send and receive data size
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.socket_id_,
                                         sending_udt_connection1.peer_));
   EXPECT_EQ(kSuccess, sending_udt_connection1.SendDataSize());
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
-  UdtSocketId receiving_socket_id1 = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id1 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id1);
   UdtConnection receiving_udt_connection1(&listening_node_,
@@ -321,7 +321,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   big_data_size[0] = 10;
   for (int i = 1; i < big_data_buffer_size; ++i)
     big_data_size[i] = 0;
-  int sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
+  int sent_count = UDT::send(sending_udt_connection1.socket_id_,
       big_data_size.get(), big_data_buffer_size, 0);
   EXPECT_EQ(big_data_buffer_size, sent_count);
   received_data_size = receiving_udt_connection1.ReceiveDataSize(1000);
@@ -339,7 +339,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   wee_data_size[0] = 10;
   for (int i = 1; i < wee_data_buffer_size; ++i)
     wee_data_size[i] = 0;
-  sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection1.socket_id_,
       wee_data_size.get(), wee_data_buffer_size, 0);
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(listening_message_handler_.received_results().empty());
@@ -357,10 +357,10 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   UdtConnection sending_udt_connection2(loopback_ip_, listening_port, "", 0);
   sending_udt_connection2.transport_message_ =
      sending_udt_connection1.transport_message_;
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection2.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection2.socket_id_,
                                         sending_udt_connection2.peer_));
   EXPECT_EQ(kSuccess, sending_udt_connection2.SendDataSize());
-  UdtSocketId receiving_socket_id2 = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id2 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id2);
   UdtConnection receiving_udt_connection2(&listening_node_,
@@ -371,7 +371,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   // Send negative data size - should fail and close sockets
   boost::uint8_t data_buffer_size = sizeof(DataSize);
   sending_data_size = -1;
-  sent_count = UDT::send(sending_udt_connection2.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection2.socket_id_,
      reinterpret_cast<char*>(&sending_data_size), data_buffer_size, 0);
   EXPECT_EQ(data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id2));
@@ -387,10 +387,10 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   UdtConnection sending_udt_connection3(loopback_ip_, listening_port, "", 0);
   sending_udt_connection3.transport_message_ =
      sending_udt_connection1.transport_message_;
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection3.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection3.socket_id_,
                                         sending_udt_connection3.peer_));
   EXPECT_EQ(kSuccess, sending_udt_connection3.SendDataSize());
-  UdtSocketId receiving_socket_id3 = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id3 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id3);
   UdtConnection receiving_udt_connection3(&listening_node_,
@@ -401,7 +401,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
 
   // Try with excessively large message - should fail and close sockets
   sending_data_size = kMaxTransportMessageSize + 1;
-  sent_count = UDT::send(sending_udt_connection3.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection3.socket_id_,
      reinterpret_cast<char*>(&sending_data_size), data_buffer_size, 0);
   EXPECT_EQ(data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id3));
@@ -426,7 +426,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   // Get a new socket for listening
-  UdtSocketId listening_socket_id(UDT::INVALID_SOCK);
+  SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;
   ASSERT_EQ(kSuccess, udtutils::GetNewSocket("", 0, true, &listening_socket_id,
                                              &address_info));
@@ -441,7 +441,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
 
   // Try with message before connected
   UdtConnection sending_udt_connection1(loopback_ip_, listening_port, "", 0);
-  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection1.udt_socket_id_);
+  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection1.socket_id_);
   *(sending_udt_connection1.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
@@ -449,7 +449,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataContent());
 
   // Connect to listening socket, then try with invalid message
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection1.socket_id_,
                                         sending_udt_connection1.peer_));
   sending_udt_connection1.transport_message_.clear_type();
   EXPECT_EQ(kInvalidData, sending_udt_connection1.SendDataContent());
@@ -462,7 +462,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   EXPECT_EQ(kSuccess, sending_udt_connection1.SendDataContent());
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
-  UdtSocketId receiving_socket_id1 = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id1 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id1);
   EXPECT_EQ(kSuccess, udtutils::SetSyncMode(receiving_socket_id1, true));
@@ -481,7 +481,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   sending_udt_connection1.transport_message_.SerializeToArray(
      big_data_content.get(), kProperDataSize);
   big_data_content[kProperDataSize] = 'A';
-  int sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
+  int sent_count = UDT::send(sending_udt_connection1.socket_id_,
       big_data_content.get(), big_data_buffer_size, 0);
   EXPECT_EQ(big_data_buffer_size, sent_count);
   EXPECT_TRUE(receiving_udt_connection1.ReceiveDataContent(kProperDataSize,
@@ -495,7 +495,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
 
   // Send too few chars - should timeout and close sockets
   int receive_timeout = 100;  // milliseconds
-  ASSERT_EQ(kSuccess, UDT::setsockopt(receiving_udt_connection1.udt_socket_id_,
+  ASSERT_EQ(kSuccess, UDT::setsockopt(receiving_udt_connection1.socket_id_,
             0, UDT_RCVTIMEO, &receive_timeout, sizeof(receive_timeout)));
   boost::uint8_t missing_char_count = 1;
   ASSERT_LE(missing_char_count, kProperDataSize);
@@ -503,7 +503,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   boost::scoped_array<char> wee_data_content(new char[wee_data_buffer_size]);
   for (DataSize i = 0; i < wee_data_buffer_size; ++i)
     wee_data_content[i] = big_data_content[i];
-  sent_count = UDT::send(sending_udt_connection1.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection1.socket_id_,
       wee_data_content.get(), wee_data_buffer_size, 0);
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id1));
@@ -522,10 +522,10 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   UdtConnection sending_udt_connection2(loopback_ip_, listening_port, "", 0);
   sending_udt_connection2.transport_message_ =
      sending_udt_connection1.transport_message_;
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection2.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection2.socket_id_,
                                         sending_udt_connection2.peer_));
   EXPECT_EQ(kSuccess, sending_udt_connection2.SendDataContent());
-  UdtSocketId receiving_socket_id2 = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id2 = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id2);
   UdtConnection receiving_udt_connection2(&listening_node_,
@@ -536,7 +536,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
                             receiving_udt_connection2.transport_message_));
 
   // Send content which is unparseable - should fail and close sockets
-  sent_count = UDT::send(sending_udt_connection2.udt_socket_id_,
+  sent_count = UDT::send(sending_udt_connection2.socket_id_,
       wee_data_content.get(), wee_data_buffer_size, 0);
   EXPECT_EQ(wee_data_buffer_size, sent_count);
   EXPECT_TRUE(SocketAlive(receiving_socket_id2));
@@ -553,7 +553,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
   // Get a new socket for listening
-  UdtSocketId listening_socket_id(UDT::INVALID_SOCK);
+  SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;
   ASSERT_EQ(kSuccess, udtutils::GetNewSocket("", 0, true, &listening_socket_id,
                                              &address_info));
@@ -568,7 +568,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
 
   // Get a new socket for sending
   UdtConnection sending_udt_connection(loopback_ip_, listening_port, "", 0);
-  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection.udt_socket_id_);
+  ASSERT_NE(UDT::INVALID_SOCK, sending_udt_connection.socket_id_);
   *(sending_udt_connection.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection.transport_message_.set_type(
@@ -576,12 +576,12 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
   DataSize sending_data_size =
       sending_udt_connection.transport_message_.ByteSize();
 
-  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(sending_udt_connection.socket_id_,
                                         sending_udt_connection.peer_));
   EXPECT_EQ(kSuccess, sending_udt_connection.SendDataSize());
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
-  UdtSocketId receiving_socket_id = UDT::accept(listening_socket_id,
+  SocketId receiving_socket_id = UDT::accept(listening_socket_id,
         reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   EXPECT_NE(UDT::INVALID_SOCK, receiving_socket_id);
   UdtConnection receiving_udt_connection(&listening_node_, receiving_socket_id);
@@ -620,7 +620,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
 
 TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   // Get a new socket for listening
-  UdtSocketId listening_socket_id(UDT::INVALID_SOCK);
+  SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;
   ASSERT_EQ(kSuccess, udtutils::GetNewSocket("", 0, true, &listening_socket_id,
                                              &address_info));
@@ -641,11 +641,11 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   sockaddr clientaddr;
   for (int i = 0; i < 14; ++i) {
     UdtConnection udt_connection(loopback_ip_, listening_port, "", 0);
-    ASSERT_GT(udt_connection.udt_socket_id_, 0);
-    ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.udt_socket_id_,
+    ASSERT_GT(udt_connection.socket_id_, 0);
+    ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.socket_id_,
                                           udt_connection.peer_));
     UDT::accept(listening_socket_id, &clientaddr, &addrlen);
-    ASSERT_TRUE(SocketAlive(udt_connection.udt_socket_id_));
+    ASSERT_TRUE(SocketAlive(udt_connection.socket_id_));
     udt_connections.push_back(udt_connection);
     boost::shared_ptr<MessageHandler> message_handler(new MessageHandler(
         udt_connection.signals_, boost::lexical_cast<std::string>(i), false));
@@ -660,7 +660,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   *(message_data->mutable_ping());
   float rtt = 1.0;
   EXPECT_FALSE(udt_connections.at(0).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(0).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(0).socket_id_));
   EXPECT_TRUE(message_handlers.at(0)->received_results().empty());
 
   // Set > 1 optional field as data (response)
@@ -670,11 +670,11 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 1.1;
   EXPECT_FALSE(udt_connections.at(1).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(1).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(1).socket_id_));
   ASSERT_EQ(1U, message_handlers.at(1)->received_results().size());
   boost::tuple<SocketId, TransportCondition> message_result =
      message_handlers.at(1)->received_results().back();
-  EXPECT_EQ(message_result.get<0>(), udt_connections.at(1).udt_socket_id_);
+  EXPECT_EQ(message_result.get<0>(), udt_connections.at(1).socket_id_);
   EXPECT_EQ(message_result.get<1>(), kReceiveParseFailure);
 
 
@@ -685,13 +685,13 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(2).transport_message_.set_type(TransportMessage::kRequest);
   rtt = 1.2;
   EXPECT_TRUE(udt_connections.at(2).HandleTransportMessage(rtt));
-  EXPECT_TRUE(SocketAlive(udt_connections.at(2).udt_socket_id_));
+  EXPECT_TRUE(SocketAlive(udt_connections.at(2).socket_id_));
   ASSERT_TRUE(SingleSignalFired(udt_connections.at(2).transport_message_,
                                 message_handlers.at(2), false));
   boost::tuple<std::string, SocketId, float> signalled_raw_message =
       message_handlers.at(2)->raw_messages().back();
   EXPECT_EQ(kSentRawMessage, signalled_raw_message.get<0>());
-  EXPECT_EQ(udt_connections.at(2).udt_socket_id_,
+  EXPECT_EQ(udt_connections.at(2).socket_id_,
             signalled_raw_message.get<1>());
   EXPECT_EQ(rtt, signalled_raw_message.get<2>());
 
@@ -702,12 +702,12 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 1.3;
   EXPECT_TRUE(udt_connections.at(3).HandleTransportMessage(rtt));
-  EXPECT_TRUE(SocketAlive(udt_connections.at(3).udt_socket_id_));
+  EXPECT_TRUE(SocketAlive(udt_connections.at(3).socket_id_));
   ASSERT_TRUE(SingleSignalFired(udt_connections.at(3).transport_message_,
                                 message_handlers.at(3), false));
   signalled_raw_message = message_handlers.at(3)->raw_messages().back();
   EXPECT_EQ(kSentRawMessage, signalled_raw_message.get<0>());
-  EXPECT_EQ(udt_connections.at(3).udt_socket_id_,
+  EXPECT_EQ(udt_connections.at(3).socket_id_,
             signalled_raw_message.get<1>());
   EXPECT_EQ(rtt, signalled_raw_message.get<2>());
 
@@ -732,14 +732,14 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(4).transport_message_.set_type(TransportMessage::kRequest);
   rtt = 1.4;
   EXPECT_TRUE(udt_connections.at(4).HandleTransportMessage(rtt));
-  EXPECT_TRUE(SocketAlive(udt_connections.at(4).udt_socket_id_));
+  EXPECT_TRUE(SocketAlive(udt_connections.at(4).socket_id_));
   ASSERT_TRUE(SingleSignalFired(udt_connections.at(4).transport_message_,
                                 message_handlers.at(4), false));
   boost::tuple<rpcprotocol::RpcMessage, SocketId, float> signalled_rpc_message =
       message_handlers.at(4)->rpc_requests().back();
   EXPECT_EQ(sent_rpc_message->SerializeAsString(),
             signalled_rpc_message.get<0>().SerializeAsString());
-  EXPECT_EQ(udt_connections.at(4).udt_socket_id_,
+  EXPECT_EQ(udt_connections.at(4).socket_id_,
             signalled_rpc_message.get<1>());
   EXPECT_EQ(rtt, signalled_rpc_message.get<2>());
 
@@ -750,13 +750,13 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 1.5;
   EXPECT_TRUE(udt_connections.at(5).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(5).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(5).socket_id_));
   ASSERT_TRUE(SingleSignalFired(udt_connections.at(5).transport_message_,
                                 message_handlers.at(5), false));
   signalled_rpc_message = message_handlers.at(5)->rpc_responses().back();
   EXPECT_EQ(sent_rpc_message->SerializeAsString(),
             signalled_rpc_message.get<0>().SerializeAsString());
-  EXPECT_EQ(udt_connections.at(5).udt_socket_id_,
+  EXPECT_EQ(udt_connections.at(5).socket_id_,
             signalled_rpc_message.get<1>());
   EXPECT_EQ(rtt, signalled_rpc_message.get<2>());
 
@@ -770,7 +770,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(6).transport_message_.set_type(TransportMessage::kRequest);
   rtt = 1.6;
   EXPECT_TRUE(udt_connections.at(6).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(6).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(6).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - Uncomment lines below
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(6).transport_message_,
 //                                message_handlers.at(6), false));
@@ -790,7 +790,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 1.7;
   EXPECT_TRUE(udt_connections.at(7).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(7).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(7).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - Uncomment lines below
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(7).transport_message_,
 //                                message_handlers.at(7), false));
@@ -813,7 +813,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(8).transport_message_.set_type(TransportMessage::kRequest);
   rtt = 1.8;
   EXPECT_TRUE(udt_connections.at(8).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(8).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(8).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - complete test
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(8).transport_message_,
 //                                message_handlers.at(8), false));
@@ -825,7 +825,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 1.9;
   EXPECT_TRUE(udt_connections.at(9).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(9).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(9).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - complete test
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(9).transport_message_,
 //                                message_handlers.at(9), false));
@@ -842,7 +842,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kRequest);
   rtt = 2.0;
   EXPECT_TRUE(udt_connections.at(10).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(10).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(10).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - complete test
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(10).transport_message_,
 //                                message_handlers.at(10), false));
@@ -854,7 +854,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 2.1;
   EXPECT_TRUE(udt_connections.at(11).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(11).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(11).socket_id_));
   // TODO(Fraser#5#): 2010-08-10 - complete test
 //  ASSERT_TRUE(SingleSignalFired(udt_connections.at(11).transport_message_,
 //                                message_handlers.at(11), false));
@@ -877,7 +877,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kRequest);
   rtt = 2.2;
   EXPECT_TRUE(udt_connections.at(12).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(12).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(12).socket_id_));
   EXPECT_TRUE(SingleSignalFired(udt_connections.at(12).transport_message_,
                                 message_handlers.at(12), false));
 
@@ -888,7 +888,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       TransportMessage::kResponse);
   rtt = 2.3;
   EXPECT_TRUE(udt_connections.at(13).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections.at(13).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections.at(13).socket_id_));
   EXPECT_TRUE(SingleSignalFired(udt_connections.at(13).transport_message_,
                                 message_handlers.at(13), false));
   // Set up connections with valid pointers to transport objects
@@ -900,10 +900,10 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
     udt_transports.push_back(udt_transport);
     UdtConnection udt_connection(udt_transport.get(), loopback_ip_,
                                  listening_port_, "", 0);
-    ASSERT_GT(udt_connection.udt_socket_id_, 0);
-    ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.udt_socket_id_,
+    ASSERT_GT(udt_connection.socket_id_, 0);
+    ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.socket_id_,
                                           udt_connection.peer_));
-    ASSERT_TRUE(SocketAlive(udt_connection.udt_socket_id_));
+    ASSERT_TRUE(SocketAlive(udt_connection.socket_id_));
     udt_connections2.push_back(udt_connection);
     boost::shared_ptr<MessageHandler> message_handler(new MessageHandler(
         udt_connection.signals_, boost::lexical_cast<std::string>(i), false));
@@ -919,7 +919,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   boost::tuple<ManagedEndpointId, ManagedEndpointMessage>
       signalled_managed_endpoint_message =
           message_handlers2.at(0)->managed_endpoint_messages().back();
-  EXPECT_FALSE(SocketAlive(udt_connections2.at(0).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections2.at(0).socket_id_));
   int count(0), timeout(1000);
   while (count < timeout &&
          SocketAlive(signalled_managed_endpoint_message.get<0>())) {
@@ -934,7 +934,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections2.at(1).transport_message_ =
       udt_connections.at(13).transport_message_;
   EXPECT_TRUE(udt_connections2.at(1).HandleTransportMessage(rtt));
-  EXPECT_FALSE(SocketAlive(udt_connections2.at(1).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(udt_connections2.at(1).socket_id_));
   EXPECT_TRUE(SingleSignalFired(udt_connections2.at(1).transport_message_,
                                 message_handlers2.at(1), true));
 }
@@ -944,7 +944,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   std::vector< boost::shared_ptr<MessageHandler> > send_message_handlers;
   for (int i = 0; i < 3; ++i) {
     UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
-    ASSERT_GT(udt_connection.udt_socket_id_, 0);
+    ASSERT_GT(udt_connection.socket_id_, 0);
     send_connections.push_back(udt_connection);
     boost::shared_ptr<MessageHandler> message_handler(new MessageHandler(
         udt_connection.signals_, boost::lexical_cast<std::string>(i), false));
@@ -955,14 +955,14 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
       sent_message.mutable_data()->mutable_raw_message();
   *sent_raw_message = base::RandomString(100);
   sent_message.set_type(TransportMessage::kResponse);
-  UdtSocketId receiving_socket_id;
+  SocketId receiving_socket_id;
 
   // Send response (no response expected)
   size_t test_count(0);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
   // Explicitly connect as responses are usually sent on pre-connected sockets
   ASSERT_EQ(kSuccess,
-            udtutils::Connect(send_connections.at(test_count).udt_socket_id_,
+            udtutils::Connect(send_connections.at(test_count).socket_id_,
                               send_connections.at(test_count).peer_));
   const int kTimeout(5000);
   const boost::uint32_t kTestRpcTimeout(kTimeout - 1000);
@@ -972,11 +972,11 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
   boost::tuple<SocketId, TransportCondition> signalled_message_result =
       send_message_handlers.at(test_count)->sent_results().back();
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
+  EXPECT_EQ(send_connections.at(test_count).socket_id_,
             signalled_message_result.get<0>());
   EXPECT_EQ(kSuccess, signalled_message_result.get<1>());
   EXPECT_FALSE(send_connections.at(test_count).worker_.get() == NULL);
-  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).socket_id_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id));
 
   // Send request (response expected) and don't send response
@@ -990,7 +990,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
   signalled_message_result =
       send_message_handlers.at(test_count)->sent_results().back();
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
+  EXPECT_EQ(send_connections.at(test_count).socket_id_,
             signalled_message_result.get<0>());
   EXPECT_EQ(kSuccess, signalled_message_result.get<1>());
   int count(0);
@@ -1003,11 +1003,11 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
             send_message_handlers.at(test_count)->received_results().size());
   signalled_message_result =
       send_message_handlers.at(test_count)->received_results().back();
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
+  EXPECT_EQ(send_connections.at(test_count).socket_id_,
             signalled_message_result.get<0>());
   EXPECT_EQ(kReceiveTimeout, signalled_message_result.get<1>());
   EXPECT_FALSE(send_connections.at(test_count).worker_.get() == NULL);
-  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).socket_id_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id));
 
   // Send request and send response
@@ -1020,7 +1020,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   ASSERT_EQ(1U, send_message_handlers.at(test_count)->sent_results().size());
   signalled_message_result =
       send_message_handlers.at(test_count)->sent_results().back();
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
+  EXPECT_EQ(send_connections.at(test_count).socket_id_,
             signalled_message_result.get<0>());
   EXPECT_EQ(kSuccess, signalled_message_result.get<1>());
   UdtConnection reply_connection(&listening_node_, receiving_socket_id);
@@ -1041,10 +1041,10 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   boost::tuple<std::string, SocketId, float> signalled_received_reply =
       send_message_handlers.at(test_count)->raw_messages().back();
   EXPECT_EQ(*reply_raw_message, signalled_received_reply.get<0>());
-  EXPECT_EQ(send_connections.at(test_count).udt_socket_id_,
+  EXPECT_EQ(send_connections.at(test_count).socket_id_,
             signalled_received_reply.get<1>());
   EXPECT_FALSE(send_connections.at(test_count).worker_.get() == NULL);
-  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).udt_socket_id_));
+  EXPECT_FALSE(SocketAlive(send_connections.at(test_count).socket_id_));
   EXPECT_FALSE(SocketAlive(receiving_socket_id));
 }
 
@@ -1060,16 +1060,16 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnBigMessage) {
   }
   sent_message.set_type(TransportMessage::kResponse);
   UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
-  UdtSocketId sending_socket_id = udt_connection.udt_socket_id();
+  SocketId sending_socket_id = udt_connection.socket_id();
   ASSERT_GT(sending_socket_id, 0);
   MessageHandler message_handler(udt_connection.signals(), "BigSend", false);
   // Explicitly connect as responses are usually sent on pre-connected sockets
-  ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.udt_socket_id_,
+  ASSERT_EQ(kSuccess, udtutils::Connect(udt_connection.socket_id_,
                                         udt_connection.peer_));
   const int kTimeout(10000);
   const boost::uint32_t kTestRpcTimeout(kTimeout - 1000);
   udt_connection.Send(sent_message, kTestRpcTimeout);
-  UdtSocketId receiving_socket_id;
+  SocketId receiving_socket_id;
 
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, 1,
               &listening_message_handler_, &receiving_socket_id));

@@ -4,7 +4,7 @@ message ContactInfo {
   required bytes node_id = 1;
   required bytes ip = 2;
   required int32 port = 3;
-  optional bytes local_ip = 4;
+  optional bytes local_ips = 4;
   optional int32 local_port = 5;
   optional bytes rendezvous_ip = 6;
   optional int32 rendezvous_port = 7;

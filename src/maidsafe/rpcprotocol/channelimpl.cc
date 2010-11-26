@@ -60,27 +60,27 @@ ChannelImpl::ChannelImpl(
     boost::shared_ptr<ChannelManager> channel_manager)
     : channel_manager_(channel_manager),
     transport_(channel_manager_->transport()),
-      service_(0), remote_ip_(), 
-      rendezvous_ip_(), remote_port_(0), rendezvous_port_(0),
+      service_(0), ip_(),
+      rendezvous_ip_(), port_(0), rendezvous_port_(0),
       id_(0), local_transport_(false) {
   channel_manager_->AddChannelId(&id_);
 }
 
 ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-                         const IP &remote_ip, const Port &remote_port,
+                         const IP &ip, const Port &port,
                          const IP &rendezvous_ip, const Port &rendezvous_port)
     : channel_manager_(channel_manager),
       transport_(channel_manager_->transport()),
-      service_(0), remote_ip_(), rendezvous_ip_(),
-      remote_port_(remote_port),
+      service_(0), ip_(), rendezvous_ip_(),
+      port_(port),
       rendezvous_port_(rendezvous_port), id_(0), local_transport_(true) {
   channel_manager_->AddChannelId(&id_);
 
   // To send we need ip in decimal dotted format
-  if (remote_ip.size() == 4) {
-    remote_ip_ = base::IpBytesToAscii(remote_ip);
+  if (ip.size() == 4) {
+    ip_ = base::IpBytesToAscii(ip);
   } else {
-    remote_ip_ = remote_ip;
+    ip_ = ip;
   }
 
  
@@ -123,7 +123,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
                              const google::protobuf::Message *request,
                              google::protobuf::Message *response,
                              google::protobuf::Closure *done) {
-  if ((remote_ip_.empty()) || (remote_port_ == 0)) {
+  if ((ip_.empty()) || (port_ == 0)) {
     DLOG(ERROR) << "ChannelImpl::CallMethod. No remote_ip or remote_port: "
                 << method->full_name() << std::endl;
     done->Run();
@@ -175,15 +175,15 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
 //   if (local_transport_)
 //     socket_id = transport_->socket_id();
 //   else
-    socket_id = transport_->PrepareToSend(remote_ip_, remote_port_,
+    socket_id = transport_->PrepareToSend(ip_, port_,
                                               rendezvous_ip_, rendezvous_port_);
   pending_request.controller->set_socket_id(socket_id);
 
   if (socket_id < 0 ||
       !channel_manager_->AddPendingRequest(socket_id, pending_request)) {
     DLOG(INFO) << "Failed to send the RPC request(" << rpc_message->method()
-               << ") - " << socket_id << " to " << remote_ip_ << ":"
-               << remote_port_ << std::endl;
+               << ") - " << socket_id << " to " << ip_ << ":"
+               << port_ << std::endl;
     done->Run();
     return;
   }

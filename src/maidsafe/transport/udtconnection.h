@@ -75,20 +75,20 @@ const boost::uint32_t kStallTimeout(3000);
 struct UdtStats : public SocketPerformanceStats {
  public:
   enum UdtSocketType { kSend, kReceive };
-  UdtStats(const UdtSocketId &udt_socket_id,
+  UdtStats(const SocketId &socket_id,
            const UdtSocketType &udt_socket_type)
-      : udt_socket_id_(udt_socket_id),
+      : socket_id_(socket_id),
         udt_socket_type_(udt_socket_type),
         performance_monitor_() {}
   ~UdtStats() {}
-  UdtSocketId udt_socket_id_;
+  SocketId socket_id_;
   UdtSocketType udt_socket_type_;
   UDT::TRACEINFO performance_monitor_;
 };
 
 class UdtConnection {
  public:
-  UdtConnection(const IP &remote_ip, const Port &remote_port,
+  UdtConnection(const IP &ip, const Port &port,
                 const IP &rendezvous_ip, const Port &rendezvous_port);
   UdtConnection(const UdtConnection &other);
   UdtConnection& operator=(const UdtConnection &other);
@@ -102,7 +102,7 @@ class UdtConnection {
   void Send(const TransportMessage &transport_message,
             const boost::uint32_t &timeout_wait_for_response);
   boost::shared_ptr<Signals> signals() const { return signals_; }
-  UdtSocketId udt_socket_id() const { return udt_socket_id_; }
+  SocketId socket_id() const { return socket_id_; }
   friend class UdtTransport;
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataSize_Test;
   friend class
@@ -114,13 +114,13 @@ class UdtConnection {
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
  private:
   enum ActionAfterSend { kClose, kKeepAlive, kReceive};
-  UdtConnection(UdtTransport *udt_transport,
-                const IP &remote_ip,
-                const Port &remote_port,
+  UdtConnection(UdtTransport *transport,
+                const IP &ip,
+                const Port &port,
                 const IP &rendezvous_ip,
                 const Port &rendezvous_port);
-  UdtConnection(UdtTransport *udt_transport,
-                const UdtSocketId &udt_socket_id);
+  UdtConnection(UdtTransport *transport,
+                const SocketId &socket_id);
   void Init();
   bool SetDataSizeSendTimeout();
   bool SetDataSizeReceiveTimeout(const boost::uint32_t &timeout);
@@ -148,13 +148,13 @@ class UdtConnection {
                               const DataSize &data_size,
                               char *data);
   bool HandleTransportMessage(const float &rtt);
-  UdtTransport *udt_transport_;
+  UdtTransport *transport_;
   boost::shared_ptr<Signals> signals_;
   boost::shared_ptr<base::Threadpool> threadpool_;
   boost::shared_ptr<boost::thread> worker_;
-  UdtSocketId udt_socket_id_;
-  IP remote_ip_;
-  Port remote_port_;
+  SocketId socket_id_;
+  IP ip_;
+  Port port_;
   IP rendezvous_ip_;
   Port rendezvous_port_;
   boost::shared_ptr<addrinfo const> peer_;

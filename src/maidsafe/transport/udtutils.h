@@ -42,7 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-typedef int UdtSocketId;
+typedef int SocketId;
 
 namespace udtutils {
 
@@ -57,7 +57,7 @@ TransportCondition GetNewSocket(
     const IP &ip,
     const Port &port,
     bool reuse_address,
-    UdtSocketId *udt_socket_id,
+    SocketId *udt_socket_id,
     boost::shared_ptr<addrinfo const> *address_info);
 
 TransportCondition GetNewSocket(bool reuse_address,

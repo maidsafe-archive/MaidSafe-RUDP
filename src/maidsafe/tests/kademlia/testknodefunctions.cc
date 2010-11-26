@@ -203,7 +203,7 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_NodeInfo) {
   ASSERT_EQ(ci.node_id(), kid.String());
   ASSERT_EQ(base::IpBytesToAscii(ci.ip()), host_ip);
   ASSERT_EQ(ci.port(), host_port);
-  ASSERT_EQ(base::IpBytesToAscii(ci.local_ip()), local_host_ip);
+  ASSERT_EQ(base::IpBytesToAscii(ci.local_ips()), local_host_ip);
   ASSERT_EQ(ci.local_port(), local_host_port);
   ASSERT_EQ(base::IpBytesToAscii(ci.rendezvous_ip()), rendezvous_ip);
   ASSERT_EQ(ci.rendezvous_port(), rendezvous_port);

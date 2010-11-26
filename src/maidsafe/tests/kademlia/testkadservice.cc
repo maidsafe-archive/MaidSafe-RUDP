@@ -106,7 +106,7 @@ class KadServicesTest: public testing::Test {
     contact_.set_node_id(base::DecodeFromHex(hex_id));
     contact_.set_ip("127.0.0.1");
     contact_.set_port(1234);
-    contact_.set_local_ip("127.0.0.2");
+    contact_.set_local_ips("127.0.0.2");
     contact_.set_local_port(1235);
     contact_.set_rendezvous_ip("127.0.0.3");
     contact_.set_rendezvous_port(1236);
@@ -128,7 +128,7 @@ class KadServicesTest: public testing::Test {
     node_info.set_node_id(node_id_.String());
     node_info.set_ip("127.0.0.1");
     node_info.set_port(1234);
-    node_info.set_local_ip("127.0.0.1");
+    node_info.set_local_ips("127.0.0.1");
     node_info.set_local_port(1234);
     service_->set_node_info(node_info);
     service_->set_node_joined(true);

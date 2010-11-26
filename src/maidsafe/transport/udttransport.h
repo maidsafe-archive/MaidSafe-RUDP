@@ -85,7 +85,7 @@ namespace test {
 class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
 }  // namespace test
 
-typedef int UdtSocketId;
+typedef int SocketId;
 
 const boost::uint32_t kAddManagedConnectionTimeout(10000);  // milliseconds
 const boost::uint16_t kDefaultThreadpoolSize(10);
@@ -158,7 +158,7 @@ class UdtTransport : public Transport {
   friend class
       test::UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
  private:
-  typedef std::map< UdtSocketId, boost::shared_ptr<addrinfo const> >
+  typedef std::map< SocketId, boost::shared_ptr<addrinfo const> >
       UnusedSockets;
   UdtTransport& operator=(const UdtTransport&);
   UdtTransport(const UdtTransport&);
@@ -167,26 +167,26 @@ class UdtTransport : public Transport {
                         bool managed_connection_listener,
                         TransportCondition *transport_condition);
   TransportCondition StartManagedEndpointListener(
-      const UdtSocketId &initial_peer_socket_id,
+      const SocketId &initial_peer_socket_id,
       boost::shared_ptr<addrinfo const> peer);
-  TransportCondition SetManagedSocketOptions(const UdtSocketId &udt_socket_id);
-  UdtSocketId GetNewManagedEndpointSocket(const IP &remote_ip,
+  TransportCondition SetManagedSocketOptions(const SocketId &udt_socket_id);
+  SocketId GetNewManagedEndpointSocket(const IP &remote_ip,
                                           const Port &remote_port,
                                           const IP &rendezvous_ip,
                                           const Port &rendezvous_port);
-  void AcceptConnection(const Port &port, const UdtSocketId &udt_socket_id);
+  void AcceptConnection(const Port &port, const SocketId &udt_socket_id);
   void CheckManagedSockets();
-  void HandleManagedSocketRequest(const UdtSocketId &udt_socket_id,
+  void HandleManagedSocketRequest(const SocketId &udt_socket_id,
                                   const ManagedEndpointMessage &request);
-  void HandleManagedSocketResponse(const UdtSocketId &managed_socket_id,
+  void HandleManagedSocketResponse(const SocketId &managed_socket_id,
                                    const ManagedEndpointMessage &response);
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
-  bool PendingManagedSocketReplied(const UdtSocketId &udt_socket_id);
-  std::map<Port, UdtSocketId> listening_map_;
+  bool PendingManagedSocketReplied(const SocketId &udt_socket_id);
+  std::map<Port, SocketId> listening_map_;
   UnusedSockets unused_sockets_;
-  std::vector<UdtSocketId> managed_endpoint_sockets_;
-  std::map<UdtSocketId, UdtSocketId> pending_managed_endpoint_sockets_;
+  std::vector<SocketId> managed_endpoint_sockets_;
+  std::map<SocketId, SocketId> pending_managed_endpoint_sockets_;
   volatile bool stop_managed_connections_, managed_connections_stopped_;
   boost::mutex managed_endpoint_sockets_mutex_;
   boost::condition_variable managed_endpoints_cond_var_;

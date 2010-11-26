@@ -160,7 +160,7 @@ void MessageHandler::OnStats(boost::shared_ptr<SocketPerformanceStats> stats) {
       boost::static_pointer_cast<UdtStats>(stats);
   boost::mutex::scoped_lock lock(mutex_);
   if (udt_stats->udt_socket_type_ == UdtStats::kSend) {
-    DLOG(INFO) << "\tSocket ID:         " << udt_stats->udt_socket_id_ <<
+    DLOG(INFO) << "\tSocket ID:         " << udt_stats->socket_id_ <<
         std::endl;
     DLOG(INFO) << "\tRTT:               " <<
         udt_stats->performance_monitor_.msRTT << " ms" << std::endl;
@@ -198,7 +198,7 @@ void MessageHandler::OnStats(boost::shared_ptr<SocketPerformanceStats> stats) {
         udt_stats->performance_monitor_.byteAvailRcvBuf << " bytes" <<
         std::endl;
   } else {
-    DLOG(INFO) << "\t\tSocket ID:         " << udt_stats->udt_socket_id_ <<
+    DLOG(INFO) << "\t\tSocket ID:         " << udt_stats->socket_id_ <<
         std::endl;
     DLOG(INFO) << "\t\tRTT:               " <<
         udt_stats->performance_monitor_.msRTT << " ms" << std::endl;

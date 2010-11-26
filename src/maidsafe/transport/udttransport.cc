@@ -1,4 +1,4 @@
-﻿//  Copyright 2010 maidsafe.net limited
+//  Copyright 2010 maidsafe.net limited
 
 #include "maidsafe/transport/udttransport.h"
 
@@ -126,7 +126,7 @@ Port UdtTransport::DoStartListening(const IP &ip,
     boost::mutex::scoped_lock lock(listening_ports_mutex_);
     listening_ports_.push_back(listening_port);
     listening_map_.insert(
-        std::pair<Port, UdtSocketId>(listening_port, listening_socket_id));
+        std::pair<Port, SocketId>(listening_port, listening_socket_id));
   }
 
   if (!listening_threadpool_->EnqueueTask(
@@ -153,7 +153,7 @@ bool UdtTransport::StopListening(const Port &port) {
   listening_ports_.erase(
       std::remove(listening_ports_.begin(), listening_ports_.end(), port),
       listening_ports_.end());
-  std::map<Port, UdtSocketId>::iterator it = listening_map_.find(port);
+  std::map<Port, SocketId>::iterator it = listening_map_.find(port);
   if (it != listening_map_.end()) {
     UDT::close((*it).second);
     listening_map_.erase(it);
@@ -165,7 +165,7 @@ bool UdtTransport::StopListening(const Port &port) {
 bool UdtTransport::StopAllListening() {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
   listening_ports_.clear();
-  std::map<Port, UdtSocketId>::iterator it = listening_map_.begin();
+  std::map<Port, SocketId>::iterator it = listening_map_.begin();
   for (; it != listening_map_.end(); ++it)
     UDT::close((*it).second);
   return true;
@@ -178,7 +178,7 @@ void UdtTransport::StopManagedConnections() {
     managed_endpoints_cond_var_.notify_all();
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
         boost::posix_time::milliseconds(110),
-        boost::bind(&std::vector<UdtSocketId>::empty,
+        boost::bind(&std::vector<SocketId>::empty,
                     boost::ref(managed_endpoint_sockets_)));
     if (!success)
       DLOG(WARNING) << "StopManagedConxns timed_wait timeout." << std::endl;
@@ -219,19 +219,19 @@ SocketId UdtTransport::PrepareToSend(const IP &remote_ip,
   // socket ID at map.begin() should be lowest value, so oldest
   if (unused_sockets_.size() == kMaxUnusedSocketsCount)
     unused_sockets_.erase(unused_sockets_.begin());
-  UnusedSockets::value_type rtss(udt_connection.udt_socket_id_,
+  UnusedSockets::value_type rtss(udt_connection.socket_id_,
                                  udt_connection.peer_);
   if (unused_sockets_.empty())
     unused_sockets_.insert(rtss);
   else
     unused_sockets_.insert(--unused_sockets_.end(), rtss);
-  return udt_connection.udt_socket_id();
+  return udt_connection.socket_id();
 }
 
 void UdtTransport::Send(const TransportMessage &transport_message,
                         const SocketId &socket_id,
                         const boost::uint32_t &timeout_wait_for_response) {
-  std::vector<UdtSocketId> to_check, checked;
+  std::vector<SocketId> to_check, checked;
   to_check.push_back(socket_id);
   if (UDT::ERROR == UDT::selectEx(to_check, NULL, &checked, NULL, 50)) {
     DLOG(ERROR) << "Send error: " <<
@@ -266,7 +266,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     stop_managed_connections_ = false;
   }
-  UdtSocketId initial_peer_socket_id =
+  SocketId initial_peer_socket_id =
       GetNewManagedEndpointSocket(remote_ip, remote_port, rendezvous_ip,
                                   rendezvous_port);
   if (initial_peer_socket_id < 0)
@@ -287,7 +287,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
   try {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
     pending_managed_endpoint_sockets_.insert(
-        std::pair<UdtSocketId, UdtSocketId>(initial_peer_socket_id, 0));
+        std::pair<SocketId, SocketId>(initial_peer_socket_id, 0));
     udt_connection.SendData(UdtConnection::kKeepAlive,
                             kAddManagedConnectionTimeout);
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
@@ -296,7 +296,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
                     initial_peer_socket_id));
     UDT::close(initial_peer_socket_id);
     if (success) {
-      std::map<UdtSocketId, UdtSocketId>::iterator it =
+      std::map<SocketId, SocketId>::iterator it =
           pending_managed_endpoint_sockets_.find(initial_peer_socket_id);
       if (it == pending_managed_endpoint_sockets_.end()) {
         // This shouldn't happen - pending_managed_endpoint_sockets_ only gets
@@ -319,7 +319,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
 }
 
 TransportCondition UdtTransport::StartManagedEndpointListener(
-    const UdtSocketId &initial_peer_socket_id,
+    const SocketId &initial_peer_socket_id,
     boost::shared_ptr<addrinfo const> peer) {
   // Check not already started and set managed_endpoint_listening_port_ to 1 to
   // indicate that startup has begun.
@@ -357,7 +357,7 @@ TransportCondition UdtTransport::StartManagedEndpointListener(
 }
 
 TransportCondition UdtTransport::SetManagedSocketOptions(
-    const UdtSocketId &udt_socket_id) {
+    const SocketId &udt_socket_id) {
   // Buffer will be set to minimum of requested size and socket's MSS (maximum
   // packet size).
   int mtu(100);
@@ -401,13 +401,13 @@ TransportCondition UdtTransport::SetManagedSocketOptions(
   return kSuccess;
 }
 
-UdtSocketId UdtTransport::GetNewManagedEndpointSocket(
+SocketId UdtTransport::GetNewManagedEndpointSocket(
     const IP &remote_ip,
     const Port &remote_port,
     const IP &rendezvous_ip,
     const Port &rendezvous_port) {
   // Get a new socket descriptor to send on managed_endpoint_listening_port_
-  UdtSocketId initial_peer_socket_id(UDT::INVALID_SOCK);
+  SocketId initial_peer_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> peer;
   if (udtutils::GetNewSocket(remote_ip, remote_port, true,
                              &initial_peer_socket_id, &peer) != kSuccess) {
@@ -485,7 +485,7 @@ bool UdtTransport::RemoveManagedEndpoint(
 }
 
 void UdtTransport::AcceptConnection(const Port &port,
-                                    const UdtSocketId &udt_socket_id) {
+                                    const SocketId &udt_socket_id) {
   // Accept incoming connections asynchronously
   bool accept_synchronously(false);
   if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
@@ -498,7 +498,7 @@ void UdtTransport::AcceptConnection(const Port &port,
 
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
-  UdtSocketId receiver_socket_id;
+  SocketId receiver_socket_id;
   std::vector<Port>::iterator port_iterator;
   while (true) {
     {
@@ -524,7 +524,7 @@ void UdtTransport::AcceptConnection(const Port &port,
           LOG(ERROR) << "UDT::accept error: " <<
               UDT::getlasterror().getErrorMessage() << std::endl;
           listening_ports_.erase(port_iterator);
-          std::map<Port, UdtSocketId>::iterator it = listening_map_.find(port);
+          std::map<Port, SocketId>::iterator it = listening_map_.find(port);
           if (it != listening_map_.end())
             listening_map_.erase(it);
           listening_threadpool_->Resize(listening_ports_.size());
@@ -561,7 +561,7 @@ void UdtTransport::AcceptConnection(const Port &port,
 }
 
 void UdtTransport::CheckManagedSockets() {
-  std::vector<UdtSocketId>::iterator socket_iterator;
+  std::vector<SocketId>::iterator socket_iterator;
   boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
   managed_connections_stopped_ = false;
   boost::scoped_array<char> holder(new char[10]);
@@ -583,7 +583,7 @@ void UdtTransport::CheckManagedSockets() {
       managed_endpoints_cond_var_.notify_all();
       break;
     }
-    std::vector<UdtSocketId> copy_of_managed_ids(managed_endpoint_sockets_);
+    std::vector<SocketId> copy_of_managed_ids(managed_endpoint_sockets_);
     lock.unlock();
     // Try to receive on each socket to check if connection is still OK.  If
     // "-" is received, close the socket.
@@ -612,7 +612,7 @@ void UdtTransport::CheckManagedSockets() {
 }
 
 void UdtTransport::HandleManagedSocketRequest(
-    const UdtSocketId &udt_socket_id,
+    const SocketId &udt_socket_id,
     const ManagedEndpointMessage &request) {
   {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -645,7 +645,7 @@ void UdtTransport::HandleManagedSocketRequest(
   UDT::close(udt_socket_id);
 
   // Get new socket bound to managed_endpoint_listening_port_ to send response
-  UdtSocketId managed_socket_id =
+  SocketId managed_socket_id =
       GetNewManagedEndpointSocket(remote_ip, remote_port, "", 0);
   if (managed_socket_id < 0) {
     DLOG(ERROR) << "HandleManagedSocketRequest get new socket error: " <<
@@ -690,7 +690,7 @@ void UdtTransport::HandleManagedSocketRequest(
 }
 
 void UdtTransport::HandleManagedSocketResponse(
-    const UdtSocketId &managed_socket_id,
+    const SocketId &managed_socket_id,
     const ManagedEndpointMessage &response) {
   // Check response has correct entries
   // TODO(Fraser#5#): 2010-07-31 - add !response.has_identifier() below
@@ -702,7 +702,7 @@ void UdtTransport::HandleManagedSocketResponse(
 
   // Check response indicates success and set managed socket to asynchronous
   // TODO(Fraser#5#): 2010-07-31 - Use authentication to check identifier()
-  UdtSocketId pending_managed_socket_id = response.message_id();
+  SocketId pending_managed_socket_id = response.message_id();
   bool success(response.has_result() && response.result() &&
                (udtutils::SetSyncMode(managed_socket_id, false) == kSuccess));
   {
@@ -710,7 +710,7 @@ void UdtTransport::HandleManagedSocketResponse(
     if (stop_managed_connections_)
       return;
     // Adjust pending_managed_endpoint_sockets_ entry
-    std::map<UdtSocketId, UdtSocketId>::iterator it =
+    std::map<SocketId, SocketId>::iterator it =
         pending_managed_endpoint_sockets_.find(pending_managed_socket_id);
     if (it == pending_managed_endpoint_sockets_.end()) {
       DLOG(ERROR) << "In HandleManagedSocketResp, pending_managed_socket_id " <<
@@ -739,8 +739,8 @@ void UdtTransport::HandleManagedSocketResponse(
 }
 
 bool UdtTransport::PendingManagedSocketReplied(
-    const UdtSocketId &udt_socket_id) {
-  std::map<UdtSocketId, UdtSocketId>::iterator it =
+    const SocketId &udt_socket_id) {
+  std::map<SocketId, SocketId>::iterator it =
       pending_managed_endpoint_sockets_.find(udt_socket_id);
   if (it == pending_managed_endpoint_sockets_.end())
     return true;

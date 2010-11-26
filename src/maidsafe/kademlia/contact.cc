@@ -129,12 +129,12 @@ Contact::Contact(const ContactInfo &contact_info)
       rendezvous_ip_(contact_info.rendezvous_ip()),
       rendezvous_port_(contact_info.rendezvous_port()),
       last_seen_(base::GetEpochMilliseconds()),
-      local_ip_(contact_info.local_ip()),
+      local_ip_(contact_info.local_ips()),
       local_port_(contact_info.local_port()) {
   if (contact_info.ip().size() > 4)
       host_ip_ = base::IpAsciiToBytes(contact_info.ip());
-  if (contact_info.local_ip().size() > 4)
-      local_ip_ = base::IpAsciiToBytes(contact_info.local_ip());
+  if (contact_info.local_ips().size() > 4)
+      local_ip_ = base::IpAsciiToBytes(contact_info.local_ips());
   if (contact_info.rendezvous_ip().size() > 4)
       rendezvous_ip_ = base::IpAsciiToBytes(contact_info.rendezvous_ip());
 }
@@ -178,7 +178,7 @@ bool Contact::SerialiseToString(std::string *serialised_output) {
   info.set_port(host_port_);
   info.set_rendezvous_ip(rendezvous_ip_);
   info.set_rendezvous_port(rendezvous_port_);
-  info.set_local_ip(local_ip_);
+  info.set_local_ips(local_ip_);
   info.set_local_port(local_port_);
   info.SerializeToString(serialised_output);
   return true;
@@ -206,11 +206,11 @@ bool Contact::ParseFromString(const std::string &data) {
     rendezvous_ip_.clear();
     rendezvous_port_ = 0;
   }
-  if (info.has_local_ip()) {
-    if (info.local_ip().size() > 4)
-      local_ip_ = base::IpAsciiToBytes(info.local_ip());
+  if (info.has_local_ips()) {
+    if (info.local_ips().size() > 4)
+      local_ip_ = base::IpAsciiToBytes(info.local_ips());
     else
-      local_ip_ = info.local_ip();
+      local_ip_ = info.local_ips();
     local_port_ = static_cast<Port>(info.local_port());
   } else {
     local_ip_.clear();

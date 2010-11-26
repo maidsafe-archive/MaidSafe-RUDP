@@ -113,7 +113,7 @@ class TransportAPITest: public testing::Test {
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
-  std::vector<UdtSocketId> sockets_for_closing_;
+  std::vector<SocketId> sockets_for_closing_;
   
 };
 
@@ -154,7 +154,7 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
       this->listening_message_handler_.rpc_requests().back();
   EXPECT_EQ(kSentRpcRequest,
             signalled_rpc_message.get<0>().SerializeAsString());
-  UdtSocketId receiving_socket_id = signalled_rpc_message.get<1>();
+  SocketId receiving_socket_id = signalled_rpc_message.get<1>();
 
   // Send reply
   TransportMessage response = MakeTransportMessage(false, 256 * 1024);

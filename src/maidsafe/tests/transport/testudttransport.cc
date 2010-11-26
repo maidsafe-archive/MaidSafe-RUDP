@@ -93,7 +93,7 @@ class UdtTransportTest: public testing::Test {
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
-  std::vector<UdtSocketId> sockets_for_closing_;
+  std::vector<SocketId> sockets_for_closing_;
 };
 
 
@@ -117,7 +117,7 @@ class UdtTransportVPTest: public testing::TestWithParam<size_t> {
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
-  std::vector<UdtSocketId> sockets_for_closing_;
+  std::vector<SocketId> sockets_for_closing_;
 };
 
 TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
@@ -128,8 +128,8 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
   std::vector< boost::shared_ptr<MessageHandler> > send_message_handlers;
   for (boost::uint16_t i = 0; i < kRepeats; ++i) {
     UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
-    ASSERT_GT(udt_connection.udt_socket_id(), 0);
-    sockets_for_closing_.push_back(udt_connection.udt_socket_id());
+    ASSERT_GT(udt_connection.socket_id(), 0);
+    sockets_for_closing_.push_back(udt_connection.socket_id());
     send_connections.push_back(udt_connection);
     boost::shared_ptr<MessageHandler> message_handler(new MessageHandler(
         udt_connection.signals(), boost::lexical_cast<std::string>(i), false));

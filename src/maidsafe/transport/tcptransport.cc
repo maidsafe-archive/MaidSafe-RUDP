@@ -196,17 +196,17 @@ SocketId TcpTransport::NextSocketId() {
   return id;
 }
 
-SocketId TcpTransport::PrepareToSend(const IP &remote_ip,
-                                     const Port &remote_port,
+SocketId TcpTransport::PrepareToSend(const IP &ip,
+                                     const Port &port,
                                      const IP &/*rendezvous_ip*/,
                                      const Port &/*rendezvous_port*/) {
   bs::error_code ec;
-  ip::address addr = ip::address::from_string(remote_ip.c_str(), ec);
+  ip::address addr = ip::address::from_string(ip.c_str(), ec);
 
   if (ec)
     return 0;
 
-  ip::tcp::endpoint ep(addr, remote_port);
+  ip::tcp::endpoint ep(addr, port);
 
   ConnectionPtr connection(new TcpConnection(*this, ep));
 

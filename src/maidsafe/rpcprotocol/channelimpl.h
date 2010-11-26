@@ -100,7 +100,7 @@ class ChannelImpl {
  public:
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
-              const IP &remote_ip, const Port &remote_port,
+              const IP &ip, const Port &port,
               const IP &rendezvous_ip, const Port &rendezvous_port);
 
 
@@ -127,8 +127,8 @@ class ChannelImpl {
   boost::shared_ptr<ChannelManager> channel_manager_;
   boost::shared_ptr<transport::Transport>  transport_;
   google::protobuf::Service *service_;
-  IP remote_ip_, rendezvous_ip_;
-  Port remote_port_, rendezvous_port_;
+  IP ip_, rendezvous_ip_;
+  Port port_, rendezvous_port_;
   boost::uint32_t id_;
   bool local_transport_;
 

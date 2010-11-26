@@ -105,7 +105,7 @@ TransportCondition GetNewSocket(
   return kSuccess;
 }
 
-TransportCondition Connect(const UdtSocketId &udt_socket_id,
+TransportCondition Connect(const SocketId &udt_socket_id,
                            boost::shared_ptr<addrinfo const> peer) {
   if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
                                  peer->ai_addrlen)) {
@@ -117,7 +117,7 @@ TransportCondition Connect(const UdtSocketId &udt_socket_id,
   return kSuccess;
 }
 
-TransportCondition SetSyncMode(const UdtSocketId &udt_socket_id,
+TransportCondition SetSyncMode(const SocketId &udt_socket_id,
                                bool synchronous) {
   if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
       &synchronous, sizeof(synchronous))) {

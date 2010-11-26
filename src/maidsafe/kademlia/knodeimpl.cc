@@ -1275,9 +1275,9 @@ ContactInfo KNodeImpl::contact_info() const {
     info.set_ip(host_ip_);
   }
   if (local_host_ip_.size() > 4) {
-    info.set_local_ip(base::IpAsciiToBytes(local_host_ip_));
+    info.set_local_ips(base::IpAsciiToBytes(local_host_ip_));
   } else {
-    info.set_local_ip(local_host_ip_);
+    info.set_local_ips(local_host_ip_);
   }
   if (rv_ip_.size() > 4) {
     info.set_rendezvous_ip(base::IpAsciiToBytes(rv_ip_));

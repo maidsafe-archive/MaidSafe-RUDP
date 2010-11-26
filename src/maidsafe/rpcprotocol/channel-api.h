@@ -164,7 +164,7 @@ class Channel : public google::protobuf::RpcChannel {
   * the RPC
   */
   Channel(boost::shared_ptr<ChannelManager> channel_manager,
-          const IP &remote_ip, const Port &remote_port,
+          const IP &ip, const Port &port,
           const IP &rendezvous_ip, const Port &rendezvous_port);
   /**
   * Destructor.
