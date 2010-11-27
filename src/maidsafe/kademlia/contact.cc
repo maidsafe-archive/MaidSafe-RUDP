@@ -168,10 +168,6 @@ Contact& Contact::operator=(const Contact &other) {
 }
 
 bool Contact::SerialiseToString(std::string *serialised_output) {
-  // do not serialise empty contacts
-  if (host_port_ == 0 && host_ip_.empty()) {
-    return false;
-  }
   ContactInfo info;
   info.set_node_id(node_id_.String());
   info.set_ip(host_ip_);
@@ -180,8 +176,7 @@ bool Contact::SerialiseToString(std::string *serialised_output) {
   info.set_rendezvous_port(rendezvous_port_);
   info.set_local_ips(local_ip_);
   info.set_local_port(local_port_);
-  info.SerializeToString(serialised_output);
-  return true;
+  return info.SerializeToString(serialised_output);
 }
 
 bool Contact::ParseFromString(const std::string &data) {
