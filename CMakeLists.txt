@@ -188,7 +188,7 @@ IF(NOT ${KDEV})
   ENDIF()
 ENDIF()
 # Create CTestCustom.cmake to avoid inclusion of coverage results from third-party code
-FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"udt/\" \"upnp/\")\n\n")
+FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"udt/\" \"p2engine/\" \"upnp/\")\n\n")
 
 ###################################################################################################
 # Set default directories to be searched for included files and libs                              #
@@ -437,6 +437,7 @@ ENDIF()
 ###################################################################################################
 ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/udt ${CMAKE_BINARY_DIR}/udt)
 ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/cryptopp ${CMAKE_BINARY_DIR}/cryptopp)
+ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/p2engine ${CMAKE_BINARY_DIR}/p2engine)
 
 ###################################################################################################
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
@@ -510,7 +511,7 @@ ENDIF()
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
-TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static)
+TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static p2_static)
 
 #Rename maidsafe_dht_static as maidsafe_dht on way out NOT in MSVC names clash of static and import lib
 #IF(NOT MSVC)
@@ -550,11 +551,12 @@ ELSE()
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.a)
   SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.a)
   SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.a)
+  SET_TARGET_PROPERTIES(p2_static PROPERTIES IMPORTED_LOCATION bin/libp2.a)
 ENDIF()
 
 IF(NOT MSVC)
   SET(SYS_LIB ${SYS_LIB} ${Glog_LIBRARY} ${Protobuf_LIBRARY} ${Boost_LIBRARIES})
-  TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
+  TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static p2_static ${SYS_LIB})
   TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static ${Gtest_LIBRARY})
   TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static ${Gtest_LIBRARY})
   TARGET_LINK_LIBRARIES(TESTrpcprotocol maidsafe_dht_static ${Gtest_LIBRARY})
@@ -665,7 +667,7 @@ IF(MSVC)
       ${Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE} ${Boost_SYSTEM_LIBRARY_RELEASE} ${Boost_REGEX_LIBRARY_RELEASE})
 
 
-  TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static ${SYS_LIB})
+  TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static p2_static ${SYS_LIB})
   TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static)
   TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static)
   TARGET_LINK_LIBRARIES(TESTknode maidsafe_dht_static)
