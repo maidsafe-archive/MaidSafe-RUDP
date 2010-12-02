@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 09/13/2010
+   Yunhong Gu, last updated 09/23/2010
 *****************************************************************************/
 
 #ifndef WIN32
@@ -1194,7 +1194,12 @@ int CUDT::recvmsg(char* data, const int& len)
    {
       int res = m_pRcvBuffer->readMsg(data, len);
       if (0 == res)
+      {
+         // read is not available
+         s_UDTUnited.m_EPoll.disable_read(m_SocketID, m_sPollID);
+
          throw CUDTException(2, 1, 0);
+      }
       else
          return res;
    }
@@ -1296,7 +1301,10 @@ int64_t CUDT::sendfile(fstream& ifs, const int64_t& offset, const int64_t& size,
    // sending block by block
    while (tosend > 0)
    {
-      if (ifs.bad() || ifs.fail() || ifs.eof())
+      if (ifs.fail())
+         throw CUDTException(4, 4);
+
+      if (ifs.eof())
          break;
 
       unitsize = int((tosend >= block) ? block : tosend);
@@ -1367,8 +1375,8 @@ int64_t CUDT::recvfile(fstream& ofs, const int64_t& offset, const int64_t& size,
    // receiving... "recvfile" is always blocking
    while (torecv > 0)
    {
-      if (ofs.bad() || ofs.fail())
-         break;
+      if (ofs.fail())
+         throw CUDTException(4, 4);
 
       #ifndef WIN32
          pthread_mutex_lock(&m_RecvDataLock);
@@ -1600,7 +1608,7 @@ void CUDT::sendCtrl(const int& pkttype, void* lparam, void* rparam, const int& s
                SetEvent(m_RecvDataCond);
          #endif
 
-         // acknowledde any waiting epolls to read
+         // acknowledge any waiting epolls to read
          s_UDTUnited.m_EPoll.enable_read(m_SocketID, m_sPollID);
       }
       else if (ack == m_iRcvLastAck)
@@ -2447,10 +2455,25 @@ void CUDT::checkTimers()
 
 void CUDT::addEPoll(const int eid)
 {
+   CGuard::enterCS(s_UDTUnited.m_EPoll.m_EPollLock);
    m_sPollID.insert(eid);
+   CGuard::leaveCS(s_UDTUnited.m_EPoll.m_EPollLock);
+
+   if (!m_bConnected || m_bBroken || m_bClosing)
+      return;
+
+   if ((UDT_STREAM == m_iSockType) && (m_pRcvBuffer->getRcvDataSize() > 0))
+      s_UDTUnited.m_EPoll.enable_read(m_SocketID, m_sPollID);
+   else if ((UDT_DGRAM == m_iSockType) && (m_pRcvBuffer->getRcvMsgNum() > 0))
+      s_UDTUnited.m_EPoll.enable_read(m_SocketID, m_sPollID);
+
+   if (m_iSndBufSize <= m_pSndBuffer->getCurrBufSize())
+      s_UDTUnited.m_EPoll.enable_write(m_SocketID, m_sPollID);
 }
 
 void CUDT::removeEPoll(const int eid)
 {
+   CGuard::enterCS(s_UDTUnited.m_EPoll.m_EPollLock);
    m_sPollID.erase(eid);
+   CGuard::leaveCS(s_UDTUnited.m_EPoll.m_EPollLock);
 }

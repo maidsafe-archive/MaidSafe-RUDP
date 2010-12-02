@@ -157,8 +157,16 @@ m_iID((int32_t&)(m_nHeader[3])),
 m_pcData((char*&)(m_PacketVector[1].iov_base)),
 __pad()
 {
+   for (int i = 0; i < 4; ++ i)
+      m_nHeader[i] = 0;
+   for (int i = 0; i < 4; ++ i)
+      m_nHeader[i] = 0;
    m_PacketVector[0].iov_base = (char *)m_nHeader;
    m_PacketVector[0].iov_len = CPacket::m_iPktHdrSize;
+   m_PacketVector[1].iov_base = NULL;
+   m_PacketVector[1].iov_len = 0;
+   m_PacketVector[1].iov_base = NULL;
+   m_PacketVector[1].iov_len = 0;
 }
 
 CPacket::~CPacket()

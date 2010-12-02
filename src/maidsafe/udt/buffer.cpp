@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 08/06/2010
+   Yunhong Gu, last updated 10/02/2010
 *****************************************************************************/
 
 #include <cstring>
@@ -159,6 +159,8 @@ void CSndBuffer::addBuffer(const char* data, const int& len, const int& ttl, con
    CGuard::leaveCS(m_BufLock);
 
    m_iNextMsgNo ++;
+   if (m_iNextMsgNo == CMsgNo::m_iMaxMsgNo)
+      m_iNextMsgNo = 1;
 }
 
 int CSndBuffer::addBufferFromFile(fstream& ifs, const int& len)
@@ -225,7 +227,7 @@ int CSndBuffer::readData(char** data, const int offset, int32_t& msgno, int& msg
    for (int i = 0; i < offset; ++ i)
       p = p->m_pNext;
 
-   if ((p->m_iTTL > 0) && ((CTimer::getTime() - p->m_OriginTime) / 1000 > (uint64_t)p->m_iTTL))
+   if ((p->m_iTTL >= 0) && ((CTimer::getTime() - p->m_OriginTime) / 1000 > (uint64_t)p->m_iTTL))
    {
       msgno = p->m_iMsgNo & 0x1FFFFFFF;
 
@@ -460,9 +462,6 @@ int CRcvBuffer::readBufferToFile(fstream& ofs, const int& len)
 
    m_iStartPos = p;
 
-   if (ofs.fail())
-      throw CUDTException(4, 4);
-
    return len - rs;
 }
 
@@ -548,7 +547,7 @@ int CRcvBuffer::getRcvMsgNum()
 bool CRcvBuffer::scanMsg(int& p, int& q, bool& passack)
 {
    // empty buffer
-   if ((m_iStartPos == m_iLastAckPos) && (0 == m_iMaxPos))
+   if ((m_iStartPos == m_iLastAckPos) && (m_iMaxPos <= 0))
       return false;
 
    //skip all bad msgs at the beginning

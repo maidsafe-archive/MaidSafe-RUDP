@@ -48,13 +48,7 @@ TcpTransport::TcpTransport()
 
 TcpTransport::~TcpTransport() {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
-
   keep_alive_.reset();
-
-//  if (!keep_alive_)
-//    printf("NOT KEEPING ALIVE\n");
-//  else 
-//    printf("KEEPING ALIVE\n");
 
   BOOST_FOREACH(ConnectionMap::value_type const& connection, connections_) {
     io_service_.post(boost::bind(&TcpConnection::Close, connection.second));

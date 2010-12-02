@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 09/13/2010
+   Yunhong Gu, last updated 10/12/2010
 *****************************************************************************/
 
 #ifdef WIN32
@@ -122,6 +122,7 @@ m_bClosing(false),
 m_GCStopLock(),
 m_GCStopCond(),
 m_InitLock(),
+m_iInstanceCount(0),
 m_bGCStatus(false),
 m_GCThread(),
 m_ClosedSockets()
@@ -176,6 +177,9 @@ int CUDTUnited::startup()
 {
    CGuard gcinit(m_InitLock);
 
+   if (m_iInstanceCount++ > 0)
+      return 0;
+
    // Global initialization code
    #ifdef WIN32
       WORD wVersionRequested;
@@ -211,6 +215,9 @@ int CUDTUnited::startup()
 int CUDTUnited::cleanup()
 {
    CGuard gcinit(m_InitLock);
+
+   if (--m_iInstanceCount > 0)
+      return 0;
 
    //destroy CTimer::EventLock
 
@@ -630,8 +637,11 @@ UDTSOCKET CUDTUnited::accept(const UDTSOCKET listen, sockaddr* addr, int* addrle
          else if (CUDTSocket::LISTENING == ls->m_Status)
             pthread_cond_wait(&(ls->m_AcceptCond), &(ls->m_AcceptLock));
 
-         if (CUDTSocket::LISTENING != ls->m_Status)
+         if ((CUDTSocket::LISTENING != ls->m_Status) || ls->m_pUDT->m_bBroken)
             accepted = true;
+
+         if (ls->m_pQueuedSockets->empty())
+            m_EPoll.disable_read(listen, ls->m_pUDT->m_sPollID);
 
          pthread_mutex_unlock(&(ls->m_AcceptLock));
       }
@@ -656,11 +666,14 @@ UDTSOCKET CUDTUnited::accept(const UDTSOCKET listen, sockaddr* addr, int* addrle
          if  (!accepted & (CUDTSocket::LISTENING == ls->m_Status))
             WaitForSingleObject(ls->m_AcceptCond, INFINITE);
 
-         if (CUDTSocket::LISTENING != ls->m_Status)
+         if ((CUDTSocket::LISTENING != ls->m_Status) || ls->m_pUDT->m_bBroken)
          {
             SetEvent(ls->m_AcceptCond);
             accepted = true;
          }
+
+         if (ls->m_pQueuedSockets->empty())
+            m_EPoll.disable_read(listen, ls->m_pUDT->m_sPollID);
       }
    #endif
 
@@ -755,8 +768,21 @@ int CUDTUnited::close(const UDTSOCKET u)
 
    if (s->m_Status == CUDTSocket::LISTENING)
    {
+      if (s->m_pUDT->m_bBroken)
+         return 0;
+
       s->m_TimeStamp = CTimer::getTime();
       s->m_pUDT->m_bBroken = true;
+
+      // broadcast all "accept" waiting
+      #ifndef WIN32
+         pthread_mutex_lock(&(s->m_AcceptLock));
+         pthread_mutex_unlock(&(s->m_AcceptLock));
+         pthread_cond_broadcast(&(s->m_AcceptCond));
+      #else
+         SetEvent(s->m_AcceptCond);
+      #endif
+
       return 0;
    }
 
@@ -764,8 +790,6 @@ int CUDTUnited::close(const UDTSOCKET u)
    // in order to prevent other methods from accessing invalid address
    // a timer is started and the socket will be removed after approximately 1 second
    s->m_TimeStamp = CTimer::getTime();
-
-   CUDTSocket::UDTSTATUS os = s->m_Status;
 
    s->m_pUDT->close();
 
@@ -778,18 +802,6 @@ int CUDTUnited::close(const UDTSOCKET u)
    m_ClosedSockets[s->m_SocketID] = s;
 
    CGuard::leaveCS(m_ControlLock);
-
-   // broadcast all "accept" waiting
-   if (CUDTSocket::LISTENING == os)
-   {
-      #ifndef WIN32
-         pthread_mutex_lock(&(s->m_AcceptLock));
-         pthread_mutex_unlock(&(s->m_AcceptLock));
-         pthread_cond_broadcast(&(s->m_AcceptCond));
-      #else
-         SetEvent(s->m_AcceptCond);
-      #endif
-   }
 
    CTimer::triggerEvent();
 
@@ -825,6 +837,9 @@ int CUDTUnited::getsockname(const UDTSOCKET u, sockaddr* name, int* namelen)
    CUDTSocket* s = locate(u);
 
    if (NULL == s)
+      throw CUDTException(5, 4, 0);
+
+   if (s->m_pUDT->m_bBroken)
       throw CUDTException(5, 4, 0);
 
    if (CUDTSocket::INIT == s->m_Status)
@@ -1021,42 +1036,44 @@ int CUDTUnited::epoll_create()
    return m_EPoll.create();
 }
 
-int CUDTUnited::epoll_add(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int CUDTUnited::epoll_add_usock(const int eid, const UDTSOCKET u, const int* events)
 {
-   if (NULL != socks)
+   CUDTSocket* s = locate(u);
+   if (NULL != s)
    {
-      for (set<UDTSOCKET>::const_iterator i = socks->begin(); i != socks->end(); ++ i)
-      {
-         CUDTSocket* s = locate(*i);
-         if (NULL != s)
-            s->m_pUDT->addEPoll(eid);
-      }
+      s->m_pUDT->addEPoll(eid);
    }
-   else if (NULL == locals)
+   else
    {
-      throw CUDTException(5, 3);
+      throw CUDTException(5, 4);
    }
 
-   return m_EPoll.add(eid, socks, locals);
+   return m_EPoll.add_usock(eid, u, events);
 }
 
-int CUDTUnited::epoll_remove(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int CUDTUnited::epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events)
 {
-   if (NULL != socks)
+   return m_EPoll.add_ssock(eid, s, events);
+}
+
+int CUDTUnited::epoll_remove_usock(const int eid, const UDTSOCKET u, const int* events)
+{
+   CUDTSocket* s = locate(u);
+   if (NULL != s)
    {
-      for (set<int>::const_iterator i = socks->begin(); i != socks->end(); ++ i)
-      {
-         CUDTSocket* s = locate(*i);
-         if (NULL != s)
-            s->m_pUDT->removeEPoll(eid);
-      }
+      s->m_pUDT->removeEPoll(eid);
    }
-   else if (NULL == locals)
+   else
    {
-      throw CUDTException(5, 3);
+      throw CUDTException(5, 4);
    }
 
-   return m_EPoll.remove(eid, socks, locals);
+   return m_EPoll.remove_usock(eid, u, events);
+}
+
+int CUDTUnited::epoll_remove_ssock(const int eid, const SYSSOCKET s, const int* events)
+{
+   return m_EPoll.remove_ssock(eid, s, events);
 }
 
 int CUDTUnited::epoll_wait(const int eid, set<UDTSOCKET>* readfds, set<UDTSOCKET>* writefds, int64_t msTimeOut, set<SYSSOCKET>* lrfds, set<SYSSOCKET>* lwfds)
@@ -1909,11 +1926,11 @@ int CUDT::epoll_create()
    }
 }
 
-int CUDT::epoll_add(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int CUDT::epoll_add_usock(const int eid, const UDTSOCKET u, const int* events)
 {
    try
    {
-      return s_UDTUnited.epoll_add(eid, socks, locals);
+      return s_UDTUnited.epoll_add_usock(eid, u, events);
    }
    catch (CUDTException e)
    {
@@ -1927,11 +1944,47 @@ int CUDT::epoll_add(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOC
    }
 }
 
-int CUDT::epoll_remove(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int CUDT::epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events)
 {
    try
    {
-      return s_UDTUnited.epoll_remove(eid, socks, locals);
+      return s_UDTUnited.epoll_add_ssock(eid, s, events);
+   }
+   catch (CUDTException e)
+   {
+      s_UDTUnited.setError(new CUDTException(e));
+      return ERROR;
+   }
+   catch (...)
+   {
+      s_UDTUnited.setError(new CUDTException(-1, 0, 0));
+      return ERROR;
+   }
+}
+
+int CUDT::epoll_remove_usock(const int eid, const UDTSOCKET u, const int* events)
+{
+   try
+   {
+      return s_UDTUnited.epoll_remove_usock(eid, u, events);
+   }
+   catch (CUDTException e)
+   {
+      s_UDTUnited.setError(new CUDTException(e));
+      return ERROR;
+   }
+   catch (...)
+   {
+      s_UDTUnited.setError(new CUDTException(-1, 0, 0));
+      return ERROR;
+   }
+}
+
+int CUDT::epoll_remove_ssock(const int eid, const SYSSOCKET s, const int* events)
+{
+   try
+   {
+      return s_UDTUnited.epoll_remove_ssock(eid, s, events);
    }
    catch (CUDTException e)
    {
@@ -2133,14 +2186,24 @@ int epoll_create()
    return CUDT::epoll_create();
 }
 
-int epoll_add(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int epoll_add_usock(const int eid, const UDTSOCKET u, const int* events)
 {
-   return CUDT::epoll_add(eid, socks, locals);
+   return CUDT::epoll_add_usock(eid, u, events);
 }
 
-int epoll_remove(const int eid, const set<UDTSOCKET>* socks, const set<SYSSOCKET>* locals)
+int epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events)
 {
-   return CUDT::epoll_remove(eid, socks, locals);
+   return CUDT::epoll_add_ssock(eid, s, events);
+}
+
+int epoll_remove_usock(const int eid, const UDTSOCKET u, const int* events)
+{
+   return CUDT::epoll_remove_usock(eid, u, events);
+}
+
+int epoll_remove_ssock(const int eid, const SYSSOCKET s, const int* events)
+{
+   return CUDT::epoll_remove_usock(eid, s, events);
 }
 
 int epoll_wait(const int eid, set<int>* readfds, set<int>* writefds, int64_t msTimeOut, set<SYSSOCKET>* lrfds, set<SYSSOCKET>* lwfds)

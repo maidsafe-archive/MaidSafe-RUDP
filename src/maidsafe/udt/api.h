@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 04/07/2010
+   Yunhong Gu, last updated 09/28/2010
 *****************************************************************************/
 
 #ifndef __UDT_API_H__
@@ -172,8 +172,10 @@ public:
    int select(ud_set* readfds, ud_set* writefds, ud_set* exceptfds, const timeval* timeout);
    int selectEx(const std::vector<UDTSOCKET>& fds, std::vector<UDTSOCKET>* readfds, std::vector<UDTSOCKET>* writefds, std::vector<UDTSOCKET>* exceptfds, int64_t msTimeOut);
    int epoll_create();
-   int epoll_add(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals = NULL);
-   int epoll_remove(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals = NULL);
+   int epoll_add_usock(const int eid, const UDTSOCKET u, const int* events = NULL);
+   int epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events = NULL);
+   int epoll_remove_usock(const int eid, const UDTSOCKET u, const int* events = NULL);
+   int epoll_remove_ssock(const int eid, const SYSSOCKET s, const int* events = NULL);
    int epoll_wait(const int eid, std::set<UDTSOCKET>* readfds, std::set<UDTSOCKET>* writefds, int64_t msTimeOut, std::set<SYSSOCKET>* lrfds = NULL, std::set<SYSSOCKET>* lwfds = NULL);
    int epoll_release(const int eid);
 
@@ -234,6 +236,7 @@ private:
    pthread_cond_t m_GCStopCond;
 
    pthread_mutex_t m_InitLock;
+   int m_iInstanceCount;				// number of startup() called by application
    bool m_bGCStatus;					// if the GC thread is working (true)
 
    pthread_t m_GCThread;

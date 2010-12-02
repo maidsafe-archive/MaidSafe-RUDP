@@ -505,8 +505,6 @@ void CSndQueue::init(const CChannel* c, const CTimer* t)
 {
    CSndQueue* self = (CSndQueue*)param;
 
-   CPacket pkt;
-
    while (!self->m_bClosing)
    {
       uint64_t ts = self->m_pSndUList->getNextProcTime();

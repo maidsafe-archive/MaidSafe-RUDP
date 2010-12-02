@@ -97,8 +97,10 @@ public: //API
    static int select(int nfds, ud_set* readfds, ud_set* writefds, ud_set* exceptfds, const timeval* timeout);
    static int selectEx(const std::vector<UDTSOCKET>& fds, std::vector<UDTSOCKET>* readfds, std::vector<UDTSOCKET>* writefds, std::vector<UDTSOCKET>* exceptfds, int64_t msTimeOut);
    static int epoll_create();
-   static int epoll_add(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals = NULL);
-   static int epoll_remove(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals = NULL);
+   static int epoll_add_usock(const int eid, const UDTSOCKET u, const int* events = NULL);
+   static int epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events = NULL);
+   static int epoll_remove_usock(const int eid, const UDTSOCKET u, const int* events = NULL);
+   static int epoll_remove_ssock(const int eid, const SYSSOCKET s, const int* events = NULL);
    static int epoll_wait(const int eid, std::set<UDTSOCKET>* readfds, std::set<UDTSOCKET>* writefds, int64_t msTimeOut, std::set<SYSSOCKET>* lrfds = NULL, std::set<SYSSOCKET>* wrfds = NULL);
    static int epoll_release(const int eid);
    static CUDTException& getlasterror();

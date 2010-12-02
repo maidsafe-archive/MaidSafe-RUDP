@@ -61,6 +61,8 @@ struct CEPollDesc
 
 class CEPoll
 {
+friend class CUDT;
+
 public:
    CEPoll();
    ~CEPoll();
@@ -77,26 +79,48 @@ public: // for CUDTUnited API
    int create();
 
       // Functionality:
-      //    add more sockets to an EPoll.
+      //    add a UDT socket to an EPoll.
       // Parameters:
       //    0) [in] eid: EPoll ID.
-      //    1) [in] socks: set of UDT sockets.
-      //    2) [in] locals: system file descriptors.
+      //    1) [in] u: UDT Socket ID.
+      //    2) [in] events: events to watch.
       // Returned value:
       //    0 if success, otherwise an error number.
 
-   int add(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals);
+   int add_usock(const int eid, const UDTSOCKET& u, const int* events = NULL);
 
       // Functionality:
-      //    remove sockets from an EPoll.
+      //    add a system socket to an EPoll.
       // Parameters:
       //    0) [in] eid: EPoll ID.
-      //    1) [in] socks: set of UDT sockets.
-      //    2) [in] locals: system file descriptors.
+      //    1) [in] s: system Socket ID.
+      //    2) [in] events: events to watch.
       // Returned value:
       //    0 if success, otherwise an error number.
 
-   int remove(const int eid, const std::set<UDTSOCKET>* socks, const std::set<SYSSOCKET>* locals);
+   int add_ssock(const int eid, const SYSSOCKET& s, const int* events = NULL);
+
+      // Functionality:
+      //    remove a UDT socket event from an EPoll; socket will be removed if no events to watch
+      // Parameters:
+      //    0) [in] eid: EPoll ID.
+      //    1) [in] u: UDT socket ID.
+      //    2) [in] events: events to delete.
+      // Returned value:
+      //    0 if success, otherwise an error number.
+
+   int remove_usock(const int eid, const UDTSOCKET& u, const int* events = NULL);
+
+      // Functionality:
+      //    remove a system socket event from an EPoll; socket will be removed if no events to watch
+      // Parameters:
+      //    0) [in] eid: EPoll ID.
+      //    1) [in] s: system socket ID.
+      //    2) [in] events: events to delete.
+      // Returned value:
+      //    0 if success, otherwise an error number.
+
+   int remove_ssock(const int eid, const SYSSOCKET& s, const int* events = NULL);
 
       // Functionality:
       //    wait for EPoll events or timeout.

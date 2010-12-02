@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_BASE_THREADPOOL_H_
 #define MAIDSAFE_BASE_THREADPOOL_H_
 
+#include <boost/thread.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
