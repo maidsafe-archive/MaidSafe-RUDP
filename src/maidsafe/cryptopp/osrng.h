@@ -1,6 +1,8 @@
 #ifndef CRYPTOPP_OSRNG_H
 #define CRYPTOPP_OSRNG_H
 
+//! \file
+
 #include "config.h"
 
 #ifdef OS_RNG_AVAILABLE
@@ -96,8 +98,8 @@ class AutoSeededX917RNG : public RandomNumberGenerator, public NotCopyable
 {
 public:
 	//! use blocking to choose seeding with BlockingRng or NonblockingRng. the parameter is ignored if only one of these is available
-	explicit AutoSeededX917RNG(bool blocking = false)
-		{Reseed(blocking);}
+	explicit AutoSeededX917RNG(bool blocking = false, bool autoSeed = true)
+		{if (autoSeed) Reseed(blocking);}
 	void Reseed(bool blocking = false, const byte *additionalEntropy = NULL, size_t length = 0);
 	// exposed for testing
 	void Reseed(const byte *key, size_t keylength, const byte *seed, const byte *timeVector);
@@ -140,6 +142,7 @@ void AutoSeededX917RNG<BLOCK_CIPHER>::Reseed(bool blocking, const byte *input, s
 
 CRYPTOPP_DLL_TEMPLATE_CLASS AutoSeededX917RNG<AES>;
 
+//! this is AutoSeededX917RNG\<AES\> in FIPS mode, otherwise it's AutoSeededRandomPool
 #if CRYPTOPP_ENABLE_COMPLIANCE_WITH_FIPS_140_2
 typedef AutoSeededX917RNG<AES> DefaultAutoSeededRNG;
 #else

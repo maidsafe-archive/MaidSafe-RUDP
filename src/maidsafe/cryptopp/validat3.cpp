@@ -167,56 +167,14 @@ bool ValidateMD5()
 
 bool ValidateSHA()
 {
-	HashTestTuple testSet[] = 
-	{
-		HashTestTuple("abc", "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2\x6C\x9C\xD0\xD8\x9D"),
-		HashTestTuple("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "\x84\x98\x3E\x44\x1C\x3B\xD2\x6E\xBA\xAE\x4A\xA1\xF9\x51\x29\xE5\xE5\x46\x70\xF1"),
-		HashTestTuple("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "\x34\xAA\x97\x3C\xD4\xC4\xDA\xA4\xF6\x1E\xEB\x2B\xDB\xAD\x27\x31\x65\x34\x01\x6F", 15625)
-	};
-
-	SHA sha;
-
 	cout << "\nSHA validation suite running...\n\n";
-	return HashModuleTest(sha, testSet, sizeof(testSet)/sizeof(testSet[0]));
+	return RunTestDataFile("TestVectors/sha.txt");
 }
 
 bool ValidateSHA2()
 {
-	HashTestTuple testSet256[] = 
-	{
-		HashTestTuple("abc", "\xba\x78\x16\xbf\x8f\x01\xcf\xea\x41\x41\x40\xde\x5d\xae\x22\x23\xb0\x03\x61\xa3\x96\x17\x7a\x9c\xb4\x10\xff\x61\xf2\x00\x15\xad"),
-		HashTestTuple("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "\x24\x8d\x6a\x61\xd2\x06\x38\xb8\xe5\xc0\x26\x93\x0c\x3e\x60\x39\xa3\x3c\xe4\x59\x64\xff\x21\x67\xf6\xec\xed\xd4\x19\xdb\x06\xc1"),
-	};
-
-	bool pass = true;
-
-	cout << "\nSHA-256 validation suite running...\n\n";
-	SHA256 sha256;
-	pass = HashModuleTest(sha256, testSet256, sizeof(testSet256)/sizeof(testSet256[0])) && pass;
-
-	cout << "\nSHA-384 validation suite running...\n\n";
-
-	HashTestTuple testSet384[] = 
-	{
-		HashTestTuple("abc", "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34\xc8\x25\xa7"),
-		HashTestTuple("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu", "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91\x74\x60\x39"),
-	};
-
-	SHA384 sha384;
-	pass = HashModuleTest(sha384, testSet384, sizeof(testSet384)/sizeof(testSet384[0])) && pass;
-
-	cout << "\nSHA-512 validation suite running...\n\n";
-
-	HashTestTuple testSet512[] = 
-	{
-		HashTestTuple("abc", "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41\x31\x12\xe6\xfa\x4e\x89\xa9\x7e\xa2\x0a\x9e\xee\xe6\x4b\x55\xd3\x9a\x21\x92\x99\x2a\x27\x4f\xc1\xa8\x36\xba\x3c\x23\xa3\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f\xa5\x4c\xa4\x9f"),
-		HashTestTuple("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu", "\x8e\x95\x9b\x75\xda\xe3\x13\xda\x8c\xf4\xf7\x28\x14\xfc\x14\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b\x87\x4b\xe9\x09"),
-	};
-
-	SHA512 sha512;
-	pass = HashModuleTest(sha512, testSet512, sizeof(testSet512)/sizeof(testSet512[0])) && pass;
-
-	return pass;
+	cout << "\nSHA validation suite running...\n\n";
+	return RunTestDataFile("TestVectors/sha.txt");
 }
 
 bool ValidateTiger()
@@ -363,15 +321,11 @@ bool ValidateHAVAL()
 
 bool ValidatePanama()
 {
-	cout << "\nPanama validation suite running...\n";
-
 	return RunTestDataFile("TestVectors/panama.txt");
 }
 
 bool ValidateWhirlpool()
 {
-	cout << "\nWhirlpool Hash Function validation suite running...\n";
-
 	return RunTestDataFile("TestVectors/whrlpool.txt");
 }
 
@@ -439,45 +393,7 @@ bool ValidateMD5MAC()
 
 bool ValidateHMAC()
 {
-	typedef HMAC<Weak::MD5> HMAC_MD5;
-
-	const char* keys[]=
-	{
-		"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
-		"Jefe",
-		"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA",
-		"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-			"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-			"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-			"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-			"\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-	};
-
-	HashTestTuple testSet[] = 
-	{
-		HashTestTuple("Hi There", "\x92\x94\x72\x7a\x36\x38\xbb\x1c\x13\xf4\x8e\xf8\x15\x8b\xfc\x9d"),
-		HashTestTuple("what do ya want for nothing?", "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7\x38"),
-		HashTestTuple("\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD",
-			"\x56\xbe\x34\x52\x1d\x14\x4c\x88\xdb\xb8\xc7\x33\xf0\xe8\xb3\xf6"),
-		HashTestTuple("Test Using Larger Than Block-Size Key - Hash Key First", "\x6b\x1a\xb7\xfe\x4b\xd7\xbf\x8f\x0b\x62\xe6\xce\x61\xb9\xd0\xcd")
-	};
-
-	bool pass=true;
-
-	cout << "\nHMAC/MD5 validation suite running...\n";
-
-	for (int k=0; k<4; k++)
-	{
-		HMAC_MD5 mac((byte *)keys[k], strlen(keys[k]));
-		cout << "\nKEY: ";
-		for (int j=0; keys[k][j] != 0; j++)
-			cout << setw(2) << setfill('0') << hex << (int)(byte)keys[k][j];
-		cout << endl;
-
-		pass = HashModuleTest(mac, testSet+k, 1) && pass;
-	}
-
-	return pass;
+	return RunTestDataFile("TestVectors/hmac.txt");
 }
 
 #ifdef CRYPTOPP_REMOVED
@@ -668,20 +584,6 @@ bool ValidatePBKDF()
 	PKCS5_PBKDF2_HMAC<SHA1> pbkdf;
 
 	cout << "\nPKCS #5 PBKDF2 validation suite running...\n\n";
-	pass = TestPBKDF(pbkdf, testSet, sizeof(testSet)/sizeof(testSet[0])) && pass;
-	}
-
-	{
-	// from maidsafe
-	PBKDF_TestTuple testSet[] = 
-	{
-		{0, 1005, "70617373776f7264", "1234567878563412", "0A89927670E292AF98080A3C3E2BDEE4289B768DE74570F9F470282756390FE36DE6DA2CBC407F4ECF6A9F62EF6249CC"},
-		{0, 1500, "416C6C206E2D656E746974696573206D75737420636F6D6D756E69636174652077697468206F74686572206E2d656E74697469657320766961206E2D3120656E746974656568656568656573", "1234567878563412","ECAE5ED132D15BAC4C67CC5DE7C4A5559CA448334BDF9DC8F2B9AA86A363DDAAF7B431A8456E51582508C74405DBA279"}
-	};
-
-	PKCS5_PBKDF2_HMAC<SHA512> pbkdf;
-
-	cout << "\nPKCS #512 PBKDF2 validation suite running...\n\n";
 	pass = TestPBKDF(pbkdf, testSet, sizeof(testSet)/sizeof(testSet[0])) && pass;
 	}
 

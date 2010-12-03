@@ -16,7 +16,6 @@
 #include "arc4.h"
 #include "rc5.h"
 #include "blowfish.h"
-#include "wake.h"
 #include "3way.h"
 #include "safer.h"
 #include "gost.h"
@@ -36,7 +35,6 @@
 #include "zdeflate.h"
 #include "cpu.h"
 
-#include <stdlib.h>
 #include <time.h>
 #include <memory>
 #include <iostream>
@@ -57,7 +55,6 @@ bool ValidateAll(bool thorough)
 	pass=ValidateMD2() && pass;
 	pass=ValidateMD5() && pass;
 	pass=ValidateSHA() && pass;
-	pass=ValidateSHA2() && pass;
 	pass=ValidateTiger() && pass;
 	pass=ValidateRIPEMD() && pass;
 	pass=ValidatePanama() && pass;
@@ -133,7 +130,10 @@ bool TestSettings()
 
 	cout << "\nTesting Settings...\n\n";
 
-	if (*(word32 *)"\x01\x02\x03\x04" == 0x04030201L)
+	word32 w;
+	memcpy_s(&w, sizeof(w), "\x01\x02\x03\x04", 4);
+
+	if (w == 0x04030201L)
 	{
 #ifdef IS_LITTLE_ENDIAN
 		cout << "passed:  ";
@@ -143,7 +143,7 @@ bool TestSettings()
 #endif
 		cout << "Your machine is little endian.\n";
 	}
-	else if (*(word32 *)"\x01\x02\x03\x04" == 0x01020304L)
+	else if (w == 0x01020304L)
 	{
 #ifndef IS_LITTLE_ENDIAN
 		cout << "passed:  ";
@@ -236,6 +236,7 @@ bool TestSettings()
 #endif
 	cout << endl;
 
+#ifdef CRYPTOPP_CPUID_AVAILABLE
 	bool hasMMX = HasMMX();
 	bool hasISSE = HasISSE();
 	bool hasSSE2 = HasSSE2();
@@ -251,7 +252,9 @@ bool TestSettings()
 	else
 		cout << "passed:  ";
 
-	cout << "hasMMX == " << hasMMX << ", hasISSE == " << hasISSE << ", hasSSE2 == " << hasSSE2 << ", hasSSSE3 == " << hasSSSE3 << ", isP4 == " << isP4 << ", cacheLineSize == " << cacheLineSize;
+	cout << "hasMMX == " << hasMMX << ", hasISSE == " << hasISSE << ", hasSSE2 == " << hasSSE2 << ", hasSSSE3 == " << hasSSSE3 << ", hasAESNI == " << HasAESNI() << ", hasCLMUL == " << HasCLMUL() << ", isP4 == " << isP4 << ", cacheLineSize == " << cacheLineSize;
+	cout << ", AESNI_INTRINSICS == " << CRYPTOPP_BOOL_AESNI_INTRINSICS_AVAILABLE << endl;
+#endif
 
 	if (!pass)
 	{

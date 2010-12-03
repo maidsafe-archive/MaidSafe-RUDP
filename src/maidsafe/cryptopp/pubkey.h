@@ -240,8 +240,8 @@ public:
 		{
 			static HashIdentifier CRYPTOPP_API Lookup()
 			{
-        return HashIdentifier((const byte*)NULL, 0);
-      }
+				return HashIdentifier((const byte *)NULL, 0);
+			}
 		};
 	};
 };

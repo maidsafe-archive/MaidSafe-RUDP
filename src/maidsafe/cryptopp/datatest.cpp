@@ -57,9 +57,22 @@ const std::string & GetRequiredDatum(const TestData &data, const char *name)
 	return i->second;
 }
 
+void RandomizedTransfer(BufferedTransformation &source, BufferedTransformation &target, bool finish, const std::string &channel=DEFAULT_CHANNEL)
+{
+	while (source.MaxRetrievable() > (finish ? 0 : 4096))
+	{
+		byte buf[4096+64];
+		size_t start = GlobalRNG().GenerateWord32(0, 63);
+		size_t len = GlobalRNG().GenerateWord32(1, UnsignedMin(4096U, 3*source.MaxRetrievable()/2));
+		len = source.Get(buf+start, len);
+		target.ChannelPut(channel, buf+start, len);
+	}
+}
+
 void PutDecodedDatumInto(const TestData &data, const char *name, BufferedTransformation &target)
 {
 	std::string s1 = GetRequiredDatum(data, name), s2;
+	ByteQueue q;
 
 	while (!s1.empty())
 	{
@@ -67,7 +80,7 @@ void PutDecodedDatumInto(const TestData &data, const char *name, BufferedTransfo
 		{
 			s1 = s1.substr(1);
 			if (s1.empty())
-				return; //avoid invalid read if s1 is empty
+				goto end;	// avoid invalid read if s1 is empty
 		}
 
 		int repeat = 1;
@@ -95,14 +108,15 @@ void PutDecodedDatumInto(const TestData &data, const char *name, BufferedTransfo
 			s1 = s1.substr(STDMIN(s1.find(' '), s1.length()));
 		}
 
-		ByteQueue q;
 		while (repeat--)
 		{
 			q.Put((const byte *)s2.data(), s2.size());
-			if (q.MaxRetrievable() > 4*1024 || repeat == 0)
-				q.TransferTo(target);
+			RandomizedTransfer(q, target, false);
 		}
 	}
+
+end:
+	RandomizedTransfer(q, target, true);
 }
 
 std::string GetDecodedDatum(const TestData &data, const char *name)
@@ -383,9 +397,9 @@ void TestSymmetricCipher(TestData &v, const NameValuePairs &overrideParameters)
 			return;
 		}
 
-		StringSource ss(plaintext, false, new StreamTransformationFilter(*encryptor, new StringSink(encrypted), StreamTransformationFilter::NO_PADDING));
-		ss.Pump(plaintext.size()/2 + 1);
-		ss.PumpAll();
+		StreamTransformationFilter encFilter(*encryptor, new StringSink(encrypted), StreamTransformationFilter::NO_PADDING);
+		RandomizedTransfer(StringStore(plaintext).Ref(), encFilter, true);
+		encFilter.MessageEnd();
 		/*{
 			std::string z;
 			encryptor->Seek(seek);
@@ -408,14 +422,14 @@ void TestSymmetricCipher(TestData &v, const NameValuePairs &overrideParameters)
 		{
 			std::cout << "incorrectly encrypted: ";
 			StringSource xx(encrypted, false, new HexEncoder(new FileSink(std::cout)));
-			xx.Pump(256); xx.Flush(false);
+			xx.Pump(2048); xx.Flush(false);
 			std::cout << "\n";
 			SignalTestFailure();
 		}
 		std::string decrypted;
-		StringSource dd(encrypted, false, new StreamTransformationFilter(*decryptor, new StringSink(decrypted), StreamTransformationFilter::NO_PADDING));
-		dd.Pump(plaintext.size()/2 + 1);
-		dd.PumpAll();
+		StreamTransformationFilter decFilter(*decryptor, new StringSink(decrypted), StreamTransformationFilter::NO_PADDING);
+		RandomizedTransfer(StringStore(encrypted).Ref(), decFilter, true);
+		decFilter.MessageEnd();
 		if (decrypted != plaintext)
 		{
 			std::cout << "incorrectly decrypted: ";
@@ -470,27 +484,24 @@ void TestAuthenticatedSymmetricCipher(TestData &v, const NameValuePairs &overrid
 		StringStore sh(header), sp(plaintext), sc(ciphertext), sf(footer), sm(mac);
 
 		if (macAtBegin)
-			sm.TransferTo(df);
+			RandomizedTransfer(sm, df, true);
 		sh.CopyTo(df, LWORD_MAX, AAD_CHANNEL);
-		sc.TransferTo(df);
+		RandomizedTransfer(sc, df, true);
 		sf.CopyTo(df, LWORD_MAX, AAD_CHANNEL);
 		if (!macAtBegin)
-			sm.TransferTo(df);
+			RandomizedTransfer(sm, df, true);
 		df.MessageEnd();
 
-		sh.TransferTo(ef, sh.MaxRetrievable()/2+1, AAD_CHANNEL);
-		sh.TransferTo(ef, LWORD_MAX, AAD_CHANNEL);
-		sp.TransferTo(ef, sp.MaxRetrievable()/2+1);
-		sp.TransferTo(ef);
-		sf.TransferTo(ef, sf.MaxRetrievable()/2+1, AAD_CHANNEL);
-		sf.TransferTo(ef, LWORD_MAX, AAD_CHANNEL);
+		RandomizedTransfer(sh, ef, true, AAD_CHANNEL);
+		RandomizedTransfer(sp, ef, true);
+		RandomizedTransfer(sf, ef, true, AAD_CHANNEL);
 		ef.MessageEnd();
 
 		if (test == "Encrypt" && encrypted != ciphertext+mac)
 		{
 			std::cout << "incorrectly encrypted: ";
 			StringSource xx(encrypted, false, new HexEncoder(new FileSink(std::cout)));
-			xx.Pump(256); xx.Flush(false);
+			xx.Pump(2048); xx.Flush(false);
 			std::cout << "\n";
 			SignalTestFailure();
 		}
@@ -734,7 +745,7 @@ bool RunTestDataFile(const char *filename, const NameValuePairs &overrideParamet
 {
 	unsigned int totalTests = 0, failedTests = 0;
 	TestDataFile(filename, overrideParameters, totalTests, failedTests);
-	cout << "\nTests complete. Total tests = " << totalTests << ". Failed tests = " << failedTests << ".\n";
+	cout << dec << "\nTests complete. Total tests = " << totalTests << ". Failed tests = " << failedTests << ".\n";
 	if (failedTests != 0)
 		cout << "SOME TESTS FAILED!\n";
 	return failedTests == 0;

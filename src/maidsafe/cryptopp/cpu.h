@@ -12,26 +12,102 @@
 
 #include "config.h"
 
-#ifdef CRYPTOPP_MSVC6PP_OR_LATER
-	#include <emmintrin.h>
+#if CRYPTOPP_BOOL_SSE2_INTRINSICS_AVAILABLE
+#include <emmintrin.h>
+#endif
+
+#if CRYPTOPP_BOOL_AESNI_INTRINSICS_AVAILABLE
+#if !defined(__GNUC__) || defined(__SSSE3__) || defined(__INTEL_COMPILER)
+#include <tmmintrin.h>
+#else
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_shuffle_epi8 (__m128i a, __m128i b)
+{
+	asm ("pshufb %1, %0" : "+x"(a) : "xm"(b));
+  	return a;
+}
+#endif
+#if !defined(__GNUC__) || defined(__SSE4_1__) || defined(__INTEL_COMPILER)
+#include <smmintrin.h>
+#else
+__inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_extract_epi32 (__m128i a, const int i)
+{
+	int r;
+	asm ("pextrd %2, %1, %0" : "=rm"(r) : "x"(a), "i"(i));
+  	return r;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_insert_epi32 (__m128i a, int b, const int i)
+{
+	asm ("pinsrd %2, %1, %0" : "+x"(a) : "rm"(b), "i"(i));
+  	return a;
+}
+#endif
+#if !defined(__GNUC__) || (defined(__AES__) && defined(__PCLMUL__)) || defined(__INTEL_COMPILER)
+#include <wmmintrin.h>
+#else
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_clmulepi64_si128 (__m128i a, __m128i b, const int i)
+{
+	asm ("pclmulqdq %2, %1, %0" : "+x"(a) : "xm"(b), "i"(i));
+  	return a;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aeskeygenassist_si128 (__m128i a, const int i)
+{
+	__m128i r;
+	asm ("aeskeygenassist %2, %1, %0" : "=x"(r) : "xm"(a), "i"(i));
+  	return r;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aesimc_si128 (__m128i a)
+{
+	__m128i r;
+	asm ("aesimc %1, %0" : "=x"(r) : "xm"(a));
+  	return r;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aesenc_si128 (__m128i a, __m128i b)
+{
+	asm ("aesenc %1, %0" : "+x"(a) : "xm"(b));
+  	return a;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aesenclast_si128 (__m128i a, __m128i b)
+{
+	asm ("aesenclast %1, %0" : "+x"(a) : "xm"(b));
+  	return a;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aesdec_si128 (__m128i a, __m128i b)
+{
+	asm ("aesdec %1, %0" : "+x"(a) : "xm"(b));
+  	return a;
+}
+__inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_aesdeclast_si128 (__m128i a, __m128i b)
+{
+	asm ("aesdeclast %1, %0" : "+x"(a) : "xm"(b));
+  	return a;
+}
+#endif
 #endif
 
 NAMESPACE_BEGIN(CryptoPP)
 
-#if defined(CRYPTOPP_X86_ASM_AVAILABLE) || (_MSC_VER >= 1400 && CRYPTOPP_BOOL_X64)
+#if CRYPTOPP_BOOL_X86 || CRYPTOPP_BOOL_X64
 
 #define CRYPTOPP_CPUID_AVAILABLE
 
 // these should not be used directly
 extern CRYPTOPP_DLL bool g_x86DetectionDone;
-extern CRYPTOPP_DLL bool g_hasSSE2;
-extern CRYPTOPP_DLL bool g_hasISSE;
-extern CRYPTOPP_DLL bool g_hasMMX;
 extern CRYPTOPP_DLL bool g_hasSSSE3;
+extern CRYPTOPP_DLL bool g_hasAESNI;
+extern CRYPTOPP_DLL bool g_hasCLMUL;
 extern CRYPTOPP_DLL bool g_isP4;
 extern CRYPTOPP_DLL word32 g_cacheLineSize;
 CRYPTOPP_DLL void CRYPTOPP_API DetectX86Features();
-
 CRYPTOPP_DLL bool CRYPTOPP_API CpuId(word32 input, word32 *output);
 
 #if CRYPTOPP_BOOL_X64
@@ -39,6 +115,10 @@ inline bool HasSSE2()	{return true;}
 inline bool HasISSE()	{return true;}
 inline bool HasMMX()	{return true;}
 #else
+
+extern CRYPTOPP_DLL bool g_hasSSE2;
+extern CRYPTOPP_DLL bool g_hasISSE;
+extern CRYPTOPP_DLL bool g_hasMMX;
 
 inline bool HasSSE2()
 {
@@ -70,6 +150,20 @@ inline bool HasSSSE3()
 	return g_hasSSSE3;
 }
 
+inline bool HasAESNI()
+{
+	if (!g_x86DetectionDone)
+		DetectX86Features();
+	return g_hasAESNI;
+}
+
+inline bool HasCLMUL()
+{
+	if (!g_x86DetectionDone)
+		DetectX86Features();
+	return g_hasCLMUL;
+}
+
 inline bool IsP4()
 {
 	if (!g_x86DetectionDone)
@@ -91,21 +185,7 @@ inline int GetCacheLineSize()
 	return CRYPTOPP_L1_CACHE_LINE_SIZE;
 }
 
-inline bool HasSSSE3()	{return false;}
-inline bool IsP4()		{return false;}
-
-// assume MMX and SSE2 if intrinsics are enabled
-#if CRYPTOPP_BOOL_SSE2_INTRINSICS_AVAILABLE || CRYPTOPP_BOOL_X64
-inline bool HasSSE2()	{return true;}
-inline bool HasISSE()	{return true;}
-inline bool HasMMX()	{return true;}
-#else
-inline bool HasSSE2()	{return false;}
-inline bool HasISSE()	{return false;}
-inline bool HasMMX()	{return false;}
 #endif
-
-#endif		// #ifdef CRYPTOPP_X86_ASM_AVAILABLE || _MSC_VER >= 1400
 
 #endif
 
@@ -118,7 +198,19 @@ inline bool HasMMX()	{return false;}
 	#define ASJ(x, y, z) x label##y*newline*
 	#define ASC(x, y) x label##y*newline*
 	#define AS_HEX(y) 0##y##h
-#elif defined(__GNUC__)
+#elif defined(_MSC_VER) || defined(__BORLANDC__)
+	#define CRYPTOPP_MS_STYLE_INLINE_ASSEMBLY
+	#define AS1(x) __asm {x}
+	#define AS2(x, y) __asm {x, y}
+	#define AS3(x, y, z) __asm {x, y, z}
+	#define ASS(x, y, a, b, c, d) __asm {x, y, (a)*64+(b)*16+(c)*4+(d)}
+	#define ASL(x) __asm {label##x:}
+	#define ASJ(x, y, z) __asm {x label##y}
+	#define ASC(x, y) __asm {x label##y}
+	#define CRYPTOPP_NAKED __declspec(naked)
+	#define AS_HEX(y) 0x##y
+#else
+	#define CRYPTOPP_GNU_STYLE_INLINE_ASSEMBLY
 	// define these in two steps to allow arguments to be expanded
 	#define GNU_AS1(x) #x ";"
 	#define GNU_AS2(x, y) #x ", " #y ";"
@@ -133,16 +225,6 @@ inline bool HasMMX()	{return false;}
 	#define ASJ(x, y, z) GNU_ASJ(x, y, z)
 	#define ASC(x, y) #x " " #y ";"
 	#define CRYPTOPP_NAKED
-	#define AS_HEX(y) 0x##y
-#else
-	#define AS1(x) __asm {x}
-	#define AS2(x, y) __asm {x, y}
-	#define AS3(x, y, z) __asm {x, y, z}
-	#define ASS(x, y, a, b, c, d) __asm {x, y, _MM_SHUFFLE(a, b, c, d)}
-	#define ASL(x) __asm {label##x:}
-	#define ASJ(x, y, z) __asm {x label##y}
-	#define ASC(x, y) __asm {x label##y}
-	#define CRYPTOPP_NAKED __declspec(naked)
 	#define AS_HEX(y) 0x##y
 #endif
 

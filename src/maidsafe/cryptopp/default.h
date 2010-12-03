@@ -4,14 +4,13 @@
 #include "sha.h"
 #include "hmac.h"
 #include "des.h"
-#include "aes.h"
 #include "filters.h"
 #include "modes.h"
 
 NAMESPACE_BEGIN(CryptoPP)
 
-typedef AES Default_BlockCipher;
-typedef SHA512 DefaultHashModule;
+typedef DES_EDE2 Default_BlockCipher;
+typedef SHA DefaultHashModule;
 typedef HMAC<DefaultHashModule> DefaultMAC;
 
 //! Password-Based Encryptor using DES-EDE2

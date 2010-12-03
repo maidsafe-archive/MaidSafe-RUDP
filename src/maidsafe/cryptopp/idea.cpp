@@ -30,7 +30,7 @@ CRYPTOPP_COMPILE_ASSERT(sizeof(IDEA::Word) >= 2);
 }
 
 #ifdef IDEA_LARGECACHE
-bool IDEA::Base::tablesBuilt = false;
+volatile bool IDEA::Base::tablesBuilt = false;
 word16 IDEA::Base::log[0x10000];
 word16 IDEA::Base::antilog[0x10000];
 
@@ -129,7 +129,7 @@ static inline IDEA::Word AddInv(IDEA::Word x)
 void IDEA::Base::DeKey()
 {
 	FixedSizeSecBlock<IDEA::Word, 6*ROUNDS+4> tempkey;
-	unsigned int i;
+	size_t i;
 
 	for (i=0; i<ROUNDS; i++)
 	{

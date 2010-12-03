@@ -3,13 +3,14 @@
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include "bench.h"
+#include "validate.h"
 #include "aes.h"
 #include "blumshub.h"
-#include "rng.h"
 #include "files.h"
 #include "hex.h"
 #include "modes.h"
 #include "factory.h"
+#include "cpu.h"
 
 #include <time.h>
 #include <math.h>
@@ -96,6 +97,7 @@ void BenchMark(const char *name, StreamTransformation &cipher, double timeTotal)
 {
 	const int BUF_SIZE=RoundUpToMultipleOf(2048U, cipher.OptimalBlockSize());
 	AlignedSecByteBlock buf(BUF_SIZE);
+	GlobalRNG().GenerateBlock(buf, BUF_SIZE);
 	clock_t start = clock();
 
 	unsigned long i=0, blocks=1;
@@ -112,12 +114,19 @@ void BenchMark(const char *name, StreamTransformation &cipher, double timeTotal)
 	OutputResultBytes(name, double(blocks) * BUF_SIZE, timeTaken);
 }
 
+void BenchMark(const char *name, AuthenticatedSymmetricCipher &cipher, double timeTotal)
+{
+	if (cipher.NeedsPrespecifiedDataLengths())
+		cipher.SpecifyDataLengths(0, cipher.MaxMessageLength(), 0);
+
+	BenchMark(name, static_cast<StreamTransformation &>(cipher), timeTotal);
+}
+
 void BenchMark(const char *name, HashTransformation &ht, double timeTotal)
 {
 	const int BUF_SIZE=2048U;
 	AlignedSecByteBlock buf(BUF_SIZE);
-	LC_RNG rng((word32)time(NULL));
-	rng.GenerateBlock(buf, BUF_SIZE);
+	GlobalRNG().GenerateBlock(buf, BUF_SIZE);
 	clock_t start = clock();
 
 	unsigned long i=0, blocks=1;
@@ -138,8 +147,7 @@ void BenchMark(const char *name, BufferedTransformation &bt, double timeTotal)
 {
 	const int BUF_SIZE=2048U;
 	AlignedSecByteBlock buf(BUF_SIZE);
-	LC_RNG rng((word32)time(NULL));
-	rng.GenerateBlock(buf, BUF_SIZE);
+	GlobalRNG().GenerateBlock(buf, BUF_SIZE);
 	clock_t start = clock();
 
 	unsigned long i=0, blocks=1;
@@ -235,14 +243,28 @@ void BenchmarkAll(double t, double hertz)
 	cout << "<THEAD><TR><TH>Algorithm<TH>MiB/Second" << cpb << "<TH>Microseconds to<br>Setup Key and IV" << cpk << endl;
 
 	cout << "\n<TBODY style=\"background: yellow\">";
-	BenchMarkByName2<AuthenticatedSymmetricCipher, StreamTransformation>("AES/GCM", 0, "AES/GCM (2K tables)", MakeParameters(Name::TableSize(), 2048));
-	BenchMarkByName2<AuthenticatedSymmetricCipher, StreamTransformation>("AES/GCM", 0, "AES/GCM (64K tables)", MakeParameters(Name::TableSize(), 64*1024));
-	BenchMarkByName2<AuthenticatedSymmetricCipher, StreamTransformation>("AES/CCM");
-	BenchMarkByName2<AuthenticatedSymmetricCipher, StreamTransformation>("AES/EAX");
+#if CRYPTOPP_BOOL_AESNI_INTRINSICS_AVAILABLE
+	if (HasCLMUL())
+		BenchMarkByName2<AuthenticatedSymmetricCipher, AuthenticatedSymmetricCipher>("AES/GCM", 0, "AES/GCM");
+	else
+#endif
+	{
+		BenchMarkByName2<AuthenticatedSymmetricCipher, AuthenticatedSymmetricCipher>("AES/GCM", 0, "AES/GCM (2K tables)", MakeParameters(Name::TableSize(), 2048));
+		BenchMarkByName2<AuthenticatedSymmetricCipher, AuthenticatedSymmetricCipher>("AES/GCM", 0, "AES/GCM (64K tables)", MakeParameters(Name::TableSize(), 64*1024));
+	}
+	BenchMarkByName2<AuthenticatedSymmetricCipher, AuthenticatedSymmetricCipher>("AES/CCM");
+	BenchMarkByName2<AuthenticatedSymmetricCipher, AuthenticatedSymmetricCipher>("AES/EAX");
 
 	cout << "\n<TBODY style=\"background: white\">";
-	BenchMarkByName2<AuthenticatedSymmetricCipher, MessageAuthenticationCode>("AES/GCM", 0, "GMAC(AES) (2K tables)", MakeParameters(Name::TableSize(), 2048));
-	BenchMarkByName2<AuthenticatedSymmetricCipher, MessageAuthenticationCode>("AES/GCM", 0, "GMAC(AES) (64K tables)", MakeParameters(Name::TableSize(), 64*1024));
+#if CRYPTOPP_BOOL_AESNI_INTRINSICS_AVAILABLE
+	if (HasCLMUL())
+		BenchMarkByName2<AuthenticatedSymmetricCipher, MessageAuthenticationCode>("AES/GCM", 0, "GMAC(AES)");
+	else
+#endif
+	{
+		BenchMarkByName2<AuthenticatedSymmetricCipher, MessageAuthenticationCode>("AES/GCM", 0, "GMAC(AES) (2K tables)", MakeParameters(Name::TableSize(), 2048));
+		BenchMarkByName2<AuthenticatedSymmetricCipher, MessageAuthenticationCode>("AES/GCM", 0, "GMAC(AES) (64K tables)", MakeParameters(Name::TableSize(), 64*1024));
+	}
 	BenchMarkByName<MessageAuthenticationCode>("VMAC(AES)-64");
 	BenchMarkByName<MessageAuthenticationCode>("VMAC(AES)-128");
 	BenchMarkByName<MessageAuthenticationCode>("HMAC(SHA-1)");

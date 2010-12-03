@@ -19,27 +19,35 @@ PREFIX = /usr
 endif
 
 ifeq ($(CXX),gcc)	# for some reason CXX is gcc on cygwin 1.1.4
-CXX = g++
+CXX = clang
 endif
 
 ifeq ($(ISX86),1)
 
-GCC42_OR_LATER = $(shell $(CXX) --version 2>&1 | $(EGREP) -c "\(GCC\) (4.[2-9]|[5-9])")
+GCC42_OR_LATER = $(shell $(CXX) -v 2>&1 | $(EGREP) -c "^gcc version (4.[2-9]|[5-9])")
 INTEL_COMPILER = $(shell $(CXX) --version 2>&1 | $(EGREP) -c "\(ICC\)")
+ICC111_OR_LATER = $(shell $(CXX) --version 2>&1 | $(EGREP) -c "\(ICC\) ([2-9][0-9]|1[2-9]|11\.[1-9])")
+IS_SUN_CC = $(shell $(CXX) -V 2>&1 | $(EGREP) -c "CC: Sun")
 GAS210_OR_LATER = $(shell echo "" | $(AS) -v 2>&1 | $(EGREP) -c "GNU assembler version (2\.[1-9][0-9]|[3-9])")
 GAS217_OR_LATER = $(shell echo "" | $(AS) -v 2>&1 | $(EGREP) -c "GNU assembler version (2\.1[7-9]|2\.[2-9]|[3-9])")
+GAS219_OR_LATER = $(shell echo "" | $(AS) -v 2>&1 | $(EGREP) -c "GNU assembler version (2\.19|2\.[2-9]|[3-9])")
 ISMINGW = $(shell $(CXX) --version 2>&1 | $(EGREP) -c "mingw")
 
 ifneq ($(GCC42_OR_LATER),0)
-ifneq ($(UNAME),Darwin)
-CXXFLAGS += -march=native -mtune=native
+ifeq ($(UNAME),Darwin)
+CXXFLAGS += -arch x86_64 -arch i386
+else
+CXXFLAGS += -march=native
 endif
 endif
 
 ifneq ($(INTEL_COMPILER),0)
-# "internal error: backend signals" occurs on some x86 inline assembly with ICC 9 and some x64 inline assembly with ICC 11
+CXXFLAGS += -wd68 -wd186 -wd279 -wd327
+ifeq ($(ICC111_OR_LATER),0)
+# "internal error: backend signals" occurs on some x86 inline assembly with ICC 9 and some x64 inline assembly with ICC 11.0
 # if you want to use Crypto++'s assembly code with ICC, try enabling it on individual files
 CXXFLAGS += -DCRYPTOPP_DISABLE_ASM
+endif
 endif
 
 ifeq ($(GAS210_OR_LATER),0)	# .intel_syntax wasn't supported until GNU assembler 2.10
@@ -47,6 +55,10 @@ CXXFLAGS += -DCRYPTOPP_DISABLE_ASM
 else
 ifeq ($(GAS217_OR_LATER),0)
 CXXFLAGS += -DCRYPTOPP_DISABLE_SSSE3
+else
+ifeq ($(GAS219_OR_LATER),0)
+CXXFLAGS += -DCRYPTOPP_DISABLE_AESNI
+endif
 endif
 ifeq ($(UNAME),SunOS)
 CXXFLAGS += -Wa,--divide	# allow use of "/" operator
@@ -67,12 +79,19 @@ endif
 
 ifeq ($(UNAME),Linux)
 LDFLAGS += -pthread
+<<<<<<< .mine
+CXX = clang
+=======
+ifneq ($(shell uname -i | $(EGREP) -c "(_64|d64)"),0)
+M32OR64 = -m64
+>>>>>>> .r521
+endif
 endif
 
 ifeq ($(UNAME),Darwin)
 AR = libtool
 ARFLAGS = -static -o
-CXX = c++
+CXX = clang
 IS_GCC2 = $(shell $(CXX) -v 2>&1 | $(EGREP) -c gcc-932)
 ifeq ($(IS_GCC2),1)
 CXXFLAGS += -fno-coalesce-templates -fno-coalesce-static-vtables
@@ -83,13 +102,20 @@ endif
 
 ifeq ($(UNAME),SunOS)
 LDLIBS += -lnsl -lsocket
-ifeq ($(CXX),CC)	# override flags for CC (Solaris native C++ compiler)
-CXXFLAGS = -DNDEBUG -O -g0 -native -template=no%extdef -m$(shell isainfo -b)
-LDFLAGS =
-ifeq ($(ISX86),1)
-# SSE2 intrinsics should work in Sun Studio 12, but we're not using SSE2 intrinsics anymore
-# CXXFLAGS += -xarch=sse2 -D__SSE2__
+M32OR64 = -m$(shell isainfo -b)
 endif
+
+ifneq ($(IS_SUN_CC),0)	# override flags for CC Sun C++ compiler
+CXXFLAGS = -DNDEBUG -O -g0 -native -template=no%extdef $(M32OR64)
+LDFLAGS =
+AR = $(CXX)
+ARFLAGS = -xar -o
+RANLIB = true
+SUN_CC10_BUGGY = $(shell $(CXX) -V 2>&1 | $(EGREP) -c "CC: Sun .* 5\.10 .* (2009|2010/0[1-4])")
+ifneq ($(SUN_CC10_BUGGY),0)
+# -DCRYPTOPP_INCLUDE_VECTOR_CC is needed for Sun Studio 12u1 Sun C++ 5.10 SunOS_i386 128229-02 2009/09/21 and was fixed in May 2010
+# remove it if you get "already had a body defined" errors in vector.cc
+CXXFLAGS += -DCRYPTOPP_INCLUDE_VECTOR_CC
 endif
 endif
 
@@ -121,11 +147,15 @@ install:
 	$(MKDIR) -p $(PREFIX)/include/cryptopp $(PREFIX)/lib $(PREFIX)/bin
 	$(CP) *.h $(PREFIX)/include/cryptopp
 	$(CP) *.a $(PREFIX)/lib
+	$(CP) *.so $(PREFIX)/lib
 	$(CP) *.exe $(PREFIX)/bin
 
 libcryptopp.a: $(LIBOBJS)
 	$(AR) $(ARFLAGS) $@ $(LIBOBJS)
 	$(RANLIB) $@
+
+libcryptopp.so: $(LIBOBJS)
+	$(CXX) -shared -o $@ $(LIBOBJS)
 
 cryptest.exe: libcryptopp.a $(TESTOBJS)
 	$(CXX) -o $@ $(CXXFLAGS) $(TESTOBJS) -L. -lcryptopp $(LDFLAGS) $(LDLIBS)

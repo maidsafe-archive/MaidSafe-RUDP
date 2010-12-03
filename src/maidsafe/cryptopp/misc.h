@@ -6,7 +6,6 @@
 #include <string.h>		// for memcpy and memmove
 
 #ifdef _MSC_VER
-	#include <stdlib.h>
 	#if _MSC_VER >= 1400
 		// VC2005 workaround: disable declarations that conflict with winnt.h
 		#define _interlockedbittestandset CRYPTOPP_DISABLED_INTRINSIC_1
@@ -101,9 +100,9 @@ struct NewObject
 	T* operator()() const {return new T;}
 };
 
-/*! This function safely initializes a static object in a multithreaded environment without using locks.
-	It may leak memory when two threads try to initialize the static object at the same time
-	but this should be acceptable since each static object is only initialized once per session.
+/*! This function safely initializes a static object in a multithreaded environment without using locks (for portability).
+	Note that if two threads call Ref() at the same time, they may get back different references, and one object 
+	may end up being memory leaked. This is by design.
 */
 template <class T, class F = NewObject<T>, int instance=0>
 class Singleton
@@ -121,31 +120,23 @@ private:
 template <class T, class F, int instance>
 const T & Singleton<T, F, instance>::Ref(CRYPTOPP_NOINLINE_DOTDOTDOT) const
 {
-	static simple_ptr<T> s_pObject;
-	static volatile char s_objectState = 0;
+	static volatile simple_ptr<T> s_pObject;
+	T *p = s_pObject.m_p;
 
-retry:
-	switch (s_objectState)
+	if (p)
+		return *p;
+
+	T *newObject = m_objectFactory();
+	p = s_pObject.m_p;
+
+	if (p)
 	{
-	case 0:
-		s_objectState = 1;
-		try
-		{
-			s_pObject.m_p = m_objectFactory();
-		}
-		catch(...)
-		{
-			s_objectState = 0;
-			throw;
-		}
-		s_objectState = 2;
-		break;
-	case 1:
-		goto retry;
-	default:
-		break;
+		delete newObject;
+		return *p;
 	}
-	return *s_pObject.m_p;
+
+	s_pObject.m_p = newObject;
+	return *newObject;
 }
 
 // ************** misc functions ***************
@@ -164,6 +155,12 @@ inline void memmove_s(void *dest, size_t sizeInBytes, const void *src, size_t co
 		throw InvalidArgument("memmove_s: buffer overflow");
 	memmove(dest, src, count);
 }
+
+#if __BORLANDC__ >= 0x620
+// C++Builder 2010 workaround: can't use std::memcpy_s because it doesn't allow 0 lengths
+#define memcpy_s CryptoPP::memcpy_s
+#define memmove_s CryptoPP::memmove_s
+#endif
 #endif
 
 inline void * memset_z(void *ptr, int value, size_t num)
@@ -555,7 +552,7 @@ static std::string StringNarrow(const wchar_t *str, bool throwOnError = true)
 #pragma warning(disable: 4996)	//  'wcstombs': This function or variable may be unsafe.
 #endif
 	size_t size = wcstombs(NULL, str, 0);
-	if (size == -1)
+	if (size == size_t(0)-1)
 	{
 		if (throwOnError)
 			throw InvalidArgument("StringNarrow: wcstombs() call failed");
@@ -569,6 +566,14 @@ static std::string StringNarrow(const wchar_t *str, bool throwOnError = true)
 #pragma warning(pop)
 #endif
 }
+
+#if CRYPTOPP_BOOL_ALIGN16_ENABLED
+CRYPTOPP_DLL void * CRYPTOPP_API AlignedAllocate(size_t size);
+CRYPTOPP_DLL void CRYPTOPP_API AlignedDeallocate(void *p);
+#endif
+
+CRYPTOPP_DLL void * CRYPTOPP_API UnalignedAllocate(size_t size);
+CRYPTOPP_DLL void CRYPTOPP_API UnalignedDeallocate(void *p);
 
 // ************** rotate functions ***************
 
