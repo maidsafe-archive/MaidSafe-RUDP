@@ -152,7 +152,7 @@ class Env : public testing::Environment {
       fs::create_directories(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
 
     // setup the nodes without starting them
@@ -197,7 +197,7 @@ class Env : public testing::Environment {
     ASSERT_EQ(kRpcResultSuccess, cb_.result());
     ASSERT_TRUE(knodes_[0]->is_joined());
     knodes_[0]->set_signature_validator(&validator);
-    LOG(INFO) << "Node 0 joined "
+    DLOG(INFO) << "Node 0 joined "
               << knodes_[0]->node_id().ToStringEncoded(KadId::kHex)
                  .substr(0, 12)
               << std::endl;
@@ -230,7 +230,7 @@ class Env : public testing::Environment {
       ASSERT_EQ(kRpcResultSuccess, cb_.result());
       ASSERT_TRUE(knodes_[i]->is_joined());
       knodes_[i]->set_signature_validator(&validator);
-      LOG(INFO) << "Node " << i << " joined "
+      DLOG(INFO) << "Node " << i << " joined "
                 << knodes_[i]->node_id().ToStringEncoded(KadId::kHex)
                    .substr(0, 12)
                 << std::endl;
@@ -241,14 +241,14 @@ class Env : public testing::Environment {
     HANDLE hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hconsole, 10 | 0 << 4);
 #endif
-    LOG(INFO) << kNetworkSize << " local Kademlia nodes running" << std::endl;
+    DLOG(INFO) << kNetworkSize << " local Kademlia nodes running" << std::endl;
 #ifdef WIN32
     SetConsoleTextAttribute(hconsole, 11 | 0 << 4);
 #endif
   }
 
   virtual void TearDown() {
-    printf("TestKNode, TearDown Starting...\n");
+    DLOG(INFO) << "TestKNode, TearDown Starting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(5));
 
 #ifdef WIN32
@@ -256,7 +256,7 @@ class Env : public testing::Environment {
     SetConsoleTextAttribute(hconsole, 7 | 0 << 4);
 #endif
     for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
-      LOG(INFO) << "stopping node " << i << std::endl;
+      DLOG(INFO) << "stopping node " << i << std::endl;
       cb_.Reset();
       knodes_[i]->Leave();
       EXPECT_FALSE(knodes_[i]->is_joined());
@@ -273,7 +273,7 @@ class Env : public testing::Environment {
           fs::remove_all(db_dir);
       }
       catch(const std::exception &e) {
-        LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+        DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
       }
     }
     try {
@@ -281,7 +281,7 @@ class Env : public testing::Environment {
         fs::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
     knodes_.clear();
     channel_managers_.clear();
@@ -290,7 +290,7 @@ class Env : public testing::Environment {
     dbs_.clear();
     node_ids_.clear();
     ports_.clear();
-    printf("TestKNode, TearDown Finished\n");
+    DLOG(INFO) << "TestKNode, TearDown Finished." << std::endl;
     transport::UdtTransport::CleanUp();
   }
 };
@@ -723,7 +723,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   std::vector<StoreValueCallback> cbs(count);
   std::string pub_key, priv_key, sig_pub_key, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  printf("Store: ");
+  DLOG(INFO) << "Store..." << std::endl;
   for (boost::int16_t n = 0; n < count; ++n) {
     keys[n] = KadId(cry_obj_.Hash("key" + base::IntToString(n), "",
                   crypto::STRING_STRING, false));
@@ -740,10 +740,8 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
     knodes_[a]->StoreValue(keys[n], values[n], req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cbs[n], _1));
-    if (!(n % 5))
-      printf(".");
   }
-  printf("\nLoad: ");
+  DLOG(INFO) << "Load..." << std::endl;
   for (boost::int16_t p = 0; p < count; ++p) {
     wait_result(&cbs[p]);
     EXPECT_EQ(kRpcResultSuccess, cbs[p].result())
@@ -760,10 +758,8 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
               << "No copies of the " << p <<"th value where stored.";
     ASSERT_EQ(1U, cb_1.signed_values().size());
     ASSERT_EQ(values[p].value(), cb_1.signed_values()[0].value());
-    if (!(p % 5))
-      printf(".");
   }
-  printf("\nDone\n");
+  DLOG(INFO) << "Done." << std::endl;
 }
 
 TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
@@ -831,20 +827,18 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
     for (boost::int16_t i = 0; i < kNetworkSize; ++i) {
       Contact ctc;
       if (knodes_[i]->GetContact(remote_id, &ctc))
-        printf("node %d port %d, has node %d\n", i, knodes_[i]->host_port(),
-               kTestK / 4);
+          DLOG(INFO) << "node " << i << " port " << knodes_[i]->host_port()
+                     << "has node " << kTestK / 4 << std::endl;
     }
     KadId zero_id;
-    if (remote_id == zero_id) {
-      printf("remote id is a kClientId\n");
-    }
+    if (remote_id == zero_id)
+      DLOG(INFO) << "remote id is a kClientId." << std::endl;
     if (remote_id == knodes_[kNetworkSize-2]->node_id())
-      printf("remote_id == node_id of sender\n");
+      DLOG(INFO) << "remote_id == node_id of sender." << std::endl;
     FAIL();
   }
   // ping a dead node
-  KadId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING,
-                                   false));
+  KadId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING, false));
 
   boost::uint16_t port(4242);
   std::set<boost::uint16_t>::iterator it;
@@ -1162,7 +1156,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   // find an existing node that has gone down
   // select a random node from node 1 to node kNetworkSize
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
-  LOG(INFO) << "+++++++++++++++++ r_node = " << r_node << std::endl;
+  DLOG(INFO) << "+++++++++++++++++ r_node = " << r_node << std::endl;
   KadId r_node_id = knodes_[r_node]->node_id();
   boost::uint16_t r_port = knodes_[r_node]->host_port();
   knodes_[r_node]->Leave();
@@ -1171,7 +1165,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   channel_managers_[r_node]->Stop();
   ports_.erase(r_port);
   // Do a find node
-  LOG(INFO) << "+++++++++++++++++ Node " << r_node << " stopped" << std::endl;
+  DLOG(INFO) << "+++++++++++++++++ Node " << r_node << " stopped" << std::endl;
   GetNodeContactDetailsCallback cb_1;
   knodes_[kNetworkSize - 1]->GetNodeContactDetails(
       r_node_id, boost::bind(&GetNodeContactDetailsCallback::CallbackFunc,
@@ -1181,7 +1175,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   ASSERT_EQ(kRpcResultFailure, cb_1.result());
   boost::this_thread::sleep(boost::posix_time::seconds(33));
   // Restart dead node
-  LOG(INFO) << "+++++++++++++++++ Restarting " << r_node << std::endl;
+  DLOG(INFO) << "+++++++++++++++++ Restarting " << r_node << std::endl;
   transport::TransportCondition tc;
   transports_[r_node]->StartListening("", transport_ports_[r_node], &tc);
   ASSERT_EQ(transport::kSuccess, tc);
@@ -1533,16 +1527,3 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
 }  // namespace test_knode
 
 }  // namespace kad
-
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-#ifndef HAVE_GLOG
-  bool FLAGS_logtostderr;
-#endif
-  FLAGS_logtostderr = true;
-  testing::InitGoogleTest(&argc, argv);
-  testing::AddGlobalTestEnvironment(new kad::test_knode::Env);
-  int result(RUN_ALL_TESTS());
-  int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
-  return (test_count == 0) ? -1 : result;
-}

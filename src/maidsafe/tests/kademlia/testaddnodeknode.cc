@@ -94,7 +94,7 @@ class TestKnodes : public testing::Test {
         boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem exception: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem exception: " << e.what() << std::endl;
     }
 
     ch_managers_.resize(2);
@@ -127,8 +127,8 @@ class TestKnodes : public testing::Test {
           boost::filesystem::path(datastore_dir_[i]));
       nodes_.push_back(KNode(ch_managers_[i], transports_[i], kcp));
       std::string s(nodes_[i].node_id().ToStringEncoded(kad::KadId::kHex));
-      printf("Listening port for node %s: %d\n", s.substr(0, 16).c_str(),
-                                                 transport_ports_[i]);
+      DLOG(INFO) << "Listening port for node " <<  s.substr(0, 16) << ": "
+                 << transport_ports_[i] << std::endl;
     }
   }
   void TearDown() {
@@ -144,7 +144,7 @@ class TestKnodes : public testing::Test {
         boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem exception: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem exception: " << e.what() << std::endl;
     }
   }
   std::vector<KNode> nodes_;

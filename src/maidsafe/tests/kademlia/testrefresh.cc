@@ -60,7 +60,7 @@ class TestRefresh : public testing::Test {
         boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
 
     // Creating the nodes
@@ -97,7 +97,7 @@ class TestRefresh : public testing::Test {
     GeneralKadCallback callback;
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-    LOG(INFO) << "starting node 0" << std::endl;
+    DLOG(INFO) << "starting node 0" << std::endl;
     nodes_[0]->JoinFirstNode(datadirs_[0] + "/.kadconfig", local_ip.to_string(),
                              transport_ports_[0],
                              boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -108,7 +108,7 @@ class TestRefresh : public testing::Test {
     ASSERT_TRUE(nodes_[0]->is_joined());
 
     for (boost::int16_t i = 1; i < testNetworkSize_; ++i) {
-      LOG(INFO) << "starting node " <<  i << std::endl;
+      DLOG(INFO) << "starting node " <<  i << std::endl;
       std::string kconfig_file1 = datadirs_[i] + "/.kadconfig";
       base::KadConfig kad_config1;
       base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
@@ -136,7 +136,7 @@ class TestRefresh : public testing::Test {
 
   void TearDown() {
     for (boost::int16_t i = testNetworkSize_-1; i >= 0; --i) {
-      LOG(INFO) << "stopping node " << i << std::endl;
+      DLOG(INFO) << "stopping node " << i << std::endl;
       nodes_[i]->Leave();
       EXPECT_FALSE(nodes_[i]->is_joined());
       transports_[i]->StopListening(transport_ports_[i]);
@@ -146,7 +146,7 @@ class TestRefresh : public testing::Test {
       boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
     nodes_.clear();
     ch_managers_.clear();
@@ -315,7 +315,7 @@ class TestRefreshSignedValues : public testing::Test {
         boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
 
     // Creating the nodes
@@ -359,7 +359,7 @@ class TestRefreshSignedValues : public testing::Test {
     }
 
     GeneralKadCallback callback;
-    LOG(INFO) << "starting node 0 - port(" << transport_ports_[0] << ")"
+    DLOG(INFO) << "starting node 0 - port(" << transport_ports_[0] << ")"
               << std::endl;
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
@@ -372,7 +372,7 @@ class TestRefreshSignedValues : public testing::Test {
     callback.Reset();
     ASSERT_TRUE(nodes_[0]->is_joined());
     for (boost::int16_t i = 1; i < testNetworkSize_; i++) {
-      LOG(INFO) << "starting node " << i << " - port(" << transport_ports_[i]
+      DLOG(INFO) << "starting node " << i << " - port(" << transport_ports_[i]
                 << ")" << std::endl;
       std::string kconfig_file1 = datadirs_[i] + "/.kadconfig";
       base::KadConfig kad_config1;
@@ -401,7 +401,7 @@ class TestRefreshSignedValues : public testing::Test {
 
   void TearDown() {
     for (boost::int16_t i = testNetworkSize_-1; i >= 0; --i) {
-      LOG(INFO) << "stopping node " << i << std::endl;
+      DLOG(INFO) << "stopping node " << i << std::endl;
       nodes_[i]->Leave();
       EXPECT_FALSE(nodes_[i]->is_joined());
       transports_[i]->StopListening(transport_ports_[i]);
@@ -411,7 +411,7 @@ class TestRefreshSignedValues : public testing::Test {
       boost::filesystem::remove_all(test_dir_);
     }
     catch(const std::exception &e) {
-      LOG(ERROR) << "filesystem error: " << e.what() << std::endl;
+      DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
     nodes_.clear();
     ch_managers_.clear();
@@ -590,7 +590,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   ASSERT_EQ(kRpcResultSuccess, callback.result());
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
-  printf("Joined extra node - port(%d)\n", p);
+  DLOG(INFO) << "Joined extra node - port (" << p << ")." << std::endl;
 
   boost::this_thread::sleep(boost::posix_time::seconds(testRefresh_ + 8));
   std::vector<std::string> values;

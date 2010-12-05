@@ -521,7 +521,7 @@ void UdtTransport::AcceptConnection(const Port &port,
           boost::this_thread::sleep(boost::posix_time::milliseconds(1));
           continue;
         } else {
-          LOG(ERROR) << "UDT::accept error: " <<
+          DLOG(ERROR) << "UDT::accept error: " <<
               UDT::getlasterror().getErrorMessage() << std::endl;
           listening_ports_.erase(port_iterator);
           std::map<Port, SocketId>::iterator it = listening_map_.find(port);
@@ -545,14 +545,14 @@ void UdtTransport::AcceptConnection(const Port &port,
       bool receive_synchronously(true);
       if (UDT::ERROR == UDT::setsockopt(receiver_socket_id, 0, UDT_RCVSYN,
           &receive_synchronously, sizeof(receive_synchronously))) {
-        LOG(ERROR) << "UDT::accept (UDT_RCVSYN) error: " <<
+        DLOG(ERROR) << "UDT::accept (UDT_RCVSYN) error: " <<
             UDT::getlasterror().getErrorMessage() << std::endl;
         continue;
       }
       UdtConnection udt_connection(this, receiver_socket_id);
       if (!general_threadpool_->EnqueueTask(boost::bind(
           &UdtConnection::ReceiveData, udt_connection, kDynamicTimeout))) {
-        LOG(ERROR) << "AcceptConnection: failed to enqueue task." << std::endl;
+        DLOG(ERROR) << "AcceptConnection: failed to enqueue task." << std::endl;
         UDT::close(receiver_socket_id);
         continue;
       }

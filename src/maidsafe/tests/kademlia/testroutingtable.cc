@@ -41,12 +41,12 @@ namespace test_routing_table {
 bool TestInRange(const kad::KadId &key_id, const kad::KadId &min_range,
                  const kad::KadId &max_range) {
   if (min_range > key_id) {
-    LOG(INFO) << "under min range";
-    LOG(INFO) << "val " << key_id.ToStringEncoded(kad::KadId::kHex);
+    DLOG(INFO) << "under min range";
+    DLOG(INFO) << "val " << key_id.ToStringEncoded(kad::KadId::kHex);
   }
   if (key_id > max_range) {
-    LOG(INFO) << "above max range";
-    LOG(INFO) << "val " << key_id.ToStringEncoded(kad::KadId::kHex);
+    DLOG(INFO) << "above max range";
+    DLOG(INFO) << "val " << key_id.ToStringEncoded(kad::KadId::kHex);
   }
   return static_cast<bool>(min_range <= key_id && key_id <= max_range);
 }
@@ -122,7 +122,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Get_Contact) {
   kad::Contact rec_contact;
   ASSERT_TRUE(routingtable.GetContact(contact_id, &rec_contact));
   ASSERT_TRUE(contact.Equals(rec_contact));
-  LOG(INFO) << "Recoverd contact " << rec_contact.DebugString() << std::endl;
+  DLOG(INFO) << "Recoverd contact " << rec_contact.DebugString() << std::endl;
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_Add_Remove_Contact) {
@@ -448,12 +448,6 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   kad::KadId range3((kad::kKeySizeBytes * 8) - 2);
   kad::KadId range4((kad::kKeySizeBytes * 8) - 1);
   kad::KadId range5(kad::KadId::kMaxId);
-//  printf("%s\n%s\n%s\n%s\n%s\n",
-//         range1.ToStringEncoded(kad::KadId::kHex).c_str(),
-//         range2.ToStringEncoded(kad::KadId::kHex).c_str(),
-//         range3.ToStringEncoded(kad::KadId::kHex).c_str(),
-//         range4.ToStringEncoded(kad::KadId::kHex).c_str(),
-//         range5.ToStringEncoded(kad::KadId::kHex).c_str());
   ASSERT_TRUE(range5 > range4);
   ASSERT_TRUE(range4 > range3);
   ASSERT_TRUE(range3 > range2);
@@ -698,8 +692,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetKClosestContacts) {
   for (size_t i = 0; i < cts.size(); ++i) {
     for (size_t j = i+1; j < cts.size(); ++j)
       if (cts[i].Equals(cts[j])) {
-        printf("Same contact in indices %i and %i\n", i, j);
-        FAIL();
+        FAIL() << "Same contact in indices " << i << " and " << j;
       }
   }
 
@@ -801,7 +794,6 @@ TEST_F(TestRoutingTable, BEH_KAD_TwoKBucketsSplit) {
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_GetFurthestNodes) {
-//  printf("000000000000\n");
   kad::KadId holder_id(kad::KadId::kRandomId);
   kad::RoutingTable routingtable(holder_id, test_routing_table::K);
   std::string ip("127.0.0.");

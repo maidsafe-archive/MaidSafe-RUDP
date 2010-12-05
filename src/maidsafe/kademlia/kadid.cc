@@ -74,7 +74,7 @@ KadId::KadId(const std::string &id, const EncodingType &encoding_type)
     }
   }
   catch(const std::exception &e) {
-    LOG(ERROR) << "KadId Ctor: " << e.what();
+    DLOG(ERROR) << "KadId Ctor: " << e.what();
     raw_id_.clear();
     return;
   }

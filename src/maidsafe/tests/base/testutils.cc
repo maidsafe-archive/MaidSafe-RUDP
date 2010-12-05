@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstdlib>
 #include <set>
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 
 namespace test_utils {
@@ -235,7 +236,7 @@ TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
   EXPECT_FALSE(alldevices.empty());
   for (size_t n = 0; n < alldevices.size(); ++n) {
     base::DeviceStruct ds = alldevices[n];
-    printf("%d - %s\n", n, ds.ip_address.to_string().c_str());
+    DLOG(INFO) << n << " - " << ds.ip_address.to_string() << std::endl;
   }
 }
 

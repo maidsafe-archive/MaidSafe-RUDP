@@ -1,4 +1,4 @@
-import "kademlia_service_messages.proto";
+import "maidsafe/protobuf/kademlia_service_messages.proto";
 
 package kad;
 

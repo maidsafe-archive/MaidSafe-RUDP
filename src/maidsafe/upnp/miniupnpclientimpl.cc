@@ -84,12 +84,12 @@ bool UpnpIgdClientImpl::AddPortMapping(const PortMapping &mapping) {
   std::string intPort = boost::lexical_cast<std::string>(mapping.internal_port);
   std::string proto = (mapping.protocol == kTcp ? "TCP" : "UDP");
 
-#ifdef DEBUG
-  /* if (pm->enabled) {
-    printf("UPnP port mapping already exists: %s %s\n",
-           proto.c_str(), ext_port.c_str());
-  } */
-#endif
+//  #ifdef DEBUG
+//    if (pm->enabled) {
+//      printf("UPnP port mapping already exists: %s %s\n",
+//             proto.c_str(), ext_port.c_str());
+//    }
+//  #endif
 
   if (has_services_) {
     boost::asio::ip::address ip_addr;
@@ -108,12 +108,12 @@ bool UpnpIgdClientImpl::AddPortMapping(const PortMapping &mapping) {
       pm->enabled = true;
     } else {
       pm->enabled = false;
-#ifdef DEBUG
-      printf("Error adding UPnP port mapping (%s %s): %d\n",
-             proto.c_str(),
-             extPort.c_str(),
-             res);
-#endif
+//  #ifdef DEBUG
+//        printf("Error adding UPnP port mapping (%s %s): %d\n",
+//               proto.c_str(),
+//               extPort.c_str(),
+//               res);
+//  #endif
     }
 
     return res == UPNPCOMMAND_SUCCESS;
@@ -148,12 +148,12 @@ bool UpnpIgdClientImpl::DeletePortMapping(const int &port,
                                        proto.c_str(),
                                        NULL);
 
-#ifdef DEBUG
-      if (res != UPNPCOMMAND_SUCCESS) {
-        printf("Error deleting UPnP port mapping (%s %d): %d\n", proto.c_str(),
-            port, res);
-      }
-#endif
+//  #ifdef DEBUG
+//        if (res != UPNPCOMMAND_SUCCESS) {
+//          printf("Error deleting UPnP port mapping (%s %d): %d\n",
+//                 proto.c_str(), port, res);
+//        }
+//  #endif
 
       ok = (res == UPNPCOMMAND_SUCCESS);
     }
@@ -203,10 +203,10 @@ bool IsUpnpIgdConnected(const UPNPUrls &urls, const IGDdatas &data) {
 }
 
 void UpnpIgdClientImpl::RefreshCallback() {
-#ifdef DEBUG
-  if (port_mappings_.size() > 0)
-    printf("Refreshing UPnP port mappings...\n");
-#endif
+//  #ifdef DEBUG
+//    if (port_mappings_.size() > 0)
+//      printf("Refreshing UPnP port mappings...\n");
+//  #endif
 
   if (!has_services_ || !IsUpnpIgdConnected(upnp_urls_, igd_data_)) {
     DiscoverDevices();

@@ -1,4 +1,4 @@
-import "rpcmessage.proto";
+import "maidsafe/protobuf/rpcmessage.proto";
 
 package transport;
 

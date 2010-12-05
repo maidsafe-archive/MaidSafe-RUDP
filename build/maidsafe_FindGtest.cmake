@@ -46,8 +46,7 @@
 #  Variables set and cached by this module are:                                #
 #    Gtest_INCLUDE_DIR, Gtest_LIBRARY_DIR, Gtest_LIBRARY                       #
 #                                                                              #
-#  For MSVC, Gtest_LIBRARY_DIR_DEBUG and Gtest_LIBRARY_DEBUG are also set      #
-#  and cached.                                                                 #
+#  For MSVC, Gtest_LIBRARY_DIR_DEBUG is also set and cached.                   #
 #                                                                              #
 #==============================================================================#
 
@@ -57,6 +56,7 @@ UNSET(Gtest_LIBRARY_DIR CACHE)
 UNSET(Gtest_LIBRARY_DIR_DEBUG CACHE)
 UNSET(Gtest_LIBRARY CACHE)
 UNSET(Gtest_LIBRARY_DEBUG CACHE)
+UNSET(Gtest_LIBRARY_RELEASE CACHE)
 
 IF(GTEST_LIB_DIR)
   SET(GTEST_LIB_DIR ${GTEST_LIB_DIR} CACHE PATH "Path to GoogleTest libraries directory" FORCE)
@@ -78,7 +78,7 @@ ELSE()
   SET(GTEST_LIBPATH_SUFFIX lib lib64)
 ENDIF()
 
-FIND_LIBRARY(Gtest_LIBRARY NAMES gtest gtest-md PATHS ${GTEST_LIB_DIR} ${GTEST_ROOT_DIR} PATH_SUFFIXES ${GTEST_LIBPATH_SUFFIX})
+FIND_LIBRARY(Gtest_LIBRARY_RELEASE NAMES gtest gtest-md PATHS ${GTEST_LIB_DIR} ${GTEST_ROOT_DIR} PATH_SUFFIXES ${GTEST_LIBPATH_SUFFIX})
 IF(MSVC)
   IF(CMAKE_CL_64)
     SET(GTEST_LIBPATH_SUFFIX msvc/x64/Debug)
@@ -90,20 +90,22 @@ ENDIF()
 
 FIND_PATH(Gtest_INCLUDE_DIR gtest/gtest.h PATHS ${GTEST_INC_DIR} ${GTEST_ROOT_DIR}/include)
 
-GET_FILENAME_COMPONENT(GTEST_LIBRARY_DIR ${Gtest_LIBRARY} PATH)
+GET_FILENAME_COMPONENT(GTEST_LIBRARY_DIR ${Gtest_LIBRARY_RELEASE} PATH)
 SET(Gtest_LIBRARY_DIR ${GTEST_LIBRARY_DIR} CACHE PATH "Path to GoogleTest libraries directory" FORCE)
 IF(MSVC)
   GET_FILENAME_COMPONENT(GTEST_LIBRARY_DIR_DEBUG ${Gtest_LIBRARY_DEBUG} PATH)
   SET(Gtest_LIBRARY_DIR_DEBUG ${GTEST_LIBRARY_DIR_DEBUG} CACHE PATH "Path to GoogleTest debug libraries directory" FORCE)
 ENDIF()
 
-IF(NOT Gtest_LIBRARY)
+IF(NOT Gtest_LIBRARY_RELEASE)
   SET(ERROR_MESSAGE "\nCould not find Google Test.  NO GTEST LIBRARY - ")
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/googletest\n")
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Test is already installed, run:\n")
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DGTEST_LIB_DIR=<Path to gtest lib directory> and/or")
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DGTEST_ROOT_DIR=<Path to gtest root directory>")
   MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
+ELSE()
+  SET(Gtest_LIBRARY ${Gtest_LIBRARY_RELEASE} CACHE PATH "Path to GoogleTest library" FORCE)
 ENDIF()
 
 IF(MSVC)
@@ -113,6 +115,8 @@ IF(MSVC)
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Test is already installed, run:\n")
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DGTEST_ROOT_DIR=<Path to gtest root directory>")
     MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
+  ELSE()
+    SET(Gtest_LIBRARY debug ${Gtest_LIBRARY_DEBUG} optimized ${Gtest_LIBRARY} CACHE PATH "Path to GoogleTest libraries" FORCE)
   ENDIF()
 ENDIF()
 

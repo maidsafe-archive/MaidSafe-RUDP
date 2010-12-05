@@ -141,7 +141,7 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
   std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
   reflection->ListFields(msg.data(), &field_descriptors);
   if (field_descriptors.size() != 1U) {
-    LOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
+    DLOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
     if (!is_request)
       transport_.signals()->on_receive_(socket_id_, kReceiveParseFailure);
     return Close();
@@ -178,7 +178,7 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
       Close();
       break;
     default:
-      LOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
+      DLOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
       Close();
   }
 }

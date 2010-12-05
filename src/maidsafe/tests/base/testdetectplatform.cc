@@ -28,28 +28,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/base/log.h"
 
 TEST(FindPlatform, BEH_BASE_DetectPlatform) {
   int macflag(0);
   int posixflag(0);
   int winflag(0);
 
+  std::string log_output("We have cunningly detected your platform as being ");
+
 #if defined(MAIDSAFE_APPLE)
   ++macflag;
+  log_output += "APPLE.";
 #elif defined(MAIDSAFE_POSIX)
   ++posixflag;
+  log_output += "POSIX.";
 #elif defined(MAIDSAFE_WIN32)
   ++winflag;
+  log_output += "WIN32.";
 #endif
 
   ASSERT_EQ(1, macflag + posixflag + winflag);
-
-  printf("We have cunningly detected your platform as being ");
-  if (macflag)
-    printf("APPLE.\n");
-  if (posixflag)
-    printf("POSIX.\n");
-  if (winflag)
-    printf("WIN32.\n");
+  DLOG(INFO) << log_output << std::endl;
 }
 

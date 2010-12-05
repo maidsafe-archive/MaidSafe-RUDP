@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <boost/bind.hpp>
+#include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/upnp/upnpclient.h"
 
@@ -46,27 +47,28 @@ class UpnpTest: public testing::Test {
 void UpnpTest::OnNewMapping(const int &port,
                             const upnp::ProtocolType &protocol) {
   num_curr_mappings++;
-  printf("New port mapping: %s %d\n",
-         protocol == upnp::kUdp ? "UDP" : "TCP", port);
+  DLOG(INFO) << "New port mapping: " << (protocol == upnp::kUdp ? "UDP" : "TCP")
+             << " " << port << std::endl;
 }
 
 void UpnpTest::OnLostMapping(const int &port,
                              const upnp::ProtocolType &protocol) {
   num_curr_mappings--;
-  printf("Lost port mapping: %s %d\n",
-         protocol == upnp::kUdp ? "UDP" : "TCP", port);
+  DLOG(INFO) << "Lost port mapping: " << (protocol == upnp::kUdp ? "UD" : "TC")
+             << "P " << port << std::endl;
 }
 
 void UpnpTest::OnFailedMapping(const int &port,
                                const upnp::ProtocolType &protocol) {
-  printf("Failed port mapping: %s %d\n",
-         protocol == upnp::kUdp ? "UDP" : "TCP", port);
+  DLOG(INFO) << "Failed port mapping: "
+             << (protocol == upnp::kUdp ? "UDP" : "TCP") << " " << port
+             << std::endl;
 }
 
 TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
   upnp::UpnpIgdClient upnp;
 
-  printf("Initialising UPnP...\n");
+  DLOG(INFO) << "Initialising UPnP..." << std::endl;
 
   ASSERT_TRUE(upnp.InitControlPoint());
 
@@ -90,19 +92,19 @@ TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
   }
 
   if (upnp.IsAsync()) {
-    printf("Waiting...\n");
+    DLOG(INFO) << "Waiting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(3));
   }
 
   if (upnp.HasServices()) {
-    printf("External IP: %s\n", upnp.GetExternalIpAddress().c_str());
+    DLOG(INFO) << "External IP: " << upnp.GetExternalIpAddress() << std::endl;
     ASSERT_TRUE(all_added);
     if (upnp.IsAsync()) {
       ASSERT_TRUE(num_curr_mappings == num_total_mappings);
     }
-    printf("All UPnP mappings successful.\n");
+    DLOG(INFO) << "All UPnP mappings successful." << std::endl;
   } else {
-    printf("Sorry, no port mappings via UPnP possible.\n");
+    DLOG(INFO) << "Sorry, no port mappings via UPnP possible." << std::endl;
   }
   ASSERT_TRUE(upnp.DeletePortMapping(start_port + num_total_mappings - 1,
                                      upnp::kTcp));

@@ -27,8 +27,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/base/utils.h"
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/log.h"
+#include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
@@ -244,7 +245,7 @@ TEST_F(TestKbucket, BEH_KAD_FillKbucketUpdateContent) {
                    port[K - 1]);
   ASSERT_EQ(SUCCEED, kbucket.AddContact(contact1));
   for (boost::int16_t i = 0; i < K; ++i) {
-    std::cout << "contacts retrieved = " << i + 1 << std::endl;
+    DLOG(INFO) << "contacts retrieved = " << i + 1 << std::endl;
     kbucket.GetContacts(i + 1, ex_contacts, &contacts);
     ASSERT_EQ(i + 1, static_cast<int>(contacts.size()));
     Contact contact;
@@ -279,7 +280,7 @@ TEST_F(TestKbucket, BEH_KAD_AddSameContact) {
   ASSERT_EQ(test_kbucket::K - 1, kbucket.Size());
   std::vector<Contact> contacts, ex_contacts;
   for (boost::int16_t i = 0; i < test_kbucket::K - 1; ++i) {
-    std::cout << "contacts retrieved = " << i + 1 << std::endl;
+    DLOG(INFO) << "contacts retrieved = " << i + 1 << std::endl;
     kbucket.GetContacts(i + 1, ex_contacts, &contacts);
     ASSERT_EQ(i + 1, static_cast<int>(contacts.size()));
     for (boost::int16_t j = 0; j <= i; ++j) {

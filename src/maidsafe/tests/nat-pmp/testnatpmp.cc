@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread.hpp>
 
 #include "maidsafe/nat-pmp/natpmpclient.h"
+#include "maidsafe/base/log.h"
 
 class NATPMPTest : public testing::Test {
  public:
@@ -47,30 +48,30 @@ TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
   boost::uint16_t tcp_port = 33333;
   boost::uint16_t udp_port = 33333;
 
-  printf("Starting NAT-PMP...\n");
+  DLOG(INFO) << "Starting NAT-PMP..." << std::endl;
 
-  printf("Requesting external ip address from gateway.\n");
+  DLOG(INFO) << "Requesting external ip address from gateway." << std::endl;
 
   client.Start();
 
-  printf("Queueing mapping request for tcp port %d to %d.\n", tcp_port,
-         tcp_port);
+  DLOG(INFO) << "Queueing mapping request for tcp port " << tcp_port << " to "
+             << tcp_port << std::endl;
 
   client.MapPort(natpmp::Protocol::kTcp, 33333, 33333, 3600);
 
-  printf("Queueing mapping request for udp port %d to %d.\n", udp_port,
-         udp_port);
+  DLOG(INFO) << "Queueing mapping request for udp port " << udp_port << " to "
+             << udp_port << std::endl;
 
   client.MapPort(natpmp::Protocol::kUdp, 33333, 33333, 3600);
 
   boost::shared_ptr<boost::thread> thread(new boost::thread(
       boost::bind(&boost::asio::io_service::run, &ios)));
 
-  printf("Sleeping for 64 seconds...\n");
+  DLOG(INFO) << "Sleeping for 64 seconds..." << std::endl;
 
   boost::this_thread::sleep(boost::posix_time::seconds(64));
 
-  printf("Stopping NAT-PMP...\n");
+  DLOG(INFO) << "Stopping NAT-PMP..." << std::endl;
 
   client.Stop();
 }

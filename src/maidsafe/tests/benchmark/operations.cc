@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
+#include "maidsafe/base/log.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kadid.h"
 #include "maidsafe/kademlia/knode-api.h"
@@ -305,11 +306,11 @@ kad::KadId Operations::GetModId(int iteration) {
 }
 
 void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {
-  std::cout << boost::format("Calls  RPC Name  %40t% min/avg/max\n");
+  DLOG(INFO) << boost::format("Calls  RPC Name  %40t% min/avg/max\n");
   for (rpcprotocol::RpcStatsMap::const_iterator it = rpc_timings.begin();
        it != rpc_timings.end();
        ++it) {
-    std::cout << boost::format("%1% : %2% %40t% %3% / %4% / %5% \n")
+    DLOG(INFO) << boost::format("%1% : %2% %40t% %3% / %4% / %5% \n")
            % it->second.Size()
            % it->first.c_str()
            % it->second.Min()  // / 1000.0

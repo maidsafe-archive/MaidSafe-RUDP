@@ -195,5 +195,4 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   ASSERT_EQ(port, ctc4.host_port());
   ASSERT_EQ(port, ctc4.local_port());
   ASSERT_EQ(port, ctc4.rendezvous_port());
-  printf("ctc4: %s", ctc4.DebugString().c_str());
 }

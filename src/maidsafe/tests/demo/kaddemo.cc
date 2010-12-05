@@ -258,7 +258,6 @@ int main(int argc, char **argv) {
 
     // setting log
 #ifndef HAVE_GLOG
-    bool FLAGS_logtostderr;
     std::string FLAGS_log_dir;
 #endif
     if (vm.count("logfilepath")) {

@@ -42,8 +42,7 @@
 #    Mysqlpp_INCLUDE_DIR, Mysqlpp_LIBRARY_DIR, Mysqlpp_LIBRARY and             #
 #    Mysqlpp_FOUND                                                             #
 #                                                                              #
-#  For MSVC, Mysqlpp_LIBRARY_DIR_DEBUG and Mysqlpp_LIBRARY_DEBUG are also set  #
-#  and cached.                                                                 #
+#  For MSVC, Mysqlpp_LIBRARY_DIR_DEBUG is also set and cached.                 #
 #                                                                              #
 #==============================================================================#
 
@@ -56,6 +55,7 @@ IF(Mysql_FOUND)
   UNSET(Mysqlpp_LIBRARY_DIR_DEBUG CACHE)
   UNSET(Mysqlpp_LIBRARY CACHE)
   UNSET(Mysqlpp_LIBRARY_DEBUG CACHE)
+  UNSET(Mysqlpp_LIBRARY_RELEASE CACHE)
   UNSET(Mysqlpp_FOUND CACHE)
 
   IF(MYSQLPP_LIB_DIR)
@@ -74,14 +74,14 @@ IF(Mysql_FOUND)
     SET(MYSQLPP_LIBPATH_SUFFIX lib lib64)
   ENDIF()
 
-  FIND_LIBRARY(Mysqlpp_LIBRARY NAMES mysqlpp PATHS ${MYSQLPP_LIB_DIR} ${MYSQLPP_ROOT_DIR} PATH_SUFFIXES ${MYSQLPP_LIBPATH_SUFFIX})
+  FIND_LIBRARY(Mysqlpp_LIBRARY_RELEASE NAMES mysqlpp PATHS ${MYSQLPP_LIB_DIR} ${MYSQLPP_ROOT_DIR} PATH_SUFFIXES ${MYSQLPP_LIBPATH_SUFFIX})
   IF(MSVC)
     FIND_LIBRARY(Mysqlpp_LIBRARY_DEBUG NAMES mysqlpp_d PATHS ${MYSQLPP_LIB_DIR} ${MYSQLPP_ROOT_DIR} PATH_SUFFIXES ${MYSQLPP_LIBPATH_SUFFIX})
   ENDIF()
 
   FIND_PATH(Mysqlpp_INCLUDE_DIR mysql++.h PATHS ${MYSQLPP_INC_DIR}/mysql++ ${MYSQLPP_INC_DIR} ${MYSQLPP_ROOT_DIR}/include)
 
-  GET_FILENAME_COMPONENT(MYSQLPP_LIBRARY_DIR ${Mysqlpp_LIBRARY} PATH)
+  GET_FILENAME_COMPONENT(MYSQLPP_LIBRARY_DIR ${Mysqlpp_LIBRARY_RELEASE} PATH)
   SET(Mysqlpp_LIBRARY_DIR ${MYSQLPP_LIBRARY_DIR} CACHE PATH "Path to MySQL++ libraries directory" FORCE)
 
   IF(MSVC)
@@ -136,11 +136,12 @@ IF(Mysql_FOUND)
     ENDIF()
   ENDIF()
 
-  IF(NOT Mysqlpp_LIBRARY)
+  IF(NOT Mysqlpp_LIBRARY_RELEASE)
     SET(WARNING_MESSAGE TRUE)
     MESSAGE("-- Did not find MySQL++ library")
   ELSE()
     MESSAGE("-- Found MySQL++ library")
+    SET(Mysqlpp_LIBRARY ${Mysqlpp_LIBRARY_RELEASE} CACHE PATH "Path to MySql++ library" FORCE)
   ENDIF()
 
   IF(MSVC)
@@ -149,6 +150,7 @@ IF(Mysql_FOUND)
       MESSAGE("-- Did not find MySQL++ Debug library")
     ELSE()
       MESSAGE("-- Found MySQL++ Debug library")
+      SET(Mysqlpp_LIBRARY debug ${Mysqlpp_LIBRARY_DEBUG} optimized ${Mysqlpp_LIBRARY} CACHE PATH "Path to MySql++ libraries" FORCE)
     ENDIF()
   ENDIF()
 
@@ -170,6 +172,7 @@ IF(Mysql_FOUND)
     UNSET(Mysqlpp_LIBRARY_DIR_DEBUG CACHE)
     UNSET(Mysqlpp_LIBRARY CACHE)
     UNSET(Mysqlpp_LIBRARY_DEBUG CACHE)
+    UNSET(Mysqlpp_LIBRARY_RELEASE CACHE)
   ELSE()
     SET(Mysqlpp_FOUND TRUE CACHE INTERNAL "Found MySQL++ library and headers" FORCE)
   ENDIF()

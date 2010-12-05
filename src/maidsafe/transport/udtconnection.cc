@@ -194,7 +194,7 @@ void UdtConnection::Send(const TransportMessage &transport_message,
         *this, action_after_send, timeout_wait_for_response));
     if (threadpool_.get()) {
       if (!threadpool_->EnqueueTask(functor)) {
-        LOG(ERROR) << "In UdtConnection::Send: failed to enqueue task." <<
+        DLOG(ERROR) << "In UdtConnection::Send: failed to enqueue task." <<
             std::endl;
         signals_->on_send_(socket_id_, kSendFailure);
       }
@@ -203,7 +203,7 @@ void UdtConnection::Send(const TransportMessage &transport_message,
     }
   }
   catch(const std::exception &e) {
-    LOG(ERROR) << "In UdtConnection::Send: " << e.what() << std::endl;
+    DLOG(ERROR) << "In UdtConnection::Send: " << e.what() << std::endl;
     signals_->on_send_(socket_id_, kSendFailure);
   }
 }
@@ -339,13 +339,13 @@ DataSize UdtConnection::ReceiveDataSize(const boost::uint32_t &timeout) {
     return 0;
   }
   if (data_size < 1) {
-    LOG(ERROR) << "Data size is " << data_size << std::endl;
+    DLOG(ERROR) << "Data size is " << data_size << std::endl;
     signals_->on_receive_(socket_id_, kReceiveSizeFailure);
     UDT::close(socket_id_);
     return 0;
   }
   if (data_size > kMaxTransportMessageSize) {
-    LOG(ERROR) << "Data size " << data_size << " bytes (exceeds limit of " <<
+    DLOG(ERROR) << "Data size " << data_size << " bytes (exceeds limit of " <<
         kMaxTransportMessageSize << ")" << std::endl;
     signals_->on_receive_(socket_id_, kMessageSizeTooLarge);
     UDT::close(socket_id_);
@@ -406,7 +406,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
       if (moved_total == data_size)
         return kSuccess;
       if (moved_total > data_size) {
-        LOG(ERROR) << (sending ? "Send " : "Recv ") << socket_id_ << ": " <<
+        DLOG(ERROR) << (sending ? "Send " : "Recv ") << socket_id_ << ": " <<
             "Exceeded expected size." << std::endl;
         return (sending ? kSendFailure : kReceiveFailure);
       }
@@ -420,7 +420,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
     boost::uint32_t elapsed(static_cast<boost::uint32_t>(
         (now - start_time).total_milliseconds()));
     if (elapsed > timeout) {
-      LOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
+      DLOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
           socket_id_ << " timed out in MoveData." << std::endl;
       return (sending ? kSendTimeout : kReceiveTimeout);
     }
@@ -432,7 +432,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
           (now - last_success_time).total_milliseconds());
     }
     if (stalled > kStallTimeout) {
-      LOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
+      DLOG(INFO) << (sending ? "Sending socket " : "Receiving socket ") <<
           socket_id_ << " stalled in MoveData." << std::endl;
       return (sending ? kSendStalled : kReceiveStalled);
     }
@@ -441,7 +441,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
     if (UDT::ERROR == moved_size &&
         UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCSND &&
         UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCRCV) {
-      LOG(ERROR) << (sending ? "Send " : "Recv ") << socket_id_ << ": " <<
+      DLOG(ERROR) << (sending ? "Send " : "Recv ") << socket_id_ << ": " <<
           UDT::getlasterror().getErrorMessage() << std::endl;
       return (sending ? kSendFailure : kReceiveFailure);
     }
@@ -456,7 +456,7 @@ bool UdtConnection::HandleTransportMessage(const float &rtt) {
   std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
   reflection->ListFields(transport_message_.data(), &field_descriptors);
   if (field_descriptors.size() != 1U) {
-    LOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
+    DLOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
     if (!is_request)
       signals_->on_receive_(socket_id_, kReceiveParseFailure);
     UDT::close(socket_id_);
@@ -505,7 +505,7 @@ bool UdtConnection::HandleTransportMessage(const float &rtt) {
       }
       break;
     default:
-      LOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
+      DLOG(INFO) << "Unrecognised data type in TransportMessage." << std::endl;
       UDT::close(socket_id_);
       return false;
   }

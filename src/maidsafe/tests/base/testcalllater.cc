@@ -112,14 +112,14 @@ TEST_F(CallLaterTest, BEH_BASE_AddManyCallLaters) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(100, sweethome.count()) << "Count in variable != 100";
   ASSERT_EQ(0, clt_.TimersMapSize()) << "List not empty";
-  LOG(INFO) << "First 100 call laters executed." << std::endl;
+  DLOG(INFO) << "First 100 call laters executed." << std::endl;
   // Set up 100 calls very closely spaced
   for (int j = 0; j < 100; ++j)
     clt_.AddCallLater(50, boost::bind(&Lynyrd::Skynyrd, &sweethome));
   while (sweethome.count() < 200)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(200, sweethome.count()) << "Count in variable != 200";
-  LOG(INFO) << "Second 100 call laters executed." << std::endl;
+  DLOG(INFO) << "Second 100 call laters executed." << std::endl;
   ASSERT_EQ(0, clt_.CancelAll()) <<
       "Some calls were cancelled, list not empty";
   ASSERT_EQ(0, clt_.TimersMapSize()) << "List not empty";
@@ -154,7 +154,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
     call_ids.push_back(clt_.AddCallLater(1000 + (20 * i),
         boost::bind(&Lynyrd::Skynyrd, &sweethome)));
   }
-  LOG(INFO) << "Scheduled 1st run, before cancelling " << clt_.TimersMapSize()
+   DLOG(INFO) << "Scheduled 1st run, before cancelling " << clt_.TimersMapSize()
        << std::endl;
   for (int j = 0; j < 50; ++j)
     EXPECT_TRUE(clt_.CancelOne(call_ids[j]));
@@ -174,7 +174,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
   ASSERT_EQ(0, sweethome.count());
 
   // Set up 100 calls again, then remove them all before they start
-  LOG(INFO) << "Finished 1st run, before scheduling 2nd." << std::endl;
+  DLOG(INFO) << "Finished 1st run, before scheduling 2nd." << std::endl;
   for (int k = 0; k < 100; ++k) {
     clt_.AddCallLater(2000 + (100 * k),
                       boost::bind(&Lynyrd::Skynyrd, &sweethome));
@@ -191,7 +191,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
   ASSERT_EQ(0, sweethome.count());
 
   // Set up 100 calls again, then remove them all while they're being run.
-  LOG(INFO) << "Finished 2nd run, before scheduling 3rd." << std::endl;
+  DLOG(INFO) << "Finished 2nd run, before scheduling 3rd." << std::endl;
   for (int l = 0; l < 100; ++l) {
     clt_.AddCallLater(100 + (100 * l),
                       boost::bind(&Lynyrd::Skynyrd, &sweethome));

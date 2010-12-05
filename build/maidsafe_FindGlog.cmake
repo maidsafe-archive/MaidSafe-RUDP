@@ -43,8 +43,7 @@
 #  Variables set and cached by this module are:                                #
 #    Glog_INCLUDE_DIR, Glog_LIBRARY_DIR, Glog_LIBRARY, Glog_FOUND              #
 #                                                                              #
-#  For MSVC, Glog_LIBRARY_DIR_DEBUG and Glog_LIBRARY_DEBUG are also set and    #
-#  cached.                                                                     #
+#  For MSVC, Glog_LIBRARY_DIR_DEBUG is also set and cached.                    #
 #                                                                              #
 #==============================================================================#
 
@@ -58,6 +57,7 @@ UNSET(Glog_LIBRARY_DIR CACHE)
 UNSET(Glog_LIBRARY_DIR_DEBUG CACHE)
 UNSET(Glog_LIBRARY CACHE)
 UNSET(Glog_LIBRARY_DEBUG CACHE)
+UNSET(Glog_LIBRARY_RELEASE CACHE)
 UNSET(Glog_FOUND CACHE)
 
 IF(GLOG_LIB_DIR)
@@ -76,7 +76,7 @@ ELSE()
   SET(GLOG_LIBPATH_SUFFIX lib lib64)
 ENDIF()
 
-FIND_LIBRARY(Glog_LIBRARY NAMES libglog.a glog libglog_static PATHS ${GLOG_LIB_DIR} ${GLOG_ROOT_DIR} PATH_SUFFIXES ${GLOG_LIBPATH_SUFFIX})
+FIND_LIBRARY(Glog_LIBRARY_RELEASE NAMES libglog.a glog libglog_static PATHS ${GLOG_LIB_DIR} ${GLOG_ROOT_DIR} PATH_SUFFIXES ${GLOG_LIBPATH_SUFFIX})
 IF(MSVC)
   SET(GLOG_LIBPATH_SUFFIX Debug)
   FIND_LIBRARY(Glog_LIBRARY_DEBUG NAMES libglog_static PATHS ${GLOG_LIB_DIR} ${GLOG_ROOT_DIR} PATH_SUFFIXES ${GLOG_LIBPATH_SUFFIX})
@@ -84,7 +84,7 @@ ENDIF()
 
 FIND_PATH(Glog_INCLUDE_DIR glog/logging.h PATHS ${GLOG_INC_DIR} ${GLOG_ROOT_DIR}/src/windows)
 
-GET_FILENAME_COMPONENT(GLOG_LIBRARY_DIR ${Glog_LIBRARY} PATH)
+GET_FILENAME_COMPONENT(GLOG_LIBRARY_DIR ${Glog_LIBRARY_RELEASE} PATH)
 SET(Glog_LIBRARY_DIR ${GLOG_LIBRARY_DIR} CACHE PATH "Path to Google Logging libraries directory" FORCE)
 IF(MSVC)
   GET_FILENAME_COMPONENT(GLOG_LIBRARY_DIR_DEBUG ${Glog_LIBRARY_DEBUG} PATH)
@@ -92,10 +92,11 @@ IF(MSVC)
 ENDIF()
 
 
-IF(NOT Glog_LIBRARY)
+IF(NOT Glog_LIBRARY_RELEASE)
   SET(WARNING_MESSAGE TRUE)
   MESSAGE("-- Did not find Google Logging library")
 ELSE()
+  SET(Glog_LIBRARY ${Glog_LIBRARY_RELEASE} CACHE PATH "Path to Google Logging library" FORCE)
   MESSAGE("-- Found Google Logging library")
 ENDIF()
 
@@ -105,6 +106,7 @@ IF(MSVC)
     MESSAGE("-- Did not find Google Logging Debug library")
   ELSE()
     MESSAGE("-- Found Google Logging Debug library")
+    SET(Glog_LIBRARY debug ${Glog_LIBRARY_DEBUG} optimized ${Glog_LIBRARY} CACHE PATH "Path to Google Logging libraries" FORCE)
   ENDIF()
 ENDIF()
 
@@ -126,6 +128,7 @@ IF(WARNING_MESSAGE)
   UNSET(Glog_LIBRARY_DIR_DEBUG CACHE)
   UNSET(Glog_LIBRARY CACHE)
   UNSET(Glog_LIBRARY_DEBUG CACHE)
+  UNSET(Glog_LIBRARY_RELEASE CACHE)
 ELSE()
   SET(Glog_FOUND TRUE CACHE INTERNAL "Found Google Logging library and headers" FORCE)
 ENDIF()

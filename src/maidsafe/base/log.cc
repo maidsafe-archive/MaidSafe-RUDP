@@ -25,34 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#ifndef MAIDSAFE_BASE_LOG_H_
-#define MAIDSAFE_BASE_LOG_H_
-
-#ifdef HAVE_GLOG
-// For MSVC, we need to include windows.h which in turn includes WinGDI.h
-// which defines ERROR (which conflicts with Glog's ERROR definition)
-#ifdef __MSVC__
-#include <windows.h>
-#undef ERROR
+#ifndef HAVE_GLOG
+#include "maidsafe/base/log.h"
+bool NoGlog::logtostderr = true;
+int NoGlog::minloglevel = 0;
 #endif
-#include <glog/logging.h>
-#else
-#include <iostream>  // NOLINT
-namespace google { inline void InitGoogleLogging(char*) {} }   // NOLINT
-
-struct NoGlog {
-static bool logtostderr;
-static int minloglevel;
-};
-
-static std::ostream void_ostream(NULL);
-
-#define FLAGS_minloglevel NoGlog::minloglevel
-#define FLAGS_logtostderr NoGlog::logtostderr
-#define DLOG(severity) (NoGlog::logtostderr?std::cerr:void_ostream)
-#define LOG(severity) DLOG(severity)
-
-#endif
-
-#endif  // MAIDSAFE_BASE_LOG_H_

@@ -71,7 +71,7 @@ class PingTestService : public tests::PingTest {
 //                   << request->ip() << " - " << request->port() << std::endl;
       }
     }
-//    LOG(INFO) << "PingRpc request!!!!!" << std::endl;
+//    DLOG(INFO) << "PingRpc request!!!!!" << std::endl;
     done->Run();
   }
 };
@@ -85,7 +85,7 @@ class TestOpService : public tests::TestOp {
     if (request->IsInitialized())
       response->set_result(request->first() + request->second());
 //    Controller *ctrler = static_cast<Controller*>(controller);
-//    LOG(INFO) << "AddRpc request!!!!!" << std::endl;
+//    DLOG(INFO) << "AddRpc request!!!!!" << std::endl;
     done->Run();
   }
   void Multiplyl(google::protobuf::RpcController*,
@@ -139,7 +139,7 @@ class ResultHolder {
                           const Controller *controller) {
     boost::mutex::scoped_lock lock(mutex_);
     if (controller->Failed() && controller->ErrorText() == kCancelled) {
-      LOG(INFO) << "Ping RPC canceled by the client." << std::endl;
+      DLOG(INFO) << "Ping RPC canceled by the client." << std::endl;
       result_arrived_ = true;
       cond_var_.notify_one();
       return;
@@ -157,7 +157,7 @@ class ResultHolder {
                         const Controller *controller) {
     boost::mutex::scoped_lock lock(mutex_);
     if (controller->Failed() && controller->ErrorText() == kCancelled) {
-      LOG(INFO) << "BinaryOperation RPC cancelled by the client" << std::endl;
+      DLOG(INFO) << "BinaryOperation RPC cancelled by the client" << std::endl;
       result_arrived_ = true;
       cond_var_.notify_one();
       return;
@@ -173,7 +173,7 @@ class ResultHolder {
                             const Controller *controller) {
     boost::mutex::scoped_lock lock(mutex_);
     if (controller->Failed() && controller->ErrorText() == kCancelled) {
-      LOG(INFO) << "Mirror RPC cancelled by the client." << std::endl;
+      DLOG(INFO) << "Mirror RPC cancelled by the client." << std::endl;
       result_arrived_ = true;
       cond_var_.notify_one();
       return;
@@ -217,11 +217,11 @@ class ResultHolder {
       bool wait_success = cond_var_.timed_wait(lock, timeout,
                           boost::bind(&ResultHolder::result_arrived, this));
       if (!wait_success) {
-        LOG(INFO) << "Failed to wait for result." << std::endl;
+        DLOG(INFO) << "Failed to wait for result." << std::endl;
       }
     }
     catch(const std::exception &e) {
-      LOG(INFO) << "Error waiting for result: " << e.what() << std::endl;
+      DLOG(INFO) << "Error waiting for result: " << e.what() << std::endl;
     }
   }
  private:
@@ -674,7 +674,6 @@ void SendPingsThread(
         resultholder.ping_result().has_pong() &&
         "pong" == resultholder.ping_result().pong())
       res_pings->at(n) = true;
-//    printf("------- Finished PingTest #%i\n", n);
   }
 }
 
@@ -703,7 +702,6 @@ void SendOpsThread(
     resultholder.WaitForResponse(boost::posix_time::milliseconds(10000));
     if (5 == resultholder.op_result().result())
       res_ops->at(n) = true;
-//    printf("+++++++ Finished TestOp #%i\n", n);
   }
 }
 
@@ -736,7 +734,6 @@ void SendMirrorsThread(
     if ("9876543210" ==
         resultholder.mirror_result().mirrored_string().substr(0, 10))
       res_mirrors->at(n) = true;
-//    printf("******* Finished MirrorTest #%i\n", n);
   }
 }
 
@@ -793,7 +790,6 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsOneServer) {
   th_pings.join();
   th_ops.join();
   th_mirrors.join();
-//  printf("Threads joined.\n");
 
   bool success(true);
   for (size_t a = 0; a < test_rpcprotocol::clients; ++a) {
@@ -979,7 +975,6 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   th_pingsC.join();
   th_opsC.join();
   th_mirrorsC.join();
-//  printf("Threads joined.\n");
 
   bool success(true);
   for (size_t a = 0; a < test_rpcprotocol::clients; ++a) {

@@ -41,8 +41,7 @@
 #  Variables set and cached by this module are:                                #
 #    Mysql_INCLUDE_DIR, Mysql_LIBRARY_DIR, Mysql_LIBRARY and Mysql_FOUND.      #
 #                                                                              #
-#  For MSVC, Mysql_LIBRARY_DIR_DEBUG and Mysql_LIBRARY_DEBUG are also set and  #
-#  cached.                                                                     #
+#  For MSVC, Mysql_LIBRARY_DIR_DEBUG is also set and cached.                   #
 #                                                                              #
 #==============================================================================#
 
@@ -52,6 +51,7 @@ UNSET(Mysql_LIBRARY_DIR CACHE)
 UNSET(Mysql_LIBRARY_DIR_DEBUG CACHE)
 UNSET(Mysql_LIBRARY CACHE)
 UNSET(Mysql_LIBRARY_DEBUG CACHE)
+UNSET(Mysql_LIBRARY_RELEASE CACHE)
 UNSET(Mysql_FOUND CACHE)
 
 IF(MYSQL_LIB_DIR)
@@ -64,14 +64,14 @@ IF(MYSQL_ROOT_DIR)
   SET(MYSQL_ROOT_DIR ${MYSQL_ROOT_DIR} CACHE PATH "Path to MySQL root directory" FORCE)
 ENDIF()
 
-FIND_LIBRARY(Mysql_LIBRARY NAMES mysqlclient libmysql PATHS ${MYSQLPP_LIB_DIR} ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib lib64 lib/opt)
+FIND_LIBRARY(Mysql_LIBRARY_RELEASE NAMES mysqlclient libmysql PATHS ${MYSQLPP_LIB_DIR} ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib lib64 lib/opt)
 IF(MSVC)
   FIND_LIBRARY(Mysql_LIBRARY_DEBUG NAMES libmysql PATHS ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES lib/debug)
 ENDIF()
 
 FIND_PATH(Mysql_INCLUDE_DIR mysql.h PATHS ${MYSQL_INC_DIR}/mysql ${MYSQL_INC_DIR} ${MYSQL_ROOT_DIR} "${MYSQL_ROOT_DIR}/MySQL Server 5.1" "C:/Program Files/MySQL/MySQL Server 5.1" PATH_SUFFIXES include)
 
-GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR ${Mysql_LIBRARY} PATH)
+GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR ${Mysql_LIBRARY_RELEASE} PATH)
 SET(Mysql_LIBRARY_DIR ${MYSQL_LIBRARY_DIR} CACHE PATH "Path to MySQL release libraries directory" FORCE)
 IF(MSVC)
   GET_FILENAME_COMPONENT(MYSQL_LIBRARY_DIR_DEBUG ${Mysql_LIBRARY_DEBUG} PATH)
@@ -129,11 +129,12 @@ IF(MSVC)
   ENDIF()
 ENDIF()
 
-IF(NOT Mysql_LIBRARY)
+IF(NOT Mysql_LIBRARY_RELEASE)
   SET(WARNING_MESSAGE TRUE)
   MESSAGE("-- Did not find MySQL Client library")
 ELSE()
   MESSAGE("-- Found MySQL Client library")
+  SET(Mysql_LIBRARY ${Mysql_LIBRARY_RELEASE} CACHE PATH "Path to MySql library" FORCE)
 ENDIF()
 
 IF(MSVC)
@@ -142,6 +143,7 @@ IF(MSVC)
     MESSAGE("-- Did not find MySQL Debug library")
   ELSE()
     MESSAGE("-- Found MySQL Debug library")
+    SET(Mysql_LIBRARY debug ${Mysql_LIBRARY_DEBUG} optimized ${Mysql_LIBRARY} CACHE PATH "Path to MySql libraries" FORCE)
   ENDIF()
 ENDIF()
 
@@ -163,6 +165,7 @@ IF(WARNING_MESSAGE)
   UNSET(Mysql_LIBRARY_DIR_DEBUG CACHE)
   UNSET(Mysql_LIBRARY CACHE)
   UNSET(Mysql_LIBRARY_DEBUG CACHE)
+  UNSET(Mysql_LIBRARY_RELEASE CACHE)
 ELSE()
   SET(Mysql_FOUND TRUE CACHE INTERNAL "Found MySQL library and headers" FORCE)
 ENDIF()

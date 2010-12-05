@@ -124,7 +124,6 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
     }
     rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
                                     (controller);
-//    printf("KadService::FindNode - %s\n", sender.DebugString().c_str());
     if (ctrl != NULL) {
       add_contact_(sender, ctrl->rtt(), false);
     } else {

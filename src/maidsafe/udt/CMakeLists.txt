@@ -84,14 +84,7 @@ ELSE()
   SET(OPT_FLAG "-O3")
 ENDIF()
 
-IF(MSVC)
-  TARGET_LINK_LIBRARIES(TESTudt udt_static
-                          debug ${Boost_DATE_TIME_LIBRARY_DEBUG} optimized ${Boost_DATE_TIME_LIBRARY_RELEASE}
-                          debug ${Boost_THREAD_LIBRARY_DEBUG} optimized ${Boost_THREAD_LIBRARY_RELEASE}
-                          debug ${Gtest_LIBRARY_DEBUG} optimized ${Gtest_LIBRARY})
-ELSE()
-  TARGET_LINK_LIBRARIES(TESTudt udt_static ${Boost_DATE_TIME_LIBRARY} ${Boost_THREAD_LIBRARY} ${Gtest_LIBRARY} pthread)
-ENDIF()
+TARGET_LINK_LIBRARIES(TESTudt udt_static ${Boost_DATE_TIME_LIBRARIES} ${Boost_THREAD_LIBRARIES} ${Gtest_LIBRARY})
 
 IF(APPLE)
   ADD_DEFINITIONS(-DOSX)
