@@ -73,6 +73,97 @@ class TransportAPITest: public testing::Test {
 
 TYPED_TEST_CASE_P(TransportAPITest);
 
+// Function Testing Start 
+
+TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StartListening) {
+  std::vector<Port> listening_port_;
+  Port port[] = {0, 100, 100, 200, 300, 300, 5000, 10000, 25555, 65343}; 
+  boost::uint16_t lport;
+  boost::uint16_t num_lport = 0;
+  boost::shared_ptr<Transport> sender(this->CreateTransport());
+  TransportCondition transport_condition;
+  boost::uint16_t i = 0;
+  for (; i < 10; ++i) {
+    lport = sender->StartListening(kIP, port[i], NULL);
+    listening_port_ = sender->listening_ports();
+    if (num_lport < listening_port_.size()) {
+      if ( port[i] == 0)
+        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(), lport)), lport);
+      else
+        ASSERT_EQ(lport, port[i]);
+      ++num_lport;
+    }
+  }
+  for (; i < 10; ++i) {
+    lport = sender->StartListening(kIP, port[i], &transport_condition);
+    listening_port_ = sender->listening_ports();
+    if (num_lport < listening_port_.size()) {
+      if ( port[i] == 0)
+        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(), lport)), lport);
+      else
+        ASSERT_EQ(lport, port[i]);
+      ASSERT_EQ(kSuccess, transport_condition);
+      ++num_lport;
+    }
+    else
+      ASSERT_EQ(kListenError, transport_condition);
+  }
+}
+
+TYPED_TEST_P(TransportAPITest, FUNC_TRANS_PrepareToSend) {
+  boost::shared_ptr<Transport> sender(this->CreateTransport());
+  boost::shared_ptr<Transport> receiver(this->CreateTransport());
+  ASSERT_LT(0, receiver->StartListening(kIP, 5500, NULL));
+  ASSERT_GT(0, sender->PrepareToSend(kIP, 5000, "", 0));
+  ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, "", 0));
+  ASSERT_LT(0, sender->PrepareToSend(kIP,5500, "", 0));
+  ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, kIP, 5500));
+}
+
+TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopListening) {
+  boost::shared_ptr<Transport> sender(this->CreateTransport());
+  ASSERT_LT(0, sender->StartListening(kIP, 0, NULL));
+  ASSERT_LT(0, sender->StartListening(kIP, 3000, NULL));
+  ASSERT_EQ(size_t(2), sender->listening_ports().size());
+  ASSERT_TRUE(sender->StopListening(3000));
+  ASSERT_EQ(size_t(1), sender->listening_ports().size());
+  ASSERT_TRUE(sender->StopListening(sender->listening_ports().front()));
+  ASSERT_EQ(size_t(0), sender->listening_ports().size());
+}
+
+TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopAllListening) {
+  boost::shared_ptr<Transport> sender(this->CreateTransport());
+  ASSERT_LT(0, sender->StartListening(kIP, 0, NULL));
+  ASSERT_LT(0, sender->StartListening(kIP, 3000, NULL));
+  ASSERT_EQ(size_t(2), sender->listening_ports().size());
+  ASSERT_TRUE(sender->StopAllListening());
+  ASSERT_EQ(size_t(0), sender->listening_ports().size());
+}
+
+TYPED_TEST_P(TransportAPITest, FUNC_TRANS_Send) {
+  boost::shared_ptr<Transport> sender(this->CreateTransport());
+  boost::shared_ptr<Transport> receiver(this->CreateTransport());
+  MessageHandler sender_msgh(sender->signals(), "Send", false);
+  const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
+  TransportMessage request = MakeTransportMessage(true, 256 * 1024);
+  sender->Send(request, 1, kTimeout);
+  ASSERT_EQ(size_t(1), sender_msgh.sent_results().size());
+  boost::tuple<SocketId, TransportCondition> signalled_sent_result =
+      sender_msgh.sent_results().back();
+  ASSERT_EQ(kSendFailure, signalled_sent_result.get<1>());
+
+  TransportMessage request_1;
+  ASSERT_LT(0, receiver->StartListening(kIP, 3000, NULL));
+  SocketId socket_id = sender->PrepareToSend(kIP, 3000, "", 0);
+  sender->Send(request_1, socket_id, kTimeout);
+  ASSERT_EQ(size_t(1), sender_msgh.sent_results().size());
+  signalled_sent_result = sender_msgh.sent_results().back();
+  ASSERT_EQ(kInvalidData, signalled_sent_result.get<1>());
+  
+}
+
+// Function Testing End
+
 // NOTE: register new test patterns using macro at bottom
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
@@ -150,6 +241,11 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 
 
 REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
+                           FUNC_TRANS_StartListening,
+                           FUNC_TRANS_PrepareToSend,
+                           FUNC_TRANS_StopListening,
+                           FUNC_TRANS_StopAllListening,
+                           FUNC_TRANS_Send,
                            BEH_TRANS_SendOneMessageFromOneToAnother);
 
 }  // namespace test

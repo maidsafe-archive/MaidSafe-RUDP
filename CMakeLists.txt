@@ -384,6 +384,13 @@ SET(ALL_FILES_TRANSPORT_DIR ${SOURCE_FILES_TRANSPORT_DIR} ${HEADER_FILES_TRANSPO
 SOURCE_GROUP("transport Source Files" FILES ${SOURCE_FILES_TRANSPORT_DIR})
 SOURCE_GROUP("transport Header Files" FILES ${HEADER_FILES_TRANSPORT_DIR})
 
+FILE(GLOB SOURCE_FILES_DBTRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*db*.cc")
+FILE(GLOB HEADER_FILES_DBTRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*db*.h")
+SET(ALL_FILES_DBTRANSPORT_DIR ${SOURCE_FILES_DBTRANSPORT_DIR} ${HEADER_FILES_DBTRANSPORT_DIR})
+SOURCE_GROUP("DB transport Source Files" FILES ${SOURCE_FILES_DBTRANSPORT_DIR})
+SOURCE_GROUP("DB transport Header Files" FILES ${HEADER_FILES_DBTRANSPORT_DIR})
+LIST(REMOVE_ITEM ALL_FILES_TRANSPORT_DIR ${ALL_FILES_DBTRANSPORT_DIR})
+
 FILE(GLOB SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/*.cc")
 FILE(GLOB HEADER_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/*.h")
 LIST(REMOVE_ITEM SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/upnpclientimpl.cc")
@@ -401,6 +408,7 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
                              ${ALL_FILES_UPNP_DIR}
                              ${ALL_FILES_NATPMP_DIR}
                              ${ALL_FILES_MAIDSAFE_DIR})
+LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_DBTRANSPORT_DIR})
 
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"
@@ -426,6 +434,8 @@ LIST(REMOVE_ITEM STYLE_RPCPROTO_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/test
 LIST(REMOVE_ITEM STYLE_RPCPROTO_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/rpcprotocol/testservices.pb.cc")
 FILE(GLOB ALL_FILES_TEST_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*.cc"
                                        "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*.h")
+FILE(GLOB ALL_FILES_TEST_DBTRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*db*.cc"
+                                         "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*db*.h")
 FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.cc"
                                   "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.h")
 IF(Mysqlpp_FOUND)
@@ -870,6 +880,21 @@ ENDFOREACH()
 ADD_MAIDSAFE_TEST("TCP/TransportAPITest/0" "BEH_TRANS_SendOneMessageFromOneToAnother" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
 ADD_MAIDSAFE_TEST("UDT/TransportAPITest/0" "BEH_TRANS_SendOneMessageFromOneToAnother" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
 
+ADD_MAIDSAFE_TEST("TCP/TransportAPITest/1" "FUNC_TRANS_StartListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+ADD_MAIDSAFE_TEST("UDT/TransportAPITest/1" "FUNC_TRANS_StartListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+
+ADD_MAIDSAFE_TEST("TCP/TransportAPITest/2" "FUNC_TRANS_PrepareToSend" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+ADD_MAIDSAFE_TEST("UDT/TransportAPITest/2" "FUNC_TRANS_PrepareToSend" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+
+ADD_MAIDSAFE_TEST("TCP/TransportAPITest/3" "FUNC_TRANS_StopListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+ADD_MAIDSAFE_TEST("UDT/TransportAPITest/3" "FUNC_TRANS_StopListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+
+ADD_MAIDSAFE_TEST("TCP/TransportAPITest/4" "FUNC_TRANS_StopAllListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+ADD_MAIDSAFE_TEST("UDT/TransportAPITest/4" "FUNC_TRANS_StopAllListening" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+
+ADD_MAIDSAFE_TEST("TCP/TransportAPITest/5" "FUNC_TRANS_Send" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+ADD_MAIDSAFE_TEST("UDT/TransportAPITest/5" "FUNC_TRANS_Send" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TESTtransport${TEST_POSTFIX}")
+
 IF(UNIX)
   SET(MEMORYCHECK_COMMAND "/usr/bin/valgrind --show-reachable=no")
 ENDIF()
@@ -931,7 +956,8 @@ SET(MAIDSAFE_RPC_INSTALL_FILES
       maidsafe/rpcprotocol/channelmanager-api.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
       maidsafe/transport/transport.h
-      maidsafe/transport/udttransport.h)
+      maidsafe/transport/udttransport.h
+      maidsafe/transport/dbtransport.h)
 # Check the script /build/Win_MSVC/extract_includes.bat matches this list
 FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)
 STRING(REPLACE "\\" "/" EXTRACT_INCLUDE_BAT "${EXTRACT_INCLUDE_BAT}")
