@@ -749,7 +749,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   node.FindValue(key, false, boost::bind(&FindCallback::CallbackFunc,
                                          &find_cb, _1));
   wait_result(&find_cb);
- EXPECT_FALSE(find_cb.result());
+  EXPECT_FALSE(find_cb.result());
 
   node.Leave();
   EXPECT_FALSE(node.is_joined());

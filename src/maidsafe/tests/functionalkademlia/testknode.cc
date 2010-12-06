@@ -407,7 +407,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                                  boost::bind(&FindCallback::CallbackFunc,
                                              &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_TRUE( cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -783,7 +783,7 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
       boost::bind(&GetNodeContactDetailsCallback::CallbackFunc, &cb_1, _1),
       false);
   wait_result(&cb_1);
-  ASSERT_TRUE(cb_1.result());
+  ASSERT_FALSE(cb_1.result());
   Contact expect_node1;
   Contact target_node1(knodes_[kTestK / 3]->node_id(),
                             knodes_[kTestK / 3]->host_ip(),
@@ -853,13 +853,13 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_3, _1));
   wait_result(&cb_3);
-  ASSERT_FALSE( cb_3.result());
+  ASSERT_FALSE(cb_3.result());
   PingCallback cb_4;
   knodes_[kNetworkSize-1]->Ping(dead_id,
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_4, _1));
   wait_result(&cb_4);
-  ASSERT_FALSE( cb_4.result());
+  ASSERT_FALSE(cb_4.result());
 }
 
 TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {

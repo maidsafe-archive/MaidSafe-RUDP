@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/transport/transport.h"
@@ -73,11 +74,11 @@ class TransportAPITest: public testing::Test {
 
 TYPED_TEST_CASE_P(TransportAPITest);
 
-// Function Testing Start 
+// Function Testing Start
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartListening) {
   std::vector<Port> listening_port_;
-  Port port[] = {0, 100, 100, 200, 300, 300, 5000, 10000, 25555, 65343}; 
+  Port port[] = {0, 100, 100, 200, 300, 300, 5000, 10000, 25555, 65343};
   boost::uint16_t lport;
   boost::uint16_t num_lport = 0;
   boost::shared_ptr<Transport> sender(this->CreateTransport());
@@ -87,8 +88,9 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartListening) {
     lport = sender->StartListening(kIP, port[i], NULL);
     listening_port_ = sender->listening_ports();
     if (num_lport < listening_port_.size()) {
-      if ( port[i] == 0)
-        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(), lport)), lport);
+      if (port[i] == 0)
+        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(),
+                         lport)), lport);
       else
         ASSERT_EQ(lport, port[i]);
       ++num_lport;
@@ -98,15 +100,16 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartListening) {
     lport = sender->StartListening(kIP, port[i], &transport_condition);
     listening_port_ = sender->listening_ports();
     if (num_lport < listening_port_.size()) {
-      if ( port[i] == 0)
-        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(), lport)), lport);
+      if (port[i] == 0)
+        ASSERT_EQ(*(find(listening_port_.begin(), listening_port_.end(),
+                         lport)), lport);
       else
         ASSERT_EQ(lport, port[i]);
       ASSERT_EQ(kSuccess, transport_condition);
       ++num_lport;
-    }
-    else
+    } else {
       ASSERT_EQ(kListenError, transport_condition);
+    }
   }
 }
 
@@ -116,7 +119,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_PrepareToSend) {
   ASSERT_LT(0, receiver->StartListening(kIP, 5500, NULL));
   ASSERT_GT(0, sender->PrepareToSend(kIP, 5000, "", 0));
   ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, "", 0));
-  ASSERT_LT(0, sender->PrepareToSend(kIP,5500, "", 0));
+  ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, "", 0));
   ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, kIP, 5500));
 }
 
@@ -159,7 +162,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   ASSERT_EQ(size_t(1), sender_msgh.sent_results().size());
   signalled_sent_result = sender_msgh.sent_results().back();
   ASSERT_EQ(kInvalidData, signalled_sent_result.get<1>());
-  
 }
 
 // Function Testing End

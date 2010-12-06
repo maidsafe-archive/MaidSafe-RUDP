@@ -201,7 +201,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   while (!ping_response.IsInitialized())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_FALSE( ping_response.result());
+  EXPECT_FALSE(ping_response.result());
   EXPECT_FALSE(ping_response.has_echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   Contact contactback;
@@ -531,7 +531,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done1);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE( store_response.result());
+  EXPECT_FALSE(store_response.result());
 
   store_request.clear_value();
 
@@ -632,7 +632,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done1);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE( store_response.result());
+  EXPECT_FALSE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   store_response.Clear();
   std::vector<std::string> values;
@@ -659,7 +659,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
   google::protobuf::Closure *done6 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done6);
-  EXPECT_FALSE( store_response.result());
+  EXPECT_FALSE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   store_response.Clear();
   values.clear();
@@ -684,7 +684,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done3);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE( store_response.result());
+  EXPECT_FALSE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key, &values));
@@ -737,7 +737,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done5);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE( store_response.result());
+  EXPECT_FALSE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key1, &values));
@@ -1081,7 +1081,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
     &Callback::CallbackFunction);
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE( delete_response.result());
+  EXPECT_FALSE(delete_response.result());
 
   // setting validator
   service_->set_signature_validator(&validator_);
@@ -1093,7 +1093,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
       private_key, crypto::STRING_STRING));
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE( delete_response.result());
+  EXPECT_FALSE(delete_response.result());
   delete_response.Clear();
 
   // request sent signed with different key
@@ -1111,7 +1111,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
   sreq->set_signed_request(signed_request1);
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE( delete_response.result());
+  EXPECT_FALSE(delete_response.result());
   delete_response.Clear();
 
   // correct delete (Marked as delete)

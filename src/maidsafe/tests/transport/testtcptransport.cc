@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 namespace test {
-  
+
 INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
 
 }  // namespace test

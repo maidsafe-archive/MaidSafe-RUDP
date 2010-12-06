@@ -182,7 +182,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
-  ASSERT_FALSE( uvc.result());
+  ASSERT_FALSE(uvc.result());
 
   DeleteValueCallback dvc;
   node_->DelValue_ExecuteDeleteRPCs("summat that doesn't parse",

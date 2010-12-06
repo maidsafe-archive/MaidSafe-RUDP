@@ -187,9 +187,9 @@ KNodeImpl::~KNodeImpl() {
 }
 
 inline void KNodeImpl::CallbackWithFailure(VoidFunctorOneString callback) {
-//   base::GeneralResponse result_msg;
-//   result_msg.set_result(kRpcResultFailure);
-//   std::string result(result_msg.SerializeAsString());
+  base::GeneralResponse result_msg;
+  result_msg.set_result(false);
+  std::string result(result_msg.SerializeAsString());
   callback(false);
 }
 
@@ -1161,8 +1161,7 @@ void KNodeImpl::ReBootstrapping_Callback(const std::string &result) {
   if (stopping_) {
     return;
   }
-  if (!local_result.ParseFromString(result) ||
-      ! local_result.result()) {
+  if (!local_result.ParseFromString(result) || !local_result.result()) {
     // TODO(David): who should we inform if after trying to bootstrap again
     // because the rendezvous server died, the bootstrap operation fails?
     DLOG(WARNING) << "(" << local_host_port_ << ") -- Failed to rejoin ..."
