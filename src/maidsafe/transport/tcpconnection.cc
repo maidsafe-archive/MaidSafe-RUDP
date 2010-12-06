@@ -37,6 +37,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/foreach.hpp>
 #include <google/protobuf/descriptor.h>
 
+#include <algorithm>
+#include <vector>
+
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;

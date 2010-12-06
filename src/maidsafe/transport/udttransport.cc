@@ -52,7 +52,7 @@ UdtTransport::UdtTransport()
       managed_endpoints_cond_var_(),
       managed_endpoint_listening_addrinfo_(),
       managed_endpoint_listening_port_(0),
-      listening_threadpool_(new base::Threadpool(0)),
+      listening_threadpool_(new base::Threadpool(kDefaultThreadpoolSize)),
       general_threadpool_(new base::Threadpool(kDefaultThreadpoolSize)),
       check_connections_() {
   UDT::startup();
@@ -141,12 +141,12 @@ Port UdtTransport::DoStartListening(const IP &ip,
     boost::mutex::scoped_lock lock(listening_ports_mutex_);
     listening_ports_size = listening_ports_.size();
   }
-  if (!listening_threadpool_->Resize(listening_ports_size + 1)) {
-    UDT::close(listening_socket_id);
-    if (transport_condition != NULL)
-      *transport_condition = kThreadResourceError;
-    return 0;
-  }
+//  if (!listening_threadpool_->Resize(listening_ports_size + 1)) {
+//    UDT::close(listening_socket_id);
+//    if (transport_condition != NULL)
+//      *transport_condition = kThreadResourceError;
+//    return 0;
+//  }
   {
     boost::mutex::scoped_lock lock(listening_ports_mutex_);
     listening_ports_.push_back(listening_port);
@@ -183,7 +183,7 @@ bool UdtTransport::StopListening(const Port &port) {
     UDT::close((*it).second);
     listening_map_.erase(it);
   }
-  listening_threadpool_->Resize(listening_ports_.size());
+//  listening_threadpool_->Resize(listening_ports_.size());
   return true;
 }
 
@@ -552,7 +552,7 @@ void UdtTransport::AcceptConnection(const Port &port,
           std::map<Port, SocketId>::iterator it = listening_map_.find(port);
           if (it != listening_map_.end())
             listening_map_.erase(it);
-          listening_threadpool_->Resize(listening_ports_.size());
+//          listening_threadpool_->Resize(listening_ports_.size());
           UDT::close(udt_socket_id);
           // If this is managed_endpoint_listening_port_, reset it to allow
           // restart if required

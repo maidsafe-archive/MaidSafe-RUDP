@@ -88,7 +88,7 @@ class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
 typedef int SocketId;
 
 const boost::uint32_t kAddManagedConnectionTimeout(10000);  // milliseconds
-const boost::uint16_t kDefaultThreadpoolSize(10);
+const boost::uint16_t kDefaultThreadpoolSize(4);
 const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 

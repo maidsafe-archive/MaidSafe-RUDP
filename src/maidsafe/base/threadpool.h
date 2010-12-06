@@ -34,54 +34,42 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_BASE_THREADPOOL_H_
 #define MAIDSAFE_BASE_THREADPOOL_H_
 
-#include <boost/thread.hpp>
-#include <boost/thread/condition_variable.hpp>
+#include <boost/asio.hpp>
+#include <boost/concept_check.hpp>
 #include <boost/function.hpp>
+#include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
-#include <gtest/gtest_prod.h>
 #include <queue>
 #include <vector>
 
 namespace base {
 
 namespace test {
-class ThreadpoolTest_BEH_BASE_SingleTask_Test;
-class ThreadpoolTest_BEH_BASE_MultipleTasks_Test;
-class ThreadpoolTest_BEH_BASE_Resize_Test;
-class ThreadpoolTest_BEH_BASE_TimedWait_Test;
 }  // namespace test
+
 
 class Threadpool {
  public:
-  typedef boost::function<void()> VoidFunctor;
-  explicit Threadpool(const boost::uint16_t &thread_count);
-  // Resizes to 0 (doesn't complete tasks not already started)
+  explicit Threadpool(const boost::uint8_t &poolsize);
   ~Threadpool();
-  // Returns false if a thread resource error is thrown
-  bool Resize(const boost::uint16_t &thread_count);
+  typedef boost::function<void()> VoidFunctor;
+  // we may add this method plus the private run now method later
+  // template <typename T>
+  // AddTask (io_service_.post(
+  //    boost::bind( &Threadpool::Run<T>, this, function )
   bool EnqueueTask(const VoidFunctor &functor);
-  bool WaitForTasksToFinish(const boost::posix_time::milliseconds &duration);
-  friend class test::ThreadpoolTest_BEH_BASE_SingleTask_Test;
-  friend class test::ThreadpoolTest_BEH_BASE_MultipleTasks_Test;
-  friend class test::ThreadpoolTest_BEH_BASE_Resize_Test;
-  friend class test::ThreadpoolTest_BEH_BASE_TimedWait_Test;
  private:
+  //     template <typename T>
+  //     void Run(T function) {
+  //   An Object
+  //       function(Object); // use shared pointer to object to do this properly
+  //     }
+  // no copy or assign for thread safety (functors)
   Threadpool(const Threadpool&);
   Threadpool &operator=(const Threadpool&);
-  void Run();
-  bool Continue();
-  bool TimedWait(const boost::posix_time::milliseconds &duration,
-                 boost::function<bool()> predicate);
-  bool ThreadCountCorrect() {
-    return requested_thread_count_ == running_thread_count_;
-  }
-  bool AllTasksDone() { return remaining_tasks_ == 0U; }
-  boost::uint16_t requested_thread_count_, running_thread_count_;
-  boost::posix_time::milliseconds default_wait_timeout_;
-  size_t remaining_tasks_;
-  boost::mutex mutex_;
-  boost::condition_variable condition_;
-  std::queue<VoidFunctor> functors_;
+  boost::asio::io_service io_service_;
+  boost::shared_ptr<boost::asio::io_service::work> work_;
+  boost::thread_group thread_group_;
 };
 
 }  // namespace base

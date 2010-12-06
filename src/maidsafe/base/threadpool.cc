@@ -30,112 +30,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace base {
 
-Threadpool::Threadpool(const boost::uint16_t &thread_count)
-    : requested_thread_count_(thread_count),
-      running_thread_count_(0),
-      default_wait_timeout_(100),
-      remaining_tasks_(0),
-      mutex_(),
-      condition_(),
-      functors_() {
-  Resize(requested_thread_count_);
-  TimedWait(default_wait_timeout_,
-            boost::bind(&Threadpool::ThreadCountCorrect, this));
+Threadpool::Threadpool(const boost::uint8_t &poolsize)
+    : io_service_(), work_(), thread_group_() {
+  // add work to prevent io_service completing
+  work_.reset(new boost::asio::io_service::work(io_service_));
+  for (boost::uint8_t i = 0; i < poolsize; ++i)
+    thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
+                                            &io_service_));
 }
 
 Threadpool::~Threadpool() {
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    while (!functors_.empty())
-      functors_.pop();
-  }
-  Resize(0);
-  TimedWait(default_wait_timeout_,
-            boost::bind(&Threadpool::ThreadCountCorrect, this));
-}
-
-bool Threadpool::Resize(const boost::uint16_t &thread_count) {
-  boost::mutex::scoped_lock lock(mutex_);
-  requested_thread_count_ = thread_count;
-  boost::int32_t difference = requested_thread_count_ - running_thread_count_;
-  if (difference > 0) {
-    for (int i = 0; i < difference; ++i) {
-      try {
-        boost::thread(&Threadpool::Run, this);
-      }
-      catch(const std::exception &e) {
-        DLOG(ERROR) << "Exception resizing threadpool to " <<
-            requested_thread_count_ << " threads: " << e.what() << std::endl;
-        return false;
-      }
-    }
-  } else if (difference < 0) {
-    condition_.notify_all();
-  }
-  return true;
+  work_.reset();  // stop all new jobs
+  thread_group_.join_all();  // wait on current threads completing
 }
 
 bool Threadpool::EnqueueTask(const VoidFunctor &functor) {
-  boost::mutex::scoped_lock lock(mutex_);
-  if (requested_thread_count_ == 0)
-    return false;
-  functors_.push(functor);
-  ++remaining_tasks_;
-  condition_.notify_all();
-  return true;
-}
-
-bool Threadpool::Continue() {
-  return (requested_thread_count_ < running_thread_count_) ||
-         !functors_.empty();
-}
-
-void Threadpool::Run() {
   try {
-    {
-      boost::mutex::scoped_lock lock(mutex_);
-      ++running_thread_count_;
-      condition_.notify_all();
-    }
-    bool run(true);
-    while (run) {
-      boost::mutex::scoped_lock lock(mutex_);
-      condition_.wait(lock, boost::bind(&Threadpool::Continue, this));
-      run = requested_thread_count_ >= running_thread_count_;
-      if (!run) {
-        --running_thread_count_;
-      } else {
-        // grab the first functor from the queue, but allow other threads to
-        // operate while executing it
-        VoidFunctor functor = functors_.front();
-        functors_.pop();
-        lock.unlock();
-        functor();
-        lock.lock();
-        --remaining_tasks_;
-      }
-      condition_.notify_all();
-    }
+    io_service_.post(functor);
+    return true;
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << "Exception RUNNING: " << e.what() << std::endl;
-    return;
-  }
-}
-
-bool Threadpool::WaitForTasksToFinish(
-    const boost::posix_time::milliseconds &duration) {
-  return TimedWait(duration, boost::bind(&Threadpool::AllTasksDone, this));
-}
-
-bool Threadpool::TimedWait(const boost::posix_time::milliseconds &duration,
-                           boost::function<bool()> predicate) {
-  try {
-    boost::mutex::scoped_lock lock(mutex_);
-    return condition_.timed_wait(lock, duration, predicate);
-  }
-  catch(const std::exception &e) {
-    DLOG(ERROR) << "Threadpool::TimedWait: " << e.what() << std::endl;
+    DLOG(ERROR) << "Cannot post job to pool: " << e.what() << std::endl;
     return false;
   }
 }
