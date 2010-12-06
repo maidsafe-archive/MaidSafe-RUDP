@@ -72,10 +72,7 @@ void BootstrapCallbackTestCallback(const std::string &ser_result,
     *done = true;
     return;
   }
-
-  if (br.result() == kRpcResultFailure) {
-    *result = false;
-  }
+  *result = br.result();
   *done = true;
 }
 
@@ -115,7 +112,7 @@ class TestKNodeImpl : public testing::Test {
                          boost::bind(&GeneralKadCallback::CallbackFunc,
                                      &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+    ASSERT_TRUE(cb_.result());
     ASSERT_TRUE(node_->is_joined());
   }
   static void TearDownTestCase() {
@@ -163,17 +160,17 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_Uninitialised_Values) {
   SignedRequest signed_request;
   node_->DeleteValue(KadId(KadId::kRandomId), signed_value, signed_request,
                      boost::bind(&DeleteValueCallback::CallbackFunc, &dvc, _1));
-  while (dvc.result() == "")
+  while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, dvc.result());
+  ASSERT_FALSE(dvc.result());
 
   UpdateValueCallback uvc;
   node_->UpdateValue(KadId(KadId::kRandomId), signed_value, new_value,
                      signed_request, 60 * 60 * 24,
                      boost::bind(&UpdateValueCallback::CallbackFunc, &uvc, _1));
-  while (uvc.result() == "")
+  while (!uvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, uvc.result());
+  ASSERT_FALSE(uvc.result());
 }
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
@@ -185,7 +182,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
-  ASSERT_EQ("", uvc.result());
+  ASSERT_FALSE( uvc.result());
 
   DeleteValueCallback dvc;
   node_->DelValue_ExecuteDeleteRPCs("summat that doesn't parse",
@@ -195,7 +192,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                                     boost::bind(
                                         &DeleteValueCallback::CallbackFunc,
                                         &dvc, _1));
-  ASSERT_EQ("", dvc.result());
+  ASSERT_FALSE(dvc.result());
 
   dvc.Reset();
   std::vector<Contact> close_nodes;
@@ -210,12 +207,12 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
   data->is_callbacked = true;
   DeleteCallbackArgs callback_data(data);
   node_->DelValue_IterativeDeleteValue(NULL, callback_data);
-  ASSERT_EQ("", dvc.result());
+  ASSERT_FALSE(dvc.result());
 
   node_->is_joined_ = true;
   uvc.Reset();
   FindResponse fr;
-  fr.set_result(kRpcResultSuccess);
+  fr.set_result(true);
   std::string ser_fr, ser_c;
   Contact c(KadId(KadId::kRandomId), "127.0.0.1", 1234, "127.0.0.2", 1235,
             "127.0.0.3", 1236);
@@ -228,23 +225,23 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
-  while (uvc.result() == "")
+  while (!uvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, uvc.result());
+  ASSERT_FALSE(uvc.result());
 
-  fr.set_result(kRpcResultFailure);
+  fr.set_result(false);
   uvc.Reset();
   node_->ExecuteUpdateRPCs(fr.SerializeAsString(), KadId(KadId::kRandomId),
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
-  while (uvc.result() == "")
+  while (!uvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, uvc.result());
+  ASSERT_FALSE(uvc.result());
 
   dvc.Reset();
   node_->DelValue_IterativeDeleteValue(NULL, callback_data);
-  ASSERT_EQ("", dvc.result());
+  ASSERT_FALSE(dvc.result());
 
   dvc.Reset();
   node_->DelValue_ExecuteDeleteRPCs("summat that doesn't parse",
@@ -254,13 +251,13 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                                     boost::bind(
                                         &DeleteValueCallback::CallbackFunc,
                                         &dvc, _1));
-  while (dvc.result() == "")
+  while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, dvc.result());
+  ASSERT_FALSE(dvc.result());
 
   dvc.Reset();
   fr.Clear();
-  fr.set_result(kRpcResultSuccess);
+  fr.set_result(true);
   node_->DelValue_ExecuteDeleteRPCs(fr.SerializeAsString(),
                                     KadId(KadId::kRandomId),
                                     old_value,
@@ -268,9 +265,9 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
                                     boost::bind(
                                         &DeleteValueCallback::CallbackFunc,
                                         &dvc, _1));
-  while (dvc.result() == "")
+  while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kRpcResultFailure, dvc.result());
+  ASSERT_FALSE(dvc.result());
 }
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
@@ -285,7 +282,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
                                   true, 3600 * 24, SignedValue(),
                                   SignedRequest()));
 
-  ASSERT_EQ("", svc.result());
+  ASSERT_FALSE(svc.result());
   node_->is_joined_ = true;
 }
 

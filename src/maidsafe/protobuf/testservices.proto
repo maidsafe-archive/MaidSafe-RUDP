@@ -15,7 +15,7 @@ message TestPingResponse{
   extend rpcprotocol.RpcMessage.Detail {
     optional TestPingResponse ping_response = 20;
   }
-  required bytes result = 1;
+  required bool result = 1;
   required bytes pong = 2;
 }
 

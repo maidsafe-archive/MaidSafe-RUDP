@@ -103,7 +103,7 @@ class TestRefresh : public testing::Test {
                              boost::bind(&GeneralKadCallback::CallbackFunc,
                                          &callback, _1));
     wait_result(&callback);
-    ASSERT_EQ(kRpcResultSuccess, callback.result());
+    ASSERT_TRUE(callback.result());
     callback.Reset();
     ASSERT_TRUE(nodes_[0]->is_joined());
 
@@ -128,7 +128,7 @@ class TestRefresh : public testing::Test {
                       boost::bind(&GeneralKadCallback::CallbackFunc,
                                   &callback, _1));
       wait_result(&callback);
-      ASSERT_EQ(kRpcResultSuccess, callback.result());
+      ASSERT_TRUE(callback.result());
       callback.Reset();
       ASSERT_TRUE(nodes_[i]->is_joined());
     }
@@ -178,7 +178,7 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
   wait_result(&store_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
+  ASSERT_TRUE(store_cb.result());
   std::vector<boost::int16_t> indxs;
   std::vector<boost::uint32_t> last_refresh_times;
   std::vector<boost::uint32_t> expire_times;
@@ -220,7 +220,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
   wait_result(&store_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
+  ASSERT_TRUE(store_cb.result());
   std::vector<boost::int16_t> indxs;
   std::vector<boost::uint32_t> last_refresh_times;
   std::vector<boost::uint32_t> expire_times;
@@ -278,7 +278,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   node.Join(key, kconfig_file1,
             boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
 
@@ -368,7 +368,7 @@ class TestRefreshSignedValues : public testing::Test {
                              boost::bind(&GeneralKadCallback::CallbackFunc,
                                          &callback, _1));
     wait_result(&callback);
-    ASSERT_EQ(kRpcResultSuccess, callback.result());
+    ASSERT_TRUE(callback.result());
     callback.Reset();
     ASSERT_TRUE(nodes_[0]->is_joined());
     for (boost::int16_t i = 1; i < testNetworkSize_; i++) {
@@ -393,7 +393,7 @@ class TestRefreshSignedValues : public testing::Test {
                       boost::bind(&GeneralKadCallback::CallbackFunc, &callback,
                                   _1));
       wait_result(&callback);
-      ASSERT_EQ(kRpcResultSuccess, callback.result());
+      ASSERT_TRUE(callback.result());
       callback.Reset();
       ASSERT_TRUE(nodes_[i]->is_joined());
     }
@@ -461,7 +461,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
   wait_result(&store_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
+  ASSERT_TRUE(store_cb.result());
   std::vector<boost::int16_t> indxs;
   std::vector<boost::uint32_t> last_refresh_times;
   std::vector<boost::uint32_t> expire_times;
@@ -522,7 +522,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
   wait_result(&store_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
+  ASSERT_TRUE(store_cb.result());
   std::vector<boost::int16_t> indxs;
   std::vector<boost::uint32_t> last_refresh_times;
   std::vector<boost::uint32_t> expire_times;
@@ -587,7 +587,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   node.Join(key, kconfig_file1,
             boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
   DLOG(INFO) << "Joined extra node - port (" << p << ")." << std::endl;
@@ -639,7 +639,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
   wait_result(&store_cb);
-  ASSERT_EQ(kad::kRpcResultSuccess, store_cb.result());
+  ASSERT_TRUE(store_cb.result());
 
   boost::shared_ptr<transport::UdtTransport> trans(new transport::UdtTransport);
   boost::shared_ptr<rpcprotocol::ChannelManager> chm(
@@ -685,7 +685,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   node.Join(key, kconfig_file1,
             boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(node.is_joined());
 
@@ -715,7 +715,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
                                boost::bind(&DeleteValueCallback::CallbackFunc,
                                            &del_cb, _1));
   wait_result(&del_cb);
-  EXPECT_EQ(kad::kRpcResultSuccess, del_cb.result());
+  EXPECT_TRUE(del_cb.result());
 
   // at least one node should have the value
   counter = 0;
@@ -749,7 +749,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   node.FindValue(key, false, boost::bind(&FindCallback::CallbackFunc,
                                          &find_cb, _1));
   wait_result(&find_cb);
-  EXPECT_EQ(kad::kRpcResultFailure, find_cb.result());
+ EXPECT_FALSE(find_cb.result());
 
   node.Leave();
   EXPECT_FALSE(node.is_joined());

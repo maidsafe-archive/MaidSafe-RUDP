@@ -192,7 +192,7 @@ class Env : public testing::Environment {
                               boost::bind(&GeneralKadCallback::CallbackFunc,
                                           &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kRpcResultSuccess, cb_.result());
+    ASSERT_TRUE(cb_.result());
     ASSERT_TRUE(knodes_[0]->is_joined());
     knodes_[0]->set_signature_validator(&validator);
     DLOG(INFO) << "Node 0 joined "
@@ -225,7 +225,7 @@ class Env : public testing::Environment {
                        boost::bind(&GeneralKadCallback::CallbackFunc,
                                    &cb_, _1));
       wait_result(&cb_);
-      ASSERT_EQ(kRpcResultSuccess, cb_.result());
+      ASSERT_TRUE(cb_.result());
       ASSERT_TRUE(knodes_[i]->is_joined());
       knodes_[i]->set_signature_validator(&validator);
       DLOG(INFO) << "Node " << i << " joined "
@@ -334,7 +334,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_1.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, knode_local_1.node_id().String());
   ASSERT_EQ(DIRECT_CONNECTED, knode_local_1.host_nat_type());
 
@@ -374,7 +374,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_2.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, knode_local_2.node_id().String());
   ASSERT_EQ(DIRECT_CONNECTED, knode_local_2.host_nat_type());
 
@@ -399,7 +399,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
 
   // loading the value with another existing node
   FindCallback cb_2;
@@ -407,7 +407,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                                  boost::bind(&FindCallback::CallbackFunc,
                                              &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE( cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -424,7 +424,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_1.FindValue(key, false,
                           boost::bind(&FindCallback::CallbackFunc, &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -441,7 +441,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   knode_local_2.FindValue(key, false,
                           boost::bind(&FindCallback::CallbackFunc, &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); i++) {
@@ -462,7 +462,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
                                               &cb_3, _1));
   wait_result(&cb_3);
   // make sure the nodes returned are what we expect.
-  ASSERT_EQ(kRpcResultSuccess, cb_3.result());
+  ASSERT_TRUE(cb_3.result());
   ASSERT_FALSE(cb_3.closest_nodes().empty());
   std::list<std::string> closest_nodes_str;  // = cb_3.closest_nodes();
   for (size_t i = 0; i < cb_3.closest_nodes().size(); i++)
@@ -515,7 +515,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
                                                    &cb_1, _1));
   wait_result(&cb_1);
   // make sure the nodes returned are what we expect.
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_FALSE(cb_1.closest_nodes().empty());
   std::list<std::string> closest_nodes_str;  // = cb_1.closest_nodes();
   for (size_t i = 0; i < cb_1.closest_nodes().size(); i++)
@@ -566,7 +566,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultFailure, cb_.result());
+  ASSERT_FALSE(cb_.result());
   cb_.Reset();
 
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
@@ -575,7 +575,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::int16_t number(0);
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
@@ -602,7 +602,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   knodes_[kNetworkSize - 2]->FindValue(key, false, boost::bind(
     &FindCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -620,7 +620,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   knodes_[0]->FindValue(key, false, boost::bind(&FakeCallback::CallbackFunc,
                                                 &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -657,7 +657,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::int16_t number = 0;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
@@ -684,7 +684,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                  boost::bind(&FindCallback::CallbackFunc,
                                              &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -701,7 +701,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
                                      boost::bind(&FindCallback::CallbackFunc,
                                                  &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -742,7 +742,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   DLOG(INFO) << "Load..." << std::endl;
   for (boost::int16_t p = 0; p < count; ++p) {
     wait_result(&cbs[p]);
-    EXPECT_EQ(kRpcResultSuccess, cbs[p].result())
+    EXPECT_TRUE(cbs[p].result())
               << "Failed to store " << kMinSuccessfulPecentageStore
               << "% of K copies of the " << p << "th value";
   }
@@ -752,7 +752,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
                                    boost::bind(&FindCallback::CallbackFunc,
                                                &cb_1, _1));
     wait_result(&cb_1);
-    ASSERT_EQ(kRpcResultSuccess, cb_1.result())
+    ASSERT_TRUE(cb_1.result())
               << "No copies of the " << p <<"th value where stored.";
     ASSERT_EQ(1U, cb_1.signed_values().size());
     ASSERT_EQ(values[p].value(), cb_1.signed_values()[0].value());
@@ -768,7 +768,7 @@ TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultFailure, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_FALSE(cb_1.closest_nodes().empty());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_TRUE(cb_1.signed_values().empty());
@@ -783,7 +783,7 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
       boost::bind(&GetNodeContactDetailsCallback::CallbackFunc, &cb_1, _1),
       false);
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   Contact expect_node1;
   Contact target_node1(knodes_[kTestK / 3]->node_id(),
                             knodes_[kTestK / 3]->host_ip(),
@@ -798,7 +798,7 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
       boost::bind(&GetNodeContactDetailsCallback::CallbackFunc, &cb_2, _1),
       false);
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultFailure, cb_2.result());
+  ASSERT_FALSE(cb_2.result());
 }
 
 TEST_F(KNodeTest, FUNC_KAD_Ping) {
@@ -812,7 +812,7 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
   knodes_[kNetworkSize-1]->Ping(remote, boost::bind(&PingCallback::CallbackFunc,
                                                     &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   // ping by node id
   KadId remote_id(knodes_[kTestK / 4]->node_id());
   PingCallback cb_2;
@@ -821,7 +821,7 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
                                             &cb_2, _1));
   wait_result(&cb_2);
   // ASSERT_EQ(kRpcResultSuccess, cb_2.result());
-  if (kRpcResultSuccess != cb_2.result()) {
+  if (!cb_2.result()) {
     for (boost::int16_t i = 0; i < kNetworkSize; ++i) {
       Contact ctc;
       if (knodes_[i]->GetContact(remote_id, &ctc))
@@ -853,13 +853,13 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_3, _1));
   wait_result(&cb_3);
-  ASSERT_EQ(kRpcResultFailure, cb_3.result());
+  ASSERT_FALSE( cb_3.result());
   PingCallback cb_4;
   knodes_[kNetworkSize-1]->Ping(dead_id,
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_4, _1));
   wait_result(&cb_4);
-  ASSERT_EQ(kRpcResultFailure, cb_4.result());
+  ASSERT_FALSE( cb_4.result());
 }
 
 TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
@@ -885,7 +885,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
                                       boost::bind(&FakeCallback::CallbackFunc,
                                                   &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   // kill k-1 nodes, there should be at least one node left which holds this
   // value
   for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
@@ -901,7 +901,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
                                        boost::bind(&FakeCallback::CallbackFunc,
                                                    &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   ASSERT_LE(1U, cb_2.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_2.signed_values().size(); ++i) {
@@ -923,18 +923,18 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
     knodes_[0]->Ping(ctc, boost::bind(&PingCallback::CallbackFunc,
                                       &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
+    ASSERT_FALSE(ping_cb.result());
     ping_cb.Reset();
     knodes_[1]->Ping(ctc, boost::bind(&PingCallback::CallbackFunc,
                                       &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
+    ASSERT_FALSE(ping_cb.result());
      ping_cb.Reset();
     knodes_[kNetworkSize - 1]->Ping(ctc,
                                     boost::bind(&PingCallback::CallbackFunc,
                                                 &ping_cb, _1));
     wait_result(&ping_cb);
-    ASSERT_EQ(kRpcResultFailure, ping_cb.result());
+    ASSERT_FALSE(ping_cb.result());
   }
   // Restart dead nodes
   base::KadConfig kad_config;
@@ -964,7 +964,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
                          boost::bind(&GeneralKadCallback::CallbackFunc,
                                      &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kRpcResultSuccess, cb_.result());
+    ASSERT_TRUE(cb_.result());
     ASSERT_TRUE(knodes_[2 + i]->is_joined());
     knodes_[2 + i]->set_signature_validator(&validator);
     ASSERT_TRUE(node_ids_[2 + i] == knodes_[2 + i]->node_id());
@@ -1011,7 +1011,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
   PingCallback cb_3;
   knodes_[0]->Ping(holder, boost::bind(&PingCallback::CallbackFunc, &cb_3, _1));
   wait_result(&cb_3);
-  ASSERT_EQ(kRpcResultSuccess, cb_3.result());
+  ASSERT_TRUE(cb_3.result());
 
   GetNodeContactDetailsCallback cb_1;
   Contact dead_node(r_node_id, knodes_[r_node]->host_ip(),
@@ -1022,7 +1022,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
   knodes_[0]->Ping(dead_node, boost::bind(&PingCallback::CallbackFunc,
                                           &cb_2, _1));
   wait_result(&cb_2);
-  ASSERT_EQ(kRpcResultSuccess, cb_2.result());
+  ASSERT_TRUE(cb_2.result());
   // Kill r_node
   GeneralKadCallback cb_;
   knodes_[r_node]->Leave();
@@ -1035,7 +1035,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
       r_node_id, boost::bind(&GetNodeContactDetailsCallback::CallbackFunc,
                              &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   // Wait for a RPC timeout interval until the downlist are handled in the
   // network
   boost::this_thread::sleep(boost::posix_time::seconds(11));
@@ -1066,7 +1066,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
   knodes_[r_node]->set_signature_validator(&validator);
 }
@@ -1094,7 +1094,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultFailure, cb_.result());
+  ASSERT_FALSE(cb_.result());
   std::string new_pub_key, new_priv_key;
   create_rsakeys(&new_pub_key, &new_priv_key);
   ASSERT_NE(pub_key, new_pub_key);
@@ -1105,7 +1105,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultFailure, cb_.result());
+  ASSERT_FALSE(cb_.result());
 }
 
 TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
@@ -1134,7 +1134,7 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
                             boost::bind(&PingCallback::CallbackFunc,
                                         &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
 
   // now ping the node that has changed its local address
   Contact remote1(knodes_[kTestK / 4]->node_id(),
@@ -1147,7 +1147,7 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
                                 boost::bind(&PingCallback::CallbackFunc,
                                             &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
 }
 
 TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
@@ -1170,7 +1170,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
                              &cb_1, _1),
       false);
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultFailure, cb_1.result());
+  ASSERT_FALSE(cb_1.result());
   boost::this_thread::sleep(boost::posix_time::seconds(33));
   // Restart dead node
   DLOG(INFO) << "+++++++++++++++++ Restarting " << r_node << std::endl;
@@ -1184,7 +1184,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
   knodes_[r_node]->set_signature_validator(&validator);
 }
@@ -1210,7 +1210,7 @@ TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
   ASSERT_EQ(DIRECT_CONNECTED, knodes_[r_node]->host_nat_type());
   knodes_[r_node]->set_signature_validator(&validator);
@@ -1241,7 +1241,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
   boost::uint16_t number = 0;
   for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
@@ -1269,7 +1269,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1288,7 +1288,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kRpcResultSuccess, del_cb.result());
+  ASSERT_TRUE(del_cb.result());
   // Checking no node returns the value
   for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
@@ -1302,7 +1302,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   knodes_[0]->FindValue(key, false,
                         boost::bind(&FakeCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultFailure, cb_1.result());
+  ASSERT_FALSE(cb_1.result());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_TRUE(cb_1.signed_values().empty());
   cb_1.Reset();
@@ -1332,7 +1332,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
   wait_result(&cb_);
-  ASSERT_EQ(kRpcResultSuccess, cb_.result());
+  ASSERT_TRUE(cb_.result());
 
   // load the value from no.kNetworkSize-1 node
   cb_.Reset();
@@ -1341,7 +1341,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
                                        boost::bind(&FindCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1368,7 +1368,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kRpcResultFailure, del_cb.result());
+  ASSERT_FALSE(del_cb.result());
 
   del_cb.Reset();
   req.Clear();
@@ -1380,7 +1380,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kRpcResultFailure, del_cb.result());
+  ASSERT_FALSE(del_cb.result());
 
   del_cb.Reset();
   req.set_public_key(pub_key);
@@ -1389,7 +1389,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
       key, sig_value, req, boost::bind(&FakeCallback::CallbackFunc,
                                        &del_cb, _1));
   wait_result(&del_cb);
-  ASSERT_EQ(kRpcResultFailure, del_cb.result());
+  ASSERT_FALSE(del_cb.result());
 
   // trying to load the value from no.1 node
   cb_1.Reset();
@@ -1397,7 +1397,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
                                        boost::bind(&FakeCallback::CallbackFunc,
                                                    &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size(); i++) {
@@ -1435,7 +1435,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &svcb, _1));
   wait_result(&svcb);
-  ASSERT_EQ(kRpcResultSuccess, svcb.result());
+  ASSERT_TRUE(svcb.result());
 
   // calculate number of nodes which hold this key/value pair
   boost::uint16_t number(0);
@@ -1468,7 +1468,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
                                     boost::bind(&FindCallback::CallbackFunc,
                                                 &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_LE(1U, cb_1.signed_values().size());
   bool got_value = false;
   for (size_t i = 0; i < cb_1.signed_values().size() && !got_value; i++)
@@ -1490,7 +1490,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
       key, sig_value, new_sig_value, req, 86400,
       boost::bind(&UpdateValueCallback::CallbackFunc, &update_cb, _1));
   wait_result(&update_cb);
-  ASSERT_EQ(kRpcResultSuccess, update_cb.result());
+  ASSERT_TRUE(update_cb.result());
   number = 0;
   for (boost::uint16_t i = 0; i < kNetworkSize; ++i) {
     std::vector<std::string> values;
@@ -1515,7 +1515,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   knodes_[0]->FindValue(key, false,
                         boost::bind(&FindCallback::CallbackFunc, &cb_1, _1));
   wait_result(&cb_1);
-  ASSERT_EQ(kRpcResultSuccess, cb_1.result());
+  ASSERT_TRUE(cb_1.result());
   ASSERT_TRUE(cb_1.values().empty());
   ASSERT_EQ(1U, cb_1.signed_values().size());
   SignedValue el_valiu = cb_1.signed_values()[0];

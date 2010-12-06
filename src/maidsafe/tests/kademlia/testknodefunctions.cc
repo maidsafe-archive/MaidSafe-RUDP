@@ -97,7 +97,7 @@ class TestKnodeFunctions : public testing::Test {
                          boost::bind(&GeneralKadCallback::CallbackFunc,
                                      &cb_, _1));
     wait_result(&cb_);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+    ASSERT_TRUE(cb_.result());
     ASSERT_TRUE(node_->is_joined());
   }
 

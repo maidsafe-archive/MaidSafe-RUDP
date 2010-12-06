@@ -249,7 +249,7 @@ void Operations::PingCallback(const std::string &result,
   data->content.clear();
   ++data->returned_count;
   kad::PingResponse msg;
-  if (msg.ParseFromString(result) && msg.result() == kad::kRpcResultSuccess)
+  if (msg.ParseFromString(result) && msg.result())
     ++data->succeeded_count;
   data->condition.notify_one();
 }
@@ -260,7 +260,7 @@ void Operations::GetNodeContactDetailsCallback(const std::string &result,
   data->content.clear();
   ++data->returned_count;
   kad::FindNodeResult msg;
-  if (msg.ParseFromString(result) && msg.result() == kad::kRpcResultSuccess) {
+  if (msg.ParseFromString(result) && msg.result()) {
     ++data->succeeded_count;
     data->content = msg.contact();
   }
@@ -273,7 +273,7 @@ void Operations::StoreCallback(const std::string &result,
   data->content.clear();
   ++data->returned_count;
   kad::StoreResponse msg;
-  if (msg.ParseFromString(result) && msg.result() == kad::kRpcResultSuccess)
+  if (msg.ParseFromString(result) && msg.result())
     ++data->succeeded_count;
   data->condition.notify_one();
 }
@@ -284,7 +284,7 @@ void Operations::FindValueCallback(const std::string &result,
   data->content.clear();
   ++data->returned_count;
   kad::FindResponse msg;
-  if (msg.ParseFromString(result) && msg.result() == kad::kRpcResultSuccess &&
+  if (msg.ParseFromString(result) && msg.result() &&
       (msg.values_size() > 0 || msg.signed_values_size() > 0))
     ++data->succeeded_count;
   data->condition.notify_one();

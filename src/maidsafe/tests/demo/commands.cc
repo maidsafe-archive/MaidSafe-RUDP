@@ -84,7 +84,7 @@ void Commands::StoreCallback(const std::string &result, const kad::KadId &key,
     result_arrived_ = true;
     return;
   }
-  if (msg.result() != kad::kRpcResultSuccess) {
+  if (!msg.result()) {
     printf("Failed to store %f copies of values for key %s.\n",
         min_succ_stores_, key.ToStringEncoded(kad::KadId::kHex).c_str());
     printf("Some copies might have been stored\n");
@@ -103,7 +103,7 @@ void Commands::PingCallback(const std::string &result, const kad::KadId &id) {
     result_arrived_ = true;
     return;
   }
-  if (msg.result() != kad::kRpcResultSuccess) {
+  if (!msg.result()) {
     printf("Node with id %s is down.\n",
            id.ToStringEncoded(kad::KadId::kHex).c_str());
   } else {
@@ -122,7 +122,7 @@ void Commands::GetNodeContactDetailsCallback(const std::string &result,
     result_arrived_ = true;
     return;
   }
-  if (msg.result() != kad::kRpcResultSuccess) {
+  if (!msg.result()) {
     printf("Could not find node with id %s.\n",
            id.ToStringEncoded(kad::KadId::kHex).c_str());
   } else {
@@ -148,7 +148,7 @@ void Commands::FindValueCallback(const std::string &result,
     result_arrived_ = true;
     return;
   }
-  if (msg.result() != kad::kRpcResultSuccess || msg.values_size() == 0) {
+  if (!msg.result() || msg.values_size() == 0) {
     printf("There is no value stored under key %s\n",
         key.ToStringEncoded(kad::KadId::kHex).c_str());
   } else {
@@ -410,7 +410,7 @@ void Commands::Store50Callback(const std::string &result,
     result_arrived_ = true;
     return;
   }
-  if (msg.result() != kad::kRpcResultSuccess) {
+  if (!msg.result()) {
     printf("Failed to store %f copies of values for key %s.\n",
         min_succ_stores_, key.c_str());
     printf("Some copies might have been stored\n");

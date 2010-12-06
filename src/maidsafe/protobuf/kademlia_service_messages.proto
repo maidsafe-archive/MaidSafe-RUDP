@@ -17,7 +17,7 @@ message PingResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional PingResponse ping_response = 2;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes echo = 2;
   optional bytes node_id = 3;
 };
@@ -37,7 +37,7 @@ message FindResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional FindResponse find_response = 4;
   }
-  required bytes result = 1;
+  required bool result = 1;
   repeated bytes closest_nodes = 2;
   repeated bytes values = 3;
   repeated SignedValue signed_values = 4;
@@ -48,7 +48,7 @@ message FindResponse {
 };
 
 message FindNodeResult {
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes contact = 2;
   optional bytes node_id = 3;
 };
@@ -70,7 +70,7 @@ message StoreResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional StoreResponse store_response = 6;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes node_id = 2;
   optional SignedRequest signed_request = 3;
 };
@@ -89,7 +89,7 @@ message DeleteResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional DeleteResponse delete_response = 8;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes node_id = 2;
 };
 
@@ -109,7 +109,7 @@ message UpdateResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional UpdateResponse update_response = 10;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes node_id = 2;
 };
 
@@ -125,7 +125,7 @@ message DownlistResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional DownlistResponse downlist_response = 12;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes node_id = 2;
 };
 
@@ -143,7 +143,7 @@ message NatDetectionResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional NatDetectionResponse nat_detection_response = 14;
   }
-  required bytes result = 1;
+  required bool result = 1;
 };
 
 message NatDetectionPingRequest {
@@ -157,7 +157,7 @@ message NatDetectionPingResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional NatDetectionPingResponse nat_detection_ping_response = 16;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes echo = 2;
   optional bytes node_id = 3;
 };
@@ -178,7 +178,7 @@ message BootstrapResponse {
   extend rpcprotocol.RpcMessage.Detail {
     optional BootstrapResponse bootstrap_response = 18;
   }
-  required bytes result = 1;
+  required bool result = 1;
   optional bytes bootstrap_id = 2;
   optional bytes newcomer_ext_ip = 3;
   optional int32 newcomer_ext_port = 4;

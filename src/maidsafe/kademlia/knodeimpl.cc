@@ -591,7 +591,7 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
       }
     }
     if (response->IsInitialized() && !callback_data.rpc_ctrler->Failed()) {
-      if (response->result() == kRpcResultSuccess) {
+      if (response->result()) {
         ++callback_data.data->save_nodes;
       } else if (response->has_signed_request() &&
                  callback_data.data->sig_value.IsInitialized()) {
@@ -619,11 +619,11 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
       (K_ * kMinSuccessfulPecentageStore));
     if (callback_data.data->save_nodes >= d) {
       // Succeeded - min. number of copies were stored
-      store_value_result.set_result(kRpcResultSuccess);
+      store_value_result.set_result(true);
     } else if (del_req.IsInitialized()) {
       // While refreshing a value, found that it has been Deleted with the
       // Delete RPC
-      store_value_result.set_result(kRpcResultFailure);
+      store_value_result.set_result(false);
       SignedRequest *sreq = store_value_result.mutable_signed_request();
       *sreq = del_req;
       DLOG(WARNING) << "Found during refresh that value has been deleted\n";
@@ -635,7 +635,7 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
       //                  recursively try until we've either stored min.
       //                  allowed number of copies or tried every node in our
       //                  routing table.
-      store_value_result.set_result(kRpcResultFailure);
+      store_value_result.set_result(false);
       DLOG(ERROR) << "Successful Store rpc's " << callback_data.data->save_nodes
         << "\nSuccessful Store rpc's required " <<
         K_ * kMinSuccessfulPecentageStore << std::endl;
@@ -709,7 +709,7 @@ void KNodeImpl::StoreValue_ExecuteStoreRPCs(const std::string &result,
   } else if (result_msg.closest_nodes_size() == 0) {
     is_valid = false;
   }
-  if ((is_valid) || (result_msg.result() == kRpcResultSuccess)) {
+  if ((is_valid) || (result_msg.result())) {
     std::vector<Contact> closest_nodes;
     for (int i = 0; i < result_msg.closest_nodes_size(); ++i) {
       Contact node;
@@ -765,7 +765,7 @@ void KNodeImpl::StoreValue_ExecuteStoreRPCs(const std::string &result,
       return;
     }
     StoreResponse local_result;
-    local_result.set_result(kRpcResultFailure);
+    local_result.set_result(false);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
   } else {
@@ -779,7 +779,7 @@ void KNodeImpl::StoreValue(const KadId &key, const SignedValue &signed_value,
                            VoidFunctorOneString callback) {
   if (!signed_value.IsInitialized() || !signed_request.IsInitialized()) {
     StoreResponse resp;
-    resp.set_result(kad::kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     return;
@@ -804,7 +804,7 @@ void KNodeImpl::FindValue(const KadId &key, const bool &check_alternative_store,
   kad::FindResponse result_msg;
   if (check_alternative_store && alternative_store_ != NULL) {
     if (alternative_store_->Has(key.String())) {
-      result_msg.set_result(kad::kRpcResultSuccess);
+      result_msg.set_result(true);
       *result_msg.mutable_alternative_value_holder() = contact_info();
       DLOG(INFO) << "In KNodeImpl::FindValue - node " <<
         result_msg.alternative_value_holder().node_id().substr(0, 20) <<
@@ -817,7 +817,7 @@ void KNodeImpl::FindValue(const KadId &key, const bool &check_alternative_store,
   std::vector<std::string> values;
   //  Searching for value in local DataStore
   if (FindValueLocal(key, &values)) {
-    result_msg.set_result(kad::kRpcResultSuccess);
+    result_msg.set_result(true);
     if (HasRSAKeys()) {
       for (size_t n = 0; n < values.size(); ++n) {
         SignedValue *sig_value = result_msg.add_signed_values();
@@ -849,12 +849,12 @@ void KNodeImpl::FindNode_GetNode(const std::string &result,
         (result_msg.closest_nodes_size() == 0)) {
       is_valid = false;
   }
-  if ((is_valid)||(result_msg.result() == kRpcResultSuccess)) {
+  if ((is_valid)||(result_msg.result())) {
     for (int i = 0; i < result_msg.closest_nodes_size(); ++i) {
       Contact node;
       node.ParseFromString(result_msg.closest_nodes(i));
       if (node.node_id() == node_id) {
-        find_node_result.set_result(kRpcResultSuccess);
+        find_node_result.set_result(true);
         std::string node_str;
         node.SerialiseToString(&node_str);
         find_node_result.set_contact(node_str);
@@ -865,7 +865,7 @@ void KNodeImpl::FindNode_GetNode(const std::string &result,
     }
   }
   // Failed to get any result
-  find_node_result.set_result(kRpcResultFailure);
+  find_node_result.set_result(false);
   find_node_result.SerializeToString(&find_node_result_str);
   callback(find_node_result_str);
 }
@@ -881,12 +881,12 @@ void KNodeImpl::GetNodeContactDetails(const KadId &node_id,
     std::string ser_result;
     Contact contact;
     if (GetContact(node_id, &contact)) {
-      result.set_result(kRpcResultSuccess);
+      result.set_result(true);
       std::string ser_contact;
       contact.SerialiseToString(&ser_contact);
       result.set_contact(ser_contact);
     } else {
-      result.set_result(kRpcResultFailure);
+      result.set_result(false);
     }
     result.SerializeToString(&ser_result);
     callback(ser_result);
@@ -937,11 +937,11 @@ void KNodeImpl::Ping_HandleResult(const PingResponse *response,
 
   PingResponse result_msg;
   if (!response->IsInitialized() || callback_data.rpc_ctrler->Failed()) {
-    result_msg.set_result(kRpcResultFailure);
+    result_msg.set_result(false);
     RemoveContact(callback_data.remote_ctc.node_id());
   } else {
     result_msg = *response;
-    if (response->result() == kRpcResultSuccess) {
+    if (response->result()) {
       AddContact(callback_data.remote_ctc, callback_data.rpc_ctrler->rtt(),
                  false);
     } else {
@@ -960,7 +960,7 @@ void KNodeImpl::Ping_SendPing(const std::string &result,
     return;
   FindNodeResult result_msg;
   if (result_msg.ParseFromString(result))
-    if (result_msg.result() == kRpcResultSuccess) {
+    if (result_msg.result()) {
       Contact remote;
       if (remote.ParseFromString(result_msg.contact())) {
         Ping(remote, callback);
@@ -969,7 +969,7 @@ void KNodeImpl::Ping_SendPing(const std::string &result,
     }
   // Failed to get any result
   PingResponse ping_result;
-  ping_result.set_result(kRpcResultFailure);
+  ping_result.set_result(false);
   std::string ping_result_str(ping_result.SerializeAsString());
   callback(ping_result_str);
 }
@@ -982,7 +982,7 @@ void KNodeImpl::Ping(const KadId &node_id, VoidFunctorOneString callback) {
 void KNodeImpl::Ping(const Contact &remote, VoidFunctorOneString callback) {
   if (!is_joined_) {
     PingResponse resp;
-    resp.set_result(kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     return;
@@ -1314,7 +1314,7 @@ void KNodeImpl::CheckToInsert_Callback(const std::string &result, KadId id,
     return;
   PingResponse result_msg;
   if (!result_msg.ParseFromString(result) ||
-      result_msg.result() != kRpcResultSuccess) {
+      !result_msg.result()) {
     boost::mutex::scoped_lock gaurd(routingtable_mutex_);
     prouting_table_->RemoveContact(id, true);
     prouting_table_->AddContact(new_contact);
@@ -1560,7 +1560,7 @@ void KNodeImpl::SearchIteration_ExtendShortList(
     }
   }
 
-  if (!is_valid || response->result() == kRpcResultFailure) {
+  if (!is_valid || !response->result()) {
     SearchIteration_CancelActiveProbe(callback_data.remote_ctc,
         callback_data.data);
     delete response;
@@ -1873,12 +1873,12 @@ void KNodeImpl::SearchIteration_Callback(
     FindResponse result;
     if (data->method == FIND_VALUE &&
         !data->alternative_value_holder.node_id().empty()) {
-      result.set_result(kRpcResultSuccess);
+      result.set_result(true);
       *result.mutable_alternative_value_holder() =
           data->alternative_value_holder;
     } else if (data->method == FIND_VALUE && (!data->values_found.empty() ||
                !data->sig_values_found.empty())) {
-      result.set_result(kRpcResultSuccess);
+      result.set_result(true);
       for (std::list<std::string>::iterator it2 = data->values_found.begin();
            it2 != data->values_found.end(); ++it2) {
         result.add_values(*it2);
@@ -1900,9 +1900,9 @@ void KNodeImpl::SearchIteration_Callback(
           result.add_closest_nodes(ser_contact);
       }
       if (result.closest_nodes_size() > 0 && data->method == FIND_NODE)
-        result.set_result(kRpcResultSuccess);
+        result.set_result(true);
       else
-        result.set_result(kRpcResultFailure);
+        result.set_result(false);
     }
 
     // Add the last seen contact that didn't reply with the value from the
@@ -2049,7 +2049,7 @@ void KNodeImpl::RefreshValueCallback(
     return;
   StoreResponse refresh_result;
   if (!refresh_result.ParseFromString(result) ||
-      refresh_result.result() == kRpcResultSuccess ||
+      refresh_result.result() ||
       !refresh_result.has_signed_request())
     RefreshValueLocal(key, value, ttl);
   ++(*refreshes_done);
@@ -2097,7 +2097,7 @@ void KNodeImpl::DeleteValue(const KadId &key, const SignedValue &signed_value,
                             VoidFunctorOneString callback) {
   if (!signed_value.IsInitialized() || !signed_request.IsInitialized()) {
     DeleteResponse resp;
-    resp.set_result(kad::kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     return;
@@ -2122,7 +2122,7 @@ void KNodeImpl::DelValue_ExecuteDeleteRPCs(const std::string &result,
   } else if (result_msg.closest_nodes_size() == 0) {
     is_valid = false;
   }
-  if ((is_valid) || (result_msg.result() == kRpcResultSuccess)) {
+  if ((is_valid) || (result_msg.result())) {
     std::vector<Contact> closest_nodes;
     for (int i = 0; i < result_msg.closest_nodes_size(); ++i) {
       Contact node;
@@ -2154,14 +2154,14 @@ void KNodeImpl::DelValue_ExecuteDeleteRPCs(const std::string &result,
       return;
     }
     DeleteResponse local_result;
-    local_result.set_result(kRpcResultFailure);
+    local_result.set_result(false);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
     DLOG(WARNING) << "KNodeImpl::DelValue_ExecuteDeleteRPCs - No nodes."
                   << std::endl;
   } else {
     DeleteResponse local_result;
-    local_result.set_result(kRpcResultFailure);
+    local_result.set_result(false);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
     DLOG(WARNING) << "KNodeImpl::DelValue_ExecuteDeleteRPCs - Invalid or fail."
@@ -2229,7 +2229,7 @@ void KNodeImpl::DelValue_IterativeDeleteValue(
       }
     }
     if (response->IsInitialized() && !callback_data.rpc_ctrler->Failed()) {
-      if (response->result() == kRpcResultSuccess) {
+      if (response->result()) {
         ++callback_data.data->del_nodes;
       }
       AddContact(callback_data.remote_ctc, callback_data.rpc_ctrler->rtt(),
@@ -2252,9 +2252,9 @@ void KNodeImpl::DelValue_IterativeDeleteValue(
       (K_ * kMinSuccessfulPecentageStore));
     if (callback_data.data->del_nodes >= d) {
       // Succeeded - min. number of copies were stored
-      del_value_result.set_result(kRpcResultSuccess);
+      del_value_result.set_result(true);
     } else {
-      del_value_result.set_result(kRpcResultFailure);
+      del_value_result.set_result(false);
       DLOG(ERROR) << "Successful Delete rpc's " << callback_data.data->del_nodes
                   << "\nSuccessful Delete rpc's required "
                   << K_ * kMinSuccessfulPecentageStore << std::endl;
@@ -2312,7 +2312,7 @@ void KNodeImpl::UpdateValue(const KadId &key,
   if (!old_value.IsInitialized() || !new_value.IsInitialized() ||
       !signed_request.IsInitialized()) {
     DeleteResponse resp;
-    resp.set_result(kad::kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     DLOG(WARNING) << "KNodeImpl::UpdateValue - uninitialised values or request"
@@ -2336,10 +2336,10 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
 
   FindResponse result_msg;
   if (!result_msg.ParseFromString(result) ||
-      result_msg.result() != kRpcResultSuccess ||
+      !result_msg.result() ||
       result_msg.closest_nodes_size() == 0) {
     DeleteResponse resp;
-    resp.set_result(kad::kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - failed find nodes"
@@ -2356,7 +2356,7 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
 
   if (closest_nodes.size() < size_t(kMinSuccessfulPecentageStore * K_)) {
     DeleteResponse resp;
-    resp.set_result(kad::kRpcResultFailure);
+    resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
     DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - Not enough nodes"
@@ -2449,13 +2449,13 @@ void KNodeImpl::UpdateValueResponses(
     if (uca->uvd->uvd_succeeded <
         boost::uint8_t(K_ * kMinSuccessfulPecentageStore)) {
       // Sadly, we didn't gather the numbers to ensure success
-      update_result.set_result(kRpcResultFailure);
+      update_result.set_result(false);
 
       DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - Not enough succ in RPCs"
                     << std::endl;
 
     } else {
-      update_result.set_result(kRpcResultSuccess);
+      update_result.set_result(true);
     }
     std::string serialised_result(update_result.SerializeAsString());
     uca->uvd->uvd_callback(serialised_result);

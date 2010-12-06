@@ -180,7 +180,7 @@ class KadServicesTest: public testing::Test {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     routingtable_->RemoveContact(id, true);
     PingResponse resp;
-    resp.set_result(kRpcResultFailure);
+    resp.set_result(false);
     callback(resp.SerializeAsString());
   }
   void RemoveContact(const KadId&) {}
@@ -201,7 +201,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   while (!ping_response.IsInitialized())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, ping_response.result());
+  EXPECT_FALSE( ping_response.result());
   EXPECT_FALSE(ping_response.has_echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   Contact contactback;
@@ -216,7 +216,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   while (!ping_response.IsInitialized())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, ping_response.result());
+  EXPECT_TRUE(ping_response.result());
   EXPECT_EQ("pong", ping_response.echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
@@ -243,7 +243,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValue) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
                       done1);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   EXPECT_EQ(0, find_value_response.signed_values_size());
@@ -285,7 +285,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValue) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
                       done2);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(test_kadservice::K, find_value_response.closest_nodes_size());
 
   std::vector<std::string>::iterator itr;
@@ -322,7 +322,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValue) {
   service_->FindValue(&controller, &find_value_request,
                                           &find_value_response, done3);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   ASSERT_EQ(100, find_value_response.signed_values_size());
@@ -360,7 +360,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
   service_->FindNode(&controller, &find_node_request, &find_node_response,
                      done1);
   EXPECT_TRUE(find_node_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_node_response.result());
+  EXPECT_TRUE(find_node_response.result());
   EXPECT_EQ(0, find_node_response.closest_nodes_size());
   EXPECT_EQ(0, find_node_response.values_size());
   EXPECT_FALSE(find_node_response.has_requester_ext_addr());
@@ -413,7 +413,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
   service_->FindNode(&controller, &find_node_request, &find_node_response,
                      done2);
   EXPECT_TRUE(find_node_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_node_response.result());
+  EXPECT_TRUE(find_node_response.result());
   EXPECT_EQ(test_kadservice::K > 1 ? test_kadservice::K/2 : 1,
             find_node_response.closest_nodes_size());
   EXPECT_EQ(0, find_node_response.values_size());
@@ -448,7 +448,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
   service_->FindNode(&controller, &find_node_request, &find_node_response,
                      done3);
   EXPECT_TRUE(find_node_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_node_response.result());
+  EXPECT_TRUE(find_node_response.result());
   EXPECT_EQ(test_kadservice::K, find_node_response.closest_nodes_size());
   std::vector<Contact> close_contacts_copy(close_contacts);
   std::vector<Contact>::iterator itr;
@@ -477,7 +477,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
   service_->FindNode(&controller, &find_node_request, &find_node_response,
                      done4);
   EXPECT_TRUE(find_node_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_node_response.result());
+  EXPECT_TRUE(find_node_response.result());
   EXPECT_EQ(test_kadservice::K, find_node_response.closest_nodes_size());
   // Check the results aren't the same as the first set and that we got the
   // actual id requested
@@ -531,7 +531,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done1);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, store_response.result());
+  EXPECT_FALSE( store_response.result());
 
   store_request.clear_value();
 
@@ -545,7 +545,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done4);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, store_response.result());
+  EXPECT_TRUE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   std::vector<std::string> values;
   ASSERT_TRUE(datastore_->LoadItem(key, &values));
@@ -568,7 +568,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done2);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, store_response.result());
+  EXPECT_TRUE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key, &values));
@@ -588,7 +588,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done3);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, store_response.result());
+  EXPECT_TRUE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key, &values));
@@ -632,7 +632,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done1);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, store_response.result());
+  EXPECT_FALSE( store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   store_response.Clear();
   std::vector<std::string> values;
@@ -659,7 +659,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
   google::protobuf::Closure *done6 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done6);
-  EXPECT_EQ(kRpcResultFailure, store_response.result());
+  EXPECT_FALSE( store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   store_response.Clear();
   values.clear();
@@ -670,7 +670,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done2);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, store_response.result());
+  EXPECT_TRUE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key, &values));
@@ -684,7 +684,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done3);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, store_response.result());
+  EXPECT_FALSE( store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key, &values));
@@ -720,7 +720,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done4);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, store_response.result());
+  EXPECT_TRUE(store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key1, &values));
@@ -737,7 +737,7 @@ TEST_F(KadServicesTest, BEH_KAD_InvalidStoreValue) {
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done5);
   EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, store_response.result());
+  EXPECT_FALSE( store_response.result());
   EXPECT_EQ(node_id_.String(), store_response.node_id());
   values.clear();
   EXPECT_TRUE(datastore_->LoadItem(key1, &values));
@@ -873,7 +873,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
                       done1);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   EXPECT_FALSE(find_value_response.has_requester_ext_addr());
@@ -912,7 +912,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
                       done2);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(test_kadservice::K, find_value_response.closest_nodes_size());
 
   std::vector<std::string>::iterator itr;
@@ -951,7 +951,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
       done3);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   ASSERT_EQ(100, find_value_response.signed_values_size());
@@ -983,7 +983,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
       done4);
 
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   EXPECT_TRUE(find_value_response.has_alternative_value_holder());
@@ -1000,7 +1000,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
   service_->FindValue(&controller, &find_value_request, &find_value_response,
       done5);
   EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, find_value_response.result());
+  EXPECT_TRUE(find_value_response.result());
   EXPECT_EQ(0, find_value_response.closest_nodes_size());
   EXPECT_EQ(0, find_value_response.values_size());
   EXPECT_TRUE(find_value_response.has_alternative_value_holder());
@@ -1081,7 +1081,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
     &Callback::CallbackFunction);
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, delete_response.result());
+  EXPECT_FALSE( delete_response.result());
 
   // setting validator
   service_->set_signature_validator(&validator_);
@@ -1093,7 +1093,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
       private_key, crypto::STRING_STRING));
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, delete_response.result());
+  EXPECT_FALSE( delete_response.result());
   delete_response.Clear();
 
   // request sent signed with different key
@@ -1111,7 +1111,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
   sreq->set_signed_request(signed_request1);
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_EQ(kRpcResultFailure, delete_response.result());
+  EXPECT_FALSE( delete_response.result());
   delete_response.Clear();
 
   // correct delete (Marked as delete)
@@ -1123,7 +1123,7 @@ TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
 
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_EQ(kRpcResultSuccess, delete_response.result());
+  EXPECT_TRUE(delete_response.result());
 
   // validating DataStore no longer returns value1 and in refresh returns
   // the correct signed request
@@ -1203,7 +1203,7 @@ TEST_F(KadServicesTest, FUNC_KAD_RefreshDeletedValue) {
           (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_TRUE(response.has_signed_request());
   EXPECT_EQ(sreq.signer_id(), response.signed_request().signer_id());
   EXPECT_EQ(sreq.public_key(), response.signed_request().public_key());
@@ -1215,7 +1215,7 @@ TEST_F(KadServicesTest, FUNC_KAD_RefreshDeletedValue) {
   ASSERT_TRUE(datastore_->MarkAsDeleted(key, ser_svalue));
   service_->Store(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_TRUE(response.has_signed_request());
   EXPECT_EQ(sreq.signer_id(), response.signed_request().signer_id());
   EXPECT_EQ(sreq.public_key(), response.signed_request().public_key());
@@ -1242,7 +1242,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
                                     (&cb_obj, &Callback::CallbackFunction);
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: Request not properly initialised
@@ -1257,7 +1257,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: trying to update non-existent value
@@ -1283,7 +1283,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: Value to update doesn't exist
@@ -1301,7 +1301,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: New value doesn't validate
@@ -1318,7 +1318,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: Old value doesn't validate
@@ -1347,7 +1347,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Fail: Update fails
@@ -1371,7 +1371,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
   response.Clear();
   service_->Update(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
-  ASSERT_EQ(kRpcResultFailure, response.result());
+  ASSERT_FALSE(response.result());
   ASSERT_EQ(node_id_.String(), response.node_id());
 
   // Successful updates
@@ -1391,7 +1391,7 @@ TEST_F(KadServicesTest, BEH_KAD_UpdateValue) {
     response.Clear();
     service_->Update(&controller, &request, &response, done);
     ASSERT_TRUE(response.IsInitialized());
-    ASSERT_EQ(kRpcResultSuccess, response.result());
+    ASSERT_TRUE(response.result());
     ASSERT_EQ(node_id_.String(), response.node_id());
   }
 }

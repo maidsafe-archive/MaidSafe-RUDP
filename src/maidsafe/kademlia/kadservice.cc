@@ -60,17 +60,17 @@ void KadService::Ping(google::protobuf::RpcController *controller,
                       const PingRequest *request, PingResponse *response,
                       google::protobuf::Closure *done) {
   if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
   Contact sender;
   if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   } else if (request->ping() == "ping" &&
              GetSender(request->sender_info(), &sender)) {
     response->set_echo("pong");
-    response->set_result(kRpcResultSuccess);
+    response->set_result(true);
     rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
         (controller);
     if (ctrl != NULL) {
@@ -79,7 +79,7 @@ void KadService::Ping(google::protobuf::RpcController *controller,
       add_contact_(sender, 0.0, false);
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
   response->set_node_id(node_info_.node_id());
   done->Run();
@@ -89,13 +89,13 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
                           const FindRequest *request, FindResponse *response,
                           google::protobuf::Closure *done) {
   if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
   Contact sender;
   if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   } else if (GetSender(request->sender_info(), &sender)) {
     std::vector<Contact> closest_contacts, exclude_contacts;
     KadId key(request->key());
@@ -118,9 +118,9 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
           response->add_closest_nodes(str_key_contact);
         }
       }
-      response->set_result(kRpcResultSuccess);
+      response->set_result(true);
     } else {
-      response->set_result(kRpcResultFailure);
+      response->set_result(false);
     }
     rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
                                     (controller);
@@ -130,7 +130,7 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
       add_contact_(sender, 0.0, false);
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
   response->set_node_id(node_info_.node_id());
   done->Run();
@@ -140,13 +140,13 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
                            const FindRequest *request, FindResponse *response,
                            google::protobuf::Closure *done) {
   if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
   Contact sender;
   if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   } else if (GetSender(request->sender_info(), &sender)) {
     // If the value exists in the alternative store, add our contact details to
     // field alternative_value_holder.  If not, get the values if present in
@@ -156,7 +156,7 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
     if (alternative_store_ != NULL) {
       if (alternative_store_->Has(key)) {
         *(response->mutable_alternative_value_holder()) = node_info_;
-        response->set_result(kRpcResultSuccess);
+        response->set_result(true);
         response->set_node_id(node_info_.node_id());
         done->Run();
         return;
@@ -172,7 +172,7 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
         for (unsigned int i = 0; i < values_str.size(); i++)
           response->add_values(values_str[i]);
       }
-      response->set_result(kRpcResultSuccess);
+      response->set_result(true);
       rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
         (controller);
       if (ctrl != NULL) {
@@ -185,7 +185,7 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
       return;
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
   response->set_node_id(node_info_.node_id());
   done->Run();
@@ -196,7 +196,7 @@ void KadService::Store(google::protobuf::RpcController *controller,
                        google::protobuf::Closure *done) {
   DLOG(WARNING) << "KadService::Store - " << node_info_.port() << std::endl;
   if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     DLOG(WARNING) << "Not joined? How'd I get the message, then?" << std::endl;
     return;
@@ -205,7 +205,7 @@ void KadService::Store(google::protobuf::RpcController *controller,
   rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
                                   (controller);
   if (!CheckStoreRequest(request, &sender)) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   } else if (node_hasRSAkeys_) {
     if (signature_validator_ == NULL ||
         !signature_validator_->ValidateSignerId(
@@ -218,7 +218,7 @@ void KadService::Store(google::protobuf::RpcController *controller,
             request->signed_request().signed_public_key(), request->key())) {
       DLOG(WARNING) << "Failed to validate Store request for kad value"
                     << std::endl;
-      response->set_result(kRpcResultFailure);
+      response->set_result(false);
     } else {
       StoreValueLocal(request->key(), request->sig_value(), sender,
                       request->ttl(), request->publish(), response, ctrl);
@@ -237,7 +237,7 @@ void KadService::Delete(google::protobuf::RpcController *controller,
   // only node with RSAkeys can delete values
   if (!node_joined_ || !node_hasRSAkeys_ || signature_validator_ == NULL ||
       !request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
@@ -253,7 +253,7 @@ void KadService::Delete(google::protobuf::RpcController *controller,
           request->signed_request().signed_request(),
           request->signed_request().public_key(),
           request->signed_request().signed_public_key(), request->key())) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
@@ -261,7 +261,7 @@ void KadService::Delete(google::protobuf::RpcController *controller,
   // only the signer of the value can delete it
   std::vector<std::string> values_str;
   if (!pdatastore_->LoadItem(request->key(), &values_str)) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
@@ -280,12 +280,12 @@ void KadService::Delete(google::protobuf::RpcController *controller,
         add_contact_(sender, ctrl->rtt(), false);
       else
         add_contact_(sender, 0.0, false);
-      response->set_result(kRpcResultSuccess);
+      response->set_result(true);
       done->Run();
       return;
     }
   }
-  response->set_result(kRpcResultFailure);
+  response->set_result(false);
   done->Run();
 }
 
@@ -295,7 +295,7 @@ void KadService::Update(google::protobuf::RpcController *controller,
                         google::protobuf::Closure *done) {
   // only node with RSAkeys can update values
   response->set_node_id(node_info_.node_id());
-  response->set_result(kRpcResultFailure);
+  response->set_result(false);
 
   if (!node_joined_ || !node_hasRSAkeys_ || !request->IsInitialized()) {
     done->Run();
@@ -428,7 +428,7 @@ hashable replacement values.
       add_contact_(sender, ctrl->rtt(), false);
     else
       add_contact_(sender, 0.0, false);
-    response->set_result(kRpcResultSuccess);
+    response->set_result(true);
   } else {
     DLOG(WARNING) << "KadService::Update - Failed to add_contact_" << std::endl;
   }
@@ -441,13 +441,13 @@ void KadService::Downlist(google::protobuf::RpcController *controller,
                           DownlistResponse *response,
                           google::protobuf::Closure *done) {
   if (!node_joined_) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
     done->Run();
     return;
   }
   Contact sender;
   if (!request->IsInitialized()) {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   } else if (GetSender(request->sender_info(), &sender)) {
     for (int i = 0; i < request->downlist_size(); ++i) {
       Contact dead_node;
@@ -456,7 +456,7 @@ void KadService::Downlist(google::protobuf::RpcController *controller,
     // A sophisticated attacker possibly send a random downlist. We only verify
     // the offline status of the nodes in our routing table.
       Contact contact_to_ping;
-      response->set_result(kRpcResultSuccess);
+      response->set_result(true);
       if (get_contact_(dead_node.node_id(), &contact_to_ping)) {
         ping_(dead_node, boost::bind(&downlist_ping_cb, _1));
       }
@@ -469,7 +469,7 @@ void KadService::Downlist(google::protobuf::RpcController *controller,
       add_contact_(sender, 0.0, false);
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
   response->set_node_id(node_info_.node_id());
   done->Run();
@@ -513,14 +513,14 @@ void KadService::StoreValueLocal(const std::string &key,
     }
   }
   if (result) {
-    response->set_result(kRpcResultSuccess);
+    response->set_result(true);
     if (ctrl != NULL) {
       add_contact_(sender, ctrl->rtt(), false);
     } else {
       add_contact_(sender, 0.0, false);
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
 }
 
@@ -562,14 +562,14 @@ void KadService::StoreValueLocal(const std::string &key,
     }
   }
   if (result) {
-    response->set_result(kRpcResultSuccess);
+    response->set_result(true);
     if (ctrl != NULL) {
       add_contact_(sender, ctrl->rtt(), false);
     } else {
       add_contact_(sender, 0.0, false);
     }
   } else {
-    response->set_result(kRpcResultFailure);
+    response->set_result(false);
   }
 }
 

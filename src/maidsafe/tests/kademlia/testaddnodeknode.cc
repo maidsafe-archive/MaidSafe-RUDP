@@ -175,7 +175,7 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
                           boost::bind(&GeneralKadCallback::CallbackFunc,
                                       &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(nodes_[0].is_joined());
 
@@ -269,7 +269,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
                           boost::bind(&GeneralKadCallback::CallbackFunc,
                                       &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(nodes_[0].is_joined());
   // Joining node 2 bootstrapped to node 1 so that node 1 adds him to its
@@ -289,7 +289,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   nodes_[1].Join(kid2, kconfig_file1,
                  boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
   wait_result(&callback);
-  ASSERT_EQ(kRpcResultSuccess, callback.result());
+  ASSERT_TRUE(callback.result());
   callback.Reset();
   ASSERT_TRUE(nodes_[1].is_joined());
   Contact last_seen;

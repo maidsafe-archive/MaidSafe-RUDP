@@ -44,9 +44,9 @@ class FakeCallback {
   }
   virtual void CallbackFunc(const std::string& res) = 0;
   virtual void Reset() = 0;
-  std::string result() const {return result_;}
+  bool result() const {return result_;}
  protected:
-  std::string result_;
+  bool result_;
 };
 
 class PingCallback : public FakeCallback {
@@ -55,7 +55,7 @@ class PingCallback : public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res))
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     result_ = result_msg.result();
   }
   void Reset() {
@@ -72,7 +72,7 @@ class StoreValueCallback :public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     }
     result_ = result_msg.result();
   };
@@ -91,7 +91,7 @@ class FindCallback : public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     }
     for (int i = 0; i < result_msg.values_size(); i++)
       values_.push_back(result_msg.values(i));
@@ -124,7 +124,7 @@ class GetNodeContactDetailsCallback : public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     }
     if (result_msg.has_contact())
       contact_ = result_msg.contact();
@@ -165,13 +165,13 @@ class DeleteValueCallback : public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     }
     result_ = result_msg.result();
   };
   void Reset() {
     result_msg.Clear();
-    result_ = "";
+    result_ = false;
   };
  private:
   kad::DeleteResponse result_msg;
@@ -183,7 +183,7 @@ class UpdateValueCallback : public FakeCallback {
 
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res))
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     result_ = result_msg.result();
   }
 
@@ -199,7 +199,7 @@ class UpdateValueCallback : public FakeCallback {
 inline void wait_result(FakeCallback *callback) {
   while (1) {
     {
-      if (callback->result() != "")
+      if (callback->result())
         return;
     }
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));

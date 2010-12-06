@@ -371,7 +371,7 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_RegisterAChannel) {
   stubservice.TestPing(&controller, &req, &resp, done);
   resultholder.WaitForResponse(boost::posix_time::milliseconds(10000));
 
-  ASSERT_EQ("S", resultholder.ping_result().result());
+  ASSERT_TRUE(resultholder.ping_result().result());
   ASSERT_TRUE(resultholder.ping_result().has_pong());
   ASSERT_EQ("pong", resultholder.ping_result().pong());
 }
@@ -422,7 +422,7 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_MultipleChannelsRegistered) {
       (&resultholder, &ResultHolder::HandlePingResponse, &resp1, &controller);
   stubservice1.TestPing(&controller, &req1, &resp1, done1);
   resultholder.WaitForResponse(boost::posix_time::milliseconds(10000));
-  ASSERT_EQ("S", resultholder.ping_result().result());
+  ASSERT_TRUE(resultholder.ping_result().result());
   ASSERT_TRUE(resultholder.ping_result().has_pong());
   ASSERT_EQ("pong", resultholder.ping_result().pong());
   resultholder.Reset();
@@ -570,7 +570,7 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_ServerAndClientCommunication) {
   stubservice.TestPing(&controller, &req, &resp, done);
   resultholder.WaitForResponse(boost::posix_time::milliseconds(10000));
 
-  ASSERT_EQ("S", resultholder.ping_result().result());
+  ASSERT_TRUE(resultholder.ping_result().result());
   ASSERT_TRUE(resultholder.ping_result().has_pong());
   ASSERT_EQ("pong", resultholder.ping_result().pong());
 

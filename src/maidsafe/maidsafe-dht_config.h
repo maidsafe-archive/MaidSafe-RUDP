@@ -159,10 +159,6 @@ const boost::uint32_t kRepublishTime = 43200;  // 12 hours
 // The duration (in seconds) after which a given <key,value> is deleted locally.
 const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
 
-// RPC result constants.
-const std::string kRpcResultSuccess("T");
-const std::string kRpcResultFailure("F");
-// TODO(Fraser#5#): 2009-05-15 - Make these bools
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
 const double kMinSuccessfulPecentageStore = 0.75;
