@@ -145,7 +145,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   boost::shared_ptr<Transport> receiver(this->CreateTransport());
   MessageHandler sender_msgh(sender->signals(), "Send", false);
   const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
-  TransportMessage request = MakeTransportMessage(true, 256 * 1024);
+  TransportMessage request = this->MakeTransportMessage(true, 256 * 1024);
   sender->Send(request, 1, kTimeout);
   ASSERT_EQ(size_t(1), sender_msgh.sent_results().size());
   boost::tuple<SocketId, TransportCondition> signalled_sent_result =
