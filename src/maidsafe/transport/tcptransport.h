@@ -26,69 +26,71 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #ifndef MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
-# define MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
+#define MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
 
-# include <maidsafe/transport/transport.h>
-# include <maidsafe/transport/rawbuffer.h>
-# include <maidsafe/transport/tcpconnection.h>
-# include <boost/asio/io_service.hpp>
-# include <boost/thread/thread.hpp>
+#include <maidsafe/transport/transport.h>
+#include <maidsafe/transport/rawbuffer.h>
+#include <maidsafe/transport/tcpconnection.h>
+#include <boost/asio/io_service.hpp>
+#include <boost/thread/thread.hpp>
+#include <map>
+#include <vector>
 
 namespace transport {
 
 class TcpTransport : public Transport {
  public:
-   TcpTransport();
-   ~TcpTransport();
+  TcpTransport();
+  ~TcpTransport();
 
-   boost::asio::io_service &IOService();
+  boost::asio::io_service &IOService();
 
-   Port StartListening(const IP &ip,
-                       const Port &try_port,
-                       TransportCondition *condition);
+  Port StartListening(const IP &ip,
+                      const Port &try_port,
+                      TransportCondition *condition);
 
-   bool StopListening(const Port &port);
-   bool StopAllListening();
+  bool StopListening(const Port &port);
+  bool StopAllListening();
 
-   SocketId PrepareToSend(const IP &remote_ip,
-                          const Port &remote_port,
-                          const IP &rendezvous_ip,
-                          const Port &rendezvous_port);
+  SocketId PrepareToSend(const IP &remote_ip,
+                         const Port &remote_port,
+                         const IP &rendezvous_ip,
+                         const Port &rendezvous_port);
 
-   void Send(const TransportMessage &transport_message,
-             const SocketId &socket_id,
-             const boost::uint32_t &timeout_wait_for_response);
+  void Send(const TransportMessage &transport_message,
+            const SocketId &socket_id,
+            const boost::uint32_t &timeout_wait_for_response);
 
-   void SendFile(const boost::filesystem::path &path,
-                 const SocketId &socket_id);
+  void SendFile(const boost::filesystem::path &path,
+                const SocketId &socket_id);
 
  private:
-   friend class TcpConnection;
+  friend class TcpConnection;
 
-   typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
-   typedef std::vector<AcceptorPtr> AcceptorList;
-   typedef boost::shared_ptr<TcpConnection> ConnectionPtr;
-   typedef std::map<SocketId, ConnectionPtr> ConnectionMap;
+  typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
+  typedef std::vector<AcceptorPtr> AcceptorList;
+  typedef boost::shared_ptr<TcpConnection> ConnectionPtr;
+  typedef std::map<SocketId, ConnectionPtr> ConnectionMap;
 
-   SocketId NextSocketId();
-   void Run();
-   void HandleAccept(const AcceptorPtr &acceptor,
-                     const ConnectionPtr &connection,
-                     const boost::system::error_code &ec);
+  SocketId NextSocketId();
+  void Run();
+  void HandleAccept(const AcceptorPtr &acceptor,
+                    const ConnectionPtr &connection,
+                    const boost::system::error_code &ec);
 
-   void RemoveConnection(SocketId id);
+  void RemoveConnection(SocketId id);
 
-   boost::asio::io_service io_service_;
-   boost::shared_ptr<boost::asio::io_service::work> keep_alive_;
-   boost::thread worker_thread_;
+  boost::asio::io_service io_service_;
+  boost::shared_ptr<boost::asio::io_service::work> keep_alive_;
+  boost::thread worker_thread_;
 
-   AcceptorList acceptors_;
-   SocketId current_socket_id_;
+  AcceptorList acceptors_;
+  SocketId current_socket_id_;
 
-   // Because the connections can be in an idle initial state with no pending
-   // async operations (after calling PrepareSend()), they are kept alive with
-   // a shared_ptr in this map, as well as in the async operation handlers.
-   ConnectionMap connections_;
+  // Because the connections can be in an idle initial state with no pending
+  // async operations (after calling PrepareSend()), they are kept alive with
+  // a shared_ptr in this map, as well as in the async operation handlers.
+  ConnectionMap connections_;
 };
 
 }  // namespace transport

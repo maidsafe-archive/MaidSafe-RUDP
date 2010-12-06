@@ -141,7 +141,7 @@ bool ChannelManagerImpl::AddPendingRequest(const SocketId &socket_id,
   if (!is_started_) {
     return false;
   }
-  
+
   pending_request.controller->set_socket_id(socket_id);
   if (pending_request.local_transport) {
     pending_request.rpc_reponse =

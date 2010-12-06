@@ -67,7 +67,7 @@ void NatRpcs::NatDetectionPing(const IP &remote_ip, const Port &remote_port,
   args.set_ping("nat_detection_ping");
   rpcprotocol::Controller controller;
   controller.set_timeout(kRpcNatPingTimeout);
-  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port, 
+  rpcprotocol::Channel channel(channel_manager_, remote_ip, remote_port,
                                rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(&channel);
   service.NatDetectionPing(ctler, &args, resp, callback);

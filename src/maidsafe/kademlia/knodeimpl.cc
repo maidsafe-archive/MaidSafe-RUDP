@@ -308,7 +308,7 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   }
 
   // Set kad_config_path_
-  kad_config_path_ = fs::path(kad_config_file, fs::native);
+  kad_config_path_ = fs::path(kad_config_file);
   prouting_table_.reset(new RoutingTable(node_id_, K_));
   Join_RefreshNode(callback, got_external_address);
 }
@@ -373,7 +373,7 @@ void KNodeImpl::JoinFirstNode(const KadId &node_id,
   rv_ip_ = "";
   rv_port_ = 0;
   // Set kad_config_path_
-  kad_config_path_ = fs::path(kad_config_file, fs::native);
+  kad_config_path_ = fs::path(kad_config_file);
   prouting_table_.reset(new RoutingTable(node_id_, K_));
 
   is_joined_ = true;

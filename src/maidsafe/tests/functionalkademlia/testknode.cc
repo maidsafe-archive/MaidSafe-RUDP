@@ -82,8 +82,7 @@ inline void create_req(const std::string &pub_key, const std::string &priv_key,
 std::string get_app_directory() {
   boost::filesystem::path app_path;
 #if defined(MAIDSAFE_POSIX)
-  app_path = boost::filesystem::path("/var/cache/maidsafe/",
-      boost::filesystem::native);
+  app_path = boost::filesystem::path("/var/cache/maidsafe/");
 #elif defined(MAIDSAFE_WIN32)
   TCHAR szpth[MAX_PATH];
   if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, 0, szpth))) {
@@ -92,12 +91,11 @@ std::string get_app_directory() {
         std::use_facet< std::ctype<char> >(stm.getloc());
     for (size_t i = 0; i < wcslen(szpth); ++i)
       stm << ctfacet.narrow(szpth[i], 0);
-    app_path = boost::filesystem::path(stm.str(),
-                                       boost::filesystem::native);
+    app_path = boost::filesystem::path(stm.str());
     app_path /= "maidsafe";
   }
 #elif defined(MAIDSAFE_APPLE)
-  app_path = boost::filesystem::path("/Library/maidsafe/", fs::native);
+  app_path = boost::filesystem::path("/Library/maidsafe/");
 #endif
   return app_path.string();
 }

@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <maidsafe/transport/tcptransport.h>
 #include <maidsafe/transport/tcpconnection.h>
-#include <maidsafe/transport/udtconnection.h> // for timeout constants
+#include <maidsafe/transport/udtconnection.h>  // for timeout constants
 #include <maidsafe/protobuf/transport_message.pb.h>
 #include <maidsafe/base/log.h>
 
@@ -44,21 +44,20 @@ namespace pt = boost::posix_time;
 
 namespace transport {
 
-TcpConnection::TcpConnection(TcpTransport &tcp_transport,
-                             ip::tcp::endpoint const& remote_ep)
-  : transport_(tcp_transport),
-    socket_(transport_.IOService()),
-    timer_(transport_.IOService()),
-    remote_endpoint_(remote_ep),
-    timeout_for_response_(kDefaultInitialTimeout) {}
+TcpConnection::TcpConnection(TcpTransport *tcp_transport,
+                             const ip::tcp::endpoint &remote_ep)
+    : transport_(tcp_transport),
+      socket_(transport_->IOService()),
+      timer_(transport_->IOService()),
+      remote_endpoint_(remote_ep),
+      timeout_for_response_(kDefaultInitialTimeout) {}
 
-TcpConnection::~TcpConnection() {
-}
+TcpConnection::~TcpConnection() {}
 
 void TcpConnection::Close() {
   socket_.close();
   timer_.cancel();
-  transport_.RemoveConnection(socket_id_);
+  transport_->RemoveConnection(socket_id_);
 }
 
 void TcpConnection::SetSocketId(SocketId id) {
@@ -93,12 +92,12 @@ void TcpConnection::HandleTimeout(boost::system::error_code const& ec) {
 void TcpConnection::HandleSize(boost::system::error_code const& ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveTimeout);
+    transport_->signals()->on_receive_(socket_id_, kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveFailure);
+    transport_->signals()->on_receive_(socket_id_, kReceiveFailure);
     return Close();
   }
 
@@ -113,18 +112,18 @@ void TcpConnection::HandleSize(boost::system::error_code const& ec) {
 void TcpConnection::HandleRead(boost::system::error_code const& ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveTimeout);
+    transport_->signals()->on_receive_(socket_id_, kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveFailure);
+    transport_->signals()->on_receive_(socket_id_, kReceiveFailure);
     return Close();
   }
 
   TransportMessage msg;
   if (!msg.ParseFromArray(buffer_.Data(), buffer_.Size())) {
-    transport_.signals()->on_receive_(socket_id_, kReceiveParseFailure);
+    transport_->signals()->on_receive_(socket_id_, kReceiveParseFailure);
     return Close();
   }
 
@@ -143,7 +142,7 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
   if (field_descriptors.size() != 1U) {
     DLOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
     if (!is_request)
-      transport_.signals()->on_receive_(socket_id_, kReceiveParseFailure);
+      transport_->signals()->on_receive_(socket_id_, kReceiveParseFailure);
     return Close();
   }
 
@@ -151,16 +150,16 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
 
   switch (field_descriptors.at(0)->number()) {
     case TransportMessage::Data::kRawMessageFieldNumber:
-      transport_.signals()->on_message_received_(msg.data().raw_message(),
+      transport_->signals()->on_message_received_(msg.data().raw_message(),
                                                  socket_id_, rtt);
       break;
     case TransportMessage::Data::kRpcMessageFieldNumber:
       if (is_request) {
-        transport_.signals()->on_rpc_request_received_(
+        transport_->signals()->on_rpc_request_received_(
             msg.data().rpc_message(), socket_id_, rtt);
         // Leave socket open to send response on.
       } else {
-        transport_.signals()->on_rpc_response_received_(
+        transport_->signals()->on_rpc_response_received_(
             msg.data().rpc_message(), socket_id_, rtt);
         Close();
       }
@@ -200,8 +199,7 @@ void TcpConnection::Send(const TransportMessage &msg,
     socket_.async_connect(remote_endpoint_,
                           boost::bind(&TcpConnection::HandleConnect,
                                       shared_from_this(), _1));
-  }
-  else {
+  } else {
     assert(socket_.is_open());
     timeout_for_response_ = 0;
     boost::uint32_t timeout(
@@ -217,12 +215,12 @@ void TcpConnection::Send(const TransportMessage &msg,
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_send_(socket_id_, kSendTimeout);
+    transport_->signals()->on_send_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_send_(socket_id_, kSendFailure);
+    transport_->signals()->on_send_(socket_id_, kSendFailure);
     return Close();
   }
 
@@ -239,22 +237,21 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_.signals()->on_send_(socket_id_, kSendTimeout);
+    transport_->signals()->on_send_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_.signals()->on_send_(socket_id_, kSendFailure);
+    transport_->signals()->on_send_(socket_id_, kSendFailure);
     return Close();
   }
 
-  transport_.signals()->on_send_(socket_id_, kSuccess);
+  transport_->signals()->on_send_(socket_id_, kSuccess);
 
   // Start receiving response
   if (timeout_for_response_ != 0) {
     StartReceiving();
-  }
-  else {
+  } else {
     Close();
   }
 }

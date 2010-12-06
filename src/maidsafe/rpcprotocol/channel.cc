@@ -115,10 +115,6 @@ void Controller::set_connection(
   controller_pimpl_->set_connection(transport);
 }
 
-// boost::shared_ptr<transport::UdtConnection> Controller::udt_connection() const {
-//   return controller_pimpl_->udt_connection();
-// }
-
 Channel::Channel(boost::shared_ptr<ChannelManager> channel_manager)
     : pimpl_(new ChannelImpl(channel_manager)) {}
 

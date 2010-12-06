@@ -26,14 +26,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #ifndef MAIDSAFE_TRANSPORT_RAWBUFFER_H_
-# define MAIDSAFE_TRANSPORT_RAWBUFFER_H_
+#define MAIDSAFE_TRANSPORT_RAWBUFFER_H_
 
-# include <memory>
+#include <memory>
 
 namespace transport {
 
 class RawBuffer {
-public:
+ public:
   RawBuffer() : storage_(0),
                 max_size_(0),
                 size_(0) {}
@@ -49,7 +49,7 @@ public:
       max_size_ = bytes;
     }
     size_ = bytes;
-    return (char*)storage_;
+    return static_cast<char*>(storage_);
   }
 
   std::size_t Size() const {
@@ -57,10 +57,10 @@ public:
   }
 
   char* Data() {
-    return (char*)storage_;
+    return static_cast<char*>(storage_);
   }
 
-private:
+ private:
   RawBuffer(const RawBuffer&);
   RawBuffer& operator=(const RawBuffer&);
 

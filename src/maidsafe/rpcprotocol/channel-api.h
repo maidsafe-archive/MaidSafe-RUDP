@@ -46,13 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
-namespace transport {
-//class UdtConnection;
-// class UdtTransport;
-// class TcpTransport;
-class Transport;
-}  // namespace transport
-
+namespace transport { class Transport; }
 
 namespace rpcprotocol {
 
@@ -155,7 +149,7 @@ class Channel : public google::protobuf::RpcChannel {
   * through this object.
   * @param channelmanager Pointer to a ChannelManager object
   */
-  Channel(boost::shared_ptr<ChannelManager> channel_manager);
+  explicit Channel(boost::shared_ptr<ChannelManager> channel_manager);
   /**
   * Constructor. Used for the client that is going to send an RPC.
   * @param channelmanager Pointer to a ChannelManager object

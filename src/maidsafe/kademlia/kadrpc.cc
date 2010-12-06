@@ -232,7 +232,7 @@ void KadRpcs::Delete(const KadId &key, const SignedValue &value,
 //                                        port, "", 0, rendezvous_ip,
 //                                        rendezvous_port);
 //   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port, 
+    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
                                        rendezvous_ip, rendezvous_port);
   KademliaService::Stub service(channel);
   service.Delete(ctler, &args, resp, callback);

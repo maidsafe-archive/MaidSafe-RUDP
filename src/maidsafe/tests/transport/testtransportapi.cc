@@ -78,7 +78,7 @@ TransportMessage MakeTransportMessage(bool is_request,
 }
 
 // All transport objects constructed in same manner
-// No need for factory methods 
+// No need for factory methods
 template <class T>
 boost::shared_ptr<Transport> CreateTransport() {
   return  boost::shared_ptr<Transport>(new T);
@@ -97,24 +97,23 @@ class TransportAPITest: public testing::Test {
                        loopback_ip_("127.0.0.1"),
                        sockets_for_closing_() {}
     virtual ~TransportAPITest() {}
-    
+
   void SetUp() {
     listening_port_ = this->trans1_->StartListening("", 0, NULL);
-    //ASSERT_TRUE(ValidPort(listening_port_));
+    //  ASSERT_TRUE(ValidPort(listening_port_));
     ASSERT_GT(listening_port_, 0);
   }
   void TearDown() {
     std::for_each(sockets_for_closing_.begin(), sockets_for_closing_.end(),
                   boost::bind(&UDT::close, _1));
   }
-  //Transport listening_node_;
+  //  Transport listening_node_;
   boost::shared_ptr<Transport> trans1_;
   boost::shared_ptr<Transport> trans2_;
   MessageHandler listening_message_handler_;
   Port listening_port_;
   IP loopback_ip_;
   std::vector<SocketId> sockets_for_closing_;
-  
 };
 
 
@@ -170,7 +169,8 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 
   // Assess results
   ASSERT_EQ(1U, this->listening_message_handler_.sent_results().size());
-  signalled_sent_result = this->listening_message_handler_.sent_results().back();
+  signalled_sent_result =
+      this->listening_message_handler_.sent_results().back();
   EXPECT_EQ(receiving_socket_id, signalled_sent_result.get<0>());
   EXPECT_EQ(kSuccess, signalled_sent_result.get<1>());
   ASSERT_EQ(1U, sending_message_handler.rpc_responses().size());
@@ -192,7 +192,7 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_MultipleListeningPorts) {
   for (int i = 0; i < kNumberOfListeningPorts - 1 ; ++i) {
     Port listening_port = this->trans1_->StartListening("", 0, NULL);
     // We need to tell tranports what is valid not measure it
-    // only TODO:(dirvine)
+    // only TODO(dirvine#5#)
     // EXPECT_TRUE(ValidPort(listening_port));
     ASSERT_GT(this->listening_port_, 0);
     listening_ports.push_back(listening_port);
@@ -202,8 +202,8 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_MultipleListeningPorts) {
   // Send a message to each
   TransportMessage message = MakeTransportMessage(true, 256 * 1024);
   for (int i = 0; i < kNumberOfListeningPorts ; ++i) {
-    this->sockets_for_closing_.push_back(this->trans1_->PrepareToSend(this->loopback_ip_,
-                                   listening_ports.at(i), "", 0));
+    this->sockets_for_closing_.push_back(this->trans1_->PrepareToSend(
+        this->loopback_ip_, listening_ports.at(i), "", 0));
     listening_node->Send(message, this->sockets_for_closing_.at(i), 0);
   }
   const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
@@ -220,7 +220,7 @@ TYPED_TEST(TransportAPITest, BEH_TRANS_MultipleListeningPorts) {
   EXPECT_TRUE(listening_node->StopAllListening());
 }
 
- // This is where is all changes
+// This is where is all changes
 /*
 class UdtTransportVPTest: public testing::TestWithParam<size_t> {
  protected:

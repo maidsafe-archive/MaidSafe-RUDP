@@ -155,7 +155,7 @@ TEST_P(UdtTransportVPTest, FUNC_TRANS_UdtSendMessagesFromManyToOne) {
   boost::tuple<SocketId, TransportCondition> signalled_sent_result;
   size_t send_success_count(0);
   for (boost::uint16_t i = 0; i < kRepeats; ++i) {
-    // TODO (dirvine)
+    // TODO(dirvine#5#)
     // ASSERT_EQ(1U, send_message_handlers.at(i)->sent_results().size());
     signalled_sent_result = send_message_handlers.at(i)->sent_results().back();
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));

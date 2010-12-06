@@ -295,8 +295,8 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_RpcController) {
 //   creating a channel for the service
 //   Channel service_channel(this->server_channel_manager_);
 //   service_channel.SetService(&service);
-//   this->server_channel_manager_->RegisterChannel(service.GetDescriptor()->name(),
-//                                         &service_channel);
+//   this->server_channel_manager_->RegisterChannel(
+//       service.GetDescriptor()->name(), &service_channel);
 //   creating a channel for the client to send a request to the service
 //   Controller controller;
 //   controller.set_timeout(1000);
@@ -349,8 +349,8 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_RegisterAChannel) {
   // creating a channel for the service
   Channel service_channel(this->server_channel_manager_);
   service_channel.SetService(&service);
-  this->server_channel_manager_->RegisterChannel(service.GetDescriptor()->name(),
-                                        &service_channel);
+  this->server_channel_manager_->RegisterChannel(
+      service.GetDescriptor()->name(), &service_channel);
   // creating a channel for the client to send a request to the service
   Controller controller;
   controller.set_timeout(5000);
@@ -385,23 +385,23 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_MultipleChannelsRegistered) {
   // creating a channel for the service
   Channel service_channel1(this->server_channel_manager_);
   service_channel1.SetService(&service1);
-  this->server_channel_manager_->RegisterChannel(service1.GetDescriptor()->name(),
-                                        &service_channel1);
+  this->server_channel_manager_->RegisterChannel(
+      service1.GetDescriptor()->name(), &service_channel1);
 
   Channel service_channel2(this->server_channel_manager_);
   service_channel2.SetService(&service2);
-  this->server_channel_manager_->RegisterChannel(service2.GetDescriptor()->name(),
-                                        &service_channel2);
+  this->server_channel_manager_->RegisterChannel(
+      service2.GetDescriptor()->name(), &service_channel2);
 
   Channel service_channel3(this->server_channel_manager_);
   service_channel3.SetService(&service3);
-  this->server_channel_manager_->RegisterChannel(service3.GetDescriptor()->name(),
-                                        &service_channel3);
+  this->server_channel_manager_->RegisterChannel(
+      service3.GetDescriptor()->name(), &service_channel3);
 
   Channel service_channel4(this->server_channel_manager_);
   service_channel4.SetService(&service4);
-  this->server_channel_manager_->RegisterChannel(service4.GetDescriptor()->name(),
-                                        &service_channel4);
+  this->server_channel_manager_->RegisterChannel(
+      service4.GetDescriptor()->name(), &service_channel4);
 
   // creating a channel for the client to send a request to the service
   Controller controller;
@@ -513,8 +513,8 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_ServerAndClientCommunication) {
   PingTestService service1;
   Channel service_channel1(this->server_channel_manager_);
   service_channel1.SetService(&service1);
-  this->server_channel_manager_->RegisterChannel(service1.GetDescriptor()->name(),
-                                        &service_channel1);
+  this->server_channel_manager_->RegisterChannel(
+      service1.GetDescriptor()->name(), &service_channel1);
 
   boost::shared_ptr<transport::UdtTransport> some_udt_transport(
       new transport::UdtTransport);
@@ -582,8 +582,8 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_TriggerPendingRequest) {
   MirrorTestService mirrorservice;
   Channel service_channel(this->server_channel_manager_);
   service_channel.SetService(&mirrorservice);
-  this->server_channel_manager_->RegisterChannel(mirrorservice.GetDescriptor()->name(),
-                                        &service_channel);
+  this->server_channel_manager_->RegisterChannel(
+      mirrorservice.GetDescriptor()->name(), &service_channel);
   // Sending rpc to an existing server, but deleting it before response arrives
   Controller controller;
   controller.set_timeout(10000);
@@ -605,8 +605,8 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_TriggerPendingRequest) {
        &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
 
-  ASSERT_TRUE(
-      this->client_channel_manager_->TriggerPendingRequest(controller.socket_id()));
+  ASSERT_TRUE(this->client_channel_manager_->TriggerPendingRequest(
+              controller.socket_id()));
   boost::this_thread::sleep(boost::posix_time::seconds(11));
   ASSERT_EQ(std::string("-"), resultholder.mirror_result().mirrored_string());
   ASSERT_EQ(kCancelled, controller.ErrorText());
@@ -639,10 +639,10 @@ TYPED_TEST(RpcProtocolTest, BEH_RPC_DeletePendingRequest) {
                                     const Controller*>
       (&resultholder, &ResultHolder::HandleMirrorResponse, &resp1, &controller);
   stubservice1.Mirror(&controller, &req1, &resp1, done1);
-  ASSERT_TRUE(
-      this->client_channel_manager_->DeletePendingRequest(controller.socket_id()));
-  ASSERT_FALSE(
-      this->client_channel_manager_->DeletePendingRequest(controller.socket_id()));
+  ASSERT_TRUE(this->client_channel_manager_->DeletePendingRequest(
+              controller.socket_id()));
+  ASSERT_FALSE(this->client_channel_manager_->DeletePendingRequest(
+               controller.socket_id()));
   controller.Reset();
   ASSERT_EQ(std::string(""), controller.ErrorText());
 }

@@ -98,7 +98,7 @@ class ControllerImpl {
 
 class ChannelImpl {
  public:
-  ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager);
+  explicit ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager);
   ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
               const IP &ip, const Port &port,
               const IP &rendezvous_ip, const Port &rendezvous_port);
@@ -131,7 +131,6 @@ class ChannelImpl {
   Port port_, rendezvous_port_;
   boost::uint32_t id_;
   bool local_transport_;
-
 };
 
 }  // namespace rpcprotocol

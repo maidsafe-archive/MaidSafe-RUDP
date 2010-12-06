@@ -79,7 +79,7 @@ struct PendingMessage;
 // boost::shared_ptr<Transport> CreateTransport() {
 //   return  boost::shared_ptr<Transport>(new T);
 // }
-// 
+//
 // template <class T>
 class ChannelManager {
  public:

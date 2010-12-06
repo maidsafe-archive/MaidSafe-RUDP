@@ -45,7 +45,7 @@ TEST(boost, BEH_BOOST_formattest1) {
       << "Basic parsing without arguments Failed";
   ASSERT_NE(("  %%") , "  %")
       << "Basic parsing without arguments Failed";
-  // and this one !! TODO::(dirvine)
+  // and this one !! TODO(dirvine#5#)
   ASSERT_EQ(boost::str(boost::format("  %n  ")), "    ")
       << "Basic parsing without arguments Failed";
   ASSERT_EQ(boost::str(boost::format("%n  ")), "  ")

@@ -102,7 +102,7 @@ TEST_F(TestRoutingTable, FUNC_KAD_PartFilltable) {
                 routingtable.AddContact(contact) == 2);
   }
   // One more wafer thin mint, well will be after we iterate and fill all
-  // buckets TODO(dirvine)
+  // buckets TODO(dirvine#5#)
   kad::KadId contact_id(kad::KadId::kRandomId);
   kad::Contact contact(contact_id, ip, 7777, ip, 7777);
   ASSERT_TRUE(routingtable.AddContact(contact) == 0 ||

@@ -83,7 +83,7 @@ ChannelImpl::ChannelImpl(boost::shared_ptr<ChannelManager> channel_manager,
     ip_ = ip;
   }
 
- 
+
   if (rendezvous_ip.size() == 4) {
     rendezvous_ip_ = base::IpBytesToAscii(rendezvous_ip);
   } else {
@@ -171,7 +171,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
   }
 
   SocketId socket_id;
-  // TODO (dirvine)
+  // TODO(dirvine#5#)
 //   if (local_transport_)
 //     socket_id = transport_->socket_id();
 //   else
@@ -188,14 +188,14 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
     return;
   }
   rpc_message->set_rpc_id(socket_id);
-// TODO (dirvine)
+// TODO(dirvine#5#)
 //   if (local_transport_) {
 //     transport_->Send(transport_message,
 //                           pending_request.controller->timeout());
 //  // } else {
     transport_->Send(transport_message, socket_id,
                          pending_request.controller->timeout());
-  //}
+  // }
 
 //  DLOG(INFO) << "Sent RPC request(" << rpc_message->method() << ") - "
 //             << socket_id << " to " << remote_ip_ << ":" << remote_port_

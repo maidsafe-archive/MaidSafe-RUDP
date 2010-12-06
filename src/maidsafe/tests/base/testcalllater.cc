@@ -154,8 +154,8 @@ TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
     call_ids.push_back(clt_.AddCallLater(1000 + (20 * i),
         boost::bind(&Lynyrd::Skynyrd, &sweethome)));
   }
-   DLOG(INFO) << "Scheduled 1st run, before cancelling " << clt_.TimersMapSize()
-       << std::endl;
+  DLOG(INFO) << "Scheduled 1st run, before cancelling " << clt_.TimersMapSize()
+             << std::endl;
   for (int j = 0; j < 50; ++j)
     EXPECT_TRUE(clt_.CancelOne(call_ids[j]));
   {
