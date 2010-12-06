@@ -187,10 +187,10 @@ KNodeImpl::~KNodeImpl() {
 }
 
 inline void KNodeImpl::CallbackWithFailure(VoidFunctorOneString callback) {
-  base::GeneralResponse result_msg;
-  result_msg.set_result(kRpcResultFailure);
-  std::string result(result_msg.SerializeAsString());
-  callback(result);
+//   base::GeneralResponse result_msg;
+//   result_msg.set_result(kRpcResultFailure);
+//   std::string result(result_msg.SerializeAsString());
+  callback(false);
 }
 
 void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
@@ -198,7 +198,7 @@ void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
   if (bootstrapping_nodes_.empty()) {
     base::GeneralResponse local_result;
     if (type_ == VAULT) {
-      local_result.set_result(kRpcResultSuccess);
+      local_result.set_result(true);
       is_joined_ = true;
       host_nat_type_ = DIRECT_CONNECTED;
       premote_service_->set_node_joined(true);
@@ -215,7 +215,7 @@ void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
       }
     } else {
       // Client nodes can not start a network on their own
-      local_result.set_result(kRpcResultFailure);
+      local_result.set_result(false);
       UnRegisterKadService();
     }
     kadrpcs_->set_info(contact_info());
@@ -273,10 +273,10 @@ void KNodeImpl::Join(const KadId &node_id, const std::string &kad_config_file,
   if (is_joined_ || !node_id.IsValid()) {
     base::GeneralResponse local_result;
     if (is_joined_)
-      local_result.set_result(kRpcResultSuccess);
+      local_result.set_result(true);
     else
-      local_result.set_result(kRpcResultFailure);
-    local_result.set_result(kRpcResultSuccess);
+      local_result.set_result(false);
+    local_result.set_result(true);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
     return;
@@ -326,9 +326,9 @@ void KNodeImpl::JoinFirstNode(const KadId &node_id,
   std::string local_result_str;
   if (is_joined_ || !node_id.IsValid()) {
     if (is_joined_) {
-      local_result.set_result(kRpcResultSuccess);
+      local_result.set_result(true);
     } else {
-      local_result.set_result(kRpcResultFailure);
+      local_result.set_result(false);
     }
     local_result.SerializeToString(&local_result_str);
     callback(local_result_str);
@@ -340,7 +340,7 @@ void KNodeImpl::JoinFirstNode(const KadId &node_id,
   node_id_ = node_id;
   if (type_ == CLIENT || type_ == CLIENT_PORT_MAPPED) {
     // Client nodes can not start a network on their own
-    local_result.set_result(kRpcResultFailure);
+    local_result.set_result(false);
     local_result.SerializeToString(&local_result_str);
     callback(local_result_str);
     return;
@@ -353,13 +353,13 @@ void KNodeImpl::JoinFirstNode(const KadId &node_id,
       host_port_ = upnp_mapped_port_;
       // It is now directly connected
     } else {
-      local_result.set_result(kRpcResultFailure);
+      local_result.set_result(false);
       local_result.SerializeToString(&local_result_str);
       callback(local_result_str);
       return;
     }
   } else if (external_ip.empty() || external_port == 0) {
-    local_result.set_result(kRpcResultFailure);
+    local_result.set_result(false);
     local_result.SerializeToString(&local_result_str);
     callback(local_result_str);
     return;
@@ -391,7 +391,7 @@ void KNodeImpl::JoinFirstNode(const KadId &node_id,
     refresh_routine_started_ = true;
   }
   kadrpcs_->set_info(contact_info());
-  local_result.set_result(kRpcResultSuccess);
+  local_result.set_result(true);
   local_result.SerializeToString(&local_result_str);
   callback(local_result_str);
 }
@@ -1162,7 +1162,7 @@ void KNodeImpl::ReBootstrapping_Callback(const std::string &result) {
     return;
   }
   if (!local_result.ParseFromString(result) ||
-      local_result.result() == kRpcResultFailure) {
+      ! local_result.result()) {
     // TODO(David): who should we inform if after trying to bootstrap again
     // because the rendezvous server died, the bootstrap operation fails?
     DLOG(WARNING) << "(" << local_host_port_ << ") -- Failed to rejoin ..."
@@ -1841,10 +1841,10 @@ void KNodeImpl::SearchIteration_Callback(
     base::GeneralResponse result;
     if (data->active_contacts.empty()) {
       // no active contacts
-      result.set_result(kRpcResultFailure);
+      result.set_result(false);
       is_joined_ = false;
     } else {
-      result.set_result(kRpcResultSuccess);
+      result.set_result(true);
       if (!is_joined_) {
         is_joined_ = true;
         premote_service_->set_node_joined(true);

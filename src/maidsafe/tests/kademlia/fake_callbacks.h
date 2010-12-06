@@ -147,7 +147,7 @@ class GeneralKadCallback : public FakeCallback {
   }
   void CallbackFunc(const std::string &res) {
     if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(kad::kRpcResultFailure);
+      result_msg.set_result(false);
     }
     result_ = result_msg.result();
   };

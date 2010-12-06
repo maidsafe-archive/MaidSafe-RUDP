@@ -4,7 +4,7 @@ package base;
 // and used for a failure response for Store, FindNode, FindValue, Ping, operations
 // executed by the "client" NOT RPC's
 message GeneralResponse {
-  required bytes result = 1;
+  required bool result = 1;
 }
 
 // kademlia configuration details (mainly list of bootstrap nodes).

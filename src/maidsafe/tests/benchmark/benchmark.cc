@@ -55,10 +55,8 @@ class JoinCallback {
     base::GeneralResponse msg;
     if (!msg.ParseFromString(result))
       success_ = false;
-    else if (msg.result() == kad::kRpcResultSuccess)
-      success_ = true;
     else
-      success_ = false;
+      success_ = (msg.result());
     result_arrived_ = true;
   }
   bool result_arrived() const { return result_arrived_; }
