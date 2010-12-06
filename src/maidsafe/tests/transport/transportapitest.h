@@ -75,7 +75,7 @@ TYPED_TEST_CASE_P(TransportAPITest);
 
 // Function Testing Start 
 
-TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StartListening) {
+TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartListening) {
   std::vector<Port> listening_port_;
   Port port[] = {0, 100, 100, 200, 300, 300, 5000, 10000, 25555, 65343}; 
   boost::uint16_t lport;
@@ -110,7 +110,7 @@ TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StartListening) {
   }
 }
 
-TYPED_TEST_P(TransportAPITest, FUNC_TRANS_PrepareToSend) {
+TYPED_TEST_P(TransportAPITest, BEH_TRANS_PrepareToSend) {
   boost::shared_ptr<Transport> sender(this->CreateTransport());
   boost::shared_ptr<Transport> receiver(this->CreateTransport());
   ASSERT_LT(0, receiver->StartListening(kIP, 5500, NULL));
@@ -120,7 +120,7 @@ TYPED_TEST_P(TransportAPITest, FUNC_TRANS_PrepareToSend) {
   ASSERT_LT(0, sender->PrepareToSend(kIP, 5500, kIP, 5500));
 }
 
-TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopListening) {
+TYPED_TEST_P(TransportAPITest, BEH_TRANS_StopListening) {
   boost::shared_ptr<Transport> sender(this->CreateTransport());
   ASSERT_LT(0, sender->StartListening(kIP, 0, NULL));
   ASSERT_LT(0, sender->StartListening(kIP, 3000, NULL));
@@ -131,7 +131,7 @@ TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopListening) {
   ASSERT_EQ(size_t(0), sender->listening_ports().size());
 }
 
-TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopAllListening) {
+TYPED_TEST_P(TransportAPITest, BEH_TRANS_StopAllListening) {
   boost::shared_ptr<Transport> sender(this->CreateTransport());
   ASSERT_LT(0, sender->StartListening(kIP, 0, NULL));
   ASSERT_LT(0, sender->StartListening(kIP, 3000, NULL));
@@ -140,7 +140,7 @@ TYPED_TEST_P(TransportAPITest, FUNC_TRANS_StopAllListening) {
   ASSERT_EQ(size_t(0), sender->listening_ports().size());
 }
 
-TYPED_TEST_P(TransportAPITest, FUNC_TRANS_Send) {
+TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   boost::shared_ptr<Transport> sender(this->CreateTransport());
   boost::shared_ptr<Transport> receiver(this->CreateTransport());
   MessageHandler sender_msgh(sender->signals(), "Send", false);
@@ -241,11 +241,11 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_SendOneMessageFromOneToAnother) {
 
 
 REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
-                           FUNC_TRANS_StartListening,
-                           FUNC_TRANS_PrepareToSend,
-                           FUNC_TRANS_StopListening,
-                           FUNC_TRANS_StopAllListening,
-                           FUNC_TRANS_Send,
+                           BEH_TRANS_StartListening,
+                           BEH_TRANS_PrepareToSend,
+                           BEH_TRANS_StopListening,
+                           BEH_TRANS_StopAllListening,
+                           BEH_TRANS_Send,
                            BEH_TRANS_SendOneMessageFromOneToAnother);
 
 }  // namespace test
