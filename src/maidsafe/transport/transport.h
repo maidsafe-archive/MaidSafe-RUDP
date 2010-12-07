@@ -51,6 +51,14 @@ namespace  fs = boost::filesystem;
 
 namespace transport {
 
+enum NatType {
+  kDirectlyConnected = 0,
+  kFullCone,
+  kPortRestricted,
+  kNotConnected,
+  kUnableToDetect
+};
+
 class TransportMessage;
 
 class Transport {

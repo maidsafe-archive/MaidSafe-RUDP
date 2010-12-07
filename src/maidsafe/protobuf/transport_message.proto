@@ -40,10 +40,36 @@ message HolePunchingMessage {
   }
 }
 
+message NatDetection {
+  repeated bytes candidate_ips = 1;
+  required int32 candidate_port = 2;
+}
+
+message RendezvousNode {
+  required bytes rendezvous_node_ip = 1;
+  required int32 rendezvous_node_port = 2;
+}
+
+message ConnectionNode {
+  required bytes connection_node_ip = 1;
+  required int32 connection_node_port = 2;
+}
+
+message ConnectionResult {
+  required bool result = 1;
+}
+
+message NatInformation {
+  optional bytes ip = 1;
+  optional int32 port = 2;
+  required int32 nat_type = 3;
+}
+
 message TransportMessage {
   enum Type {
-    kRequest = 0;  // leave socket available to send the response on
-    kResponse = 1;  // socket is closed on receiving this type unless it's a managed connection
+    kKeepAlive = 0;  // leave socket available to send the response on
+    kClose = 1;  // socket is closed on receiving this type
+                 // unless it's a managed connection
   }
   message Data {
     extensions 100 to 18999;  // Allows extensions of the message types
@@ -53,6 +79,11 @@ message TransportMessage {
     optional Ping ping = 4;
     optional ProxyPing proxy_ping = 5;
     optional ManagedEndpointMessage managed_endpoint_message = 6;
+    optional NatDetection nat_detection = 7;
+    optional RendezvousNode rendezvous_node = 8;
+    optional NatInformation nat_information = 9;
+    optional ConnectionNode connection_node = 10;
+    optional ConnectionResult connection_result = 11;
   }
   required Type type = 1;
   required Data data = 2;

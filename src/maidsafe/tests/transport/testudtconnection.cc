@@ -48,7 +48,7 @@ testing::AssertionResult SingleSignalFired(
     bool connection_has_valid_pointer_to_transport_object) {
   if (!transport_message.IsInitialized())
     return testing::AssertionFailure() << "message uninitialised";
-  bool is_request(transport_message.type() == TransportMessage::kRequest);
+  bool is_request(transport_message.type() == TransportMessage::kKeepAlive);
   // message data should contain exactly one optional field
   const google::protobuf::Message::Reflection *reflection =
       transport_message.data().GetReflection();
@@ -293,7 +293,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataSize) {
   *(sending_udt_connection1.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   DataSize sending_data_size =
       sending_udt_connection1.transport_message_.ByteSize();
   EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataSize());
@@ -445,7 +445,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   *(sending_udt_connection1.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection1.transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   EXPECT_EQ(kSendFailure, sending_udt_connection1.SendDataContent());
 
   // Connect to listening socket, then try with invalid message
@@ -454,7 +454,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataContent) {
   sending_udt_connection1.transport_message_.clear_type();
   EXPECT_EQ(kInvalidData, sending_udt_connection1.SendDataContent());
   sending_udt_connection1.transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
 
   // Send and receive data content
   const DataSize kProperDataSize =
@@ -572,7 +572,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtMoveDataTimeout) {
   *(sending_udt_connection.transport_message_.mutable_data()->
       mutable_raw_message()) = "Test";
   sending_udt_connection.transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   DataSize sending_data_size =
       sending_udt_connection.transport_message_.ByteSize();
 
@@ -653,7 +653,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   }
 
   // Set > 1 optional field as data (request)
-  udt_connections.at(0).transport_message_.set_type(TransportMessage::kRequest);
+  udt_connections.at(0).transport_message_.set_type(
+      TransportMessage::kKeepAlive);
   TransportMessage::Data *message_data =
       udt_connections.at(0).transport_message_.mutable_data();
   *(message_data->mutable_raw_message()) = "Test";
@@ -667,7 +668,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(1).transport_message_ =
       udt_connections.at(0).transport_message_;
   udt_connections.at(1).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 1.1;
   EXPECT_FALSE(udt_connections.at(1).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(1).socket_id_));
@@ -682,7 +683,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   const std::string kSentRawMessage(base::RandomString(100));
   *(udt_connections.at(2).transport_message_.mutable_data()->
       mutable_raw_message()) = kSentRawMessage;
-  udt_connections.at(2).transport_message_.set_type(TransportMessage::kRequest);
+  udt_connections.at(2).transport_message_.set_type(
+      TransportMessage::kKeepAlive);
   rtt = 1.2;
   EXPECT_TRUE(udt_connections.at(2).HandleTransportMessage(rtt));
   EXPECT_TRUE(SocketAlive(udt_connections.at(2).socket_id_));
@@ -699,7 +701,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(3).transport_message_ =
       udt_connections.at(2).transport_message_;
   udt_connections.at(3).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 1.3;
   EXPECT_TRUE(udt_connections.at(3).HandleTransportMessage(rtt));
   EXPECT_TRUE(SocketAlive(udt_connections.at(3).socket_id_));
@@ -729,7 +731,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
                          kad_request.GetDescriptor()->extension(0));
   mutable_message->CopyFrom(kSentRpcDetail);
   sent_rpc_message->set_service(kSentRpcService);
-  udt_connections.at(4).transport_message_.set_type(TransportMessage::kRequest);
+  udt_connections.at(4).transport_message_.set_type(
+      TransportMessage::kKeepAlive);
   rtt = 1.4;
   EXPECT_TRUE(udt_connections.at(4).HandleTransportMessage(rtt));
   EXPECT_TRUE(SocketAlive(udt_connections.at(4).socket_id_));
@@ -747,7 +750,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(5).transport_message_ =
       udt_connections.at(4).transport_message_;
   udt_connections.at(5).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 1.5;
   EXPECT_TRUE(udt_connections.at(5).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(5).socket_id_));
@@ -767,7 +770,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   sent_hole_punch_message->set_ip(base::RandomString(100));
   sent_hole_punch_message->set_port(base::RandomInt32());
   sent_hole_punch_message->set_type(HolePunchingMessage::FORWARD_REQ);
-  udt_connections.at(6).transport_message_.set_type(TransportMessage::kRequest);
+  udt_connections.at(6).transport_message_.set_type(
+      TransportMessage::kKeepAlive);
   rtt = 1.6;
   EXPECT_TRUE(udt_connections.at(6).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(6).socket_id_));
@@ -787,7 +791,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(7).transport_message_ =
       udt_connections.at(6).transport_message_;
   udt_connections.at(7).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 1.7;
   EXPECT_TRUE(udt_connections.at(7).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(7).socket_id_));
@@ -810,7 +814,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   Address *address = sent_ping_message->mutable_from_address();
   address->set_ip(base::RandomString(100));
   address->set_port(base::RandomInt32());
-  udt_connections.at(8).transport_message_.set_type(TransportMessage::kRequest);
+  udt_connections.at(8).transport_message_.set_type(
+      TransportMessage::kKeepAlive);
   rtt = 1.8;
   EXPECT_TRUE(udt_connections.at(8).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(8).socket_id_));
@@ -822,7 +827,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(9).transport_message_ =
       udt_connections.at(8).transport_message_;
   udt_connections.at(9).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 1.9;
   EXPECT_TRUE(udt_connections.at(9).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(9).socket_id_));
@@ -839,7 +844,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   address->set_ip(base::RandomString(100));
   address->set_port(base::RandomInt32());
   udt_connections.at(10).transport_message_.set_type(
-      TransportMessage::kRequest);
+      TransportMessage::kKeepAlive);
   rtt = 2.0;
   EXPECT_TRUE(udt_connections.at(10).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(10).socket_id_));
@@ -851,7 +856,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(11).transport_message_ =
       udt_connections.at(10).transport_message_;
   udt_connections.at(11).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 2.1;
   EXPECT_TRUE(udt_connections.at(11).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(11).socket_id_));
@@ -874,7 +879,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   sent_managed_endpoint_message->set_retry_count(base::RandomInt32());
   sent_managed_endpoint_message->set_retry_frequency(base::RandomInt32());
   udt_connections.at(12).transport_message_.set_type(
-      TransportMessage::kRequest);
+      TransportMessage::kKeepAlive);
   rtt = 2.2;
   EXPECT_TRUE(udt_connections.at(12).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(12).socket_id_));
@@ -885,7 +890,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   udt_connections.at(13).transport_message_ =
       udt_connections.at(12).transport_message_;
   udt_connections.at(13).transport_message_.set_type(
-      TransportMessage::kResponse);
+      TransportMessage::kClose);
   rtt = 2.3;
   EXPECT_TRUE(udt_connections.at(13).HandleTransportMessage(rtt));
   EXPECT_FALSE(SocketAlive(udt_connections.at(13).socket_id_));
@@ -954,7 +959,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   std::string *sent_raw_message =
       sent_message.mutable_data()->mutable_raw_message();
   *sent_raw_message = base::RandomString(100);
-  sent_message.set_type(TransportMessage::kResponse);
+  sent_message.set_type(TransportMessage::kClose);
   SocketId receiving_socket_id;
 
   // Send response (no response expected)
@@ -982,7 +987,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   // Send request (response expected) and don't send response
   ++test_count;  // 1
   *sent_raw_message = base::RandomString(100);
-  sent_message.set_type(TransportMessage::kRequest);
+  sent_message.set_type(TransportMessage::kKeepAlive);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
   send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
@@ -1028,7 +1033,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   std::string *reply_raw_message =
       reply_message.mutable_data()->mutable_raw_message();
   *reply_raw_message = base::RandomString(100);
-  reply_message.set_type(TransportMessage::kResponse);
+  reply_message.set_type(TransportMessage::kClose);
   reply_connection.Send(reply_message, 0);
   count = 0;
   while (count < kTimeout &&
@@ -1058,7 +1063,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnBigMessage) {
   catch(const std::exception &e) {
     FAIL() << e.what() << std::endl;
   }
-  sent_message.set_type(TransportMessage::kResponse);
+  sent_message.set_type(TransportMessage::kClose);
   UdtConnection udt_connection(loopback_ip_, listening_port_, "", 0);
   SocketId sending_socket_id = udt_connection.socket_id();
   ASSERT_GT(sending_socket_id, 0);

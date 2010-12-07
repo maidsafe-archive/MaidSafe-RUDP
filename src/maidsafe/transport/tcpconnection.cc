@@ -48,12 +48,14 @@ namespace pt = boost::posix_time;
 namespace transport {
 
 TcpConnection::TcpConnection(TcpTransport *tcp_transport,
-                             const ip::tcp::endpoint &remote_ep)
-    : transport_(tcp_transport),
-      socket_(transport_->IOService()),
-      timer_(transport_->IOService()),
-      remote_endpoint_(remote_ep),
-      timeout_for_response_(kDefaultInitialTimeout) {}
+                             ip::tcp::endpoint const& remote_ep)
+  : transport_(tcp_transport),
+    socket_id_(0),
+    socket_(transport_->IOService()),
+    timer_(transport_->IOService()),
+    remote_endpoint_(remote_ep),
+    buffer_(),
+    timeout_for_response_(kDefaultInitialTimeout) {}
 
 TcpConnection::~TcpConnection() {}
 
@@ -136,7 +138,7 @@ void TcpConnection::HandleRead(boost::system::error_code const& ec) {
 }
 
 void TcpConnection::DispatchMessage(const TransportMessage &msg) {
-  bool is_request(msg.type() == TransportMessage::kRequest);
+  bool is_request(msg.type() == TransportMessage::kKeepAlive);
   // message data should contain exactly one optional field
   const google::protobuf::Message::Reflection *reflection =
       msg.data().GetReflection();
@@ -193,7 +195,7 @@ void TcpConnection::Send(const TransportMessage &msg,
   *reinterpret_cast<DataSize*>(buffer_.Data()) = msg_size;
   msg.SerializeToArray(buffer_.Data() + sizeof(DataSize), msg_size);
 
-  bool is_request = msg.type() == TransportMessage::kRequest;
+  bool is_request = msg.type() == TransportMessage::kKeepAlive;
 
   if (is_request) {
     assert(!socket_.is_open());

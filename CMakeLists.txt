@@ -64,7 +64,7 @@ ENDIF()
 IF(CMAKE_BUILD_TYPE_DIR MATCHES "kdev")
   SET(CMAKE_BUILD_TYPE_DIR Debug)
   SET(KDEV 1)
-ENDIF()  
+ENDIF()
 
 
 SET(ERROR_MESSAGE "${ERROR_MESSAGE}To see a full list of generators, run:\n\t${ERROR_MESSAGE_CMAKE_PATH} --help\n")
@@ -261,6 +261,14 @@ INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Protobuf_INCLUDE_DIR})
 SET(LIBS_DIRS ${LIBS_DIRS} ${Protobuf_LIBRARY_DIR})
 SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Protobuf_LIBRARY_DIR_DEBUG})
+
+###################################################################################################
+# Google Mock library search                                                                      #
+###################################################################################################
+INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGmock.cmake)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gmock_INCLUDE_DIR})
+SET(LIBS_DIRS ${LIBS_DIRS} ${Gmock_LIBRARY_DIR})
+SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Gmock_LIBRARY_DIR_DEBUG})
 
 ###################################################################################################
 # Python library search                                                                           #
@@ -557,19 +565,19 @@ ENDIF()
 
 TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         udt_static
-						cryptopp_static
-						${Protobuf_LIBRARY}
-						${Glog_LIBRARY}
-						${Boost_DATE_TIME_LIBRARIES}
-						${Boost_FILESYSTEM_LIBRARIES}
-						${Boost_THREAD_LIBRARIES}
-						${Boost_SYSTEM_LIBRARIES}
-						${Boost_REGEX_LIBRARIES}
-						${SYS_LIB})
+                        cryptopp_static
+                        ${Protobuf_LIBRARY}
+                        ${Glog_LIBRARY}
+                        ${Boost_DATE_TIME_LIBRARIES}
+                        ${Boost_FILESYSTEM_LIBRARIES}
+                        ${Boost_THREAD_LIBRARIES}
+                        ${Boost_SYSTEM_LIBRARIES}
+                        ${Boost_REGEX_LIBRARIES}
+                        ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static ${Gtest_LIBRARY})
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static ${Gtest_LIBRARY})
 TARGET_LINK_LIBRARIES(TESTrpcprotocol maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static ${Gtest_LIBRARY})
+TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static ${Gtest_LIBRARY} ${Gmock_LIBRARY})
 TARGET_LINK_LIBRARIES(TESTknode maidsafe_dht_static ${Gtest_LIBRARY})
 TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static ${Gtest_LIBRARY})
 TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static ${Gtest_LIBRARY})

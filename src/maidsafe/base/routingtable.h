@@ -104,6 +104,7 @@ struct t_ip_port {};
 struct t_key {};
 struct t_rtt {};
 struct t_rank {};
+struct t_rv_port {};
 
 typedef boost::multi_index_container<
   PublicRoutingTableTuple,
@@ -130,6 +131,11 @@ typedef boost::multi_index_container<
       boost::multi_index::tag<t_rank>,
       BOOST_MULTI_INDEX_MEMBER(PublicRoutingTableTuple, boost::uint16_t, rank),
       std::greater<boost::uint16_t>
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<t_rv_port>,
+      BOOST_MULTI_INDEX_MEMBER(PublicRoutingTableTuple, boost::uint16_t,
+                               rendezvous_port)
     >
   >
 > routingtable;
@@ -172,6 +178,8 @@ class PublicRoutingTableHandler {
                          const std::string &host_ip,
                          const kad::ConnectionType &new_contact_type);
   int UpdateLocalToUnknown(const std::string &ip, const boost::uint16_t &port);
+  int GetShuflledDirectlyConnectedNodes(std::multimap<std::string,
+                                                      boost::uint16_t> *nodes);
  private:
   PublicRoutingTableHandler(const PublicRoutingTableHandler&);
   PublicRoutingTableHandler &operator=(const PublicRoutingTableHandler&);

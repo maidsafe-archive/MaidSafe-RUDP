@@ -132,7 +132,7 @@ void ChannelImpl::CallMethod(const google::protobuf::MethodDescriptor *method,
 
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
-  transport_message.set_type(transport::TransportMessage::kRequest);
+  transport_message.set_type(transport::TransportMessage::kKeepAlive);
   rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_method(method->name());
@@ -265,7 +265,7 @@ void ChannelImpl::SendResponse(const google::protobuf::Message *response,
 
   // Wrap request in TransportMessage
   transport::TransportMessage transport_message;
-  transport_message.set_type(transport::TransportMessage::kResponse);
+  transport_message.set_type(transport::TransportMessage::kClose);
   rpcprotocol::RpcMessage *rpc_message =
       transport_message.mutable_data()->mutable_rpc_message();
   rpc_message->set_rpc_id(controller->socket_id());

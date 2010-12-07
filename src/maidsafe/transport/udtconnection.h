@@ -148,6 +148,7 @@ class UdtConnection {
                               const DataSize &data_size,
                               char *data);
   bool HandleTransportMessage(const float &rtt);
+
   UdtTransport *transport_;
   boost::shared_ptr<Signals> signals_;
   boost::shared_ptr<base::Threadpool> threadpool_;

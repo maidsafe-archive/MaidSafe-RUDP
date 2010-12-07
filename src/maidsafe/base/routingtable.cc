@@ -298,6 +298,28 @@ int PublicRoutingTableHandler::UpdateLocalToUnknown(
   return 0;
 }
 
+int PublicRoutingTableHandler::GetShuflledDirectlyConnectedNodes(
+    std::multimap<std::string, boost::uint16_t> *nodes) {
+  if (!nodes)
+    return -1;
+
+  boost::mutex::scoped_lock loch_doon(mutex_);
+  typedef routingtable::index<t_rv_port>::type RtByRvPort;
+  RtByRvPort &rv_index = routingtable_.get<t_rv_port>();
+  std::pair<RtByRvPort::iterator, RtByRvPort::iterator> res =
+      rv_index.equal_range(0);
+  if (res.first == res.second)
+    return -2;
+
+  std::vector<PublicRoutingTableTuple> all_contacts(res.first, res.second);
+  std::random_shuffle(all_contacts.begin(), all_contacts.end());
+  for (size_t n = 0; n < all_contacts.size(); ++n)
+    nodes->insert(std::pair<std::string, boost::uint16_t>(
+                  all_contacts.at(n).host_ip, all_contacts.at(n).host_port));
+  return 0;
+}
+
+
 PublicRoutingTable* PublicRoutingTable::single = 0;
 boost::mutex pdrt_mutex;
 
@@ -324,4 +346,5 @@ boost::shared_ptr<PublicRoutingTableHandler> PublicRoutingTable::operator[] (
   }
   return it->second;
 }
+
 }  // namespace base

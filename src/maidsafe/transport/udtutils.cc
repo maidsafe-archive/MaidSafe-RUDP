@@ -110,8 +110,8 @@ TransportCondition Connect(const SocketId &udt_socket_id,
                            boost::shared_ptr<addrinfo const> peer) {
   if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
                                  peer->ai_addrlen)) {
-    DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage() <<
-        std::endl;
+    DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage()
+                << std::endl;
     UDT::close(udt_socket_id);
     return kConnectError;
   }

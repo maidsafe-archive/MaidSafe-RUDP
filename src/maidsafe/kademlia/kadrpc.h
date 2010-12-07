@@ -55,22 +55,22 @@ class KadId;
 
 class KadRpcs {
  public:
-  explicit KadRpcs(
-      boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager);
+  explicit KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> ch_manager);
   KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
           boost::shared_ptr<transport::Transport> transport);
-  void FindNode(const KadId &key, const IP &ip, const Port &port,
-                const IP &rendezvous_ip, const Port &rendezvous_port,
-                FindResponse *resp, rpcprotocol::Controller *ctler,
-                google::protobuf::Closure *callback);
+  virtual ~KadRpcs() {}
+  virtual void FindNode(const KadId &key, const IP &ip, const Port &port,
+                        const IP &rendezvous_ip, const Port &rendezvous_port,
+                        FindResponse *resp, rpcprotocol::Controller *ctler,
+                        google::protobuf::Closure *callback);
   void FindValue(const KadId &key, const IP &ip, const Port &port,
                  const IP &rendezvous_ip, const Port &rendezvous_port,
                  FindResponse *resp, rpcprotocol::Controller *ctler,
                  google::protobuf::Closure *callback);
-  void Ping(const IP &ip, const Port &port, const IP &rendezvous_ip,
-            const Port &rendezvous_port, PingResponse *resp,
-            rpcprotocol::Controller *ctler,
-            google::protobuf::Closure *callback);
+  virtual void Ping(const IP &ip, const Port &port, const IP &rendezvous_ip,
+                    const Port &rendezvous_port, PingResponse *resp,
+                    rpcprotocol::Controller *ctler,
+                    google::protobuf::Closure *callback);
   void Store(const KadId &key, const SignedValue &value,
              const SignedRequest &sig_req, const IP &ip, const Port &port,
              const IP &rendezvous_ip, const Port &rendezvous_port,

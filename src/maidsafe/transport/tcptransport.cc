@@ -41,8 +41,12 @@ namespace transport {
 
 TcpTransport::TcpTransport()
     : Transport(),
+      io_service_(),
       keep_alive_(new asio::io_service::work(io_service_)),
-      current_socket_id_(1) {
+      worker_thread_(),
+      acceptors_(),
+      current_socket_id_(1),
+      connections_() {
   worker_thread_ = boost::thread(&TcpTransport::Run, this);
 }
 

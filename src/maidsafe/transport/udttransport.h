@@ -66,9 +66,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/base/threadpool.h>
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/transport/udtconnection.h>
+
 #include <map>
 #include <string>
 #include <vector>
+
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
@@ -78,8 +80,34 @@ namespace  fs = boost::filesystem;
 
 namespace transport {
 
+struct NatDetectionNode {
+  NatDetectionNode() : rendezvous_ip(), rendezvous_port() {}
+  NatDetectionNode(const IP &ip, const Port &port)
+      : rendezvous_ip(ip),
+        rendezvous_port(port) {}
+  IP rendezvous_ip;
+  Port rendezvous_port;
+};
+
+struct NatDetails {
+  NatDetails()
+      : nat_type(kNotConnected),
+        external_ip(),
+        external_port(),
+        rendezvous_ip(),
+        rendezvous_port(),
+        candidate_ips() {}
+  NatType nat_type;
+  IP external_ip;
+  Port external_port;
+  IP rendezvous_ip;
+  Port rendezvous_port;
+
+  // These following IP addresses refer to the ones read from the interfaces
+  std::vector<IP> candidate_ips;
+};
+
 class HolePunchingMessage;
-// struct IncomingMessages;
 
 namespace test {
 class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
@@ -95,6 +123,7 @@ const int kManagedSocketBufferSize(200);  // bytes
 class UdtTransport : public Transport {
  public:
   UdtTransport();
+  explicit UdtTransport(std::vector<NatDetectionNode> nat_detection_nodes);
   ~UdtTransport();
   static void CleanUp();
   Port StartListening(const IP &ip,
@@ -159,7 +188,7 @@ class UdtTransport : public Transport {
       test::UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
  private:
   typedef std::map< SocketId, boost::shared_ptr<addrinfo const> >
-      UnusedSockets;
+          UnusedSockets;
   UdtTransport& operator=(const UdtTransport&);
   UdtTransport(const UdtTransport&);
   Port DoStartListening(const IP &ip,
@@ -171,9 +200,9 @@ class UdtTransport : public Transport {
       boost::shared_ptr<addrinfo const> peer);
   TransportCondition SetManagedSocketOptions(const SocketId &udt_socket_id);
   SocketId GetNewManagedEndpointSocket(const IP &remote_ip,
-                                          const Port &remote_port,
-                                          const IP &rendezvous_ip,
-                                          const Port &rendezvous_port);
+                                       const Port &remote_port,
+                                       const IP &rendezvous_ip,
+                                       const Port &rendezvous_port);
   void AcceptConnection(const Port &port, const SocketId &udt_socket_id);
   void CheckManagedSockets();
   void HandleManagedSocketRequest(const SocketId &udt_socket_id,
@@ -183,6 +212,16 @@ class UdtTransport : public Transport {
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
   bool PendingManagedSocketReplied(const SocketId &udt_socket_id);
+  void DoNatDetection();
+  TransportCondition TryRendezvous(const IP &ip, const Port &port,
+                                   SocketId *rendezvous_socket_id);
+  void PerformNatDetection(const SocketId &socket_id,
+                           const NatDetection &nat_detection_message);
+  void ReportRendezvousResult(const SocketId &udt_socket_id,
+                              const IP &connection_node_ip,
+                              const Port &connection_node_port);
+
+  // Member variables
   std::map<Port, SocketId> listening_map_;
   UnusedSockets unused_sockets_;
   std::vector<SocketId> managed_endpoint_sockets_;
@@ -195,6 +234,9 @@ class UdtTransport : public Transport {
   boost::shared_ptr<base::Threadpool> listening_threadpool_;
   boost::shared_ptr<base::Threadpool> general_threadpool_;
   boost::shared_ptr<boost::thread> check_connections_;
+  std::vector<NatDetectionNode> nat_detection_nodes_;
+  boost::thread nat_detection_thread_;
+  static NatDetails nat_details_;
 };
 
 }  // namespace transport

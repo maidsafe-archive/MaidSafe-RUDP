@@ -40,6 +40,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+NatDetails UdtTransport::nat_details_;
+
 UdtTransport::UdtTransport()
     : Transport(),
       listening_map_(),
@@ -54,7 +56,29 @@ UdtTransport::UdtTransport()
       managed_endpoint_listening_port_(0),
       listening_threadpool_(new base::Threadpool(kDefaultThreadpoolSize)),
       general_threadpool_(new base::Threadpool(kDefaultThreadpoolSize)),
-      check_connections_() {
+      check_connections_(),
+      nat_detection_nodes_(),
+      nat_detection_thread_() {
+  UDT::startup();
+}
+
+UdtTransport::UdtTransport(std::vector<NatDetectionNode> nat_detection_nodes)
+    : Transport(),
+      listening_map_(),
+      unused_sockets_(),
+      managed_endpoint_sockets_(),
+      pending_managed_endpoint_sockets_(),
+      stop_managed_connections_(false),
+      managed_connections_stopped_(true),
+      managed_endpoint_sockets_mutex_(),
+      managed_endpoints_cond_var_(),
+      managed_endpoint_listening_addrinfo_(),
+      managed_endpoint_listening_port_(0),
+      listening_threadpool_(new base::Threadpool(0)),
+      general_threadpool_(new base::Threadpool(kDefaultThreadpoolSize)),
+      check_connections_(),
+      nat_detection_nodes_(nat_detection_nodes),
+      nat_detection_thread_() {
   UDT::startup();
 }
 
@@ -67,10 +91,290 @@ void UdtTransport::CleanUp() {
   UDT::cleanup();
 }
 
-Port UdtTransport::StartListening(const IP &ip,
-                                  const Port &try_port,
-                                  TransportCondition *transport_condition) {
-  return DoStartListening(ip, try_port, false, transport_condition);
+void UdtTransport::ReportRendezvousResult(const SocketId &udt_socket_id,
+                                          const IP &connection_node_ip,
+                                          const Port &connection_node_port) {
+  SocketId rendezvous_socket_id;
+  TransportCondition tc = TryRendezvous(connection_node_ip,
+                                        connection_node_port,
+                                        &rendezvous_socket_id);
+
+  DLOG(INFO) << "Result of rendezvous connect = " << tc << std::endl;
+  if (udt_socket_id == UDT::INVALID_SOCK) {
+    UdtConnection conn(this, rendezvous_socket_id);
+    NatInformation *ni =
+        conn.transport_message_.mutable_data()->mutable_nat_information();
+    ni->set_ip(connection_node_ip);
+    ni->set_port(connection_node_port);
+    ni->set_nat_type(kPortRestricted);
+    conn.Send(conn.transport_message_, 0);
+  } else {
+    UdtConnection udt_connection(this, udt_socket_id);
+    udt_connection.transport_message_.set_type(TransportMessage::kClose);
+    ConnectionResult *cr =
+        udt_connection.transport_message_.mutable_data()->
+            mutable_connection_result();
+    cr->set_result(tc == kSuccess);
+    udt_connection.Send(udt_connection.transport_message_, 0);
+  }
+}
+
+void UdtTransport::PerformNatDetection(
+    const SocketId &socket_id,
+    const NatDetection &nat_detection_message) {
+  // TODO(Team#5#) - Decide on maximum number of simultaneous NAT detections.
+  struct sockaddr_in peer_sockaddr;
+  int peer_sockaddr_size;
+  if (UDT::ERROR ==
+      UDT::getpeername(socket_id,
+                       reinterpret_cast<sockaddr*>(&peer_sockaddr),
+                       &peer_sockaddr_size)) {
+    DLOG(ERROR) << "HandleManagedSocketRequest getpeername error: "
+                << UDT::getlasterror().getErrorMessage() << std::endl;
+    UDT::close(socket_id);
+    return;
+  }
+  IP remote_ip(inet_ntoa(peer_sockaddr.sin_addr));
+  Port remote_port(ntohs(peer_sockaddr.sin_port));
+
+  TransportMessage tm;
+  tm.set_type(TransportMessage::kClose);
+  if (remote_port == nat_detection_message.candidate_port()) {
+    for (int n = 0; n < nat_detection_message.candidate_ips_size(); ++n) {
+      if (nat_detection_message.candidate_ips(n) == remote_ip) {
+        // Send directly connected message
+        NatInformation *ni =  tm.mutable_data()->mutable_nat_information();
+        ni->set_ip(remote_ip);
+        ni->set_port(remote_port);
+        ni->set_nat_type(kDirectlyConnected);
+        UdtConnection conn(this, socket_id);
+        conn.Send(tm, 0);
+        return;
+      }
+    }
+  }
+
+  std::multimap<std::string, boost::uint16_t> nodes;
+  (*base::PublicRoutingTable::GetInstance())
+      [boost::lexical_cast<std::string>(listening_ports_[0])]->
+          GetShuflledDirectlyConnectedNodes(&nodes);
+  ConnectionNode *cn = tm.mutable_data()->mutable_connection_node();
+  cn->set_connection_node_ip(remote_ip);
+  cn->set_connection_node_port(remote_port);
+  tm.set_type(TransportMessage::kKeepAlive);
+  std::multimap<std::string, boost::uint16_t>::iterator it = nodes.begin();
+  for (; it != nodes.end(); ++it) {
+    // Send request to random directly connected node
+    UdtConnection udt_conn(this, (*it).first, (*it).second, "", 0);
+    if (udt_conn.socket_id() == UDT::INVALID_SOCK)
+      continue;
+    udt_conn.Send(tm, 0);
+
+    // Get the incoming message size
+    boost::uint32_t timeout(456);
+    udt_conn.ReceiveData(timeout);
+
+    const google::protobuf::Message::Reflection *reflection =
+        udt_conn.transport_message_.data().GetReflection();
+    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+    reflection->ListFields(udt_conn.transport_message_.data(),
+                           &field_descriptors);
+    if (field_descriptors.size() != 1U) {
+      UDT::close(udt_conn.socket_id());
+      continue;
+    }
+
+    UDT::close(udt_conn.socket_id());
+    if (field_descriptors.at(0)->number() !=
+        TransportMessage::Data::kConnectionResultFieldNumber) {
+      UDT::close(udt_conn.socket_id());
+      continue;
+    }
+
+    ConnectionResult connection_result =
+          udt_conn.transport_message_.data().connection_result();
+    UdtConnection conn_to_a(this, socket_id);
+    conn_to_a.transport_message_.set_type(TransportMessage::kClose);
+    if (connection_result.result()) {
+      // We're done with Nat Detection. Node's full cone.
+      NatInformation *ni =
+          conn_to_a.transport_message_.mutable_data()->
+              mutable_nat_information();
+      ni->set_ip(remote_ip);
+      ni->set_port(remote_port);
+      ni->set_nat_type(kFullCone);
+      conn_to_a.Send(conn_to_a.transport_message_, 0);
+      return;
+    } else {
+      // WARNING! This might be very dodgy coding! It just might.
+      bool connected_to_d(false);
+      while (++it != nodes.end()) {
+        // Connect to D
+        UdtConnection toD(this, (*it).first, (*it).second, "", 0);
+        if (toD.socket_id_ == UDT::INVALID_SOCK)
+          continue;
+        toD.transport_message_.set_type(TransportMessage::kClose);
+        connected_to_d = true;
+
+        // Send the rendezvous message to A and contact D to connect to A
+        RendezvousNode *rn =
+            conn_to_a.transport_message_.mutable_data()->
+                mutable_rendezvous_node();
+        rn->set_rendezvous_node_ip((*it).first);
+        rn->set_rendezvous_node_port((*it).second);
+        conn_to_a.Send(conn_to_a.transport_message_, 0);
+
+        ConnectionNode *cn =
+            toD.transport_message_.mutable_data()->mutable_connection_node();
+        cn->set_connection_node_ip(remote_ip);
+        cn->set_connection_node_port(remote_port);
+        toD.Send(toD.transport_message_, 0);
+        return;
+      }
+
+      if (!connected_to_d) {
+        NatInformation *ni =
+            conn_to_a.transport_message_.mutable_data()->
+                mutable_nat_information();
+        ni->set_ip(remote_ip);
+        ni->set_port(remote_port);
+        ni->set_nat_type(kUnableToDetect);
+        conn_to_a.Send(conn_to_a.transport_message_, 0);
+        return;
+      }
+    }
+  }
+}
+
+void UdtTransport::DoNatDetection() {
+  boost::shared_ptr<addrinfo const> address_info;
+  for (size_t b = 0; b < nat_detection_nodes_.size(); ++b) {
+    UdtConnection udt_conn(this, nat_detection_nodes_.at(b).rendezvous_ip,
+                           nat_detection_nodes_.at(b).rendezvous_port, "", 0);
+
+    // Create message
+    TransportMessage transport_message;
+    transport_message.set_type(TransportMessage::kKeepAlive);
+    NatDetection *nd =
+        transport_message.mutable_data()->mutable_nat_detection();
+    nd->set_candidate_port(listening_ports().at(0));
+    std::vector<IP> addresses(base::GetLocalAddresses());
+    for (size_t n = 0; n < addresses.size(); ++n)
+      nd->add_candidate_ips(addresses.at(n));
+
+    // Send message
+    udt_conn.transport_message_ = transport_message;
+    TransportCondition tc = udt_conn.SendDataSize();
+    if (tc != kSuccess) {
+      UDT::close(udt_conn.socket_id());
+      continue;
+    }
+
+    tc = udt_conn.SendDataContent();
+    if (tc != kSuccess) {
+      UDT::close(udt_conn.socket_id());
+      continue;
+    }
+
+    // Get the incoming message size
+    boost::uint32_t timeout(456);
+    udt_conn.ReceiveData(timeout);
+
+    // Analyse message
+    const google::protobuf::Message::Reflection *reflection =
+        udt_conn.transport_message_.data().GetReflection();
+    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+    reflection->ListFields(udt_conn.transport_message_.data(),
+                           &field_descriptors);
+    if (field_descriptors.size() != 1U) {
+      UDT::close(udt_conn.socket_id());
+      continue;
+    }
+
+    UDT::close(udt_conn.socket_id());
+    if (field_descriptors.at(0)->number() ==
+        TransportMessage::Data::kNatInformationFieldNumber) {
+      // We're done with Nat Detection. We're directly connected or full cone
+      b = nat_detection_nodes_.size();
+      NatInformation nat_info =
+          udt_conn.transport_message_.data().nat_information();
+      if (!nat_info.IsInitialized())
+        continue;
+      if (nat_info.nat_type() != kFullCone ||
+          nat_info.nat_type() != kDirectlyConnected) {
+        DLOG(ERROR) << "something's very very wrong. Not awesome." << std::endl;
+        continue;
+      } else {
+        nat_details_.nat_type = static_cast<NatType>(nat_info.nat_type());
+        nat_details_.external_ip = nat_info.ip();
+        nat_details_.external_port = nat_info.port();
+      }
+    } else if (TransportMessage::Data::kRendezvousNodeFieldNumber) {
+      RendezvousNode rv_node =
+          udt_conn.transport_message_.data().rendezvous_node();
+      if (!rv_node.IsInitialized())
+        continue;
+      SocketId rendezvous_socket_id(UDT::INVALID_SOCK);
+      if (TryRendezvous(rv_node.rendezvous_node_ip(),
+                        rv_node.rendezvous_node_port(),
+                        &rendezvous_socket_id) !=
+          kSuccess) {
+        continue;
+      }
+      UdtConnection rv_connection(this, rendezvous_socket_id);
+      boost::uint32_t rendezvous_timeout(456);
+      rv_connection.ReceiveData(rendezvous_timeout);
+      UDT::close(rendezvous_socket_id);
+      if (!rv_connection.transport_message_.IsInitialized() ||
+          !rv_connection.transport_message_.data().has_nat_information())
+        continue;
+      b = nat_detection_nodes_.size();
+      NatInformation nat_info =
+          rv_connection.transport_message_.data().nat_information();
+      nat_details_.nat_type = kPortRestricted;
+      nat_details_.external_ip = nat_info.ip();
+      nat_details_.external_port = nat_info.port();
+      nat_details_.rendezvous_ip = nat_detection_nodes_.at(b).rendezvous_ip;
+      nat_details_.rendezvous_port = nat_detection_nodes_.at(b).rendezvous_port;
+    }
+  }
+  if (nat_details_.nat_type == kFullCone ||
+      nat_details_.nat_type == kPortRestricted) {}  // Setup pinging routine
+}
+
+TransportCondition UdtTransport::TryRendezvous(const IP &ip, const Port &port,
+                                               SocketId *rendezvous_socket_id) {
+  if (nat_details_.nat_type == kNotConnected)
+    return kError;
+  // Get a new socket descriptor
+  boost::shared_ptr<addrinfo const> address_info;
+  TransportCondition transport_condition(
+      udtutils::GetNewSocket(ip, port, true, rendezvous_socket_id,
+                             &address_info));
+  if (transport_condition != kSuccess)
+    return transport_condition;
+
+  // Set socket options
+  bool rendezvous(true);
+  if (UDT::ERROR == UDT::setsockopt(*rendezvous_socket_id, 0, UDT_RENDEZVOUS,
+                                    &rendezvous, sizeof(rendezvous))) {
+    DLOG(ERROR) << "UDT TryRendezvous error: "
+                << UDT::getlasterror().getErrorMessage() << std::endl;
+    UDT::close(*rendezvous_socket_id);
+    return kSetOptionFailure;
+  }
+
+  // Bind this socket
+  if (UDT::ERROR == UDT::bind(*rendezvous_socket_id, address_info->ai_addr,
+                              address_info->ai_addrlen)) {
+    DLOG(WARNING) << "UDT bind error: " << UDT::getlasterror().getErrorMessage()
+                  << std::endl;
+    UDT::close(*rendezvous_socket_id);
+    return kBindError;
+  }
+
+  // Try to connect this socket
+  return udtutils::Connect(*rendezvous_socket_id, address_info);
 }
 
 Port UdtTransport::DoStartListening(const IP &ip,
@@ -170,7 +474,21 @@ Port UdtTransport::DoStartListening(const IP &ip,
 
   if (transport_condition != NULL)
     *transport_condition = kSuccess;
+
+  // Do NAT traversing if needed
+  if (ValidIP(nat_detection_nodes_.at(0).rendezvous_ip) &&
+      ValidPort(nat_detection_nodes_.at(0).rendezvous_port)) {
+//  nat_detection_thread_ = boost::thread(&UdtTransport::DoNatDetection, this);
+    DoNatDetection();
+  }
+
   return listening_port;
+}
+
+Port UdtTransport::StartListening(const IP &ip,
+                                  const Port &try_port,
+                                  TransportCondition *transport_condition) {
+  return DoStartListening(ip, try_port, false, transport_condition);
 }
 
 bool UdtTransport::StopListening(const Port &port) {
@@ -229,10 +547,10 @@ void UdtTransport::ReAllowIncomingManagedConnections() {
   stop_managed_connections_ = false;
 }
 
-TransportCondition UdtTransport::PunchHole(const IP &remote_ip,
-                                           const Port &remote_port,
-                                           const IP &rendezvous_ip,
-                                           const Port &rendezvous_port) {
+TransportCondition UdtTransport::PunchHole(const IP &/*remote_ip*/,
+                                           const Port &/*remote_port*/,
+                                           const IP &/*rendezvous_ip*/,
+                                           const Port &/*rendezvous_port*/) {
   return kSuccess;
 }
 
@@ -259,8 +577,8 @@ void UdtTransport::Send(const TransportMessage &transport_message,
   std::vector<SocketId> to_check, checked;
   to_check.push_back(socket_id);
   if (UDT::ERROR == UDT::selectEx(to_check, NULL, &checked, NULL, 50)) {
-    DLOG(ERROR) << "Send error: " <<
-        UDT::getlasterror().getErrorMessage() << std::endl;
+    DLOG(ERROR) << "Send error: " << UDT::getlasterror().getErrorMessage()
+                << std::endl;
     return;
   }
   UdtConnection udt_connection(this, socket_id);
@@ -274,7 +592,8 @@ void UdtTransport::Send(const TransportMessage &transport_message,
   udt_connection.Send(transport_message, timeout_wait_for_response);
 }
 
-void UdtTransport::SendFile(const fs::path &path, const SocketId &socket_id) {
+void UdtTransport::SendFile(const fs::path &/*path*/,
+                            const SocketId &/*socket_id*/) {
 }
 
 ManagedEndpointId UdtTransport::AddManagedEndpoint(
@@ -283,9 +602,9 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
     const IP &rendezvous_ip,
     const Port &rendezvous_port,
     const std::string &our_identifier,
-    const boost::uint16_t &frequency,
-    const boost::uint16_t &retry_count,
-    const boost::uint16_t &retry_frequency) {
+    const boost::uint16_t &/*frequency*/,
+    const boost::uint16_t &/*retry_count*/,
+    const boost::uint16_t &/*retry_frequency*/) {
   // Get temp socket bound to managed_endpoint_listening_port_ to send request
   {
     boost::mutex::scoped_lock lock(managed_endpoint_sockets_mutex_);
@@ -300,7 +619,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
   // Prepare & send transport message to peer.  Keep initial socket alive to
   // allow peer time to call getpeerinfo
   UdtConnection udt_connection(this, initial_peer_socket_id);
-  udt_connection.transport_message_.set_type(TransportMessage::kRequest);
+  udt_connection.transport_message_.set_type(TransportMessage::kKeepAlive);
   ManagedEndpointMessage *managed_endpoint_message = udt_connection.
       transport_message_.mutable_data()->mutable_managed_endpoint_message();
   managed_endpoint_message->set_message_id(initial_peer_socket_id);
@@ -429,8 +748,8 @@ TransportCondition UdtTransport::SetManagedSocketOptions(
 SocketId UdtTransport::GetNewManagedEndpointSocket(
     const IP &remote_ip,
     const Port &remote_port,
-    const IP &rendezvous_ip,
-    const Port &rendezvous_port) {
+    const IP &/*rendezvous_ip*/,
+    const Port &/*rendezvous_port*/) {
   // Get a new socket descriptor to send on managed_endpoint_listening_port_
   SocketId initial_peer_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> peer;
@@ -681,7 +1000,7 @@ void UdtTransport::HandleManagedSocketRequest(
   // Prepare & send transport message to peer.  Keep initial socket alive to
   // allow peer time to call getpeerinfo
   UdtConnection udt_connection(this, managed_socket_id);
-  udt_connection.transport_message_.set_type(TransportMessage::kResponse);
+  udt_connection.transport_message_.set_type(TransportMessage::kClose);
   ManagedEndpointMessage *managed_endpoint_message = udt_connection.
       transport_message_.mutable_data()->mutable_managed_endpoint_message();
   // TODO(Fraser#5#): 2010-07-31 - Use authentication to set_identifier & result

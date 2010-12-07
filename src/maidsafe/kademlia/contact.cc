@@ -85,8 +85,7 @@ Contact::Contact(const std::string &node_id, const IP &host_ip,
 
 Contact::Contact(const KadId &node_id, const IP &host_ip,
                  const Port &host_port, const IP &local_ip,
-                 const Port &local_port,
-                 const IP &rendezvous_ip,
+                 const Port &local_port, const IP &rendezvous_ip,
                  const Port &rendezvous_port)
     : node_id_(node_id), host_ip_(host_ip), host_port_(host_port),
       failed_rpc_(0), rendezvous_ip_(rendezvous_ip),
@@ -179,6 +178,23 @@ bool Contact::SerialiseToString(std::string *serialised_output) {
   return info.SerializeToString(serialised_output);
 }
 
+std::string Contact::SerialiseAsString() {
+  // do not serialise empty contacts
+  if (host_port_ == 0 && host_ip_.empty()) {
+    return "";
+  }
+  ContactInfo info;
+  info.set_node_id(node_id_.String());
+  info.set_ip(host_ip_);
+  info.set_port(host_port_);
+  info.set_rendezvous_ip(rendezvous_ip_);
+  info.set_rendezvous_port(rendezvous_port_);
+//  info.set_local_ip(local_ip_);
+  info.set_local_port(local_port_);
+
+  return info.SerializeAsString();
+}
+
 bool Contact::ParseFromString(const std::string &data) {
   kad::ContactInfo info;
   if (!info.ParseFromString(data))
@@ -237,6 +253,10 @@ std::string Contact::DebugString() const {
     debug_string += ("RV IP address: " + dec_rip + ":" + rport + "\n");
   }
   return debug_string;
+}
+
+bool Contact::operator<(const Contact &rhs) const {
+  return this->node_id().String() < rhs.node_id().String();
 }
 
 }  // namespace kad

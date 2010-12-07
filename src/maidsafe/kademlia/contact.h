@@ -71,6 +71,7 @@ class Contact {
   bool Equals(const Contact &other) const;
   Contact& operator=(const Contact &other);
   bool SerialiseToString(std::string *serialised_output);
+  std::string SerialiseAsString();
   bool ParseFromString(const std::string &data);
   std::string DebugString() const;
   inline const KadId &node_id() const { return node_id_; }
@@ -86,6 +87,9 @@ class Contact {
   }
   inline const IP &local_ip() const { return local_ip_; }
   inline Port local_port() const { return local_port_; }
+  bool operator<(const Contact &rhs) const;
+  bool operator==(const Contact &rhs) const { return Equals(rhs); }
+
  private:
   KadId node_id_;
   IP host_ip_;

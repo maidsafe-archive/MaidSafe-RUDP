@@ -56,9 +56,9 @@ class TransportAPITest: public testing::Test {
                                         const size_t &message_size) {
     TransportMessage transport_message;
     if (is_request)
-      transport_message.set_type(TransportMessage::kRequest);
+      transport_message.set_type(TransportMessage::kKeepAlive);
     else
-      transport_message.set_type(TransportMessage::kResponse);
+      transport_message.set_type(TransportMessage::kClose);
     rpcprotocol::RpcMessage *rpc_message =
         transport_message.mutable_data()->mutable_rpc_message();
     rpc_message->set_rpc_id(base::RandomUint32());

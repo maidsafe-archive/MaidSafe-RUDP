@@ -54,6 +54,8 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   void Close();
 
  private:
+  TcpConnection(const TcpConnection&);
+  TcpConnection &operator=(const TcpConnection&);
   void StartTimeout(int seconds);
 
   void HandleTimeout(boost::system::error_code const& ec);

@@ -73,11 +73,16 @@ void SortLookupContact(const KadId &target_key,
                        std::list<LookupContact> *contact_list);
 
 namespace test_knodeimpl {
-class TestKNodeImpl_BEH_KNodeImpl_Destroy_Test;
-class TestKNodeImpl_BEH_KNodeImpl_Bootstrap_Callback_Test;
-class TestKNodeImpl_BEH_KNodeImpl_Join_Bootstrapping_Iteration_Test;
 class TestKNodeImpl_BEH_KNodeImpl_ExecuteRPCs_Test;
 class TestKNodeImpl_BEH_KNodeImpl_NotJoined_Test;
+class TestKNodeImpl_BEH_KNodeImpl_AddContactsToContainer_Test;
+class TestKNodeImpl_BEH_KNodeImpl_GetAlphas_Test;
+class TestKNodeImpl_BEH_KNodeImpl_MarkNode_Test;
+class TestKNodeImpl_BEH_KNodeImpl_BetaDone_Test;
+class TestKNodeImpl_BEH_KNodeImpl_IterativeSearchResponse_Test;
+class TestKNodeImpl_BEH_KNodeImpl_IterativeSearchHappy_Test;
+class TestKNodeImpl_BEH_KNodeImpl_FindNodesHappy_Test;
+class TestKNodeImpl_BEH_KNodeImpl_FindNodesContactsInReponse_Test;
 }  // namespace test
 
 class KNodeImpl {
@@ -178,9 +183,20 @@ class KNodeImpl {
   inline NatType host_nat_type() { return host_nat_type_; }
 
  private:
-  friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_Destroy_Test;
   friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_ExecuteRPCs_Test;
   friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_NotJoined_Test;
+  friend class test_knodeimpl::
+      TestKNodeImpl_BEH_KNodeImpl_AddContactsToContainer_Test;
+  friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_GetAlphas_Test;
+  friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_MarkNode_Test;
+  friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_BetaDone_Test;
+  friend class test_knodeimpl::
+      TestKNodeImpl_BEH_KNodeImpl_IterativeSearchResponse_Test;
+  friend class test_knodeimpl::
+      TestKNodeImpl_BEH_KNodeImpl_IterativeSearchHappy_Test;
+  friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_FindNodesHappy_Test;
+  friend class test_knodeimpl::
+      TestKNodeImpl_BEH_KNodeImpl_FindNodesContactsInReponse_Test;
 
   KNodeImpl &operator=(const KNodeImpl&);
   KNodeImpl(const KNodeImpl&);
@@ -189,7 +205,7 @@ class KNodeImpl {
                           VoidFunctorOneString callback);
   void Join_RefreshNode(VoidFunctorOneString callback,
                         const bool &port_forwarded);
-  void SaveBootstrapContacts();  // save the routing table into .kadconfig file
+  void SaveBootstrapContacts();
   boost::int16_t LoadBootstrapContacts();
   void RefreshRoutine();
   void StartSearchIteration(const KadId &key, const RemoteFindMethod &method,
@@ -278,6 +294,19 @@ class KNodeImpl {
   boost::filesystem::path kad_config_path_;
   boost::condition_variable add_ctc_cond_;
   std::string private_key_, public_key_;
+
+  void AddContactsToContainer(const std::vector<Contact> contacts,
+                              boost::shared_ptr<FindNodesArgs> fna);
+  bool MarkResponse(const Contact &contact,
+                    boost::shared_ptr<FindNodesArgs> fna, SearchMarking mark,
+                    std::list<Contact> *response_nodes);
+  void AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
+                        int round, std::list<Contact> *contacts,
+                        bool *top_nodes_done, bool *calledback);
+  void FindNodes(const FindNodesParams &fnp);
+  virtual void IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
+                               int round);
+  void IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc);
 };
 
 }  // namespace kad
