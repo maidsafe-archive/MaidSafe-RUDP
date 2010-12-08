@@ -101,8 +101,8 @@ TEST_F(TestKbucket, BEH_KAD_AddAndGetContact) {
     Contact contact_rec;
     ASSERT_TRUE(kbucket.GetContact(id[i], &contact_rec));
     ASSERT_TRUE(contact.node_id() == contact_rec.node_id());
-    ASSERT_EQ(contact.host_ip(), contact_rec.host_ip());
-    ASSERT_EQ(contact.host_port(), contact_rec.host_port());
+    ASSERT_EQ(contact.ip(), contact_rec.ip());
+    ASSERT_EQ(contact.port(), contact_rec.port());
     ASSERT_EQ(contact.local_ip(), contact_rec.local_ip());
     ASSERT_EQ(contact.local_port(), contact_rec.local_port());
   }

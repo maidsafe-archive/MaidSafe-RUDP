@@ -47,23 +47,33 @@ class Contact {
 // This class contains information on a single remote contact
  public:
   Contact();
-  Contact(const std::string &node_id, const IP &host_ip,
-          const Port &host_port, const IP &local_ip,
-          const Port &local_port, const IP &rendezvous_ip,
+  Contact(const std::string &node_id,
+          const IP &ip,
+          const Port &port,
+          const IP &local_ip,
+          const Port &local_port,
+          const IP &rendezvous_ip,
           const Port &rendezvous_port);
-  Contact(const std::string &node_id, const IP &host_ip,
-          const Port &host_port);
-  Contact(const std::string &node_id, const IP &host_ip,
-          const Port &host_port, const IP &local_ip,
+  Contact(const std::string &node_id, const IP &ip, const Port &port);
+  Contact(const std::string &node_id,
+          const IP &ip,
+          const Port &port,
+          const IP &local_ip,
           const Port &local_port);
-  Contact(const KadId &node_id, const IP &host_ip,
-          const Port &host_port, const IP &local_ip,
-          const Port &local_port, const IP &rendezvous_ip,
+  Contact(const KadId &node_id,
+          const IP &ip,
+          const Port &port,
+          const IP &local_ip,
+          const Port &local_port,
+          const IP &rendezvous_ip,
           const Port &rendezvous_port);
-  Contact(const KadId &node_id, const IP &host_ip,
-          const Port &host_port);
-  Contact(const KadId &node_id, const IP &host_ip,
-          const Port &host_port, const IP &local_ip,
+  Contact(const KadId &node_id,
+          const IP &ip,
+          const Port &port);
+  Contact(const KadId &node_id,
+          const IP &ip,
+          const Port &port,
+          const IP &local_ip,
           const Port &local_port);
   explicit Contact(const ContactInfo &contact_info);
   Contact(const Contact &other);
@@ -75,8 +85,8 @@ class Contact {
   bool ParseFromString(const std::string &data);
   std::string DebugString() const;
   inline const KadId &node_id() const { return node_id_; }
-  inline const IP &host_ip() const { return host_ip_; }
-  inline Port host_port() const { return host_port_; }
+  inline const IP &ip() const { return ip_; }
+  inline Port port() const { return port_; }
   inline boost::uint16_t failed_rpc() const { return failed_rpc_; }
   inline void IncreaseFailed_RPC() { ++failed_rpc_; }
   const IP &rendezvous_ip() const { return rendezvous_ip_; }
@@ -92,8 +102,8 @@ class Contact {
 
  private:
   KadId node_id_;
-  IP host_ip_;
-  Port host_port_;
+  IP ip_;
+  Port port_;
   boost::uint16_t failed_rpc_;
   IP rendezvous_ip_;
   Port rendezvous_port_;

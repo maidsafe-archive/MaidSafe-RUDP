@@ -172,7 +172,7 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_CheckContactLocalAddress) {
   node_->UpdatePDRTContactToRemote(key, local_ip.to_string());
   ASSERT_TRUE(node_->GetContact(key, &o));
   ASSERT_TRUE(c.Equals(o));
-//  ASSERT_EQ(local_ip.to_string(), base::IpBytesToAscii(o.host_ip()));
+//  ASSERT_EQ(local_ip.to_string(), base::IpBytesToAscii(o.ip()));
 }
 
 TEST_F(TestKnodeFunctions, BEH_KNODE_RpcsKeysAlternativeStoreValidator) {
@@ -193,22 +193,22 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_RpcsKeysAlternativeStoreValidator) {
 TEST_F(TestKnodeFunctions, BEH_KNODE_NodeInfo) {
   ContactInfo ci = node_->contact_info();
   KadId kid = node_->node_id();
-  std::string host_ip = node_->host_ip();
-  boost::uint16_t host_port = node_->host_port();
-  std::string local_host_ip = node_->local_host_ip();
-  boost::uint16_t local_host_port= node_->local_host_port();
+  std::string ip = node_->ip();
+  boost::uint16_t port = node_->port();
+  std::string local_ip = node_->local_ip();
+  boost::uint16_t local_port= node_->local_port();
   std::string rendezvous_ip = node_->rendezvous_ip();
   boost::uint16_t rendezvous_port = node_->rendezvous_port();
 
   ASSERT_EQ(ci.node_id(), kid.String());
-  ASSERT_EQ(base::IpBytesToAscii(ci.ip()), host_ip);
-  ASSERT_EQ(ci.port(), host_port);
-  ASSERT_EQ(base::IpBytesToAscii(ci.local_ips()), local_host_ip);
-  ASSERT_EQ(ci.local_port(), local_host_port);
+  ASSERT_EQ(base::IpBytesToAscii(ci.ip()), ip);
+  ASSERT_EQ(ci.port(), port);
+  ASSERT_EQ(base::IpBytesToAscii(ci.local_ips()), local_ip);
+  ASSERT_EQ(ci.local_port(), local_port);
   ASSERT_EQ(base::IpBytesToAscii(ci.rendezvous_ip()), rendezvous_ip);
   ASSERT_EQ(ci.rendezvous_port(), rendezvous_port);
 
-  ASSERT_EQ(DIRECT_CONNECTED, node_->host_nat_type());
+  ASSERT_EQ(DIRECT_CONNECTED, node_->nat_type());
 }
 
 }  // namespace test_kbucket

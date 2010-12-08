@@ -100,10 +100,10 @@ class KNodeImpl {
 
   // Use this join for the first node in the network
   void JoinFirstNode(const KadId &node_id, const std::string &kad_config_file,
-                     const IP &external_ip, const Port &external_port,
+                     const IP &ip, const Port &port,
                      VoidFunctorOneString callback);
-  void JoinFirstNode(const std::string &kad_config_file, const IP &external_ip,
-                     const Port &external_port, VoidFunctorOneString callback);
+  void JoinFirstNode(const std::string &kad_config_file, const IP &ip,
+                     const Port &port, VoidFunctorOneString callback);
 
   void Leave();
   virtual void StoreValue(const KadId &key, const SignedValue &signed_value,
@@ -148,7 +148,7 @@ class KNodeImpl {
   ConnectionType CheckContactLocalAddress(const KadId &id, const IP &ip,
                                           const Port &port, const IP &ext_ip);
   void UpdatePDRTContactToRemote(const KadId &node_id,
-                                 const IP &host_ip);
+                                 const IP &ip);
   ContactInfo contact_info() const;
   inline KadId node_id() const {
     return (type_ == CLIENT || type_ == CLIENT_PORT_MAPPED)
@@ -157,10 +157,10 @@ class KNodeImpl {
   boost::uint32_t KeyLastRefreshTime(const KadId &key,
                                      const std::string &value);
   boost::uint32_t KeyExpireTime(const KadId &key, const std::string &value);
-  inline IP host_ip() const { return host_ip_; }
-  inline Port host_port() const { return host_port_; }
-  inline IP local_host_ip() const { return local_host_ip_; }
-  inline Port local_host_port() const { return local_host_port_; }
+  inline IP ip() const { return ip_; }
+  inline Port port() const { return port_; }
+  inline IP local_ip() const { return local_ip_; }
+  inline Port local_port() const { return local_port_; }
   inline IP rendezvous_ip() const { return rv_ip_; }
   inline Port rendezvous_port() const { return rv_port_; }
   inline bool is_joined() const { return is_joined_; }
@@ -180,7 +180,7 @@ class KNodeImpl {
     if (premote_service_ != 0)
       premote_service_->set_signature_validator(signature_validator_);
   }
-  inline NatType host_nat_type() { return host_nat_type_; }
+  inline NatType nat_type() { return nat_type_; }
 
  private:
   friend class test_knodeimpl::TestKNodeImpl_BEH_KNodeImpl_ExecuteRPCs_Test;
@@ -201,7 +201,7 @@ class KNodeImpl {
   KNodeImpl &operator=(const KNodeImpl&);
   KNodeImpl(const KNodeImpl&);
   inline void CallbackWithFailure(VoidFunctorOneString callback);
-  void Join_Bootstrapping(const bool &got_external_address,
+  void Join_Bootstrapping(const bool &got_address,
                           VoidFunctorOneString callback);
   void Join_RefreshNode(VoidFunctorOneString callback,
                         const bool &port_forwarded);
@@ -251,7 +251,7 @@ class KNodeImpl {
   void ReBootstrapping_Callback(const std::string &result);
   void RegisterKadService();
   void UnRegisterKadService();
-  void UPnPMap(Port host_port);
+  void UPnPMap(Port port);
   void UnMapUPnP();
   void CheckToInsert(const Contact &new_contact);
   void CheckToInsert_Callback(const std::string &result, KadId id,
@@ -282,10 +282,10 @@ class KNodeImpl {
   base::SignatureValidator *signature_validator_;
   upnp::UpnpIgdClient upnp_;
   KadId node_id_, fake_kClientId_;
-  IP host_ip_, rv_ip_, local_host_ip_;
-  Port host_port_, rv_port_, local_host_port_, upnp_mapped_port_;
+  IP ip_, rv_ip_, local_ip_;
+  Port port_, rv_port_, local_port_, upnp_mapped_port_;
   NodeType type_;
-  NatType host_nat_type_;
+  NatType nat_type_;
   std::vector<Contact> bootstrapping_nodes_, exclude_bs_contacts_;
   std::list<Contact> contacts_to_add_;
   const boost::uint16_t K_, alpha_, beta_;

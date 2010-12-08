@@ -476,7 +476,8 @@ Port UdtTransport::DoStartListening(const IP &ip,
     *transport_condition = kSuccess;
 
   // Do NAT traversing if needed
-  if (ValidIP(nat_detection_nodes_.at(0).rendezvous_ip) &&
+  if (!nat_detection_nodes_.empty() &&
+      ValidIP(nat_detection_nodes_.at(0).rendezvous_ip) &&
       ValidPort(nat_detection_nodes_.at(0).rendezvous_port)) {
 //  nat_detection_thread_ = boost::thread(&UdtTransport::DoNatDetection, this);
     DoNatDetection();

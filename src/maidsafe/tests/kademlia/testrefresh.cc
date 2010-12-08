@@ -114,10 +114,10 @@ class TestRefresh : public testing::Test {
       base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
             nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-      kad_contact->set_ip(nodes_[0]->host_ip());
-      kad_contact->set_port(nodes_[0]->host_port());
-      kad_contact->set_local_ip(nodes_[0]->local_host_ip());
-      kad_contact->set_local_port(nodes_[0]->local_host_port());
+      kad_contact->set_ip(nodes_[0]->ip());
+      kad_contact->set_port(nodes_[0]->port());
+      kad_contact->set_local_ip(nodes_[0]->local_ip());
+      kad_contact->set_local_port(nodes_[0]->local_port());
       std::fstream output1(kconfig_file1.c_str(), std::ios::out |
                                                   std::ios::trunc |
                                                   std::ios::binary);
@@ -265,10 +265,10 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  kad_contact->set_ip(nodes_[0]->host_ip());
-  kad_contact->set_port(nodes_[0]->host_port());
-  kad_contact->set_local_ip(nodes_[0]->local_host_ip());
-  kad_contact->set_local_port(nodes_[0]->local_host_port());
+  kad_contact->set_ip(nodes_[0]->ip());
+  kad_contact->set_port(nodes_[0]->port());
+  kad_contact->set_local_ip(nodes_[0]->local_ip());
+  kad_contact->set_local_port(nodes_[0]->local_port());
   std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
                                               std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
@@ -379,10 +379,10 @@ class TestRefreshSignedValues : public testing::Test {
       base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
             nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-      kad_contact->set_ip(nodes_[0]->host_ip());
-      kad_contact->set_port(nodes_[0]->host_port());
-      kad_contact->set_local_ip(nodes_[0]->local_host_ip());
-      kad_contact->set_local_port(nodes_[0]->local_host_port());
+      kad_contact->set_ip(nodes_[0]->ip());
+      kad_contact->set_port(nodes_[0]->port());
+      kad_contact->set_local_ip(nodes_[0]->local_ip());
+      kad_contact->set_local_port(nodes_[0]->local_port());
       std::fstream output1(kconfig_file1.c_str(), std::ios::out |
                                                   std::ios::trunc |
                                                   std::ios::binary);
@@ -572,10 +572,10 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  kad_contact->set_ip(nodes_[0]->host_ip());
-  kad_contact->set_port(nodes_[0]->host_port());
-  kad_contact->set_local_ip(nodes_[0]->local_host_ip());
-  kad_contact->set_local_port(nodes_[0]->local_host_port());
+  kad_contact->set_ip(nodes_[0]->ip());
+  kad_contact->set_port(nodes_[0]->port());
+  kad_contact->set_local_ip(nodes_[0]->local_ip());
+  kad_contact->set_local_port(nodes_[0]->local_port());
   std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
                                               std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
@@ -670,10 +670,10 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  kad_contact->set_ip(nodes_[0]->host_ip());
-  kad_contact->set_port(nodes_[0]->host_port());
-  kad_contact->set_local_ip(nodes_[0]->local_host_ip());
-  kad_contact->set_local_port(nodes_[0]->local_host_port());
+  kad_contact->set_ip(nodes_[0]->ip());
+  kad_contact->set_port(nodes_[0]->port());
+  kad_contact->set_local_ip(nodes_[0]->local_ip());
+  kad_contact->set_local_port(nodes_[0]->local_port());
   std::fstream output1(kconfig_file1.c_str(), std::ios::out | std::ios::trunc |
                                               std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));

@@ -182,14 +182,14 @@ boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {
 
 std::string IpAsciiToBytes(const std::string &decimal_ip) {
   try {
-    boost::asio::ip::address host_ip =
+    boost::asio::ip::address ip =
         boost::asio::ip::address::from_string(decimal_ip);
-    if (host_ip.is_v4()) {
-      boost::asio::ip::address_v4::bytes_type addr = host_ip.to_v4().to_bytes();
+    if (ip.is_v4()) {
+      boost::asio::ip::address_v4::bytes_type addr = ip.to_v4().to_bytes();
       std::string result(addr.begin(), addr.end());
       return result;
-    } else if (host_ip.is_v6()) {
-      boost::asio::ip::address_v6::bytes_type addr = host_ip.to_v6().to_bytes();
+    } else if (ip.is_v6()) {
+      boost::asio::ip::address_v6::bytes_type addr = ip.to_v6().to_bytes();
       std::string result(addr.begin(), addr.end());
       return result;
     }

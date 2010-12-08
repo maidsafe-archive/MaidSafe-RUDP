@@ -381,8 +381,8 @@ int main(int argc, char **argv) {
           test_kaddemo::write_to_kadconfig(
               thisconfig.string(),
               node->node_id().ToStringEncoded(kad::KadId::kHex),
-              node->host_ip(), node->host_port(), node->local_host_ip(),
-              node->local_host_port());
+              node->ip(), node->port(), node->local_ip(),
+              node->local_port());
         }
         catch(const std::exception &e) {
         }
@@ -391,8 +391,8 @@ int main(int argc, char **argv) {
         test_kaddemo::write_to_kadconfig(
             thisconfig.string(),
             node->node_id().ToStringEncoded(kad::KadId::kHex),
-            node->host_ip(), node->host_port(), node->local_host_ip(),
-            node->local_host_port());
+            node->ip(), node->port(), node->local_ip(),
+            node->local_port());
       }
     }
 

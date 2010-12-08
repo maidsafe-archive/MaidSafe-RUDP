@@ -57,32 +57,32 @@ namespace base {
 
 struct PublicRoutingTableTuple {
   PublicRoutingTableTuple()
-      : kademlia_id(), host_ip(), rendezvous_ip(), public_key(), host_port(0),
+      : kademlia_id(), ip(), rendezvous_ip(), public_key(), port(0),
         rendezvous_port(0), rank(0), rtt(0), space(0),
         connection_type(kad::UNKNOWN) {}
   PublicRoutingTableTuple(const std::string &kademlia_id,
-                          const std::string &host_ip,
-                          const boost::uint16_t &host_port,
+                          const std::string &ip,
+                          const boost::uint16_t &port,
                           const std::string &rendezvous_ip,
                           const boost::uint16_t &rendezvous_port,
                           const std::string &public_key,
                           const float &rtt,
                           const boost::uint16_t &rank,
                           const boost::uint32_t &space)
-      : kademlia_id(kademlia_id), host_ip(host_ip),
+      : kademlia_id(kademlia_id), ip(ip),
         rendezvous_ip(rendezvous_ip), public_key(public_key),
-        host_port(host_port), rendezvous_port(rendezvous_port), rank(rank),
+        port(port), rendezvous_port(rendezvous_port), rank(rank),
         rtt(rtt), space(space), connection_type(kad::UNKNOWN) {}
   PublicRoutingTableTuple(const PublicRoutingTableTuple &tuple)
-      : kademlia_id(tuple.kademlia_id), host_ip(tuple.host_ip),
+      : kademlia_id(tuple.kademlia_id), ip(tuple.ip),
         rendezvous_ip(tuple.rendezvous_ip), public_key(tuple.public_key),
-        host_port(tuple.host_port), rendezvous_port(tuple.rendezvous_port),
+        port(tuple.port), rendezvous_port(tuple.rendezvous_port),
         rank(tuple.rank), rtt(tuple.rtt), space(tuple.space),
         connection_type(tuple.connection_type) {}
   PublicRoutingTableTuple& operator=(const PublicRoutingTableTuple &tuple) {
     kademlia_id = tuple.kademlia_id;
-    host_ip = tuple.host_ip;
-    host_port = tuple.host_port;
+    ip = tuple.ip;
+    port = tuple.port;
     rendezvous_ip = tuple.rendezvous_ip;
     rendezvous_port = tuple.rendezvous_port;
     public_key = tuple.public_key;
@@ -92,8 +92,8 @@ struct PublicRoutingTableTuple {
     connection_type = tuple.connection_type;
     return *this;
   }
-  std::string kademlia_id, host_ip, rendezvous_ip, public_key;
-  boost::uint16_t host_port, rendezvous_port, rank;
+  std::string kademlia_id, ip, rendezvous_ip, public_key;
+  boost::uint16_t port, rendezvous_port, rank;
   float rtt;
   boost::uint32_t space;
   kad::ConnectionType connection_type;
@@ -113,9 +113,9 @@ typedef boost::multi_index_container<
       boost::multi_index::tag<t_ip_port>,
       boost::multi_index::composite_key<
         PublicRoutingTableTuple,
-        BOOST_MULTI_INDEX_MEMBER(PublicRoutingTableTuple, std::string, host_ip),
+        BOOST_MULTI_INDEX_MEMBER(PublicRoutingTableTuple, std::string, ip),
         BOOST_MULTI_INDEX_MEMBER(PublicRoutingTableTuple, boost::uint16_t,
-                                 host_port)
+                                 port)
       >
     >,
     boost::multi_index::ordered_unique<
@@ -149,7 +149,7 @@ class PublicRoutingTableHandler {
   }
   int GetTupleInfo(const std::string &kademlia_id,
                    PublicRoutingTableTuple *tuple);
-  int GetTupleInfo(const std::string &host_ip, const boost::uint16_t &host_port,
+  int GetTupleInfo(const std::string &ip, const boost::uint16_t &port,
                    PublicRoutingTableTuple *tuple);
   int GetClosestRtt(const float &rtt, const std::set<std::string> &exclude_ids,
                     PublicRoutingTableTuple *tuple);
@@ -159,9 +159,9 @@ class PublicRoutingTableHandler {
   int AddTuple(base::PublicRoutingTableTuple tuple);
   int DeleteTupleByKadId(const std::string &kademlia_id);
   int UpdateHostIp(const std::string &kademlia_id,
-                   const std::string &new_host_ip);
+                   const std::string &new_ip);
   int UpdateHostPort(const std::string &kademlia_id,
-                     const boost::uint16_t &new_host_port);
+                     const boost::uint16_t &new_port);
   int UpdateRendezvousIp(const std::string &kademlia_id,
                          const std::string &new_rv_ip);
   int UpdateRendezvousPort(const std::string &kademlia_id,
@@ -175,7 +175,7 @@ class PublicRoutingTableHandler {
                   const boost::uint32_t &new_space);
   int ContactLocal(const std::string &kademlia_id);
   int UpdateContactLocal(const std::string &kademlia_id,
-                         const std::string &host_ip,
+                         const std::string &ip,
                          const kad::ConnectionType &new_contact_type);
   int UpdateLocalToUnknown(const std::string &ip, const boost::uint16_t &port);
   int GetShuflledDirectlyConnectedNodes(std::multimap<std::string,

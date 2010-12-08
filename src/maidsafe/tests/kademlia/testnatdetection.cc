@@ -125,8 +125,8 @@ class NatDetectionTest: public testing::Test {
         boost::bind(&NatDetectionTest::RemoveContact, this, _1)));
     ContactInfo node_info;
     node_info.set_node_id(contactA_.node_id().String());
-    node_info.set_ip(contactA_.host_ip());
-    node_info.set_port(contactA_.host_port());
+    node_info.set_ip(contactA_.ip());
+    node_info.set_port(contactA_.port());
     node_info.set_local_ip(contactA_.local_ip());
     node_info.set_local_port(contactA_.local_port());
     serviceA_->set_node_info(node_info);
@@ -165,8 +165,8 @@ class NatDetectionTest: public testing::Test {
         boost::bind(&NatDetectionTest::Ping, this, _1, _2),
         boost::bind(&NatDetectionTest::RemoveContact, this, _1)));
     node_info.set_node_id(contactB_.node_id().String());
-    node_info.set_ip(contactB_.host_ip());
-    node_info.set_port(contactB_.host_port());
+    node_info.set_ip(contactB_.ip());
+    node_info.set_port(contactB_.port());
     node_info.set_local_ip(contactB_.local_ip());
     node_info.set_local_port(contactB_.local_port());
     serviceB_->set_node_info(node_info);
@@ -204,8 +204,8 @@ class NatDetectionTest: public testing::Test {
         boost::bind(&NatDetectionTest::Ping, this, _1, _2),
         boost::bind(&NatDetectionTest::RemoveContact, this, _1)));
     node_info.set_node_id(contactC_.node_id().String());
-    node_info.set_ip(contactC_.host_ip());
-    node_info.set_port(contactC_.host_port());
+    node_info.set_ip(contactC_.ip());
+    node_info.set_port(contactC_.port());
     node_info.set_local_ip(contactC_.local_ip());
     node_info.set_local_port(contactC_.local_port());
     serviceC_->set_node_info(node_info);
@@ -651,8 +651,8 @@ TEST_F(NatDetectionTest, BEH_KAD_FullBootstrap) {
   request.set_newcomer_id(kClientId);
   request.set_newcomer_local_ip(contactA_.local_ip());
   request.set_newcomer_local_port(contactA_.local_port());
-  request.set_newcomer_ext_ip(contactA_.host_ip());
-  request.set_newcomer_ext_port(contactA_.host_port());
+  request.set_newcomer_ext_ip(contactA_.ip());
+  request.set_newcomer_ext_port(contactA_.port());
   request.set_node_type(VAULT);
 
   // Check for normal id
@@ -666,8 +666,8 @@ TEST_F(NatDetectionTest, BEH_KAD_FullBootstrap) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(50));
   EXPECT_EQ(kRpcResultSuccess, response.result());
   EXPECT_EQ(contactB_.node_id().String(), response.bootstrap_id());
-  EXPECT_EQ(contactA_.host_ip(), response.newcomer_ext_ip());
-  EXPECT_EQ(contactA_.host_port(), response.newcomer_ext_port());
+  EXPECT_EQ(contactA_.ip(), response.newcomer_ext_ip());
+  EXPECT_EQ(contactA_.port(), response.newcomer_ext_port());
   EXPECT_EQ(1, response.nat_type());
 }
 

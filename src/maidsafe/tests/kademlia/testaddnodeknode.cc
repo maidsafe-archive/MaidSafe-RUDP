@@ -277,10 +277,10 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0].node_id().ToStringEncoded(KadId::kHex));
-  kad_contact->set_ip(nodes_[0].host_ip());
-  kad_contact->set_port(nodes_[0].host_port());
-  kad_contact->set_local_ip(nodes_[0].local_host_ip());
-  kad_contact->set_local_port(nodes_[0].local_host_port());
+  kad_contact->set_ip(nodes_[0].ip());
+  kad_contact->set_port(nodes_[0].port());
+  kad_contact->set_local_ip(nodes_[0].local_ip());
+  kad_contact->set_local_port(nodes_[0].local_port());
   std::fstream output1(kconfig_file1.c_str(),
                        std::ios::out | std::ios::trunc | std::ios::binary);
   EXPECT_TRUE(kad_config1.SerializeToOstream(&output1));
@@ -359,11 +359,11 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   // Getting info from base routing table to check rtt
   base::PublicRoutingTableTuple tuple;
   ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[base::IntToString(
-                nodes_[0].host_port())]->GetTupleInfo(
+                nodes_[0].port())]->GetTupleInfo(
                 nodes_[1].node_id().String(), &tuple));
   ASSERT_EQ(nodes_[1].node_id().String(), tuple.kademlia_id);
-  ASSERT_EQ(nodes_[1].host_ip(), tuple.host_ip);
-  ASSERT_EQ(nodes_[1].host_port(), tuple.host_port);
+  ASSERT_EQ(nodes_[1].ip(), tuple.ip);
+  ASSERT_EQ(nodes_[1].port(), tuple.port);
   ASSERT_EQ(nodes_[1].rendezvous_ip(), tuple.rendezvous_ip);
   ASSERT_EQ(nodes_[1].rendezvous_port(), tuple.rendezvous_port);
   EXPECT_LT(0.0, tuple.rtt);

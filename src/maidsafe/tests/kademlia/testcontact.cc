@@ -48,10 +48,10 @@ TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
   boost::uint16_t port(8888), local_port(port);
   kad::KadId node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING, false));
   kad::Contact contact(node_id, ip, port, local_ip, local_port);
-  ASSERT_EQ(base::IpAsciiToBytes(ip), contact.host_ip());
-  ASSERT_EQ(ip, base::IpBytesToAscii(contact.host_ip()));
+  ASSERT_EQ(base::IpAsciiToBytes(ip), contact.ip());
+  ASSERT_EQ(ip, base::IpBytesToAscii(contact.ip()));
   ASSERT_TRUE(node_id == contact.node_id());
-  ASSERT_EQ(port, contact.host_port());
+  ASSERT_EQ(port, contact.port());
   ASSERT_EQ(base::IpAsciiToBytes(local_ip), contact.local_ip());
   ASSERT_EQ(local_ip, base::IpBytesToAscii(contact.local_ip()));
   ASSERT_EQ(local_port, contact.local_port());
@@ -116,10 +116,10 @@ TEST_F(TestContact, BEH_KAD_ContactPointer) {
       false));
   kad::Contact *contact = new kad::Contact(node_id, ip, port, local_ip,
     local_port);
-  ASSERT_EQ(base::IpAsciiToBytes(ip), contact->host_ip());
-  ASSERT_EQ(ip, base::IpBytesToAscii(contact->host_ip()));
+  ASSERT_EQ(base::IpAsciiToBytes(ip), contact->ip());
+  ASSERT_EQ(ip, base::IpBytesToAscii(contact->ip()));
   ASSERT_EQ(node_id, contact->node_id().String());
-  ASSERT_EQ(port, contact->host_port());
+  ASSERT_EQ(port, contact->port());
   ASSERT_EQ(base::IpAsciiToBytes(local_ip), contact->local_ip());
   ASSERT_EQ(local_ip, base::IpBytesToAscii(contact->local_ip()));
   ASSERT_EQ(local_port, contact->local_port());
@@ -144,11 +144,11 @@ TEST_F(TestContact, BEH_KAD_SerialiseToString) {
   ASSERT_FALSE(contact1.SerialiseToString(&ser_contact1));
   ASSERT_TRUE(contact1.ParseFromString(ser_contact));
   ASSERT_FALSE(contact1.ParseFromString("invaliddata"));
-  ASSERT_EQ(ip, base::IpBytesToAscii(contact1.host_ip()));
-  ASSERT_EQ(port, contact1.host_port());
+  ASSERT_EQ(ip, base::IpBytesToAscii(contact1.ip()));
+  ASSERT_EQ(port, contact1.port());
   ASSERT_EQ(node_id, contact1.node_id().String());
   ASSERT_EQ(local_ip, base::IpBytesToAscii(contact1.local_ip()));
-  ASSERT_EQ(local_port, contact1.host_port());
+  ASSERT_EQ(local_port, contact1.port());
 }
 
 TEST_F(TestContact, BEH_KAD_Constructors) {
@@ -156,10 +156,10 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   kad::Contact ctc1;
   kad::KadId id1;
   ASSERT_EQ(id1.String(), ctc1.node_id().String());
-  ASSERT_EQ("", ctc1.host_ip());
+  ASSERT_EQ("", ctc1.ip());
   ASSERT_EQ("", ctc1.local_ip());
   ASSERT_EQ("", ctc1.rendezvous_ip());
-  ASSERT_EQ(0, ctc1.host_port());
+  ASSERT_EQ(0, ctc1.port());
   ASSERT_EQ(0, ctc1.local_port());
   ASSERT_EQ(0, ctc1.rendezvous_port());
   ASSERT_EQ("Empty contact.\n", ctc1.DebugString());
@@ -171,28 +171,28 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   kad::Contact ctc2(node_id, ip, port);
   kad::KadId id2(node_id);
   ASSERT_EQ(id2.String(), ctc2.node_id().String());
-  ASSERT_EQ(ip, ctc2.host_ip());
+  ASSERT_EQ(ip, ctc2.ip());
   ASSERT_EQ("", ctc2.local_ip());
   ASSERT_EQ("", ctc2.rendezvous_ip());
-  ASSERT_EQ(port, ctc2.host_port());
+  ASSERT_EQ(port, ctc2.port());
   ASSERT_EQ(0, ctc2.local_port());
   ASSERT_EQ(0, ctc2.rendezvous_port());
 
   kad::Contact ctc3(node_id, ip, port, ip, port);
   ASSERT_EQ(id2.String(), ctc3.node_id().String());
-  ASSERT_EQ(ip, ctc3.host_ip());
+  ASSERT_EQ(ip, ctc3.ip());
   ASSERT_EQ(ip, ctc3.local_ip());
   ASSERT_EQ("", ctc3.rendezvous_ip());
-  ASSERT_EQ(port, ctc3.host_port());
+  ASSERT_EQ(port, ctc3.port());
   ASSERT_EQ(port, ctc3.local_port());
   ASSERT_EQ(0, ctc3.rendezvous_port());
 
   kad::Contact ctc4(node_id, ip, port, ip, port, ip, port);
   ASSERT_EQ(id2.String(), ctc4.node_id().String());
-  ASSERT_EQ(ip, ctc4.host_ip());
+  ASSERT_EQ(ip, ctc4.ip());
   ASSERT_EQ(ip, ctc4.local_ip());
   ASSERT_EQ(ip, ctc4.rendezvous_ip());
-  ASSERT_EQ(port, ctc4.host_port());
+  ASSERT_EQ(port, ctc4.port());
   ASSERT_EQ(port, ctc4.local_port());
   ASSERT_EQ(port, ctc4.rendezvous_port());
 }

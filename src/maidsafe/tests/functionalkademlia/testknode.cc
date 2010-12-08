@@ -204,10 +204,10 @@ class Env : public testing::Environment {
     base::KadConfig::Contact *kad_contact = kad_config.add_contact();
     kad_contact->set_node_id(
         knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-    kad_contact->set_ip(knodes_[0]->host_ip());
-    kad_contact->set_port(knodes_[0]->host_port());
-    kad_contact->set_local_ip(knodes_[0]->local_host_ip());
-    kad_contact->set_local_port(knodes_[0]->local_host_port());
+    kad_contact->set_ip(knodes_[0]->ip());
+    kad_contact->set_port(knodes_[0]->port());
+    kad_contact->set_local_ip(knodes_[0]->local_ip());
+    kad_contact->set_local_port(knodes_[0]->local_port());
 
     for (boost::int16_t i = 1; i < kNetworkSize; i++) {
       kad_config_file_ = dbs_[i] + "/.kadconfig";
@@ -322,21 +322,21 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   base::KadConfig conf;
   base::KadConfig::Contact *ctc1 = conf.add_contact();
   ctc1->set_node_id(knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  ctc1->set_ip(knodes_[0]->host_ip());
-  ctc1->set_port(knodes_[0]->host_port());
-  ctc1->set_local_ip(knodes_[0]->local_host_ip());
-  ctc1->set_local_port(knodes_[0]->local_host_port());
+  ctc1->set_ip(knodes_[0]->ip());
+  ctc1->set_port(knodes_[0]->port());
+  ctc1->set_local_ip(knodes_[0]->local_ip());
+  ctc1->set_local_port(knodes_[0]->local_port());
   std::fstream output2(config_file.c_str(),
                        std::ios::out | std::ios::trunc | std::ios::binary);
   ASSERT_TRUE(conf.SerializeToOstream(&output2));
   output2.close();
-  ASSERT_EQ(NONE, knode_local_1.host_nat_type());
+  ASSERT_EQ(NONE, knode_local_1.nat_type());
   knode_local_1.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, knode_local_1.node_id().String());
-  ASSERT_EQ(DIRECT_CONNECTED, knode_local_1.host_nat_type());
+  ASSERT_EQ(DIRECT_CONNECTED, knode_local_1.nat_type());
 
   boost::shared_ptr<transport::UdtTransport> t2(new transport::UdtTransport);
   transport::Port p2 = t2->StartListening("", 0, &tc);
@@ -360,23 +360,23 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   conf.Clear();
   base::KadConfig::Contact *ctc2 = conf.add_contact();
   ctc2->set_node_id(knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  ctc2->set_ip(knodes_[0]->host_ip());
-  ctc2->set_port(knodes_[0]->host_port());
-  ctc2->set_local_ip(knodes_[0]->local_host_ip());
-  ctc2->set_local_port(knodes_[0]->local_host_port());
+  ctc2->set_ip(knodes_[0]->ip());
+  ctc2->set_port(knodes_[0]->port());
+  ctc2->set_local_ip(knodes_[0]->local_ip());
+  ctc2->set_local_port(knodes_[0]->local_port());
   std::fstream output3(config_file.c_str(),
                        std::ios::out | std::ios::trunc | std::ios::binary);
   ASSERT_TRUE(conf.SerializeToOstream(&output3));
   output3.close();
-  ports_.insert(knode_local_2.host_port());
-  ASSERT_EQ(NONE, knode_local_2.host_nat_type());
+  ports_.insert(knode_local_2.port());
+  ASSERT_EQ(NONE, knode_local_2.nat_type());
   cb_.Reset();
   knode_local_2.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, knode_local_2.node_id().String());
-  ASSERT_EQ(DIRECT_CONNECTED, knode_local_2.host_nat_type());
+  ASSERT_EQ(DIRECT_CONNECTED, knode_local_2.nat_type());
 
   // Doing a storevalue
   KadId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
@@ -478,8 +478,8 @@ TEST_F(KNodeTest, FUNC_KAD_ClientKnodeConnect) {
   ASSERT_EQ(kTestK, closest_nodes.size());
   std::list<Contact> all_nodes;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
-        knodes_[i]->host_port());
+    Contact node(knodes_[i]->node_id(), knodes_[i]->ip(),
+        knodes_[i]->port());
     all_nodes.push_back(node);
   }
   SortContactList(key1, &all_nodes);
@@ -531,9 +531,9 @@ TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
   ASSERT_EQ(kTestK, closest_nodes.size());
   std::list<Contact> all_nodes;
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    Contact node(knodes_[i]->node_id(), knodes_[i]->host_ip(),
-        knodes_[i]->host_port(), knodes_[i]->local_host_ip(),
-        knodes_[i]->local_host_port(), knodes_[i]->rendezvous_ip(),
+    Contact node(knodes_[i]->node_id(), knodes_[i]->ip(),
+        knodes_[i]->port(), knodes_[i]->local_ip(),
+        knodes_[i]->local_port(), knodes_[i]->rendezvous_ip(),
         knodes_[i]->rendezvous_port());
     all_nodes.push_back(node);
   }
@@ -786,8 +786,8 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
   ASSERT_FALSE(cb_1.result());
   Contact expect_node1;
   Contact target_node1(knodes_[kTestK / 3]->node_id(),
-                            knodes_[kTestK / 3]->host_ip(),
-                            knodes_[kTestK / 3]->host_port());
+                            knodes_[kTestK / 3]->ip(),
+                            knodes_[kTestK / 3]->port());
   expect_node1.ParseFromString(cb_1.contact());
   ASSERT_TRUE(target_node1.Equals(expect_node1));
   // find a non-existing node
@@ -804,10 +804,10 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
 TEST_F(KNodeTest, FUNC_KAD_Ping) {
   // ping by contact
   Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
-                      knodes_[kTestK * 3 / 4]->host_ip(),
-                      knodes_[kTestK * 3 / 4]->host_port(),
-                      knodes_[kTestK * 3 / 4]->local_host_ip(),
-                      knodes_[kTestK * 3 / 4]->local_host_port());
+                      knodes_[kTestK * 3 / 4]->ip(),
+                      knodes_[kTestK * 3 / 4]->port(),
+                      knodes_[kTestK * 3 / 4]->local_ip(),
+                      knodes_[kTestK * 3 / 4]->local_port());
   PingCallback cb_1;
   knodes_[kNetworkSize-1]->Ping(remote, boost::bind(&PingCallback::CallbackFunc,
                                                     &cb_1, _1));
@@ -825,7 +825,7 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
     for (boost::int16_t i = 0; i < kNetworkSize; ++i) {
       Contact ctc;
       if (knodes_[i]->GetContact(remote_id, &ctc))
-          DLOG(INFO) << "node " << i << " port " << knodes_[i]->host_port()
+          DLOG(INFO) << "node " << i << " port " << knodes_[i]->port()
                      << "has node " << kTestK / 4 << std::endl;
     }
     KadId zero_id;
@@ -915,10 +915,10 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   }
   for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
     Contact ctc(knodes_[2 + i]->node_id(),
-                     knodes_[2 + i]->host_ip(),
-                     knodes_[2 + i]->host_port(),
-                     knodes_[2 + i]->local_host_ip(),
-                     knodes_[2 + i]->local_host_port());
+                     knodes_[2 + i]->ip(),
+                     knodes_[2 + i]->port(),
+                     knodes_[2 + i]->local_ip(),
+                     knodes_[2 + i]->local_port());
     PingCallback ping_cb;
     knodes_[0]->Ping(ctc, boost::bind(&PingCallback::CallbackFunc,
                                       &ping_cb, _1));
@@ -941,10 +941,10 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   base::KadConfig::Contact *kad_contact = kad_config.add_contact();
   kad_contact->set_node_id(
       knodes_[0]->node_id().ToStringEncoded(KadId::kHex));
-  kad_contact->set_ip(knodes_[0]->host_ip());
-  kad_contact->set_port(knodes_[0]->host_port());
-  kad_contact->set_local_ip(knodes_[0]->local_host_ip());
-  kad_contact->set_local_port(knodes_[0]->local_host_port());
+  kad_contact->set_ip(knodes_[0]->ip());
+  kad_contact->set_port(knodes_[0]->port());
+  kad_contact->set_local_ip(knodes_[0]->local_ip());
+  kad_contact->set_local_port(knodes_[0]->local_port());
 
   for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
     cb_.Reset();
@@ -1004,20 +1004,20 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
   }
 
   Contact holder(knodes_[holders[closest_node]]->node_id(),
-                 knodes_[holders[closest_node]]->host_ip(),
-                 knodes_[holders[closest_node]]->host_port(),
-                 knodes_[holders[closest_node]]->local_host_ip(),
-                 knodes_[holders[closest_node]]->local_host_port());
+                 knodes_[holders[closest_node]]->ip(),
+                 knodes_[holders[closest_node]]->port(),
+                 knodes_[holders[closest_node]]->local_ip(),
+                 knodes_[holders[closest_node]]->local_port());
   PingCallback cb_3;
   knodes_[0]->Ping(holder, boost::bind(&PingCallback::CallbackFunc, &cb_3, _1));
   wait_result(&cb_3);
   ASSERT_TRUE(cb_3.result());
 
   GetNodeContactDetailsCallback cb_1;
-  Contact dead_node(r_node_id, knodes_[r_node]->host_ip(),
-                    knodes_[r_node]->host_port(),
-                    knodes_[r_node]->local_host_ip(),
-                    knodes_[r_node]->local_host_port());
+  Contact dead_node(r_node_id, knodes_[r_node]->ip(),
+                    knodes_[r_node]->port(),
+                    knodes_[r_node]->local_ip(),
+                    knodes_[r_node]->local_port());
   PingCallback cb_2;
   knodes_[0]->Ping(dead_node, boost::bind(&PingCallback::CallbackFunc,
                                           &cb_2, _1));
@@ -1110,7 +1110,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
 
 TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    ASSERT_EQ(DIRECT_CONNECTED, knodes_[i]->host_nat_type());
+    ASSERT_EQ(DIRECT_CONNECTED, knodes_[i]->nat_type());
     std::vector<Contact> exclude_contacts;
     std::vector<Contact> contacts;
     knodes_[i]->GetRandomContacts(static_cast<size_t>(kNetworkSize),
@@ -1125,10 +1125,10 @@ TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
 
 TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
   Contact remote(knodes_[kTestK * 3 / 4]->node_id(),
-                      knodes_[kTestK * 3 / 4]->host_ip(),
-                      knodes_[kTestK * 3 / 4]->host_port(),
-                      knodes_[kTestK * 3 / 4]->local_host_ip(),
-                      knodes_[kTestK * 3 / 4]->local_host_port());
+                      knodes_[kTestK * 3 / 4]->ip(),
+                      knodes_[kTestK * 3 / 4]->port(),
+                      knodes_[kTestK * 3 / 4]->local_ip(),
+                      knodes_[kTestK * 3 / 4]->local_port());
   PingCallback cb_1;
   knodes_[kTestK / 4]->Ping(remote,
                             boost::bind(&PingCallback::CallbackFunc,
@@ -1138,10 +1138,10 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
 
   // now ping the node that has changed its local address
   Contact remote1(knodes_[kTestK / 4]->node_id(),
-                       knodes_[kTestK / 4]->host_ip(),
-                       knodes_[kTestK / 4]->host_port(),
-                       knodes_[kTestK / 2]->local_host_ip(),
-                       knodes_[kTestK / 2]->local_host_port());
+                       knodes_[kTestK / 4]->ip(),
+                       knodes_[kTestK / 4]->port(),
+                       knodes_[kTestK / 2]->local_ip(),
+                       knodes_[kTestK / 2]->local_port());
   cb_1.Reset();
   knodes_[kTestK * 3 / 4]->Ping(remote1,
                                 boost::bind(&PingCallback::CallbackFunc,
@@ -1156,7 +1156,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
   DLOG(INFO) << "+++++++++++++++++ r_node = " << r_node << std::endl;
   KadId r_node_id = knodes_[r_node]->node_id();
-  boost::uint16_t r_port = knodes_[r_node]->host_port();
+  boost::uint16_t r_port = knodes_[r_node]->port();
   knodes_[r_node]->Leave();
   ASSERT_FALSE(knodes_[r_node]->is_joined());
   transports_[r_node]->StopListening(transport_ports_[r_node]);
@@ -1205,14 +1205,14 @@ TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
   ASSERT_LT(0, kconf.contact_size());
   cb_.Reset();
   std::string conf_file = dbs_[r_node] + "/.kadconfig";
-  ASSERT_EQ(NONE, knodes_[r_node]->host_nat_type());
+  ASSERT_EQ(NONE, knodes_[r_node]->nat_type());
   knodes_[r_node]->Join(knodes_[r_node]->node_id(), conf_file,
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_TRUE(knodes_[r_node]->is_joined());
-  ASSERT_EQ(DIRECT_CONNECTED, knodes_[r_node]->host_nat_type());
+  ASSERT_EQ(DIRECT_CONNECTED, knodes_[r_node]->nat_type());
   knodes_[r_node]->set_signature_validator(&validator);
   cb_.Reset();
 }

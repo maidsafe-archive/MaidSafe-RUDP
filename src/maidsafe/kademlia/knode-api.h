@@ -122,24 +122,24 @@ class KNode {
   * @param node_id Id that is going to be used by the node
   * @param kad_config_file path to the config file where bootstrapping nodes are
   * stored.
-  * @param external_ip external ip of the node
-  * @param external_port external port of the node
+  * @param ip external ip of the node
+  * @param port external port of the node
   * @param callback callback function where result of the operation is notified
   */
   void JoinFirstNode(const KadId &node_id, const std::string &kad_config_file,
-                     const IP &external_ip, const Port &external_port,
+                     const IP &ip, const Port &port,
                      VoidFunctorOneString callback);
   /**
   * Join the first node of the network using a random id.
   * This is a non-blocking operation.
   * @param kad_config_file path to the config file where bootstrapping nodes are
   * stored.
-  * @param external_ip external ip of the node
-  * @param external_port external port of the node
+  * @param ip external ip of the node
+  * @param port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void JoinFirstNode(const std::string &kad_config_file, const IP &external_ip,
-                     const Port &external_port, VoidFunctorOneString callback);
+  void JoinFirstNode(const std::string &kad_config_file, const IP &ip,
+                     const Port &port, VoidFunctorOneString callback);
   /**
   * Leave the kademlia network.  All values stored in the node are erased and
   * nodes from the routing table are saved as bootstrapping nodes in the
@@ -341,16 +341,16 @@ class KNode {
   * Updates the database routing table in the entry for the node id passed to be
   * to be contacted only via the remote endpoint.
   * @param node_id id of the node
-  * @param host_ip ip of the node
+  * @param ip ip of the node
   */
   void UpdatePDRTContactToRemote(const KadId &node_id,
-                                 const IP &host_ip);
+                                 const IP &ip);
   ContactInfo contact_info() const;
   KadId node_id() const;
-  IP host_ip() const;
-  Port host_port() const;
-  IP local_host_ip() const;
-  Port local_host_port() const;
+  IP ip() const;
+  Port port() const;
+  IP local_ip() const;
+  Port local_port() const;
   IP rendezvous_ip() const;
   Port rendezvous_port() const;
   bool is_joined() const;
@@ -404,7 +404,7 @@ class KNode {
   * is not joined it will return NONE
   * @return type of nat
   */
-  NatType host_nat_type();
+  NatType nat_type();
 
  private:
   boost::shared_ptr<KNodeImpl> pimpl_;

@@ -49,16 +49,15 @@ void KNode::Join(const std::string &kad_config_file,
 
 void KNode::JoinFirstNode(const KadId &node_id,
                           const std::string &kad_config_file,
-                          const IP &external_ip, const Port &external_port,
+                          const IP &ip, const Port &port,
                           VoidFunctorOneString callback) {
-  pimpl_->JoinFirstNode(node_id, kad_config_file, external_ip, external_port,
-                        callback);
+  pimpl_->JoinFirstNode(node_id, kad_config_file, ip, port, callback);
 }
 
 void KNode::JoinFirstNode(const std::string &kad_config_file,
-                          const IP &external_ip, const Port &external_port,
+                          const IP &ip, const Port &port,
                           VoidFunctorOneString callback) {
-  pimpl_->JoinFirstNode(kad_config_file, external_ip, external_port, callback);
+  pimpl_->JoinFirstNode(kad_config_file, ip, port, callback);
 }
 
 void KNode::Leave() {
@@ -154,8 +153,8 @@ ConnectionType KNode::CheckContactLocalAddress(const KadId &id,
 }
 
 void KNode::UpdatePDRTContactToRemote(const KadId &node_id,
-                                      const IP &host_ip) {
-  pimpl_->UpdatePDRTContactToRemote(node_id, host_ip);
+                                      const IP &ip) {
+  pimpl_->UpdatePDRTContactToRemote(node_id, ip);
 }
 
 ContactInfo KNode::contact_info() const {
@@ -166,20 +165,20 @@ KadId KNode::node_id() const {
   return pimpl_->node_id();
 }
 
-IP KNode::host_ip() const {
-  return pimpl_->host_ip();
+IP KNode::ip() const {
+  return pimpl_->ip();
 }
 
-Port KNode::host_port() const {
-  return pimpl_->host_port();
+Port KNode::port() const {
+  return pimpl_->port();
 }
 
-IP KNode::local_host_ip() const {
-  return pimpl_->local_host_ip();
+IP KNode::local_ip() const {
+  return pimpl_->local_ip();
 }
 
-Port KNode::local_host_port() const {
-  return pimpl_->local_host_port();
+Port KNode::local_port() const {
+  return pimpl_->local_port();
 }
 
 IP KNode::rendezvous_ip() const {
@@ -242,8 +241,8 @@ void KNode::DeleteValue(const KadId &key, const SignedValue &signed_value,
   pimpl_->DeleteValue(key, signed_value, signed_request, callback);
 }
 
-NatType KNode::host_nat_type() {
-  return pimpl_->host_nat_type();
+NatType KNode::nat_type() {
+  return pimpl_->nat_type();
 }
 
 }  // namespace kad
