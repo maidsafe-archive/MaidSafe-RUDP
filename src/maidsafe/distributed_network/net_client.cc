@@ -231,7 +231,7 @@ class JoinCallback {
       DLOG(ERROR) << "Join response isn't initialised." << std::endl;
       success_ = false;
     }
-    if (success_ && message.result() != kad::kRpcResultSuccess) {
+    if (success_ && !message.result()) {
       DLOG(ERROR) << "Join failed." << std::endl;
       success_ = false;
     }
@@ -299,11 +299,13 @@ void CtrlcHandler(int b) {
 }
 
 int main(int, char **argv) {
+  // Initialising logging
   google::InitGoogleLogging(argv[0]);
-#ifndef HAVE_GLOG
-  bool FLAGS_logtostderr;
-#endif
-  FLAGS_logtostderr = true;
+  // Choose to direct output to stderr or not.
+  FLAGS_logtostderr = false;
+  // If Google logging is linked in, log messages at or above this level.
+  // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
+  FLAGS_minloglevel = 3;
 
   if (!net_client::KadConfigOK()) {
     DLOG(ERROR) << "Can't find .kadconfig" << std::endl;
@@ -311,34 +313,33 @@ int main(int, char **argv) {
   }
 
   // Create required objects
-  net_client::NetworkTestValidator ntv;
-  transport::UdtTransport transport_udt;
-  boost::int16_t transport_id;
-  transport_handler.Register(&transport_udt, &transport_id);
-  rpcprotocol::ChannelManager channel_manager(&transport_handler);
-  crypto::RsaKeyPair rsa_key_pair;
-  rsa_key_pair.GenerateKeys(4096);
-  kad::KnodeConstructionParameters kcp;
-  kcp.type = kad::CLIENT;
-  kcp.public_key = rsa_key_pair.public_key();
-  kcp.private_key = rsa_key_pair.private_key();
-  kcp.k = net_client::K;
-  kcp.refresh_time = kad::kRefreshTime;
-  boost::shared_ptr<kad::KNode> node(
-      new kad::KNode(&channel_manager, &transport_handler, kcp));
-  node->set_transport_id(transport_id);
-  node->set_signature_validator(&ntv);
-  if (!channel_manager.RegisterNotifiersToTransport() ||
-      !transport_handler.RegisterOnServerDown(
-          boost::bind(&kad::KNode::HandleDeadRendezvousServer,
-                      node.get(), _1))) {
-    return 2;
-  }
-
-  if (0 != transport_udt.Start(0) ||
-      0 != channel_manager.Start()) {
-    return 3;
-  }
+//  net_client::NetworkTestValidator ntv;
+//  transport::UdtTransport transport_udt;
+//  boost::int16_t transport_id;
+//  rpcprotocol::ChannelManager channel_manager(&transport_handler);
+//  crypto::RsaKeyPair rsa_key_pair;
+//  rsa_key_pair.GenerateKeys(4096);
+//  kad::KnodeConstructionParameters kcp;
+//  kcp.type = kad::CLIENT;
+//  kcp.public_key = rsa_key_pair.public_key();
+//  kcp.private_key = rsa_key_pair.private_key();
+//  kcp.k = net_client::K;
+//  kcp.refresh_time = kad::kRefreshTime;
+//  boost::shared_ptr<kad::KNode> node(
+//      new kad::KNode(&channel_manager, &transport_handler, kcp));
+//  node->set_transport_id(transport_id);
+//  node->set_signature_validator(&ntv);
+//  if (!channel_manager.RegisterNotifiersToTransport() ||
+//      !transport_handler.RegisterOnServerDown(
+//          boost::bind(&kad::KNode::HandleDeadRendezvousServer,
+//                      node.get(), _1))) {
+//    return 2;
+//  }
+//
+//  if (0 != transport_udt.Start(0) ||
+//      0 != channel_manager.Start()) {
+//    return 3;
+//  }
 
 //  // Join the test network
 //  net_client::JoinCallback callback;
@@ -351,24 +352,25 @@ int main(int, char **argv) {
 //    return 4;
 //  }
 
-  boost::shared_ptr<net_client::Operator> op;
-  boost::thread th(&net_client::StartTest, op, node, rsa_key_pair.public_key(),
-                   rsa_key_pair.private_key());
-
-  printf("Node info: %s", node->contact_info().DebugString().c_str());
-  printf("=====================================\n");
-  printf("Press Ctrl+C to exit\n");
-  printf("=====================================\n\n");
-  signal(SIGINT, CtrlcHandler);
-  while (!ctrlc_pressed) {
-    boost::this_thread::sleep(boost::posix_time::seconds(1));
-  }
-
-  printf("\n");
-  transport_handler.StopPingRendezvous();
-  node->Leave();
-  transport_handler.Stop(transport_id);
-  channel_manager.Stop();
+//  boost::shared_ptr<net_client::Operator> op;
+//  boost::thread th(&net_client::StartTest, op, node,
+//                     rsa_key_pair.public_key(),
+//                   rsa_key_pair.private_key());
+//
+//  printf("Node info: %s", node->contact_info().DebugString().c_str());
+//  printf("=====================================\n");
+//  printf("Press Ctrl+C to exit\n");
+//  printf("=====================================\n\n");
+//  signal(SIGINT, CtrlcHandler);
+//  while (!ctrlc_pressed) {
+//    boost::this_thread::sleep(boost::posix_time::seconds(1));
+//  }
+//
+//  printf("\n");
+//  transport_handler.StopPingRendezvous();
+//  node->Leave();
+//  transport_handler.Stop(transport_id);
+//  channel_manager.Stop();
 
   return 0;
 }

@@ -38,17 +38,25 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/distributed_network/mysqlppwrap.h"
 #include "maidsafe/kademlia/knode-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/protobuf/signed_kadvalue.pb.h"
 
 namespace net_client {
 
 Operator::Operator(boost::shared_ptr<kad::KNode> knode,
                    const std::string &public_key,
                    const std::string &private_key)
-    : knode_(knode), wrap_(new MySqlppWrap()), halt_request_(false),
-      operation_index_(0), operation_map_(), values_map_(), op_map_mutex_(),
-      values_map_mutex_(), timer_(new base::CallLaterTimer()),
-      public_key_(public_key), private_key_(private_key),
+    : knode_(knode),
+      wrap_(new MySqlppWrap()),
+      halt_request_(false),
+      operation_index_(0),
+      random_operations_(0),
+      fetch_count_(0),
+      operation_map_(),
+      values_map_(),
+      op_map_mutex_(),
+      values_map_mutex_(),
+      timer_(new base::CallLaterTimer()),
+      public_key_(public_key),
+      private_key_(private_key),
       public_key_signature_() {
   crypto::Crypto co;
   public_key_signature_ = co.AsymSign(public_key_, "", private_key_,
@@ -89,7 +97,8 @@ void Operator::GenerateValues(int size) {
     sv.set_value_signature(co.AsymSign(random_value, "", private_key_,
                                        crypto::STRING_STRING));
     std::string key(co.Hash(random_value, "", crypto::STRING_STRING, false));
-    values_map_.insert(ValuesMapPair(key, ValueStatus(sv, -1)));
+    KeyValue kv(key, sv.SerializeAsString(), -1);
+    values_map_.insert(kv);
   }
 
   // Generate non-hashable values
@@ -111,7 +120,8 @@ void Operator::GenerateValues(int size) {
       crypto::Crypto co;
       sv.set_value_signature(co.AsymSign(random_value, "", private_key_,
                                          crypto::STRING_STRING));
-      values_map_.insert(ValuesMapPair(key, ValueStatus(sv, 0)));
+      KeyValue kv(key, sv.SerializeAsString(), -1);
+      values_map_.insert(kv);
     }
   }
 }
@@ -124,36 +134,21 @@ void Operator::Run() {
                        boost::bind(&Operator::ChooseOperation, this));
 }
 
-void Operator::Halt() { }
+void Operator::Halt() {}
 
 void Operator::ScheduleInitialOperations() {
-  ValuesMap::iterator it = values_map_.begin();
-  for (int n = 0; n < 5; ++n) {
-    std::string key((*it).first);
-    ValueStatus vst((*it).second);
-    kad::SignedValue sv(vst.first);
-    timer_->AddCallLater((1 + n) * 1000,
-                         boost::bind(&Operator::StoreValue, this, key, sv));
-    ++it;
-  }
+//  ValuesMap::iterator it = values_map_.begin();
+//  for (int n = 0; n < 5; ++n) {
+//    std::string key((*it).first);
+//    ValueStatus vst((*it).second);
+//    kad::SignedValue sv(vst.first);
+//    timer_->AddCallLater((1 + n) * 1000,
+//                         boost::bind(&Operator::StoreValue, this, key, sv));
+//    ++it;
+//  }
 }
 
-void Operator::ScheduleInitialOperations() {
-  for (int n = 0; n < 15; ++n) {
-    if (timer_->AddCallLater((1 + n) * 1000,
-                             boost::bind(&Operator::SendStore, this)) ==
-        std::numeric_limits<boost::uint32_t>::max())
-      printf("Failure in Operator::ScheduleInitialOperations %d\n", n);
-  }
-
-  timer_->AddCallLater(10 * 1000,
-                       boost::bind(&Operator::FetchKeyValuesFromDb, this));
-//  timer_->AddCallLater(10 * 1000,
-//                       boost::bind(&Operator::ChooseOperation, this));
-//  printf("asjdhfjklasdhfjklasdhfjklhasdjkfhsadjklfhasjklhfasjklhfklasdhf\n");
-}
-
-void Operator::ChooseOperation() {
+int Operator::ChooseOperation() {
   ++random_operations_;
 //  boost::uint16_t op(base::RandomUint32() % 4);
 //  switch (op) {
@@ -167,6 +162,7 @@ void Operator::ChooseOperation() {
   if (random_operations_ < 5)
     timer_->AddCallLater(30 * 1000,
                          boost::bind(&Operator::ChooseOperation, this));
+  return 0;
 }
 
 void Operator::FetchKeyValuesFromDb() {
@@ -194,6 +190,10 @@ void Operator::FetchKeyValuesFromDb() {
   if (fetch_count_ < 10)
     timer_->AddCallLater(20 * 1000,
                          boost::bind(&Operator::FetchKeyValuesFromDb, this));
+}
+
+bool Operator::KeyMine(const std::string&) {
+  return false;
 }
 
 void Operator::SendStore() {
@@ -318,10 +318,11 @@ void Operator::StoreValue(const std::string &key, const kad::SignedValue &sv) {
 void Operator::StoreCallback(const std::string &key,
                              const kad::SignedValue &sv,
                              const std::string &ser_result) {
+  Operation op;
   kad::StoreResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
-    if (response.result() == kad::kRpcResultSuccess)
+    if (response.result())
       success = true;
 
   if (success) {
@@ -346,24 +347,23 @@ void Operator::StoreCallback(const std::string &key,
   }
 }
 
-void Operator::FindValue(const std::string &key,
-                         const std::vector<kad::SignedValue> &values,
-                         bool mine) {
-  kad::KadId ki_key(key);
-  knode_->FindValue(ki_key, false,
-                    boost::bind(&Operator::FindValueCallback, this,
-                                _1, key, values, mine));
+void Operator::FindValue(const std::string&,
+                         const std::vector<kad::SignedValue>&, bool) {
+//  kad::KadId ki_key(key);
+//  knode_->FindValue(ki_key, false,
+//                    boost::bind(&Operator::FindValueCallback, this,
+//                                _1, key, values, mine));
 }
 
-void Operator::FindValueCallback(const std::string &ser_result,
-                                 const std::string &key,
+void Operator::FindValueCallback(const Operation &op,
+                                 const std::string &ser_result,
                                  const std::vector<kad::SignedValue> &values,
                                  bool mine) {
   kad::FindResponse result_msg;
   bool success(true);
   if (!result_msg.ParseFromString(ser_result)) {
     success = false;
-  } else if (result_msg.result() == kad::kRpcResultFailure) {
+  } else if (!result_msg.result()) {
     success = false;
   } else if (size_t(result_msg.signed_values_size()) != values.size()) {
     success = false;
@@ -414,15 +414,15 @@ void Operator::DeleteValue(const std::string &key, const kad::SignedValue &sv) {
   CreateRequestSignature(key, &request_signature);
   kad::KadId ki_key(key);
   Operation op(key, sv, kDelete);
-  {
-    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
-    std::pair<OperationMap::iterator, bool> p = operation_map_.insert(op);
-    if (!p.second)
-      printf("\n\nTHIS IS  WHY ONE SHOULD CHECK FOR INSERTION!!!!\n\n");
-    else
-      printf("Operator::DeleteValue - %s\n",
-             to_simple_string(op.start_time).c_str());
-  }
+//  {
+//    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
+//    std::pair<OperationMap::iterator, bool> p = operation_map_.insert(op);
+//    if (!p.second)
+//      printf("\n\nTHIS IS  WHY ONE SHOULD CHECK FOR INSERTION!!!!\n\n");
+//    else
+//      printf("Operator::DeleteValue - %s\n",
+//             to_simple_string(op.start_time).c_str());
+//  }
   knode_->DeleteValue(ki_key, sv, request_signature,
                       boost::bind(&Operator::DeleteValueCallback, this, op,
                                   _1));
@@ -433,7 +433,7 @@ void Operator::DeleteValueCallback(const Operation &op,
   kad::DeleteResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
-    if (response.result() == kad::kRpcResultSuccess)
+    if (response.result())
       success = true;
 
   if (success) {
@@ -464,15 +464,15 @@ void Operator::UpdateValue(const std::string &key,
   CreateRequestSignature(key, &request_signature);
   kad::KadId ki_key(key);
   Operation op(key, old_value, kUpdate);
-  {
-    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
-    std::pair<OperationMap::iterator, bool> p = operation_map_.insert(op);
-    if (!p.second)
-      printf("\n\nTHIS IS  WHY ONE SHOULD CHECK FOR INSERTION!!!!\n\n");
-    else
-      printf("Operator::UpdateValue - %s\n",
-             to_simple_string(op.start_time).c_str());
-  }
+//  {
+//    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
+//    std::pair<OperationMap::iterator, bool> p = operation_map_.insert(op);
+//    if (!p.second)
+//      printf("\n\nTHIS IS  WHY ONE SHOULD CHECK FOR INSERTION!!!!\n\n");
+//    else
+//      printf("Operator::UpdateValue - %s\n",
+//             to_simple_string(op.start_time).c_str());
+//  }
   knode_->UpdateValue(ki_key, old_value, new_value, request_signature,
                       24 * 60 * 60, boost::bind(&Operator::UpdateValueCallback,
                                                 this, op, new_value, _1));
@@ -484,7 +484,7 @@ void Operator::UpdateValueCallback(const Operation &op,
   kad::UpdateResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
-    if (response.result() == kad::kRpcResultSuccess)
+    if (response.result())
       success = true;
 
   std::string ser_old_value(op.signed_value.SerializeAsString());
@@ -521,29 +521,29 @@ void Operator::FindKClosestNodesCallback(const std::string&,
   if (!result_msg.ParseFromString(ser_result))
     return;
 
-  if (result_msg.result() == kad::kRpcResultFailure)
+  if (!result_msg.result())
     return;
 
-  if (size_t(result_msg.signed_values_size()) != values.size())
-    return;
+//  if (size_t(result_msg.signed_values_size()) != values.size())
+//    return;
 
-  int count(0);
-  for (int n = 0; n < result_msg.signed_values_size(); ++n) {
-    if (values[n].value() != result_msg.signed_values(n).value() ||
-        values[n].value_signature() !=
-            result_msg.signed_values(n).value_signature())
-      ++count;
-  }
+//  int count(0);
+//  for (int n = 0; n < result_msg.signed_values_size(); ++n) {
+//    if (values[n].value() != result_msg.signed_values(n).value() ||
+//        values[n].value_signature() !=
+//            result_msg.signed_values(n).value_signature())
+//      ++count;
+//  }
 
-  if (mine) {
-    boost::mutex::scoped_lock loch_voil(values_map_mutex_);
-    std::pair<ValuesMap::iterator, ValuesMap::iterator> p =
-        values_map_.equal_range(key);
-    while (p.first != p.second) {
-      ++(*p.first).second.second;
-      ++p.first;
-    }
-  }
+//  if (KeyMine(key)) {
+//    boost::mutex::scoped_lock loch_voil(values_map_mutex_);
+//    std::pair<ValuesMap::iterator, ValuesMap::iterator> p =
+//        values_map_.equal_range(key);
+//    while (p.first != p.second) {
+//      ++(*p.first).second.second;
+//      ++p.first;
+//    }
+//  }
 }
 
 void Operator::CreateRequestSignature(const std::string &key,
@@ -555,5 +555,12 @@ void Operator::CreateRequestSignature(const std::string &key,
   request->set_signed_request(co.Hash(public_key_ + public_key_signature_ + key,
                                       "", crypto::STRING_STRING, true));
 }
+
+bool Operator::HashableKeyPair(const std::string &key, const std::string &value,
+                               crypto::Crypto *co) {
+  return key == co->Hash(value, "", crypto::STRING_STRING, false);
+}
+
+void Operator::LogResult(const Operation&, const kad::SignedValue&, bool) {}
 
 }  // namespace net_client

@@ -30,11 +30,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/composite_key.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/member.hpp>
 
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "maidsafe/protobuf/signed_kadvalue.pb.h"
+
+namespace crypto {
+class Crypto;
+}  // namespace crypto
 
 namespace base {
 class CallLaterTimer;
@@ -78,22 +89,22 @@ struct by_operation {};
 
 typedef boost::multi_index_container<
   Operation,
-  mi::indexed_by<
-    mi::ordered_non_unique<
-      mi::tag<by_operation_key>,
+  boost::multi_index::indexed_by<
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<by_operation_key>,
       BOOST_MULTI_INDEX_MEMBER(Operation, std::string, key)
     >,
-    mi::ordered_unique<
-      mi::tag<by_timestamp>,
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<by_timestamp>,
       BOOST_MULTI_INDEX_MEMBER(Operation, boost::posix_time::ptime, start_time)
     >,
-    mi::ordered_non_unique<
-      mi::tag<by_duration>,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<by_duration>,
       BOOST_MULTI_INDEX_MEMBER(Operation, boost::posix_time::microseconds,
                                duration)
     >,
-    mi::ordered_non_unique<
-      mi::tag<by_operation>,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<by_operation>,
       BOOST_MULTI_INDEX_MEMBER(Operation, OpType, op_type)
     >
   >
@@ -120,25 +131,25 @@ struct KeyValue {
 
 typedef boost::multi_index_container<
   KeyValue,
-  mi::indexed_by<
-    mi::ordered_non_unique<
-      mi::tag<by_valuemap_key>,
+  boost::multi_index::indexed_by<
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<by_valuemap_key>,
       BOOST_MULTI_INDEX_MEMBER(KeyValue, std::string, key)
     >,
-    mi::ordered_unique<
-      mi::tag<by_value>,
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<by_value>,
       BOOST_MULTI_INDEX_MEMBER(KeyValue, std::string, value)
     >,
-    mi::ordered_unique<
-      mi::tag<by_key_value>,
-      mi::composite_key<
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<by_key_value>,
+      boost::multi_index::composite_key<
         KeyValue,
         BOOST_MULTI_INDEX_MEMBER(KeyValue, std::string, key),
         BOOST_MULTI_INDEX_MEMBER(KeyValue, std::string, value)
       >
     >,
-    mi::ordered_non_unique<
-      mi::tag<by_status>,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<by_status>,
       BOOST_MULTI_INDEX_MEMBER(KeyValue, int, status)
     >
   >
@@ -149,10 +160,6 @@ typedef ValuesMap::index<by_valuemap_key>::type ValuesMapByKey;
 typedef ValuesMap::index<by_status>::type ValuesMapByStatus;
 
 class Operator {
-  typedef std::pair<kad::SignedValue, int> ValueStatus;
-  typedef std::pair<std::string, ValueStatus> ValuesMapPair;
-  typedef std::multimap<std::string, ValueStatus> ValuesMap;
-
  public:
   Operator(boost::shared_ptr<kad::KNode> knode, const std::string &public_key,
            const std::string &private_key);
@@ -167,29 +174,47 @@ class Operator {
   void ExecuteOperation();
   void GenerateValues(int size);
   void ScheduleInitialOperations();
+  void FetchKeyValuesFromDb();
+  bool KeyMine(const std::string &key);
 
   // Operations
   void StoreValue(const std::string &key, const kad::SignedValue &sv);
   void FindValue(const std::string &key,
                  const std::vector<kad::SignedValue> &values,
                  bool mine);
+  void DeleteValue(const std::string &key, const kad::SignedValue &sv);
+  void UpdateValue(const std::string &key, const kad::SignedValue &old_value,
+                   const kad::SignedValue &new_value);
+  void FindKClosestNodes(const std::string &key);
 
   // Operation Callbacks
   void StoreCallback(const std::string &key, const kad::SignedValue &sv,
                      const std::string &ser_result);
-  void FindValueCallback(const std::string &ser_result,
-                         const std::string &key,
+  void FindValueCallback(const Operation &op, const std::string &key,
                          const std::vector<kad::SignedValue> &values,
                          bool mine);
-
+  void DeleteValueCallback(const Operation &op, const std::string &ser_result);
+  void UpdateValueCallback(const Operation &op,
+                           const kad::SignedValue &new_value,
+                           const std::string &ser_result);
+  void FindKClosestNodesCallback(const std::string &key,
+                                 const std::string &ser_result);
   // Miscellaneous
   void CreateRequestSignature(const std::string &key,
                               kad::SignedRequest *request);
+  bool HashableKeyPair(const std::string &key, const std::string &value,
+                       crypto::Crypto *co);
+  void SendStore();
+  void SendFind();
+  void SendDelete();
+  void SendUpdate();
+
+  void LogResult(const Operation &op, const kad::SignedValue &sv, bool success);
 
   boost::shared_ptr<kad::KNode> knode_;
   boost::shared_ptr<MySqlppWrap> wrap_;
   volatile bool halt_request_;
-  int operation_index_;
+  int operation_index_, random_operations_, fetch_count_;
   std::map<int, std::string> operation_map_;
   ValuesMap values_map_;
   boost::mutex op_map_mutex_, values_map_mutex_;

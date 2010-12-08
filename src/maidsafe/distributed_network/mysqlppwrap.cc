@@ -92,7 +92,7 @@ int MySqlppWrap::Update(const std::string &key, const std::string &old_value,
           << mysqlpp::escape << old_value << "'";
     mysqlpp::SimpleResult res = query.execute();
     if (res.rows() != 1) {
-      printf("AAAAAAAAA %llu\n", res.rows());
+//      printf("AAAAAAAAA %llu\n", res.rows());
       return -1;
     }
   }
@@ -191,6 +191,11 @@ int MySqlppWrap::GetKeys(std::vector<std::string> *keys) {
     return -1;
   }
   return 0;
+}
+
+int MySqlppWrap::GetValues(const std::string &key,
+                           std::vector<std::string> *values) {
+  return Get(key, values);
 }
 
 }  // namespace net_client
