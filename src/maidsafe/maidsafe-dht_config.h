@@ -91,6 +91,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/asio/ip/address.hpp>
 
 #include <string>
 
@@ -100,9 +101,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 namespace transport {
 
-typedef std::string IP;
+typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
-typedef int SocketId, ManagedEndpointId;
+struct Endpoint {
+  IP ip;
+  Port port;
+};
+typedef int ManagedEndpointId;
 typedef boost::int32_t DataSize;
 
 const DataSize kMaxTransportMessageSize = 67108864;
@@ -117,8 +122,6 @@ namespace kad {
 
 // Functor for general callback functions.
 typedef boost::function<void(const std::string&)> VoidFunctorOneString;
-typedef transport::IP IP;
-typedef transport::Port Port;
 
 enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
@@ -181,16 +184,13 @@ const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
  ******************************************************************************/
 namespace rpcprotocol {
 
-typedef transport::IP IP;
-typedef transport::Port Port;
 typedef boost::uint32_t RpcId;
-typedef transport::SocketId SocketId;
 
 // Maximum port number.
-const Port kMaxPort = 65535;
+const transport::Port kMaxPort = 65535;
 
 // Minimum port number.
-const Port kMinPort = 5000;
+const transport::Port kMinPort = 5000;
 
 // RPC timeout duration (in milliseconds).
 const boost::uint32_t kRpcTimeout = 10000;

@@ -41,67 +41,62 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/transport/transportsignals.h>
 #include <maidsafe/transport/transportutils.h>
 #include <vector>
+#include <iostream>
 
 #if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif
 
-namespace  fs = boost::filesystem;
-
 namespace transport {
 
-enum NatType {
-  kDirectlyConnected = 0,
-  kFullCone,
-  kPortRestricted,
-  kNotConnected,
-  kUnableToDetect
-};
-
-class TransportMessage;
-
+// Base class for all transport types.
 class Transport {
-  // Base class for all transport types.
  public:
   virtual ~Transport() {}
-  // Tries to open a listening socket on the suggested IP, Port.  If port == 0,
-  // a random port is chosen.  On success, the actual local port opened is
-  // returned and the port is added to listening_ports_ vector.  On failure,
-  // 0 is returned and if transport_condition != NULL, it is set appropriately.
-  virtual Port StartListening(const IP &ip,
-                              const Port &try_port,
-                              TransportCondition *transport_condition) = 0;
-  // Stops listening on the chosen port and removes the port from
-  // listening_ports_ vector.
-  virtual bool StopListening(const Port &port) = 0;
-  // Stops all listening ports and clears listening_ports_ vector.
-  virtual bool StopAllListening() = 0;
-  // Used to create a new socket for sending data.
-  virtual SocketId PrepareToSend(const IP &remote_ip,
-                                 const Port &remote_port,
-                                 const IP &rendezvous_ip,
-                                 const Port &rendezvous_port) = 0;
-  // Used to send transport_message on socket_id.  If the message is a request,
-  // the socket is kept alive awaiting a response for timeout_wait_for_response
-  // milliseconds, after which it is closed.  Internal sending of message has
-  // its own timeout, so method may signal failure before
-  // timeout_wait_for_response milliseconds have passed if sending times out.
-  // If the message is a response, the socket is closed immediately after
-  // sending.  Result is signalled by on_send_.
-  virtual void Send(const TransportMessage &transport_message,
-                    const SocketId &socket_id,
-                    const boost::uint32_t &timeout_wait_for_response) = 0;
-  // Used to send a file in response to a request received on socket_id.
-  virtual void SendFile(const fs::path &path, const SocketId &socket_id) = 0;
+  /**
+   * Enables the transport to accept incoming communication. Fails if already
+   * listening or the requested endpoint is unavailable.
+   * @param endpoint The endpoint to listen for messages on.
+   * @return Success or an appropriate error code.
+   */
+  virtual TransportCondition StartListening(const Endpoint &endpoint) = 0;
+  /**
+   * Stops the transport from accepting incoming communication.
+   */
+  virtual void StopListening() = 0;
+  /**
+   * Sends the given message to the specified receiver. The result is signalled
+   * by on_send_.
+   * @param data The message data to transmit.
+   * @param endpoint The data receiver's endpoint.
+   * @param close Whether to close the established connection after send, if
+   * applicable. Non-connection-oriented transports should ignore this.
+   */
+  virtual void Send(const std::string &data,
+                    const Endpoint &endpoint,
+                    bool close) = 0;
+  /**
+   * Sends data being streamed from the give source.
+   * @param data The input stream delivering data to send.
+   * @param endpoint The data receiver's endpoint.
+   */
+  virtual void SendStream(const std::istream &data,
+                          const Endpoint &endpoint) = 0;
+  /**
+   * Getter for the transport's signals.
+   * @return A pointer to the signals object.
+   */
   boost::shared_ptr<Signals> signals() { return signals_; }
-  std::vector<Port> listening_ports() { return listening_ports_; }
+  /**
+   * Getter for the listening port.
+   * @return The port number or 0 if not listening.
+   */
+  Port listening_port() const { return listening_port_; }
  protected:
-  Transport() : signals_(new Signals), listening_ports_(),
-                listening_ports_mutex_() {}
+  Transport() : signals_(new Signals), listening_port_(0) {}
   boost::shared_ptr<Signals> signals_;
-  std::vector<Port> listening_ports_;
-  boost::mutex listening_ports_mutex_;
+  Port listening_port_;
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
