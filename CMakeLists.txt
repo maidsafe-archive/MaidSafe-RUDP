@@ -151,6 +151,7 @@ ELSE()
   SET(pddate "DEVELOPER_${pddate}")
 ENDIF()
 
+SET(CMAKE_include_directories_BEFORE ON)
 
 # setup a single target path for libraries and executables -
 # this avoids copying all the dlls and exes together
@@ -221,6 +222,27 @@ SET(LIBS_DIRS ${LIBS_DIRS} ${Boost_LIBRARY_DIRS})
 SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Boost_LIBRARY_DIRS})
 
 ###################################################################################################
+# Protocol Buffers library search                                                                 #
+###################################################################################################
+FILE(GLOB PROTO_FILES RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/protobuf/*.proto")
+SET(PROTOBUF_REQUIRED FALSE)
+INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
+IF(NOT Protobuf_FOUND)
+  SET(PROTOBUF_REQUIRED TRUE)
+  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildProtobuf.cmake)
+ENDIF()
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Protobuf_INCLUDE_DIR})
+SET(LIBS_DIRS ${LIBS_DIRS} ${Protobuf_LIBRARY_DIR})
+SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Protobuf_LIBRARY_DIR_DEBUG})
+
+###################################################################################################
+# Google Mock and Test library                                                                    #
+###################################################################################################
+SET(gtest_force_shared_crt ON CACHE INTERNAL "" FORCE)
+ADD_SUBDIRECTORY(${${PROJECT_NAME}_ROOT}/thirdpartylibs/googlemock)
+INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR})
+
+###################################################################################################
 # Google Log library search - Glog can't currently be compiled on Windows with MinGW              #
 ###################################################################################################
 IF((NOT WIN32) OR MSVC)
@@ -233,17 +255,6 @@ IF((NOT WIN32) OR MSVC)
 ENDIF()
 
 ###################################################################################################
-# Google Test library search                                                                      #
-###################################################################################################
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGtest.cmake)
-SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gtest_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Gtest_LIBRARY_DIR})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Gtest_LIBRARY_DIR_DEBUG})
-IF(NOT WIN32)
-  SET(Gtest_LIBRARY "${Gtest_LIBRARY};pthread")
-ENDIF()
-
-###################################################################################################
 # MySQL++ library search                                                                          #
 ###################################################################################################
 INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindMysqlpp.cmake)
@@ -252,23 +263,6 @@ IF(Mysqlpp_FOUND)
   SET(LIBS_DIRS ${LIBS_DIRS} ${Mysqlpp_LIBRARY_DIR} ${Mysql_LIBRARY_DIR})
   SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Mysqlpp_LIBRARY_DIR_DEBUG} ${Mysql_LIBRARY_DIR_DEBUG})
 ENDIF()
-
-###################################################################################################
-# Protocol Buffers library search                                                                 #
-###################################################################################################
-FILE(GLOB PROTO_FILES RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/protobuf/*.proto")
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
-SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Protobuf_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Protobuf_LIBRARY_DIR})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Protobuf_LIBRARY_DIR_DEBUG})
-
-###################################################################################################
-# Google Mock library search                                                                      #
-###################################################################################################
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGmock.cmake)
-SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gmock_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Gmock_LIBRARY_DIR})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Gmock_LIBRARY_DIR_DEBUG})
 
 ###################################################################################################
 # Python library search                                                                           #
@@ -320,9 +314,9 @@ LIST(REMOVE_DUPLICATES LIBS_DIRS)
 LIST(REMOVE_DUPLICATES LIBS_DIRS_DEBUG)
 LINK_DIRECTORIES(${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 
-INCLUDE_DIRECTORIES(${${PROJECT_NAME}_SOURCE_DIR})
+INCLUDE_DIRECTORIES(BEFORE ${${PROJECT_NAME}_SOURCE_DIR})
 LIST(REMOVE_DUPLICATES INCLUDE_DIRS)
-INCLUDE_DIRECTORIES(AFTER SYSTEM ${INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(BEFORE SYSTEM ${INCLUDE_DIRS})
 
 MESSAGE("================================================================================")
 
@@ -574,14 +568,14 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${Boost_SYSTEM_LIBRARIES}
                         ${Boost_REGEX_LIBRARIES}
                         ${SYS_LIB})
-TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTrpcprotocol maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static ${Gtest_LIBRARY} ${Gmock_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTknode maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static ${Gtest_LIBRARY})
-TARGET_LINK_LIBRARIES(TESTboost ${Glog_LIBRARY} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARIES} ${Gtest_LIBRARY} ${SYS_LIB})
+TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTrpcprotocol maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gtest_main gmock_main)
+TARGET_LINK_LIBRARIES(TESTknode maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTboost ${Glog_LIBRARY} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARIES} gtest_main ${SYS_LIB})
 TARGET_LINK_LIBRARIES(kaddemo_static maidsafe_dht_static ${Boost_PROGRAM_OPTIONS_LIBRARIES})
 TARGET_LINK_LIBRARIES(benchmark_static maidsafe_dht_static ${Boost_PROGRAM_OPTIONS_LIBRARIES})
 IF(Mysqlpp_FOUND)
