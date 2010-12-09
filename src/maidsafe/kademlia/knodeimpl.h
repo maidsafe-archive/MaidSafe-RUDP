@@ -303,9 +303,17 @@ class KNodeImpl {
   void AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
                         int round, std::list<Contact> *contacts,
                         bool *top_nodes_done, bool *calledback);
+  bool HandleIterationStructure(const Contact &contact,
+                                boost::shared_ptr<FindNodesArgs> fna,
+                                int round,
+                                SearchMarking mark,
+                                std::list<Contact> *nodes,
+                                bool *top_nodes_done,
+                                bool *calledback);
   void FindNodes(const FindNodesParams &fnp);
   virtual void IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
-                               int round);
+                               bool top_nodes_done, bool calledback,
+                               std::list<Contact> *contacts);
   void IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc);
 };
 

@@ -300,7 +300,6 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
   node_->is_joined_ = true;
 }
 
-/*
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
@@ -323,6 +322,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
   ASSERT_EQ(K, fna->nc.size());
 }
 
+/*
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
@@ -575,10 +575,9 @@ class MockKadRpcs : public KadRpcs {
   }
   bool AllAlphasBack(boost::shared_ptr<FindNodesArgs> fna) {
     boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
-    NodeContainerByConAlpha &index_conal = fna->nc.get<nc_con_alpha>();
-    std::pair<NCBCAit, NCBCAit> pca =
-        index_conal.equal_range(boost::tuple<bool, bool>(false, true));
-    return pca.first == pca.second;
+    NodeContainerByState &index_state = fna->nc.get<nc_state>();
+    std::pair<NCBSit, NCBSit> pa = index_state.equal_range(kSelectedAlpha);
+    return pa.first == pa.second;
   }
   bool GenerateContacts(const boost::uint16_t &total) {
     if (total > 100 || total < 1)
@@ -633,7 +632,14 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
       .WillRepeatedly(testing::WithArgs<5, 7>(testing::Invoke(
           boost::bind(&MockKadRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
-  node_->IterativeSearch(fna, fna->round);
+  NodeContainer::iterator node_it = fna->nc.begin();
+  std::list<Contact> alphas;
+  boost::uint16_t a(0);
+  for (; node_it != fna->nc.end() && a < kAlpha; ++node_it, ++a) {
+    alphas.push_back((*node_it).contact);
+  }
+  SortContactList(fna->key, &alphas);
+  node_->IterativeSearch(fna, false, false, &alphas);
   while (!done || !new_rpcs->AllAlphasBack(fna))
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 

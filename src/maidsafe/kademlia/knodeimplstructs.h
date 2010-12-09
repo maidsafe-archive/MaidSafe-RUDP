@@ -285,8 +285,16 @@ struct UpdateCallbackArgs {
 
 struct KnodeConstructionParameters {
   KnodeConstructionParameters()
-      : type(VAULT), k(4), alpha(3), beta(2), refresh_time(0), private_key(),
-        public_key(), port_forwarded(false), use_upnp(false), port(0) {}
+      : type(VAULT),
+        k(4),
+        alpha(3),
+        beta(2),
+        refresh_time(0),
+        private_key(),
+        public_key(),
+        port_forwarded(false),
+        use_upnp(false),
+        port(0) {}
   NodeType type;
   boost::uint16_t k;
   boost::uint16_t alpha;
@@ -299,42 +307,31 @@ struct KnodeConstructionParameters {
   Port port;
 };
 
+enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
+
 struct NodeContainerTuple {
   NodeContainerTuple()
       : contact(),
-        contacted(false),
-        down(false),
-        alpha(false),
-        closest(false),
+        state(kNew),
         round(-1) {}
   explicit NodeContainerTuple(const Contact &cont)
       : contact(cont),
-        contacted(false),
-        down(false),
-        alpha(false),
-        closest(false),
+        state(kNew),
         round(-1) {}
   NodeContainerTuple(const Contact &cont, int rnd)
       : contact(cont),
-        contacted(false),
-        down(false),
-        alpha(false),
-        closest(false),
+        state(kNew),
         round(rnd) {}
   Contact contact;
-  bool contacted, down, alpha, closest;
+  NodeSearchState state;
   int round;
 };
 
 // Tags
 struct nc_contact {};
-struct nc_contacted {};
-struct nc_down {};
-struct nc_alpha {};
+struct nc_state {};
 struct nc_round {};
-struct nc_closest {};
-struct nc_con_alpha {};
-struct nc_con_alpha_round {};
+struct nc_state_round {};
 
 typedef boost::multi_index_container<
   NodeContainerTuple,
@@ -344,39 +341,18 @@ typedef boost::multi_index_container<
       BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, Contact, contact)
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_contacted>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, contacted)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_down>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, down)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_alpha>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, alpha)
+      boost::multi_index::tag<nc_state>,
+      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state)
     >,
     boost::multi_index::ordered_non_unique<
       boost::multi_index::tag<nc_round>,
       BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_closest>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, closest)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_con_alpha>,
+      boost::multi_index::tag<nc_state_round>,
       boost::multi_index::composite_key<
         NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, contacted),
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, alpha)
-      >
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_con_alpha_round>,
-      boost::multi_index::composite_key<
-        NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, contacted),
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, bool, alpha),
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
         BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
       >
     >
@@ -386,30 +362,22 @@ typedef boost::multi_index_container<
 typedef NodeContainer::index<nc_contact>::type NodeContainerByContact;
 typedef NodeContainerByContact::iterator NCBCit;
 
-typedef NodeContainer::index<nc_down>::type NodeContainerByDown;
-typedef NodeContainerByDown::iterator NCBDit;
-
-typedef NodeContainer::index<nc_alpha>::type NodeContainerByAlpha;
-typedef NodeContainerByAlpha::iterator NCBAit;
+typedef NodeContainer::index<nc_state>::type NodeContainerByState;
+typedef NodeContainerByState::iterator NCBSit;
 
 typedef NodeContainer::index<nc_round>::type NodeContainerByRound;
 typedef NodeContainerByRound::iterator NCBRit;
 
-typedef NodeContainer::index<nc_closest>::type NodeContainerByClosest;
-typedef NodeContainerByClosest::iterator NCBCLit;
-
-typedef NodeContainer::index<nc_contacted>::type NodeContainerByContacted;
-
-typedef NodeContainer::index<nc_con_alpha>::type NodeContainerByConAlpha;
-typedef NodeContainerByConAlpha::iterator NCBCAit;
-
-typedef NodeContainer::index<nc_con_alpha_round>::type
-        NodeContainerByConAlphaRound;
-typedef NodeContainerByConAlphaRound::iterator NCBCARit;
+typedef NodeContainer::index<nc_state_round>::type NodeContainerByStateRound;
+typedef NodeContainerByStateRound::iterator NCBSRit;
 
 struct FindNodesParams {
-  FindNodesParams() : key(), start_nodes(), exclude_nodes(),
-                      use_routingtable(true), callback() {}
+  FindNodesParams()
+      : key(),
+        start_nodes(),
+        exclude_nodes(),
+        use_routingtable(true),
+        callback() {}
   KadId key;
   std::vector<Contact> start_nodes;
   std::vector<Contact> exclude_nodes;
@@ -419,9 +387,15 @@ struct FindNodesParams {
 
 struct FindNodesArgs {
   FindNodesArgs(const KadId &fna_key, VoidFunctorOneString fna_callback)
-      : key(fna_key), nc(), mutex(), callback(fna_callback),
-        calledback(false), round(0), done_rounds() {}
-  KadId key;
+      : key(fna_key),
+        kth_closest(),
+        nc(),
+        mutex(),
+        callback(fna_callback),
+        calledback(false),
+        round(0),
+        done_rounds() {}
+  KadId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
   VoidFunctorOneString callback;
@@ -432,14 +406,19 @@ struct FindNodesArgs {
 
 struct FindNodesRpc {
   FindNodesRpc(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
-      : contact(c), rpc_fna(fna), response(new FindResponse),
-        ctler(new rpcprotocol::Controller), round(0) {
+      : contact(c),
+        rpc_fna(fna),
+        response(new FindResponse),
+        ctler(new rpcprotocol::Controller),
+        round(0) {
     boost::mutex::scoped_lock loch_lavittese(fna->mutex);
     round = fna->round;
   }
   FindNodesRpc(const FindNodesRpc &fnrpc)
-      : contact(fnrpc.contact), rpc_fna(fnrpc.rpc_fna),
-        response(fnrpc.response), ctler(fnrpc.ctler),
+      : contact(fnrpc.contact),
+        rpc_fna(fnrpc.rpc_fna),
+        response(fnrpc.response),
+        ctler(fnrpc.ctler),
         round(fnrpc.round) {}
   FindNodesRpc &operator=(const FindNodesRpc &fnrpc) {
     if (this != &fnrpc) {
