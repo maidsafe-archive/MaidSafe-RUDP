@@ -26,20 +26,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*******************************************************************************
- * NOTE: This API is unlikely to have any breaking changes applied.  However,  *
- *       it should not be regarded as a final API until this notice is removed.*
+ * NOTE: This header should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
  ******************************************************************************/
 
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_TRANSPORT_H_
 
-#include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <maidsafe/maidsafe-dht_config.h>
 #include <maidsafe/transport/transportconditions.h>
 #include <maidsafe/transport/transportsignals.h>
-#include <maidsafe/transport/transportutils.h>
 #include <vector>
 #include <iostream>
 
@@ -49,6 +45,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 namespace transport {
+
+typedef boost::asio::ip::address IP;
+typedef boost::uint16_t Port;
+typedef int ManagedEndpointId;
+typedef boost::int32_t DataSize;
+
+struct Endpoint {
+  Endpoint(IP ip, Port port) : ip(ip), port(port) {}
+  IP ip;
+  Port port;
+};
+
+const DataSize kMaxTransportMessageSize = 67108864;
 
 // Base class for all transport types.
 class Transport {
@@ -77,7 +86,7 @@ class Transport {
                     const Endpoint &endpoint,
                     bool close) = 0;
   /**
-   * Sends data being streamed from the give source.
+   * Sends data that is being streamed from the given source.
    * @param data The input stream delivering data to send.
    * @param endpoint The data receiver's endpoint.
    */

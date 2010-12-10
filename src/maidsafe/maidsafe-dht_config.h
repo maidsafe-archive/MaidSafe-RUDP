@@ -95,26 +95,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
-
-/*******************************************************************************
- * Transport Layer                                                             *
- ******************************************************************************/
-namespace transport {
-
-typedef boost::asio::ip::address IP;
-typedef boost::uint16_t Port;
-struct Endpoint {
-  IP ip;
-  Port port;
-};
-typedef int ManagedEndpointId;
-typedef boost::int32_t DataSize;
-
-const DataSize kMaxTransportMessageSize = 67108864;
-
-}  // namespace transport
-
-
 /*******************************************************************************
  * Kademlia Layer                                                              *
  ******************************************************************************/
@@ -187,10 +167,10 @@ namespace rpcprotocol {
 typedef boost::uint32_t RpcId;
 
 // Maximum port number.
-const transport::Port kMaxPort = 65535;
+// const transport::Port kMaxPort = 65535;
 
 // Minimum port number.
-const transport::Port kMinPort = 5000;
+// const transport::Port kMinPort = 5000;
 
 // RPC timeout duration (in milliseconds).
 const boost::uint32_t kRpcTimeout = 10000;

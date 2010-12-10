@@ -26,8 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
+ * NOTE: This header should not be regarded as finalised until this notice is  *
  *       removed.                                                              *
  ******************************************************************************/
 
@@ -35,50 +34,30 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_TRANSPORTSIGNALS_H_
 
 #include <boost/signals2/signal.hpp>
-#include <maidsafe/maidsafe-dht_config.h>
 #include <maidsafe/transport/transportconditions.h>
 #include <string>
 
 
-namespace  bs2 = boost::signals2;
-
-namespace rpcprotocol {
-class RpcMessage;
-}  // namespace rpcprotocol
+namespace bs2 = boost::signals2;
 
 namespace transport {
 
-class UdtConnection;
-class UdtTransport;
-class TcpTransport;
-class ManagedEndpointMessage;
-struct SocketPerformanceStats;
+// place-holder; need a way to respond on the same socket
+typedef boost::uint64_t MessageId;
 
-typedef bs2::signal<void(const std::string&,
-                         const SocketId&,
+// to handle the event of receiving a message
+typedef bs2::signal<void(const MessageId&,
+                         const std::string&,
                          const float&)> OnMessageReceived;
-typedef bs2::signal<void(const rpcprotocol::RpcMessage&,
-                         const SocketId&,
-                         const float&)> OnRpcRequestReceived,
-                                        OnRpcResponseReceived;
-typedef bs2::signal<void(const ManagedEndpointId&,
-                         const ManagedEndpointMessage&)>
-                             OnManagedEndpointReceived;
-typedef bs2::signal<void(const ManagedEndpointId&)> OnManagedEndpointLost;
-typedef bs2::signal<void(const SocketId&,
-                         const TransportCondition&)> OnSend, OnReceive;
-typedef bs2::signal<void(boost::shared_ptr<SocketPerformanceStats>)> OnStats;
+
+// to handle the event of any kind of failure, at any stage
+typedef bs2::signal<void(const MessageId&,
+                         const TransportCondition&)> OnError;
 
 class Signals {
  public:
   Signals() : on_message_received_(),
-              on_rpc_request_received_(),
-              on_rpc_response_received_(),
-              on_managed_endpoint_received_(),
-              on_managed_endpoint_lost_(),
-              on_send_(),
-              on_receive_(),
-              on_stats_() {}
+              on_error_() {}
   ~Signals() {}
 
   // OnMessageReceived =========================================================
@@ -93,97 +72,19 @@ class Signals {
     return on_message_received_.connect(group, slot);
   }
 
-  // OnRpcRequestReceived ======================================================
-  bs2::connection ConnectOnRpcRequestReceived(
-      const OnRpcRequestReceived::slot_type &slot) {
-    return on_rpc_request_received_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnRpcRequestReceived(
-      const int &group,
-      const OnRpcRequestReceived::slot_type &slot) {
-    return on_rpc_request_received_.connect(group, slot);
-  }
-
-  // OnRpcResponseReceived =====================================================
-  bs2::connection ConnectOnRpcResponseReceived(
-      const OnRpcResponseReceived::slot_type &slot) {
-    return on_rpc_response_received_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnRpcResponseReceived(
-      const int &group,
-      const OnRpcResponseReceived::slot_type &slot) {
-    return on_rpc_response_received_.connect(group, slot);
-  }
-
-  // OnManagedEndpointReceived =================================================
-  bs2::connection ConnectOnManagedEndpointReceived(
-      const OnManagedEndpointReceived::slot_type &slot) {
-    return on_managed_endpoint_received_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnManagedEndpointReceived(
-      const int &group,
-      const OnManagedEndpointReceived::slot_type &slot) {
-    return on_managed_endpoint_received_.connect(group, slot);
-  }
-
-  // OnManagedEndpointLost =====================================================
-  bs2::connection ConnectOnManagedEndpointLost(
-      const OnManagedEndpointLost::slot_type &slot) {
-    return on_managed_endpoint_lost_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnManagedEndpointLost(
-      const int &group,
-      const OnManagedEndpointLost::slot_type &slot) {
-    return on_managed_endpoint_lost_.connect(group, slot);
-  }
-
-  // OnSend ====================================================================
-  bs2::connection ConnectOnSend(const OnSend::slot_type &slot) {
-    return on_send_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnSend(const int &group,
-                                     const OnSend::slot_type &slot) {
-    return on_send_.connect(group, slot);
-  }
-
-  // OnReceive =================================================================
-  bs2::connection ConnectOnReceive(const OnReceive::slot_type &slot) {
-    return on_receive_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnReceive(const int &group,
-                                        const OnReceive::slot_type &slot) {
-    return on_receive_.connect(group, slot);
-  }
-
-  // OnStats ===================================================================
-  bs2::connection ConnectOnStats(const OnStats::slot_type &slot) {
-    return on_stats_.connect(slot);
+  // OnError ===================================================================
+  bs2::connection ConnectOnError(const OnError::slot_type &slot) {
+    return on_error_.connect(slot);
   }
 
   bs2::connection GroupConnectOnStats(const int &group,
-                                      const OnStats::slot_type &slot) {
-    return on_stats_.connect(group, slot);
+                                      const OnError::slot_type &slot) {
+    return on_error_.connect(group, slot);
   }
 
-  friend class UdtTransport;
-  friend class TcpTransport;
-  friend class UdtConnection;
-  friend class TcpConnection;
  private:
   OnMessageReceived on_message_received_;
-  OnRpcRequestReceived on_rpc_request_received_;
-  OnRpcResponseReceived on_rpc_response_received_;
-  OnManagedEndpointReceived on_managed_endpoint_received_;
-  OnManagedEndpointLost on_managed_endpoint_lost_;
-  OnSend on_send_;
-  OnReceive on_receive_;
-  OnStats on_stats_;
+  OnError on_error_;
 };
 
 }  // namespace transport

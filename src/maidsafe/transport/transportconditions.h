@@ -26,8 +26,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*******************************************************************************
- * NOTE: This API is unlikely to have any breaking changes applied.  However,  *
- *       it should not be regarded as a final API until this notice is removed.*
+ * NOTE: This header should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
  ******************************************************************************/
 
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORTCONDITIONS_H_
@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+// TODO revise error code list
 enum TransportCondition {
   kSuccess = 0,
   kError = -1,
