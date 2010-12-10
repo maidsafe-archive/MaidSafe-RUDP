@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/base/alternativestore.h"
 #include "maidsafe/base/crypto.h"
+#include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/kademlia/contact.h"
@@ -50,7 +51,6 @@ static const boost::uint16_t K = 16;
 void GenericCallback(const std::string&, bool *done) { *done = true; }
 void IterativeSearchCallback(const std::string &result, bool *done,
                              std::list<Contact> *cs) {
-//  printf("AAAAAAA\n");
   cs->clear();
   FindResponse fr;
   if (fr.ParseFromString(result) && fr.result()) {
@@ -60,7 +60,7 @@ void IterativeSearchCallback(const std::string &result, bool *done,
         cs->push_back(c);
     }
   } else {
-    printf("Protobufs! Figures...\n");
+    DLOG(INFO) << "Protobufs! Figures..." << std::endl;
   }
   *done = true;
 }

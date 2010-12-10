@@ -49,7 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
-#include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/transport.h"
 
 namespace fs = boost::filesystem;
 
@@ -2506,7 +2506,7 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
         alphas.push_back((*contact_it).contact);
       }
     } else {
-      printf("This shouldn't happen. Ever! Ever ever ever!\n");
+      DLOG(ERROR) << "KNodeImpl::AnalyseIteration contacts error." << std::endl;
     }
   }
 
@@ -2517,8 +2517,8 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
       fna->calledback = true;
       *calledback = false;
     }
-    printf("KNodeImpl::AnalyseIteration - Search Complete at Round(%d)\n",
-           round);
+    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Search Complete at Round ("
+               << round << ")" << std::endl;;
     return;
   } else {
     printf("KNodeImpl::AnalyseIteration - Search not complete at Round(%d) - %d times - %d alphas\n", round, times, contacts->size());
@@ -2528,7 +2528,8 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
   contacts->clear();
   std::set<int>::iterator it = fna->done_rounds.find(round);
   if (it != fna->done_rounds.end()) {
-    printf("KNodeImpl::AnalyseIteration - Do nothing. Round(%d) done\n", round);
+    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Do nothing. Round (" << round
+               << ") done" << std::endl;
     return;
   }
 
@@ -2542,8 +2543,8 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
       ++done;
   }
 
-  printf("KNodeImpl::AnalyseIteration - Total(%d), Done(%d), Round(%d)\n",
-         total, done, round);
+  DLOG(INFO) << "KNodeImpl::AnalyseIteration - Total(" << total << "), Done("
+             << done << "), Round(" << round << ")" << std::endl;
   // Decide if another iteration is needed and pick the alphas
   if ((total > kBeta && done >= kBeta) || (total <= kBeta && done == total)) {
     fna->done_rounds.insert(round);
@@ -2560,8 +2561,8 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
         contacts->push_back(*alpha_it);
       }
     }
-    printf("KNodeImpl::AnalyseIteration - Returning %d alphas for Round(%d)\n",
-           contacts->size(), fna->round);
+    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Returning" << contacts->size()
+               << "alphas for Round (" << fna->round << ")" << std::endl;
   }
 }
 
@@ -2702,8 +2703,6 @@ void KNodeImpl::FindNodes(const FindNodesParams &fnp) {
       new FindNodesArgs(fnp.key, fnp.callback));
   if (fnp.use_routingtable) {
     prouting_table_->FindCloseNodes(fnp.key, K_, excludes, &close_nodes);
-//    printf("KNodeImpl::FindNodes - Found %d in routing table\n",
-//           close_nodes.size());
     AddContactsToContainer(close_nodes, fna);
   }
 
@@ -2763,7 +2762,7 @@ void KNodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
       for (; it != contacts->end(); ++it) {
         fr.add_closest_nodes((*it).SerialiseAsString());
       }
-      printf("KNodeImpl::IterativeSearch - Done\n");
+      DLOG(INFO) << "KNodeImpl::IterativeSearch - Done" << std::endl;
       fna->callback(fr.SerializeAsString());
     }
     return;
@@ -2787,7 +2786,6 @@ void KNodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
 }
 
 void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
-//  printf("KNodeImpl::IterativeSearchResponse - Begin\n");
   SearchMarking mark(SEARCH_CONTACTED);
   if (!fnrpc->response->IsInitialized())
     mark = SEARCH_DOWN;
@@ -2796,8 +2794,6 @@ void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   std::list<Contact> close_nodes;
   if (mark == SEARCH_CONTACTED && fnrpc->response->result() &&
       fnrpc->response->closest_nodes_size() > 0) {
-//    printf("KNodeImpl::IterativeSearchResponse - Adding %d nodes from node in"
-//         " round(%d)\n", fnrpc->response->closest_nodes_size(), fnrpc->round);
     for (int n = 0; n < fnrpc->response->closest_nodes_size(); ++n) {
       Contact c;
       if (c.ParseFromString(fnrpc->response->closest_nodes(n)))
@@ -2808,7 +2804,8 @@ void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   bool done(false), calledback(false);
   if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna, fnrpc->round,
                                 mark, &close_nodes, &done, &calledback)) {
-    printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
+    DLOG(INFO) << "KNodeImpl::IterativeSearchResponse failed in MarkResponse."
+               << std::endl;
   }
 
   IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
