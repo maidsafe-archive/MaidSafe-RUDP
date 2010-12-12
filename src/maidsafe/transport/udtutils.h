@@ -42,8 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-typedef int SocketId;
-
 namespace udtutils {
 
 boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,

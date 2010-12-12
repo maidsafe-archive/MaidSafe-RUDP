@@ -161,7 +161,7 @@ void RunSmallTest() {
   }
 }
 
-void StartTest(boost::shared_ptr<Operator> op, boost::shared_ptr<kad::KNode> kn,
+void StartTest(boost::shared_ptr<Operator> op, boost::shared_ptr<kademlia::KNode> kn,
                const std::string &public_key, const std::string &private_key) {
   op.reset(new Operator(kn, public_key, private_key));
   op->Run();
@@ -280,7 +280,7 @@ class NetworkTestValidator : public base::SignatureValidator {
                        const std::string &public_key,
                        const std::string &signed_public_key,
                        const std::string &key) {
-    if (signed_request == kad::kAnonymousSignedRequest)
+    if (signed_request == kademlia::kAnonymousSignedRequest)
       return true;
     crypto::Crypto co;
     return co.AsymCheckSig(co.Hash(public_key + signed_public_key + key, "",

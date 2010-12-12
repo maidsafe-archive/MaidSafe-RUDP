@@ -41,7 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace net_client {
 
-Operator::Operator(boost::shared_ptr<kad::KNode> knode,
+Operator::Operator(boost::shared_ptr<kademlia::KNode> knode,
                    const std::string &public_key,
                    const std::string &private_key)
     : knode_(knode),
@@ -91,7 +91,7 @@ void Operator::GenerateValues(int size) {
     }
 
     values.insert(random_value);
-    kad::SignedValue sv;
+    kademlia::SignedValue sv;
     sv.set_value(random_value);
     crypto::Crypto co;
     sv.set_value_signature(co.AsymSign(random_value, "", private_key_,
@@ -115,7 +115,7 @@ void Operator::GenerateValues(int size) {
         random_value = base::RandomString(base::RandomUint32()%20000);
 
       values.insert(random_value);
-      kad::SignedValue sv;
+      kademlia::SignedValue sv;
       sv.set_value(random_value);
       crypto::Crypto co;
       sv.set_value_signature(co.AsymSign(random_value, "", private_key_,
@@ -141,7 +141,7 @@ void Operator::ScheduleInitialOperations() {
 //  for (int n = 0; n < 5; ++n) {
 //    std::string key((*it).first);
 //    ValueStatus vst((*it).second);
-//    kad::SignedValue sv(vst.first);
+//    kademlia::SignedValue sv(vst.first);
 //    timer_->AddCallLater((1 + n) * 1000,
 //                         boost::bind(&Operator::StoreValue, this, key, sv));
 //    ++it;
@@ -179,7 +179,7 @@ void Operator::FetchKeyValuesFromDb() {
   int a = wrap_->GetValues(keys[0], &values);
 
   if (a == 0) {
-    std::vector<kad::SignedValue> signed_values;
+    std::vector<kademlia::SignedValue> signed_values;
     signed_values.resize(values.size());
     for (size_t n = 0; n < values.size(); ++n)
       signed_values[n].ParseFromString(values[n]);
@@ -223,7 +223,7 @@ void Operator::SendStore() {
         kv.selected_for_op = true;
       }
     }
-    kad::SignedValue sv;
+    kademlia::SignedValue sv;
     sv.ParseFromString(kv_vector[0].value);
     StoreValue(kv_vector[0].key, sv);
   }
@@ -244,10 +244,10 @@ void Operator::SendFind() {
     std::pair<ValuesMapByKey::iterator, ValuesMapByKey::iterator> pvmbk =
         vmbk_index.equal_range(kv_vector[0].key);
 
-    std::vector<kad::SignedValue> signed_values;
+    std::vector<kademlia::SignedValue> signed_values;
     while (pvmbk.first != pvmbk.second) {
       if ((*pvmbk.first).status == 0) {
-        kad::SignedValue sv;
+        kademlia::SignedValue sv;
         sv.ParseFromString((*pvmbk.first).value);
         signed_values.push_back(sv);
       }
@@ -274,14 +274,14 @@ void Operator::SendUpdate() {
     size_t count(0);
     while (HashableKeyPair(kv_vector[count].key, kv_vector[count].value, &co))
       ++count;
-    kad::SignedValue sv;
+    kademlia::SignedValue sv;
     sv.ParseFromString(kv_vector[count].value);
 
     std::string random_value(base::RandomString(2270));
     for (int a = 0; a < 10; ++a) {
       random_value += random_value;
     }
-    kad::SignedValue new_value;
+    kademlia::SignedValue new_value;
     new_value.set_value(random_value);
     new_value.set_value_signature(co.AsymSign(new_value.value(), "",
                                               private_key_,
@@ -301,25 +301,25 @@ void Operator::SendDelete() {
   }
   if (!kv_vector.empty()) {
     std::random_shuffle(kv_vector.begin(), kv_vector.end());
-    kad::SignedValue sv;
+    kademlia::SignedValue sv;
     sv.ParseFromString(kv_vector[0].value);
     DeleteValue(kv_vector[0].key, sv);
   }
 }
 
-void Operator::StoreValue(const std::string &key, const kad::SignedValue &sv) {
-  kad::SignedRequest request_signature;
+void Operator::StoreValue(const std::string &key, const kademlia::SignedValue &sv) {
+  kademlia::SignedRequest request_signature;
   CreateRequestSignature(key, &request_signature);
-  kad::KadId ki_key(key);
+  kademlia::KadId ki_key(key);
   knode_->StoreValue(ki_key, sv, request_signature, 24 * 60 * 60,
                      boost::bind(&Operator::StoreCallback, this, key, sv, _1));
 }
 
 void Operator::StoreCallback(const std::string &key,
-                             const kad::SignedValue &sv,
+                             const kademlia::SignedValue &sv,
                              const std::string &ser_result) {
   Operation op;
-  kad::StoreResponse response;
+  kademlia::StoreResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
     if (response.result())
@@ -348,8 +348,8 @@ void Operator::StoreCallback(const std::string &key,
 }
 
 void Operator::FindValue(const std::string&,
-                         const std::vector<kad::SignedValue>&, bool) {
-//  kad::KadId ki_key(key);
+                         const std::vector<kademlia::SignedValue>&, bool) {
+//  kademlia::KadId ki_key(key);
 //  knode_->FindValue(ki_key, false,
 //                    boost::bind(&Operator::FindValueCallback, this,
 //                                _1, key, values, mine));
@@ -357,9 +357,9 @@ void Operator::FindValue(const std::string&,
 
 void Operator::FindValueCallback(const Operation &op,
                                  const std::string &ser_result,
-                                 const std::vector<kad::SignedValue> &values,
+                                 const std::vector<kademlia::SignedValue> &values,
                                  bool mine) {
-  kad::FindResponse result_msg;
+  kademlia::FindResponse result_msg;
   bool success(true);
   if (!result_msg.ParseFromString(ser_result)) {
     success = false;
@@ -406,13 +406,13 @@ void Operator::FindValueCallback(const Operation &op,
     }
   }
   printf("\nFindValueCallback DONE - %d\n\n", success);
-  LogResult(op, kad::SignedValue(), success);
+  LogResult(op, kademlia::SignedValue(), success);
 }
 
-void Operator::DeleteValue(const std::string &key, const kad::SignedValue &sv) {
-  kad::SignedRequest request_signature;
+void Operator::DeleteValue(const std::string &key, const kademlia::SignedValue &sv) {
+  kademlia::SignedRequest request_signature;
   CreateRequestSignature(key, &request_signature);
-  kad::KadId ki_key(key);
+  kademlia::KadId ki_key(key);
   Operation op(key, sv, kDelete);
 //  {
 //    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
@@ -430,7 +430,7 @@ void Operator::DeleteValue(const std::string &key, const kad::SignedValue &sv) {
 
 void Operator::DeleteValueCallback(const Operation &op,
                                    const std::string &ser_result) {
-  kad::DeleteResponse response;
+  kademlia::DeleteResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
     if (response.result())
@@ -454,15 +454,15 @@ void Operator::DeleteValueCallback(const Operation &op,
       }
     }
   }
-  LogResult(op, kad::SignedValue(), success);
+  LogResult(op, kademlia::SignedValue(), success);
 }
 
 void Operator::UpdateValue(const std::string &key,
-                           const kad::SignedValue &old_value,
-                           const kad::SignedValue &new_value) {
-  kad::SignedRequest request_signature;
+                           const kademlia::SignedValue &old_value,
+                           const kademlia::SignedValue &new_value) {
+  kademlia::SignedRequest request_signature;
   CreateRequestSignature(key, &request_signature);
-  kad::KadId ki_key(key);
+  kademlia::KadId ki_key(key);
   Operation op(key, old_value, kUpdate);
 //  {
 //    boost::mutex::scoped_lock loch_voil(op_map_mutex_);
@@ -479,9 +479,9 @@ void Operator::UpdateValue(const std::string &key,
 }
 
 void Operator::UpdateValueCallback(const Operation &op,
-                                   const kad::SignedValue &new_value,
+                                   const kademlia::SignedValue &new_value,
                                    const std::string &ser_result) {
-  kad::UpdateResponse response;
+  kademlia::UpdateResponse response;
   bool success(false);
   if (response.ParseFromString(ser_result))
     if (response.result())
@@ -510,14 +510,14 @@ void Operator::UpdateValueCallback(const Operation &op,
 }
 
 void Operator::FindKClosestNodes(const std::string &key) {
-  kad::KadId ki_key(key);
+  kademlia::KadId ki_key(key);
   knode_->FindKClosestNodes(ki_key,
       boost::bind(&Operator::FindKClosestNodesCallback, this, key, _1));
 }
 
 void Operator::FindKClosestNodesCallback(const std::string&,
                                          const std::string &ser_result) {
-  kad::FindResponse result_msg;
+  kademlia::FindResponse result_msg;
   if (!result_msg.ParseFromString(ser_result))
     return;
 
@@ -547,7 +547,7 @@ void Operator::FindKClosestNodesCallback(const std::string&,
 }
 
 void Operator::CreateRequestSignature(const std::string &key,
-                                      kad::SignedRequest *request) {
+                                      kademlia::SignedRequest *request) {
   request->set_signer_id(knode_->node_id().String());
   request->set_public_key(public_key_);
   request->set_signed_public_key(public_key_signature_);
@@ -561,6 +561,6 @@ bool Operator::HashableKeyPair(const std::string &key, const std::string &value,
   return key == co->Hash(value, "", crypto::STRING_STRING, false);
 }
 
-void Operator::LogResult(const Operation&, const kad::SignedValue&, bool) {}
+void Operator::LogResult(const Operation&, const kademlia::SignedValue&, bool) {}
 
 }  // namespace net_client

@@ -129,8 +129,8 @@ bool write_to_kadconfig(const std::string &path, const std::string &node_id,
   return boost::filesystem::exists(path);
 }
 
-void printf_info(kad::ContactInfo info) {
-  kad::Contact ctc(info);
+void printf_info(kademlia::ContactInfo info) {
+  kademlia::Contact ctc(info);
   printf("Node info: %s", ctc.DebugString().c_str());
 }
 
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
       refresh_time = vm["refresh_time"].as<boost::uint32_t>();
       refresh_time = refresh_time * 60;
     } else {
-      refresh_time = kad::kRefreshTime;
+      refresh_time = kademlia::kRefreshTime;
     }
 
     // checking if path of kadconfigfile exists
@@ -292,17 +292,17 @@ int main(int argc, char **argv) {
       tra->StopListening(port);
       return 1;
     }
-    kad::KnodeConstructionParameters kcp;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kademlia::KnodeConstructionParameters kcp;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.k = test_kaddemo::K;
     kcp.port_forwarded = false;
-    kcp.refresh_time = kad::kRefreshTime;
+    kcp.refresh_time = kademlia::kRefreshTime;
     kcp.use_upnp = false;
     if (vm["client"].as<bool>())
-      kcp.type = kad::CLIENT;
+      kcp.type = kademlia::CLIENT;
     else
-      kcp.type = kad::VAULT;
+      kcp.type = kademlia::VAULT;
     kcp.port = port;
     if (vm["secure"].as<bool>()) {
       crypto::RsaKeyPair rsa_key_pair;
@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
       kcp.public_key = rsa_key_pair.public_key();
       kcp.private_key = rsa_key_pair.private_key();
     }
-    boost::shared_ptr<kad::KNode> node(new kad::KNode(cm, tra, kcp));
+    boost::shared_ptr<kademlia::KNode> node(new kademlia::KNode(cm, tra, kcp));
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
@@ -363,7 +363,7 @@ int main(int argc, char **argv) {
       try {
         boost::filesystem::ofstream of(vm["append_id"].as<std::string>(),
                                        std::ios::out | std::ios::app);
-        of << node->node_id().ToStringEncoded(kad::KadId::kHex) << "\n";
+        of << node->node_id().ToStringEncoded(kademlia::KadId::kHex) << "\n";
         of.close();
       }
       catch(const std::exception &) {
@@ -380,7 +380,7 @@ int main(int argc, char **argv) {
           thisconfig /= ".kadconfig";
           test_kaddemo::write_to_kadconfig(
               thisconfig.string(),
-              node->node_id().ToStringEncoded(kad::KadId::kHex),
+              node->node_id().ToStringEncoded(kademlia::KadId::kHex),
               node->ip(), node->port(), node->local_ip(),
               node->local_port());
         }
@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
         thisconfig /= ".kadconfig";
         test_kaddemo::write_to_kadconfig(
             thisconfig.string(),
-            node->node_id().ToStringEncoded(kad::KadId::kHex),
+            node->node_id().ToStringEncoded(kademlia::KadId::kHex),
             node->ip(), node->port(), node->local_ip(),
             node->local_port());
       }

@@ -49,7 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace benchmark {
 
-Operations::Operations(boost::shared_ptr<kad::KNode> node)
+Operations::Operations(boost::shared_ptr<kademlia::KNode> node)
     : node_(node), cryobj_(), private_key_(), public_key_(),
       public_key_signature_() {
   cryobj_.set_symm_algorithm(crypto::AES_256);
@@ -62,9 +62,9 @@ Operations::Operations(boost::shared_ptr<kad::KNode> node)
                                            crypto::STRING_STRING);
 }
 
-void Operations::TestFindAndPing(const std::vector<kad::KadId> &nodes,
+void Operations::TestFindAndPing(const std::vector<kademlia::KadId> &nodes,
                                  const int &iterations) {
-  std::vector<kad::Contact> contacts;
+  std::vector<kademlia::Contact> contacts;
   {
     printf("Finding %d nodes...\n", nodes.size());
 
@@ -81,7 +81,7 @@ void Operations::TestFindAndPing(const std::vector<kad::KadId> &nodes,
       while (static_cast<size_t>(data->returned_count) <= i)
         data->condition.wait(lock);
       stats.Add(base::GetEpochMilliseconds() - t);
-      kad::Contact ctc;
+      kademlia::Contact ctc;
       ctc.ParseFromString(data->content);
       contacts.push_back(ctc);
     }
@@ -128,7 +128,7 @@ void Operations::TestFindAndPing(const std::vector<kad::KadId> &nodes,
   }
 }
 
-void Operations::TestStoreAndFind(const std::vector<kad::KadId> &nodes,
+void Operations::TestStoreAndFind(const std::vector<kademlia::KadId> &nodes,
                                   const int &iterations, const bool &sign) {
   for (int val = 0; val < 4; ++val) {
     std::string size, value;
@@ -160,11 +160,11 @@ void Operations::TestStoreAndFind(const std::vector<kad::KadId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        kad::KadId mod =
+        kademlia::KadId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-        kad::KadId key(nodes[i] ^ mod);
-        kad::SignedValue sig_val;
-        kad::SignedRequest sig_req;
+        kademlia::KadId key(nodes[i] ^ mod);
+        kademlia::SignedValue sig_val;
+        kademlia::SignedRequest sig_req;
         if (sign) {
           std::string req_sig, ser_sig_val;
           req_sig = cryobj_.AsymSign(cryobj_.Hash(public_key_ +
@@ -216,7 +216,7 @@ void Operations::TestStoreAndFind(const std::vector<kad::KadId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        kad::KadId mod =
+        kademlia::KadId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
         boost::uint64_t t = base::GetEpochMilliseconds();
         node_->FindValue(nodes[i] ^ mod, false, boost::bind(
@@ -248,7 +248,7 @@ void Operations::PingCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kad::PingResponse msg;
+  kademlia::PingResponse msg;
   if (msg.ParseFromString(result) && msg.result())
     ++data->succeeded_count;
   data->condition.notify_one();
@@ -259,7 +259,7 @@ void Operations::GetNodeContactDetailsCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kad::FindNodeResult msg;
+  kademlia::FindNodeResult msg;
   if (msg.ParseFromString(result) && msg.result()) {
     ++data->succeeded_count;
     data->content = msg.contact();
@@ -272,7 +272,7 @@ void Operations::StoreCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kad::StoreResponse msg;
+  kademlia::StoreResponse msg;
   if (msg.ParseFromString(result) && msg.result())
     ++data->succeeded_count;
   data->condition.notify_one();
@@ -283,7 +283,7 @@ void Operations::FindValueCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kad::FindResponse msg;
+  kademlia::FindResponse msg;
   if (msg.ParseFromString(result) && msg.result() &&
       (msg.values_size() > 0 || msg.signed_values_size() > 0))
     ++data->succeeded_count;
@@ -294,15 +294,15 @@ void Operations::FindValueCallback(const std::string &result,
  * Calculates a Kademlia ID with smallest possible distance from 000..000,
  * with a unique value for each (positive) iteration number.
  */
-kad::KadId Operations::GetModId(int iteration) {
-  int bits = kad::kKeySizeBits - 1;
-  kad::KadId id;
+kademlia::KadId Operations::GetModId(int iteration) {
+  int bits = kademlia::kKeySizeBits - 1;
+  kademlia::KadId id;
   while (iteration > bits) {
-    id = id ^ kad::KadId(bits);
+    id = id ^ kademlia::KadId(bits);
     iteration -= (bits + 1);
     --bits;
   }
-  return id ^ kad::KadId(iteration);
+  return id ^ kademlia::KadId(iteration);
 }
 
 void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {

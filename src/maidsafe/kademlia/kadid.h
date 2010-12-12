@@ -30,10 +30,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <maidsafe/maidsafe-dht_config.h>
+#include "maidsafe/kademlia/config.h"
 #include <string>
 #include <vector>
 
-namespace kad {
+namespace kademlia {
 
 /**
 * The size of DHT keys and node IDs in bits.
@@ -159,6 +160,6 @@ class KadId {
   std::string raw_id_;
 };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_KADID_H_

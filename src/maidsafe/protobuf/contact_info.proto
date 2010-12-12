@@ -1,4 +1,4 @@
-package kad;
+package kademlia;
 
 message ContactInfo {
   required bytes node_id = 1;

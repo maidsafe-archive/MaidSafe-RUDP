@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/knodeimpl.h"
 #include "maidsafe/kademlia/knode-api.h"
 
-namespace kad {
+namespace kademlia {
 
 KNode::KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
              boost::shared_ptr<transport::Transport> transport,

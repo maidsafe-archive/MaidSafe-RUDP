@@ -26,43 +26,31 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/kademlia/kadrpc.h"
-
-#include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/udttransport.h"
 
-namespace kad {
+namespace kademlia {
+// TODO(dirvine) Dec 12 2010 - template this to take mutiple
+// transports to support tcp as well as reliable udp
 
-KadRpcs::KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager)
-    : info_(), channel_manager_(channel_manager), transport_(),
-      has_transport_(false) {}
+template <class T>
+KadRpcs::KadRpcs(T)
+{
+      // Create a transport object for each RPC
+      boost::shared_ptr<transport::Transport>
+                        transport_(new T);
+//       transport_->signals()->ConnectOnMessageReceived();
+}
 
-KadRpcs::KadRpcs(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-                 boost::shared_ptr<transport::Transport> transport)
-    : info_(), channel_manager_(channel_manager),
-      transport_(transport), has_transport_(true) {}
-
-
-void KadRpcs::FindNode(const KadId &key, const IP &ip, const Port &port,
-                       const IP &rendezvous_ip, const Port &rendezvous_port,
-                       FindResponse *resp, rpcprotocol::Controller *ctler,
-                       google::protobuf::Closure *callback) {
+void KadRpcs::FindNode(const KadId &key, const Endpoint &ep,
+                       FindResponse *resp) {
   FindRequest args;
-  if (resp->has_requester_ext_addr()) {
-    // This is a special find node RPC for bootstrapping process
-    args.set_is_boostrap(true);  // Set flag
-    ctler->set_timeout(kRpcBootstrapTimeout);  // Longer timeout
-  }
   args.set_key(key.String());
   ContactInfo *sender_info = args.mutable_sender_info();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-  if (has_transport_)
-    channel = new rpcprotocol::Channel(channel_manager_, ip,
-                                       port, rendezvous_ip,
-                                       rendezvous_port);
-  else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
+// XXXXXX
+// connect to a receive slot
   KademliaService::Stub service(channel);
   service.FindNode(ctler, &args, resp, callback);
   delete channel;
@@ -270,4 +258,4 @@ void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
   delete channel;
 }
 
-}  // namespace kad
+}  // namespace kademlia

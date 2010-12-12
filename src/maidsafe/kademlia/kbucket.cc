@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/contact.h"
 
-namespace kad {
+namespace kademlia {
 
 KBucket::KBucket(const KadId &min, const KadId &max,
                  const boost::uint16_t &kb_K)

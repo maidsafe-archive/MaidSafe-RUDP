@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_KNODE_API_H_
 
 #include <maidsafe/maidsafe-dht_config.h>
+#include "maidsafe/kademlia/config.h"
 #include <maidsafe/kademlia/kadid.h>
 #include <string>
 #include <vector>
@@ -49,15 +50,12 @@ class AlternativeStore;
 class SignatureValidator;
 }  // namespace base
 
-namespace rpcprotocol {
-class ChannelManager;
-}  // namespace rpcprotocol
 
 namespace transport {
 class Transport;
 }  // namespace transport
 
-namespace kad {
+namespace kademlia {
 
 class Contact;
 class ContactInfo;
@@ -79,11 +77,9 @@ class KNode {
   /**
   * Constructor that takes by default the kaemlia values for k, alpha, beta, and
   * refresh time.
-  * @param channel_manager a reference to the channel manager, where the
-  * services are going to be registered
   * @param transport a pointer to the transport object in charge of transmitting
   * data from the node to a specific node
-  * @param type the type of node VAULT or CLIENT
+  * @param type the type of node VAULT or CLIENT (client is read only node)
   * @param private_key private key for the node, if no digitally signed values
   * are used, pass an empty string
   * @param public_key public key for the node, if no digitally signed values
@@ -94,8 +90,7 @@ class KNode {
   * for NAT traversal
   * @param k Maximum number of elements in the node's kbuckets
   */
-  KNode(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-        boost::shared_ptr<transport::Transport> transport,
+  KNode(boost::shared_ptr<transport::Transport> transport,
         const KnodeConstructionParameters &knode_parameters);
 
   ~KNode();
@@ -410,6 +405,6 @@ class KNode {
   boost::shared_ptr<KNodeImpl> pimpl_;
 };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_KNODE_API_H_

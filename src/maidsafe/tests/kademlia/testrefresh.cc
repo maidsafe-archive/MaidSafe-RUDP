@@ -71,8 +71,8 @@ class TestRefresh : public testing::Test {
     transport_ports_.resize(testNetworkSize_);
     KnodeConstructionParameters kcp;
     kcp.type = VAULT;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.k = testK_;
     kcp.port_forwarded = false;
     kcp.private_key = "";
@@ -171,7 +171,7 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
@@ -213,7 +213,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
@@ -250,8 +250,8 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   ASSERT_EQ(0, chm->Start());
   KnodeConstructionParameters kcp;
   kcp.type = VAULT;
-  kcp.alpha = kad::kAlpha;
-  kcp.beta = kad::kBeta;
+  kcp.alpha = kademlia::kAlpha;
+  kcp.beta = kademlia::kBeta;
   kcp.k = testK_;
   kcp.port_forwarded = false;
   kcp.private_key = "";
@@ -330,8 +330,8 @@ class TestRefreshSignedValues : public testing::Test {
     crypto::RsaKeyPair keys;
     KnodeConstructionParameters kcp;
     kcp.type = VAULT;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.k = testK_;
     kcp.port_forwarded = false;
     kcp.refresh_time = testRefresh_;
@@ -437,7 +437,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   std::string signed_public_key, signed_request;
@@ -447,12 +447,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
                                        key.String(), "",
                                        crypto::STRING_STRING, true),
                                "", keys_[4].second, crypto::STRING_STRING);
-  kad::SignedValue sig_value;
+  kademlia::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", keys_[4].second,
                                             crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
-  kad::SignedRequest req;
+  kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(keys_[4].first);
   req.set_signed_public_key(signed_public_key);
@@ -498,7 +498,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
@@ -508,12 +508,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
                                        "", crypto::STRING_STRING, true),
                                "", priv_key, crypto::STRING_STRING);
-  kad::SignedValue sig_value;
+  kademlia::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
                                             crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
-  kad::SignedRequest req;
+  kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(signed_public_key);
@@ -557,8 +557,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   keys.GenerateKeys(4096);
   KnodeConstructionParameters kcp;
   kcp.type = VAULT;
-  kcp.alpha = kad::kAlpha;
-  kcp.beta = kad::kBeta;
+  kcp.alpha = kademlia::kAlpha;
+  kcp.beta = kademlia::kBeta;
   kcp.k = testK_;
   kcp.port_forwarded = false;
   kcp.private_key = keys.private_key();
@@ -615,7 +615,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kad::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
@@ -625,12 +625,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
                                        "", crypto::STRING_STRING, true),
                                "", priv_key, crypto::STRING_STRING);
-  kad::SignedValue sig_value;
+  kademlia::SignedValue sig_value;
   sig_value.set_value(value);
   sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
                                             crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
-  kad::SignedRequest req;
+  kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(pub_key);
   req.set_signed_public_key(signed_public_key);
@@ -655,8 +655,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   keys.GenerateKeys(4096);
   KnodeConstructionParameters kcp;
   kcp.type = VAULT;
-  kcp.alpha = kad::kAlpha;
-  kcp.beta = kad::kBeta;
+  kcp.alpha = kademlia::kAlpha;
+  kcp.beta = kademlia::kBeta;
   kcp.k = testK_;
   kcp.port_forwarded = false;
   kcp.private_key = keys.private_key();

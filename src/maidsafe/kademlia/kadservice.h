@@ -36,18 +36,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/protobuf/kademlia_service.pb.h"
+#include "maidsafe/kademlia/kadroutingtable.h"
+#include "maidsafe/transport/transportsignals.h"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/base/threadpool.h"
 
 namespace base {
 class SignatureValidator;
 class AlternativeStore;
 }  // namespace base
 
-namespace rpcprotocol {
-class Controller;
-}  // namespace rpcprotocol
-
-namespace kad {
+namespace kademlia {
 class DataStore;
 class Contact;
 class KadId;
@@ -73,35 +73,27 @@ typedef boost::function<void(const KadId&, const std::vector<Contact>&,
 typedef boost::function<void(const Contact&, VoidFunctorOneString)>
     PingFunctor;
 
-class KadService : public KademliaService {
+class KadService : public transport::TransportMessage {
  public:
-  KadService(boost::shared_ptr<DataStore> datastore,
-             const bool &hasRSAkeys, AddContactFunctor add_cts,
-             GetRandomContactsFunctor rand_cts, GetContactFunctor get_ctc,
-             GetKClosestFunctor get_kcts, PingFunctor ping,
-             RemoveContactFunctor remove_contact);
-  void Ping(google::protobuf::RpcController *controller,
-            const PingRequest *request, PingResponse *response,
-            google::protobuf::Closure *done);
-  void FindValue(google::protobuf::RpcController *controller,
-                 const FindRequest *request, FindResponse *response,
-                 google::protobuf::Closure *done);
-  void FindNode(google::protobuf::RpcController *controller,
-                const FindRequest *request, FindResponse *response,
-                google::protobuf::Closure *done);
-  void Store(google::protobuf::RpcController *controller,
-             const StoreRequest *request, StoreResponse *response,
-             google::protobuf::Closure *done);
-  void Downlist(google::protobuf::RpcController *controller,
-                const DownlistRequest *request, DownlistResponse *response,
-                google::protobuf::Closure *done);
-  void Delete(google::protobuf::RpcController *controller,
-              const DeleteRequest *request, DeleteResponse *response,
-              google::protobuf::Closure *done);
-  void Update(google::protobuf::RpcController *controller,
-              const UpdateRequest *request,
-              UpdateResponse *response,
-              google::protobuf::Closure *done);
+  KadService(boost::shared_ptr<transport::Transport> transport,
+             boost::shared_ptr<RoutingTable> routing_table,
+             boost::shared_ptr<base::Threadpool> threadpool,
+             boost::shared_ptr<DataStore> datastore,
+             const bool &hasRSAkeys);
+  void Ping(transport::SocketId &message_id,
+            const boost::shared_ptr<transport::PingRequest> request);
+  void FindValue(transport::SocketId &message_id,
+                 const boost::shared_ptr<transport::FindRequest> request);
+  void FindNode(transport::SocketId &message_id,
+                const boost::shared_ptr<transport::FindRequest > request);
+  void Store(transport::SocketId &message_id,
+             const boost::shared_ptr<transport::StoreRequest> request);
+  void Downlist(transport::SocketId &message_id,
+                const boost::shared_ptr<transport::DownlistRequest> request);
+  void Delete(transport::SocketId &message_id,
+              const boost::shared_ptr<transport::DeleteRequest> request);
+  void Update(transport::SocketId &message_id,
+              const boost::shared_ptr<transport::UpdateRequest> request);
   inline void set_node_joined(const bool &joined) { node_joined_ = joined; }
   inline void set_node_info(const ContactInfo &info) { node_info_ = info; }
   inline void set_alternative_store(base::AlternativeStore* alt_store) {
@@ -113,18 +105,20 @@ class KadService : public KademliaService {
  private:
   friend class test_kadservice::KadServicesTest_BEH_KAD_UpdateValue_Test;
   bool GetSender(const ContactInfo &sender_info, Contact *sender);
-  bool CheckStoreRequest(const StoreRequest *request, Contact *sender);
+  bool CheckStoreRequest(const transport::StoreRequest *request, Contact *sender);
   void StoreValueLocal(const std::string &key, const std::string &value,
                        Contact sender, const boost::int32_t &ttl,
-                       const bool &publish, StoreResponse *response,
-                       rpcprotocol::Controller *ctrl);
+                       const bool &publish, transport::StoreResponse *response);
   void StoreValueLocal(const std::string &key, const SignedValue &value,
                        Contact sender, const boost::int32_t &ttl,
-                       const bool &publish, StoreResponse *response,
-                       rpcprotocol::Controller *ctrl);
+                       const bool &publish, transport::StoreResponse *response);
   bool CanStoreSignedValueHashable(const std::string &key,
                                    const std::string &value, bool *hashable);
-//  NatRpcs nat_rpcs_;
+  boost::shared_ptr<transport::Transport> transport_;
+  boost::shared_ptr<RoutingTable> routing_table_;
+  boost::shared_ptr<base::Threadpool> threadpool_;
+  boost::shared_ptr<DataStore> datastore_;
+  
   boost::shared_ptr<DataStore> pdatastore_;
   bool node_joined_, node_hasRSAkeys_;
   ContactInfo node_info_;
@@ -138,7 +132,8 @@ class KadService : public KademliaService {
   base::SignatureValidator *signature_validator_;
   KadService(const KadService&);
   KadService& operator=(const KadService&);
+  transport::Signals request_;
 };
 
-}  // namespace kad
+}  // namespace kademlia
 #endif  // MAIDSAFE_KADEMLIA_KADSERVICE_H_

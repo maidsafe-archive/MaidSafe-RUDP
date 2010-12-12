@@ -63,7 +63,7 @@ class PingCallback : public FakeCallback {
     result_ = "";
   }
  private:
-  kad::PingResponse result_msg;
+  kademlia::PingResponse result_msg;
 };
 
 class StoreValueCallback :public FakeCallback {
@@ -81,7 +81,7 @@ class StoreValueCallback :public FakeCallback {
     result_ = "";
   };
  private:
-  kad::StoreResponse result_msg;
+  kademlia::StoreResponse result_msg;
 };
 
 class FindCallback : public FakeCallback {
@@ -110,12 +110,12 @@ class FindCallback : public FakeCallback {
   };
   std::vector<std::string> values() const {return values_;}
   std::vector<std::string> closest_nodes() const {return closest_nodes_;}
-  std::vector<kad::SignedValue> signed_values() {return signed_values_;}
+  std::vector<kademlia::SignedValue> signed_values() {return signed_values_;}
  private:
-  kad::FindResponse result_msg;
+  kademlia::FindResponse result_msg;
   std::vector<std::string> values_;
   std::vector<std::string> closest_nodes_;
-  std::vector<kad::SignedValue> signed_values_;
+  std::vector<kademlia::SignedValue> signed_values_;
 };
 
 class GetNodeContactDetailsCallback : public FakeCallback {
@@ -137,7 +137,7 @@ class GetNodeContactDetailsCallback : public FakeCallback {
   };
   std::string contact() const {return contact_;}
  private:
-  kad::FindNodeResult result_msg;
+  kademlia::FindNodeResult result_msg;
   std::string contact_;
 };
 
@@ -174,7 +174,7 @@ class DeleteValueCallback : public FakeCallback {
     result_ = false;
   };
  private:
-  kad::DeleteResponse result_msg;
+  kademlia::DeleteResponse result_msg;
 };
 
 class UpdateValueCallback : public FakeCallback {
@@ -193,7 +193,7 @@ class UpdateValueCallback : public FakeCallback {
   }
 
  private:
-  kad::UpdateResponse result_msg;
+  kademlia::UpdateResponse result_msg;
 };
 
 inline void wait_result(FakeCallback *callback) {

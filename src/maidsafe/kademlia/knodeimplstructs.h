@@ -42,9 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/rpcprotocol/channel-api.h"
 
-namespace kad {
+
+namespace kademlia {
 
 enum RemoteFindMethod { FIND_NODE, FIND_VALUE, BOOTSTRAP };
 
@@ -92,7 +92,7 @@ struct IterativeLookUpData {
   bool downlist_sent, in_final_iteration, is_callbacked, wait_for_key;
   VoidFunctorOneString callback;
   ContactInfo alternative_value_holder;
-  std::list<kad::SignedValue> sig_values_found;
+  std::list<kademlia::SignedValue> sig_values_found;
 };
 
 struct IterativeStoreValueData {
@@ -440,6 +440,6 @@ struct FindNodesRpc {
 
 enum SearchMarking { SEARCH_DOWN, SEARCH_CONTACTED };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_KNODEIMPLSTRUCTS_H_

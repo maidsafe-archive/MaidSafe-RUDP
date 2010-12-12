@@ -47,7 +47,6 @@ namespace base {
 namespace test {
 }  // namespace test
 
-
 class Threadpool {
  public:
   explicit Threadpool(const boost::uint8_t &poolsize);

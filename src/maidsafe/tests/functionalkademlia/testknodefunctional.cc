@@ -94,7 +94,7 @@ TEST_F(FunctionalKNodeTest, FUNC_KAD_StartStopRandomNodes) {
   std::string kad_config_file("");
   std::vector< boost::shared_ptr<rpcprotocol::ChannelManager> >
       channel_managers_;
-  std::vector< boost::shared_ptr<kad::KNode> > knodes_;
+  std::vector< boost::shared_ptr<kademlia::KNode> > knodes_;
   std::vector<std::string> dbs_;
   crypto::Crypto cry_obj_;
   GeneralKadCallback cb_;
@@ -119,14 +119,14 @@ TEST_F(FunctionalKNodeTest, FUNC_KAD_StartStopRandomNodes) {
                             base::itos(initialNodePort+i);
     dbs_.push_back(db_local_);
 
-    boost::shared_ptr<kad::KNode> knode_local_(new kad::KNode(dbs_[i],
+    boost::shared_ptr<kademlia::KNode> knode_local_(new kademlia::KNode(dbs_[i],
                                                channel_managers_[i],
-                                               kad::VAULT,
+                                               kademlia::VAULT,
                                                kTestK,
-                                               kad::kAlpha,
-                                               kad::kBeta));
+                                               kademlia::kAlpha,
+                                               kademlia::kBeta));
     EXPECT_EQ(0, channel_managers_[i]->StartTransport(initialNodePort+i,
-              boost::bind(&kad::KNode::HandleDeadRendezvousServer,
+              boost::bind(&kademlia::KNode::HandleDeadRendezvousServer,
               knode_local_.get(), _1, _2, _3)));
     knodes_.push_back(knode_local_);
     cb_.Reset();
@@ -138,7 +138,7 @@ TEST_F(FunctionalKNodeTest, FUNC_KAD_StartStopRandomNodes) {
                    boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1),
                    false);
   wait_result(&cb_);
-  ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+  ASSERT_EQ(kademlia::kRpcResultSuccess, cb_.result());
   ASSERT_TRUE(knodes_[0]->is_joined());
   printf("Node 0 joined.\n");
   base::KadConfig kad_config;
@@ -174,7 +174,7 @@ TEST_F(FunctionalKNodeTest, FUNC_KAD_StartStopRandomNodes) {
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1),
                      false);
     wait_result(&cb_);
-    ASSERT_EQ(kad::kRpcResultSuccess, cb_.result());
+    ASSERT_EQ(kademlia::kRpcResultSuccess, cb_.result());
     ASSERT_TRUE(knodes_[i]->is_joined());
     printf("Node %i joined.\n", i);
     node_ids.push_back(knodes_[i]->node_id());
@@ -300,13 +300,13 @@ TEST_F(FunctionalKNodeTest, FUNC_KAD_StartStopRandomNodes) {
                                 base::itos(initialNodePort + *it);
         std::string kad_config_file = db_local_ + "/.kadconfig";
         clt.AddCallLater((stop_times[*it] - t_elapsed) * 1000,
-                         boost::bind(&kad::KNode::Leave, knodes_[*it].get()));
+                         boost::bind(&kademlia::KNode::Leave, knodes_[*it].get()));
         base::callback_func_type f = boost::bind(
           &GeneralKadCallback::CallbackFunc,
           &cb_,
           _1);
         clt.AddCallLater((restart_times[*it] - t_elapsed) * 1000,
-                         boost::bind(&kad::KNode::Join,
+                         boost::bind(&kademlia::KNode::Join,
                                      knodes_[*it].get(),
                                      knodes_[*it]->node_id(),
                                      kad_config_file,

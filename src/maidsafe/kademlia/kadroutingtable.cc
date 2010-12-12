@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
-namespace kad {
+namespace kademlia {
 
 RoutingTable::RoutingTable(const KadId &holder_id, const boost::uint16_t &rt_K)
     : k_buckets_(), bucket_upper_address_(), holder_id_(holder_id),
@@ -437,4 +437,4 @@ void RoutingTable::GetFurthestContacts(
 //  }
 }
 
-}  // namespace kad
+}  // namespace kademlia

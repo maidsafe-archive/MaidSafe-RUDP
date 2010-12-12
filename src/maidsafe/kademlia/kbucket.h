@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kadid.h"
 #include "maidsafe/maidsafe-dht_config.h"
 
-namespace kad {
+namespace kademlia {
 
 class Contact;
 
@@ -77,6 +77,6 @@ class KBucket {
   boost::uint16_t K_;
 };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_KBUCKET_H_

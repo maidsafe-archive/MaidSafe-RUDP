@@ -59,12 +59,12 @@ struct CallbackData {
 
 class Operations {
  public:
-  explicit Operations(boost::shared_ptr<kad::KNode> node);
-  void TestFindAndPing(const std::vector<kad::KadId> &nodes,
+  explicit Operations(boost::shared_ptr<kademlia::KNode> node);
+  void TestFindAndPing(const std::vector<kademlia::KadId> &nodes,
                        const int &iterations);
-  void TestStoreAndFind(const std::vector<kad::KadId> &nodes,
+  void TestStoreAndFind(const std::vector<kademlia::KadId> &nodes,
                         const int &iterations, const bool &sign);
-  static kad::KadId GetModId(int iteration);
+  static kademlia::KadId GetModId(int iteration);
   static void PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings);
  private:
   void PingCallback(const std::string &result,
@@ -75,7 +75,7 @@ class Operations {
                      boost::shared_ptr<CallbackData> data);
   void FindValueCallback(const std::string &result,
                          boost::shared_ptr<CallbackData> data);
-  boost::shared_ptr<kad::KNode> node_;
+  boost::shared_ptr<kademlia::KNode> node_;
   crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_signature_;
 };

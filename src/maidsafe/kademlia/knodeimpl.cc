@@ -48,12 +48,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kadroutingtable.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 
 namespace fs = boost::filesystem;
 
-namespace kad {
+namespace kademlia {
 
 // some tools which will be used in the implementation of KNodeImpl class
 
@@ -1237,30 +1236,6 @@ ConnectionType KNodeImpl::CheckContactLocalAddress(const KadId &id,
   return conn_type;
 }
 
-void KNodeImpl::UPnPMap(Port port) {
-  // Get a UPnP mapping port
-  upnp_mapped_port_ = 0;
-  DLOG(INFO) << "Initialising UPNP\n";
-  // ignore result, in case it's already initialised
-  upnp_.InitControlPoint();
-
-  DLOG(INFO) << "Mapping local port " << port << std::endl;
-  if (upnp_.AddPortMapping(port, upnp::kUdp)) {
-    upnp_mapped_port_ = port;
-    ip_ = upnp_.GetExternalIpAddress();
-    port_ = upnp_mapped_port_;
-    DLOG(INFO) << "Successfully mapped to " << ip_ << ":" <<
-        upnp_mapped_port_ << std::endl;
-  } else {
-    DLOG(ERROR) << "UPnP port mappin failed" << std::endl;
-  }
-}
-
-void KNodeImpl::UnMapUPnP() {
-  DLOG(INFO) << "Deleting the UPnP mapped port\n";
-  upnp_.DeletePortMapping(upnp_mapped_port_, upnp::kUdp);
-  upnp_mapped_port_ = 0;
-}
 
 void KNodeImpl::UpdatePDRTContactToRemote(const KadId &node_id,
                                           const IP &ip) {
@@ -1269,21 +1244,11 @@ void KNodeImpl::UpdatePDRTContactToRemote(const KadId &node_id,
 
 ContactInfo KNodeImpl::contact_info() const {
   ContactInfo info;
-  if (ip_.size() > 4) {
-    info.set_ip(base::IpAsciiToBytes(ip_));
-  } else {
-    info.set_ip(ip_);
-  }
-  if (local_ip_.size() > 4) {
-    info.set_local_ips(base::IpAsciiToBytes(local_ip_));
-  } else {
-    info.set_local_ips(local_ip_);
-  }
-  if (rv_ip_.size() > 4) {
-    info.set_rendezvous_ip(base::IpAsciiToBytes(rv_ip_));
-  } else {
-    info.set_rendezvous_ip(rv_ip_);
-  }
+
+  info.set_ip(ip_);
+  info.set_local_ips(local_ip_);
+  info.set_rendezvous_ip(rv_ip_);
+ 
   if (type_ == CLIENT || type_ == CLIENT_PORT_MAPPED) {
     info.set_node_id(fake_kClientId_.String());
   } else {
@@ -2811,4 +2776,4 @@ void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
 }
 
-}  // namespace kad
+}  // namespace kademlia

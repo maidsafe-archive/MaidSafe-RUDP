@@ -1,4 +1,4 @@
-package kad;
+package kademlia;
 message SignedValue {
   required bytes value = 1;
   required bytes value_signature = 2;

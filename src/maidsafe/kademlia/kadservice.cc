@@ -36,53 +36,52 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/crypto.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/rpcprotocol/channel-api.h"
 #include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/protobuf/kademlia.pb.h"
 
-namespace kad {
+
+namespace kademlia {
 
 static void downlist_ping_cb(const std::string&) {}
 
-KadService::KadService(boost::shared_ptr<DataStore> datastore,
-                       const bool &hasRSAkeys, AddContactFunctor add_cts,
-                       GetRandomContactsFunctor rand_cts,
-                       GetContactFunctor get_ctc, GetKClosestFunctor get_kcts,
-                       PingFunctor ping, RemoveContactFunctor remove_contact)
-    : pdatastore_(datastore), node_joined_(false), node_hasRSAkeys_(hasRSAkeys),
-      node_info_(), alternative_store_(NULL), add_contact_(add_cts),
-      get_random_contacts_(rand_cts), get_contact_(get_ctc),
-      get_closestK_contacts_(get_kcts), ping_(ping),
-      remove_contact_(remove_contact), signature_validator_(NULL) {}
+KadService::KadService(boost::shared_ptr<transport::Transport> transport,
+             boost::shared_ptr<RoutingTable> routing_table,
+             boost::shared_ptr<base::Threadpool> threadpool,
+             boost::shared_ptr<DataStore> datastore,
+             const bool &hasRSAkeys)
+    : transport_(transport), routing_table_(routing_table),
+      threadpool_(threadpool), datastore_(datastore),
+      pdatastore_(datastore), node_joined_(false), node_hasRSAkeys_(hasRSAkeys),
+      node_info_(), alternative_store_(NULL), signature_validator_(NULL) {
+        // Connect to transport signals to process messages received
+      request_ = transport::Signals.ConnectOnMessageReceived(
+                     boost::bind(&KadService::Parse,
+                                 this, _1, _2, _3));
+      }
 
-void KadService::Ping(google::protobuf::RpcController *controller,
-                      const PingRequest *request, PingResponse *response,
-                      google::protobuf::Closure *done) {
-  if (!node_joined_) {
-    response->set_result(false);
-    done->Run();
-    return;
+void KadService::Parse(transport::SocketId &message_id,
+                       TransportMessage &message,
+                       transport::Stats &stats)
+{
+  // parse message, get type and have the service find result.
+  // pass all services to an io_service (threadpool)
+  if (TransportMessage().data().GetExtension<Ping>(message)) {
+  threadpool_->EnqueueTask(boost::bind(&KadService::Ping,
+                                      this, _1, _2);
   }
-  Contact sender;
-  if (!request->IsInitialized()) {
-    response->set_result(false);
-  } else if (request->ping() == "ping" &&
-             GetSender(request->sender_info(), &sender)) {
-    response->set_echo("pong");
-    response->set_result(true);
-    rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
-        (controller);
-    if (ctrl != NULL) {
-      add_contact_(sender, ctrl->rtt(), false);
-    } else {
-      add_contact_(sender, 0.0, false);
-    }
-  } else {
-    response->set_result(false);
-  }
-  response->set_node_id(node_info_.node_id());
-  done->Run();
+}
+
+
+void KadService::Ping(transport::SocketId &message_id,
+            const boost::shared_ptr<transport::PingRequest> request) {
+    transport::TransportMessage::Data response;
+    response.SetExtension<ping_response>(set_echo, "pong");
+    response.SetExtension<ping_response>(set_result, true);
+    response.SetExtension<ping_response>(set_node_id, node_info_.node_id());
+// send to transport here 
 }
 
 void KadService::FindNode(google::protobuf::RpcController *controller,
@@ -593,4 +592,4 @@ bool KadService::CanStoreSignedValueHashable(const std::string &key,
   return true;
 }
 
-}  // namespace kad
+}  // namespace kademlia

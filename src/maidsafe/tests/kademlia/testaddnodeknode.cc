@@ -103,13 +103,13 @@ class TestKnodes : public testing::Test {
     datastore_dir_.resize(2);
     KnodeConstructionParameters kcp;
     kcp.type = VAULT;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.k = test_add_knode::K;
     kcp.port_forwarded = false;
     kcp.private_key = "";
     kcp.public_key = "";
-    kcp.refresh_time = kad::kRefreshTime;
+    kcp.refresh_time = kademlia::kRefreshTime;
     kcp.use_upnp = false;
     for (int i = 0; i < 2; ++i) {
       msg_handlers_.push_back(new MessageHandler);
@@ -126,7 +126,7 @@ class TestKnodes : public testing::Test {
       boost::filesystem::create_directories(
           boost::filesystem::path(datastore_dir_[i]));
       nodes_.push_back(KNode(ch_managers_[i], transports_[i], kcp));
-      std::string s(nodes_[i].node_id().ToStringEncoded(kad::KadId::kHex));
+      std::string s(nodes_[i].node_id().ToStringEncoded(kademlia::KadId::kHex));
       DLOG(INFO) << "Listening port for node " <<  s.substr(0, 16) << ": "
                  << transport_ports_[i] << std::endl;
     }
@@ -169,7 +169,7 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  kad::KadId kadid(id, kad::KadId::kHex);
+  kademlia::KadId kadid(id, kademlia::KadId::kHex);
   nodes_[0].JoinFirstNode(kadid, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
                           boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -203,7 +203,7 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   Contact last_seen;
   std::string ip = "127.0.0.1";
   for (int i = 1 ; i < test_add_knode::K - 2; ++i) {
-    kad::KadId id(bucket2ids[i], kad::KadId::kHex);
+    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     if (i == 1)
@@ -211,7 +211,7 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
     ++port;
   }
   for (int i = 0; i < 3; ++i) {
-    kad::KadId id(bucket1ids[i], kad::KadId::kHex);
+    kademlia::KadId id(bucket1ids[i], kademlia::KadId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
@@ -263,7 +263,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  kad::KadId kid(id, kad::KadId::kHex), kid2(id2, kad::KadId::kHex);
+  kademlia::KadId kid(id, kademlia::KadId::kHex), kid2(id2, kademlia::KadId::kHex);
   nodes_[0].JoinFirstNode(kid, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
                           boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -319,25 +319,25 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
 
   std::string ip = "127.0.0.1";
   for (int i = 1 ; i < test_add_knode::K - 3; ++i) {
-    kad::KadId id(bucket2ids[i], kad::KadId::kHex);
+    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   for (int i = 0; i < 3; ++i) {
-    kad::KadId id(bucket1ids[i], kad::KadId::kHex);
+    kademlia::KadId id(bucket1ids[i], kademlia::KadId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   for (int i = test_add_knode::K - 3; i < test_add_knode::K; ++i) {
-    kad::KadId id(bucket2ids[i], kad::KadId::kHex);
+    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   ++port;
-  Contact contact(kad::KadId(bucket2ids[0], kad::KadId::kHex), ip, port, ip,
+  Contact contact(kademlia::KadId(bucket2ids[0], kademlia::KadId::kHex), ip, port, ip,
                   port);
   ASSERT_EQ(2, nodes_[0].AddContact(contact, 0.0, false));
 

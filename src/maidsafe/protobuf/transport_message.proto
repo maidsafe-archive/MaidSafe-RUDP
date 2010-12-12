@@ -1,5 +1,3 @@
-import "maidsafe/protobuf/rpcmessage.proto";
-
 package transport;
 
 message Address {
@@ -74,16 +72,15 @@ message TransportMessage {
   message Data {
     extensions 100 to 18999;  // Allows extensions of the message types
     optional bytes raw_message = 1;
-    optional rpcprotocol.RpcMessage rpc_message = 2;
-    optional HolePunchingMessage hole_punching_message = 3;
-    optional Ping ping = 4;
-    optional ProxyPing proxy_ping = 5;
-    optional ManagedEndpointMessage managed_endpoint_message = 6;
-    optional NatDetection nat_detection = 7;
-    optional RendezvousNode rendezvous_node = 8;
-    optional NatInformation nat_information = 9;
-    optional ConnectionNode connection_node = 10;
-    optional ConnectionResult connection_result = 11;
+    optional HolePunchingMessage hole_punching_message = 2;
+    optional Ping ping = 3;
+    optional ProxyPing proxy_ping = 4;
+    optional ManagedEndpointMessage managed_endpoint_message = 5;
+    optional NatDetection nat_detection = 6;
+    optional RendezvousNode rendezvous_node = 7;
+    optional NatInformation nat_information = 8;
+    optional ConnectionNode connection_node = 9;
+    optional ConnectionResult connection_result = 10;
   }
   required Type type = 1;
   required Data data = 2;

@@ -719,9 +719,9 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       transport_message_.mutable_data()->mutable_rpc_message();
   const boost::uint32_t kSentRpcId(base::RandomUint32());
   const std::string kSentRpcMethod(base::RandomString(100));
-  kad::NatDetectionPingRequest kad_request;
+  kademlia::NatDetectionPingRequest kad_request;
   kad_request.set_ping(base::RandomString(100));
-  const kad::NatDetectionPingRequest kSentRpcDetail(kad_request);
+  const kademlia::NatDetectionPingRequest kSentRpcDetail(kad_request);
   const std::string kSentRpcService(base::RandomString(100));
   sent_rpc_message->set_rpc_id(kSentRpcId);
   sent_rpc_message->set_method(kSentRpcMethod);

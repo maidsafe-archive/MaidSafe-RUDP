@@ -244,16 +244,16 @@ int main(int argc, char **argv) {
       tra->StopListening(port);
       return 1;
     }
-    kad::KnodeConstructionParameters kcp;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kademlia::KnodeConstructionParameters kcp;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.k = test_benchmark::K;
     kcp.port_forwarded = false;
-    kcp.refresh_time = kad::kRefreshTime;
+    kcp.refresh_time = kademlia::kRefreshTime;
     kcp.use_upnp = false;
-    kcp.type = kad::CLIENT;
+    kcp.type = kademlia::CLIENT;
     kcp.port = port;
-    boost::shared_ptr<kad::KNode> node(new kad::KNode(cm, tra, kcp));
+    boost::shared_ptr<kademlia::KNode> node(new kademlia::KNode(cm, tra, kcp));
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
     }
 
     // get node IDs from text file
-    std::vector<kad::KadId> nodes;
+    std::vector<kademlia::KadId> nodes;
     if (vm.count("id_list")) {
       try {
         boost::filesystem::ifstream idf(vm["id_list"].as<std::string>(),
@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
           char line[150];
           idf.getline(line, sizeof(line));
           try {
-            kad::KadId id(line, kad::KadId::kHex);
+            kademlia::KadId id(line, kademlia::KadId::kHex);
             nodes.push_back(id);
           }
           catch(const std::exception &) {
@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
     printf("\n[ Testing GetNodeContactDetails and Ping ]\n");
     ops.TestFindAndPing(nodes, iterations);
 
-    if (nodes_count >= test_benchmark::K * kad::kMinSuccessfulPecentageStore) {
+    if (nodes_count >= test_benchmark::K * kademlia::kMinSuccessfulPecentageStore) {
       printf("\n[ Testing StoreValue and FindValue (unsigned) ]\n");
       ops.TestStoreAndFind(nodes, iterations, false);
       printf("\n[ Testing StoreValue and FindValue (signed) ]\n");

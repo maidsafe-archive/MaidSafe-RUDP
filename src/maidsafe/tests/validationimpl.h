@@ -53,7 +53,7 @@ class TestValidator : public SignatureValidator {
                        const std::string &public_key,
                        const std::string &signed_public_key,
                        const std::string &key) {
-    if (signed_request == kad::kAnonymousSignedRequest)
+    if (signed_request == kademlia::kAnonymousSignedRequest)
       return true;
     crypto::Crypto checker;
     return checker.AsymCheckSig(

@@ -47,14 +47,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kadservice.h"
 #include "maidsafe/kademlia/knodeimplstructs.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/protobuf/kademlia_service.pb.h"
-#include "maidsafe/upnp/upnpclient.h"
+#include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/kademlia/config.h"
+
 
 namespace base {
 class PublicRoutingTableHandler;
 }
 
-namespace kad {
+namespace kademlia {
 
 class ContactInfo;
 class DataStore;
@@ -88,8 +89,7 @@ class TestKNodeImpl_BEH_KNodeImpl_FindNodesContactsInReponse_Test;
 class KNodeImpl {
  public:
   // constructor used to set up parameters k, alpha, and beta for kademlia
-  KNodeImpl(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-            boost::shared_ptr<transport::Transport> transport,
+  KNodeImpl(boost::shared_ptr<transport::Transport> transport,
             const KnodeConstructionParameters &knode_parameters);
   virtual ~KNodeImpl();
 
@@ -317,6 +317,6 @@ class KNodeImpl {
   void IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc);
 };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_KNODEIMPL_H_

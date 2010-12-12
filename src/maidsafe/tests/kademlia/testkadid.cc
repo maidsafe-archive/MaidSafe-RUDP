@@ -36,13 +36,13 @@ namespace kad {
 
 namespace test_kadid {
 
-void InsertKadContact(const KadId &key, const kad::Contact &new_contact,
-                      std::vector<kad::Contact> *contacts) {
-  std::list<kad::Contact> contact_list(contacts->begin(), contacts->end());
+void InsertKadContact(const KadId &key, const kademlia::Contact &new_contact,
+                      std::vector<kademlia::Contact> *contacts) {
+  std::list<kademlia::Contact> contact_list(contacts->begin(), contacts->end());
   contact_list.push_back(new_contact);
-  kad::SortContactList(key, &contact_list);
+  kademlia::SortContactList(key, &contact_list);
   contacts->clear();
-  for (std::list<kad::Contact>::iterator it = contact_list.begin();
+  for (std::list<kademlia::Contact>::iterator it = contact_list.begin();
        it != contact_list.end(); ++it) {
     contacts->push_back(*it);
   }

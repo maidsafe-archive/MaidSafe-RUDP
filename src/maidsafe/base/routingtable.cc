@@ -96,16 +96,16 @@ int PublicRoutingTableHandler::GetClosestRtt(
 bool PublicRoutingTableHandler::KadCloser(const PublicRoutingTableTuple &pdrtt1,
                                           const PublicRoutingTableTuple &pdrtt2,
                                           const std::string &target_key) const {
-  kad::KadId id1(pdrtt1.kademlia_id), id2(pdrtt2.kademlia_id),
+  kademlia::KadId id1(pdrtt1.kademlia_id), id2(pdrtt2.kademlia_id),
       target_id(target_key);
-  return kad::KadId::CloserToTarget(id1, id2, target_id);
+  return kademlia::KadId::CloserToTarget(id1, id2, target_id);
 }
 
 int PublicRoutingTableHandler::GetClosestContacts(
     const std::string &target_key,
     const boost::uint32_t &count,
     std::list<PublicRoutingTableTuple> *tuples) {
-  if (target_key.size() != kad::kKeySizeBytes || tuples == NULL)
+  if (target_key.size() != kademlia::kKeySizeBytes || tuples == NULL)
     return -1;
   boost::mutex::scoped_lock guard(mutex_);
   std::vector< boost::reference_wrapper<const PublicRoutingTableTuple> > temp;
@@ -272,7 +272,7 @@ int PublicRoutingTableHandler::ContactLocal(const std::string &kademlia_id) {
 int PublicRoutingTableHandler::UpdateContactLocal(
     const std::string &kademlia_id,
     const std::string &ip,
-    const kad::ConnectionType &new_contact_type) {
+    const kademlia::ConnectionType &new_contact_type) {
   boost::mutex::scoped_lock guard(mutex_);
   routingtable::index<t_key>::type& key_indx = routingtable_.get<t_key>();
   routingtable::index<t_key>::type::iterator it = key_indx.find(kademlia_id);
@@ -293,7 +293,7 @@ int PublicRoutingTableHandler::UpdateLocalToUnknown(
   if (it == routingtable_.end())
     return 1;
   PublicRoutingTableTuple new_tuple = *it;
-  new_tuple.connection_type = kad::UNKNOWN;
+  new_tuple.connection_type = kademlia::UNKNOWN;
   routingtable_.replace(it, new_tuple);
   return 0;
 }

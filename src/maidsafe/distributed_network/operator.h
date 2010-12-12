@@ -68,13 +68,13 @@ struct Operation {
       : key(), signed_value(), updated_signed_value(),
         start_time(boost::posix_time::microsec_clock::universal_time()),
         duration(0), op_type(kStore), result(false) {}
-  Operation(const std::string &key, const kad::SignedValue &signed_value,
+  Operation(const std::string &key, const kademlia::SignedValue &signed_value,
             const OpType &op_type)
       : key(key), signed_value(signed_value), updated_signed_value(),
         start_time(boost::posix_time::microsec_clock::universal_time()),
         duration(0), op_type(op_type), result(false) {}
   std::string key;
-  kad::SignedValue signed_value, updated_signed_value;
+  kademlia::SignedValue signed_value, updated_signed_value;
   boost::posix_time::ptime start_time;
   boost::posix_time::microseconds duration;
   OpType op_type;
@@ -161,7 +161,7 @@ typedef ValuesMap::index<by_status>::type ValuesMapByStatus;
 
 class Operator {
  public:
-  Operator(boost::shared_ptr<kad::KNode> knode, const std::string &public_key,
+  Operator(boost::shared_ptr<kademlia::KNode> knode, const std::string &public_key,
            const std::string &private_key);
   void Run();
   void Halt();
@@ -178,30 +178,30 @@ class Operator {
   bool KeyMine(const std::string &key);
 
   // Operations
-  void StoreValue(const std::string &key, const kad::SignedValue &sv);
+  void StoreValue(const std::string &key, const kademlia::SignedValue &sv);
   void FindValue(const std::string &key,
-                 const std::vector<kad::SignedValue> &values,
+                 const std::vector<kademlia::SignedValue> &values,
                  bool mine);
-  void DeleteValue(const std::string &key, const kad::SignedValue &sv);
-  void UpdateValue(const std::string &key, const kad::SignedValue &old_value,
-                   const kad::SignedValue &new_value);
+  void DeleteValue(const std::string &key, const kademlia::SignedValue &sv);
+  void UpdateValue(const std::string &key, const kademlia::SignedValue &old_value,
+                   const kademlia::SignedValue &new_value);
   void FindKClosestNodes(const std::string &key);
 
   // Operation Callbacks
-  void StoreCallback(const std::string &key, const kad::SignedValue &sv,
+  void StoreCallback(const std::string &key, const kademlia::SignedValue &sv,
                      const std::string &ser_result);
   void FindValueCallback(const Operation &op, const std::string &key,
-                         const std::vector<kad::SignedValue> &values,
+                         const std::vector<kademlia::SignedValue> &values,
                          bool mine);
   void DeleteValueCallback(const Operation &op, const std::string &ser_result);
   void UpdateValueCallback(const Operation &op,
-                           const kad::SignedValue &new_value,
+                           const kademlia::SignedValue &new_value,
                            const std::string &ser_result);
   void FindKClosestNodesCallback(const std::string &key,
                                  const std::string &ser_result);
   // Miscellaneous
   void CreateRequestSignature(const std::string &key,
-                              kad::SignedRequest *request);
+                              kademlia::SignedRequest *request);
   bool HashableKeyPair(const std::string &key, const std::string &value,
                        crypto::Crypto *co);
   void SendStore();
@@ -209,9 +209,9 @@ class Operator {
   void SendDelete();
   void SendUpdate();
 
-  void LogResult(const Operation &op, const kad::SignedValue &sv, bool success);
+  void LogResult(const Operation &op, const kademlia::SignedValue &sv, bool success);
 
-  boost::shared_ptr<kad::KNode> knode_;
+  boost::shared_ptr<kademlia::KNode> knode_;
   boost::shared_ptr<MySqlppWrap> wrap_;
   volatile bool halt_request_;
   int operation_index_, random_operations_, fetch_count_;

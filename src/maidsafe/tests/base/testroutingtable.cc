@@ -168,7 +168,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateTuple) {
   ASSERT_EQ(0, rt_handler.UpdateRank(kademlia_id, 10));
   ASSERT_EQ(0, rt_handler.UpdateSpace(kademlia_id, 6666));
   ASSERT_EQ(0, rt_handler.UpdateContactLocal(kademlia_id, "211.11.11.11",
-            kad::LOCAL));
+            kademlia::LOCAL));
   ASSERT_EQ(0, rt_handler.ContactLocal(kademlia_id));
   base::PublicRoutingTableTuple retrieved_tuple;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
@@ -181,7 +181,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateTuple) {
   ASSERT_EQ(static_cast<boost::uint16_t>(10), retrieved_tuple.rank);
   ASSERT_EQ(static_cast<boost::uint32_t>(6666), retrieved_tuple.space);
   ASSERT_EQ(0, rt_handler.UpdateContactLocal(kademlia_id, "210.11.11.11",
-            kad::REMOTE));
+            kademlia::REMOTE));
   ASSERT_EQ(1, rt_handler.ContactLocal(kademlia_id));
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
   ASSERT_EQ("210.11.11.11", retrieved_tuple.ip);
@@ -209,7 +209,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateToUnknown) {
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
   ASSERT_EQ(2, rt_handler.ContactLocal(kademlia_id));
   ASSERT_EQ(0, rt_handler.UpdateContactLocal(kademlia_id, local_ip,
-            kad::LOCAL));
+            kademlia::LOCAL));
   ASSERT_EQ(0, rt_handler.ContactLocal(kademlia_id));
   ASSERT_EQ(0, rt_handler.UpdateLocalToUnknown(local_ip, local_port));
   ASSERT_EQ(2, rt_handler.ContactLocal(kademlia_id));
@@ -289,22 +289,22 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestRtt) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
-  typedef std::map<kad::KadId, base::PublicRoutingTableTuple> TuplesMap;
+  typedef std::map<kademlia::KadId, base::PublicRoutingTableTuple> TuplesMap;
   TuplesMap tuples;
   std::pair<TuplesMap::iterator, bool> result;
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   std::string target_key = co.Hash(base::RandomString(222), "",
                                    crypto::STRING_STRING, false);
-  kad::KadId target_id(target_key);
+  kademlia::KadId target_id(target_key);
   const int kTupleCount(177);
   base::PublicRoutingTableHandler rt_handler;
   for (int i = 0; i < kTupleCount; ++i) {
     std::string kad_id = co.Hash(base::RandomString(111), "",
                                  crypto::STRING_STRING, false);
-    kad::KadId id(kad_id);
-    kad::KadId dist = id ^ target_id;
-    result = tuples.insert(std::pair<kad::KadId, base::PublicRoutingTableTuple>(
+    kademlia::KadId id(kad_id);
+    kademlia::KadId dist = id ^ target_id;
+    result = tuples.insert(std::pair<kademlia::KadId, base::PublicRoutingTableTuple>(
         dist,
         base::PublicRoutingTableTuple(kad_id, "192.168.1." +
             base::IntToString(i % 256), 8000 + (i % 1000), "", 0, "",
@@ -323,9 +323,9 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
   TuplesMap::iterator tuples_map_itr = tuples.begin();
   std::list<base::PublicRoutingTableTuple>::iterator tuples_itr =
       returned_tuples.begin();
-  kad::KadId dist, previous_dist;
+  kademlia::KadId dist, previous_dist;
   while (tuples_itr != returned_tuples.end()) {
-    kad::KadId id((*tuples_itr).kademlia_id);
+    kademlia::KadId id((*tuples_itr).kademlia_id);
     dist = id ^ target_id;
     ASSERT_TRUE((*tuples_map_itr).first == dist);
     ASSERT_TRUE(dist > previous_dist);
@@ -345,10 +345,10 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
   ASSERT_EQ(kTupleCount, returned_tuples.size());
   tuples_map_itr = tuples.begin();
   tuples_itr = returned_tuples.begin();
-  kad::KadId zero_id;
+  kademlia::KadId zero_id;
   previous_dist = zero_id;
   while (tuples_itr != returned_tuples.end()) {
-    kad::KadId id((*tuples_itr).kademlia_id);
+    kademlia::KadId id((*tuples_itr).kademlia_id);
     dist = id ^ target_id;
     ASSERT_TRUE((*tuples_map_itr).first == dist);
     ASSERT_TRUE(dist > previous_dist);
@@ -370,7 +370,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
   tuples_itr = returned_tuples.begin();
   previous_dist = zero_id;
   while (tuples_itr != returned_tuples.end()) {
-    kad::KadId id((*tuples_itr).kademlia_id);
+    kademlia::KadId id((*tuples_itr).kademlia_id);
     dist = id ^ target_id;
     ASSERT_TRUE((*tuples_map_itr).first == dist);
     ASSERT_TRUE(dist > previous_dist);
@@ -392,7 +392,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
   tuples_itr = returned_tuples.begin();
   previous_dist = zero_id;
   while (tuples_itr != returned_tuples.end()) {
-    kad::KadId id((*tuples_itr).kademlia_id);
+    kademlia::KadId id((*tuples_itr).kademlia_id);
     dist = id ^ target_id;
     ASSERT_TRUE((*tuples_map_itr).first == dist);
     ASSERT_TRUE(dist > previous_dist);

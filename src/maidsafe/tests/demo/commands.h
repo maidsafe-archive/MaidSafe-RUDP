@@ -50,18 +50,18 @@ namespace kaddemo {
 
 class Commands {
  public:
-  Commands(boost::shared_ptr<kad::KNode> node,
+  Commands(boost::shared_ptr<kademlia::KNode> node,
            boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
            const boost::uint16_t &K);
   void Run();
  private:
-  void FindValueCallback(const std::string &result, const kad::KadId &key,
+  void FindValueCallback(const std::string &result, const kademlia::KadId &key,
                          const bool &write_to_file, const std::string &path);
-  void StoreCallback(const std::string &result, const kad::KadId &key,
+  void StoreCallback(const std::string &result, const kademlia::KadId &key,
                      const boost::int32_t &ttl);
-  void PingCallback(const std::string &result, const kad::KadId &id);
+  void PingCallback(const std::string &result, const kademlia::KadId &id);
   void GetNodeContactDetailsCallback(const std::string &result,
-                                     const kad::KadId &id);
+                                     const kademlia::KadId &id);
   void ProcessCommand(const std::string &cmdline, bool *wait_for_cb);
   void PrintUsage();
   bool ReadFile(const std::string &path, std::string *content);
@@ -70,7 +70,7 @@ class Commands {
   void Store50Callback(const std::string &result, const std::string &key,
                        bool *arrived);
   void PrintRpcTimings();
-  boost::shared_ptr<kad::KNode> node_;
+  boost::shared_ptr<kademlia::KNode> node_;
   boost::shared_ptr<rpcprotocol::ChannelManager> chmanager_;
   bool result_arrived_, finish_;
   double min_succ_stores_;

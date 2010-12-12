@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <shlobj.h>
 #endif
 #include <maidsafe/maidsafe-dht_config.h>
+#include <maidsafe/kademlia/config.h>
 #include <functional>
 #include <list>
 #include <map>
@@ -59,7 +60,7 @@ struct PublicRoutingTableTuple {
   PublicRoutingTableTuple()
       : kademlia_id(), ip(), rendezvous_ip(), public_key(), port(0),
         rendezvous_port(0), rank(0), rtt(0), space(0),
-        connection_type(kad::UNKNOWN) {}
+        connection_type(kademlia::UNKNOWN) {}
   PublicRoutingTableTuple(const std::string &kademlia_id,
                           const std::string &ip,
                           const boost::uint16_t &port,
@@ -72,7 +73,7 @@ struct PublicRoutingTableTuple {
       : kademlia_id(kademlia_id), ip(ip),
         rendezvous_ip(rendezvous_ip), public_key(public_key),
         port(port), rendezvous_port(rendezvous_port), rank(rank),
-        rtt(rtt), space(space), connection_type(kad::UNKNOWN) {}
+        rtt(rtt), space(space), connection_type(kademlia::UNKNOWN) {}
   PublicRoutingTableTuple(const PublicRoutingTableTuple &tuple)
       : kademlia_id(tuple.kademlia_id), ip(tuple.ip),
         rendezvous_ip(tuple.rendezvous_ip), public_key(tuple.public_key),
@@ -96,7 +97,7 @@ struct PublicRoutingTableTuple {
   boost::uint16_t port, rendezvous_port, rank;
   float rtt;
   boost::uint32_t space;
-  kad::ConnectionType connection_type;
+  kademlia::ConnectionType connection_type;
 };
 
 // Tags
@@ -176,7 +177,7 @@ class PublicRoutingTableHandler {
   int ContactLocal(const std::string &kademlia_id);
   int UpdateContactLocal(const std::string &kademlia_id,
                          const std::string &ip,
-                         const kad::ConnectionType &new_contact_type);
+                         const kademlia::ConnectionType &new_contact_type);
   int UpdateLocalToUnknown(const std::string &ip, const boost::uint16_t &port);
   int GetShuflledDirectlyConnectedNodes(std::multimap<std::string,
                                                       boost::uint16_t> *nodes);

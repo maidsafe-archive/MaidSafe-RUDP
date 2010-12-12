@@ -77,15 +77,15 @@ class TestKnodeFunctions : public testing::Test {
 
     crypto::RsaKeyPair rkp;
     rkp.GenerateKeys(4096);
-    kad::KnodeConstructionParameters kcp;
-    kcp.type = kad::VAULT;
+    kademlia::KnodeConstructionParameters kcp;
+    kcp.type = kademlia::VAULT;
     kcp.public_key = rkp.public_key();
     kcp.private_key = rkp.private_key();
     kcp.k = K;
-    kcp.refresh_time = kad::kRefreshTime;
+    kcp.refresh_time = kademlia::kRefreshTime;
     kcp.port = p;
-    kcp.alpha = kad::kAlpha;
-    kcp.beta = kad::kBeta;
+    kcp.alpha = kademlia::kAlpha;
+    kcp.beta = kademlia::kBeta;
     kcp.port_forwarded = false;
     kcp.use_upnp = false;
     node_.reset(new KNode(manager_, udt_, kcp));

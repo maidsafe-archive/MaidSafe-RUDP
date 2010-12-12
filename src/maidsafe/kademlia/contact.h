@@ -36,10 +36,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <maidsafe/kademlia/kadid.h>
+#include <maidsafe/kademlia/config.h>
 #include <string>
 
 
-namespace kad {
+namespace kademlia {
 
 class ContactInfo;
 
@@ -48,33 +49,8 @@ class Contact {
  public:
   Contact();
   Contact(const std::string &node_id,
-          const IP &ip,
-          const Port &port,
-          const IP &local_ip,
-          const Port &local_port,
-          const IP &rendezvous_ip,
-          const Port &rendezvous_port);
-  Contact(const std::string &node_id, const IP &ip, const Port &port);
-  Contact(const std::string &node_id,
-          const IP &ip,
-          const Port &port,
-          const IP &local_ip,
-          const Port &local_port);
-  Contact(const KadId &node_id,
-          const IP &ip,
-          const Port &port,
-          const IP &local_ip,
-          const Port &local_port,
-          const IP &rendezvous_ip,
-          const Port &rendezvous_port);
-  Contact(const KadId &node_id,
-          const IP &ip,
-          const Port &port);
-  Contact(const KadId &node_id,
-          const IP &ip,
-          const Port &port,
-          const IP &local_ip,
-          const Port &local_port);
+          const Endpoint ep,
+          const Endpoint &local_ip);
   explicit Contact(const ContactInfo &contact_info);
   Contact(const Contact &other);
   // Equality is based on node id or (IP and port) if dummy
@@ -85,33 +61,28 @@ class Contact {
   bool ParseFromString(const std::string &data);
   std::string DebugString() const;
   inline const KadId &node_id() const { return node_id_; }
-  inline const IP &ip() const { return ip_; }
-  inline Port port() const { return port_; }
+  inline const Endpoint &ep() const { return ep_; }
   inline boost::uint16_t failed_rpc() const { return failed_rpc_; }
   inline void IncreaseFailed_RPC() { ++failed_rpc_; }
-  const IP &rendezvous_ip() const { return rendezvous_ip_; }
-  Port rendezvous_port() const { return rendezvous_port_; }
+  const Endpoint &rendezvous_ip() const { return rv_ep_; }
+ // Port rendezvous_port() const { return rendezvous_port_; }
   inline boost::uint64_t last_seen() const { return last_seen_; }
   inline void set_last_seen(boost::uint64_t last_seen) {
     last_seen_ = last_seen;
   }
-  inline const IP &local_ip() const { return local_ip_; }
-  inline Port local_port() const { return local_port_; }
+  inline const Endpoint &local_eps() const { return local_eps_; }
   bool operator<(const Contact &rhs) const;
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
 
  private:
   KadId node_id_;
-  IP ip_;
-  Port port_;
+  Endpoint ep_;
   boost::uint16_t failed_rpc_;
-  IP rendezvous_ip_;
-  Port rendezvous_port_;
+  Endpoint rv_ep_;
+  Endpoint local_eps_;
   boost::uint64_t last_seen_;
-  IP local_ip_;
-  Port local_port_;
 };
 
-}  // namespace kad
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_KADEMLIA_CONTACT_H_

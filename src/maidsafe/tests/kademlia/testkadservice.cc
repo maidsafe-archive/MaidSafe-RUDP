@@ -101,7 +101,7 @@ class KadServicesTest: public testing::Test {
     CreateRSAKeys(&pub_key, &priv_key);
     std::string hex_id(126, 'a');
     hex_id += "01";
-    node_id_ = kad::KadId(hex_id, kad::KadId::kHex);
+    node_id_ = kademlia::KadId(hex_id, kademlia::KadId::kHex);
     hex_id.assign(128, 'e');
     contact_.set_node_id(base::DecodeFromHex(hex_id));
     contact_.set_ip("127.0.0.1");
@@ -138,7 +138,7 @@ class KadServicesTest: public testing::Test {
 
   ContactInfo contact_;
   crypto::Crypto crypto_;
-  kad::KadId node_id_;
+  kademlia::KadId node_id_;
   boost::shared_ptr<KadService> service_;
   boost::shared_ptr<DataStore> datastore_;
   boost::shared_ptr<RoutingTable> routingtable_;
@@ -150,7 +150,7 @@ class KadServicesTest: public testing::Test {
       return routingtable_->AddContact(ctc);
     return -1;
   }
-  bool GetCtc(const kad::KadId &id, Contact *ctc) {
+  bool GetCtc(const kademlia::KadId &id, Contact *ctc) {
     return routingtable_->GetContact(id, ctc);
   }
   void GetRandCtcs(const size_t &count, const std::vector<Contact> &ex_ctcs,
@@ -168,7 +168,7 @@ class KadServicesTest: public testing::Test {
     all_contacts.resize(std::min(all_contacts.size(), count));
     *ctcs = all_contacts;
   }
-  void GetKCtcs(const kad::KadId &key, const std::vector<Contact> &ex_ctcs,
+  void GetKCtcs(const kademlia::KadId &key, const std::vector<Contact> &ex_ctcs,
                 std::vector<Contact> *ctcs) {
     routingtable_->FindCloseNodes(key, test_kadservice::K, ex_ctcs, ctcs);
   }
@@ -176,7 +176,7 @@ class KadServicesTest: public testing::Test {
     boost::thread thrd(boost::bind(&KadServicesTest::ExePingCb, this,
                                    ctc.node_id(), callback));
   }
-  void ExePingCb(const kad::KadId &id, VoidFunctorOneString callback) {
+  void ExePingCb(const kademlia::KadId &id, VoidFunctorOneString callback) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     routingtable_->RemoveContact(id, true);
     PingResponse resp;
@@ -205,7 +205,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   EXPECT_FALSE(ping_response.has_echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
   Contact contactback;
-  EXPECT_FALSE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_FALSE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
                                          &contactback));
   // Check success.
   ping_request.set_ping("ping");
@@ -219,7 +219,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesPing) {
   EXPECT_TRUE(ping_response.result());
   EXPECT_EQ("pong", ping_response.echo());
   EXPECT_EQ(node_id_.String(), ping_response.node_id());
-  EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
                                         &contactback));
 }
 
@@ -250,7 +250,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValue) {
   EXPECT_FALSE(find_value_response.has_requester_ext_addr());
   EXPECT_EQ(node_id_.String(), find_value_response.node_id());
   Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
       &contactback));
   // Populate routing table & datastore & search for non-existant key.  Ensure k
   // contacts have IDs close to key being searched for.
@@ -366,7 +366,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
   EXPECT_FALSE(find_node_response.has_requester_ext_addr());
   EXPECT_EQ(node_id_.String(), find_node_response.node_id());
   Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
       &contactback));
   // Populate routing table with a few random contacts (< K), ensure they are
   // not close to id to be searched for later, and ensure they are all
@@ -400,9 +400,9 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindNode) {
     boost::uint16_t port = 10101+i;
     Contact contact(id, ip, port, ip, port);
     Contact contactback;
-    EXPECT_FALSE(routingtable_->GetContact(kad::KadId(id), &contactback));
+    EXPECT_FALSE(routingtable_->GetContact(kademlia::KadId(id), &contactback));
     EXPECT_EQ(routingtable_->AddContact(contact), 0);
-    EXPECT_TRUE(routingtable_->GetContact(kad::KadId(id), &contactback));
+    EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(id), &contactback));
     EXPECT_EQ(id, contactback.node_id().String());
   }
   EXPECT_EQ((test_kadservice::K > 1 ? test_kadservice::K/2 : 1) + 1,
@@ -551,7 +551,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesStore) {
   ASSERT_TRUE(datastore_->LoadItem(key, &values));
   EXPECT_EQ(ser_sig_value1, values[0]);
   Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
       &contactback));
 
   // Store value2
@@ -879,7 +879,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
   EXPECT_FALSE(find_value_response.has_requester_ext_addr());
   EXPECT_EQ(node_id_.String(), find_value_response.node_id());
   Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kad::KadId(contact_.node_id()),
+  EXPECT_TRUE(routingtable_->GetContact(kademlia::KadId(contact_.node_id()),
       &contactback));
   // Populate routing table & datastore & search for non-existant key.  Ensure k
   // contacts have IDs close to key being searched for.
@@ -1012,7 +1012,7 @@ TEST_F(KadServicesTest, BEH_KAD_ServicesFindValAltStore) {
 }
 
 TEST_F(KadServicesTest, FUNC_KAD_ServiceDelete) {
-  // Store value in kad::DataStore
+  // Store value in kademlia::DataStore
   std::string hex_key;
   for (int i = 0; i < 128; ++i)
     hex_key += "a";

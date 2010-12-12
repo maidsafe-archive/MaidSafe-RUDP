@@ -34,10 +34,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_TRANSPORT_H_
 
 #include <boost/shared_ptr.hpp>
+#include <boost/asio.hpp>
 #include <maidsafe/transport/transportconditions.h>
 #include <maidsafe/transport/transportsignals.h>
 #include <vector>
 #include <iostream>
+#include <boost/concept_check.hpp>
 
 #if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
@@ -50,9 +52,17 @@ typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 typedef int ManagedEndpointId;
 typedef boost::int32_t DataSize;
+typedef boost::uint16_t SocketId;
+struct Stats {
+  IP peer_ip;
+  Port peer_port;
+  IP ip;
+  Port port;
+  boost::uint16_t ttl;
+};  
 
 struct Endpoint {
-  Endpoint(IP ip, Port port) : ip(ip), port(port) {}
+  Endpoint() : ip(ip), port(port) {}
   IP ip;
   Port port;
 };

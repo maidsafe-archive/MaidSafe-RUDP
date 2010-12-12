@@ -45,10 +45,10 @@ class DataStoreTest: public testing::Test {
   }
 
   virtual void SetUp() {
-    test_ds_.reset(new kad::DataStore(kad::kRefreshTime));
+    test_ds_.reset(new kademlia::DataStore(kademlia::kRefreshTime));
   }
 
-  boost::shared_ptr<kad::DataStore> test_ds_;
+  boost::shared_ptr<kademlia::DataStore> test_ds_;
   crypto::Crypto cry_obj_;
   DataStoreTest(const DataStoreTest&);
   DataStoreTest &operator=(const DataStoreTest&);
@@ -367,8 +367,8 @@ TEST_F(DataStoreTest, BEH_KAD_RepublishKeyValue) {
 
 TEST_F(DataStoreTest, FUNC_KAD_GetValuesToRefresh) {
   // data store with refresh time set to 3 seconds for test
-  kad::DataStore ds(3);
-  std::vector<kad::refresh_value> refvalues;
+  kademlia::DataStore ds(3);
+  std::vector<kademlia::refresh_value> refvalues;
   std::vector<std::string> keys, values;
   for (boost::uint16_t i = 0; i < 7; i++) {
     keys.push_back(cry_obj_.Hash(boost::lexical_cast<std::string>(i), "",
@@ -420,7 +420,7 @@ TEST_F(DataStoreTest, FUNC_KAD_GetValuesToRefresh) {
       if (keys[i] == refvalues[j].key_ && values[i] == refvalues[j].value_) {
         found = true;
         ttl_for_refresh = refvalues[j].ttl_;
-        ASSERT_EQ(kad::NOT_DELETED, refvalues[j].del_status_);
+        ASSERT_EQ(kademlia::NOT_DELETED, refvalues[j].del_status_);
         break;
       }
     }
@@ -434,8 +434,8 @@ TEST_F(DataStoreTest, FUNC_KAD_GetValuesToRefresh) {
 
 TEST_F(DataStoreTest, FUNC_KAD_ExpiredValuesNotRefreshed) {
   // data store with refresh time set to 3 seconds for test
-  kad::DataStore ds(3);
-  std::vector<kad::refresh_value> refvalues;
+  kademlia::DataStore ds(3);
+  std::vector<kademlia::refresh_value> refvalues;
   std::vector<std::string> keys, values;
   for (boost::int16_t i = 0; i < 3; i++) {
     keys.push_back(cry_obj_.Hash(boost::lexical_cast<std::string>(i), "",
@@ -655,8 +655,8 @@ TEST_F(DataStoreTest, BEH_KAD_ChangeDelStatus) {
 
 TEST_F(DataStoreTest, FUNC_KAD_CheckDelStatusValuesToRefresh) {
   // data store with refresh time set to 3 seconds for test
-  kad::DataStore ds(3);
-  std::vector<kad::refresh_value> refvalues;
+  kademlia::DataStore ds(3);
+  std::vector<kademlia::refresh_value> refvalues;
   std::vector<std::string> keys, values;
   for (boost::int16_t i = 0; i < 2; i++) {
     keys.push_back(cry_obj_.Hash(boost::lexical_cast<std::string>(i), "",
@@ -683,10 +683,10 @@ TEST_F(DataStoreTest, FUNC_KAD_CheckDelStatusValuesToRefresh) {
   for (size_t j = 0; j < refvalues.size(); j++) {
     if (keys[0] == refvalues[j].key_) {
       ASSERT_EQ(values[0], refvalues[j].value_);
-      ASSERT_EQ(kad::DELETED, refvalues[j].del_status_);
+      ASSERT_EQ(kademlia::DELETED, refvalues[j].del_status_);
     } else if (keys[1] == refvalues[j].key_) {
       ASSERT_EQ(values[1], refvalues[j].value_);
-      ASSERT_EQ(kad::MARKED_FOR_DELETION, refvalues[j].del_status_);
+      ASSERT_EQ(kademlia::MARKED_FOR_DELETION, refvalues[j].del_status_);
     } else {
       FAIL();
     }
