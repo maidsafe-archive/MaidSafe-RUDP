@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 
 
-namespace kad {
+namespace kademlia {
 
 DataStore::DataStore(const boost::uint32_t &t_refresh)
     : datastore_(), t_refresh_(0), mutex_() {
@@ -134,10 +134,10 @@ boost::uint32_t DataStore::ExpireTime(const std::string &key,
 
 std::vector<refresh_value> DataStore::ValuesToRefresh() {
   std::vector<refresh_value> values;
-  datastore::index<kad::t_last_refresh_time>::type::iterator it, up_limit;
+  datastore::index<kademlia::t_last_refresh_time>::type::iterator it, up_limit;
   boost::mutex::scoped_lock guard(mutex_);
-  datastore::index<kad::t_last_refresh_time>::type& indx =
-      datastore_.get<kad::t_last_refresh_time>();
+  datastore::index<kademlia::t_last_refresh_time>::type& indx =
+      datastore_.get<kademlia::t_last_refresh_time>();
   boost::uint32_t now = base::GetEpochTime();
   boost::uint32_t time_limit = now - t_refresh_;
   up_limit = indx.upper_bound(time_limit);
@@ -156,10 +156,10 @@ std::vector<refresh_value> DataStore::ValuesToRefresh() {
 }
 
 void DataStore::DeleteExpiredValues() {
-  datastore::index<kad::t_expire_time>::type::iterator up_limit, down_limit, it;
+  datastore::index<kademlia::t_expire_time>::type::iterator up_limit, down_limit, it;
   boost::mutex::scoped_lock guard(mutex_);
-  datastore::index<kad::t_expire_time>::type& indx =
-      datastore_.get<kad::t_expire_time>();
+  datastore::index<kademlia::t_expire_time>::type& indx =
+      datastore_.get<kademlia::t_expire_time>();
   boost::uint32_t now = base::GetEpochTime();
   up_limit = indx.lower_bound(now);
   down_limit = indx.upper_bound(0);
@@ -280,4 +280,4 @@ bool DataStore::UpdateItem(const std::string &key,
   return datastore_.replace(it, tuple);
 }
 
-}  // namespace kad
+}  // namespace kademlia 

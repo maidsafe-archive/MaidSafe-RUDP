@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kadroutingtable.h"
 #include "maidsafe/transport/transportsignals.h"
+#include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/protobuf/kademlia.pb.h"
 #include "maidsafe/base/threadpool.h"
@@ -48,7 +49,7 @@ class AlternativeStore;
 }  // namespace base
 
 namespace kademlia {
-class DataStore;
+// class DataStore;
 class Contact;
 class KadId;
 
@@ -123,12 +124,12 @@ class KadService : public transport::TransportMessage {
   bool node_joined_, node_hasRSAkeys_;
   ContactInfo node_info_;
   base::AlternativeStore *alternative_store_;
-  AddContactFunctor add_contact_;
+//   AddContactFunctor add_contact_;
   GetRandomContactsFunctor get_random_contacts_;
-  GetContactFunctor get_contact_;
-  GetKClosestFunctor get_closestK_contacts_;
-  PingFunctor ping_;
-  RemoveContactFunctor remove_contact_;
+//   GetContactFunctor get_contact_;
+//   GetKClosestFunctor get_closestK_contacts_;
+//   PingFunctor ping_;
+//   RemoveContactFunctor remove_contact_;
   base::SignatureValidator *signature_validator_;
   KadService(const KadService&);
   KadService& operator=(const KadService&);
