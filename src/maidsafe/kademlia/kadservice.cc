@@ -71,7 +71,7 @@ void KadService::Parse(transport::SocketId &message_id,
   if (TransportMessage().data().GetExtension<Ping>(message)) {
   threadpool_->EnqueueTask(boost::bind(&KadService::Ping,
                                       this, _1, _2);
-  }
+  } // and the other else if statements - or switch
 }
 
 
@@ -81,7 +81,9 @@ void KadService::Ping(transport::SocketId &message_id,
     response.SetExtension<ping_response>(set_echo, "pong");
     response.SetExtension<ping_response>(set_result, true);
     response.SetExtension<ping_response>(set_node_id, node_info_.node_id());
-// send to transport here 
+   // transport_.send(message_id, response.SerializeToString());
+    // send to transport here, we do not care if it times out or any such thing,
+    //were answering a kad request  
 }
 
 void KadService::FindNode(google::protobuf::RpcController *controller,
