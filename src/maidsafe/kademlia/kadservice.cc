@@ -102,7 +102,7 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
     KadId key(request->key());
     if (key.IsValid()) {
       exclude_contacts.push_back(sender);
-      get_closestK_contacts_(key, exclude_contacts, &closest_contacts);
+      routing_table_->FindCloseNodes(key, exclude_contacts, &closest_contacts);
       bool found_node(false);
       for (unsigned int i = 0; i < closest_contacts.size(); ++i) {
         std::string contact_str;
