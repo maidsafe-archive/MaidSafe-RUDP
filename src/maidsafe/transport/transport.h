@@ -34,35 +34,33 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_TRANSPORT_H_
 
 #include <boost/shared_ptr.hpp>
-#include <boost/asio.hpp>
+#include <boost/signals2/signal.hpp>
+#include <boost/asio/ip/address.hpp>
+#include <boost/date_time/posix_time/posix_time_duration.hpp>
 #include <maidsafe/transport/transportconditions.h>
-#include <maidsafe/transport/transportsignals.h>
-#include <vector>
+#include <string>
 #include <iostream>
-#include <boost/concept_check.hpp>
 
 #if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.
 #error Please update the maidsafe-dht library.
 #endif
 
+namespace bs2 = boost::signals2;
+
 namespace transport {
 
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
-typedef int ManagedEndpointId;
 typedef boost::int32_t DataSize;
-typedef boost::uint16_t SocketId;
-struct Stats {
-  IP peer_ip;
-  Port peer_port;
-  IP ip;
-  Port port;
-  boost::uint16_t ttl;
+typedef int ConversationId;
+
+struct Info {
+  boost::uint32_t rtt;
 };  
 
 struct Endpoint {
-  Endpoint() : ip(ip), port(port) {}
+  Endpoint(IP ip, Port port) : ip(ip), port(port) {}
   IP ip;
   Port port;
 };
@@ -85,16 +83,23 @@ class Transport {
    */
   virtual void StopListening() = 0;
   /**
-   * Sends the given message to the specified receiver. The result is signalled
-   * by on_send_.
+   * Sends the given message to the specified receiver.
    * @param data The message data to transmit.
    * @param endpoint The data receiver's endpoint.
-   * @param close Whether to close the established connection after send, if
-   * applicable. Non-connection-oriented transports should ignore this.
+   * @param timeout Time after which to terminate a conversation.
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
-                    bool close) = 0;
+                    const boost::posix_time::milliseconds &timeout) = 0;
+  /**
+   * Sends the given message within an already established conversation.
+   * @param data The message data to transmit.
+   * @param conversation_id ID of the conversation to respond to.
+   * @param timeout Time after which to terminate a conversation.
+   */
+  virtual void Respond(const std::string &data,
+                       const ConversationId &conversation_id,
+                       const boost::posix_time::ptime &timeout) = 0;
   /**
    * Sends data that is being streamed from the given source.
    * @param data The input stream delivering data to send.
@@ -119,6 +124,48 @@ class Transport {
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
+};
+
+// to handle the event of receiving a message
+typedef bs2::signal<void(const ConversationId&,
+                         const std::string&,
+                         const Info&)> OnMessageReceived;
+
+// to handle the event of any kind of failure, at any stage
+typedef bs2::signal<void(const ConversationId&,
+                         const TransportCondition&)> OnError;
+
+class Signals {
+ public:
+  Signals() : on_message_received_(),
+              on_error_() {}
+  ~Signals() {}
+
+  // OnMessageReceived =========================================================
+  bs2::connection ConnectOnMessageReceived(
+      const OnMessageReceived::slot_type &slot) {
+    return on_message_received_.connect(slot);
+  }
+
+  bs2::connection GroupConnectOnMessageReceived(
+      const int &group,
+      const OnMessageReceived::slot_type &slot) {
+    return on_message_received_.connect(group, slot);
+  }
+
+  // OnError ===================================================================
+  bs2::connection ConnectOnError(const OnError::slot_type &slot) {
+    return on_error_.connect(slot);
+  }
+
+  bs2::connection GroupConnectOnStats(const int &group,
+                                      const OnError::slot_type &slot) {
+    return on_error_.connect(group, slot);
+  }
+
+ private:
+  OnMessageReceived on_message_received_;
+  OnError on_error_;
 };
 
 }  // namespace transport
