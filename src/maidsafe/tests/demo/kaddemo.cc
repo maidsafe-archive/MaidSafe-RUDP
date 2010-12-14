@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
       ("verbose,v", po::bool_switch(), "Print log to console.")
       ("kadconfigfile,k",
         po::value(&kadconfigpath)->default_value(kadconfigpath),
-        "Complete pathname of kadconfig file. Default is KNode<port>/."
+        "Complete pathname of kadconfig file. Default is Node<port>/."
         "kadconfig")
       ("client,c", po::bool_switch(), "Start the node as a client node->")
       ("port,p", po::value(&port)->default_value(port),
@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
       kcp.public_key = rsa_key_pair.public_key();
       kcp.private_key = rsa_key_pair.private_key();
     }
-    boost::shared_ptr<kademlia::KNode> node(new kademlia::KNode(cm, tra, kcp));
+    boost::shared_ptr<kademlia::Node> node(new kademlia::Node(cm, tra, kcp));
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {

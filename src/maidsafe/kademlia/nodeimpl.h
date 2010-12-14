@@ -74,24 +74,24 @@ void SortLookupContact(const NodeId &target_key,
                        std::list<LookupContact> *contact_list);
 
 namespace test_nodeimpl {
-class TestKNodeImpl_BEH_KNodeImpl_ExecuteRPCs_Test;
-class TestKNodeImpl_BEH_KNodeImpl_NotJoined_Test;
-class TestKNodeImpl_BEH_KNodeImpl_AddContactsToContainer_Test;
-class TestKNodeImpl_BEH_KNodeImpl_GetAlphas_Test;
-class TestKNodeImpl_BEH_KNodeImpl_MarkNode_Test;
-class TestKNodeImpl_BEH_KNodeImpl_BetaDone_Test;
-class TestKNodeImpl_BEH_KNodeImpl_IterativeSearchResponse_Test;
-class TestKNodeImpl_BEH_KNodeImpl_IterativeSearchHappy_Test;
-class TestKNodeImpl_BEH_KNodeImpl_FindNodesHappy_Test;
-class TestKNodeImpl_BEH_KNodeImpl_FindNodesContactsInReponse_Test;
-}  // namespace test
+class TestNodeImpl_BEH_NodeImpl_ExecuteRPCs_Test;
+class TestNodeImpl_BEH_NodeImpl_NotJoined_Test;
+class TestNodeImpl_BEH_NodeImpl_AddContactsToContainer_Test;
+class TestNodeImpl_BEH_NodeImpl_GetAlphas_Test;
+class TestNodeImpl_BEH_NodeImpl_MarkNode_Test;
+class TestNodeImpl_BEH_NodeImpl_BetaDone_Test;
+class TestNodeImpl_BEH_NodeImpl_IterativeSearchResponse_Test;
+class TestNodeImpl_BEH_NodeImpl_IterativeSearchHappy_Test;
+class TestNodeImpl_BEH_NodeImpl_FindNodesHappy_Test;
+class TestNodeImpl_BEH_NodeImpl_FindNodesContactsInReponse_Test;
+}  // namespace test_nodeimpl
 
-class KNodeImpl {
+class NodeImpl {
  public:
   // constructor used to set up parameters k, alpha, and beta for kademlia
-  KNodeImpl(boost::shared_ptr<transport::Transport> transport,
+  NodeImpl(boost::shared_ptr<transport::Transport> transport,
             const NodeConstructionParameters &node_parameters);
-  virtual ~KNodeImpl();
+  virtual ~NodeImpl();
 
   virtual void Join(const NodeId &node_id, const std::string &kad_config_file,
                     VoidFunctorOneString callback);
@@ -126,7 +126,7 @@ class KNodeImpl {
                              VoidFunctorOneString callback, const bool &local);
   virtual void FindKClosestNodes(const NodeId &node_id,
                                  VoidFunctorOneString callback);
-  void GetKNodesFromRoutingTable(const NodeId &key,
+  void GetNodesFromRoutingTable(const NodeId &key,
                                  const std::vector<Contact> &exclude_contacts,
                                  std::vector<Contact> *close_nodes);
   virtual void Ping(const NodeId &node_id, VoidFunctorOneString callback);
@@ -183,23 +183,23 @@ class KNodeImpl {
   inline NatType nat_type() { return nat_type_; }
 
  private:
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_ExecuteRPCs_Test;
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_NotJoined_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_ExecuteRPCs_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_NotJoined_Test;
   friend class test_nodeimpl::
-      TestKNodeImpl_BEH_KNodeImpl_AddContactsToContainer_Test;
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_GetAlphas_Test;
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_MarkNode_Test;
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_BetaDone_Test;
+      TestNodeImpl_BEH_NodeImpl_AddContactsToContainer_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_GetAlphas_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_MarkNode_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_BetaDone_Test;
   friend class test_nodeimpl::
-      TestKNodeImpl_BEH_KNodeImpl_IterativeSearchResponse_Test;
+      TestNodeImpl_BEH_NodeImpl_IterativeSearchResponse_Test;
   friend class test_nodeimpl::
-      TestKNodeImpl_BEH_KNodeImpl_IterativeSearchHappy_Test;
-  friend class test_nodeimpl::TestKNodeImpl_BEH_KNodeImpl_FindNodesHappy_Test;
+      TestNodeImpl_BEH_NodeImpl_IterativeSearchHappy_Test;
+  friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_FindNodesHappy_Test;
   friend class test_nodeimpl::
-      TestKNodeImpl_BEH_KNodeImpl_FindNodesContactsInReponse_Test;
+      TestNodeImpl_BEH_NodeImpl_FindNodesContactsInReponse_Test;
 
-  KNodeImpl &operator=(const KNodeImpl&);
-  KNodeImpl(const KNodeImpl&);
+  NodeImpl &operator=(const NodeImpl&);
+  NodeImpl(const NodeImpl&);
   inline void CallbackWithFailure(VoidFunctorOneString callback);
   void Join_Bootstrapping(const bool &got_address,
                           VoidFunctorOneString callback);

@@ -90,7 +90,7 @@ class TestRefresh : public testing::Test {
       std::string datadir = test_dir_ + std::string("/datastore") +
                             boost::lexical_cast<std::string>(i);
       boost::filesystem::create_directories(datadir);
-      nodes_[i].reset(new KNode(ch_managers_[i], transports_[i], kcp));
+      nodes_[i].reset(new Node(ch_managers_[i], transports_[i], kcp));
       datadirs_[i] = datadir;
     }
 
@@ -157,7 +157,7 @@ class TestRefresh : public testing::Test {
 
   std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
   std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
-  std::vector<boost::shared_ptr<KNode> > nodes_;
+  std::vector<boost::shared_ptr<Node> > nodes_;
   std::vector<std::string> datadirs_;
   std::string test_dir_;
   boost::uint16_t testK_;
@@ -259,7 +259,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   kcp.refresh_time = testRefresh_;
   kcp.use_upnp = false;
   kcp.port = p;
-  KNode node(chm, trans, kcp);
+  Node node(chm, trans, kcp);
 
   std::string kconfig_file1(local_dir + "/.kadconfig");
   base::KadConfig kad_config1;
@@ -353,7 +353,7 @@ class TestRefreshSignedValues : public testing::Test {
       std::string datadir = test_dir_ + std::string("/datastore") +
                             boost::lexical_cast<std::string>(i);
       boost::filesystem::create_directories(datadir);
-      nodes_[i].reset(new KNode(ch_managers_[i], transports_[i], kcp));
+      nodes_[i].reset(new Node(ch_managers_[i], transports_[i], kcp));
       datadirs_[i] = datadir;
       nodes_[i]->set_signature_validator(&validators_[i]);
     }
@@ -422,7 +422,7 @@ class TestRefreshSignedValues : public testing::Test {
 
   std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
   std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
-  std::vector<boost::shared_ptr<KNode> > nodes_;
+  std::vector<boost::shared_ptr<Node> > nodes_;
   std::vector<std::string> datadirs_;
   std::vector<std::pair<std::string, std::string> > keys_;
   std::string test_dir_;
@@ -566,7 +566,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   kcp.refresh_time = testRefresh_;
   kcp.use_upnp = false;
   kcp.port = p;
-  KNode node(chm, trans, kcp);
+  Node node(chm, trans, kcp);
 
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;
@@ -664,7 +664,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   kcp.refresh_time = testRefresh_;
   kcp.use_upnp = false;
   kcp.port = p;
-  KNode node(chm, trans, kcp);
+  Node node(chm, trans, kcp);
 
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;

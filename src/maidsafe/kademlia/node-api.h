@@ -60,19 +60,19 @@ namespace kademlia {
 class Contact;
 class ContactInfo;
 class rpcs;
-class KNodeImpl;
+class NodeImpl;
 class SignedValue;
 class SignedRequest;
 struct NodeConstructionParameters;
 
 /**
-* @class KNode
+* @class Node
 * This class represents a kademlia node providing the API to join the network,
 * find nodes and values, store and delete values, ping nodes, as well as the
 * methods to access the local storage of the node and its routing table  .
 */
 
-class KNode {
+class Node {
  public:
   /**
   * Constructor that takes by default the kaemlia values for k, alpha, beta, and
@@ -90,10 +90,10 @@ class KNode {
   * for NAT traversal
   * @param k Maximum number of elements in the node's kbuckets
   */
-  KNode(boost::shared_ptr<transport::Transport> transport,
+  Node(boost::shared_ptr<transport::Transport> transport,
         const NodeConstructionParameters &node_parameters);
 
-  ~KNode();
+  ~Node();
 
   /**
   * Join the network using a specific id. This is a non-blocking operation.
@@ -199,7 +199,7 @@ class KNode {
   /**
   * Find a value in the network.  If several values are stored under the same
   * key, a list with all the values is returned.
-  * If any KNode during the iterative lookup has the value in its
+  * If any Node during the iterative lookup has the value in its
   * AlternativeStore, rather than returning this value, it returns its own
   * contact details.  If check_alternative_store is true, this node checks its own
   * AlternativeStore also.
@@ -233,7 +233,7 @@ class KNode {
   * @param close_nodes reference to a vector of Contact where the nodes found
   * are returned
   */
-  void GetKNodesFromRoutingTable(const NodeId &key,
+  void GetNodesFromRoutingTable(const NodeId &key,
                                  const std::vector<Contact> &exclude_contacts,
                                  std::vector<Contact> *close_nodes);
   /**
@@ -402,7 +402,7 @@ class KNode {
   NatType nat_type();
 
  private:
-  boost::shared_ptr<KNodeImpl> pimpl_;
+  boost::shared_ptr<NodeImpl> pimpl_;
 };
 
 }  // namespace kademlia

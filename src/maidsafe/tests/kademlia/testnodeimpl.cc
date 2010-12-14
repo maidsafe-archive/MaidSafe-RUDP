@@ -92,10 +92,10 @@ class TestValidator : public base::SignatureValidator {
                        const std::string&, const std::string&) { return true; }
 };
 
-class TestKNodeImpl : public testing::Test {
+class TestNodeImpl : public testing::Test {
  protected:
   static void SetUpTestCase() {
-    test_dir_ = std::string("temp/TestKNodeImpl") +
+    test_dir_ = std::string("temp/TestNodeImpl") +
                 boost::lexical_cast<std::string>(base::RandomUint32());
 
     udt_.reset(new transport::UdtTransport);
@@ -117,7 +117,7 @@ class TestKNodeImpl : public testing::Test {
     kcp.private_key = rkp.private_key();
     kcp.k = K;
     kcp.refresh_time = kRefreshTime;
-    node_.reset(new KNodeImpl(manager_, udt_, kcp));
+    node_.reset(new NodeImpl(manager_, udt_, kcp));
 
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
@@ -137,18 +137,18 @@ class TestKNodeImpl : public testing::Test {
   static boost::int16_t transport_id_;
   static boost::shared_ptr<transport::UdtTransport> udt_;
   static boost::shared_ptr<rpcprotocol::ChannelManager> manager_;
-  static boost::shared_ptr<KNodeImpl> node_;
+  static boost::shared_ptr<NodeImpl> node_;
   static GeneralKadCallback cb_;
 };
 
-std::string TestKNodeImpl::test_dir_;
-boost::int16_t TestKNodeImpl::transport_id_ = 0;
-boost::shared_ptr<transport::UdtTransport> TestKNodeImpl::udt_;
-boost::shared_ptr<rpcprotocol::ChannelManager> TestKNodeImpl::manager_;
-boost::shared_ptr<KNodeImpl> TestKNodeImpl::node_;
-GeneralKadCallback TestKNodeImpl::cb_;
+std::string TestNodeImpl::test_dir_;
+boost::int16_t TestNodeImpl::transport_id_ = 0;
+boost::shared_ptr<transport::UdtTransport> TestNodeImpl::udt_;
+boost::shared_ptr<rpcprotocol::ChannelManager> TestNodeImpl::manager_;
+boost::shared_ptr<NodeImpl> TestNodeImpl::node_;
+GeneralKadCallback TestNodeImpl::cb_;
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_ContactFunctions) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
   NodeId key1a, key2a, key1b(NodeId::kRandomId), key2b(NodeId::kRandomId),
@@ -168,7 +168,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ContactFunctions) {
   SortLookupContact(target_key, &contact_list);
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_Uninitialised_Values) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
   DeleteValueCallback dvc;
   SignedValue signed_value, new_value;
   SignedRequest signed_request;
@@ -187,7 +187,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_Uninitialised_Values) {
   ASSERT_FALSE(uvc.result());
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_ExecuteRPCs) {
   node_->is_joined_ = false;
   SignedValue old_value, new_value;
   SignedRequest sig_req;
@@ -284,7 +284,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
   ASSERT_FALSE(dvc.result());
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
   node_->is_joined_ = false;
   node_->RefreshRoutine();
 
@@ -300,7 +300,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
   node_->is_joined_ = true;
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
   boost::shared_ptr<FindNodesArgs> fna(
@@ -323,7 +323,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
 }
 
 /*
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_GetAlphas) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -365,7 +365,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
   ASSERT_EQ(boost::uint16_t(quotient + 1), fna->round);
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_MarkNode) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -412,7 +412,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_MarkNode) {
   ASSERT_FALSE(node_->MarkNode(not_in_list, fna, SEARCH_CONTACTED));
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_BetaDone) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -470,13 +470,13 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_BetaDone) {
   }
 }
 
-class MockIterativeSearchResponse : public KNodeImpl {
+class MockIterativeSearchResponse : public NodeImpl {
  public:
   MockIterativeSearchResponse(
       boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
       boost::shared_ptr<transport::UdtTransport> udt_transport,
       const NodeConstructionParameters &node_parameters)
-          : KNodeImpl(channel_manager, udt_transport, node_parameters) {}
+          : NodeImpl(channel_manager, udt_transport, node_parameters) {}
   MOCK_METHOD2(IterativeSearch, void(const boost::uint16_t &count,
                                      boost::shared_ptr<FindNodesArgs> fna));
   void IterativeSearchDummy(boost::shared_ptr<FindNodesArgs> fna) {
@@ -486,7 +486,7 @@ class MockIterativeSearchResponse : public KNodeImpl {
   }
 };
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchResponse) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
   bool done(false), calledback(false);
   NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
@@ -603,7 +603,7 @@ class MockRpcs : public Rpcs {
   std::list<Contact> node_list_, backup_node_list_;
 };
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
   bool done(false);
   NodeId key(NodeId::kRandomId);
   std::list<Contact> lcontacts;
@@ -649,7 +649,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
   node_->rpcs_ = old_rpcs;
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
   bool done(false);
   std::list<Contact> lcontacts;
   node_->prouting_table_->Clear();
@@ -744,7 +744,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
   node_->rpcs_ = old_rpcs;
 }
 
-TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesContactsInReponse) {
+TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
   bool done(false);
   std::list<Contact> lcontacts;
   node_->prouting_table_->Clear();

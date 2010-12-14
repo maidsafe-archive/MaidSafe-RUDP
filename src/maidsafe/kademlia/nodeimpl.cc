@@ -54,7 +54,7 @@ namespace fs = boost::filesystem;
 
 namespace kademlia {
 
-// some tools which will be used in the implementation of KNodeImpl class
+// some tools which will be used in the implementation of NodeImpl class
 
 inline void dummy_callback(const std::string&) {}
 
@@ -127,7 +127,7 @@ void SortLookupContact(const NodeId &target_key,
   }
 }
 
-KNodeImpl::KNodeImpl(
+NodeImpl::NodeImpl(
     boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
     boost::shared_ptr<transport::Transport> transport,
     const NodeConstructionParameters &node_parameters)
@@ -182,20 +182,20 @@ KNodeImpl::KNodeImpl(
 }
 
 
-KNodeImpl::~KNodeImpl() {
+NodeImpl::~NodeImpl() {
   if (is_joined_)
     Leave();
 }
 
-inline void KNodeImpl::CallbackWithFailure(VoidFunctorOneString callback) {
+inline void NodeImpl::CallbackWithFailure(VoidFunctorOneString callback) {
   base::GeneralResponse result_msg;
   result_msg.set_result(false);
   std::string result(result_msg.SerializeAsString());
   callback(false);
 }
 
-void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
-//  printf("KNodeImpl::Join_Bootstrapping\n");
+void NodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
+//  printf("NodeImpl::Join_Bootstrapping\n");
   if (bootstrapping_nodes_.empty()) {
     base::GeneralResponse local_result;
     if (type_ == VAULT) {
@@ -204,13 +204,13 @@ void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
       nat_type_ = DIRECT_CONNECTED;
       premote_service_->set_node_joined(true);
       premote_service_->set_node_info(contact_info());
-      addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
+      addcontacts_routine_.reset(new boost::thread(&NodeImpl::CheckAddContacts,
                                                    this));
       if (!refresh_routine_started_) {
         ptimer_->AddCallLater(kRefreshTime * 1000,
-                              boost::bind(&KNodeImpl::RefreshRoutine, this));
+                              boost::bind(&NodeImpl::RefreshRoutine, this));
         ptimer_->AddCallLater(2000,
-                              boost::bind(&KNodeImpl::RefreshValuesRoutine,
+                              boost::bind(&NodeImpl::RefreshValuesRoutine,
                                           this));
         refresh_routine_started_ = true;
       }
@@ -233,9 +233,9 @@ void KNodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
   StartSearchIteration(node_id_, BOOTSTRAP, callback);
 }
 
-void KNodeImpl::Join_RefreshNode(VoidFunctorOneString callback,
+void NodeImpl::Join_RefreshNode(VoidFunctorOneString callback,
                                  const bool &got_address) {
-//  printf("KNodeImpl::Join_RefreshNode\n");
+//  printf("NodeImpl::Join_RefreshNode\n");
   if (stopping_)
     return;
   // build list of bootstrapping nodes
@@ -251,7 +251,7 @@ void KNodeImpl::Join_RefreshNode(VoidFunctorOneString callback,
     for (size_t j = 0; j < local_ips.size() && !got_local_address; ++j) {
       if (!got_address) {
         ip_ = local_ips[j];
-//        printf("KNodeImpl::Join_RefreshNode - %s\n", ip_.c_str());
+//        printf("NodeImpl::Join_RefreshNode - %s\n", ip_.c_str());
       }
       local_ip_ = local_ips[j];
       got_local_address = true;
@@ -269,7 +269,7 @@ void KNodeImpl::Join_RefreshNode(VoidFunctorOneString callback,
   Join_Bootstrapping(got_address, callback);
 }
 
-void KNodeImpl::Join(const NodeId &node_id, const std::string &kad_config_file,
+void NodeImpl::Join(const NodeId &node_id, const std::string &kad_config_file,
                      VoidFunctorOneString callback) {
   if (is_joined_ || !node_id.IsValid()) {
     base::GeneralResponse local_result;
@@ -314,12 +314,12 @@ void KNodeImpl::Join(const NodeId &node_id, const std::string &kad_config_file,
   Join_RefreshNode(callback, got_address);
 }
 
-void KNodeImpl::Join(const std::string &kad_config_file,
+void NodeImpl::Join(const std::string &kad_config_file,
                      VoidFunctorOneString callback) {
   Join(NodeId(NodeId::kRandomId), kad_config_file, callback);
 }
 
-void KNodeImpl::JoinFirstNode(const NodeId &node_id,
+void NodeImpl::JoinFirstNode(const NodeId &node_id,
                               const std::string &kad_config_file,
                               const IP &ip, const Port &port,
                               VoidFunctorOneString callback) {
@@ -382,12 +382,12 @@ void KNodeImpl::JoinFirstNode(const NodeId &node_id,
   premote_service_->set_node_joined(true);
   premote_service_->set_node_info(contact_info());
 
-  addcontacts_routine_.reset(new boost::thread(&KNodeImpl::CheckAddContacts,
+  addcontacts_routine_.reset(new boost::thread(&NodeImpl::CheckAddContacts,
                                                this));
   if (!refresh_routine_started_) {
     ptimer_->AddCallLater(kRefreshTime * 1000,
-                          boost::bind(&KNodeImpl::RefreshRoutine, this));
-    ptimer_->AddCallLater(2000, boost::bind(&KNodeImpl::RefreshValuesRoutine,
+                          boost::bind(&NodeImpl::RefreshRoutine, this));
+    ptimer_->AddCallLater(2000, boost::bind(&NodeImpl::RefreshValuesRoutine,
                                             this));
     refresh_routine_started_ = true;
   }
@@ -397,13 +397,13 @@ void KNodeImpl::JoinFirstNode(const NodeId &node_id,
   callback(local_result_str);
 }
 
-void KNodeImpl::JoinFirstNode(const std::string &kad_config_file,
+void NodeImpl::JoinFirstNode(const std::string &kad_config_file,
                               const IP &ip, const Port &port,
                               VoidFunctorOneString callback) {
   JoinFirstNode(NodeId(NodeId::kRandomId), kad_config_file, ip, port, callback);
 }
 
-void KNodeImpl::Leave() {
+void NodeImpl::Leave() {
   if (is_joined_) {
     if (upnp_mapped_port_ != 0) {
       UnMapUPnP();
@@ -429,7 +429,7 @@ void KNodeImpl::Leave() {
   }
 }
 
-void KNodeImpl::SaveBootstrapContacts() {
+void NodeImpl::SaveBootstrapContacts() {
   try {
     std::vector<Contact> exclude_contacts, bs_contacts;
     bool reached_max(false);
@@ -497,7 +497,7 @@ void KNodeImpl::SaveBootstrapContacts() {
   }
 }
 
-boost::int16_t KNodeImpl::LoadBootstrapContacts() {
+boost::int16_t NodeImpl::LoadBootstrapContacts() {
   // Get the saved contacts - most recent are listed last
   base::KadConfig kad_config;
   try {
@@ -532,7 +532,7 @@ boost::int16_t KNodeImpl::LoadBootstrapContacts() {
   return 0;
 }
 
-void KNodeImpl::RefreshRoutine() {
+void NodeImpl::RefreshRoutine() {
   if (is_joined_) {
     SaveBootstrapContacts();
     // Refresh the k-buckets
@@ -540,13 +540,13 @@ void KNodeImpl::RefreshRoutine() {
     StartSearchIteration(node_id_, FIND_NODE, &dummy_callback);
     // schedule the next refresh routine
     ptimer_->AddCallLater(kRefreshTime*1000,
-                          boost::bind(&KNodeImpl::RefreshRoutine, this));
+                          boost::bind(&NodeImpl::RefreshRoutine, this));
   } else {
     refresh_routine_started_ = false;
   }
 }
 
-void KNodeImpl::StoreValue_IterativeStoreValue(
+void NodeImpl::StoreValue_IterativeStoreValue(
     const StoreResponse *response, StoreCallbackArgs callback_data) {
   if (!is_joined_ || stopping_ || callback_data.data->is_callbacked)
     // Only call back once and check if node is in process of leaving or
@@ -566,8 +566,8 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
         callback_data.retry = false;
         // send RPC to this contact's remote address because local failed
         google::protobuf::Closure *done1 = google::protobuf::NewCallback<
-            KNodeImpl, const StoreResponse*, StoreCallbackArgs > (this,
-            &KNodeImpl::StoreValue_IterativeStoreValue, resp, callback_data);
+            NodeImpl, const StoreResponse*, StoreCallbackArgs > (this,
+            &NodeImpl::StoreValue_IterativeStoreValue, resp, callback_data);
         if (using_signatures()) {
           rpcs_->Store(callback_data.data->key,
               callback_data.data->sig_value,
@@ -672,8 +672,8 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
     }
 
     google::protobuf::Closure *done = google::protobuf::NewCallback<
-        KNodeImpl, const StoreResponse*, StoreCallbackArgs > (
-            this, &KNodeImpl::StoreValue_IterativeStoreValue, resp,
+        NodeImpl, const StoreResponse*, StoreCallbackArgs > (
+            this, &NodeImpl::StoreValue_IterativeStoreValue, resp,
             callback_args);
 
     if (callback_data.data->sig_value.IsInitialized()) {
@@ -691,7 +691,7 @@ void KNodeImpl::StoreValue_IterativeStoreValue(
   }
 }
 
-void KNodeImpl::StoreValue_ExecuteStoreRPCs(const std::string &result,
+void NodeImpl::StoreValue_ExecuteStoreRPCs(const std::string &result,
                                             const NodeId &key,
                                             const std::string &value,
                                             const SignedValue &sig_value,
@@ -773,7 +773,7 @@ void KNodeImpl::StoreValue_ExecuteStoreRPCs(const std::string &result,
   }
 }
 
-void KNodeImpl::StoreValue(const NodeId &key, const SignedValue &signed_value,
+void NodeImpl::StoreValue(const NodeId &key, const SignedValue &signed_value,
                            const SignedRequest &signed_request,
                            const boost::int32_t &ttl,
                            VoidFunctorOneString callback) {
@@ -784,21 +784,21 @@ void KNodeImpl::StoreValue(const NodeId &key, const SignedValue &signed_value,
     callback(ser_resp);
     return;
   }
-  FindKClosestNodes(key, boost::bind(&KNodeImpl::StoreValue_ExecuteStoreRPCs,
+  FindKClosestNodes(key, boost::bind(&NodeImpl::StoreValue_ExecuteStoreRPCs,
                                      this, _1, key, "", signed_value,
                                      signed_request, true, ttl, callback));
 }
 
-void KNodeImpl::StoreValue(const NodeId &key, const std::string &value,
+void NodeImpl::StoreValue(const NodeId &key, const std::string &value,
                            const boost::int32_t &ttl,
                            VoidFunctorOneString callback) {
   SignedValue svalue;
   SignedRequest sreq;
-  FindKClosestNodes(key, boost::bind(&KNodeImpl::StoreValue_ExecuteStoreRPCs,
+  FindKClosestNodes(key, boost::bind(&NodeImpl::StoreValue_ExecuteStoreRPCs,
                     this, _1, key, value, svalue, sreq, true, ttl, callback));
 }
 
-void KNodeImpl::FindValue(const NodeId &key, const bool &check_alternative_store,
+void NodeImpl::FindValue(const NodeId &key, const bool &check_alternative_store,
                           VoidFunctorOneString callback) {
   // Search in own alternative store first if check_alternative_store == true
   kademlia::FindResponse result_msg;
@@ -806,7 +806,7 @@ void KNodeImpl::FindValue(const NodeId &key, const bool &check_alternative_store
     if (alternative_store_->Has(key.String())) {
       result_msg.set_result(true);
       *result_msg.mutable_alternative_value_holder() = contact_info();
-      DLOG(INFO) << "In KNodeImpl::FindValue - node " <<
+      DLOG(INFO) << "In NodeImpl::FindValue - node " <<
         result_msg.alternative_value_holder().node_id().substr(0, 20) <<
         " got value in alt store.\n";
       std::string ser_find_result(result_msg.SerializeAsString());
@@ -835,7 +835,7 @@ void KNodeImpl::FindValue(const NodeId &key, const bool &check_alternative_store
   StartSearchIteration(key, FIND_VALUE, callback);
 }
 
-void KNodeImpl::FindNode_GetNode(const std::string &result,
+void NodeImpl::FindNode_GetNode(const std::string &result,
                                  const NodeId &node_id,
                                  VoidFunctorOneString callback) {
   // validate the result
@@ -870,11 +870,11 @@ void KNodeImpl::FindNode_GetNode(const std::string &result,
   callback(find_node_result_str);
 }
 
-void KNodeImpl::GetNodeContactDetails(const NodeId &node_id,
+void NodeImpl::GetNodeContactDetails(const NodeId &node_id,
                                       VoidFunctorOneString callback,
                                       const bool &local) {
   if (!local) {
-    FindKClosestNodes(node_id, boost::bind(&KNodeImpl::FindNode_GetNode, this,
+    FindKClosestNodes(node_id, boost::bind(&NodeImpl::FindNode_GetNode, this,
                                            _1, node_id, callback));
   } else {
     FindNodeResult result;
@@ -893,20 +893,20 @@ void KNodeImpl::GetNodeContactDetails(const NodeId &node_id,
   }
 }
 
-void KNodeImpl::FindKClosestNodes(const NodeId &node_id,
+void NodeImpl::FindKClosestNodes(const NodeId &node_id,
                                   VoidFunctorOneString callback) {
   std::vector<Contact> start_up_short_list;
   StartSearchIteration(node_id, FIND_NODE, callback);
 }
 
-void KNodeImpl::GetKNodesFromRoutingTable(
+void NodeImpl::GetNodesFromRoutingTable(
     const NodeId &key, const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_nodes) {
   boost::mutex::scoped_lock gaurd(routingtable_mutex_);
   prouting_table_->FindCloseNodes(key, K_, exclude_contacts, close_nodes);
 }
 
-void KNodeImpl::Ping_HandleResult(const PingResponse *response,
+void NodeImpl::Ping_HandleResult(const PingResponse *response,
                                   PingCallbackArgs callback_data) {
   if (!is_joined_) {
     delete response;
@@ -924,8 +924,8 @@ void KNodeImpl::Ping_HandleResult(const PingResponse *response,
           callback_data.remote_ctc.ip());
       callback_data.retry = false;
       google::protobuf::Closure *done = google::protobuf::NewCallback<
-          KNodeImpl, const PingResponse*, PingCallbackArgs > (
-              this, &KNodeImpl::Ping_HandleResult, resp, callback_data);
+          NodeImpl, const PingResponse*, PingCallbackArgs > (
+              this, &NodeImpl::Ping_HandleResult, resp, callback_data);
       rpcs_->Ping(callback_data.remote_ctc.ip(),
           callback_data.remote_ctc.port(),
           callback_data.remote_ctc.rendezvous_ip(),
@@ -954,7 +954,7 @@ void KNodeImpl::Ping_HandleResult(const PingResponse *response,
   delete callback_data.rpc_ctrler;
 }
 
-void KNodeImpl::Ping_SendPing(const std::string &result,
+void NodeImpl::Ping_SendPing(const std::string &result,
                               VoidFunctorOneString callback) {
   if (!is_joined_)
     return;
@@ -974,12 +974,12 @@ void KNodeImpl::Ping_SendPing(const std::string &result,
   callback(ping_result_str);
 }
 
-void KNodeImpl::Ping(const NodeId &node_id, VoidFunctorOneString callback) {
-  GetNodeContactDetails(node_id, boost::bind(&KNodeImpl::Ping_SendPing, this,
+void NodeImpl::Ping(const NodeId &node_id, VoidFunctorOneString callback) {
+  GetNodeContactDetails(node_id, boost::bind(&NodeImpl::Ping_SendPing, this,
                                              _1, callback), false);
 }
 
-void KNodeImpl::Ping(const Contact &remote, VoidFunctorOneString callback) {
+void NodeImpl::Ping(const Contact &remote, VoidFunctorOneString callback) {
   if (!is_joined_) {
     PingResponse resp;
     resp.set_result(false);
@@ -1009,14 +1009,14 @@ void KNodeImpl::Ping(const Contact &remote, VoidFunctorOneString callback) {
     }
 
     google::protobuf::Closure *done = google::protobuf::NewCallback<
-        KNodeImpl, const PingResponse*, PingCallbackArgs >
-        (this, &KNodeImpl::Ping_HandleResult, resp, callback_args);
+        NodeImpl, const PingResponse*, PingCallbackArgs >
+        (this, &NodeImpl::Ping_HandleResult, resp, callback_args);
     rpcs_->Ping(contact_ip, contact_port, rendezvous_ip, rendezvous_port,
                   resp, callback_args.rpc_ctrler, done);
   }
 }
 
-int KNodeImpl::AddContact(Contact new_contact, const float &rtt,
+int NodeImpl::AddContact(Contact new_contact, const float &rtt,
                           const bool &only_db) {
   int result = -1;
   if (new_contact.node_id().String() != kClientId &&
@@ -1053,23 +1053,23 @@ int KNodeImpl::AddContact(Contact new_contact, const float &rtt,
   return result;
 }
 
-void KNodeImpl::RemoveContact(const NodeId &node_id) {
+void NodeImpl::RemoveContact(const NodeId &node_id) {
   prth_->DeleteTupleByKadId(node_id.String());
   boost::mutex::scoped_lock gaurd(routingtable_mutex_);
   prouting_table_->RemoveContact(node_id, false);
 }
 
-bool KNodeImpl::GetContact(const NodeId &id, Contact *contact) {
+bool NodeImpl::GetContact(const NodeId &id, Contact *contact) {
   boost::mutex::scoped_lock gaurd(routingtable_mutex_);
   return prouting_table_->GetContact(id, contact);
 }
 
-bool KNodeImpl::FindValueLocal(const NodeId &key,
+bool NodeImpl::FindValueLocal(const NodeId &key,
                                std::vector<std::string> *values) {
   return pdata_store_->LoadItem(key.String(), values);
 }
 
-bool KNodeImpl::StoreValueLocal(const NodeId &key, const std::string &value,
+bool NodeImpl::StoreValueLocal(const NodeId &key, const std::string &value,
                                 const boost::int32_t &ttl) {
   bool hashable = false;
   std::string str_key(key.String());
@@ -1091,7 +1091,7 @@ bool KNodeImpl::StoreValueLocal(const NodeId &key, const std::string &value,
   return pdata_store_->StoreItem(str_key, value, ttl, hashable);
 }
 
-bool KNodeImpl::RefreshValueLocal(const NodeId &key, const std::string &value,
+bool NodeImpl::RefreshValueLocal(const NodeId &key, const std::string &value,
                                   const boost::int32_t &ttl) {
   std::string ser_del_request;
   if (pdata_store_->RefreshItem(key.String(), value, &ser_del_request))
@@ -1099,7 +1099,7 @@ bool KNodeImpl::RefreshValueLocal(const NodeId &key, const std::string &value,
   return StoreValueLocal(key, value, ttl);
 }
 
-void KNodeImpl::GetRandomContacts(const size_t &count,
+void NodeImpl::GetRandomContacts(const size_t &count,
                                   const std::vector<Contact> &exclude_contacts,
                                   std::vector<Contact> *contacts) {
   contacts->clear();
@@ -1119,7 +1119,7 @@ void KNodeImpl::GetRandomContacts(const size_t &count,
   *contacts = all_contacts;
 }
 
-void KNodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
+void NodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
   if (stopping_)
     return;
   if (dead_server) {
@@ -1152,11 +1152,11 @@ void KNodeImpl::HandleDeadRendezvousServer(const bool &dead_server ) {
     Leave();
     stopping_ = false;
     Join(node_id_, kad_config_path_.string(),
-         boost::bind(&KNodeImpl::ReBootstrapping_Callback, this, _1));
+         boost::bind(&NodeImpl::ReBootstrapping_Callback, this, _1));
   }
 }
 
-void KNodeImpl::ReBootstrapping_Callback(const std::string &result) {
+void NodeImpl::ReBootstrapping_Callback(const std::string &result) {
   base::GeneralResponse local_result;
   if (stopping_) {
     return;
@@ -1169,7 +1169,7 @@ void KNodeImpl::ReBootstrapping_Callback(const std::string &result) {
     is_joined_ = false;
     stopping_ = false;
     Join(node_id_, kad_config_path_.string(),
-         boost::bind(&KNodeImpl::ReBootstrapping_Callback, this, _1));
+         boost::bind(&NodeImpl::ReBootstrapping_Callback, this, _1));
   } else {
     DLOG(INFO) << "(" << local_port_ << ") Rejoining successful.\n";
     is_joined_ = true;
@@ -1178,17 +1178,17 @@ void KNodeImpl::ReBootstrapping_Callback(const std::string &result) {
   }
 }
 
-void KNodeImpl::RegisterService() {
+void NodeImpl::RegisterService() {
   premote_service_.reset(new Service(
       pdata_store_,
       using_signatures(),
-      boost::bind(&KNodeImpl::AddContact, this, _1, _2, _3),
-      boost::bind(&KNodeImpl::GetRandomContacts, this, _1, _2, _3),
-      boost::bind(&KNodeImpl::GetContact, this, _1, _2),
-      boost::bind(&KNodeImpl::GetKNodesFromRoutingTable, this, _1, _2, _3),
-      boost::bind(static_cast<void(KNodeImpl::*)(const Contact&,
-                  VoidFunctorOneString)>(&KNodeImpl::Ping), this, _1, _2),
-      boost::bind(&KNodeImpl::RemoveContact, this, _1)));
+      boost::bind(&NodeImpl::AddContact, this, _1, _2, _3),
+      boost::bind(&NodeImpl::GetRandomContacts, this, _1, _2, _3),
+      boost::bind(&NodeImpl::GetContact, this, _1, _2),
+      boost::bind(&NodeImpl::GetNodesFromRoutingTable, this, _1, _2, _3),
+      boost::bind(static_cast<void(NodeImpl::*)(const Contact&,
+                  VoidFunctorOneString)>(&NodeImpl::Ping), this, _1, _2),
+      boost::bind(&NodeImpl::RemoveContact, this, _1)));
   premote_service_->set_node_info(contact_info());
   premote_service_->set_alternative_store(alternative_store_);
   premote_service_->set_signature_validator(signature_validator_);
@@ -1198,7 +1198,7 @@ void KNodeImpl::RegisterService() {
       premote_service_->GetDescriptor()->name(), pservice_channel_.get());
 }
 
-void KNodeImpl::UnRegisterService() {
+void NodeImpl::UnRegisterService() {
   pchannel_manager_->UnRegisterChannel(
       premote_service_->GetDescriptor()->name());
   pchannel_manager_->ClearCallLaters();
@@ -1206,7 +1206,7 @@ void KNodeImpl::UnRegisterService() {
   premote_service_.reset();
 }
 
-ConnectionType KNodeImpl::CheckContactLocalAddress(const NodeId &id,
+ConnectionType NodeImpl::CheckContactLocalAddress(const NodeId &id,
                                                    const IP &ip,
                                                    const Port &port,
                                                    const IP &ext_ip) {
@@ -1237,12 +1237,12 @@ ConnectionType KNodeImpl::CheckContactLocalAddress(const NodeId &id,
 }
 
 
-void KNodeImpl::UpdatePDRTContactToRemote(const NodeId &node_id,
+void NodeImpl::UpdatePDRTContactToRemote(const NodeId &node_id,
                                           const IP &ip) {
   prth_->UpdateContactLocal(node_id.String(), ip, REMOTE);
 }
 
-ContactInfo KNodeImpl::contact_info() const {
+ContactInfo NodeImpl::contact_info() const {
   ContactInfo info;
 
   info.set_ip(ip_);
@@ -1260,7 +1260,7 @@ ContactInfo KNodeImpl::contact_info() const {
   return info;
 }
 
-void KNodeImpl::CheckToInsert(const Contact &new_contact) {
+void NodeImpl::CheckToInsert(const Contact &new_contact) {
   if (!is_joined_)
     return;
   int index = prouting_table_->KBucketIndex(new_contact.node_id());
@@ -1269,11 +1269,11 @@ void KNodeImpl::CheckToInsert(const Contact &new_contact) {
 //  DLOG(INFO) << "Pinging last seen node in routing table to try to insert "
 //             << "contact\n" << new_contact.DebugString();
   Ping(last_seen,
-       boost::bind(&KNodeImpl::CheckToInsert_Callback, this, _1,
+       boost::bind(&NodeImpl::CheckToInsert_Callback, this, _1,
                    new_contact.node_id(), new_contact));
 }
 
-void KNodeImpl::CheckToInsert_Callback(const std::string &result, NodeId id,
+void NodeImpl::CheckToInsert_Callback(const std::string &result, NodeId id,
                                        Contact new_contact) {
   if (!is_joined_)
     return;
@@ -1286,7 +1286,7 @@ void KNodeImpl::CheckToInsert_Callback(const std::string &result, NodeId id,
   }
 }
 
-void KNodeImpl::CheckAddContacts() {
+void NodeImpl::CheckAddContacts() {
   while (true) {
     {
       boost::mutex::scoped_lock guard(pendingcts_mutex_);
@@ -1310,10 +1310,10 @@ void KNodeImpl::CheckAddContacts() {
   }
 }
 
-void KNodeImpl::StartSearchIteration(const NodeId &key,
+void NodeImpl::StartSearchIteration(const NodeId &key,
                                      const RemoteFindMethod &method,
                                      VoidFunctorOneString callback) {
-//  printf("KNodeImpl::StartSearchIteration\n");
+//  printf("NodeImpl::StartSearchIteration\n");
   // Getting the first alpha contacts
   std::vector<Contact> close_nodes, exclude_contacts;
   {
@@ -1335,10 +1335,10 @@ void KNodeImpl::StartSearchIteration(const NodeId &key,
   SearchIteration(data);
 }
 
-void KNodeImpl::SendFindRpc(Contact remote,
+void NodeImpl::SendFindRpc(Contact remote,
                             boost::shared_ptr<IterativeLookUpData> data,
                             const ConnectionType &conn_type) {
-//  printf("KNodeImpl::SendFindRpc\n");
+//  printf("NodeImpl::SendFindRpc\n");
   if (!is_joined_ && data->method != BOOTSTRAP)
     return;
   FindResponse *resp = new FindResponse;
@@ -1358,9 +1358,9 @@ void KNodeImpl::SendFindRpc(Contact remote,
     rendezvous_port = remote.rendezvous_port();
   }
   google::protobuf::Closure *done =
-      google::protobuf::NewCallback<KNodeImpl, const FindResponse*,
+      google::protobuf::NewCallback<NodeImpl, const FindResponse*,
                                     FindCallbackArgs>
-      (this, &KNodeImpl::SearchIteration_ExtendShortList, resp, callback_args);
+      (this, &NodeImpl::SearchIteration_ExtendShortList, resp, callback_args);
   if (data->method == FIND_NODE || data->method == BOOTSTRAP) {
     if (data->method == BOOTSTRAP) {
       kademlia::Contact tmp_contact(node_id(), ip_, port_, local_ip_,
@@ -1383,8 +1383,8 @@ void KNodeImpl::SendFindRpc(Contact remote,
   }
 }
 
-void KNodeImpl::SearchIteration(boost::shared_ptr<IterativeLookUpData> data) {
-//  printf("KNodeImpl::SearchIteration\n");
+void NodeImpl::SearchIteration(boost::shared_ptr<IterativeLookUpData> data) {
+//  printf("NodeImpl::SearchIteration\n");
   if (data->is_callbacked || (!is_joined_ && data->method != BOOTSTRAP))
     return;
   // Found an alternative value holder or the actual value
@@ -1490,10 +1490,10 @@ void KNodeImpl::SearchIteration(boost::shared_ptr<IterativeLookUpData> data) {
   }
 }
 
-void KNodeImpl::SearchIteration_ExtendShortList(
+void NodeImpl::SearchIteration_ExtendShortList(
     const FindResponse *response,
     FindCallbackArgs callback_data) {
-//  printf("KNodeImpl::SearchIteration_ExtendShortList\n");
+//  printf("NodeImpl::SearchIteration_ExtendShortList\n");
   if (!is_joined_ && callback_data.data->method != BOOTSTRAP) {
     delete response;
     delete callback_data.rpc_ctrler;
@@ -1659,9 +1659,9 @@ void KNodeImpl::SearchIteration_ExtendShortList(
   }
 }
 
-void KNodeImpl::SendFinalIteration(
+void NodeImpl::SendFinalIteration(
     boost::shared_ptr<IterativeLookUpData> data) {
-//  printf("KNodeImpl::SendFinalIteration\n");
+//  printf("NodeImpl::SendFinalIteration\n");
   if (data->active_contacts.size() >= K_) {
     if (!data->active_contacts.empty()) {
       // checking if the active probes are closer than the Kth closest node
@@ -1718,8 +1718,8 @@ void KNodeImpl::SendFinalIteration(
   }
 }
 
-void KNodeImpl::FinalIteration(boost::shared_ptr<IterativeLookUpData> data) {
-//  printf("KNodeImpl::FinalIteration\n");
+void NodeImpl::FinalIteration(boost::shared_ptr<IterativeLookUpData> data) {
+//  printf("NodeImpl::FinalIteration\n");
   if ((data->is_callbacked)||(!is_joined_ && data->method != BOOTSTRAP))
     return;
 
@@ -1765,7 +1765,7 @@ void KNodeImpl::FinalIteration(boost::shared_ptr<IterativeLookUpData> data) {
   }
 }
 
-void KNodeImpl::SearchIteration_CancelActiveProbe(
+void NodeImpl::SearchIteration_CancelActiveProbe(
     Contact sender,
     boost::shared_ptr<IterativeLookUpData> data) {
   if (!is_joined_ && data->method != BOOTSTRAP)
@@ -1793,9 +1793,9 @@ void KNodeImpl::SearchIteration_CancelActiveProbe(
   activeprobes_mutex_.unlock();
 }
 
-void KNodeImpl::SearchIteration_Callback(
+void NodeImpl::SearchIteration_Callback(
     boost::shared_ptr<IterativeLookUpData> data) {
-//  printf("KNodeImpl::SearchIteration_Callback\n");
+//  printf("NodeImpl::SearchIteration_Callback\n");
   std::string ser_result;
   // If we're bootstrapping, we are only now finished.  In this case the
   // callback should be of type base::GeneralResponse
@@ -1815,13 +1815,13 @@ void KNodeImpl::SearchIteration_Callback(
         premote_service_->set_node_joined(true);
         premote_service_->set_node_info(contact_info());
         addcontacts_routine_.reset(
-            new boost::thread(&KNodeImpl::CheckAddContacts, this));
+            new boost::thread(&NodeImpl::CheckAddContacts, this));
         // start a schedule to delete expired key/value pairs only once
         if (!refresh_routine_started_) {
           ptimer_->AddCallLater(kRefreshTime * 1000,
-                                boost::bind(&KNodeImpl::RefreshRoutine, this));
+                                boost::bind(&NodeImpl::RefreshRoutine, this));
           ptimer_->AddCallLater(2000,
-                                boost::bind(&KNodeImpl::RefreshValuesRoutine,
+                                boost::bind(&NodeImpl::RefreshValuesRoutine,
                                             this));
           refresh_routine_started_ = true;
 //          printf("SearchIteration_Callback - %d\n", kRefreshTime * 1000);
@@ -1899,7 +1899,7 @@ void KNodeImpl::SearchIteration_Callback(
   SendDownlist(data);
 }
 
-void KNodeImpl::SendDownlist(boost::shared_ptr<IterativeLookUpData> data) {
+void NodeImpl::SendDownlist(boost::shared_ptr<IterativeLookUpData> data) {
   // Implementation of downlist algorithm
   // At the end of the search the corresponding entries of the downlist are sent
   // to all peers which gave those entries to this node during its search
@@ -1955,28 +1955,28 @@ void KNodeImpl::SendDownlist(boost::shared_ptr<IterativeLookUpData> data) {
   // End of downlist
 }
 
-boost::uint32_t KNodeImpl::KeyLastRefreshTime(const NodeId &key,
+boost::uint32_t NodeImpl::KeyLastRefreshTime(const NodeId &key,
                                               const std::string &value) {
   return pdata_store_->LastRefreshTime(key.String(), value);
 }
 
-boost::uint32_t KNodeImpl::KeyExpireTime(const NodeId &key,
+boost::uint32_t NodeImpl::KeyExpireTime(const NodeId &key,
                                          const std::string &value) {
   return pdata_store_->ExpireTime(key.String(), value);
 }
 
-bool KNodeImpl::using_signatures() {
+bool NodeImpl::using_signatures() {
   if (private_key_.empty() || public_key_.empty())
     return false;
   return true;
 }
 
-boost::int32_t KNodeImpl::KeyValueTTL(const NodeId &key,
+boost::int32_t NodeImpl::KeyValueTTL(const NodeId &key,
                                       const std::string &value) const {
   return pdata_store_->TimeToLive(key.String(), value);
 }
 
-void KNodeImpl::RefreshValue(const NodeId &key, const std::string &value,
+void NodeImpl::RefreshValue(const NodeId &key, const std::string &value,
                              const boost::int32_t &ttl,
                              VoidFunctorOneString callback) {
   if (!is_joined_ || !refresh_routine_started_  || stopping_)
@@ -1996,17 +1996,17 @@ void KNodeImpl::RefreshValue(const NodeId &key, const std::string &value,
         cobj.Hash(public_key_ + sreq.signed_public_key() + key.String(), "",
                   crypto::STRING_STRING, true),
         "", private_key_, crypto::STRING_STRING));
-    FindKClosestNodes(key, boost::bind(&KNodeImpl::StoreValue_ExecuteStoreRPCs,
+    FindKClosestNodes(key, boost::bind(&NodeImpl::StoreValue_ExecuteStoreRPCs,
                                        this, _1, key, "", svalue, sreq, false,
                                        ttl, callback));
   } else {
-    FindKClosestNodes(key, boost::bind(&KNodeImpl::StoreValue_ExecuteStoreRPCs,
+    FindKClosestNodes(key, boost::bind(&NodeImpl::StoreValue_ExecuteStoreRPCs,
                                        this, _1, key, value, svalue, sreq,
                                        false, ttl, callback));
   }
 }
 
-void KNodeImpl::RefreshValueCallback(
+void NodeImpl::RefreshValueCallback(
     const std::string &result, const NodeId &key, const std::string &value,
     const boost::int32_t &ttl, const boost::uint32_t &total_refreshes,
     boost::shared_ptr<boost::uint32_t> refreshes_done) {
@@ -2019,17 +2019,17 @@ void KNodeImpl::RefreshValueCallback(
     RefreshValueLocal(key, value, ttl);
   ++(*refreshes_done);
   if (total_refreshes == *refreshes_done) {
-    ptimer_->AddCallLater(2000, boost::bind(&KNodeImpl::RefreshValuesRoutine,
+    ptimer_->AddCallLater(2000, boost::bind(&NodeImpl::RefreshValuesRoutine,
                                             this));
   }
 }
 
-void KNodeImpl::RefreshValuesRoutine() {
-//  printf("KNodeImpl::RefreshValuesRoutine\n");
+void NodeImpl::RefreshValuesRoutine() {
+//  printf("NodeImpl::RefreshValuesRoutine\n");
   if (is_joined_ && refresh_routine_started_  && !stopping_) {
     std::vector<refresh_value> values = pdata_store_->ValuesToRefresh();
     if (values.empty()) {
-      ptimer_->AddCallLater(2000, boost::bind(&KNodeImpl::RefreshValuesRoutine,
+      ptimer_->AddCallLater(2000, boost::bind(&NodeImpl::RefreshValuesRoutine,
                                               this));
     } else  {
       boost::shared_ptr<boost::uint32_t> refreshes_done(new boost::uint32_t(0));
@@ -2040,7 +2040,7 @@ void KNodeImpl::RefreshValuesRoutine() {
           case NOT_DELETED: id_key = NodeId(values[i].key_);
                             RefreshValue(
                                 id_key, values[i].value_, values[i].ttl_,
-                                boost::bind(&KNodeImpl::RefreshValueCallback,
+                                boost::bind(&NodeImpl::RefreshValueCallback,
                                             this, _1, id_key, values[i].value_,
                                             values[i].ttl_, values.size(),
                                             refreshes_done));
@@ -2057,7 +2057,7 @@ void KNodeImpl::RefreshValuesRoutine() {
   }
 }
 
-void KNodeImpl::DeleteValue(const NodeId &key, const SignedValue &signed_value,
+void NodeImpl::DeleteValue(const NodeId &key, const SignedValue &signed_value,
                             const SignedRequest &signed_request,
                             VoidFunctorOneString callback) {
   if (!signed_value.IsInitialized() || !signed_request.IsInitialized()) {
@@ -2067,12 +2067,12 @@ void KNodeImpl::DeleteValue(const NodeId &key, const SignedValue &signed_value,
     callback(ser_resp);
     return;
   }
-  FindKClosestNodes(key, boost::bind(&KNodeImpl::DelValue_ExecuteDeleteRPCs,
+  FindKClosestNodes(key, boost::bind(&NodeImpl::DelValue_ExecuteDeleteRPCs,
                                      this, _1, key, signed_value,
                                      signed_request, callback));
 }
 
-void KNodeImpl::DelValue_ExecuteDeleteRPCs(const std::string &result,
+void NodeImpl::DelValue_ExecuteDeleteRPCs(const std::string &result,
                                            const NodeId &key,
                                            const SignedValue &value,
                                            const SignedRequest &sig_req,
@@ -2122,19 +2122,19 @@ void KNodeImpl::DelValue_ExecuteDeleteRPCs(const std::string &result,
     local_result.set_result(false);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
-    DLOG(WARNING) << "KNodeImpl::DelValue_ExecuteDeleteRPCs - No nodes."
+    DLOG(WARNING) << "NodeImpl::DelValue_ExecuteDeleteRPCs - No nodes."
                   << std::endl;
   } else {
     DeleteResponse local_result;
     local_result.set_result(false);
     std::string local_result_str(local_result.SerializeAsString());
     callback(local_result_str);
-    DLOG(WARNING) << "KNodeImpl::DelValue_ExecuteDeleteRPCs - Invalid or fail."
+    DLOG(WARNING) << "NodeImpl::DelValue_ExecuteDeleteRPCs - Invalid or fail."
                   << std::endl;
   }
 }
 
-bool KNodeImpl::DelValueLocal(const NodeId &key, const SignedValue &value,
+bool NodeImpl::DelValueLocal(const NodeId &key, const SignedValue &value,
                               const SignedRequest &req) {
   if (signature_validator_ == NULL)
     return false;
@@ -2160,7 +2160,7 @@ bool KNodeImpl::DelValueLocal(const NodeId &key, const SignedValue &value,
   return false;
 }
 
-void KNodeImpl::DelValue_IterativeDeleteValue(
+void NodeImpl::DelValue_IterativeDeleteValue(
     const DeleteResponse *response,
     DeleteCallbackArgs callback_data) {
   if (!is_joined_)
@@ -2180,8 +2180,8 @@ void KNodeImpl::DelValue_IterativeDeleteValue(
         callback_data.retry = false;
         // send RPC to this contact's remote address because local failed
         google::protobuf::Closure *done1 = google::protobuf::NewCallback
-            <KNodeImpl, const DeleteResponse*, DeleteCallbackArgs>
-            (this, &KNodeImpl::DelValue_IterativeDeleteValue, resp,
+            <NodeImpl, const DeleteResponse*, DeleteCallbackArgs>
+            (this, &NodeImpl::DelValue_IterativeDeleteValue, resp,
              callback_data);
         rpcs_->Delete(callback_data.data->key, callback_data.data->value,
                         callback_data.data->sig_request,
@@ -2258,8 +2258,8 @@ void KNodeImpl::DelValue_IterativeDeleteValue(
     }
 
     google::protobuf::Closure *done = google::protobuf::NewCallback
-        <KNodeImpl, const DeleteResponse*, DeleteCallbackArgs >
-        (this, &KNodeImpl::DelValue_IterativeDeleteValue, resp, callback_args);
+        <NodeImpl, const DeleteResponse*, DeleteCallbackArgs >
+        (this, &NodeImpl::DelValue_IterativeDeleteValue, resp, callback_args);
 
     rpcs_->Delete(callback_data.data->key, callback_data.data->value,
                     callback_data.data->sig_request, contact_ip, contact_port,
@@ -2268,7 +2268,7 @@ void KNodeImpl::DelValue_IterativeDeleteValue(
   }
 }
 
-void KNodeImpl::UpdateValue(const NodeId &key,
+void NodeImpl::UpdateValue(const NodeId &key,
                             const SignedValue &old_value,
                             const SignedValue &new_value,
                             const SignedRequest &signed_request,
@@ -2280,16 +2280,16 @@ void KNodeImpl::UpdateValue(const NodeId &key,
     resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
-    DLOG(WARNING) << "KNodeImpl::UpdateValue - uninitialised values or request"
+    DLOG(WARNING) << "NodeImpl::UpdateValue - uninitialised values or request"
                   << std::endl;
     return;
   }
-  FindKClosestNodes(key, boost::bind(&KNodeImpl::ExecuteUpdateRPCs,
+  FindKClosestNodes(key, boost::bind(&NodeImpl::ExecuteUpdateRPCs,
                                      this, _1, key, old_value, new_value,
                                      signed_request, ttl, callback));
 }
 
-void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
+void NodeImpl::ExecuteUpdateRPCs(const std::string &result,
                                   const NodeId &key,
                                   const SignedValue &old_value,
                                   const SignedValue &new_value,
@@ -2307,7 +2307,7 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
     resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
-    DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - failed find nodes"
+    DLOG(WARNING) << "NodeImpl::ExecuteUpdateRPCs - failed find nodes"
                   << std::endl;
     return;
   }
@@ -2324,7 +2324,7 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
     resp.set_result(false);
     std::string ser_resp(resp.SerializeAsString());
     callback(ser_resp);
-    DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - Not enough nodes"
+    DLOG(WARNING) << "NodeImpl::ExecuteUpdateRPCs - Not enough nodes"
                   << std::endl;
     return;
   }
@@ -2343,9 +2343,9 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
                               closest_nodes[n].ip());
     uca->controller = new rpcprotocol::Controller;
     google::protobuf::Closure *done = google::protobuf::NewCallback
-                                      <KNodeImpl,
+                                      <NodeImpl,
                                        boost::shared_ptr<UpdateCallbackArgs> >
-                                      (this, &KNodeImpl::UpdateValueResponses,
+                                      (this, &NodeImpl::UpdateValueResponses,
                                        uca);
     ConnectionType conn_type = CheckContactLocalAddress(
                                    closest_nodes[n].node_id(),
@@ -2371,7 +2371,7 @@ void KNodeImpl::ExecuteUpdateRPCs(const std::string &result,
   }
 }
 
-void KNodeImpl::UpdateValueResponses(
+void NodeImpl::UpdateValueResponses(
     boost::shared_ptr<UpdateCallbackArgs> uca) {
   if (uca->response->IsInitialized()) {
     if (!uca->response->has_node_id() ||
@@ -2383,8 +2383,8 @@ void KNodeImpl::UpdateValueResponses(
         uca->controller = new rpcprotocol::Controller;
         google::protobuf::Closure *done;
         done = google::protobuf::NewCallback
-               <KNodeImpl, boost::shared_ptr<UpdateCallbackArgs> >
-               (this, &KNodeImpl::UpdateValueResponses, uca);
+               <NodeImpl, boost::shared_ptr<UpdateCallbackArgs> >
+               (this, &NodeImpl::UpdateValueResponses, uca);
         rpcs_->Update(uca->uvd->uvd_key, uca->uvd->uvd_new_value,
                         uca->uvd->uvd_old_value, uca->uvd->ttl,
                         uca->uvd->uvd_request_signature, uca->contact.ip(),
@@ -2416,7 +2416,7 @@ void KNodeImpl::UpdateValueResponses(
       // Sadly, we didn't gather the numbers to ensure success
       update_result.set_result(false);
 
-      DLOG(WARNING) << "KNodeImpl::ExecuteUpdateRPCs - Not enough succ in RPCs"
+      DLOG(WARNING) << "NodeImpl::ExecuteUpdateRPCs - Not enough succ in RPCs"
                     << std::endl;
 
     } else {
@@ -2427,7 +2427,7 @@ void KNodeImpl::UpdateValueResponses(
   }
 }
 
-void KNodeImpl::AddContactsToContainer(const std::vector<Contact> contacts,
+void NodeImpl::AddContactsToContainer(const std::vector<Contact> contacts,
                                        boost::shared_ptr<FindNodesArgs> fna) {
   boost::mutex::scoped_lock loch_lavitesse(fna->mutex);
   for (size_t n = 0; n < contacts.size(); ++n) {
@@ -2436,7 +2436,7 @@ void KNodeImpl::AddContactsToContainer(const std::vector<Contact> contacts,
   }
 }
 
-void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
+void NodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
                                  int round, std::list<Contact> *contacts,
                                  bool *top_nodes_done, bool *calledback) {
   if (fna->calledback) {
@@ -2471,7 +2471,7 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
         alphas.push_back((*contact_it).contact);
       }
     } else {
-      DLOG(ERROR) << "KNodeImpl::AnalyseIteration contacts error." << std::endl;
+      DLOG(ERROR) << "NodeImpl::AnalyseIteration contacts error." << std::endl;
     }
   }
 
@@ -2482,18 +2482,18 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
       fna->calledback = true;
       *calledback = false;
     }
-    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Search Complete at Round ("
+    DLOG(INFO) << "NodeImpl::AnalyseIteration - Search Complete at Round ("
                << round << ")" << std::endl;;
     return;
   } else {
-    printf("KNodeImpl::AnalyseIteration - Search not complete at Round(%d) - %d times - %d alphas\n", round, times, contacts->size());
+    printf("NodeImpl::AnalyseIteration - Search not complete at Round(%d) - %d times - %d alphas\n", round, times, contacts->size());
   }
 
   // Check if the iteration has been analysed
   contacts->clear();
   std::set<int>::iterator it = fna->done_rounds.find(round);
   if (it != fna->done_rounds.end()) {
-    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Do nothing. Round (" << round
+    DLOG(INFO) << "NodeImpl::AnalyseIteration - Do nothing. Round (" << round
                << ") done" << std::endl;
     return;
   }
@@ -2508,7 +2508,7 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
       ++done;
   }
 
-  DLOG(INFO) << "KNodeImpl::AnalyseIteration - Total(" << total << "), Done("
+  DLOG(INFO) << "NodeImpl::AnalyseIteration - Total(" << total << "), Done("
              << done << "), Round(" << round << ")" << std::endl;
   // Decide if another iteration is needed and pick the alphas
   if ((total > kBeta && done >= kBeta) || (total <= kBeta && done == total)) {
@@ -2526,12 +2526,12 @@ void KNodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
         contacts->push_back(*alpha_it);
       }
     }
-    DLOG(INFO) << "KNodeImpl::AnalyseIteration - Returning" << contacts->size()
+    DLOG(INFO) << "NodeImpl::AnalyseIteration - Returning" << contacts->size()
                << "alphas for Round (" << fna->round << ")" << std::endl;
   }
 }
 
-bool KNodeImpl::MarkResponse(const Contact &contact,
+bool NodeImpl::MarkResponse(const Contact &contact,
                              boost::shared_ptr<FindNodesArgs> fna,
                              SearchMarking mark,
                              std::list<Contact> *response_nodes) {
@@ -2558,7 +2558,7 @@ bool KNodeImpl::MarkResponse(const Contact &contact,
   return false;
 }
 
-bool KNodeImpl::HandleIterationStructure(const Contact &contact,
+bool NodeImpl::HandleIterationStructure(const Contact &contact,
                                          boost::shared_ptr<FindNodesArgs> fna,
                                          int round,
                                          SearchMarking mark,
@@ -2585,7 +2585,7 @@ bool KNodeImpl::HandleIterationStructure(const Contact &contact,
       ++alphas_replied;
   }
 
-  printf("KNodeImpl::HandleIterationStructure - Total(%d), Done(%d), "
+  printf("NodeImpl::HandleIterationStructure - Total(%d), Done(%d), "
          "Round(%d)\n", alphas_sent, alphas_replied, round);
   // Decide if another iteration is needed and pick the alphas
   if ((alphas_sent > kBeta && alphas_replied >= kBeta) ||
@@ -2622,7 +2622,7 @@ bool KNodeImpl::HandleIterationStructure(const Contact &contact,
             ++contacted_nodes;
         }
       }
-      printf("KNodeImpl::HandleIterationStructure - New(%d), Alpha(%d),"
+      printf("NodeImpl::HandleIterationStructure - New(%d), Alpha(%d),"
              " Contacted(%d)\n", new_nodes, alpha_nodes, contacted_nodes);
 
       if (new_nodes == 0 && alpha_nodes == 0) {
@@ -2662,7 +2662,7 @@ bool KNodeImpl::HandleIterationStructure(const Contact &contact,
   return b;
 }
 
-void KNodeImpl::FindNodes(const FindNodesParams &fnp) {
+void NodeImpl::FindNodes(const FindNodesParams &fnp) {
   std::vector<Contact> close_nodes, excludes;
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(fnp.key, fnp.callback));
@@ -2716,7 +2716,7 @@ void KNodeImpl::FindNodes(const FindNodesParams &fnp) {
   IterativeSearch(fna, false, false, &alphas);
 }
 
-void KNodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
+void NodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
                                 bool top_nodes_done, bool calledback,
                                 std::list<Contact> *contacts) {
   if (top_nodes_done) {
@@ -2727,7 +2727,7 @@ void KNodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
       for (; it != contacts->end(); ++it) {
         fr.add_closest_nodes((*it).SerialiseAsString());
       }
-      DLOG(INFO) << "KNodeImpl::IterativeSearch - Done" << std::endl;
+      DLOG(INFO) << "NodeImpl::IterativeSearch - Done" << std::endl;
       fna->callback(fr.SerializeAsString());
     }
     return;
@@ -2736,21 +2736,21 @@ void KNodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
   if (contacts->empty())
     return;
 
-  printf("KNodeImpl::IterativeSearch - Sending %d alphas\n", contacts->size());
+  printf("NodeImpl::IterativeSearch - Sending %d alphas\n", contacts->size());
   std::list<Contact>::iterator it = contacts->begin();
   for (; it != contacts->end(); ++it) {
     boost::shared_ptr<FindNodesRpc> fnrpc(new FindNodesRpc(*it, fna));
     google::protobuf::Closure *done =
-        google::protobuf::NewCallback<KNodeImpl,
+        google::protobuf::NewCallback<NodeImpl,
                                       boost::shared_ptr<FindNodesRpc> >
-        (this, &KNodeImpl::IterativeSearchResponse, fnrpc);
+        (this, &NodeImpl::IterativeSearchResponse, fnrpc);
     rpcs_->FindNode(fna->key, (*it).ip(), (*it).port(),
                        (*it).rendezvous_ip(), (*it).rendezvous_port(),
                        fnrpc->response, fnrpc->ctler, done);
   }
 }
 
-void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
+void NodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   SearchMarking mark(SEARCH_CONTACTED);
   if (!fnrpc->response->IsInitialized())
     mark = SEARCH_DOWN;
@@ -2769,7 +2769,7 @@ void KNodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   bool done(false), calledback(false);
   if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna, fnrpc->round,
                                 mark, &close_nodes, &done, &calledback)) {
-    DLOG(INFO) << "KNodeImpl::IterativeSearchResponse failed in MarkResponse."
+    DLOG(INFO) << "NodeImpl::IterativeSearchResponse failed in MarkResponse."
                << std::endl;
   }
 

@@ -88,7 +88,7 @@ class TestNodeFunctions : public testing::Test {
     kcp.beta = kademlia::kBeta;
     kcp.port_forwarded = false;
     kcp.use_upnp = false;
-    node_.reset(new KNode(manager_, udt_, kcp));
+    node_.reset(new Node(manager_, udt_, kcp));
 
     boost::asio::ip::address local_ip;
     ASSERT_TRUE(base::GetLocalAddress(&local_ip));
@@ -108,20 +108,20 @@ class TestNodeFunctions : public testing::Test {
   static std::string test_dir_;
   static boost::shared_ptr<transport::UdtTransport> udt_;
   static boost::shared_ptr<rpcprotocol::ChannelManager> manager_;
-  static boost::shared_ptr<KNode> node_;
+  static boost::shared_ptr<Node> node_;
   static GeneralKadCallback cb_;
 };
 
 std::string TestNodeFunctions::test_dir_;
 boost::shared_ptr<transport::UdtTransport> TestNodeFunctions::udt_;
 boost::shared_ptr<rpcprotocol::ChannelManager> TestNodeFunctions::manager_;
-boost::shared_ptr<KNode> TestNodeFunctions::node_;
+boost::shared_ptr<Node> TestNodeFunctions::node_;
 GeneralKadCallback TestNodeFunctions::cb_;
 
-TEST_F(TestNodeFunctions, BEH_NODE_GetKNodesFromRoutingTable) {
+TEST_F(TestNodeFunctions, BEH_NODE_GetNodesFromRoutingTable) {
   NodeId key(NodeId::kRandomId);
   std::vector<Contact> exclude_contacts, close_nodes;
-  node_->GetKNodesFromRoutingTable(key, exclude_contacts, &close_nodes);
+  node_->GetNodesFromRoutingTable(key, exclude_contacts, &close_nodes);
   ASSERT_TRUE(close_nodes.empty());
 }
 

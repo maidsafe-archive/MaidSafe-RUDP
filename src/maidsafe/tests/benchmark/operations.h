@@ -42,7 +42,7 @@ typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 }  // namespace rpcprotocol
 
 namespace kademlia {
-class KNode;
+class Node;
 class NodeId;
 }  // namespace kademlia
 
@@ -59,7 +59,7 @@ struct CallbackData {
 
 class Operations {
  public:
-  explicit Operations(boost::shared_ptr<kademlia::KNode> node);
+  explicit Operations(boost::shared_ptr<kademlia::Node> node);
   void TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
                        const int &iterations);
   void TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
@@ -75,7 +75,7 @@ class Operations {
                      boost::shared_ptr<CallbackData> data);
   void FindValueCallback(const std::string &result,
                          boost::shared_ptr<CallbackData> data);
-  boost::shared_ptr<kademlia::KNode> node_;
+  boost::shared_ptr<kademlia::Node> node_;
   crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_signature_;
 };
