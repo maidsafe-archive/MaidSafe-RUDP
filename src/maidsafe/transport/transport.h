@@ -99,7 +99,7 @@ class Transport {
    */
   virtual void Respond(const std::string &data,
                        const ConversationId &conversation_id,
-                       const boost::posix_time::ptime &timeout) = 0;
+                       const boost::posix_time::milliseconds &timeout) = 0;
   /**
    * Sends data that is being streamed from the given source.
    * @param data The input stream delivering data to send.
