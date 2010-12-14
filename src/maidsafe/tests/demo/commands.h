@@ -42,7 +42,7 @@ typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 }  // namespace rpcprotocol
 
 namespace kademlia {
-class KNode;
+class Node;
 class NodeId;
 }  // namespace kademlia
 
@@ -50,7 +50,7 @@ namespace kaddemo {
 
 class Commands {
  public:
-  Commands(boost::shared_ptr<kademlia::KNode> node,
+  Commands(boost::shared_ptr<kademlia::Node> node,
            boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
            const boost::uint16_t &K);
   void Run();
@@ -70,7 +70,7 @@ class Commands {
   void Store50Callback(const std::string &result, const std::string &key,
                        bool *arrived);
   void PrintRpcTimings();
-  boost::shared_ptr<kademlia::KNode> node_;
+  boost::shared_ptr<kademlia::Node> node_;
   boost::shared_ptr<rpcprotocol::ChannelManager> chmanager_;
   bool result_arrived_, finish_;
   double min_succ_stores_;

@@ -112,17 +112,17 @@ void ConstructKcp(NodeConstructionParameters *kcp) {
   kcp->use_upnp = false;
 }
 
-class KNodeTest: public testing::Test {
+class NodeTest: public testing::Test {
  protected:
-  KNodeTest() {}
-  ~KNodeTest() {}
+  NodeTest() {}
+  ~NodeTest() {}
 };
 
 std::string kad_config_file_;
 std::vector<rpcprotocol::Port> transport_ports_;
 std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
 std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > channel_managers_;
-std::vector<boost::shared_ptr<KNode> > nodes_;
+std::vector<boost::shared_ptr<Node> > nodes_;
 std::vector<std::string> dbs_;
 crypto::Crypto cry_obj_;
 GeneralKadCallback cb_;
@@ -180,7 +180,7 @@ class Env : public testing::Environment {
       create_rsakeys(&pub_key, &priv_key);
       kcp.public_key = pub_key;
       kcp.private_key = priv_key;
-      nodes_[i].reset(new KNode(channel_managers_[i], transports_[i], kcp));
+      nodes_[i].reset(new Node(channel_managers_[i], transports_[i], kcp));
     }
 
     kad_config_file_ = dbs_[0] + "/.kadconfig";
@@ -246,7 +246,7 @@ class Env : public testing::Environment {
   }
 
   virtual void TearDown() {
-    DLOG(INFO) << "TestKNode, TearDown Starting..." << std::endl;
+    DLOG(INFO) << "TestNode, TearDown Starting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(5));
 
 #ifdef WIN32
@@ -288,12 +288,12 @@ class Env : public testing::Environment {
     dbs_.clear();
     node_ids_.clear();
     ports_.clear();
-    DLOG(INFO) << "TestKNode, TearDown Finished." << std::endl;
+    DLOG(INFO) << "TestNode, TearDown Finished." << std::endl;
     transport::UdtTransport::CleanUp();
   }
 };
 
-TEST_F(KNodeTest, FUNC_KAD_ClientNodeConnect) {
+TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   NodeConstructionParameters kcp;
   ConstructKcp(&kcp);
 
@@ -316,7 +316,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientNodeConnect) {
   kcp.type = CLIENT;
   kcp.public_key = pubkey;
   kcp.private_key = privkey;
-  KNode node_local_1(cm1, t1, kcp);
+  Node node_local_1(cm1, t1, kcp);
 
   std::string config_file = db_local + "/.kadconfig";
   base::KadConfig conf;
@@ -352,7 +352,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientNodeConnect) {
   kcp.type = CLIENT;
   kcp.public_key = pubkey;
   kcp.private_key = privkey;
-  KNode node_local_2(cm2, t2, kcp);
+  Node node_local_2(cm2, t2, kcp);
   db_local = test_dir_ + std::string("/datastore") +
              boost::lexical_cast<std::string>(kNetworkSize + 2);
   boost::filesystem::create_directories(db_local);
@@ -507,7 +507,7 @@ TEST_F(KNodeTest, FUNC_KAD_ClientNodeConnect) {
   cm2->Stop();
 }
 
-TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
+TEST_F(NodeTest, FUNC_KAD_FindClosestNodes) {
   NodeId key(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING, false));
   FindCallback cb_1;
   nodes_[kTestK/2]->FindKClosestNodes(key,
@@ -545,7 +545,7 @@ TEST_F(KNodeTest, FUNC_KAD_FindClosestNodes) {
   }
 }
 
-TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
+TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   // prepare small size of values
   NodeId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);  // 5KB
@@ -635,7 +635,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   cb_1.Reset();
 }
 
-TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
+TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   // prepare big size of values
   NodeId key(cry_obj_.Hash("vcdrer43dccdwwt", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 1024);  // 1MB
@@ -714,7 +714,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreAndLoadBigValue) {
     FAIL();
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   boost::int16_t count(100);
   std::vector<NodeId> keys(count);
   std::vector<SignedValue> values(count);
@@ -760,7 +760,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   DLOG(INFO) << "Done." << std::endl;
 }
 
-TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
+TEST_F(NodeTest, FUNC_KAD_LoadNonExistingValue) {
   NodeId key(cry_obj_.Hash("bbffddnnooo8822", "", crypto::STRING_STRING, false));
   // load the value from last node
   FindCallback cb_1;
@@ -774,7 +774,7 @@ TEST_F(KNodeTest, FUNC_KAD_LoadNonExistingValue) {
   ASSERT_TRUE(cb_1.signed_values().empty());
 }
 
-TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
+TEST_F(NodeTest, FUNC_KAD_GetNodeContactDetails) {
   // find an existing node
   NodeId node_id1(nodes_[kTestK / 3]->node_id());
   GetNodeContactDetailsCallback cb_1;
@@ -801,7 +801,7 @@ TEST_F(KNodeTest, FUNC_KAD_GetNodeContactDetails) {
   ASSERT_FALSE(cb_2.result());
 }
 
-TEST_F(KNodeTest, FUNC_KAD_Ping) {
+TEST_F(NodeTest, FUNC_KAD_Ping) {
   // ping by contact
   Contact remote(nodes_[kTestK * 3 / 4]->node_id(),
                       nodes_[kTestK * 3 / 4]->ip(),
@@ -862,7 +862,7 @@ TEST_F(KNodeTest, FUNC_KAD_Ping) {
   ASSERT_FALSE(cb_4.result());
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   // Store a small value
   // prepair small size of values
   NodeId key(cry_obj_.Hash("rrvvdcccdd", "", crypto::STRING_STRING, false));
@@ -971,7 +971,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   }
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   boost::this_thread::sleep(boost::posix_time::seconds(2));
   // select a random node from node 1 to node kNetworkSize
   int r_node = 1 + base::RandomInt32() % (kNetworkSize - 1);
@@ -1071,7 +1071,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_Downlist) {
   nodes_[r_node]->set_signature_validator(&validator);
 }
 
-TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
+TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   NodeId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value(base::RandomString(1024));  // 1KB
   SignedValue sig_value;
@@ -1108,7 +1108,7 @@ TEST_F(KNodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   ASSERT_FALSE(cb_.result());
 }
 
-TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
+TEST_F(NodeTest, FUNC_KAD_AllDirectlyConnected) {
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
     ASSERT_EQ(DIRECT_CONNECTED, nodes_[i]->nat_type());
     std::vector<Contact> exclude_contacts;
@@ -1123,7 +1123,7 @@ TEST_F(KNodeTest, FUNC_KAD_AllDirectlyConnected) {
   }
 }
 
-TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
+TEST_F(NodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
   Contact remote(nodes_[kTestK * 3 / 4]->node_id(),
                       nodes_[kTestK * 3 / 4]->ip(),
                       nodes_[kTestK * 3 / 4]->port(),
@@ -1150,7 +1150,7 @@ TEST_F(KNodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
   ASSERT_TRUE(cb_1.result());
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   // find an existing node that has gone down
   // select a random node from node 1 to node kNetworkSize
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
@@ -1189,7 +1189,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   nodes_[r_node]->set_signature_validator(&validator);
 }
 
-TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
+TEST_F(NodeTest, FUNC_KAD_StartStopNode) {
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 1);  // NOLINT (Fraser)
   std::string kadconfig_path(dbs_[r_node] + "/.kadconfig");
   nodes_[r_node]->Leave();
@@ -1217,7 +1217,7 @@ TEST_F(KNodeTest, FUNC_KAD_StartStopNode) {
   cb_.Reset();
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   // prepare small size of values
   NodeId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
                           false));
@@ -1308,7 +1308,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   cb_1.Reset();
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   // prepare small size of values
   NodeId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
                           false));
@@ -1411,7 +1411,7 @@ TEST_F(KNodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   }
 }
 
-TEST_F(KNodeTest, DISABLED_FUNC_KAD_UpdateValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   // prepare small size of values
   NodeId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
                           false));

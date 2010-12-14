@@ -49,7 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kaddemo {
 
-Commands::Commands(boost::shared_ptr<kademlia::KNode> node,
+Commands::Commands(boost::shared_ptr<kademlia::Node> node,
                    boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
                    const boost::uint16_t &K)
       : node_(node), chmanager_(chmanager), result_arrived_(false),

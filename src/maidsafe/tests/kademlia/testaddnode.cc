@@ -125,7 +125,7 @@ class TestNodes : public testing::Test {
                           boost::lexical_cast<std::string>(transport_ports_[i]);
       boost::filesystem::create_directories(
           boost::filesystem::path(datastore_dir_[i]));
-      nodes_.push_back(KNode(ch_managers_[i], transports_[i], kcp));
+      nodes_.push_back(Node(ch_managers_[i], transports_[i], kcp));
       std::string s(nodes_[i].node_id().ToStringEncoded(kademlia::NodeId::kHex));
       DLOG(INFO) << "Listening port for node " <<  s.substr(0, 16) << ": "
                  << transport_ports_[i] << std::endl;
@@ -147,7 +147,7 @@ class TestNodes : public testing::Test {
       DLOG(ERROR) << "filesystem exception: " << e.what() << std::endl;
     }
   }
-  std::vector<KNode> nodes_;
+  std::vector<Node> nodes_;
   std::vector<boost::shared_ptr<rpcprotocol::ChannelManager> > ch_managers_;
   std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
   std::vector<rpcprotocol::Port> transport_ports_;

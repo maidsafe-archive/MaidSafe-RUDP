@@ -49,7 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace benchmark {
 
-Operations::Operations(boost::shared_ptr<kademlia::KNode> node)
+Operations::Operations(boost::shared_ptr<kademlia::Node> node)
     : node_(node), cryobj_(), private_key_(), public_key_(),
       public_key_signature_() {
   cryobj_.set_symm_algorithm(crypto::AES_256);

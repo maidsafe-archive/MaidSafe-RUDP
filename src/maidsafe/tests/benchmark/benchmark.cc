@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
       ("verbose,v", po::bool_switch(), "Print log to console.")
       ("kadconfigfile,k",
         po::value(&kadconfigpath)->default_value(kadconfigpath),
-        "Complete pathname of kadconfig file. Default is KNode<port>/."
+        "Complete pathname of kadconfig file. Default is Node<port>/."
         "kadconfig")
       ("port,p", po::value(&port)->default_value(port),
         "Local port to start node.  Default is 0, that starts in random port.")
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
     kcp.use_upnp = false;
     kcp.type = kademlia::CLIENT;
     kcp.port = port;
-    boost::shared_ptr<kademlia::KNode> node(new kademlia::KNode(cm, tra, kcp));
+    boost::shared_ptr<kademlia::Node> node(new kademlia::Node(cm, tra, kcp));
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
