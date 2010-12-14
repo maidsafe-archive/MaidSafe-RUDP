@@ -36,6 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/io_service.hpp>
 #include <boost/date_time/posix_time/posix_time_duration.hpp>
 #include <maidsafe/transport/transportconditions.h>
 #include <string>
@@ -66,6 +67,13 @@ struct Endpoint {
 };
 
 const DataSize kMaxTransportMessageSize = 67108864;
+
+// transport signals
+typedef bs2::signal<void(const ConversationId&,
+                         const std::string&,
+                         const Info&)> OnMessageReceived;
+typedef bs2::signal<void(const ConversationId&,
+                         const TransportCondition&)> OnError;
 
 // Base class for all transport types.
 class Transport {
@@ -108,64 +116,25 @@ class Transport {
   virtual void SendStream(const std::istream &data,
                           const Endpoint &endpoint) = 0;
   /**
-   * Getter for the transport's signals.
-   * @return A pointer to the signals object.
-   */
-  boost::shared_ptr<Signals> signals() { return signals_; }
-  /**
    * Getter for the listening port.
    * @return The port number or 0 if not listening.
    */
   Port listening_port() const { return listening_port_; }
+  OnMessageReceived on_message_received() { return on_message_received_; }
+  OnError on_error() { return on_error_; }
  protected:
-  Transport() : signals_(new Signals), listening_port_(0) {}
-  boost::shared_ptr<Signals> signals_;
+  Transport(boost::shared_ptr<boost::asio::io_service> io_service)
+    : io_service_(io_service),
+      listening_port_(0),
+      on_message_received_(),
+      on_error_() {}
+  boost::shared_ptr<boost::asio::io_service> io_service_;
   Port listening_port_;
+  OnMessageReceived on_message_received_;
+  OnError on_error_;
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
-};
-
-// to handle the event of receiving a message
-typedef bs2::signal<void(const ConversationId&,
-                         const std::string&,
-                         const Info&)> OnMessageReceived;
-
-// to handle the event of any kind of failure, at any stage
-typedef bs2::signal<void(const ConversationId&,
-                         const TransportCondition&)> OnError;
-
-class Signals {
- public:
-  Signals() : on_message_received_(),
-              on_error_() {}
-  ~Signals() {}
-
-  // OnMessageReceived =========================================================
-  bs2::connection ConnectOnMessageReceived(
-      const OnMessageReceived::slot_type &slot) {
-    return on_message_received_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnMessageReceived(
-      const int &group,
-      const OnMessageReceived::slot_type &slot) {
-    return on_message_received_.connect(group, slot);
-  }
-
-  // OnError ===================================================================
-  bs2::connection ConnectOnError(const OnError::slot_type &slot) {
-    return on_error_.connect(slot);
-  }
-
-  bs2::connection GroupConnectOnStats(const int &group,
-                                      const OnError::slot_type &slot) {
-    return on_error_.connect(group, slot);
-  }
-
- private:
-  OnMessageReceived on_message_received_;
-  OnError on_error_;
 };
 
 }  // namespace transport
