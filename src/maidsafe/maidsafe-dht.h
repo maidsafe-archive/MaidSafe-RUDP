@@ -35,12 +35,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/rpcprotocol/channelmanager-api.h>
 #include <maidsafe/rpcprotocol/channel-api.h>
-#include <maidsafe/kademlia/knode-api.h>
+#include <maidsafe/kademlia/node-api.h>
 
 // General files
 #include <maidsafe/base/alternativestore.h>
 #include <maidsafe/base/crypto.h>
-#include <maidsafe/kademlia/kadid.h>
+#include <maidsafe/kademlia/nodeid.h>
 #include <maidsafe/base/log.h>
 #include <maidsafe/kademlia/contact.h>
 #include <maidsafe/base/online.h>

@@ -41,9 +41,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 
-namespace kad {
+namespace kademlia {
 class Contact;
-}  // namespace kad
+}  // namespace kademlia
 
 
 namespace base {

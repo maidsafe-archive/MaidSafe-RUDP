@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>  //  NOLINT
 
 #include "maidsafe/base/log.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/node-api.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
@@ -244,7 +244,7 @@ int main(int argc, char **argv) {
       tra->StopListening(port);
       return 1;
     }
-    kademlia::KnodeConstructionParameters kcp;
+    kademlia::NodeConstructionParameters kcp;
     kcp.alpha = kademlia::kAlpha;
     kcp.beta = kademlia::kBeta;
     kcp.k = test_benchmark::K;
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
-      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(port);
+      kadconfigpath = "NodeInfo" + boost::lexical_cast<std::string>(port);
       boost::filesystem::create_directories(kadconfigpath);
       kadconfigpath += "/.kadconfig";
     }
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
     }
 
     // get node IDs from text file
-    std::vector<kademlia::KadId> nodes;
+    std::vector<kademlia::NodeId> nodes;
     if (vm.count("id_list")) {
       try {
         boost::filesystem::ifstream idf(vm["id_list"].as<std::string>(),
@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
           char line[150];
           idf.getline(line, sizeof(line));
           try {
-            kademlia::KadId id(line, kademlia::KadId::kHex);
+            kademlia::NodeId id(line, kademlia::NodeId::kHex);
             nodes.push_back(id);
           }
           catch(const std::exception &) {

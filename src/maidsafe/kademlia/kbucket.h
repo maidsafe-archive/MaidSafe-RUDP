@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <vector>
 #include <string>
-#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/maidsafe-dht_config.h"
 
 namespace kademlia {
@@ -42,38 +42,38 @@ class KBucket {
  public:
   // The lower and upper boundary for the range in the 512-bit ID
   // space covered by this k-bucket
-  KBucket(const KadId &min, const KadId &max,
+  KBucket(const NodeId &min, const NodeId &max,
           const boost::uint16_t &kb_K);
   ~KBucket();
   // add a new contact to the k-bucket
   KBucketExitCode AddContact(const Contact &new_contact);
   // return an existing contact pointer with the specified node_id
-  bool GetContact(const KadId &node_id, Contact *contact);
+  bool GetContact(const NodeId &node_id, Contact *contact);
   // Returns a list containing up to the first count number of contacts
   // excluding the list of contacts provided.
   void GetContacts(const boost::uint16_t &count,
                    const std::vector<Contact> &exclude_contacts,
                    std::vector<Contact> *contacts);
   // remove the existing contact with the specified node_id
-  void RemoveContact(const KadId &node_id, const bool &force);
+  void RemoveContact(const NodeId &node_id, const bool &force);
   // Tests whether the specified key (i.e. node ID) is in the range
   // of the 160-bit ID space covered by this k-bucket (in otherwords, it
   // returns whether or not the specified key should be placed in this
   // k-bucket)
-  bool KeyInRange(const KadId &key);
+  bool KeyInRange(const NodeId &key);
   // return the number of contacts in this k-bucket
   size_t Size() const;
   // returns last seen contact of the kbucket (end of the list)
   Contact LastSeenContact();
   boost::uint32_t last_accessed() const;
   void set_last_accessed(const boost::uint32_t &time_accessed);
-  KadId range_min() const;
-  KadId range_max() const;
+  NodeId range_min() const;
+  NodeId range_max() const;
 
  private:
   boost::uint32_t last_accessed_;
   std::list<Contact> contacts_;
-  KadId range_min_, range_max_;
+  NodeId range_min_, range_max_;
   boost::uint16_t K_;
 };
 

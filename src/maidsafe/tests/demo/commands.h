@@ -37,14 +37,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace rpcprotocol {
 class ChannelManager;
-class KadId;
+class NodeId;
 typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
 }  // namespace rpcprotocol
 
-namespace kad {
+namespace kademlia {
 class KNode;
-class KadId;
-}  // namespace kad
+class NodeId;
+}  // namespace kademlia
 
 namespace kaddemo {
 
@@ -55,13 +55,13 @@ class Commands {
            const boost::uint16_t &K);
   void Run();
  private:
-  void FindValueCallback(const std::string &result, const kademlia::KadId &key,
+  void FindValueCallback(const std::string &result, const kademlia::NodeId &key,
                          const bool &write_to_file, const std::string &path);
-  void StoreCallback(const std::string &result, const kademlia::KadId &key,
+  void StoreCallback(const std::string &result, const kademlia::NodeId &key,
                      const boost::int32_t &ttl);
-  void PingCallback(const std::string &result, const kademlia::KadId &id);
+  void PingCallback(const std::string &result, const kademlia::NodeId &id);
   void GetNodeContactDetailsCallback(const std::string &result,
-                                     const kademlia::KadId &id);
+                                     const kademlia::NodeId &id);
   void ProcessCommand(const std::string &cmdline, bool *wait_for_cb);
   void PrintUsage();
   bool ReadFile(const std::string &path, std::string *content);

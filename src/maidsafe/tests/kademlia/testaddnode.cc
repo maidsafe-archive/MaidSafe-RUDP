@@ -33,16 +33,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/node-api.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
 
-namespace kad {
+namespace kademlia {
 
-namespace test_add_knode {
+namespace test_add_node {
 
 static const boost::uint16_t K = 16;
 
@@ -79,15 +79,15 @@ class MessageHandler {
   MessageHandler& operator=(const MessageHandler&);
 };
 
-class TestKnodes : public testing::Test {
+class TestNodes : public testing::Test {
  public:
-  TestKnodes() : nodes_(), ch_managers_(), transports_(), transport_ports_(),
+  TestNodes() : nodes_(), ch_managers_(), transports_(), transport_ports_(),
                  msg_handlers_(), datastore_dir_(2), test_dir_() {}
-  virtual ~TestKnodes() {}
+  virtual ~TestNodes() {}
  protected:
   void SetUp() {
     transports_.clear();
-    test_dir_ = std::string("temp/TestKnodes") +
+    test_dir_ = std::string("temp/TestNodes") +
                 boost::lexical_cast<std::string>(base::RandomUint32());
     try {
       if (boost::filesystem::exists(test_dir_))
@@ -101,11 +101,11 @@ class TestKnodes : public testing::Test {
     transports_.resize(2);
     transport_ports_.resize(2);
     datastore_dir_.resize(2);
-    KnodeConstructionParameters kcp;
+    NodeConstructionParameters kcp;
     kcp.type = VAULT;
     kcp.alpha = kademlia::kAlpha;
     kcp.beta = kademlia::kBeta;
-    kcp.k = test_add_knode::K;
+    kcp.k = test_add_node::K;
     kcp.port_forwarded = false;
     kcp.private_key = "";
     kcp.public_key = "";
@@ -126,7 +126,7 @@ class TestKnodes : public testing::Test {
       boost::filesystem::create_directories(
           boost::filesystem::path(datastore_dir_[i]));
       nodes_.push_back(KNode(ch_managers_[i], transports_[i], kcp));
-      std::string s(nodes_[i].node_id().ToStringEncoded(kademlia::KadId::kHex));
+      std::string s(nodes_[i].node_id().ToStringEncoded(kademlia::NodeId::kHex));
       DLOG(INFO) << "Listening port for node " <<  s.substr(0, 16) << ": "
                  << transport_ports_[i] << std::endl;
     }
@@ -156,8 +156,8 @@ class TestKnodes : public testing::Test {
   std::string test_dir_;
 };
 
-TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
-  if (test_add_knode::K <= 2) {
+TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
+  if (test_add_node::K <= 2) {
     SUCCEED();
     return;
   }
@@ -169,8 +169,8 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  kademlia::KadId kadid(id, kademlia::KadId::kHex);
-  nodes_[0].JoinFirstNode(kadid, kconfig_file, local_ip.to_string(),
+  kademlia::NodeId node_id(id, kademlia::NodeId::kHex);
+  nodes_[0].JoinFirstNode(node_id, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
                           boost::bind(&GeneralKadCallback::CallbackFunc,
                                       &callback, _1));
@@ -180,8 +180,8 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   ASSERT_TRUE(nodes_[0].is_joined());
 
   // Adding Contacts until kbucket splits and filling kbuckets
-  std::vector<std::string> bucket2ids(test_add_knode::K + 1), bucket1ids(3);
-  for (int i = 0; i < test_add_knode::K + 1; i++) {
+  std::vector<std::string> bucket2ids(test_add_node::K + 1), bucket1ids(3);
+  for (int i = 0; i < test_add_node::K + 1; i++) {
     for (int j = 0; j < kKeySizeBytes * 2; ++j)
       bucket2ids[i] += "f";
     std::string rep;
@@ -202,8 +202,8 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
   int port = 7000;
   Contact last_seen;
   std::string ip = "127.0.0.1";
-  for (int i = 1 ; i < test_add_knode::K - 2; ++i) {
-    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
+  for (int i = 1 ; i < test_add_node::K - 2; ++i) {
+    kademlia::NodeId id(bucket2ids[i], kademlia::NodeId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     if (i == 1)
@@ -211,12 +211,12 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
     ++port;
   }
   for (int i = 0; i < 3; ++i) {
-    kademlia::KadId id(bucket1ids[i], kademlia::KadId::kHex);
+    kademlia::NodeId id(bucket1ids[i], kademlia::NodeId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
-  for (int i = test_add_knode::K - 2; i < test_add_knode::K + 1; ++i) {
+  for (int i = test_add_node::K - 2; i < test_add_node::K + 1; ++i) {
     std::string id = base::DecodeFromHex(bucket2ids[i]);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
@@ -242,13 +242,13 @@ TEST_F(TestKnodes, BEH_KAD_TestLastSeenNotReply) {
                           std::ios::in | std::ios::binary);
   ASSERT_TRUE(kad_config.ParseFromIstream(&inputfile));
   inputfile.close();
-  ASSERT_EQ(test_add_knode::K + 3, kad_config.contact_size());
+  ASSERT_EQ(test_add_node::K + 3, kad_config.contact_size());
 
   ASSERT_FALSE(nodes_[0].is_joined());
 }
 
-TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
-  if (test_add_knode::K <= 2) {
+TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
+  if (test_add_node::K <= 2) {
     SUCCEED();
     return;
   }
@@ -263,7 +263,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  kademlia::KadId kid(id, kademlia::KadId::kHex), kid2(id2, kademlia::KadId::kHex);
+  kademlia::NodeId kid(id, kademlia::NodeId::kHex), kid2(id2, kademlia::NodeId::kHex);
   nodes_[0].JoinFirstNode(kid, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
                           boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -276,7 +276,7 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   // routing table
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
-  kad_contact->set_node_id(nodes_[0].node_id().ToStringEncoded(KadId::kHex));
+  kad_contact->set_node_id(nodes_[0].node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0].ip());
   kad_contact->set_port(nodes_[0].port());
   kad_contact->set_local_ip(nodes_[0].local_ip());
@@ -296,8 +296,8 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   ASSERT_TRUE(nodes_[0].GetContact(nodes_[1].node_id(), &last_seen));
 
   // Adding Contacts until kbucket splits and filling kbuckets
-  std::vector<std::string> bucket2ids(test_add_knode::K), bucket1ids(3);
-  for (int i = 0; i < test_add_knode::K; ++i) {
+  std::vector<std::string> bucket2ids(test_add_node::K), bucket1ids(3);
+  for (int i = 0; i < test_add_node::K; ++i) {
     for (int j = 0; j < kKeySizeBytes * 2; ++j)
       bucket2ids[i] += "f";
     std::string rep;
@@ -318,26 +318,26 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
   int port = 7000;
 
   std::string ip = "127.0.0.1";
-  for (int i = 1 ; i < test_add_knode::K - 3; ++i) {
-    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
+  for (int i = 1 ; i < test_add_node::K - 3; ++i) {
+    kademlia::NodeId id(bucket2ids[i], kademlia::NodeId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   for (int i = 0; i < 3; ++i) {
-    kademlia::KadId id(bucket1ids[i], kademlia::KadId::kHex);
+    kademlia::NodeId id(bucket1ids[i], kademlia::NodeId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
-  for (int i = test_add_knode::K - 3; i < test_add_knode::K; ++i) {
-    kademlia::KadId id(bucket2ids[i], kademlia::KadId::kHex);
+  for (int i = test_add_node::K - 3; i < test_add_node::K; ++i) {
+    kademlia::NodeId id(bucket2ids[i], kademlia::NodeId::kHex);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   ++port;
-  Contact contact(kademlia::KadId(bucket2ids[0], kademlia::KadId::kHex), ip, port, ip,
+  Contact contact(kademlia::NodeId(bucket2ids[0], kademlia::NodeId::kHex), ip, port, ip,
                   port);
   ASSERT_EQ(2, nodes_[0].AddContact(contact, 0.0, false));
 
@@ -375,12 +375,12 @@ TEST_F(TestKnodes, FUNC_KAD_TestLastSeenReplies) {
                           std::ios::in | std::ios::binary);
   ASSERT_TRUE(kad_config.ParseFromIstream(&inputfile));
   inputfile.close();
-  ASSERT_EQ(test_add_knode::K + 3, kad_config.contact_size());
+  ASSERT_EQ(test_add_node::K + 3, kad_config.contact_size());
 
   ASSERT_FALSE(nodes_[0].is_joined());
   ASSERT_FALSE(nodes_[1].is_joined());
 }
 
-}  // namespace test_add_knode
+}  // namespace test_add_node
 
-}  // namespace kad
+}  // namespace kademlia

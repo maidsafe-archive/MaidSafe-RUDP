@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 5:  Use managed connections for rendezvous
 * 6:  Add tcp listen capability, may be another transport
 * 7:  Provide a brodcast tcp method " " " " "
-* 8:  When a knode can it will start a tcp listener on 80 and 443 and add this
+* 8:  When a node can it will start a tcp listener on 80 and 443 and add this
 *     to the contact tuple (prononced toople apparently :-) )
 * 9:  Thread send including connect
 * 10  Use thread pool

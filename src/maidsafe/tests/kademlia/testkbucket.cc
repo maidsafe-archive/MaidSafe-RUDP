@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
-namespace kad {
+namespace kademlia {
 
 namespace test_kbucket {
 
@@ -51,45 +51,45 @@ class TestKbucket : public testing::Test {
 };
 
 TEST_F(TestKbucket, BEH_KAD_IsInRange) {
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket1(min_value, max_value, K);
-  KadId id(cry_obj.Hash("15641654616", "", crypto::STRING_STRING, false));
+  NodeId id(cry_obj.Hash("15641654616", "", crypto::STRING_STRING, false));
   ASSERT_TRUE(kbucket1.KeyInRange(id));
   hex_max_val = "";
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "a";
-  KadId max_value1(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value1(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket2(min_value, max_value1, K);
   std::string enc_id;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     enc_id += "b";
-  ASSERT_FALSE(kbucket2.KeyInRange(KadId(enc_id, kademlia::KadId::kHex)));
+  ASSERT_FALSE(kbucket2.KeyInRange(NodeId(enc_id, kademlia::NodeId::kHex)));
 }
 
 TEST_F(TestKbucket, BEH_KAD_AddAndGetContact) {
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  KadId id[K];
+  NodeId id[K];
   std::string ip("127.0.0.1");
   boost::int16_t port = 8880;
   for (boost::int16_t i = 0; i < K; ++i) {
     ASSERT_EQ(i, kbucket.Size());
-    id[i] = KadId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
+    id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
                   crypto::STRING_STRING, false));
     ++port;
     Contact contact(id[i], ip, port, ip, port);
     ASSERT_EQ(SUCCEED, kbucket.AddContact(contact));
   }
   ++port;
-  KadId id1(cry_obj.Hash("125486", "", crypto::STRING_STRING, false));
+  NodeId id1(cry_obj.Hash("125486", "", crypto::STRING_STRING, false));
   ASSERT_EQ(K, kbucket.Size());
   Contact contact1(id1, ip, port, ip, port);
   ASSERT_EQ(FULL, kbucket.AddContact(contact1));
@@ -107,7 +107,7 @@ TEST_F(TestKbucket, BEH_KAD_AddAndGetContact) {
     ASSERT_EQ(contact.local_port(), contact_rec.local_port());
   }
   Contact contact_rec;
-  ASSERT_FALSE(kbucket.GetContact(KadId(), &contact_rec));
+  ASSERT_FALSE(kbucket.GetContact(NodeId(), &contact_rec));
 }
 
 TEST_F(TestKbucket, BEH_KAD_GetContacts) {
@@ -116,17 +116,17 @@ TEST_F(TestKbucket, BEH_KAD_GetContacts) {
     return;
   }
 
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  KadId id[K - 1];
+  NodeId id[K - 1];
   std::string ip("127.0.0.1");
   boost::int16_t port[K - 1];
   for (boost::int16_t i = 0; i < K - 1; ++i) {
-    id[i] = KadId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
+    id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
         crypto::STRING_STRING, false));
     port[i] = 8880 + i;
     Contact contact(id[i], ip, port[i], ip, port[i]);
@@ -175,17 +175,17 @@ TEST_F(TestKbucket, BEH_KAD_DeleteContact) {
     return;
   }
 
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  KadId id[K - 1];
+  NodeId id[K - 1];
   std::string ip("127.0.0.1");
   boost::int16_t port = 8880;
   for (boost::int16_t i = 0; i < K - 1; ++i) {
-    id[i] = KadId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
+    id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
         crypto::STRING_STRING, false));
     ++port;
     Contact contact(id[i], ip, port, ip, port);
@@ -211,11 +211,11 @@ TEST_F(TestKbucket, BEH_KAD_DeleteContact) {
 }
 
 TEST_F(TestKbucket, BEH_KAD_SetLastAccessed) {
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
   boost::uint32_t time_accessed = base::GetEpochTime();
   kbucket.set_last_accessed(time_accessed);
@@ -223,17 +223,17 @@ TEST_F(TestKbucket, BEH_KAD_SetLastAccessed) {
 }
 
 TEST_F(TestKbucket, BEH_KAD_FillKbucketUpdateContent) {
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  KadId id[K];
+  NodeId id[K];
   std::string ip = "127.0.0.1";
   boost::int16_t port[K];
   for (boost::int16_t i = 0; i < K; ++i) {
-    id[i] = KadId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
+    id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
                                crypto::STRING_STRING, false));
     port[i] = 8880 + i;
     Contact contact(id[i], ip, port[i], ip, port[i]);
@@ -261,17 +261,17 @@ TEST_F(TestKbucket, BEH_KAD_AddSameContact) {
     return;
   }
 
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, test_kbucket::K);
-  KadId id[test_kbucket::K - 1];
+  NodeId id[test_kbucket::K - 1];
   std::string ip("127.0.0.1");
   boost::int16_t port[test_kbucket::K - 1];
   for (boost::int16_t i = 0; i < test_kbucket::K - 1; ++i) {
-    id[i] = KadId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
+    id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
                                crypto::STRING_STRING, false));
     port[i] = 8880 + i;
     Contact contact(id[i], ip, port[i], ip, port[i]);
@@ -330,11 +330,11 @@ TEST_F(TestKbucket, BEH_KAD_AddSameContact) {
 }
 
 TEST_F(TestKbucket, BEH_KAD_GetOldestContact) {
-  KadId min_value;
+  NodeId min_value;
   std::string hex_max_val;
   for (boost::int16_t i = 0; i < kKeySizeBytes * 2; ++i)
     hex_max_val += "f";
-  KadId max_value(hex_max_val, kademlia::KadId::kHex);
+  NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
   std::string id[K - 1], ip("127.0.0.1");
   boost::int16_t port[K - 1];
@@ -356,4 +356,4 @@ TEST_F(TestKbucket, BEH_KAD_GetOldestContact) {
 
 }  // namespace test_kbucket
 
-}  // namespace kad
+}  // namespace kademlia

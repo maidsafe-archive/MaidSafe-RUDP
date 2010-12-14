@@ -32,22 +32,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/node-api.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
-namespace kad {
+namespace kademlia {
 
 namespace refresh_test {
 
 class TestRefresh : public testing::Test {
  public:
   TestRefresh() : transports_(), ch_managers_(), nodes_(), datadirs_(),
-                  test_dir_("temp/TestKnodes_"), testK_(4), testRefresh_(10),
+                  test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
                   testNetworkSize_(10), transport_ports_() {
     test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
   }
@@ -69,7 +69,7 @@ class TestRefresh : public testing::Test {
     nodes_.resize(testNetworkSize_);
     datadirs_.resize(testNetworkSize_);
     transport_ports_.resize(testNetworkSize_);
-    KnodeConstructionParameters kcp;
+    NodeConstructionParameters kcp;
     kcp.type = VAULT;
     kcp.alpha = kademlia::kAlpha;
     kcp.beta = kademlia::kBeta;
@@ -113,7 +113,7 @@ class TestRefresh : public testing::Test {
       base::KadConfig kad_config1;
       base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
-            nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
+            nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
       kad_contact->set_ip(nodes_[0]->ip());
       kad_contact->set_port(nodes_[0]->port());
       kad_contact->set_local_ip(nodes_[0]->local_ip());
@@ -171,7 +171,7 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
@@ -213,7 +213,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
@@ -248,7 +248,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   transport::Port p = trans->StartListening("", 0, &tc);
   ASSERT_EQ(transport::kSuccess, tc);
   ASSERT_EQ(0, chm->Start());
-  KnodeConstructionParameters kcp;
+  NodeConstructionParameters kcp;
   kcp.type = VAULT;
   kcp.alpha = kademlia::kAlpha;
   kcp.beta = kademlia::kBeta;
@@ -264,7 +264,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   std::string kconfig_file1(local_dir + "/.kadconfig");
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
-  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
+  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
   kad_contact->set_local_ip(nodes_[0]->local_ip());
@@ -300,7 +300,7 @@ class TestRefreshSignedValues : public testing::Test {
  protected:
   TestRefreshSignedValues()
       : transports_(), ch_managers_(), nodes_(), datadirs_(), keys_(),
-        test_dir_("temp/TestKnodes_"), testK_(4), testRefresh_(10),
+        test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
         testNetworkSize_(10), validators_(), transport_ports_() {
     test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
   }
@@ -328,7 +328,7 @@ class TestRefreshSignedValues : public testing::Test {
     validators_.resize(testNetworkSize_);
 
     crypto::RsaKeyPair keys;
-    KnodeConstructionParameters kcp;
+    NodeConstructionParameters kcp;
     kcp.type = VAULT;
     kcp.alpha = kademlia::kAlpha;
     kcp.beta = kademlia::kBeta;
@@ -378,7 +378,7 @@ class TestRefreshSignedValues : public testing::Test {
       base::KadConfig kad_config1;
       base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
-            nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
+            nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
       kad_contact->set_ip(nodes_[0]->ip());
       kad_contact->set_port(nodes_[0]->port());
       kad_contact->set_local_ip(nodes_[0]->local_ip());
@@ -437,7 +437,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024*5);
   StoreValueCallback store_cb;
   std::string signed_public_key, signed_request;
@@ -498,7 +498,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
@@ -555,7 +555,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
 
   crypto::RsaKeyPair keys;
   keys.GenerateKeys(4096);
-  KnodeConstructionParameters kcp;
+  NodeConstructionParameters kcp;
   kcp.type = VAULT;
   kcp.alpha = kademlia::kAlpha;
   kcp.beta = kademlia::kBeta;
@@ -571,7 +571,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
-  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
+  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
   kad_contact->set_local_ip(nodes_[0]->local_ip());
@@ -615,7 +615,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  kademlia::KadId key(co.Hash("key", "", crypto::STRING_STRING, false));
+  kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
@@ -653,7 +653,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
 
   crypto::RsaKeyPair keys;
   keys.GenerateKeys(4096);
-  KnodeConstructionParameters kcp;
+  NodeConstructionParameters kcp;
   kcp.type = VAULT;
   kcp.alpha = kademlia::kAlpha;
   kcp.beta = kademlia::kBeta;
@@ -669,7 +669,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   std::string kconfig_file1 = local_dir + "/.kadconfig";
   base::KadConfig kad_config1;
   base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
-  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(KadId::kHex));
+  kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
   kad_contact->set_local_ip(nodes_[0]->local_ip());
@@ -759,4 +759,4 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
 
 }  // namespace refresh_test
 
-}  // namespace kad
+}  // namespace kademlia

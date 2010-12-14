@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kademlia {
 
-KBucket::KBucket(const KadId &min, const KadId &max,
+KBucket::KBucket(const NodeId &min, const NodeId &max,
                  const boost::uint16_t &kb_K)
     : last_accessed_(0), contacts_(), range_min_(min), range_max_(max),
       K_(kb_K) {}
@@ -39,7 +39,7 @@ KBucket::~KBucket() {
   contacts_.clear();
 }
 
-bool KBucket::KeyInRange(const KadId &key) {
+bool KBucket::KeyInRange(const NodeId &key) {
   return static_cast<bool>((range_min_ <= key) && (key <= range_max_));
 }
 
@@ -78,7 +78,7 @@ KBucketExitCode KBucket::AddContact(const Contact &new_contact) {
   return SUCCEED;
 }
 
-void KBucket::RemoveContact(const KadId &node_id, const bool &force) {
+void KBucket::RemoveContact(const NodeId &node_id, const bool &force) {
   int position(-1), i(0);
   for (std::list<Contact>::const_iterator it = contacts_.begin();
        it != contacts_.end(); ++it) {
@@ -102,7 +102,7 @@ void KBucket::RemoveContact(const KadId &node_id, const bool &force) {
   }
 }
 
-bool KBucket::GetContact(const KadId &node_id, Contact *contact) {
+bool KBucket::GetContact(const NodeId &node_id, Contact *contact) {
   bool result = false;
   for (std::list<Contact>::const_iterator it = contacts_.begin();
        it != contacts_.end() && !result; ++it) {
@@ -134,9 +134,9 @@ void KBucket::GetContacts(const boost::uint16_t &count,
   }
 }
 
-KadId KBucket::range_min() const { return range_min_; }
+NodeId KBucket::range_min() const { return range_min_; }
 
-KadId KBucket::range_max() const { return range_max_; }
+NodeId KBucket::range_max() const { return range_max_; }
 
 Contact KBucket::LastSeenContact() {
   if (contacts_.empty()) {
@@ -146,4 +146,4 @@ Contact KBucket::LastSeenContact() {
   return contacts_.back();
 }
 
-}  // namespace kad
+}  // namespace kademlia

@@ -35,8 +35,7 @@ namespace kademlia {
 // transports to support tcp as well as reliable udp
 
 template <class T>
-KadRpcs::KadRpcs(T)
-{
+KadRpcs::KadRpcs(T) {
       // Create a transport object for each RPC
       boost::shared_ptr<transport::Transport>
                         transport_(new T);

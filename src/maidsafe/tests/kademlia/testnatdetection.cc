@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// This tests NAT Detection and bootstrap services between three knodes, node 1
+// This tests NAT Detection and bootstrap services between three nodes, node 1
 // being the newcomer, node 2 being the rendezvouz and node 3 being the contact
 // which node 2 uses to test direct-connection status of node 1.
 
@@ -33,8 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <google/protobuf/descriptor.h>
 #include <boost/filesystem.hpp>
-#include "maidsafe/kademlia/kadservice.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/service.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/transport.h"
@@ -46,7 +46,7 @@ namespace test_nat_detection {
   static const boost::uint16_t K = 16;
 }  // namespace test_nat_detection
 
-namespace kad {
+namespace kademlia {
 
 class Callback {
  public:
@@ -115,7 +115,7 @@ class NatDetectionTest: public testing::Test {
     datastoreA_.reset(new DataStore(kRefreshTime));
     routingtableA_.reset(new RoutingTable(contactA_.node_id(),
                                           test_nat_detection::K));
-    serviceA_.reset(new KadService(NatRpcs(&channel_managerA_,
+    serviceA_.reset(new Service(NatRpcs(&channel_managerA_,
         trans_handlers_[0]), datastoreA_, false,
         boost::bind(&NatDetectionTest::AddCtc, this, _1, _2, _3, 1),
         boost::bind(&NatDetectionTest::GetRandCtcs, this, _1, _2, _3, 1),
@@ -156,7 +156,7 @@ class NatDetectionTest: public testing::Test {
     datastoreB_.reset(new DataStore(kRefreshTime));
     routingtableB_.reset(new RoutingTable(contactB_.node_id(),
                                           test_nat_detection::K));
-    serviceB_.reset(new KadService(NatRpcs(&channel_managerB_,
+    serviceB_.reset(new Service(NatRpcs(&channel_managerB_,
       trans_handlers_[1]), datastoreB_, false,
         boost::bind(&NatDetectionTest::AddCtc, this, _1, _2, _3, 2),
         boost::bind(&NatDetectionTest::GetRandCtcs, this, _1, _2, _3, 2),
@@ -195,7 +195,7 @@ class NatDetectionTest: public testing::Test {
     datastoreC_.reset(new DataStore(kRefreshTime));
     routingtableC_.reset(new RoutingTable(contactC_.node_id(),
                                           test_nat_detection::K));
-    serviceC_.reset(new KadService(NatRpcs(&channel_managerC_,
+    serviceC_.reset(new Service(NatRpcs(&channel_managerC_,
         trans_handlers_[2]), datastoreC_, false,
         boost::bind(&NatDetectionTest::AddCtc, this, _1, _2, _3, 3),
         boost::bind(&NatDetectionTest::GetRandCtcs, this, _1, _2, _3, 3),
@@ -223,7 +223,7 @@ class NatDetectionTest: public testing::Test {
     // Set up another contact
     hex_id = "22222222222222222222222222222222222222222222222222222222222222222"
              "222222222222222222222222222222222222222222222222222222222222222";
-    remote_node_id_ = kad::KadId(hex_id, kad::KadId::kHex);
+    remote_node_id_ = kademlia::NodeId(hex_id, kademlia::NodeId::kHex);
     remote_contact_.set_node_id(remote_node_id_.String());
     remote_contact_.set_ip("127.0.0.5");
     remote_contact_.set_port(5555);
@@ -259,8 +259,8 @@ class NatDetectionTest: public testing::Test {
   Contact contactA_, contactB_, contactC_;
   ContactInfo remote_contact_;
   std::string contact_strA_, contact_strB_, contact_strC_;
-  kad::KadId remote_node_id_;
-  boost::shared_ptr<KadService> serviceA_, serviceB_, serviceC_;
+  kademlia::NodeId remote_node_id_;
+  boost::shared_ptr<Service> serviceA_, serviceB_, serviceC_;
   boost::shared_ptr<DataStore> datastoreA_, datastoreB_, datastoreC_;
   boost::shared_ptr<RoutingTable>routingtableA_, routingtableB_, routingtableC_;
   boost::shared_ptr<rpcprotocol::Channel> channelA_, channelB_, channelC_;
@@ -280,7 +280,7 @@ class NatDetectionTest: public testing::Test {
     }
     return result;
   }
-  bool GetCtc(const kad::KadId &id, Contact *ctc, const int &rt_id) {
+  bool GetCtc(const kademlia::NodeId &id, Contact *ctc, const int &rt_id) {
     bool result;
     switch (rt_id) {
       case 1: result = routingtableA_->GetContact(id, ctc);
@@ -308,7 +308,7 @@ class NatDetectionTest: public testing::Test {
       default: kbuckets = 0;
     }
     for (boost::uint16_t i = 0; i < kbuckets; ++i) {
-      std::vector<kad::Contact> contacts_i;
+      std::vector<kademlia::Contact> contacts_i;
       switch (rt_id) {
         case 1: routingtableA_->GetContacts(i, ex_ctcs, &contacts_i);
                 break;
@@ -324,7 +324,7 @@ class NatDetectionTest: public testing::Test {
     all_contacts.resize(std::min(all_contacts.size(), count));
     *ctcs = all_contacts;
   }
-  void GetKCtcs(const KadId &key, const std::vector<Contact> &ex_ctcs,
+  void GetKCtcs(const NodeId &key, const std::vector<Contact> &ex_ctcs,
                 std::vector<Contact> *ctcs, const boost::uint16_t &rt_id) {
     switch (rt_id) {
       case 1: routingtableA_->FindCloseNodes(key, test_nat_detection::K,
@@ -342,14 +342,14 @@ class NatDetectionTest: public testing::Test {
     boost::thread thrd(boost::bind(&NatDetectionTest::ExePingCb, this,
                                    ctc.node_id(), callback));
   }
-  void ExePingCb(const kad::KadId&, VoidFunctorOneString callback) {
+  void ExePingCb(const kademlia::NodeId&, VoidFunctorOneString callback) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     PingResponse resp;
     resp.set_result(kRpcResultFailure);
     callback(resp.SerializeAsString());
   }
   void HandleDeadRVServer(const bool&) {}
-  void RemoveContact(const KadId&) {}
+  void RemoveContact(const NodeId&) {}
 };
 
 TEST_F(NatDetectionTest, BEH_KAD_NatDetPing) {
@@ -563,7 +563,7 @@ TEST_F(NatDetectionTest, FUNC_KAD_CompleteBootstrapNatDet) {
   serviceB_->Bootstrap_NatDetection(nd_response, nd_data5);
   while (!response.IsInitialized())
     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-  EXPECT_EQ(kad::kRpcResultFailure, response.result());
+  EXPECT_EQ(kademlia::kRpcResultFailure, response.result());
   EXPECT_FALSE(routingtableB_->GetContact(contactA_.node_id(), &contactback));
   delete ctrl5;
 }
@@ -671,5 +671,5 @@ TEST_F(NatDetectionTest, BEH_KAD_FullBootstrap) {
   EXPECT_EQ(1, response.nat_type());
 }
 
-}  // namespace kad
+}  // namespace kademlia
 */

@@ -25,57 +25,63 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/compressed_pair.hpp>
-#include <utility>
-#include "maidsafe/base/log.h"
-#include "maidsafe/kademlia/kadservice.h"
-#include "maidsafe/kademlia/kadrpc.h"
-#include "maidsafe/kademlia/knodeimpl.h"
-#include "maidsafe/kademlia/datastore.h"
+#include "maidsafe/kademlia/service.h"
+
+//#include <boost/compressed_pair.hpp>
+//#include <utility>
 #include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/protobuf/signed_kadvalue.pb.h"
+#include "maidsafe/base/log.h"
+#include "maidsafe/base/threadpool.h"
 #include "maidsafe/base/validationinterface.h"
-#include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/protobuf/transport_message.pb.h"
+//#include "maidsafe/kademlia/rpcs.h"
+//#include "maidsafe/kademlia/nodeimpl.h"
+//#include "maidsafe/kademlia/datastore.h"
+//#include "maidsafe/base/crypto.h"
+//#include "maidsafe/base/utils.h"
+//#include "maidsafe/kademlia/node-api.h"
+//#include "maidsafe/protobuf/signed_kadvalue.pb.h"
+//#include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/protobuf/transport_message.pb.h"
 
 
 namespace kademlia {
 
 static void downlist_ping_cb(const std::string&) {}
 
-KadService::KadService(boost::shared_ptr<transport::Transport> transport,
-             boost::shared_ptr<RoutingTable> routing_table,
-             boost::shared_ptr<base::Threadpool> threadpool,
-             boost::shared_ptr<DataStore> datastore,
-             const bool &hasRSAkeys)
-    : transport_(transport), routing_table_(routing_table),
-      threadpool_(threadpool), datastore_(datastore),
-      pdatastore_(datastore), node_joined_(false), node_hasRSAkeys_(hasRSAkeys),
-      node_info_(), alternative_store_(NULL), signature_validator_(NULL) {
-        // Connect to transport signals to process messages received
-      request_ = transport::Signals.ConnectOnMessageReceived(
-                     boost::bind(&KadService::Parse,
-                                 this, _1, _2, _3));
-      }
+Service::Service(boost::shared_ptr<transport::Transport> transport,
+                       boost::shared_ptr<RoutingTable> routing_table,
+                       boost::shared_ptr<base::Threadpool> threadpool,
+                       boost::shared_ptr<DataStore> datastore,
+                       bool using_signatures)
+    : transport_(transport),
+      routing_table_(routing_table),
+      threadpool_(threadpool),
+      datastore_(datastore),
+      node_joined_(false),
+      using_signatures_(using_signatures),
+      node_info_(),
+      alternative_store_(NULL),
+      signature_validator_(NULL) {
+  // Connect to transport signals to process messages received
+  connection_to_message_received_ =
+      transport_->signals()->ConnectOnMessageReceived(boost::bind(
+          &Service::Demux, this, _1, _2, _3));
+}
 
-void KadService::Parse(transport::SocketId &message_id,
-                       TransportMessage &message,
-                       transport::Stats &stats)
-{
+void Service::Demux(transport::SocketId message_id,
+                       transport::TransportMessage message,
+                       transport::Stats stats) {
   // parse message, get type and have the service find result.
   // pass all services to an io_service (threadpool)
   if (TransportMessage().data().GetExtension<Ping>(message)) {
-  threadpool_->EnqueueTask(boost::bind(&KadService::Ping,
+  threadpool_->EnqueueTask(boost::bind(&Service::Ping,
                                       this, _1, _2);
   } // and the other else if statements - or switch
 }
 
 
-void KadService::Ping(transport::SocketId &message_id,
+void Service::Ping(transport::SocketId &message_id,
             const boost::shared_ptr<transport::PingRequest> request) {
     transport::TransportMessage::Data response;
     response.SetExtension<ping_response>(set_echo, "pong");
@@ -83,10 +89,10 @@ void KadService::Ping(transport::SocketId &message_id,
     response.SetExtension<ping_response>(set_node_id, node_info_.node_id());
    // transport_.send(message_id, response.SerializeToString());
     // send to transport here, we do not care if it times out or any such thing,
-    //were answering a kad request  
+    //were answering a kademlia request  
 }
 
-void KadService::FindNode(google::protobuf::RpcController *controller,
+void Service::FindNode(google::protobuf::RpcController *controller,
                           const FindRequest *request, FindResponse *response,
                           google::protobuf::Closure *done) {
   if (!node_joined_) {
@@ -99,7 +105,7 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
     response->set_result(false);
   } else if (GetSender(request->sender_info(), &sender)) {
     std::vector<Contact> closest_contacts, exclude_contacts;
-    KadId key(request->key());
+    NodeId key(request->key());
     if (key.IsValid()) {
       exclude_contacts.push_back(sender);
       routing_table_->FindCloseNodes(key, exclude_contacts, &closest_contacts);
@@ -137,7 +143,7 @@ void KadService::FindNode(google::protobuf::RpcController *controller,
   done->Run();
 }
 
-void KadService::FindValue(google::protobuf::RpcController *controller,
+void Service::FindValue(google::protobuf::RpcController *controller,
                            const FindRequest *request, FindResponse *response,
                            google::protobuf::Closure *done) {
   if (!node_joined_) {
@@ -164,7 +170,7 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
       }
     }
     if (pdatastore_->LoadItem(key, &values_str)) {
-      if (node_hasRSAkeys_) {
+      if (using_signatures_) {
         for (unsigned int i = 0; i < values_str.size(); i++) {
           SignedValue *signed_value = response->add_signed_values();
           signed_value->ParseFromString(values_str[i]);
@@ -192,10 +198,10 @@ void KadService::FindValue(google::protobuf::RpcController *controller,
   done->Run();
 }
 
-void KadService::Store(google::protobuf::RpcController *controller,
+void Service::Store(google::protobuf::RpcController *controller,
                        const StoreRequest *request, StoreResponse *response,
                        google::protobuf::Closure *done) {
-  DLOG(WARNING) << "KadService::Store - " << node_info_.port() << std::endl;
+  DLOG(WARNING) << "Service::Store - " << node_info_.port() << std::endl;
   if (!node_joined_) {
     response->set_result(false);
     done->Run();
@@ -207,7 +213,7 @@ void KadService::Store(google::protobuf::RpcController *controller,
                                   (controller);
   if (!CheckStoreRequest(request, &sender)) {
     response->set_result(false);
-  } else if (node_hasRSAkeys_) {
+  } else if (using_signatures_) {
     if (signature_validator_ == NULL ||
         !signature_validator_->ValidateSignerId(
             request->signed_request().signer_id(),
@@ -217,7 +223,7 @@ void KadService::Store(google::protobuf::RpcController *controller,
             request->signed_request().signed_request(),
             request->signed_request().public_key(),
             request->signed_request().signed_public_key(), request->key())) {
-      DLOG(WARNING) << "Failed to validate Store request for kad value"
+      DLOG(WARNING) << "Failed to validate Store request for kademlia value"
                     << std::endl;
       response->set_result(false);
     } else {
@@ -232,11 +238,11 @@ void KadService::Store(google::protobuf::RpcController *controller,
   done->Run();
 }
 
-void KadService::Delete(google::protobuf::RpcController *controller,
+void Service::Delete(google::protobuf::RpcController *controller,
                         const DeleteRequest *request, DeleteResponse *response,
                         google::protobuf::Closure *done) {
   // only node with RSAkeys can delete values
-  if (!node_joined_ || !node_hasRSAkeys_ || signature_validator_ == NULL ||
+  if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL ||
       !request->IsInitialized()) {
     response->set_result(false);
     done->Run();
@@ -290,7 +296,7 @@ void KadService::Delete(google::protobuf::RpcController *controller,
   done->Run();
 }
 
-void KadService::Update(google::protobuf::RpcController *controller,
+void Service::Update(google::protobuf::RpcController *controller,
                         const UpdateRequest *request,
                         UpdateResponse *response,
                         google::protobuf::Closure *done) {
@@ -298,15 +304,15 @@ void KadService::Update(google::protobuf::RpcController *controller,
   response->set_node_id(node_info_.node_id());
   response->set_result(false);
 
-  if (!node_joined_ || !node_hasRSAkeys_ || !request->IsInitialized()) {
+  if (!node_joined_ || !using_signatures_ || !request->IsInitialized()) {
     done->Run();
 #ifdef DEBUG
     if (!node_joined_)
-      DLOG(WARNING) << "KadService::Update - !node_joined_" << std::endl;
-    if (!node_hasRSAkeys_)
-      DLOG(WARNING) << "KadService::Update - !node_hasRSAkeys_" << std::endl;
+      DLOG(WARNING) << "Service::Update - !node_joined_" << std::endl;
+    if (!using_signatures_)
+      DLOG(WARNING) << "Service::Update - !using_signatures_" << std::endl;
     if (!request->IsInitialized())
-      DLOG(WARNING) << "KadService::Update - !request->IsInitialized()" <<
+      DLOG(WARNING) << "Service::Update - !request->IsInitialized()" <<
                        std::endl;
 #endif
     return;
@@ -325,19 +331,19 @@ void KadService::Update(google::protobuf::RpcController *controller,
     done->Run();
 #ifdef DEBUG
     if (signature_validator_ == NULL)
-      DLOG(WARNING) << "KadService::Update - signature_validator_ == NULL" <<
+      DLOG(WARNING) << "Service::Update - signature_validator_ == NULL" <<
                        std::endl;
     if (!signature_validator_->ValidateSignerId(
           request->request().signer_id(),
           request->request().public_key(),
           request->request().signed_public_key()))
-      DLOG(WARNING) << "KadService::Update - Failed ValidateSignerId" <<
+      DLOG(WARNING) << "Service::Update - Failed ValidateSignerId" <<
                  std::endl;
     if (!signature_validator_->ValidateRequest(
           request->request().signed_request(),
           request->request().public_key(),
           request->request().signed_public_key(), request->key()))
-      DLOG(WARNING) << "KadService::Update - Failed ValidateRequest" <<
+      DLOG(WARNING) << "Service::Update - Failed ValidateRequest" <<
                  std::endl;
 #endif
     return;
@@ -347,7 +353,7 @@ void KadService::Update(google::protobuf::RpcController *controller,
   std::vector<std::string> values_str;
   if (!pdatastore_->LoadItem(request->key(), &values_str)) {
     done->Run();
-    DLOG(WARNING) << "KadService::Update - Didn't find key" << std::endl;
+    DLOG(WARNING) << "Service::Update - Didn't find key" << std::endl;
     return;
   }
 
@@ -362,7 +368,7 @@ void KadService::Update(google::protobuf::RpcController *controller,
 
   if (!found) {
     done->Run();
-    DLOG(WARNING) << "KadService::Update - Didn't find value" << std::endl;
+    DLOG(WARNING) << "Service::Update - Didn't find value" << std::endl;
     return;
   }
 
@@ -372,7 +378,7 @@ void KadService::Update(google::protobuf::RpcController *controller,
                          request->request().public_key(),
                          crypto::STRING_STRING)) {
     done->Run();
-    DLOG(WARNING) << "KadService::Update - New value doesn't validate" <<
+    DLOG(WARNING) << "Service::Update - New value doesn't validate" <<
                      std::endl;
     return;
   }
@@ -384,7 +390,7 @@ void KadService::Update(google::protobuf::RpcController *controller,
                          request->request().public_key(),
                          crypto::STRING_STRING)) {
     done->Run();
-    DLOG(WARNING) << "KadService::Update - Old value doesn't validate" <<
+    DLOG(WARNING) << "Service::Update - Old value doesn't validate" <<
                      std::endl;
     return;
   }
@@ -402,7 +408,7 @@ hashable replacement values.
 //                              "", crypto::STRING_STRING, false));
 //  if (current_hashable && !new_hashable && values_str.size() == size_t(1)) {
 //    done->Run();
-//    DLOG(WARNING) << "KadService::Update - Hashable tags don't match" <<
+//    DLOG(WARNING) << "Service::Update - Hashable tags don't match" <<
 //                     std::endl;
 //    return;
 //  }
@@ -418,7 +424,7 @@ hashable replacement values.
                                request->new_value().SerializeAsString(),
                                request->ttl(), new_hashable)) {
     done->Run();
-    DLOG(WARNING) << "KadService::Update - Failed UpdateItem" << std::endl;
+    DLOG(WARNING) << "Service::Update - Failed UpdateItem" << std::endl;
     return;
   }
 
@@ -431,13 +437,13 @@ hashable replacement values.
       add_contact_(sender, 0.0, false);
     response->set_result(true);
   } else {
-    DLOG(WARNING) << "KadService::Update - Failed to add_contact_" << std::endl;
+    DLOG(WARNING) << "Service::Update - Failed to add_contact_" << std::endl;
   }
 
   done->Run();
 }
 
-void KadService::Downlist(google::protobuf::RpcController *controller,
+void Service::Downlist(google::protobuf::RpcController *controller,
                           const DownlistRequest *request,
                           DownlistResponse *response,
                           google::protobuf::Closure *done) {
@@ -476,16 +482,16 @@ void KadService::Downlist(google::protobuf::RpcController *controller,
   done->Run();
 }
 
-bool KadService::GetSender(const ContactInfo &sender_info, Contact *sender) {
+bool Service::GetSender(const ContactInfo &sender_info, Contact *sender) {
   std::string ser_info(sender_info.SerializeAsString());
   return sender->ParseFromString(ser_info);
 }
 
-bool KadService::CheckStoreRequest(const StoreRequest *request,
+bool Service::CheckStoreRequest(const StoreRequest *request,
                                    Contact *sender) {
   if (!request->IsInitialized())
     return false;
-  if (node_hasRSAkeys_) {
+  if (using_signatures_) {
     if (!request->has_signed_request() || !request->has_sig_value())
       return false;
   } else {
@@ -495,7 +501,7 @@ bool KadService::CheckStoreRequest(const StoreRequest *request,
   return GetSender(request->sender_info(), sender);
 }
 
-void KadService::StoreValueLocal(const std::string &key,
+void Service::StoreValueLocal(const std::string &key,
                                  const std::string &value, Contact sender,
                                  const boost::int32_t &ttl,
                                  const bool &publish, StoreResponse *response,
@@ -525,7 +531,7 @@ void KadService::StoreValueLocal(const std::string &key,
   }
 }
 
-void KadService::StoreValueLocal(const std::string &key,
+void Service::StoreValueLocal(const std::string &key,
                                  const SignedValue &value, Contact sender,
                                  const boost::int32_t &ttl, const bool &publish,
                                  StoreResponse *response,
@@ -574,7 +580,7 @@ void KadService::StoreValueLocal(const std::string &key,
   }
 }
 
-bool KadService::CanStoreSignedValueHashable(const std::string &key,
+bool Service::CanStoreSignedValueHashable(const std::string &key,
                                              const std::string &value,
                                              bool *hashable) {
   std::vector< std::pair<std::string, bool> > attr;

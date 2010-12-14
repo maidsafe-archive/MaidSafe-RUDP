@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/nodeid.h"
 
 namespace kademlia {
 
@@ -109,7 +109,7 @@ bool Contact::ParseFromString(const std::string &data) {
   kademlia::ContactInfo info;
   if (!info.ParseFromString(data))
     return false;
-  node_id_ = KadId(info.node_id());
+  node_id_ = NodeId(info.node_id());
   if (!node_id_.IsValid())
     return false;
   
@@ -131,4 +131,4 @@ bool Contact::operator<(const Contact &rhs) const {
   return this->node_id().String() < rhs.node_id().String();
 }
 
-}  // namespace kad
+}  // namespace kademlia

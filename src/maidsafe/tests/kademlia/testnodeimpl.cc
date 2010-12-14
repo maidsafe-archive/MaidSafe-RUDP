@@ -35,16 +35,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/kademlia/knodeimpl.h"
-#include "maidsafe/kademlia/kadroutingtable.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
-namespace kad {
+namespace kademlia {
 
-namespace test_knodeimpl {
+namespace test_nodeimpl {
 
 static const boost::uint16_t K = 16;
 
@@ -65,7 +65,7 @@ void IterativeSearchCallback(const std::string &result, bool *done,
   *done = true;
 }
 
-void CreateParameters(KnodeConstructionParameters *kcp) {
+void CreateParameters(NodeConstructionParameters *kcp) {
   crypto::RsaKeyPair rkp;
   rkp.GenerateKeys(4096);
   kcp->alpha = kAlpha;
@@ -109,7 +109,7 @@ class TestKNodeImpl : public testing::Test {
 
     crypto::RsaKeyPair rkp;
     rkp.GenerateKeys(4096);
-    KnodeConstructionParameters kcp;
+    NodeConstructionParameters kcp;
     kcp.alpha = kAlpha;
     kcp.beta = kBeta;
     kcp.type = VAULT;
@@ -151,8 +151,8 @@ GeneralKadCallback TestKNodeImpl::cb_;
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_ContactFunctions) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  KadId key1a, key2a, key1b(KadId::kRandomId), key2b(KadId::kRandomId),
-        target_key(KadId::kRandomId);
+  NodeId key1a, key2a, key1b(NodeId::kRandomId), key2b(NodeId::kRandomId),
+        target_key(NodeId::kRandomId);
   ContactAndTargetKey catk1, catk2;
   catk1.contact = Contact(key1a, local_ip.to_string(), 5001,
                           local_ip.to_string(), 5001);
@@ -172,14 +172,14 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_Uninitialised_Values) {
   DeleteValueCallback dvc;
   SignedValue signed_value, new_value;
   SignedRequest signed_request;
-  node_->DeleteValue(KadId(KadId::kRandomId), signed_value, signed_request,
+  node_->DeleteValue(NodeId(NodeId::kRandomId), signed_value, signed_request,
                      boost::bind(&DeleteValueCallback::CallbackFunc, &dvc, _1));
   while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_FALSE(dvc.result());
 
   UpdateValueCallback uvc;
-  node_->UpdateValue(KadId(KadId::kRandomId), signed_value, new_value,
+  node_->UpdateValue(NodeId(NodeId::kRandomId), signed_value, new_value,
                      signed_request, 60 * 60 * 24,
                      boost::bind(&UpdateValueCallback::CallbackFunc, &uvc, _1));
   while (!uvc.result())
@@ -192,7 +192,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
   SignedValue old_value, new_value;
   SignedRequest sig_req;
   UpdateValueCallback uvc;
-  node_->ExecuteUpdateRPCs("summat that doesn't parse", KadId(KadId::kRandomId),
+  node_->ExecuteUpdateRPCs("summat that doesn't parse", NodeId(NodeId::kRandomId),
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
@@ -200,7 +200,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
 
   DeleteValueCallback dvc;
   node_->DelValue_ExecuteDeleteRPCs("summat that doesn't parse",
-                                    KadId(KadId::kRandomId),
+                                    NodeId(NodeId::kRandomId),
                                     old_value,
                                     sig_req,
                                     boost::bind(
@@ -210,7 +210,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
 
   dvc.Reset();
   std::vector<Contact> close_nodes;
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   SignedValue svalue;
   SignedRequest sreq;
   boost::shared_ptr<IterativeDelValueData> data(
@@ -228,14 +228,14 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
   FindResponse fr;
   fr.set_result(true);
   std::string ser_fr, ser_c;
-  Contact c(KadId(KadId::kRandomId), "127.0.0.1", 1234, "127.0.0.2", 1235,
+  Contact c(NodeId(NodeId::kRandomId), "127.0.0.1", 1234, "127.0.0.2", 1235,
             "127.0.0.3", 1236);
   c.SerialiseToString(&ser_c);
   int count = kMinSuccessfulPecentageStore * K - 1;
   for (int n = 0; n < count; ++n)
     fr.add_closest_nodes(ser_c);
 
-  node_->ExecuteUpdateRPCs(fr.SerializeAsString(), KadId(KadId::kRandomId),
+  node_->ExecuteUpdateRPCs(fr.SerializeAsString(), NodeId(NodeId::kRandomId),
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
@@ -245,7 +245,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
 
   fr.set_result(false);
   uvc.Reset();
-  node_->ExecuteUpdateRPCs(fr.SerializeAsString(), KadId(KadId::kRandomId),
+  node_->ExecuteUpdateRPCs(fr.SerializeAsString(), NodeId(NodeId::kRandomId),
                            old_value, new_value, sig_req, 3600 * 24,
                            boost::bind(&UpdateValueCallback::CallbackFunc,
                                        &uvc, _1));
@@ -259,7 +259,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
 
   dvc.Reset();
   node_->DelValue_ExecuteDeleteRPCs("summat that doesn't parse",
-                                    KadId(KadId::kRandomId),
+                                    NodeId(NodeId::kRandomId),
                                     old_value,
                                     sig_req,
                                     boost::bind(
@@ -273,7 +273,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_ExecuteRPCs) {
   fr.Clear();
   fr.set_result(true);
   node_->DelValue_ExecuteDeleteRPCs(fr.SerializeAsString(),
-                                    KadId(KadId::kRandomId),
+                                    NodeId(NodeId::kRandomId),
                                     old_value,
                                     sig_req,
                                     boost::bind(
@@ -290,7 +290,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_NotJoined) {
 
   StoreValueCallback svc;
   boost::shared_ptr<IterativeStoreValueData> isvd(
-      new IterativeStoreValueData(std::vector<Contact>(), KadId(), "",
+      new IterativeStoreValueData(std::vector<Contact>(), NodeId(), "",
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &svc, _1),
                                   true, 3600 * 24, SignedValue(),
@@ -304,7 +304,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
   boost::shared_ptr<FindNodesArgs> fna(
-      new FindNodesArgs(KadId(KadId::kRandomId),
+      new FindNodesArgs(NodeId(NodeId::kRandomId),
                        boost::bind(&GenericCallback, _1, &done)));
   ASSERT_TRUE(fna->nc.empty());
   node_->AddContactsToContainer(contacts, fna);
@@ -313,7 +313,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
   int k(K);
   std::string ip("123.234.231.134");
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     contacts.push_back(c);
   }
   node_->AddContactsToContainer(contacts, fna);
@@ -326,7 +326,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_AddContactsToContainer) {
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(key, boost::bind(&GenericCallback, _1, &done)));
   ASSERT_TRUE(fna->nc.empty());
@@ -340,7 +340,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
   std::string ip("123.234.231.134");
   std::vector<Contact> vcontacts;
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     vcontacts.push_back(c);
   }
   node_->AddContactsToContainer(vcontacts, fna);
@@ -368,7 +368,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_GetAlphas) {
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_MarkNode) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(key, boost::bind(&GenericCallback, _1, &done)));
   ASSERT_TRUE(fna->nc.empty());
@@ -382,7 +382,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_MarkNode) {
   std::string ip("123.234.231.134");
   std::vector<Contact> vcontacts;
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     vcontacts.push_back(c);
   }
   node_->AddContactsToContainer(vcontacts, fna);
@@ -408,14 +408,14 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_MarkNode) {
     ASSERT_FALSE(*it == *it2);
   }
 
-  Contact not_in_list(KadId(KadId::kRandomId), ip, 8000);
+  Contact not_in_list(NodeId(NodeId::kRandomId), ip, 8000);
   ASSERT_FALSE(node_->MarkNode(not_in_list, fna, SEARCH_CONTACTED));
 }
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_BetaDone) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(key, boost::bind(&GenericCallback, _1, &done)));
   ASSERT_TRUE(fna->nc.empty());
@@ -429,7 +429,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_BetaDone) {
   std::string ip("123.234.231.134");
   std::vector<Contact> vcontacts;
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     vcontacts.push_back(c);
   }
   node_->AddContactsToContainer(vcontacts, fna);
@@ -475,8 +475,8 @@ class MockIterativeSearchResponse : public KNodeImpl {
   MockIterativeSearchResponse(
       boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
       boost::shared_ptr<transport::UdtTransport> udt_transport,
-      const KnodeConstructionParameters &knode_parameters)
-          : KNodeImpl(channel_manager, udt_transport, knode_parameters) {}
+      const NodeConstructionParameters &node_parameters)
+          : KNodeImpl(channel_manager, udt_transport, node_parameters) {}
   MOCK_METHOD2(IterativeSearch, void(const boost::uint16_t &count,
                                      boost::shared_ptr<FindNodesArgs> fna));
   void IterativeSearchDummy(boost::shared_ptr<FindNodesArgs> fna) {
@@ -488,13 +488,13 @@ class MockIterativeSearchResponse : public KNodeImpl {
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchResponse) {
   bool done(false), calledback(false);
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(key, boost::bind(&GenericCallback, _1, &done)));
   boost::shared_ptr<transport::UdtTransport> udt(new transport::UdtTransport);
   boost::shared_ptr<rpcprotocol::ChannelManager> cm(
       new rpcprotocol::ChannelManager(udt));
-  KnodeConstructionParameters kcp;
+  NodeConstructionParameters kcp;
   CreateParameters(&kcp);
   MockIterativeSearchResponse misr(cm, udt, kcp);
 
@@ -507,7 +507,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchResponse) {
   std::string ip("123.234.231.134");
   std::vector<Contact> vcontacts, popped;
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     vcontacts.push_back(c);
   }
   misr.AddContactsToContainer(vcontacts, fna);
@@ -540,13 +540,13 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchResponse) {
 }
 */
 
-class MockKadRpcs : public KadRpcs {
+class MockRpcs : public Rpcs {
  public:
-  explicit MockKadRpcs(
+  explicit MockRpcs(
       boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager)
-          : KadRpcs(channel_manager), node_list_mutex_(), node_list_(),
+          : Rpcs(channel_manager), node_list_mutex_(), node_list_(),
             backup_node_list_() {}
-  MOCK_METHOD8(FindNode, void(const KadId &key, const IP &ip,
+  MOCK_METHOD8(FindNode, void(const NodeId &key, const IP &ip,
                               const Port &port, const IP &rendezvous_ip,
                               const Port &rendezvous_port, FindResponse *resp,
                               rpcprotocol::Controller *ctler,
@@ -565,7 +565,7 @@ class MockKadRpcs : public KadRpcs {
         }
       }
     }
-    boost::thread th(boost::bind(&MockKadRpcs::FunctionForThread, this,
+    boost::thread th(boost::bind(&MockRpcs::FunctionForThread, this,
                                  callback));
   }
   void FunctionForThread(google::protobuf::Closure *callback) {
@@ -585,7 +585,7 @@ class MockKadRpcs : public KadRpcs {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::string ip("123.234.134.1");
     for (boost::uint16_t n = 0; n < total; ++n) {
-      Contact c(KadId(KadId::kRandomId),
+      Contact c(NodeId(NodeId::kRandomId),
                 ip + boost::lexical_cast<std::string>(n), 52000 + n);
       node_list_.push_back(c);
     }
@@ -605,7 +605,7 @@ class MockKadRpcs : public KadRpcs {
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
   bool done(false);
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   std::list<Contact> lcontacts;
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(key, boost::bind(&IterativeSearchCallback, _1, &done,
@@ -614,23 +614,23 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
   std::string ip("123.234.231.134");
   std::vector<Contact> vcontacts, popped;
   for (int n = 0; n < k; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, n);
+    Contact c(NodeId(NodeId::kRandomId), ip, n);
     vcontacts.push_back(c);
   }
   node_->AddContactsToContainer(vcontacts, fna);
   ASSERT_EQ(K, fna->nc.size());
 
-  boost::shared_ptr<KadRpcs> old_rpcs = node_->kadrpcs_;
-  boost::shared_ptr<MockKadRpcs> new_rpcs(
-      new MockKadRpcs(node_->pchannel_manager_));
-  node_->kadrpcs_ = new_rpcs;
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(
+      new MockRpcs(node_->pchannel_manager_));
+  node_->rpcs_ = new_rpcs;
 
   EXPECT_CALL(*new_rpcs, FindNode(testing::_, testing::_, testing::_,
                                   testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
       .Times(K)
       .WillRepeatedly(testing::WithArgs<5, 7>(testing::Invoke(
-          boost::bind(&MockKadRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
   NodeContainer::iterator node_it = fna->nc.begin();
   std::list<Contact> alphas;
@@ -646,7 +646,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_IterativeSearchHappy) {
   std::set<Contact> lset(lcontacts.begin(), lcontacts.end()),
                     vset(vcontacts.begin(), vcontacts.end());
   ASSERT_TRUE(lset == vset);
-  node_->kadrpcs_ = old_rpcs;
+  node_->rpcs_ = old_rpcs;
 }
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
@@ -656,24 +656,24 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   for (boost::uint16_t n = 0; n < K; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, 50000 + n);
+    Contact c(NodeId(NodeId::kRandomId), ip, 50000 + n);
     EXPECT_EQ(0, node_->AddContact(c, 1, false));
     vcontacts.push_back(c);
   }
 
-  boost::shared_ptr<KadRpcs> old_rpcs = node_->kadrpcs_;
-  boost::shared_ptr<MockKadRpcs> new_rpcs(
-      new MockKadRpcs(node_->pchannel_manager_));
-  node_->kadrpcs_ = new_rpcs;
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(
+      new MockRpcs(node_->pchannel_manager_));
+  node_->rpcs_ = new_rpcs;
 
   EXPECT_CALL(*new_rpcs, FindNode(testing::_, testing::_, testing::_,
                                   testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<5, 7>(testing::Invoke(
-          boost::bind(&MockKadRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
   FindNodesParams fnp1;
-  fnp1.key = KadId(KadId::kRandomId);
+  fnp1.key = NodeId(NodeId::kRandomId);
   fnp1.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
   node_->FindNodes(fnp1);
   while (!done)
@@ -686,12 +686,12 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
   lcontacts.clear();
   done = false;
   FindNodesParams fnp2;
-  fnp2.key = KadId(KadId::kRandomId);
+  fnp2.key = NodeId(NodeId::kRandomId);
   fnp2.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
   std::list<Contact> winners, backup;
   ip = std::string("156.148.126.160");
   for (int a = 0; a < K; ++a) {
-    Contact c(KadId(KadId::kRandomId), ip, 51000 + a);
+    Contact c(NodeId(NodeId::kRandomId), ip, 51000 + a);
     fnp2.start_nodes.push_back(c);
     winners.push_back(c);
     winners.push_back(vcontacts[a]);
@@ -712,7 +712,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
   lcontacts.clear();
   done = false;
   FindNodesParams fnp3;
-  fnp3.key = KadId(KadId::kRandomId);
+  fnp3.key = NodeId(NodeId::kRandomId);
   fnp3.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
   fnp3.start_nodes = fnp2.start_nodes;
   int top(K/4 + 1);
@@ -741,7 +741,7 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesHappy) {
   ASSERT_EQ(lset.size(), back.size());
   ASSERT_TRUE(lset == back);
 
-  node_->kadrpcs_ = old_rpcs;
+  node_->rpcs_ = old_rpcs;
 }
 
 TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesContactsInReponse) {
@@ -751,25 +751,25 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesContactsInReponse) {
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   for (boost::uint16_t n = 0; n < K; ++n) {
-    Contact c(KadId(KadId::kRandomId), ip, 50000 + n);
+    Contact c(NodeId(NodeId::kRandomId), ip, 50000 + n);
     EXPECT_EQ(0, node_->AddContact(c, 1, false));
     vcontacts.push_back(c);
   }
 
-  boost::shared_ptr<KadRpcs> old_rpcs = node_->kadrpcs_;
-  boost::shared_ptr<MockKadRpcs> new_rpcs(
-      new MockKadRpcs(node_->pchannel_manager_));
-  node_->kadrpcs_ = new_rpcs;
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(
+      new MockRpcs(node_->pchannel_manager_));
+  node_->rpcs_ = new_rpcs;
   ASSERT_TRUE(new_rpcs->GenerateContacts(100));
 
   EXPECT_CALL(*new_rpcs, FindNode(testing::_, testing::_, testing::_,
                                   testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<5, 7>(testing::Invoke(
-          boost::bind(&MockKadRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
   FindNodesParams fnp1;
-  fnp1.key = KadId(KadId::kRandomId);
+  fnp1.key = NodeId(NodeId::kRandomId);
   fnp1.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
   node_->FindNodes(fnp1);
   while (!done)
@@ -795,9 +795,9 @@ TEST_F(TestKNodeImpl, BEH_KNodeImpl_FindNodesContactsInReponse) {
   ASSERT_EQ(lset.size(), sss.size());
   ASSERT_TRUE(lset == sss);
 
-  node_->kadrpcs_ = old_rpcs;
+  node_->rpcs_ = old_rpcs;
 }
 
-}  // namespace test_knodeimpl
+}  // namespace test_nodeimpl
 
-}  // namespace kad
+}  // namespace kademlia

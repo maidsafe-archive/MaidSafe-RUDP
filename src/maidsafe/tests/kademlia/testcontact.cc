@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/crypto.h"
 #include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/nodeid.h"
 
 class TestContact : public testing::Test {
  public:
@@ -46,7 +46,7 @@ TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888), local_port(port);
-  kademlia::KadId node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING, false));
+  kademlia::NodeId node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING, false));
   kademlia::Contact contact(node_id, ip, port, local_ip, local_port);
   ASSERT_EQ(base::IpAsciiToBytes(ip), contact.ip());
   ASSERT_EQ(ip, base::IpBytesToAscii(contact.ip()));
@@ -154,7 +154,7 @@ TEST_F(TestContact, BEH_KAD_SerialiseToString) {
 TEST_F(TestContact, BEH_KAD_Constructors) {
   // empty contact
   kademlia::Contact ctc1;
-  kademlia::KadId id1;
+  kademlia::NodeId id1;
   ASSERT_EQ(id1.String(), ctc1.node_id().String());
   ASSERT_EQ("", ctc1.ip());
   ASSERT_EQ("", ctc1.local_ip());
@@ -169,7 +169,7 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
     false));
   kademlia::Contact ctc2(node_id, ip, port);
-  kademlia::KadId id2(node_id);
+  kademlia::NodeId id2(node_id);
   ASSERT_EQ(id2.String(), ctc2.node_id().String());
   ASSERT_EQ(ip, ctc2.ip());
   ASSERT_EQ("", ctc2.local_ip());

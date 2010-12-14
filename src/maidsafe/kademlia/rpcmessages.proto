@@ -1,6 +1,6 @@
-import "maidsafe/protobuf/contact_info.proto";
-import "maidsafe/protobuf/transport_message.proto";
-import "maidsafe/protobuf/signed_kadvalue.proto";
+import "maidsafe/kademlia/contactinfo.proto";
+import "maidsafe/transport/transportmessage.proto";
+import "maidsafe/kademlia/signedvalue.proto";
 
 package transport;
 

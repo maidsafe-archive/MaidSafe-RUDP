@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/nodeid.h"
 #include <bitset>
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
@@ -37,11 +37,11 @@ size_t BitToByteCount(const size_t &bit_count) {
   return static_cast<size_t>(0.999999 + static_cast<double>(bit_count) / 8);
 }
 
-KadId::KadId() : raw_id_(kZeroId) {}
+NodeId::NodeId() : raw_id_(kZeroId) {}
 
-KadId::KadId(const KadId &other) : raw_id_(other.raw_id_) {}
+NodeId::NodeId(const NodeId &other) : raw_id_(other.raw_id_) {}
 
-KadId::KadId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
+NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
   switch (type) {
     case kMaxId :
       break;  // already set
@@ -56,9 +56,9 @@ KadId::KadId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
   }
 }
 
-KadId::KadId(const std::string &id) : raw_id_(id) {}
+NodeId::NodeId(const std::string &id) : raw_id_(id) {}
 
-KadId::KadId(const std::string &id, const EncodingType &encoding_type)
+NodeId::NodeId(const std::string &id, const EncodingType &encoding_type)
     : raw_id_() {
   try {
     switch (encoding_type) {
@@ -74,7 +74,7 @@ KadId::KadId(const std::string &id, const EncodingType &encoding_type)
     }
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << "KadId Ctor: " << e.what();
+    DLOG(ERROR) << "NodeId Ctor: " << e.what();
     raw_id_.clear();
     return;
   }
@@ -82,7 +82,7 @@ KadId::KadId(const std::string &id, const EncodingType &encoding_type)
     raw_id_.clear();
 }
 
-KadId::KadId(const boost::uint16_t &power) : raw_id_(kZeroId) {
+NodeId::NodeId(const boost::uint16_t &power) : raw_id_(kZeroId) {
   if (power >= kKeySizeBits) {
     raw_id_.clear();
     return;
@@ -95,7 +95,7 @@ KadId::KadId(const boost::uint16_t &power) : raw_id_(kZeroId) {
   }
 }
 
-KadId::KadId(const KadId &id1, const KadId &id2) : raw_id_(kZeroId) {
+NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
   if (!id1.IsValid() || !id2.IsValid()) {
     raw_id_.clear();
     return;
@@ -136,7 +136,7 @@ KadId::KadId(const KadId &id1, const KadId &id2) : raw_id_(kZeroId) {
   }
 }
 
-std::string KadId::EncodeToBinary() const {
+std::string NodeId::EncodeToBinary() const {
   std::string binary;
   binary.reserve(kKeySizeBytes);
   for (size_t i = 0; i < kKeySizeBytes; ++i) {
@@ -146,7 +146,7 @@ std::string KadId::EncodeToBinary() const {
   return binary;
 }
 
-void KadId::DecodeFromBinary(const std::string &binary_id) {
+void NodeId::DecodeFromBinary(const std::string &binary_id) {
   std::bitset<kKeySizeBits> binary_bitset(binary_id);
   if (!IsValid()) {
     raw_id_.assign(kKeySizeBytes, 0);
@@ -157,13 +157,13 @@ void KadId::DecodeFromBinary(const std::string &binary_id) {
   }
 }
 
-void KadId::SplitRange(const KadId &min_id, const KadId &max_id,
-                       KadId *max_id1, KadId *min_id1) {
+void NodeId::SplitRange(const NodeId &min_id, const NodeId &max_id,
+                       NodeId *max_id1, NodeId *min_id1) {
   if (max_id1 == NULL || min_id1 == NULL)
     return;
   if (!min_id.IsValid() || !max_id.IsValid() ||
       !max_id1->IsValid() || !min_id1->IsValid() || min_id >= max_id) {
-    KadId fail_id;
+    NodeId fail_id;
     fail_id.raw_id_.clear();
     *max_id1 = fail_id;
     *min_id1 = fail_id;
@@ -179,12 +179,12 @@ void KadId::SplitRange(const KadId &min_id, const KadId &max_id,
   max1_raw_id[first_diff_bit] = (max1_diff_char + min1_diff_char) >> 1;
   max1_diff_char = max1_raw_id[first_diff_bit];
   min1_raw_id[first_diff_bit] = max1_diff_char + 1;
-  *max_id1 = KadId(max1_raw_id);
-  *min_id1 = KadId(min1_raw_id);
+  *max_id1 = NodeId(max1_raw_id);
+  *min_id1 = NodeId(min1_raw_id);
 }
 
-bool KadId::CloserToTarget(const KadId &id1, const KadId &id2,
-                           const KadId &target_id) {
+bool NodeId::CloserToTarget(const NodeId &id1, const NodeId &id2,
+                           const NodeId &target_id) {
   if (!id1.IsValid() || !id2.IsValid() || !target_id.IsValid())
     return false;
   std::string raw_id1(id1.raw_id_);
@@ -199,11 +199,11 @@ bool KadId::CloserToTarget(const KadId &id1, const KadId &id2,
   return false;
 }
 
-const std::string KadId::String() const {
+const std::string NodeId::String() const {
   return raw_id_;
 }
 
-const std::string KadId::ToStringEncoded(
+const std::string NodeId::ToStringEncoded(
     const EncodingType &encoding_type) const {
   if (!IsValid())
     return "";
@@ -216,41 +216,41 @@ const std::string KadId::ToStringEncoded(
   }
 }
 
-bool KadId::IsValid() const {
+bool NodeId::IsValid() const {
   return raw_id_.size() == kKeySizeBytes;
 }
 
-bool KadId::operator == (const KadId &rhs) const {
+bool NodeId::operator == (const NodeId &rhs) const {
   return raw_id_ == rhs.raw_id_;
 }
 
-bool KadId::operator != (const KadId &rhs) const {
+bool NodeId::operator != (const NodeId &rhs) const {
   return raw_id_ != rhs.raw_id_;
 }
 
-bool KadId::operator < (const KadId &rhs) const {
+bool NodeId::operator < (const NodeId &rhs) const {
   return raw_id_ < rhs.raw_id_;
 }
 
-bool KadId::operator > (const KadId &rhs) const {
+bool NodeId::operator > (const NodeId &rhs) const {
   return raw_id_ > rhs.raw_id_;
 }
 
-bool KadId::operator <= (const KadId &rhs) const {
+bool NodeId::operator <= (const NodeId &rhs) const {
   return raw_id_ <= rhs.raw_id_;
 }
 
-bool KadId::operator >= (const KadId &rhs) const {
+bool NodeId::operator >= (const NodeId &rhs) const {
   return raw_id_ >= rhs.raw_id_;
 }
 
-KadId& KadId::operator = (const KadId &rhs) {
+NodeId& NodeId::operator = (const NodeId &rhs) {
   this->raw_id_ = rhs.raw_id_;
   return *this;
 }
 
-const KadId KadId::operator ^ (const KadId &rhs) const {
-  KadId result;
+const NodeId NodeId::operator ^ (const NodeId &rhs) const {
+  NodeId result;
   std::string::const_iterator this_it = raw_id_.begin();
   std::string::const_iterator rhs_it = rhs.raw_id_.begin();
   std::string::iterator result_it = result.raw_id_.begin();

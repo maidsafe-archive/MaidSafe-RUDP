@@ -42,8 +42,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/base/log.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/kademlia/knode-api.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 
 
@@ -62,7 +62,7 @@ Operations::Operations(boost::shared_ptr<kademlia::KNode> node)
                                            crypto::STRING_STRING);
 }
 
-void Operations::TestFindAndPing(const std::vector<kademlia::KadId> &nodes,
+void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
                                  const int &iterations) {
   std::vector<kademlia::Contact> contacts;
   {
@@ -128,7 +128,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::KadId> &nodes,
   }
 }
 
-void Operations::TestStoreAndFind(const std::vector<kademlia::KadId> &nodes,
+void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
                                   const int &iterations, const bool &sign) {
   for (int val = 0; val < 4; ++val) {
     std::string size, value;
@@ -160,9 +160,9 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::KadId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        kademlia::KadId mod =
+        kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-        kademlia::KadId key(nodes[i] ^ mod);
+        kademlia::NodeId key(nodes[i] ^ mod);
         kademlia::SignedValue sig_val;
         kademlia::SignedRequest sig_req;
         if (sign) {
@@ -216,7 +216,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::KadId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        kademlia::KadId mod =
+        kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
         boost::uint64_t t = base::GetEpochMilliseconds();
         node_->FindValue(nodes[i] ^ mod, false, boost::bind(
@@ -294,15 +294,15 @@ void Operations::FindValueCallback(const std::string &result,
  * Calculates a Kademlia ID with smallest possible distance from 000..000,
  * with a unique value for each (positive) iteration number.
  */
-kademlia::KadId Operations::GetModId(int iteration) {
+kademlia::NodeId Operations::GetModId(int iteration) {
   int bits = kademlia::kKeySizeBits - 1;
-  kademlia::KadId id;
+  kademlia::NodeId id;
   while (iteration > bits) {
-    id = id ^ kademlia::KadId(bits);
+    id = id ^ kademlia::NodeId(bits);
     iteration -= (bits + 1);
     --bits;
   }
-  return id ^ kademlia::KadId(iteration);
+  return id ^ kademlia::NodeId(iteration);
 }
 
 void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {

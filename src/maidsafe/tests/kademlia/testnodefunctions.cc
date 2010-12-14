@@ -33,15 +33,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/node-api.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
-namespace kad {
+namespace kademlia {
 
-namespace test_knode_functions {
+namespace test_node_functions {
 
 class TestAlternativeStore : public base::AlternativeStore {
  public:
@@ -60,10 +60,10 @@ class TestValidator : public base::SignatureValidator {
 
 static const boost::uint16_t K = 16;
 
-class TestKnodeFunctions : public testing::Test {
+class TestNodeFunctions : public testing::Test {
  protected:
   static void SetUpTestCase() {
-    test_dir_ = std::string("temp/TestKnodeFunctions") +
+    test_dir_ = std::string("temp/TestNodeFunctions") +
                 boost::lexical_cast<std::string>(base::RandomUint32());
 
     udt_.reset(new transport::UdtTransport);
@@ -77,7 +77,7 @@ class TestKnodeFunctions : public testing::Test {
 
     crypto::RsaKeyPair rkp;
     rkp.GenerateKeys(4096);
-    kademlia::KnodeConstructionParameters kcp;
+    kademlia::NodeConstructionParameters kcp;
     kcp.type = kademlia::VAULT;
     kcp.public_key = rkp.public_key();
     kcp.private_key = rkp.private_key();
@@ -112,23 +112,23 @@ class TestKnodeFunctions : public testing::Test {
   static GeneralKadCallback cb_;
 };
 
-std::string TestKnodeFunctions::test_dir_;
-boost::shared_ptr<transport::UdtTransport> TestKnodeFunctions::udt_;
-boost::shared_ptr<rpcprotocol::ChannelManager> TestKnodeFunctions::manager_;
-boost::shared_ptr<KNode> TestKnodeFunctions::node_;
-GeneralKadCallback TestKnodeFunctions::cb_;
+std::string TestNodeFunctions::test_dir_;
+boost::shared_ptr<transport::UdtTransport> TestNodeFunctions::udt_;
+boost::shared_ptr<rpcprotocol::ChannelManager> TestNodeFunctions::manager_;
+boost::shared_ptr<KNode> TestNodeFunctions::node_;
+GeneralKadCallback TestNodeFunctions::cb_;
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_GetKNodesFromRoutingTable) {
-  KadId key(KadId::kRandomId);
+TEST_F(TestNodeFunctions, BEH_NODE_GetKNodesFromRoutingTable) {
+  NodeId key(NodeId::kRandomId);
   std::vector<Contact> exclude_contacts, close_nodes;
   node_->GetKNodesFromRoutingTable(key, exclude_contacts, &close_nodes);
   ASSERT_TRUE(close_nodes.empty());
 }
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_AddGetRemoveContact) {
+TEST_F(TestNodeFunctions, BEH_NODE_AddGetRemoveContact) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(base::GetLocalAddress(&local_ip));
-  KadId key(KadId::kRandomId);
+  NodeId key(NodeId::kRandomId);
   Contact c(key, local_ip.to_string(), 5000, local_ip.to_string(), 5000), o, n;
   ASSERT_EQ(0, node_->AddContact(c, 1.0f, false));
   ASSERT_TRUE(node_->GetContact(key, &o));
@@ -142,8 +142,8 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_AddGetRemoveContact) {
   ASSERT_FALSE(c.Equals(n));
 }
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_StoreRefreshTTLValueLocal) {
-  KadId key(KadId::kRandomId);
+TEST_F(TestNodeFunctions, BEH_NODE_StoreRefreshTTLValueLocal) {
+  NodeId key(NodeId::kRandomId);
   std::string value(base::RandomString(200));
   boost::uint32_t ttl(3600);
   node_->StoreValueLocal(key, value, ttl);
@@ -160,8 +160,8 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_StoreRefreshTTLValueLocal) {
   ASSERT_EQ(value, values.at(0));
 }
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_CheckContactLocalAddress) {
-  KadId key(KadId::kRandomId);
+TEST_F(TestNodeFunctions, BEH_NODE_CheckContactLocalAddress) {
+  NodeId key(NodeId::kRandomId);
   Contact c(key, "127.0.0.1", 5000, "127.0.0.1", 0), n, o;
   if (!node_->GetContact(key, &n))
     ASSERT_EQ(0, node_->AddContact(c, 1.0f, false));
@@ -175,10 +175,10 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_CheckContactLocalAddress) {
 //  ASSERT_EQ(local_ip.to_string(), base::IpBytesToAscii(o.ip()));
 }
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_RpcsKeysAlternativeStoreValidator) {
-  boost::shared_ptr<KadRpcs> rpcs = node_->kadrpcs();
+TEST_F(TestNodeFunctions, BEH_NODE_RpcsKeysAlternativeStoreValidator) {
+  boost::shared_ptr<Rpcs> rpcs = node_->rpcs();
   ASSERT_FALSE(NULL == rpcs);
-  ASSERT_TRUE(node_->HasRSAKeys());
+  ASSERT_TRUE(node_->using_signatures());
   base::AlternativeStore *bas = node_->alternative_store();
   ASSERT_TRUE(NULL == bas);
   TestAlternativeStore tas;
@@ -190,9 +190,9 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_RpcsKeysAlternativeStoreValidator) {
   node_->set_signature_validator(&tv);
 }
 
-TEST_F(TestKnodeFunctions, BEH_KNODE_NodeInfo) {
+TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
   ContactInfo ci = node_->contact_info();
-  KadId kid = node_->node_id();
+  NodeId kid = node_->node_id();
   std::string ip = node_->ip();
   boost::uint16_t port = node_->port();
   std::string local_ip = node_->local_ip();
@@ -213,4 +213,4 @@ TEST_F(TestKnodeFunctions, BEH_KNODE_NodeInfo) {
 
 }  // namespace test_kbucket
 
-}  // namespace kad
+}  // namespace kademlia

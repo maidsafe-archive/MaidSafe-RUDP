@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_CONTACT_H_
 
 #include <boost/cstdint.hpp>
-#include <maidsafe/kademlia/kadid.h>
+#include <maidsafe/kademlia/nodeid.h>
 #include <maidsafe/kademlia/config.h>
 #include <string>
 
@@ -60,7 +60,7 @@ class Contact {
   std::string SerialiseAsString();
   bool ParseFromString(const std::string &data);
   std::string DebugString() const;
-  inline const KadId &node_id() const { return node_id_; }
+  inline const NodeId &node_id() const { return node_id_; }
   inline const Endpoint &ep() const { return ep_; }
   inline boost::uint16_t failed_rpc() const { return failed_rpc_; }
   inline void IncreaseFailed_RPC() { ++failed_rpc_; }
@@ -75,7 +75,7 @@ class Contact {
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
 
  private:
-  KadId node_id_;
+  NodeId node_id_;
   Endpoint ep_;
   boost::uint16_t failed_rpc_;
   Endpoint rv_ep_;

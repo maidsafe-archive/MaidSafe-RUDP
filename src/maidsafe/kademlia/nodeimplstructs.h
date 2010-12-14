@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_KADEMLIA_KNODEIMPLSTRUCTS_H_
-#define MAIDSAFE_KADEMLIA_KNODEIMPLSTRUCTS_H_
+#ifndef MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_
+#define MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_
 
 #include <boost/thread/mutex.hpp>
 #include <boost/multi_index_container.hpp>
@@ -51,7 +51,7 @@ enum RemoteFindMethod { FIND_NODE, FIND_VALUE, BOOTSTRAP };
 struct ContactAndTargetKey {
   ContactAndTargetKey() : contact(), target_key(), contacted(false) {}
   Contact contact;
-  KadId target_key;
+  NodeId target_key;
   bool contacted;
 };
 
@@ -76,7 +76,7 @@ struct LookupContact {
 };
 
 struct IterativeLookUpData {
-  IterativeLookUpData(const RemoteFindMethod &method, const KadId &key,
+  IterativeLookUpData(const RemoteFindMethod &method, const NodeId &key,
                       VoidFunctorOneString callback)
       : method(method), key(key), short_list(), current_alpha(),
         active_contacts(), active_probes(), values_found(), dead_ids(),
@@ -84,7 +84,7 @@ struct IterativeLookUpData {
         is_callbacked(false), wait_for_key(false), callback(callback),
         alternative_value_holder(), sig_values_found() {}
   RemoteFindMethod method;
-  KadId key;
+  NodeId key;
   std::list<LookupContact> short_list;
   std::list<Contact> current_alpha, active_contacts, active_probes;
   std::list<std::string> values_found, dead_ids;
@@ -97,7 +97,7 @@ struct IterativeLookUpData {
 
 struct IterativeStoreValueData {
   IterativeStoreValueData(const std::vector<Contact> &close_nodes,
-                          const KadId &key, const std::string &value,
+                          const NodeId &key, const std::string &value,
                           VoidFunctorOneString callback,
                           const bool &publish_val,
                           const boost::int32_t &timetolive,
@@ -108,7 +108,7 @@ struct IterativeStoreValueData {
         data_type(0), publish(publish_val), ttl(timetolive), sig_value(svalue),
         sig_request(sreq) {}
   IterativeStoreValueData(const std::vector<Contact> &close_nodes,
-                          const KadId &key, const std::string &value,
+                          const NodeId &key, const std::string &value,
                           VoidFunctorOneString callback,
                           const bool &publish_val,
                           const boost::uint32_t &timetolive)
@@ -117,7 +117,7 @@ struct IterativeStoreValueData {
         data_type(0), publish(publish_val), ttl(timetolive), sig_value(),
         sig_request() {}
   std::vector<Contact> closest_nodes;
-  KadId key;
+  NodeId key;
   std::string value;
   boost::uint32_t save_nodes, contacted_nodes, index;
   VoidFunctorOneString callback;
@@ -131,13 +131,13 @@ struct IterativeStoreValueData {
 
 struct IterativeDelValueData {
   IterativeDelValueData(const std::vector<Contact> &close_nodes,
-      const KadId &key, const SignedValue &svalue,
+      const NodeId &key, const SignedValue &svalue,
       const SignedRequest &sreq, VoidFunctorOneString callback)
       : closest_nodes(close_nodes), key(key), del_nodes(0), contacted_nodes(0),
         index(-1), callback(callback), is_callbacked(false), value(svalue),
         sig_request(sreq) {}
   std::vector<Contact> closest_nodes;
-  KadId key;
+  NodeId key;
   boost::uint32_t del_nodes, contacted_nodes, index;
   VoidFunctorOneString callback;
   bool is_callbacked;
@@ -146,14 +146,14 @@ struct IterativeDelValueData {
 };
 
 struct UpdateValueData {
-  UpdateValueData(const KadId &key, const SignedValue &old_value,
+  UpdateValueData(const NodeId &key, const SignedValue &old_value,
                   const SignedValue &new_value, const SignedRequest &sreq,
                   VoidFunctorOneString callback, boost::uint8_t foundnodes)
       : uvd_key(key), uvd_old_value(old_value), uvd_new_value(new_value),
         uvd_request_signature(sreq), uvd_callback(callback), uvd_calledback(0),
         uvd_succeeded(0), retries(0), found_nodes(foundnodes), ttl(0),
         mutex() {}
-  KadId uvd_key;
+  NodeId uvd_key;
   SignedValue uvd_old_value;
   SignedValue uvd_new_value;
   SignedRequest uvd_request_signature;
@@ -283,8 +283,8 @@ struct UpdateCallbackArgs {
   Contact contact;
 };
 
-struct KnodeConstructionParameters {
-  KnodeConstructionParameters()
+struct NodeConstructionParameters {
+  NodeConstructionParameters()
       : type(VAULT),
         k(4),
         alpha(3),
@@ -378,7 +378,7 @@ struct FindNodesParams {
         exclude_nodes(),
         use_routingtable(true),
         callback() {}
-  KadId key;
+  NodeId key;
   std::vector<Contact> start_nodes;
   std::vector<Contact> exclude_nodes;
   bool use_routingtable;
@@ -386,7 +386,7 @@ struct FindNodesParams {
 };
 
 struct FindNodesArgs {
-  FindNodesArgs(const KadId &fna_key, VoidFunctorOneString fna_callback)
+  FindNodesArgs(const NodeId &fna_key, VoidFunctorOneString fna_callback)
       : key(fna_key),
         kth_closest(),
         nc(),
@@ -395,7 +395,7 @@ struct FindNodesArgs {
         calledback(false),
         round(0),
         done_rounds() {}
-  KadId key, kth_closest;
+  NodeId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
   VoidFunctorOneString callback;
@@ -442,4 +442,4 @@ enum SearchMarking { SEARCH_DOWN, SEARCH_CONTACTED };
 
 }  // namespace kademlia
 
-#endif  // MAIDSAFE_KADEMLIA_KNODEIMPLSTRUCTS_H_
+#endif  // MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_

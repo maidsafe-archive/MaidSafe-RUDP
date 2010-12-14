@@ -41,8 +41,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/kademlia/knode-api.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
 
@@ -75,91 +75,91 @@ void Commands::Run() {
   }
 }
 
-void Commands::StoreCallback(const std::string &result, const kademlia::KadId &key,
+void Commands::StoreCallback(const std::string &result, const kademlia::NodeId &key,
                              const boost::int32_t &ttl) {
   kademlia::StoreResponse msg;
   if (!msg.ParseFromString(result)) {
     printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
-        key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     result_arrived_ = true;
     return;
   }
   if (!msg.result()) {
     printf("Failed to store %f copies of values for key %s.\n",
-        min_succ_stores_, key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        min_succ_stores_, key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     printf("Some copies might have been stored\n");
   } else {
     printf("Successfully stored key %s with ttl %d\n",
-        key.ToStringEncoded(kademlia::KadId::kHex).c_str(), ttl);
+        key.ToStringEncoded(kademlia::NodeId::kHex).c_str(), ttl);
   }
   result_arrived_ = true;
 }
 
-void Commands::PingCallback(const std::string &result, const kademlia::KadId &id) {
+void Commands::PingCallback(const std::string &result, const kademlia::NodeId &id) {
   kademlia::PingResponse msg;
   if (!msg.ParseFromString(result)) {
     printf("ERROR. Invalid response. Kademlia Ping Node to node with id %s\n",
-        id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     result_arrived_ = true;
     return;
   }
   if (!msg.result()) {
     printf("Node with id %s is down.\n",
-           id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
   } else {
     printf("Node with id %s is up.\n",
-           id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
   }
   result_arrived_ = true;
 }
 
 void Commands::GetNodeContactDetailsCallback(const std::string &result,
-      const kademlia::KadId &id) {
+      const kademlia::NodeId &id) {
   kademlia::FindNodeResult msg;
   if (!msg.ParseFromString(result)) {
     printf("ERROR. Invalid Response. Kademlia Find Node to node with id %s\n",
-        id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     result_arrived_ = true;
     return;
   }
   if (!msg.result()) {
     printf("Could not find node with id %s.\n",
-           id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
   } else {
     kademlia::Contact ctc;
     if (!msg.has_contact() || !ctc.ParseFromString(msg.contact()))
       printf("Could not find node with id %s.\n",
-             id.ToStringEncoded(kademlia::KadId::kHex).c_str());
+             id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     else
       printf("Node with id %s found. Node info:\n=%s",
-             id.ToStringEncoded(kademlia::KadId::kHex).c_str(),
+             id.ToStringEncoded(kademlia::NodeId::kHex).c_str(),
              ctc.DebugString().c_str());
   }
   result_arrived_ = true;
 }
 
 void Commands::FindValueCallback(const std::string &result,
-       const kademlia::KadId &key, const bool &write_to_file,
+       const kademlia::NodeId &key, const bool &write_to_file,
        const std::string &path) {
   kademlia::FindResponse msg;
   if (!msg.ParseFromString(result)) {
     printf("ERROR.  Invalid response. Kademlia Load Value key %s\n",
-        key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     result_arrived_ = true;
     return;
   }
   if (!msg.result() || msg.values_size() == 0) {
     printf("There is no value stored under key %s\n",
-        key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
   } else {
     printf("Successfully retrieved value(s) for key %s\n",
-        key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
     if (write_to_file) {
       // we only write to file the first value
       WriteToFile(path, msg.values(0));
     } else {
       printf("Values found for key %s\n",
-             key.ToStringEncoded(kademlia::KadId::kHex).c_str());
+             key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
       for (int i = 0; i < msg.values_size(); ++i)
         printf("%d.  %s\n", i+1, msg.values(i).c_str());
     }
@@ -261,9 +261,9 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       *wait_for_cb = false;
     } else {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::KadId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
             false));
       }
       if (ttl == -1)
@@ -280,9 +280,9 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       printf("Invalid number of arguments for storevalue command\n");
     } else {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::KadId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
                                       false));
       }
       if (ttl == -1)
@@ -298,9 +298,9 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       *wait_for_cb = false;
       printf("Invalid number of arguments for findvalue command\n");
     } else {
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::KadId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
             false));
       }
       node_->FindValue(key, false,
@@ -312,9 +312,9 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       *wait_for_cb = false;
       printf("Invalid number of arguments for findfile command\n");
     } else {
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::KadId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
             false));
       }
       node_->FindValue(key, false,
@@ -327,7 +327,7 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       *wait_for_cb = false;
       printf("Invalid number of arguments for findnode command\n");
     } else {
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (key.IsValid()) {
         node_->GetNodeContactDetails(key, boost::bind(
             &Commands::GetNodeContactDetailsCallback, this, _1, key), false);
@@ -342,7 +342,7 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       *wait_for_cb = false;
       printf("Invalid number of arguments for pingnode command\n");
     } else {
-      kademlia::KadId key(std::string(args.at(0)), kademlia::KadId::kHex);
+      kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (key.IsValid()) {
         node_->Ping(key, boost::bind(&Commands::PingCallback, this, _1,
             key));
@@ -385,7 +385,7 @@ void Commands::Store50Values(const std::string &prefix) {
   std::string value;
   for (boost::uint16_t i = 0; i < 50; ++i) {
     arrived = false;
-    kademlia::KadId key(cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
+    kademlia::NodeId key(cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
         "", crypto::STRING_STRING, false));
     value.clear();
     for (int j = 0; j < 1024 * 100; ++j) {

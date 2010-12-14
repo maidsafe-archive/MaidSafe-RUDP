@@ -29,15 +29,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_CONFIG_H_
 
 #include <boost/cstdint.hpp>
-#include <maidsafe/maidsafe-dht_config.h>
-#include <maidsafe/transport/transport.h>
 #include <string>
 #include <vector>
 
 namespace kademlia {
-  
+
 // Functor for general callback functions.
-typedef boost::function<void(const std::string&)> VoidFunctorOneString;
+typedef boost::function<void(std::string)> VoidFunctorOneString;
 
 enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
@@ -78,7 +76,6 @@ const boost::uint32_t kRepublishTime = 43200;  // 12 hours
 // The duration (in seconds) after which a given <key,value> is deleted locally.
 const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
 
-
 // The ratio of k successful individual kad store RPCs to yield overall success.
 const double kMinSuccessfulPecentageStore = 0.75;
 
@@ -92,10 +89,8 @@ const boost::uint32_t kMaxBootstrapContacts = 10000;
 // Signature used to sign anonymous RPC requests.
 const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
 
-
 typedef transport::Endpoint Endpoint;
 
+}  // namespace kademlia
 
-} // namespace kademlia
-
-#endif // MAIDSAFE_KADEMLIA_CONFIG_H_
+#endif  // MAIDSAFE_KADEMLIA_CONFIG_H_

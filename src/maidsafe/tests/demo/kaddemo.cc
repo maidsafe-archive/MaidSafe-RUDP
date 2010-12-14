@@ -36,9 +36,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/base/log.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kadid.h"
-#include "maidsafe/kademlia/knode-api.h"
-#include "maidsafe/kademlia/knodeimpl.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node-api.h"
+#include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/protobuf/contact_info.pb.h"
 #include "maidsafe/protobuf/general_messages.pb.h"
 #include "maidsafe/rpcprotocol/channelmanager-api.h"
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
       tra->StopListening(port);
       return 1;
     }
-    kademlia::KnodeConstructionParameters kcp;
+    kademlia::NodeConstructionParameters kcp;
     kcp.alpha = kademlia::kAlpha;
     kcp.beta = kademlia::kBeta;
     kcp.k = test_kaddemo::K;
@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
 
     // setting kadconfig file if it was not in the options
     if (kadconfigpath.empty()) {
-      kadconfigpath = "KnodeInfo" + boost::lexical_cast<std::string>(port);
+      kadconfigpath = "NodeInfo" + boost::lexical_cast<std::string>(port);
       boost::filesystem::create_directories(kadconfigpath);
       kadconfigpath += "/.kadconfig";
     }
@@ -363,7 +363,7 @@ int main(int argc, char **argv) {
       try {
         boost::filesystem::ofstream of(vm["append_id"].as<std::string>(),
                                        std::ios::out | std::ios::app);
-        of << node->node_id().ToStringEncoded(kademlia::KadId::kHex) << "\n";
+        of << node->node_id().ToStringEncoded(kademlia::NodeId::kHex) << "\n";
         of.close();
       }
       catch(const std::exception &) {
@@ -380,7 +380,7 @@ int main(int argc, char **argv) {
           thisconfig /= ".kadconfig";
           test_kaddemo::write_to_kadconfig(
               thisconfig.string(),
-              node->node_id().ToStringEncoded(kademlia::KadId::kHex),
+              node->node_id().ToStringEncoded(kademlia::NodeId::kHex),
               node->ip(), node->port(), node->local_ip(),
               node->local_port());
         }
@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
         thisconfig /= ".kadconfig";
         test_kaddemo::write_to_kadconfig(
             thisconfig.string(),
-            node->node_id().ToStringEncoded(kademlia::KadId::kHex),
+            node->node_id().ToStringEncoded(kademlia::NodeId::kHex),
             node->ip(), node->port(), node->local_ip(),
             node->local_port());
       }
