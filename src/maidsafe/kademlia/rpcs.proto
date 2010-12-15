@@ -14,27 +14,29 @@ message PingResponse {
   optional bytes node_id = 3;
 };
 
-message FindRequest {
+message FindValueRequest {
   required bytes key = 1;
   required Contact sender_info = 2;
-  optional bool is_boostrap = 3;
-  optional transport.protobuf.Endpoint sender_ext = 4;
 };
 
-message FindResponse {
+message FindValueResponse {
   required bool result = 1;
-  repeated bytes closest_nodes = 2;
+  repeated Contact closest_nodes = 2;
   repeated bytes values = 3;
   repeated SignedValue signed_values = 4;
   optional Contact alternative_value_holder = 5;
   optional bytes needs_cache_copy = 6;
-  optional bytes requester_ext_addr = 7;
   optional bytes node_id = 8;
 };
 
-message FindNodeResult {
+message FindNodesRequest {
+  required bytes key = 1;
+  required Contact sender_info = 2;
+};
+
+message FindNodesResponse {
   required bool result = 1;
-  optional bytes contact = 2;
+  repeated Contact closest_nodes = 2;
   optional bytes node_id = 3;
 };
 
