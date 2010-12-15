@@ -1,0 +1,28 @@
+import "maidsafe/transport/transport.proto";
+
+package kademlia.protobuf;
+
+message Contact {
+  required bytes node_id = 1;
+  required transport.protobuf.Endpoint enpoint = 2;
+  optional bytes local_ips = 3;
+  optional int32 local_port = 4;
+  optional transport.protobuf.Endpoint rendezvous = 5;
+}
+
+message KadConfig {
+  optional int32 port = 1;
+  repeated Contact contact = 2;
+}
+
+message SignedValue {
+  required bytes value = 1;
+  required bytes value_signature = 2;
+}
+
+message SignedRequest {
+  required bytes signer_id = 1;
+  required bytes public_key = 2;
+  required bytes signed_public_key = 3;
+  required bytes signed_request = 4;
+};
