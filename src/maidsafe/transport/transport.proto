@@ -10,19 +10,6 @@ message WrapperMessage {
   required bytes payload = 2;
 }
 
-message NetPingMessage {
-  optional Endpoint sender = 1;
-}
-
-message ProxyPingMessage {
-  enum SubType {
-    kACK = 0;
-    kNACK = 1;
-  }
-  optional SubType result = 1;
-  optional Endpoint proxy = 2;
-}
-
 message ManagedEndpointMessage {
   optional Endpoint endpoint = 1;
   optional bool result = 2;
@@ -33,33 +20,24 @@ message ManagedEndpointMessage {
   optional int32 retry_frequency = 7;
 }
 
-message HolePunchingMessage {
-  enum msg_type {
-    FORWARD_REQ = 0;
-    FORWARD_MSG = 1;
-  }
-  required Endpoint endpoint = 1;
-  required msg_type type = 2;
-}
-
-message NatDetectionMessage {
+message NatDetectionRequest {
   repeated bytes candidate_ips = 1;
   required int32 candidate_port = 2;
 }
 
-message RendezvousNode {
+message NatDetectionResponse {
+  optional Endpoint endpoint = 1;
+  required int32 nat_type = 2;
+}
+
+message ProxyConnectRequest {
   required Endpoint endpoint = 1;
 }
 
-message ConnectionNode {
-  required Endpoint endpoint = 1;
-}
-
-message ConnectionResult {
+message ProxyConnectResponse {
   required bool result = 1;
 }
 
-message NatInformation {
-  optional Endpoint endpoint = 1;
-  required int32 nat_type = 2;
+message RendezvousRequest {
+  required Endpoint endpoint = 1;
 }

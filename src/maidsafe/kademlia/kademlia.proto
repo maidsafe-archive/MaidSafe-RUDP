@@ -5,7 +5,7 @@ package kademlia.protobuf;
 message Contact {
   required bytes node_id = 1;
   required transport.protobuf.Endpoint enpoint = 2;
-  optional bytes local_ips = 3;
+  repeated bytes local_ips = 3;
   optional int32 local_port = 4;
   optional transport.protobuf.Endpoint rendezvous = 5;
 }
