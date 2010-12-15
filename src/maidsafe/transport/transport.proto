@@ -1,0 +1,65 @@
+package transport.protobuf;
+
+message Endpoint {
+  required bytes ip = 1;
+  required int32 port = 2;
+}
+
+message WrapperMessage {
+  required int32 msg_type = 1;
+  required bytes payload = 2;
+}
+
+message NetPingMessage {
+  optional Endpoint sender = 1;
+}
+
+message ProxyPingMessage {
+  enum SubType {
+    kACK = 0;
+    kNACK = 1;
+  }
+  optional SubType result = 1;
+  optional Endpoint proxy = 2;
+}
+
+message ManagedEndpointMessage {
+  optional Endpoint endpoint = 1;
+  optional bool result = 2;
+  optional int32 message_id = 3;
+  optional bytes identifier = 4;
+  optional int32 frequency = 5;
+  optional int32 retry_count = 6;
+  optional int32 retry_frequency = 7;
+}
+
+message HolePunchingMessage {
+  enum msg_type {
+    FORWARD_REQ = 0;
+    FORWARD_MSG = 1;
+  }
+  required Endpoint endpoint = 1;
+  required msg_type type = 2;
+}
+
+message NatDetectionMessage {
+  repeated bytes candidate_ips = 1;
+  required int32 candidate_port = 2;
+}
+
+message RendezvousNode {
+  required Endpoint endpoint = 1;
+}
+
+message ConnectionNode {
+  required Endpoint endpoint = 1;
+}
+
+message ConnectionResult {
+  required bool result = 1;
+}
+
+message NatInformation {
+  optional Endpoint endpoint = 1;
+  required int32 nat_type = 2;
+}
