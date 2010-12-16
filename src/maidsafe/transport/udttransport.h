@@ -103,66 +103,58 @@ struct NatDetails {
   IP rendezvous_ip;
   Port rendezvous_port;
 
-  // These following IP addresses refer to the ones read from the interfaces
+  // These IPs refer to the ones read from the interfaces
   std::vector<IP> candidate_ips;
 };
 
 class HolePunchingMessage;
 
 namespace test {
-class UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
+class TestNatTraversal;
+class TestNatTraversal_BEH_UDT_DirectlyConnected_Test;
 }  // namespace test
 
 typedef int SocketId;
 
-const boost::uint32_t kAddManagedConnectionTimeout(10000);  // milliseconds
-const boost::uint16_t kDefaultThreadpoolSize(4);
+const Timeout kAddManagedEndpointTimeout(10000);
 const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
 class UdtTransport : public Transport {
  public:
-  UdtTransport();
-  explicit UdtTransport(std::vector<NatDetectionNode> nat_detection_nodes);
-  ~UdtTransport();
+  explicit UdtTransport(
+      boost::shared_ptr<boost::asio::io_service> asio_service);
+  UdtTransport(boost::shared_ptr<boost::asio::io_service> asio_service,
+               std::vector<NatDetectionNode> nat_detection_nodes);
+  virtual ~UdtTransport();
   static void CleanUp();
-  Port StartListening(const IP &ip,
-                      const Port &try_port,
-                      TransportCondition *transport_condition);
-  bool StopListening(const Port &port);
-  bool StopAllListening();
+  virtual TransportCondition StartListening(const Endpoint &endpoint);
+  virtual void StopListening();
+  virtual void Send(const std::string &data,
+                    const Endpoint &endpoint,
+                    const Timeout &timeout);
+  virtual void Respond(const std::string &data,
+                       const ConversationId &conversation_id,
+                       const Timeout &timeout);
+  virtual void SendStream(const std::istream &data, const Endpoint &endpoint);
+  void SendToPortRestricted(const std::string &data,
+                            const Endpoint &endpoint,
+                            const Endpoint &rendezvous_endpoint,
+                            const Timeout &timeout);
+
+
+
+
   // Closes all managed connections and stops accepting new incoming ones.
-  void StopManagedConnections();
-  // Allows new incoming managed connections after StopManagedConnections has
+  void StopManagedEndpoints();
+  // Allows new incoming managed connections after StopManagedEndpoints has
   // been called.
-  void ReAllowIncomingManagedConnections();
+  void ReAllowIncomingManagedEndpoints();
   // Create a hole to remote endpoint using rendezvous endpoint.
   TransportCondition PunchHole(const IP &remote_ip,
                                const Port &remote_port,
                                const IP &rendezvous_ip,
                                const Port &rendezvous_port);
-  SocketId PrepareToSend(const IP &remote_ip,
-                         const Port &remote_port,
-                         const IP &rendezvous_ip,
-                         const Port &rendezvous_port);
-  // Send message on connected socket.  If message is a request, then
-  // timeout_wait_for_response defines timeout for receiving response in
-  // milliseconds.  If 0, no response is expected and the socket is closed
-  // after sending message.  Internal sending of message has its own timeout, so
-  // method may signal failure before timeout_wait_for_response if sending
-  // times out.
-  void Send(const TransportMessage &transport_message,
-            const SocketId &socket_id,
-            const boost::uint32_t &timeout_wait_for_response);
-  // Convenience function - calls PunchHole followed by Send.
-  void SendWithRendezvous(const TransportMessage &transport_message,
-                          const IP &remote_ip,
-                          const Port &remote_port,
-                          const IP &rendezvous_ip,
-                          const Port &rendezvous_port,
-                          SocketId *socket_id);
-  // Used to send a file in response to a request received on socket_id.
-  void SendFile(const fs::path &path, const SocketId &socket_id);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
   // alive the connection if frequency == 0.  Checking persists until
   // RemoveManagedEndpoint called, or endpoint is unavailable.
@@ -172,7 +164,7 @@ class UdtTransport : public Transport {
   // regularly made and broken, so ManagedEndpointId cannot be used as SocketId.
   // On failure to connect, retry_count further attempts at retry_frequency (ms)
   // are performed before failure.
-  ManagedEndpointId AddManagedEndpoint(
+/*  ManagedEndpointId AddManagedEndpoint(
       const IP &remote_ip,
       const Port &remote_port,
       const IP &rendezvous_ip,
@@ -181,58 +173,64 @@ class UdtTransport : public Transport {
       const boost::uint16_t &frequency,
       const boost::uint16_t &retry_count,
       const boost::uint16_t &retry_frequency);
-  bool RemoveManagedEndpoint(
-      const ManagedEndpointId &managed_endpoint_id);
+  bool RemoveManagedEndpoint(const ManagedEndpointId &managed_endpoint_id);*/
   friend class UdtConnection;
-  friend class
-      test::UdtTransportTest_BEH_TRANS_UdtAddRemoveManagedEndpoints_Test;
+  friend class test::TestNatTraversal;
+  friend class test::TestNatTraversal_BEH_UDT_DirectlyConnected_Test;
+
+
+
+
  private:
-  typedef std::map< SocketId, boost::shared_ptr<addrinfo const> >
-          UnusedSockets;
   UdtTransport& operator=(const UdtTransport&);
   UdtTransport(const UdtTransport&);
-  Port DoStartListening(const IP &ip,
-                        const Port &try_port,
-                        bool managed_connection_listener,
-                        TransportCondition *transport_condition);
+  TransportCondition DoStartListening(const Endpoint &endpoint,
+                                      bool managed_endpoint_listener);
+  void AcceptConnection(bool managed_endpoint_accept);
+  void DoSend(const std::string &data,
+              const SocketId &socket_id,
+              const Timeout &timeout);
+
+
+
+
   TransportCondition StartManagedEndpointListener(
       const SocketId &initial_peer_socket_id,
       boost::shared_ptr<addrinfo const> peer);
-  TransportCondition SetManagedSocketOptions(const SocketId &udt_socket_id);
+  TransportCondition SetManagedSocketOptions(const SocketId &socket_id);
   SocketId GetNewManagedEndpointSocket(const IP &remote_ip,
                                        const Port &remote_port,
                                        const IP &rendezvous_ip,
                                        const Port &rendezvous_port);
-  void AcceptConnection(const Port &port, const SocketId &udt_socket_id);
   void CheckManagedSockets();
-  void HandleManagedSocketRequest(const SocketId &udt_socket_id,
+/*  void HandleManagedSocketRequest(const SocketId &socket_id,
                                   const ManagedEndpointMessage &request);
   void HandleManagedSocketResponse(const SocketId &managed_socket_id,
                                    const ManagedEndpointMessage &response);
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
-  bool PendingManagedSocketReplied(const SocketId &udt_socket_id);
+  bool PendingManagedSocketReplied(const SocketId &socket_id);
   void DoNatDetection();
   TransportCondition TryRendezvous(const IP &ip, const Port &port,
                                    SocketId *rendezvous_socket_id);
   void PerformNatDetection(const SocketId &socket_id,
                            const NatDetection &nat_detection_message);
-  void ReportRendezvousResult(const SocketId &udt_socket_id,
+  void ReportRendezvousResult(const SocketId &socket_id,
                               const IP &connection_node_ip,
-                              const Port &connection_node_port);
+                              const Port &connection_node_port);*/
 
-  // Member variables
-  std::map<Port, SocketId> listening_map_;
-  UnusedSockets unused_sockets_;
+  SocketId listening_socket_id_, managed_endpoint_listening_socket_id_;
+  Port managed_endpoint_listening_port_;
+
+
+
+
   std::vector<SocketId> managed_endpoint_sockets_;
   std::map<SocketId, SocketId> pending_managed_endpoint_sockets_;
-  volatile bool stop_managed_connections_, managed_connections_stopped_;
+  bool stop_managed_endpoints_, managed_endpoints_stopped_;
   boost::mutex managed_endpoint_sockets_mutex_;
   boost::condition_variable managed_endpoints_cond_var_;
   boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
-  Port managed_endpoint_listening_port_;
-  boost::shared_ptr<base::Threadpool> listening_threadpool_;
-  boost::shared_ptr<base::Threadpool> general_threadpool_;
   boost::shared_ptr<boost::thread> check_connections_;
   std::vector<NatDetectionNode> nat_detection_nodes_;
   boost::thread nat_detection_thread_;

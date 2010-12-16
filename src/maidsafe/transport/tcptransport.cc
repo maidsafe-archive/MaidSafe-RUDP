@@ -38,11 +38,15 @@ namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
 namespace transport {
-
+/*
 TcpTransport::TcpTransport()
     : Transport(),
+      io_service_(),
       keep_alive_(new asio::io_service::work(io_service_)),
-      current_socket_id_(1) {
+      worker_thread_(),
+      acceptors_(),
+      current_socket_id_(1),
+      connections_() {
   worker_thread_ = boost::thread(&TcpTransport::Run, this);
 }
 
@@ -76,40 +80,23 @@ Port TcpTransport::StartListening(const IP &ip,
     return 0;
   }
 
-  
+  ip::tcp::endpoint ep(addr, try_port);
   AcceptorPtr acceptor(new ip::tcp::acceptor(io_service_));
 
-  // try ports till success or return 0
-  if (try_port == 0 ) {
-    for (int i = 5000; i < 30000; i++) {
-      ip::tcp::endpoint ep(addr, i);
-      acceptor->open(ep.protocol(), ec);
-      if (ec) {
-        if (condition)
-          *condition = kInvalidAddress;
-        return 0;
-       }
-      acceptor->bind(ep, ec);
-      if (!ec)
-        break;
-    }
-   if (condition) 
-     *condition = kBindError;
-     return 0;
-  } else {
-    ip::tcp::endpoint ep(addr, try_port);
-    acceptor->open(ep.protocol(), ec);
-    if (ec) {
-      if (condition)
-        *condition = kInvalidAddress;
-      return 0;
-      }
-    acceptor->bind(ep, ec);
-    if (ec) {
-      if (condition)
-        *condition = kBindError;
-      return 0;
-    }
+  acceptor->open(ep.protocol(), ec);
+
+  if (ec) {
+    if (condition)
+      *condition = kInvalidAddress;
+    return 0;
+  }
+
+  acceptor->bind(ep, ec);
+
+  if (ec) {
+    if (condition)
+      *condition = kBindError;
+    return 0;
   }
 
   acceptor->listen(asio::socket_base::max_connections, ec);
@@ -211,11 +198,10 @@ SocketId TcpTransport::NextSocketId() {
 
 SocketId TcpTransport::PrepareToSend(const IP &ip,
                                      const Port &port,
-                                     const IP &/*rendezvous_ip*/,
-                                     const Port &/*rendezvous_port*/) {
-  // TCP does not use rendezvous
+                                     const IP &rendezvous_ip,
+                                     const Port &rendezvous_port) {
   bs::error_code ec;
-  ip::address addr = ip::address::from_string(ip, ec);
+  ip::address addr = ip::address::from_string(ip.c_str(), ec);
 
   if (ec)
     return 0;
@@ -228,7 +214,7 @@ SocketId TcpTransport::PrepareToSend(const IP &ip,
   SocketId socket_id = NextSocketId();
   connection->SetSocketId(socket_id);
   connections_.insert(std::make_pair(socket_id, connection));
-std::cout << "socket ID == " << socket_id << std::endl;
+
   return socket_id;
 }
 
@@ -257,5 +243,5 @@ void TcpTransport::RemoveConnection(SocketId id) {
   boost::mutex::scoped_lock lock(listening_ports_mutex_);
   connections_.erase(id);
 }
-
+*/
 }  // namespace transport

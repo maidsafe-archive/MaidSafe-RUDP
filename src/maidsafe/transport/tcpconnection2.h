@@ -41,12 +41,12 @@ namespace transport {
 class tcpConnection2 : public boost::enable_shared_from_this<tcpConnection2> {
  
 public:
-	  explicit tcpConnection2(asio::io_service& io_service);
-	  ~tcpConnection2();
-	  boost::asio::ip::tcp::socket &socket();
-	  void StartReceiving();
-	  void Send(const TransportMessage &msg, boost::uint32_t timeout_wait_for_response);
- 	  void Close();
+    explicit tcpConnection2(asio::io_service& io_service);
+    ~tcpConnection2();
+    boost::asio::ip::tcp::socket &socket();
+    void StartReceiving();
+    void Send(const TransportMessage &msg, boost::uint32_t timeout_wait_for_response);
+    void Close();
 
  private:
 };

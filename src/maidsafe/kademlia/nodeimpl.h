@@ -269,9 +269,15 @@ class NodeImpl {
   bool MarkResponse(const Contact &contact,
                     boost::shared_ptr<FindNodesArgs> fna, SearchMarking mark,
                     std::list<Contact> *response_nodes);
-  void AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
-                        int round, std::list<Contact> *contacts,
-                        bool *top_nodes_done, bool *calledback);
+  int NodesPending(boost::shared_ptr<FindNodesArgs> fna);
+  bool HandleIterationStructure(const Contact &contact,
+                                boost::shared_ptr<FindNodesArgs> fna,
+                                int round,
+                                SearchMarking mark,
+                                std::list<Contact> *nodes,
+                                bool *top_nodes_done,
+                                bool *calledback,
+                                int *nodes_pending);
   bool HandleIterationStructure(const Contact &contact,
                                 boost::shared_ptr<FindNodesArgs> fna,
                                 int round,
@@ -282,7 +288,8 @@ class NodeImpl {
   void FindNodes(const FindNodesParams &fnp);
   virtual void IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
                                bool top_nodes_done, bool calledback,
-                               std::list<Contact> *contacts);
+                               std::list<Contact> *contacts,
+                               int nodes_pending);
   void IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc);
 
   boost::mutex routingtable_mutex_, kadconfig_mutex_, extendshortlist_mutex_,

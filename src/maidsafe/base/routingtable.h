@@ -179,7 +179,7 @@ class PublicRoutingTableHandler {
                          const std::string &ip,
                          const kademlia::ConnectionType &new_contact_type);
   int UpdateLocalToUnknown(const std::string &ip, const boost::uint16_t &port);
-  int GetShuflledDirectlyConnectedNodes(std::multimap<std::string,
+  int GetShuffledDirectlyConnectedNodes(std::multimap<std::string,
                                                       boost::uint16_t> *nodes);
  private:
   PublicRoutingTableHandler(const PublicRoutingTableHandler&);

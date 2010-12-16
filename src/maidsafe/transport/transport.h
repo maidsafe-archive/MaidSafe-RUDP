@@ -38,14 +38,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/date_time/posix_time/posix_time_duration.hpp>
-#include <maidsafe/transport/transportconditions.h>
 #include <string>
 #include <iostream>
 
-#if MAIDSAFE_DHT_VERSION < 25
-#error This API is not compatible with the installed library.
-#error Please update the maidsafe-dht library.
-#endif
+//#if MAIDSAFE_DHT_VERSION < 25
+//#error This API is not compatible with the installed library.
+//#error Please update the maidsafe-dht library.
+//#endif
 
 namespace bs2 = boost::signals2;
 
@@ -55,25 +54,89 @@ typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 typedef boost::int32_t DataSize;
 typedef int ConversationId;
+typedef boost::posix_time::milliseconds Timeout;
+
+enum TransportCondition {
+  kSuccess = 0,
+  kError = -1,
+  kRemoteUnreachable = -2,
+  kNoConnection = -3,
+  kNoNetwork = -4,
+  kInvalidIP = -5,
+  kInvalidPort = -6,
+  kInvalidData = -7,
+  kNoSocket = -8,
+  kInvalidAddress = -9,
+  kNoRendezvous = -10,
+  kBehindFirewall = -11,
+  kBindError = -12,
+  kConnectError = -13,
+  kAlreadyStarted = -14,
+  kListenError = -15,
+  kCloseSocketError = -16,
+  kSendFailure = -17,
+  kSendTimeout = -18,
+  kSendStalled = -19,
+  kSendParseFailure = -20,
+  kSendSizeFailure = -21,
+  kReceiveFailure = -22,
+  kReceiveTimeout = -23,
+  kReceiveStalled = -24,
+  kReceiveParseFailure = -25,
+  kReceiveSizeFailure = -26,
+  kAddManagedEndpointError = -27,
+  kAddManagedEndpointTimedOut = -28,
+  kManagedEndpointLost = -29,
+  kSetOptionFailure = -30,
+  kMessageSizeTooLarge = -31
+};
+
+enum NatType { kManualPortMapped,  // behind manually port-mapped router.
+               kDirectConnected,   // directly connected to the net:
+                                   // external IP/Port == local IP/Port.
+               kNatPmp,            // behind NAT-PMP port-mapped router.
+               kUPnP,              // behind UPnP port-mapped router.
+               kFullCone,          // behind full-cone NAT - need to continually
+                                   // ping bootstrap node to keep hole open. 
+               kPortRestricted,    // behind port restricted NAT - node can only
+                                   // be contacted via its rendezvous node.
+               kNotConnected };    // behind symmetric NAT or offline.
 
 struct Info {
+  explicit Info(const boost::uint32_t &rtt) : rtt(rtt) {}
   boost::uint32_t rtt;
 };  
 
 struct Endpoint {
-  Endpoint(IP ip, Port port) : ip(ip), port(port) {}
+  Endpoint() : ip(), port(0) {}
+  Endpoint(const IP &ip, const Port &port) : ip(ip), port(port) {}
   IP ip;
   Port port;
 };
 
+// In bytes
 const DataSize kMaxTransportMessageSize = 67108864;
+// Default timeout for RPCs
+const Timeout kDefaultInitialTimeout(10000);
+// Used to indicate timeout should be calculated by transport
+const Timeout kDynamicTimeout(-1);
+// Minimum timeout if being calculated dynamically
+const Timeout kMinTimeout(500);
+// Factor of message size used to calculate timeout dynamically
+const float kTimeoutFactor(0.01);
+// Maximum period of inactivity on a send or receive before timeout triggered
+const Timeout kStallTimeout(3000);
+// Indicates timeout to expire immediately
+const Timeout kImmediateTimeout(0);
+// Indicates timeout to never expire
+const Timeout kInfiniteTimeout(-1);
 
 // transport signals
-typedef bs2::signal<void(const ConversationId&,
-                         const std::string&,
-                         const Info&)> OnMessageReceived;
-typedef bs2::signal<void(const ConversationId&,
-                         const TransportCondition&)> OnError;
+typedef boost::shared_ptr<bs2::signal<void(const ConversationId&,
+                                           const std::string&,
+                                           const Info&)> > OnMessageReceived;
+typedef boost::shared_ptr<bs2::signal<void(const ConversationId&,
+                                      const TransportCondition&)> > OnError;
 
 // Base class for all transport types.
 class Transport {
@@ -98,7 +161,7 @@ class Transport {
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
-                    const boost::posix_time::milliseconds &timeout) = 0;
+                    const Timeout &timeout) = 0;
   /**
    * Sends the given message within an already established conversation.
    * @param data The message data to transmit.
@@ -107,7 +170,7 @@ class Transport {
    */
   virtual void Respond(const std::string &data,
                        const ConversationId &conversation_id,
-                       const boost::posix_time::milliseconds &timeout) = 0;
+                       const Timeout &timeout) = 0;
   /**
    * Sends data that is being streamed from the given source.
    * @param data The input stream delivering data to send.
@@ -123,12 +186,12 @@ class Transport {
   OnMessageReceived on_message_received() { return on_message_received_; }
   OnError on_error() { return on_error_; }
  protected:
-  Transport(boost::shared_ptr<boost::asio::io_service> io_service)
-    : io_service_(io_service),
-      listening_port_(0),
-      on_message_received_(),
-      on_error_() {}
-  boost::shared_ptr<boost::asio::io_service> io_service_;
+  explicit Transport(boost::shared_ptr<boost::asio::io_service> asio_service)
+      : asio_service_(asio_service),
+        listening_port_(0),
+        on_message_received_(new OnMessageReceived),
+        on_error_(new OnError) {}
+  boost::shared_ptr<boost::asio::io_service> asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;
   OnError on_error_;

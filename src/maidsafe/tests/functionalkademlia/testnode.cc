@@ -330,13 +330,13 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
                        std::ios::out | std::ios::trunc | std::ios::binary);
   ASSERT_TRUE(conf.SerializeToOstream(&output2));
   output2.close();
-  ASSERT_EQ(NONE, node_local_1.nat_type());
+  ASSERT_EQ(kSymmetric, node_local_1.nat_type());
   node_local_1.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, node_local_1.node_id().String());
-  ASSERT_EQ(DIRECT_CONNECTED, node_local_1.nat_type());
+  ASSERT_EQ(kDirectConnected, node_local_1.nat_type());
 
   boost::shared_ptr<transport::UdtTransport> t2(new transport::UdtTransport);
   transport::Port p2 = t2->StartListening("", 0, &tc);
@@ -369,14 +369,14 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   ASSERT_TRUE(conf.SerializeToOstream(&output3));
   output3.close();
   ports_.insert(node_local_2.port());
-  ASSERT_EQ(NONE, node_local_2.nat_type());
+  ASSERT_EQ(kSymmetric, node_local_2.nat_type());
   cb_.Reset();
   node_local_2.Join(config_file,
                      boost::bind(&GeneralKadCallback::CallbackFunc, &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_EQ(kClientId, node_local_2.node_id().String());
-  ASSERT_EQ(DIRECT_CONNECTED, node_local_2.nat_type());
+  ASSERT_EQ(kDirectConnected, node_local_2.nat_type());
 
   // Doing a storevalue
   NodeId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
@@ -1110,7 +1110,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
 
 TEST_F(NodeTest, FUNC_KAD_AllDirectlyConnected) {
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
-    ASSERT_EQ(DIRECT_CONNECTED, nodes_[i]->nat_type());
+    ASSERT_EQ(kDirectConnected, nodes_[i]->nat_type());
     std::vector<Contact> exclude_contacts;
     std::vector<Contact> contacts;
     nodes_[i]->GetRandomContacts(static_cast<size_t>(kNetworkSize),
@@ -1205,14 +1205,14 @@ TEST_F(NodeTest, FUNC_KAD_StartStopNode) {
   ASSERT_LT(0, kconf.contact_size());
   cb_.Reset();
   std::string conf_file = dbs_[r_node] + "/.kadconfig";
-  ASSERT_EQ(NONE, nodes_[r_node]->nat_type());
+  ASSERT_EQ(kSymmetric, nodes_[r_node]->nat_type());
   nodes_[r_node]->Join(nodes_[r_node]->node_id(), conf_file,
                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                     &cb_, _1));
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   ASSERT_TRUE(nodes_[r_node]->is_joined());
-  ASSERT_EQ(DIRECT_CONNECTED, nodes_[r_node]->nat_type());
+  ASSERT_EQ(kDirectConnected, nodes_[r_node]->nat_type());
   nodes_[r_node]->set_signature_validator(&validator);
   cb_.Reset();
 }

@@ -1,5 +1,4 @@
-﻿
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -26,20 +25,18 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/transportutils.h"
-#include <boost/asio/ip/address.hpp>
-#include <boost/system/error_code.hpp>
+#ifndef MAIDSAFE_TRANSPORT_DETAIL_H_
+#define MAIDSAFE_TRANSPORT_DETAIL_H_
 
 namespace transport {
 
-bool ValidIP(const IP &ip) {
-  boost::system::error_code ec;
-  boost::asio::ip::address::from_string(ip, ec);
-  return ec == boost::system::errc::success;
-}
+typedef int SocketId;
 
-bool ValidPort(const Port &port) {
-  return port > 5000;
-}
+struct SocketPerformanceStats {
+ public:
+  virtual ~SocketPerformanceStats() {}
+};
 
 }  // namespace transport
+
+#endif

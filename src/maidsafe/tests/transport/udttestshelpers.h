@@ -37,7 +37,7 @@ class TransportMessage;
 
 namespace test {
 
-bool SocketAlive(const int &udt_socket_id);
+bool SocketAlive(const int &socket_id);
 
 testing::AssertionResult MessagesMatch(
     const TransportMessage &first_transport_message,

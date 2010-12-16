@@ -783,7 +783,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
 //      message_handlers.at(6)->hole_punch_requests().back();
 //  EXPECT_EQ(sent_hole_punch_message->SerializeAsString(),
 //            signalled_hole_punch_message.get<0>().SerializeAsString());
-//  EXPECT_EQ(udt_connections.at(6).udt_socket_id_,
+//  EXPECT_EQ(udt_connections.at(6).socket_id_,
 //            signalled_hole_punch_message.get<1>());
 //  EXPECT_EQ(rtt, signalled_hole_punch_message.get<2>());
 
@@ -803,7 +803,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
 //      message_handlers.at(7)->hole_punch_responses().back();
 //  EXPECT_EQ(sent_hole_punch_message->SerializeAsString(),
 //            signalled_hole_punch_message.get<0>().SerializeAsString());
-//  EXPECT_EQ(udt_connections.at(7).udt_socket_id_,
+//  EXPECT_EQ(udt_connections.at(7).socket_id_,
 //            signalled_hole_punch_message.get<1>());
 //  EXPECT_EQ(rtt, signalled_hole_punch_message.get<2>());
 

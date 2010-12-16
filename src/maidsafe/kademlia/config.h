@@ -39,15 +39,6 @@ typedef boost::function<void(std::string)> VoidFunctorOneString;
 
 enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
-// DIRECT_CONNECTED - node is directly connected to the internet, IP is an
-//                    external IP or port has been manually mapped or port
-//                    mapped with UPnP
-// RESTRICTED - node is behind a port or address restricted NAT, has to be
-//              contacted with its rendezvous server
-// NONE - node is behind a symmetric NAT and can not be contacted without it
-//        making the first contact and keeping the connection open
-enum NatType { DIRECT_CONNECTED, RESTRICTED, NONE };
-
 // CLIENT - does not map external ip and port, is not stored in other  nodes
 //          routing table
 // CLIENT_PORT_MAPPED - maps external ip and port, is not stored in other nodes

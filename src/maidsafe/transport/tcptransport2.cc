@@ -41,29 +41,29 @@ namespace pt = boost::posix_time;
 namespace transport {
 
 tcpTransport2::tcpTransport2(io_service& io_service_, 
-							 boost::asio::tcp::endpoint& endpoint_):this->io_service_(io_service_),
-							 	acceptor_(io_service), connection_(io_service)
+               boost::asio::tcp::endpoint& endpoint_):this->io_service_(io_service_),
+                acceptor_(io_service), connection_(io_service)
 {
-	acceptor_.open(endpoint.protocol());
-	acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-	accpetor_.bind(endpoint);
-	acceptor_.listen();
-	acceptor_.async_accept(connection_->socket(), 
-		boost::bind(&tcpTransport::handle_accept, this, asio::placeholders::error));
+  acceptor_.open(endpoint.protocol());
+  acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+  accpetor_.bind(endpoint);
+  acceptor_.listen();
+  acceptor_.async_accept(connection_->socket(), 
+    boost::bind(&tcpTransport::handle_accept, this, asio::placeholders::error));
 }
 
 tcpTransport2::handle_accept(const asio::error_code& e)
 {
-	if (!e)
-	{
-		connection_->reset(new connection(io_service));
-		acceptor_.async_accept(connection_->socket(), 
-			boost::bind(handle_accept, this, asio::placeholders::error));
-	}
+  if (!e)
+  {
+    connection_->reset(new connection(io_service));
+    acceptor_.async_accept(connection_->socket(), 
+      boost::bind(handle_accept, this, asio::placeholders::error));
+  }
 }
 
 tcpTransport2::~tcpTransport2() 
 {
-	  acceptor_.close();	
+    acceptor_.close();	
 }
 }  // namespace transport

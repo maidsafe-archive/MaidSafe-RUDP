@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/enable_shared_from_this.hpp>
 
 namespace transport {
-
+/*
 class TcpTransport;
 
 class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
@@ -74,7 +74,7 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   RawBuffer buffer_;
   boost::uint32_t timeout_for_response_;
 };
-
+*/
 }  // namespace transport
 
 #endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION_H_

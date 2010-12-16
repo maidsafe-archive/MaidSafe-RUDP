@@ -298,7 +298,7 @@ int PublicRoutingTableHandler::UpdateLocalToUnknown(
   return 0;
 }
 
-int PublicRoutingTableHandler::GetShuflledDirectlyConnectedNodes(
+int PublicRoutingTableHandler::GetShuffledDirectlyConnectedNodes(
     std::multimap<std::string, boost::uint16_t> *nodes) {
   if (!nodes)
     return -1;

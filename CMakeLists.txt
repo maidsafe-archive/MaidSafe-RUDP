@@ -249,7 +249,7 @@ INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmo
 # Google Log library search - Glog can't currently be compiled on Windows with MinGW              #
 ###################################################################################################
 IF((NOT WIN32) OR MSVC)
-  INCLUDE(${${PROJECT_NAME}_ROOT}/build//maidsafe_FindGlog.cmake)
+  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
   IF(Glog_FOUND)
     SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
     SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
@@ -395,7 +395,7 @@ SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
 
 LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
                              ${ALL_FILES_KADEMLIA_DIR}
-                             ${ALL_FILES_TRANSPORT_DIR}
+#                             ${ALL_FILES_TRANSPORT_DIR}
                              ${ALL_FILES_PROTOBUF_DIR}
                              ${ALL_FILES_LIBUPNP_DIR}
                              ${ALL_FILES_UPNP_DIR}
@@ -500,11 +500,12 @@ IF(NOT MSVC)
 ENDIF()
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
+ADD_LIBRARY(transport_static STATIC ${ALL_FILES_TRANSPORT_DIR})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
-TARGET_LINK_LIBRARIES(maidsafe_dht_static udt_static cryptopp_static)
 
 #Rename maidsafe_dht_static as maidsafe_dht on way out NOT in MSVC names clash of static and import lib
 #IF(NOT MSVC)
+  SET_TARGET_PROPERTIES(transport_static PROPERTIES OUTPUT_NAME transport)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES OUTPUT_NAME maidsafe_dht)
 #ENDIF()
 
@@ -540,12 +541,14 @@ ELSE()
 #    SET_TARGET_PROPERTIES(cryptopp PROPERTIES IMPORTED_LOCATION bin/libcryptopp.so)
 #    SET_TARGET_PROPERTIES(udt PROPERTIES IMPORTED_LOCATION bin/libudt.so)
   ENDIF()
+  SET_TARGET_PROPERTIES(transport_static PROPERTIES IMPORTED_LOCATION bin/libtransport.a)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.a)
   SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.a)
   SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.a)
 ENDIF()
 
 TARGET_LINK_LIBRARIES(maidsafe_dht_static
+                        transport_static
                         udt_static
                         cryptopp_static
                         ${Protobuf_LIBRARY}
@@ -658,7 +661,7 @@ IF(MSVC)
                             LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
   ENDIF()
 
-  # Next version of CMake accommodates per-build-type STATIC_LIBRARY_FLAGS.  Until then, this has no effect.
+  SET_TARGET_PROPERTIES(transport_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ENDIF()
 
