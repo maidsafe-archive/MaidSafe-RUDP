@@ -11,12 +11,11 @@ message PingRequest {
 message PingResponse {
   required bool result = 1;
   optional bytes echo = 2;
-  optional bytes node_id = 3;
 };
 
 message FindValueRequest {
   required bytes key = 1;
-  required Contact sender_info = 2;
+  required Contact sender = 2;
 };
 
 message FindValueResponse {
@@ -26,18 +25,16 @@ message FindValueResponse {
   repeated SignedValue signed_values = 4;
   optional Contact alternative_value_holder = 5;
   optional bytes needs_cache_copy = 6;
-  optional bytes node_id = 8;
 };
 
 message FindNodesRequest {
   required bytes key = 1;
-  required Contact sender_info = 2;
+  required Contact sender = 2;
 };
 
 message FindNodesResponse {
   required bool result = 1;
   repeated Contact closest_nodes = 2;
-  optional bytes node_id = 3;
 };
 
 message StoreRequest {
@@ -52,8 +49,7 @@ message StoreRequest {
 
 message StoreResponse {
   required bool result = 1;
-  optional bytes node_id = 2;
-  optional SignedRequest signed_request = 3;
+  optional SignedRequest signed_request = 2;
 };
 
 message DeleteRequest {
@@ -65,7 +61,6 @@ message DeleteRequest {
 
 message DeleteResponse {
   required bool result = 1;
-  optional bytes node_id = 2;
 };
 
 message UpdateRequest {
@@ -79,7 +74,6 @@ message UpdateRequest {
 
 message UpdateResponse {
   required bool result = 1;
-  optional bytes node_id = 2;
 };
 
 message DownlistRequest {
@@ -89,5 +83,4 @@ message DownlistRequest {
 
 message DownlistResponse {
   required bool result = 1;
-  optional bytes node_id = 2;
 };
