@@ -46,7 +46,7 @@ namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
 namespace transport {
-
+/*
 TcpConnection::TcpConnection(TcpTransport *tcp_transport,
                              ip::tcp::endpoint const& remote_ep)
   : transport_(tcp_transport),
@@ -97,12 +97,12 @@ void TcpConnection::HandleTimeout(boost::system::error_code const& ec) {
 void TcpConnection::HandleSize(boost::system::error_code const& ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_->signals()->on_receive_(socket_id_, kReceiveTimeout);
+    transport_->signals()->on_error_(socket_id_, kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_->signals()->on_receive_(socket_id_, kReceiveFailure);
+    transport_->signals()->on_error_(socket_id_, kReceiveFailure);
     return Close();
   }
 
@@ -117,18 +117,18 @@ void TcpConnection::HandleSize(boost::system::error_code const& ec) {
 void TcpConnection::HandleRead(boost::system::error_code const& ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_->signals()->on_receive_(socket_id_, kReceiveTimeout);
+    transport_->signals()->on_error_(socket_id_, kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_->signals()->on_receive_(socket_id_, kReceiveFailure);
+    transport_->signals()->on_error_(socket_id_, kReceiveFailure);
     return Close();
   }
 
   TransportMessage msg;
   if (!msg.ParseFromArray(buffer_.Data(), buffer_.Size())) {
-    transport_->signals()->on_receive_(socket_id_, kReceiveParseFailure);
+    transport_->signals()->on_error_(socket_id_, kReceiveParseFailure);
     return Close();
   }
 
@@ -147,7 +147,7 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
   if (field_descriptors.size() != 1U) {
     DLOG(INFO) << "Bad data - doesn't contain exactly one field." << std::endl;
     if (!is_request)
-      transport_->signals()->on_receive_(socket_id_, kReceiveParseFailure);
+      transport_->signals()->on_error_(socket_id_, kReceiveParseFailure);
     return Close();
   }
 
@@ -155,17 +155,17 @@ void TcpConnection::DispatchMessage(const TransportMessage &msg) {
 
   switch (field_descriptors.at(0)->number()) {
     case TransportMessage::Data::kRawMessageFieldNumber:
-      transport_->signals()->on_message_received_(msg.data().raw_message(),
-                                                 socket_id_, rtt);
+      transport_->signals()->on_message_received_(socket_id_,
+          msg.data().raw_message(), rtt);
       break;
     case TransportMessage::Data::kRpcMessageFieldNumber:
       if (is_request) {
-        transport_->signals()->on_rpc_request_received_(
-            msg.data().rpc_message(), socket_id_, rtt);
+        transport_->signals()->on_message_received_(socket_id_,
+            msg.data().rpc_message(), rtt);
         // Leave socket open to send response on.
       } else {
-        transport_->signals()->on_rpc_response_received_(
-            msg.data().rpc_message(), socket_id_, rtt);
+        transport_->signals()->on_message_received_(socket_id_,
+            msg.data().rpc_message(), rtt);
         Close();
       }
       break;
@@ -220,12 +220,12 @@ void TcpConnection::Send(const TransportMessage &msg,
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_->signals()->on_send_(socket_id_, kSendTimeout);
+    transport_->signals()->on_error_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_->signals()->on_send_(socket_id_, kSendFailure);
+    transport_->signals()->on_error_(socket_id_, kSendFailure);
     return Close();
   }
 
@@ -242,16 +242,16 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    transport_->signals()->on_send_(socket_id_, kSendTimeout);
+    transport_->signals()->on_error_(socket_id_, kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    transport_->signals()->on_send_(socket_id_, kSendFailure);
+    transport_->signals()->on_error_(socket_id_, kSendFailure);
     return Close();
   }
 
-  transport_->signals()->on_send_(socket_id_, kSuccess);
+//  transport_->signals()->on_error_(socket_id_, kSuccess);
 
   // Start receiving response
   if (timeout_for_response_ != 0) {
@@ -260,5 +260,5 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
     Close();
   }
 }
-
+*/
 }  // namespace transport

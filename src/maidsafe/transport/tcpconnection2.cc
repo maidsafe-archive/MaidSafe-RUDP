@@ -47,36 +47,36 @@ namespace pt = boost::posix_time;
 
 namespace transport {
 
-	tcpConnection2::tcpConnection2(asio::io_service& io_service_):soclet_(io_service_)
-	{
-	  socket_.async_read_some(asio::buffer(buffer_),
-		  boost::bind(&tcpConnection2::handle_read, shared_from_this(),
-			asio::placeholders::error,
-			asio::placeholders::bytes_transferred));
-	}
+  tcpConnection2::tcpConnection2(asio::io_service& io_service_):soclet_(io_service_)
+  {
+    socket_.async_read_some(asio::buffer(buffer_),
+      boost::bind(&tcpConnection2::handle_read, shared_from_this(),
+      asio::placeholders::error,
+      asio::placeholders::bytes_transferred));
+  }
 
-	tcpConnection2::handle_read(const asio::error_code& e,std::size_t bytes_transferred)
-	{
-		if(!e)
-		{
-			parse(buffer.data(), request);
-			handle_request(request, reply);
-			asio::async_write(socket_, reply_.to_buffers(),
-				boost::bind(&connection::handle_write, shared_from_this(), asio::placeholders::error));
-		}
-	}
+  tcpConnection2::handle_read(const asio::error_code& e,std::size_t bytes_transferred)
+  {
+    if(!e)
+    {
+      parse(buffer.data(), request);
+      handle_request(request, reply);
+      asio::async_write(socket_, reply_.to_buffers(),
+        boost::bind(&connection::handle_write, shared_from_this(), asio::placeholders::error));
+    }
+  }
 
-	tcpConnection2::handle_write(const asio::error_code& e)
-	{
-		if (!e)
-		{
-			socket_.shutdown();
-		}
-	}
+  tcpConnection2::handle_write(const asio::error_code& e)
+  {
+    if (!e)
+    {
+      socket_.shutdown();
+    }
+  }
 
-	tcpConnection2::~tcpConnection2()
-	{
-		socket_.close();
-	}
+  tcpConnection2::~tcpConnection2()
+  {
+    socket_.close();
+  }
 
 }  // namespace transport

@@ -51,43 +51,44 @@ boost::shared_ptr<addrinfo const> Next(
 }
 
 TransportCondition GetNewSocket(
-    const IP &ip,
-    const Port &port,
+    const Endpoint &endpoint,
     bool reuse_address,
-    SocketId *udt_socket_id,
+    transport::SocketId *socket_id,
     boost::shared_ptr<addrinfo const> *address_info) {
-  if (udt_socket_id == NULL)
+  if (socket_id == NULL)
     return kConnectError;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_flags = (ip.empty() ? AI_PASSIVE : 0);
+  hints.ai_flags = (endpoint.ip == IP() ? AI_PASSIVE : 0);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  const char *address(ip.empty() ? NULL : ip.c_str());
-  std::string port_str = boost::lexical_cast<std::string>(port);
+  const char *address(endpoint.ip == IP() ? NULL :
+                      endpoint.ip.to_string().c_str());
+  std::string port_str = boost::lexical_cast<std::string>(endpoint.port);
   int result(0);
   *address_info = SocketGetAddrinfo(address, port_str.c_str(), hints, &result);
   if (result != 0) {
-    DLOG(ERROR) << "Incorrect endpoint. " << ip << ":" << port << std::endl;
-    *udt_socket_id = UDT::INVALID_SOCK;
+    DLOG(ERROR) << "Incorrect endpoint. " << endpoint.ip << ":" << endpoint.port
+                << std::endl;
+    *socket_id = UDT::INVALID_SOCK;
     return kInvalidAddress;
   }
-  return GetNewSocket(reuse_address, udt_socket_id, *address_info);
+  return GetNewSocket(reuse_address, socket_id, *address_info);
 }
 
 TransportCondition GetNewSocket(
     bool reuse_address,
-    SocketId *udt_socket_id,
+    SocketId *socket_id,
     boost::shared_ptr<addrinfo const> address_info) {
-  if (udt_socket_id == NULL)
+  if (socket_id == NULL)
     return kConnectError;
 
-  *udt_socket_id = UDT::socket(address_info->ai_family,
+  *socket_id = UDT::socket(address_info->ai_family,
                                address_info->ai_socktype,
                                address_info->ai_protocol);
 
-  if (UDT::INVALID_SOCK == *udt_socket_id) {
+  if (UDT::INVALID_SOCK == *socket_id) {
     DLOG(ERROR) << "GetNewSocket error: " <<
         UDT::getlasterror().getErrorMessage() << std::endl;
     return kNoSocket;
@@ -96,38 +97,36 @@ TransportCondition GetNewSocket(
   // Windows UDP problems fix
 #ifdef WIN32
   int mtu(1052);
-  UDT::setsockopt(*udt_socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
+  UDT::setsockopt(*socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif
   // UDT_REUSEADDR defaults to true
   if (!reuse_address) {
-    UDT::setsockopt(*udt_socket_id, 0, UDT_REUSEADDR, &reuse_address,
+    UDT::setsockopt(*socket_id, 0, UDT_REUSEADDR, &reuse_address,
                     sizeof(reuse_address));
   }
   return kSuccess;
 }
 
-TransportCondition Connect(const SocketId &udt_socket_id,
+TransportCondition Connect(const SocketId &socket_id,
                            boost::shared_ptr<addrinfo const> peer) {
-  if (UDT::ERROR == UDT::connect(udt_socket_id, peer->ai_addr,
-                                 peer->ai_addrlen)) {
+  if (UDT::ERROR == UDT::connect(socket_id, peer->ai_addr, peer->ai_addrlen)) {
     DLOG(ERROR) << "Connect: " << UDT::getlasterror().getErrorMessage()
                 << std::endl;
-    UDT::close(udt_socket_id);
+    UDT::close(socket_id);
     return kConnectError;
   }
   return kSuccess;
 }
 
-TransportCondition SetSyncMode(const SocketId &udt_socket_id,
-                               bool synchronous) {
-  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_RCVSYN,
-      &synchronous, sizeof(synchronous))) {
+TransportCondition SetSyncMode(const SocketId &socket_id, bool synchronous) {
+  if (UDT::ERROR == UDT::setsockopt(socket_id, 0, UDT_RCVSYN, &synchronous,
+                                    sizeof(synchronous))) {
     DLOG(ERROR) << "SetSyncMode " << (synchronous ? "on" : "off") << " UDT_RCVS"
         "YN error: " << UDT::getlasterror().getErrorMessage() << std::endl;
     return kSetOptionFailure;
   }
-  if (UDT::ERROR == UDT::setsockopt(udt_socket_id, 0, UDT_SNDSYN,
-      &synchronous, sizeof(synchronous))) {
+  if (UDT::ERROR == UDT::setsockopt(socket_id, 0, UDT_SNDSYN, &synchronous,
+                                    sizeof(synchronous))) {
     DLOG(ERROR) << "SetSyncMode " << (synchronous ? "on" : "off") << " UDT_SNDS"
         "YN error: " << UDT::getlasterror().getErrorMessage() << std::endl;
     return kSetOptionFailure;

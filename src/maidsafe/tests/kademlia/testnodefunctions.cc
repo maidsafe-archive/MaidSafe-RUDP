@@ -208,7 +208,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
   ASSERT_EQ(base::IpBytesToAscii(ci.rendezvous_ip()), rendezvous_ip);
   ASSERT_EQ(ci.rendezvous_port(), rendezvous_port);
 
-  ASSERT_EQ(DIRECT_CONNECTED, node_->nat_type());
+  ASSERT_EQ(kDirectConnected, node_->nat_type());
 }
 
 }  // namespace test_kbucket

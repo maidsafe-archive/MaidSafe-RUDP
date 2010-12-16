@@ -161,7 +161,7 @@ NodeImpl::NodeImpl(
           local_port_(0),
           upnp_mapped_port_(0),
           type_(node_parameters.type),
-          nat_type_(NONE),
+          nat_type_(kSymmetric),
           bootstrapping_nodes_(),
           exclude_bs_contacts_(),
           contacts_to_add_(),
@@ -201,7 +201,7 @@ void NodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
     if (type_ == VAULT) {
       local_result.set_result(true);
       is_joined_ = true;
-      nat_type_ = DIRECT_CONNECTED;
+      nat_type_ = kDirectConnected;
       premote_service_->set_node_joined(true);
       premote_service_->set_node_info(contact_info());
       addcontacts_routine_.reset(new boost::thread(&NodeImpl::CheckAddContacts,
@@ -229,7 +229,7 @@ void NodeImpl::Join_Bootstrapping(const bool&, VoidFunctorOneString callback) {
   Contact bootstrap_candidate = bootstrapping_nodes_.back();
   bootstrapping_nodes_.pop_back();
   AddContact(bootstrap_candidate, 0.0, false);
-  nat_type_ = DIRECT_CONNECTED;
+  nat_type_ = kDirectConnected;
   StartSearchIteration(node_id_, BOOTSTRAP, callback);
 }
 
@@ -378,7 +378,7 @@ void NodeImpl::JoinFirstNode(const NodeId &node_id,
   prouting_table_.reset(new RoutingTable(node_id_, K_));
 
   is_joined_ = true;
-  nat_type_ = DIRECT_CONNECTED;
+  nat_type_ = kDirectConnected;
   premote_service_->set_node_joined(true);
   premote_service_->set_node_info(contact_info());
 
@@ -425,7 +425,7 @@ void NodeImpl::Leave() {
       prth_->Clear();
     }
     stopping_ = false;
-    nat_type_ = NONE;
+    nat_type_ = kSymmetric;
   }
 }
 
@@ -2436,101 +2436,6 @@ void NodeImpl::AddContactsToContainer(const std::vector<Contact> contacts,
   }
 }
 
-void NodeImpl::AnalyseIteration(boost::shared_ptr<FindNodesArgs> fna,
-                                 int round, std::list<Contact> *contacts,
-                                 bool *top_nodes_done, bool *calledback) {
-  if (fna->calledback) {
-    *top_nodes_done = true;
-    *calledback = true;
-    return;
-  }
-
-  // Get all contacted nodes that aren't down and sort them
-  NodeContainer::iterator node_it = fna->nc.begin();
-  for (; node_it != fna->nc.end(); ++node_it) {
-    if ((*node_it).state != kDown)
-      contacts->push_back((*node_it).contact);
-  }
-  SortContactList(fna->key, contacts);
-
-  // Only interested in the K closest
-  if (contacts->size() > size_t(K_))
-    contacts->resize(size_t(K_));
-
-  // Check which ones have been contacted and which ones are potential alphas
-  std::list<Contact> alphas;
-  std::list<Contact>::iterator it_conts = contacts->begin();
-  size_t times(0);
-  for (; it_conts != contacts->end(); ++it_conts) {
-    NodeContainerByContact &index_contact = fna->nc.get<nc_contact>();
-    NCBCit contact_it = index_contact.find(*it_conts);
-    if (contact_it != index_contact.end()) {
-      if ((*contact_it).state == kContacted) {
-        ++times;
-      } else if ((*contact_it).state != kSelectedAlpha) {
-        alphas.push_back((*contact_it).contact);
-      }
-    } else {
-      DLOG(ERROR) << "NodeImpl::AnalyseIteration contacts error." << std::endl;
-    }
-  }
-
-  // If all have been contacted we're done
-  if (times == contacts->size()) {
-    if (!fna->calledback) {
-      *top_nodes_done = true;
-      fna->calledback = true;
-      *calledback = false;
-    }
-    DLOG(INFO) << "NodeImpl::AnalyseIteration - Search Complete at Round ("
-               << round << ")" << std::endl;;
-    return;
-  } else {
-    printf("NodeImpl::AnalyseIteration - Search not complete at Round(%d) - %d times - %d alphas\n", round, times, contacts->size());
-  }
-
-  // Check if the iteration has been analysed
-  contacts->clear();
-  std::set<int>::iterator it = fna->done_rounds.find(round);
-  if (it != fna->done_rounds.end()) {
-    DLOG(INFO) << "NodeImpl::AnalyseIteration - Do nothing. Round (" << round
-               << ") done" << std::endl;
-    return;
-  }
-
-  // Check how many of the nodes of the iteration are back
-  NodeContainerByRound &index_car = fna->nc.get<nc_round>();
-  std::pair<NCBRit, NCBRit> pr = index_car.equal_range(round);
-  int done(0), total(0);
-  for (; pr.first != pr.second; ++pr.first) {
-    ++total;
-    if ((*pr.first).state == kContacted)
-      ++done;
-  }
-
-  DLOG(INFO) << "NodeImpl::AnalyseIteration - Total(" << total << "), Done("
-             << done << "), Round(" << round << ")" << std::endl;
-  // Decide if another iteration is needed and pick the alphas
-  if ((total > kBeta && done >= kBeta) || (total <= kBeta && done == total)) {
-    fna->done_rounds.insert(round);
-    ++fna->round;
-    std::list<Contact>::iterator alpha_it = alphas.begin();
-    for (size_t a = 0; a < alphas.size() && a < kAlpha; ++a, ++alpha_it) {
-      NodeContainerByContact &index_contact = fna->nc.get<nc_contact>();
-      NCBCit contact_it = index_contact.find(*alpha_it);
-      if (contact_it != index_contact.end()) {
-        NodeContainerTuple nct = *contact_it;
-        nct.state = kSelectedAlpha;
-        nct.round = fna->round;
-        index_contact.replace(contact_it, nct);
-        contacts->push_back(*alpha_it);
-      }
-    }
-    DLOG(INFO) << "NodeImpl::AnalyseIteration - Returning" << contacts->size()
-               << "alphas for Round (" << fna->round << ")" << std::endl;
-  }
-}
-
 bool NodeImpl::MarkResponse(const Contact &contact,
                              boost::shared_ptr<FindNodesArgs> fna,
                              SearchMarking mark,
@@ -2556,6 +2461,126 @@ bool NodeImpl::MarkResponse(const Contact &contact,
   }
 
   return false;
+}
+
+int NodeImpl::NodesPending(boost::shared_ptr<FindNodesArgs> fna) {
+  NodeContainerByState &index_state = fna->nc.get<nc_state>();
+  std::pair<NCBSit, NCBSit> p = index_state.equal_range(kSelectedAlpha);
+  int count(0);
+  while (p.first != p.second) {
+    ++count;
+    ++p.first;
+  }
+  return count;
+}
+
+bool NodeImpl::HandleIterationStructure(const Contact &contact,
+                                         boost::shared_ptr<FindNodesArgs> fna,
+                                         int round,
+                                         SearchMarking mark,
+                                         std::list<Contact> *nodes,
+                                         bool *top_nodes_done,
+                                         bool *calledback,
+                                         int *nodes_pending) {
+  boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
+  if (fna->calledback) {
+    *nodes_pending = NodesPending(fna);
+    *top_nodes_done = true;
+    *calledback = true;
+    nodes->clear();
+    return true;
+  } else {
+    printf("NodeImpl::AnalyseIteration - Search not complete at Round(%d) - %d times - %d alphas\n", round, times, contacts->size());
+  }
+
+  bool b = MarkResponse(contact, fna, mark, nodes);
+ *nodes_pending = NodesPending(fna);
+
+  // Check how many of the nodes of the iteration are back
+  NodeContainerByRound &index_car = fna->nc.get<nc_round>();
+  std::pair<NCBRit, NCBRit> pr = index_car.equal_range(round);
+  int alphas_replied(0), alphas_sent(0);
+  for (; pr.first != pr.second; ++pr.first) {
+    ++alphas_sent;
+    if ((*pr.first).state == kContacted)
+      ++alphas_replied;
+  }
+
+  printf("NodeImpl::HandleIterationStructure - Total(%d), Done(%d), "
+         "Round(%d)\n", alphas_sent, alphas_replied, round);
+  // Decide if another iteration is needed and pick the alphas
+  if ((alphas_sent > kBeta && alphas_replied >= kBeta) ||
+      (alphas_sent <= kBeta && alphas_replied == alphas_sent)) {
+
+    // Get all contacted nodes that aren't down and sort them
+    NodeContainer::iterator node_it = fna->nc.begin();
+    for (; node_it != fna->nc.end(); ++node_it) {
+      if ((*node_it).state != kDown)
+        nodes->push_back((*node_it).contact);
+    }
+    SortContactList(fna->key, nodes);
+
+    // Only interested in the K closest
+    if (nodes->size() > size_t(K_))
+      nodes->resize(size_t(K_));
+
+    printf("%s -- %s\n",
+           nodes->back().node_id().ToStringEncoded(KadId::kBase64).c_str(),
+           fna->kth_closest.ToStringEncoded(KadId::kBase64).c_str());
+    if (nodes->back().node_id() == fna->kth_closest) {
+      // Check the top K nodes to see if they're all done
+      int new_nodes(0), contacted_nodes(0), alpha_nodes(0);
+      std::list<Contact>::iterator done_it = nodes->begin();
+      for (; done_it != nodes->end(); ++done_it) {
+        NodeContainerByContact &index_contact = fna->nc.get<nc_contact>();
+        NCBCit contact_it = index_contact.find(*done_it);
+        if (contact_it != index_contact.end()) {
+          if ((*contact_it).state == kNew)
+            ++new_nodes;
+          else if ((*contact_it).state == kSelectedAlpha)
+            ++alpha_nodes;
+          else if ((*contact_it).state == kContacted)
+            ++contacted_nodes;
+        }
+      }
+      printf("NodeImpl::HandleIterationStructure - New(%d), Alpha(%d),"
+             " Contacted(%d)\n", new_nodes, alpha_nodes, contacted_nodes);
+
+      if (new_nodes == 0 && alpha_nodes == 0 && *nodes_pending == 0) {
+        // We're done
+        *calledback = fna->calledback;
+        if (!fna->calledback)
+          fna->calledback = true;
+        *top_nodes_done = true;
+        return b;
+      }
+    }
+
+    fna->kth_closest = nodes->back().node_id();
+    ++fna->round;
+    std::list<Contact> alphas;
+    std::list<Contact>::iterator it_conts = nodes->begin();
+    boost::uint16_t times(0);
+    for (; it_conts != nodes->end() && times < kAlpha; ++it_conts) {
+      NodeContainerByContact &index_contact = fna->nc.get<nc_contact>();
+      NCBCit contact_it = index_contact.find(*it_conts);
+      if (contact_it != index_contact.end()) {
+        if ((*contact_it).state == kNew) {
+          NodeContainerTuple nct = *contact_it;
+          nct.state = kSelectedAlpha;
+          nct.round = fna->round;
+          index_contact.replace(contact_it, nct);
+          ++times;
+          alphas.push_back((*contact_it).contact);
+        }
+      } else {
+        printf("This shouldn't happen. Ever! Ever ever ever!\n");
+      }
+    }
+    *nodes = alphas;
+  }
+
+  return b;
 }
 
 bool NodeImpl::HandleIterationStructure(const Contact &contact,
@@ -2604,8 +2629,8 @@ bool NodeImpl::HandleIterationStructure(const Contact &contact,
       nodes->resize(size_t(K_));
 
     printf("%s -- %s\n",
-           nodes->back().node_id().ToStringEncoded(NodeId::kBase64).c_str(),
-           fna->kth_closest.ToStringEncoded(NodeId::kBase64).c_str());
+           nodes->back().node_id().ToStringEncoded(KadId::kBase64).c_str(),
+           fna->kth_closest.ToStringEncoded(KadId::kBase64).c_str());
     if (nodes->back().node_id() == fna->kth_closest) {
       // Check the top K nodes to see if they're all done
       int new_nodes(0), contacted_nodes(0), alpha_nodes(0);
@@ -2713,12 +2738,13 @@ void NodeImpl::FindNodes(const FindNodesParams &fnp) {
     }
   }
 
-  IterativeSearch(fna, false, false, &alphas);
+  IterativeSearch(fna, false, false, &alphas, 0);
 }
 
 void NodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
                                 bool top_nodes_done, bool calledback,
-                                std::list<Contact> *contacts) {
+                                std::list<Contact> *contacts,
+                                int nodes_pending) {
   if (top_nodes_done) {
     if (!calledback) {
       FindResponse fr;
@@ -2744,7 +2770,7 @@ void NodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
         google::protobuf::NewCallback<NodeImpl,
                                       boost::shared_ptr<FindNodesRpc> >
         (this, &NodeImpl::IterativeSearchResponse, fnrpc);
-    rpcs_->FindNode(fna->key, (*it).ip(), (*it).port(),
+    kadrpcs_->FindNode(fna->key, (*it).ip(), (*it).port(),
                        (*it).rendezvous_ip(), (*it).rendezvous_port(),
                        fnrpc->response, fnrpc->ctler, done);
   }
@@ -2767,13 +2793,15 @@ void NodeImpl::IterativeSearchResponse(boost::shared_ptr<FindNodesRpc> fnrpc) {
   }
 
   bool done(false), calledback(false);
+  int nodes_pending(0);
   if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna, fnrpc->round,
-                                mark, &close_nodes, &done, &calledback)) {
-    DLOG(INFO) << "NodeImpl::IterativeSearchResponse failed in MarkResponse."
-               << std::endl;
+                                mark, &close_nodes, &done, &calledback,
+                                &nodes_pending)) {
+    printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
   }
 
-  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
+  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes,
+                  nodes_pending);
 }
 
 }  // namespace kademlia

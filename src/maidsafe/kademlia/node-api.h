@@ -396,7 +396,7 @@ class Node {
   void set_signature_validator(base::SignatureValidator *validator);
   /**
   * Returns the type of nat which the node is behind.  If used when the node
-  * is not joined it will return NONE
+  * is not joined it will return kSymmetric
   * @return type of nat
   */
   NatType nat_type();

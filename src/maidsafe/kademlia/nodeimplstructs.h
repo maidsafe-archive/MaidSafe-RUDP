@@ -394,14 +394,13 @@ struct FindNodesArgs {
         callback(fna_callback),
         calledback(false),
         round(0),
-        done_rounds() {}
+        nodes_pending(0) {}
   NodeId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
   VoidFunctorOneString callback;
   bool calledback;
-  int round;
-  std::set<int> done_rounds;
+  int round, nodes_pending;
 };
 
 struct FindNodesRpc {

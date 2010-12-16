@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 namespace transport {
-
+/*
 class TcpTransport : public Transport {
  public:
   TcpTransport();
@@ -92,7 +92,7 @@ class TcpTransport : public Transport {
   // a shared_ptr in this map, as well as in the async operation handlers.
   ConnectionMap connections_;
 };
-
+*/
 }  // namespace transport
 
 #endif  // MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
