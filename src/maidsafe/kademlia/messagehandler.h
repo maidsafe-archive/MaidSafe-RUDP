@@ -39,116 +39,107 @@ namespace bs2 = boost::signals2;
 
 namespace kademlia {
 
-typedef transport::MessageHandlerCondition MessageHandlerCondition;
-
 class MessageHandler : public transport::MessageHandler {
  public:
-  const int kMessageTypeExt = transport::MessageHandler::kMessageTypeExt + 14;
-  typedef boost::function<void(protobuf::PingResponse)> PingRspFunc;
+  const int kMessageTypeExt;  // Offset for type extensions.
   typedef boost::shared_ptr<bs2::signal<void(protobuf::PingRequest,
-      transport::ConversationId)> > PingReqSigPtr;
-  typedef boost::function<void(protobuf::FindValueResponse)> FindValueRspFunc;
+      protobuf::PingResponse*)> > PingReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::PingResponse)> >
+      PingRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::FindValueRequest,
-      transport::ConversationId)> > FindValueReqSigPtr;
-  typedef boost::function<void(protobuf::FindNodesResponse)> FindNodesRspFunc;
+      protobuf::FindValueResponse*)> > FindValueReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindValueResponse)> >
+      FindValueRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::FindNodesRequest,
-      transport::ConversationId)> > FindNodesReqSigPtr;
-  typedef boost::function<void(protobuf::StoreResponse)> StoreRspFunc;
+      protobuf::FindNodesResponse*)> > FindNodesReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindNodesResponse)> >
+      FindNodesRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::StoreRequest,
-      transport::ConversationId)> > StoreReqSigPtr;
-  typedef boost::function<void(protobuf::DeleteResponse)> DeleteRspFunc;
+      protobuf::StoreResponse*)> > StoreReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::StoreResponse)> >
+      StoreRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::DeleteRequest,
-      transport::ConversationId)> > DeleteReqSigPtr;
-  typedef boost::function<void(protobuf::UpdateResponse)> UpdateRspFunc;
+      protobuf::DeleteResponse*)> > DeleteReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::DeleteResponse)> >
+      DeleteRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::UpdateRequest,
-      transport::ConversationId)> > UpdateReqSigPtr;
-  typedef boost::function<void(protobuf::DownlistResponse)> DownlistRspFunc;
+      protobuf::UpdateResponse*)> > UpdateReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::UpdateResponse)> >
+      UpdateRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::DownlistRequest,
-      transport::ConversationId)> > DownlistReqSigPtr;
+      protobuf::DownlistResponse*)> > DownlistReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::DownlistResponse)> >
+      DownlistRspSigPtr;
    
   MessageHandler()
-    : on_ping_(),
-      on_find_value_(),
-      on_find_nodes_(),
-      on_store_(),
-      on_delete_(),
-      on_update_(),
-      on_downlist_() {}
+    : kMessageTypeExt(transport::MessageHandler::kMessageTypeExt + 14),
+      on_ping_request_(new PingReqSigPtr::element_type),
+      on_ping_response_(new PingRspSigPtr::element_type),
+      on_find_value_request_(new FindValueReqSigPtr::element_type),
+      on_find_value_response_(new FindValueRspSigPtr::element_type),
+      on_find_nodes_request_(new FindNodesReqSigPtr::element_type),
+      on_find_nodes_response_(new FindNodesRspSigPtr::element_type),
+      on_store_request_(new StoreReqSigPtr::element_type),
+      on_store_response_(new StoreRspSigPtr::element_type),
+      on_delete_request_(new DeleteReqSigPtr::element_type),
+      on_delete_response_(new DeleteRspSigPtr::element_type),
+      on_update_request_(new UpdateReqSigPtr::element_type),
+      on_update_response_(new UpdateRspSigPtr::element_type),
+      on_downlist_request_(new DownlistReqSigPtr::element_type),
+      on_downlist_response_(new DownlistRspSigPtr::element_type) {}
   virtual ~MessageHandler() {}
 
-  MessageHandlerCondition RequestPing(
-      const protobuf::PingRequest &request,
-      const transport::Endpoint &recipient,
-      PingRspFunc response_cb);
-  MessageHandlerCondition RespondToPing(
-      const protobuf::PingResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestFindValue(
-      const protobuf::FindValueRequest &request,
-      const transport::Endpoint &recipient,
-      FindValueRspFunc response_cb);
-  MessageHandlerCondition RespondToFindValue(
-      const protobuf::FindValueResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestFindNodes(
-      const protobuf::FindNodesRequest &request,
-      const transport::Endpoint &recipient,
-      FindNodesRspFunc response_cb);
-  MessageHandlerCondition RespondToFindNodes(
-      const protobuf::FindNodesResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestStore(
-      const protobuf::StoreRequest &request,
-      const transport::Endpoint &recipient,
-      StoreRspFunc response_cb);
-  MessageHandlerCondition RespondToStore(
-      const protobuf::StoreResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestDelete(
-      const protobuf::DeleteRequest &request,
-      const transport::Endpoint &recipient,
-      DeleteRspFunc response_cb);
-  MessageHandlerCondition RespondToDelete(
-      const protobuf::DeleteResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestUpdate(
-      const protobuf::UpdateRequest &request,
-      const transport::Endpoint &recipient,
-      UpdateRspFunc response_cb);
-  MessageHandlerCondition RespondToUpdate(
-      const protobuf::UpdateResponse &response,
-      const transport::ConversationId &conversation_id);
-
-  MessageHandlerCondition RequestDownlist(
-      const protobuf::DownlistRequest &request,
-      const transport::Endpoint &recipient,
-      DownlistRspFunc response_cb);
-  MessageHandlerCondition RespondToDownlist(
-      const protobuf::DownlistResponse &response,
-      const transport::ConversationId &conversation_id);
+  std::string WrapMessage(const protobuf::PingRequest &msg);
+  std::string WrapMessage(const protobuf::PingResponse &msg);
+  std::string WrapMessage(const protobuf::FindValueRequest &msg);
+  std::string WrapMessage(const protobuf::FindValueResponse &msg);
+  std::string WrapMessage(const protobuf::FindNodesRequest &msg);
+  std::string WrapMessage(const protobuf::FindNodesResponse &msg);
+  std::string WrapMessage(const protobuf::StoreRequest &msg);
+  std::string WrapMessage(const protobuf::StoreResponse &msg);
+  std::string WrapMessage(const protobuf::DeleteRequest &msg);
+  std::string WrapMessage(const protobuf::DeleteResponse &msg);
+  std::string WrapMessage(const protobuf::UpdateRequest &msg);
+  std::string WrapMessage(const protobuf::UpdateResponse &msg);
+  std::string WrapMessage(const protobuf::DownlistRequest &msg);
+  std::string WrapMessage(const protobuf::DownlistResponse &msg);
   
-  PingReqSigPtr on_ping() { return on_ping_; }
-  FindValueReqSigPtr on_find_value() { return on_find_value_; }
-  FindNodesReqSigPtr on_find_nodes() { return on_find_nodes_; }
-  StoreReqSigPtr on_store() { return on_store_; }
-  DeleteReqSigPtr on_delete() { return on_delete_; }
-  UpdateReqSigPtr on_update() { return on_update_; }
-  DownlistReqSigPtr on_downlist() { return on_downlist_; }
+  PingReqSigPtr on_ping() { return on_ping_request_; }
+  PingRspSigPtr on_ping() { return on_ping_response_; }
+  FindValueReqSigPtr on_find_value() { return on_find_value_request_; }
+  FindValueRspSigPtr on_find_value() { return on_find_value_response_; }
+  FindNodesReqSigPtr on_find_nodes() { return on_find_nodes_request_; }
+  FindNodesRspSigPtr on_find_nodes() { return on_find_nodes_response_; }
+  StoreReqSigPtr on_store() { return on_store_request_; }
+  StoreRspSigPtr on_store() { return on_store_response_; }
+  DeleteReqSigPtr on_delete() { return on_delete_request_; }
+  DeleteRspSigPtr on_delete() { return on_delete_response_; }
+  UpdateReqSigPtr on_update() { return on_update_request_; }
+  UpdateRspSigPtr on_update() { return on_update_response_; }
+  DownlistReqSigPtr on_downlist() { return on_downlist_request_; }
+  DownlistRspSigPtr on_downlist() { return on_downlist_response_; }
+ protected:
+  virtual void ProcessSerialisedMessage(const int &message_type,
+                                        const std::string &payload,
+                                        std::string *response,
+                                        transport::Timeout *timeout);
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
-  PingReqSigPtr on_ping_;
-  FindValueReqSigPtr on_find_value_;
-  FindNodesReqSigPtr on_find_nodes_;
-  StoreReqSigPtr on_store_;
-  DeleteReqSigPtr on_delete_;
-  UpdateReqSigPtr on_update_;
-  DownlistReqSigPtr on_downlist_;
+  PingReqSigPtr on_ping_request_;
+  PingRspSigPtr on_ping_response_;
+  FindValueReqSigPtr on_find_value_request_;
+  FindValueRspSigPtr on_find_value_response_;
+  FindNodesReqSigPtr on_find_nodes_request_;
+  FindNodesRspSigPtr on_find_nodes_response_;
+  StoreReqSigPtr on_store_request_;
+  StoreRspSigPtr on_store_response_;
+  DeleteReqSigPtr on_delete_request_;
+  DeleteRspSigPtr on_delete_response_;
+  UpdateReqSigPtr on_update_request_;
+  UpdateRspSigPtr on_update_response_;
+  DownlistReqSigPtr on_downlist_request_;
+  DownlistRspSigPtr on_downlist_response_;
 };
 
 }  // namespace kademlia

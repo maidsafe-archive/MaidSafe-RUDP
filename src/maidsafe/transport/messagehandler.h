@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
-#include <boost/thread/mutex.hpp>
 
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/transport.pb.h"
@@ -42,83 +41,84 @@ namespace bs2 = boost::signals2;
 
 namespace transport {
 
-enum MessageHandlerCondition {
-  kSuccess = 0,
-  kError = -1,
-  kListenError = -2
-};
-
 class MessageHandler {
  public:
-  const int kMessageTypeExt = 7;  // Offset for type extensions.
-  typedef boost::function<void(protobuf::ManagedEndpointMessage)>
-      ManagedEndpointRspFunc;
+  const int kMessageTypeExt;  // Offset for type extensions.
   typedef boost::shared_ptr<bs2::signal<void(protobuf::ManagedEndpointMessage,
-      ConversationId)> > ManagedEndpointReqSigPtr;
-  typedef boost::function<void(protobuf::NatDetectionResponse)>
-      NatDetectionRspFunc;
+      protobuf::ManagedEndpointMessage*)> > ManagedEndpointMsgSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::NatDetectionRequest,
-      ConversationId)> > NatDetectionReqSigPtr;
-  typedef boost::function<void(protobuf::ProxyConnectResponse)>
-      ProxyConnectRspFunc;
+      protobuf::NatDetectionResponse*)> > NatDetectionReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::NatDetectionResponse)> >
+      NatDetectionRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::ProxyConnectRequest,
-      ConversationId)> > ProxyConnectReqSigPtr;
+      protobuf::ProxyConnectResponse*)> > ProxyConnectReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::ProxyConnectResponse)> >
+      ProxyConnectRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::RendezvousRequest)> >
       RendezvousReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(int, Info)> >MsgInfoSigPtr;
 
-  MessageHandler();
+  MessageHandler()
+    : kMessageTypeExt(7),
+      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+      on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
+      on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
+      on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
+      on_proxy_connect_response_(new ProxyConnectRspSigPtr::element_type),
+      on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
+      on_info_(new MsgInfoSigPtr::element_type) {}
   virtual ~MessageHandler() {}
-  MessageHandlerCondition StartListening(const Endpoint &endpoint);
-  void StopListening();
+  void OnMessageReceived(const std::string &request,
+                         const Info &info,
+                         std::string *response,
+                         Timeout *timout);
+  void OnError(const TransportCondition &transport_condition);
+
+  std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
+  std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
+  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
+  std::string WrapMessage(const protobuf::ProxyConnectRequest &msg);
+  std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
+  std::string WrapMessage(const protobuf::RendezvousRequest &msg);
   
-  MessageHandlerCondition RequestManagedEndpoint(
-      const protobuf::ManagedEndpointMessage &request,
-      const Endpoint &recipient,
-      ManagedEndpointRspFunc response_cb);
-  MessageHandlerCondition RespondToManagedEndpoint(
-      const protobuf::ManagedEndpointMessage &response,
-      const ConversationId &conversation_id);
-  
-  MessageHandlerCondition RequestNatDetection(
-      const protobuf::NatDetectionRequest &request,
-      const Endpoint &recipient,
-      NatDetectionRspFunc response_cb);
-  MessageHandlerCondition RespondToNatDetection(
-      const protobuf::NatDetectionResponse &response,
-      const ConversationId &conversation_id);
-  
-  MessageHandlerCondition RequestProxyConnect(
-      const protobuf::ProxyConnectRequest &request,
-      const Endpoint &recipient,
-      ProxyConnectRspFunc response_cb);
-  MessageHandlerCondition RespondToProxyConnect(
-      const protobuf::ProxyConnectResponse &response,
-      const ConversationId &conversation_id);
-  
-  MessageHandlerCondition RequestRendezvous(
-      const protobuf::RendezvousRequest &request,
-      const Endpoint &recipient);
-  
-  ManagedEndpointReqSigPtr on_managed_endpoint() {
-    return on_managed_endpoint_;
+  ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
+    return on_managed_endpoint_message_;
   }
-  NatDetectionReqSigPtr on_nat_detection() { return on_nat_detection_; }
-  ProxyConnectReqSigPtr on_proxy_connect() { return on_proxy_connect_; }
-  RendezvousReqSigPtr on_rendezvous() { return on_rendezvous_; }
+  NatDetectionReqSigPtr on_nat_detection_request() {
+    return on_nat_detection_request_;
+  }
+  NatDetectionRspSigPtr on_nat_detection_response() {
+    return on_nat_detection_response_;
+  }
+  ProxyConnectReqSigPtr on_proxy_connect_request() {
+    return on_proxy_connect_request_;
+  }
+  ProxyConnectRspSigPtr on_proxy_connect_response() {
+    return on_proxy_connect_response_;
+  }
+  RendezvousReqSigPtr on_rendezvous_request() {
+    return on_rendezvous_request_;
+  }
+  MsgInfoSigPtr on_info() {
+    return on_info_;
+  }
  protected:
-  Transport transport_;
-  TransportCondition transport_condition_;
-  boost::mutex mutex_;
+  virtual void ProcessSerialisedMessage(const int &message_type,
+                                        const std::string &payload,
+                                        std::string *response,
+                                        Timeout *timeout);
+  std::string MakeSerialisedWrapperMessage(const int &message_type,
+                                           const std::string &payload);
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
-  void OnMessageReceived(const ConversationId &conversation_id,
-                         const std::string &data,
-                         const Info &info);
-  ManagedEndpointReqSigPtr on_managed_endpoint_;
-  NatDetectionReqSigPtr on_nat_detection_;
-  ProxyConnectReqSigPtr on_proxy_connect_;
-  RendezvousReqSigPtr on_rendezvous_;
+  ManagedEndpointMsgSigPtr on_managed_endpoint_message_;
+  NatDetectionReqSigPtr on_nat_detection_request_;
+  NatDetectionRspSigPtr on_nat_detection_response_;
+  ProxyConnectReqSigPtr on_proxy_connect_request_;
+  ProxyConnectRspSigPtr on_proxy_connect_response_;
+  RendezvousReqSigPtr on_rendezvous_request_;
+  MsgInfoSigPtr on_info_;
 };
 
 }  // namespace transport
