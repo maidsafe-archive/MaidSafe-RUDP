@@ -25,236 +25,205 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/kademlia/kadrpc.h"
-#include "maidsafe/kademlia/kadid.h"
+#include "maidsafe/kademlia/rpcs.h"
+#include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/udttransport.h"
+#include "maidsafe/kademlia/messagehandler.h"
+// #include "maidsafe/transport/udttransport.h"
 
 namespace kademlia {
 // TODO(dirvine) Dec 12 2010 - template this to take mutiple
 // transports to support tcp as well as reliable udp
 
-template <class T>
-KadRpcs::KadRpcs(T) {
-      // Create a transport object for each RPC
-      boost::shared_ptr<transport::Transport>
-                        transport_(new T);
-//       transport_->signals()->ConnectOnMessageReceived();
-}
+Rpcs::Rpcs() {}
 
-void KadRpcs::FindNode(const KadId &key, const Endpoint &ep,
-                       FindResponse *resp) {
-  FindRequest args;
+void Rpcs::FindNodes(const NodeId &key,
+                     const Endpoint &ep,
+                     FindNodesFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::FindNodesRequest args;
   args.set_key(key.String());
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-// XXXXXX
-// connect to a receive slot
-  KademliaService::Stub service(channel);
-  service.FindNode(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestFindNodes(args, ep, boost::bind(&FindNodesCallback,
+                                    this, _1, callback, message_handler));
 }
 
-void KadRpcs::FindValue(const KadId &key, const IP &ip, const Port &port,
-                        const IP &rendezvous_ip, const Port &rendezvous_port,
-                        FindResponse *resp, rpcprotocol::Controller *ctler,
-                        google::protobuf::Closure *callback) {
-  FindRequest args;
+void Rpcs::FindValue(const NodeId &key,
+                     const Endpoint &ep,
+                     FindValueFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::FindValueRequest args;
   args.set_key(key.String());
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.FindValue(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestFindValue(args, ep, boost::bind(&FindValueCallback,
+                                    this, _1, callback, message_handler));
 }
 
-void KadRpcs::Ping(const IP &ip, const Port &port, const IP &rendezvous_ip,
-                   const Port &rendezvous_port, PingResponse *resp,
-                   rpcprotocol::Controller *ctler,
-                   google::protobuf::Closure *callback) {
-  PingRequest args;
+void Rpcs::Ping(const Endpoint &ep,
+                PingFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::PingRequest args;
   args.set_ping("ping");
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Ping(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestPing(args, ep, boost::bind(&PingCallback,
+                               this, _1, callback, message_handler));
 }
 
-void KadRpcs::Store(const KadId &key, const SignedValue &value,
-                    const SignedRequest &sig_req, const IP &ip,
-                    const Port &port, const IP &rendezvous_ip,
-                    const Port &rendezvous_port, StoreResponse *resp,
-                    rpcprotocol::Controller *ctler,
-                    google::protobuf::Closure *callback,
-                    const boost::int32_t &ttl, const bool &publish) {
-  StoreRequest args;
+void Rpcs::Store(const NodeId &key,
+                 const protobuf::SignedValue &value,
+                 const protobuf::SignedRequest &sig_req,
+                 const Endpoint &ep,
+                 const boost::int32_t &ttl,
+                 const bool &publish,
+                 StoreSigFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::StoreRequest args;
   args.set_key(key.String());
-  SignedValue *svalue = args.mutable_sig_value();
+  protobuf::SignedValue *svalue = args.mutable_sig_value();
   *svalue = value;
   args.set_ttl(ttl);
   args.set_publish(publish);
-  SignedRequest *sreq = args.mutable_signed_request();
+  protobuf::SignedRequest *sreq = args.mutable_signed_request();
   *sreq = sig_req;
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Store(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestStore(args, ep, boost::bind(&StoreSigCallback,
+                                this, _1, callback, message_handler));
 }
 
-void KadRpcs::Store(const KadId &key, const std::string &value,
-                    const IP &ip, const Port &port, const IP &rendezvous_ip,
-                    const Port &rendezvous_port, StoreResponse *resp,
-                    rpcprotocol::Controller *ctler,
-                    google::protobuf::Closure *callback,
-                    const boost::int32_t &ttl, const bool &publish) {
-  StoreRequest args;
+void Rpcs::Store(const NodeId &key,
+                 const std::string &value,
+                 const Endpoint &ep,
+                 const boost::int32_t &ttl,
+                 const bool &publish,
+                 StoreFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::StoreRequest args;
   args.set_key(key.String());
   args.set_value(value);
   args.set_ttl(ttl);
   args.set_publish(publish);
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Store(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestStore(args, ep, boost::bind(&StoreCallback,
+                                this, _1, callback, message_handler));
 }
 
-void KadRpcs::Downlist(const std::vector<std::string> downlist,
-                       const IP &ip, const Port &port, const IP &rendezvous_ip,
-                       const Port &rendezvous_port, DownlistResponse *resp,
-                       rpcprotocol::Controller *ctler,
-                       google::protobuf::Closure *callback) {
-  DownlistRequest args;
+void Rpcs::Downlist(const std::vector<std::string> downlist,
+                    const Endpoint &ep,
+                    DownlistFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::DownlistRequest args;
   for (unsigned int i = 0; i < downlist.size(); ++i)
     args.add_downlist(downlist[i]);
-  rpcprotocol::Controller controller;
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Downlist(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestDownlist(args, ep, boost::bind(&DownlistCallback,
+                                   this, _1, callback, message_handler));
 }
 
-void KadRpcs::Bootstrap(const KadId &local_id, const IP &local_ip,
-                        const Port &local_port, const IP &remote_ip,
-                        const Port &remote_port, const NodeType &type,
-                        BootstrapResponse *resp, rpcprotocol::Controller *ctler,
-                        google::protobuf::Closure *callback) {
-  BootstrapRequest args;
+void Rpcs::Bootstrap(const NodeId &local_id,
+                     const Endpoint &ep,
+                     const NodeType &type,
+                     BootStrapFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::BootstrapRequest args;
   args.set_newcomer_id(local_id.String());
-  args.set_newcomer_local_ip(local_ip);
-  args.set_newcomer_local_port(local_port);
+  args.set_newcomer_local_ip(ep.ip);
+  args.set_newcomer_local_port(ep.port);
   args.set_node_type(type);
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_,
-//                                        remote_ip, remote_port, "", 0, "", 0);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, remote_ip,
-                                       remote_port, "", 0);
-  KademliaService::Stub service(channel);
-  service.Bootstrap(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestBootstrap(args, ep, boost::bind(&BootStrapCallback,
+                                    this, _1, callback, message_handler));
 }
 
-void KadRpcs::Delete(const KadId &key, const SignedValue &value,
-                     const SignedRequest &sig_req, const IP &ip,
-                     const Port &port, const IP &rendezvous_ip,
-                     const Port &rendezvous_port, DeleteResponse *resp,
-                     rpcprotocol::Controller *ctler,
-                     google::protobuf::Closure *callback) {
-  DeleteRequest args;
+void Rpcs::Delete(const NodeId &key,
+                  const protobuf::SignedValue &value,
+                  const protobuf::SignedRequest &sig_req,
+                  const Endpoint &ep,
+                  DeleteFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::DeleteRequest args;
   args.set_key(key.String());
-  SignedValue *svalue = args.mutable_value();
+  protobuf::SignedValue *svalue = args.mutable_value();
   *svalue = value;
-  SignedRequest *sreq = args.mutable_signed_request();
+  protobuf::SignedRequest *sreq = args.mutable_signed_request();
   *sreq = sig_req;
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Delete(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestDelete(args, ep, boost::bind(&DeleteCallback,
+                                 this, _1, callback, message_handler));
 }
 
-void KadRpcs::Update(const KadId &key, const SignedValue &new_value,
-                     const SignedValue &old_value, const boost::int32_t &ttl,
-                     const SignedRequest &sig_req, const IP &ip,
-                     const Port &port, const IP &rendezvous_ip,
-                     const Port &rendezvous_port, UpdateResponse *resp,
-                     rpcprotocol::Controller *ctler,
-                     google::protobuf::Closure *callback) {
-  UpdateRequest args;
+void Rpcs::Update(const NodeId &key,
+                  const protobuf::SignedValue &old_value,
+                  const protobuf::SignedValue &new_value,
+                  const boost::int32_t &ttl,
+                  const protobuf::SignedRequest &sig_req,
+                  const Endpoint &ep,
+                  UpdateFunctor callback) {
+  boost::shared_ptr<MessageHandler> message_handler;
+  protobuf::UpdateRequest args;
   args.set_key(key.String());
-  SignedValue *newvalue = args.mutable_new_value();
+  protobuf::SignedValue *newvalue = args.mutable_new_value();
   *newvalue = new_value;
-  SignedValue *oldvalue = args.mutable_old_value();
+  protobuf::SignedValue *oldvalue = args.mutable_old_value();
   *oldvalue = old_value;
   args.set_ttl(ttl);
-  SignedRequest *sreq = args.mutable_request();
+  protobuf::SignedRequest *sreq = args.mutable_request();
   *sreq = sig_req;
-  ContactInfo *sender_info = args.mutable_sender_info();
+  protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  rpcprotocol::Channel *channel;
-//   if (has_transport_)
-//     channel = new rpcprotocol::Channel(channel_manager_, transport_, ip,
-//                                        port, "", 0, rendezvous_ip,
-//                                        rendezvous_port);
-//   else
-    channel = new rpcprotocol::Channel(channel_manager_, ip, port,
-                                       rendezvous_ip, rendezvous_port);
-  KademliaService::Stub service(channel);
-  service.Update(ctler, &args, resp, callback);
-  delete channel;
+  message_handler->RequestUpdate(args, ep, boost::bind(&UpdateCallback,
+                                 this, _1, callback, message_handler));
+}
+void FindNodesCallback(const protobuf::FindNodesResponse &response,
+                       FindNodesFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+// need to change type of contact 
+callback(response.result, response.contact);
+}
+void FindValueCallback(const protobuf::FindValueResponse &response,
+                       FindValueFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void PingCallback(const protobuf::PingResponse &response,
+                       PingFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void StoreSigCallback(const protobuf::StoreResponse &response,
+                       StoreSigFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void StoreCallback(const protobuf::StoreResponse &response,
+                       StoreFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void DownlistCallback(const protobuf::DownlistResponse &response,
+                       DownlistFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void BootStrapCallback(const protobuf::BootStrapResponse &response,
+                       BootStrapFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void DeleteCallback(const protobuf::DeleteResponse &response,
+                       DeleteFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
+}
+void UpdateCallback(const protobuf::UpdateResponse &response,
+                       UpdateFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler) {
+ // code for callback calling
 }
 
 }  // namespace kademlia
