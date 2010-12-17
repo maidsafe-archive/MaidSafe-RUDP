@@ -31,56 +31,81 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
-#include <string>
-#include <vector>
 #include "maidsafe/maidsafe-dht_config.h"
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/kademlia/rpcs.pb.h"
+#include <string>
+#include <vector>
 
 namespace transport {
 class Transport;
 }  // namespace transport
 
 namespace kademlia {
-class KadId;
+class NodeId;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> FindNodesFunctor;
+// Need to update arguments
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> FindValueFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> PingFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> StoreFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> StoreSigFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> DownlistFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> BootStrapFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> DeleteFunctor;
+typedef boost::function<void(bool, std::vector<protobuf::Contact>)> UpdateFunctor;
+// Need to update
 
-
-class KadRpcs {
+class Rpcs {
  public:
-//  explicit KadRpcs(boost::shared_ptr<transport::Transport> transport);
-  explicit KadRpcs();
-  virtual ~KadRpcs() {}
-  virtual void FindNode(const KadId &key, const Endpoint &ep);
-  void FindValue(const KadId &key, const Endpoint &ep);
-  virtual void Ping(const Endpoint &ep);
-  void Store(const KadId &key,
-             const SignedValue &value,
-             const SignedRequest &sig_req,
+  Rpcs() {}
+ 
+  void FindNodes(const NodeId &key,
+                 const Endpoint &ep,
+                 FindNodesFunctor callback);
+  void FindValue(const NodeId &key,
+                 const Endpoint &ep,
+                 FindValueFunctor callback);
+  void Ping(const Endpoint &ep,
+            PingFunctor callback);
+  void Store(const NodeId &key,
+             const protobuf::SignedValue &value,
+             const protobuf::SignedRequest &sig_req,
              const Endpoint &ep,
-             const bool &publish);
-  void Store(const KadId &key, const std::string &value,
+             const boost::int32_t &ttl,
+             const bool &publish,
+             StoreSigFunctor callback );
+  void Store(const NodeId &key,
+             const std::string &value,
              const Endpoint &ep,
-             const bool &publish);
-  void Downlist(const std::vector<std::string> downlist, const Endpoint &ep,
-                transport::DownlistResponse *resp);
-  void Bootstrap(const KadId &local_id, const Endpoint &ep,
-                 const NodeType &type);
-  void Delete(const KadId &key, const SignedValue &value,
-              const SignedRequest &sig_req, const Endpoint &ep);
-  void Update(const KadId &key,
-              const SignedValue &new_value,
-              const SignedValue &old_value,
-              const SignedRequest &sig_req,
+             const boost::int32_t &ttl,
+             const bool &publish,
+             StoreFunctor callback);
+  void Downlist(const std::vector<std::string> downlist,
+                const Endpoint &ep,
+                DownlistFunctor callback);
+  void Bootstrap(const NodeId &local_id,
+                 const Endpoint &ep,
+                 const NodeType &type,
+                 BootStrapFunctor callback);
+  void Delete(const NodeId &key,
+              const protobuf::SignedValue &value,
+              const protobuf::SignedRequest &sig_req,
               const Endpoint &ep,
-              transport::UpdateResponse *resp);
+              DeleteFunctor callback);
+  void Update(const NodeId &key,
+              const protobuf::SignedValue &new_value,
+              const protobuf::SignedValue &old_value,
+              const boost::int32_t &ttl,
+              const protobuf::SignedRequest &sig_req,
+              const Endpoint &ep,
+              UpdateFunctor callback);
   inline void set_info(const ContactInfo &info) { info_ = info; }
  private:
-  KadRpcs(const KadRpcs&);
-  KadRpcs& operator=(const KadRpcs&);
-  ContactInfo info_;
-  boost::shared_ptr<transport::Transport> transport_;
-  bool has_transport_;
+  Rpcs(const Rpcs&);
+  Rpcs& operator=(const Rpcs&);
+  protobuf::Contact info_;
 };
 
 }  // namespace kademlia
