@@ -31,13 +31,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
-#include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/kademlia/config.h"
-#include "maidsafe/protobuf/transport_message.pb.h"
-#include "maidsafe/protobuf/kademlia.pb.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
+
 #include <string>
 #include <vector>
+
+#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
+#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace transport {
 class Transport;
@@ -101,7 +102,7 @@ class Rpcs {
               const protobuf::SignedRequest &sig_req,
               const Endpoint &ep,
               UpdateFunctor callback);
-  inline void set_info(const ContactInfo &info) { info_ = info; }
+  inline void set_info(const protobuf::Contact &info) { info_ = info; }
  private:
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
