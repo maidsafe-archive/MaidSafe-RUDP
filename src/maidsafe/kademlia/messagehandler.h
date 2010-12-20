@@ -104,20 +104,24 @@ class MessageHandler : public transport::MessageHandler {
   std::string WrapMessage(const protobuf::DownlistRequest &msg);
   std::string WrapMessage(const protobuf::DownlistResponse &msg);
   
-  PingReqSigPtr on_ping() { return on_ping_request_; }
-  PingRspSigPtr on_ping() { return on_ping_response_; }
-  FindValueReqSigPtr on_find_value() { return on_find_value_request_; }
-  FindValueRspSigPtr on_find_value() { return on_find_value_response_; }
-  FindNodesReqSigPtr on_find_nodes() { return on_find_nodes_request_; }
-  FindNodesRspSigPtr on_find_nodes() { return on_find_nodes_response_; }
-  StoreReqSigPtr on_store() { return on_store_request_; }
-  StoreRspSigPtr on_store() { return on_store_response_; }
-  DeleteReqSigPtr on_delete() { return on_delete_request_; }
-  DeleteRspSigPtr on_delete() { return on_delete_response_; }
-  UpdateReqSigPtr on_update() { return on_update_request_; }
-  UpdateRspSigPtr on_update() { return on_update_response_; }
-  DownlistReqSigPtr on_downlist() { return on_downlist_request_; }
-  DownlistRspSigPtr on_downlist() { return on_downlist_response_; }
+  PingReqSigPtr on_ping_request() { return on_ping_request_; }
+  PingRspSigPtr on_ping_response() { return on_ping_response_; }
+  FindValueReqSigPtr on_find_value_request() { return on_find_value_request_; }
+  FindValueRspSigPtr on_find_value_response() {
+    return on_find_value_response_;
+  }
+  FindNodesReqSigPtr on_find_nodes_request() { return on_find_nodes_request_; }
+  FindNodesRspSigPtr on_find_nodes_response() {
+    return on_find_nodes_response_;
+  }
+  StoreReqSigPtr on_store_request() { return on_store_request_; }
+  StoreRspSigPtr on_store_response() { return on_store_response_; }
+  DeleteReqSigPtr on_delete_request() { return on_delete_request_; }
+  DeleteRspSigPtr on_delete_response() { return on_delete_response_; }
+  UpdateReqSigPtr on_update_request() { return on_update_request_; }
+  UpdateRspSigPtr on_update_response() { return on_update_response_; }
+  DownlistReqSigPtr on_downlist_request() { return on_downlist_request_; }
+  DownlistRspSigPtr on_downlist_response() { return on_downlist_response_; }
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
