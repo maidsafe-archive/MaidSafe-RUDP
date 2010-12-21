@@ -26,34 +26,34 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_
-#define MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_
-
-#include "stdafx.h" 
-#include "tcp_connection2.h"
-#include <set>
-
-namespace transport {
-
-class tcp_connection_manager2 {
-public:
-	/*
-	Adds a connection to the list of connectins.
-	@param	tcp_connection The connection to be added	
-	*/
-	void add_connection(tcp_connection_ptr tcp_connection);
-
-	/*
-	Removes a connection to the list of connectins.
-	@param	tcp_connection The connection to be removed	
-	*/
-	void remove_connection(tcp_connection_ptr tcp_connection);
-	
-	void remove_all();
-private:
-	set<tcp_connection_ptr> tcp_connections_;
-};
-
-}  // namespace transport
-
-#endif  // MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_
+//  #ifndef MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_
+//  #define MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_
+//
+//  #include "stdafx.h" 
+//  #include "tcp_connection2.h"
+//  #include <set>
+//
+//  namespace transport {
+//
+//  class tcp_connection_manager2 {
+//  public:
+//    /*
+//    Adds a connection to the list of connectins.
+//    @param	tcp_connection The connection to be added	
+//    */
+//    void add_connection(tcp_connection_ptr tcp_connection);
+//
+//    /*
+//    Removes a connection to the list of connectins.
+//    @param	tcp_connection The connection to be removed	
+//    */
+//    void remove_connection(tcp_connection_ptr tcp_connection);
+//  
+//    void remove_all();
+//  private:
+//    set<tcp_connection_ptr> tcp_connections_;
+//  };
+//
+//  }  // namespace transport
+//
+//  #endif  // MAIDSAFE_TRANSPORT_TCP_CONNECTION_MANAGER2_H_

@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/asio/io_service.hpp>
 #include <boost/date_time/posix_time/posix_time_duration.hpp>
 #include <string>
-#include <iostream>
+#include <iostream>  // NOLINT
 
 //#if MAIDSAFE_DHT_VERSION < 25
 //#error This API is not compatible with the installed library.
@@ -53,7 +53,6 @@ namespace transport {
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 typedef boost::int32_t DataSize;
-typedef int ConversationId;
 typedef boost::posix_time::milliseconds Timeout;
 
 enum TransportCondition {
@@ -97,19 +96,26 @@ enum NatType { kManualPortMapped,  // behind manually port-mapped router.
                kNatPmp,            // behind NAT-PMP port-mapped router.
                kUPnP,              // behind UPnP port-mapped router.
                kFullCone,          // behind full-cone NAT - need to continually
-                                   // ping bootstrap node to keep hole open. 
+                                   // ping bootstrap node to keep hole open.
                kPortRestricted,    // behind port restricted NAT - node can only
                                    // be contacted via its rendezvous node.
                kNotConnected };    // behind symmetric NAT or offline.
 
 struct Info {
-  explicit Info(const boost::uint32_t &rtt) : rtt(rtt) {}
+  Info() : rtt(0) {}
+  virtual ~Info() {}
   boost::uint32_t rtt;
-};  
+};
 
 struct Endpoint {
   Endpoint() : ip(), port(0) {}
   Endpoint(const IP &ip, const Port &port) : ip(ip), port(port) {}
+  Endpoint(const std::string &ip_as_string, const Port &port)
+      : ip(),
+        port(port) {
+    boost::system::error_code ec;
+    ip = IP::from_string(ip_as_string, ec);
+  }
   IP ip;
   Port port;
 };
@@ -120,23 +126,24 @@ const DataSize kMaxTransportMessageSize = 67108864;
 const Timeout kDefaultInitialTimeout(10000);
 // Used to indicate timeout should be calculated by transport
 const Timeout kDynamicTimeout(-1);
+// Indicates timeout to expire immediately
+const Timeout kImmediateTimeout(0);
 // Minimum timeout if being calculated dynamically
 const Timeout kMinTimeout(500);
 // Factor of message size used to calculate timeout dynamically
 const float kTimeoutFactor(0.01);
 // Maximum period of inactivity on a send or receive before timeout triggered
 const Timeout kStallTimeout(3000);
-// Indicates timeout to expire immediately
-const Timeout kImmediateTimeout(0);
-// Indicates timeout to never expire
-const Timeout kInfiniteTimeout(-1);
+// Maximum number of accepted incoming connections
+const int kMaxAcceptedConnections(5);
 
 // transport signals
-typedef boost::shared_ptr<bs2::signal<void(const ConversationId&,
-                                           const std::string&,
-                                           const Info&)> > OnMessageReceived;
-typedef boost::shared_ptr<bs2::signal<void(const ConversationId&,
-                                      const TransportCondition&)> > OnError;
+typedef boost::shared_ptr<bs2::signal<void(const std::string&,
+                                           const Info&,
+                                           std::string*,
+                                           Timeout*)> > OnMessageReceived;
+typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)> >
+    OnError;
 
 // Base class for all transport types.
 class Transport {
@@ -163,15 +170,6 @@ class Transport {
                     const Endpoint &endpoint,
                     const Timeout &timeout) = 0;
   /**
-   * Sends the given message within an already established conversation.
-   * @param data The message data to transmit.
-   * @param conversation_id ID of the conversation to respond to.
-   * @param timeout Time after which to terminate a conversation.
-   */
-  virtual void Respond(const std::string &data,
-                       const ConversationId &conversation_id,
-                       const Timeout &timeout) = 0;
-  /**
    * Sends data that is being streamed from the given source.
    * @param data The input stream delivering data to send.
    * @param endpoint The data receiver's endpoint.
@@ -189,8 +187,8 @@ class Transport {
   explicit Transport(boost::shared_ptr<boost::asio::io_service> asio_service)
       : asio_service_(asio_service),
         listening_port_(0),
-        on_message_received_(new OnMessageReceived),
-        on_error_(new OnError) {}
+        on_message_received_(new OnMessageReceived::element_type),
+        on_error_(new OnError::element_type) {}
   boost::shared_ptr<boost::asio::io_service> asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;

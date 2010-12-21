@@ -34,19 +34,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 
-#include <boost/cstdint.hpp>
-#include <boost/filesystem.hpp>
+#include <boost/asio/deadline_timer.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/signals2.hpp>
-#include <boost/thread/thread.hpp>
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/transport/transport.pb.h>
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
-
-
-namespace  bs2 = boost::signals2;
-namespace  fs = boost::filesystem;
 
 namespace transport {
 
@@ -61,7 +55,7 @@ class UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
 
 class UdtTransport;
 
-struct UdtStats : public SocketPerformanceStats {
+struct UdtStats : public Info {
  public:
   enum UdtSocketType { kSend, kReceive };
   UdtStats(const SocketId &socket_id,
@@ -75,9 +69,9 @@ struct UdtStats : public SocketPerformanceStats {
   UDT::TRACEINFO performance_monitor_;
 };
 
-class UdtConnection {
+class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
  public:
-  ~UdtConnection() {}
+  ~UdtConnection();
   // Send message on connected socket.  timeout_wait_for_response defines
   // timeout for receiving response in milliseconds.  If 0, no response is
   // expected and the socket is closed after sending message.  Internal sending
@@ -95,44 +89,35 @@ class UdtConnection {
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnSendRecvDataFull_Test;
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
  private:
-  enum ActionAfterSend { kClose, kKeepAlive, kReceive};
-  UdtConnection(UdtTransport *transport, const Endpoint &endpoint);
-  UdtConnection(UdtTransport *transport, const SocketId &socket_id);
+  enum ConnectionType { kOutgoing, kAccepted, kManaged };
+  UdtConnection(boost::shared_ptr<UdtTransport> transport,
+                const Endpoint &endpoint,
+                const ConnectionType &connection_type);
+  UdtConnection(boost::shared_ptr<UdtTransport> transport,
+                const SocketId &socket_id,
+                const ConnectionType &connection_type);
   UdtConnection(const UdtConnection &other);
   UdtConnection& operator=(const UdtConnection &other);
   void Init();
-  bool SetDataSizeSendTimeout();
-  bool SetDataSizeReceiveTimeout(const Timeout &timeout);
-  bool SetDataContentSendTimeout();
-  bool SetDataContentReceiveTimeout(const DataSize &data_size,
-                                    const Timeout &timeout);
-  bool SetTimeout(const Timeout &timeout, bool send);
-  TransportCondition CheckMessage(bool *is_request);
+  void SetDataSizeTimeout(const Timeout &timeout);
+  void SetDataContentTimeout(const DataSize &data_size, const Timeout &timeout);
   // General method for sending data once connection made.
-  void SendData(const ActionAfterSend &action_after_send,
-                const Timeout &timeout_wait_for_response);
-  // Send the size of the pending message
-  TransportCondition SendDataSize();
-  // Send the content of the message.
-  TransportCondition SendDataContent();
+  void SendData(const Timeout &timeout_wait_for_response);
   // General method for receiving data
   void ReceiveData(const Timeout &timeout);
-  // Receive the size of the forthcoming message
-  DataSize ReceiveDataSize(const Timeout &timeout);
-  // Receive the content of the message
-  bool ReceiveDataContent(const DataSize &data_size, const Timeout &timeout);
   // Send or receive contents of a buffer
   TransportCondition MoveData(bool sending,
                               const DataSize &data_size,
                               char *data);
-  bool HandleTransportMessage(const float &rtt);
 
-  UdtTransport *transport_;
+  boost::shared_ptr<UdtTransport> transport_;
   SocketId socket_id_;
   Endpoint endpoint_;
+  ConnectionType connection_type_;
   boost::shared_ptr<addrinfo const> peer_;
   std::string data_;
-  Timeout send_timeout_, receive_timeout_;
+  boost::shared_ptr<boost::asio::deadline_timer> timeout_timer_;
+  boost::shared_ptr<boost::asio::deadline_timer> stall_timer_;
 };
 
 }  // namespace transport

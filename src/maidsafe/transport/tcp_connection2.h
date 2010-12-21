@@ -25,43 +25,43 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
-#ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_
-#define MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_
-
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <string>
-
-using namespace std;
-
-namespace transport {
-
-class tcp_connection_manager2;
-
-class tcp_connection2 : public boost::enable_shared_from_this<tcp_connection2> {
- 
-public:
-	explicit tcp_connection2(boost::asio::io_service& io_service, tcp_connection_manager2& tcp_connection_manager_);
-    ~tcp_connection2();
-	boost::asio::ip::tcp::socket& socket();
-    void receive(const boost::system::error_code& e,std::size_t bytes_transferred);
-	void start();
-	void sent(const boost::system::error_code& e);
-    void close();
-private:
-	boost::asio::ip::tcp::socket socket_;
-	tcp_connection_manager2& tcp_connection_manager_;
-	/// Buffer for incoming data.
-	boost::array<char, 8192> buffer_;
-	string reply_;
-
-};
-
-typedef boost::shared_ptr<tcp_connection2> tcp_connection_ptr;
-
-}  // namespace transport
-
-#endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_
+//
+//  #ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_
+//  #define MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_
+//
+//  #include <boost/asio/deadline_timer.hpp>
+//  #include <boost/asio/io_service.hpp>
+//  #include <boost/asio/ip/tcp.hpp>
+//  #include <boost/enable_shared_from_this.hpp>
+//  #include <string>
+//
+//  using namespace std;
+//
+//  namespace transport {
+//
+//  class tcp_connection_manager2;
+//
+//  class tcp_connection2 : public boost::enable_shared_from_this<tcp_connection2> {
+// 
+//  public:
+//    explicit tcp_connection2(boost::asio::io_service& io_service, tcp_connection_manager2& tcp_connection_manager_);
+//      ~tcp_connection2();
+//    boost::asio::ip::tcp::socket& socket();
+//      void receive(const boost::system::error_code& e,std::size_t bytes_transferred);
+//    void start();
+//    void sent(const boost::system::error_code& e);
+//      void close();
+//  private:
+//    boost::asio::ip::tcp::socket socket_;
+//    tcp_connection_manager2& tcp_connection_manager_;
+//    /// Buffer for incoming data.
+//    boost::array<char, 8192> buffer_;
+//    string reply_;
+//
+//  };
+//
+//  typedef boost::shared_ptr<tcp_connection2> tcp_connection_ptr;
+//
+//  }  // namespace transport
+//
+//  #endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION2_H_

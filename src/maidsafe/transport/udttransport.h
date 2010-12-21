@@ -57,15 +57,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/shared_array.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/detail/atomic_count.hpp>
-#include <maidsafe/base/threadpool.h>
 #include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/udtconnection.h>
 
 #include <map>
 #include <string>
@@ -73,10 +70,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
-
-
-namespace  bs2 = boost::signals2;
-namespace  fs = boost::filesystem;
 
 namespace transport {
 
@@ -120,7 +113,8 @@ const Timeout kAddManagedEndpointTimeout(10000);
 const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
-class UdtTransport : public Transport {
+class UdtTransport : public Transport,
+                     public boost::enable_shared_from_this<UdtTransport> {
  public:
   explicit UdtTransport(
       boost::shared_ptr<boost::asio::io_service> asio_service);
@@ -133,9 +127,6 @@ class UdtTransport : public Transport {
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
-  virtual void Respond(const std::string &data,
-                       const ConversationId &conversation_id,
-                       const Timeout &timeout);
   virtual void SendStream(const std::istream &data, const Endpoint &endpoint);
   void SendToPortRestricted(const std::string &data,
                             const Endpoint &endpoint,
@@ -144,7 +135,7 @@ class UdtTransport : public Transport {
 
 
 
-
+/*
   // Closes all managed connections and stops accepting new incoming ones.
   void StopManagedEndpoints();
   // Allows new incoming managed connections after StopManagedEndpoints has
@@ -164,7 +155,7 @@ class UdtTransport : public Transport {
   // regularly made and broken, so ManagedEndpointId cannot be used as SocketId.
   // On failure to connect, retry_count further attempts at retry_frequency (ms)
   // are performed before failure.
-/*  ManagedEndpointId AddManagedEndpoint(
+  ManagedEndpointId AddManagedEndpoint(
       const IP &remote_ip,
       const Port &remote_port,
       const IP &rendezvous_ip,
@@ -221,19 +212,21 @@ class UdtTransport : public Transport {
 
   SocketId listening_socket_id_, managed_endpoint_listening_socket_id_;
   Port managed_endpoint_listening_port_;
+  boost::asio::deadline_timer timer_;
+  boost::detail::atomic_count accepted_connection_count_;
 
 
 
 
-  std::vector<SocketId> managed_endpoint_sockets_;
-  std::map<SocketId, SocketId> pending_managed_endpoint_sockets_;
-  bool stop_managed_endpoints_, managed_endpoints_stopped_;
-  boost::mutex managed_endpoint_sockets_mutex_;
-  boost::condition_variable managed_endpoints_cond_var_;
+//  std::vector<SocketId> managed_endpoint_sockets_;
+//  std::map<SocketId, SocketId> pending_managed_endpoint_sockets_;
+//  bool stop_managed_endpoints_, managed_endpoints_stopped_;
+//  boost::mutex managed_endpoint_sockets_mutex_;
+//  boost::condition_variable managed_endpoints_cond_var_;
   boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
-  boost::shared_ptr<boost::thread> check_connections_;
+//  boost::shared_ptr<boost::thread> check_connections_;
   std::vector<NatDetectionNode> nat_detection_nodes_;
-  boost::thread nat_detection_thread_;
+//  boost::thread nat_detection_thread_;
   static NatDetails nat_details_;
 };
 
