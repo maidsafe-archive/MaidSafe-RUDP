@@ -26,66 +26,66 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "StdAfx.h"
-#include "tcp_connection2.h"
-#include "tcp_connection_manager2.h"
-#include <boost\bind.hpp>
-#include <boost\asio.hpp>
-
-namespace asio=boost::asio;
-
-namespace transport {
-
-tcp_connection2::tcp_connection2(asio::io_service& io_service_, tcp_connection_manager2& connection_manager_)
-	  :socket_(io_service_),
-	  tcp_connection_manager_(connection_manager_)
-{}
-
-void tcp_connection2::receive(const boost::system::error_code& e,std::size_t bytes_transferred)
-{
-    if(!e)
-    {
-//      parse(buffer.data(), request);
-//      handle_request(request, reply);
-		asio::async_write(socket_, boost::asio::buffer(reply_),
-        boost::bind(&tcp_connection2::sent, shared_from_this(), asio::placeholders::error));
-    }
-	else  
-	{
-		tcp_connection_manager_.remove_connection(shared_from_this());
-	}
-}
-
-void tcp_connection2::sent(const boost::system::error_code& e)
-{
-	if (!e)
-    {
-	  boost::system::error_code ignored_ec;
-	  socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
-    }
-	else  
-	{
-		tcp_connection_manager_.remove_connection(shared_from_this());
-	}
-}
-
-boost::asio::ip::tcp::socket& tcp_connection2::socket()
-{
-	return socket_;
-}
-
-void tcp_connection2::start()
-{
-	socket_.async_read_some(asio::buffer(buffer_),
-    boost::bind(&tcp_connection2::receive, shared_from_this(),
-	boost::asio::placeholders::error,
-    asio::placeholders::bytes_transferred));
-}
-
-
-tcp_connection2::~tcp_connection2()
-{
-	socket_.close();
-}
-
-}  // namespace transport
+//  #include "StdAfx.h"
+//  #include "tcp_connection2.h"
+//  #include "tcp_connection_manager2.h"
+//  #include <boost\bind.hpp>
+//  #include <boost\asio.hpp>
+//
+//  namespace asio=boost::asio;
+//
+//  namespace transport {
+//
+//  tcp_connection2::tcp_connection2(asio::io_service& io_service_, tcp_connection_manager2& connection_manager_)
+//      :socket_(io_service_),
+//      tcp_connection_manager_(connection_manager_)
+//  {}
+//
+//  void tcp_connection2::receive(const boost::system::error_code& e,std::size_t bytes_transferred)
+//  {
+//      if(!e)
+//      {
+//  //      parse(buffer.data(), request);
+//  //      handle_request(request, reply);
+//      asio::async_write(socket_, boost::asio::buffer(reply_),
+//          boost::bind(&tcp_connection2::sent, shared_from_this(), asio::placeholders::error));
+//      }
+//    else  
+//    {
+//      tcp_connection_manager_.remove_connection(shared_from_this());
+//    }
+//  }
+//
+//  void tcp_connection2::sent(const boost::system::error_code& e)
+//  {
+//    if (!e)
+//      {
+//      boost::system::error_code ignored_ec;
+//      socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
+//      }
+//    else  
+//    {
+//      tcp_connection_manager_.remove_connection(shared_from_this());
+//    }
+//  }
+//
+//  boost::asio::ip::tcp::socket& tcp_connection2::socket()
+//  {
+//    return socket_;
+//  }
+//
+//  void tcp_connection2::start()
+//  {
+//    socket_.async_read_some(asio::buffer(buffer_),
+//      boost::bind(&tcp_connection2::receive, shared_from_this(),
+//    boost::asio::placeholders::error,
+//      asio::placeholders::bytes_transferred));
+//  }
+//
+//
+//  tcp_connection2::~tcp_connection2()
+//  {
+//    socket_.close();
+//  }
+//
+//  }  // namespace transport

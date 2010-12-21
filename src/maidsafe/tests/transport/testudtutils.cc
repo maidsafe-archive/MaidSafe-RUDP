@@ -24,10 +24,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 /*
 #include <gtest/gtest.h>
-#include "maidsafe/tests/transport/messagehandler.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/udtconnection.h"
 
@@ -36,18 +34,48 @@ namespace transport {
 
 namespace test {
 
+class TestMessageHandler {
+ public:
+  explicit TestMessageHandler(int i) : this_id_(i) {}
+  void DoOnError(const TransportCondition &tc) {
+    printf("%i - Error: %i\n", this_id_, tc);
+  }
+  void DoOnRequestReceived(const std::string &request,
+                           const Info &info,
+                           std::string *response,
+                           Timeout *timeout) {
+    *response = "Replied to " + request;
+    *timeout = Timeout(10000);
+    printf("%i - Received request: %s.  Responding with \"%s\"\n", this_id_,
+           request.c_str(), response->c_str());
+  }
+  void DoOnResponseReceived(const std::string &request,
+                            const Info &info,
+                            std::string *response,
+                            Timeout *timeout) {
+    response->clear();
+    *timeout = kImmediateTimeout;
+    printf("%i - Received response: %s.\n", this_id_, request.c_str());
+  }
+ private:
+  int this_id_;
+};
+
 class UdtConnectionTest: public testing::Test {
  protected:
-  UdtConnectionTest() : listening_node_(),
-                        message_handler_(listening_node_.signals(), "A", false),
-                        listening_port_(0) {}
+  UdtConnectionTest() : asio_service_(new boost::asio::io_service),
+                        listening_node_(asio_service_),
+                        listening_endpoint_(),
+                        message_handler_(1) {}
   void SetUp() {
-    listening_port_ = listening_node_.StartListening("", 0, NULL);
-    ASSERT_TRUE(ValidPort(listening_port_));
+    listening_endpoint_.ip.from_string("127.0.0.1");
+    listening_endpoint_.port = 9000;
+    ASSERT_EQ(kSuccess, listening_node_.StartListening(listening_endpoint_));
   }
+  boost::shared_ptr<boost::asio::io_service> asio_service_;
   UdtTransport listening_node_;
-  MessageHandler message_handler_;
-  Port listening_port_;
+  Endpoint listening_endpoint_;
+  TestMessageHandler message_handler_;
 };
 
 TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnConstructors) {

@@ -24,7 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+/*
 #include <maidsafe/transport/tcptransport.h>
 #include <maidsafe/transport/tcpconnection.h>
 #include <maidsafe/transport/udtconnection.h>  // for timeout constants
@@ -46,7 +46,7 @@ namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
 namespace transport {
-/*
+
 TcpConnection::TcpConnection(TcpTransport *tcp_transport,
                              ip::tcp::endpoint const& remote_ep)
   : transport_(tcp_transport),
@@ -260,5 +260,6 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
     Close();
   }
 }
-*/
+
 }  // namespace transport
+*/

@@ -32,11 +32,6 @@ namespace transport {
 
 typedef int SocketId;
 
-struct SocketPerformanceStats {
- public:
-  virtual ~SocketPerformanceStats() {}
-};
-
 }  // namespace transport
 
-#endif
+#endif  // MAIDSAFE_TRANSPORT_DETAIL_H_

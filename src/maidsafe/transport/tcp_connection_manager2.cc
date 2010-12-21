@@ -25,26 +25,26 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "StdAfx.h"
-#include "tcp_connection_manager2.h"
-#include <boost/bind.hpp>
-
-namespace transport {
-
-void tcp_connection_manager2::add_connection(tcp_connection_ptr tcp_connection)
-{
-	tcp_connections_.insert(tcp_connection);
-	tcp_connection->start();	
-}
-
-void tcp_connection_manager2::remove_connection(tcp_connection_ptr tcp_connection)
-{
-	tcp_connections_.erase(tcp_connection);
-}
-
-void tcp_connection_manager2::remove_all()
-{
-	tcp_connections_.empty();
-}
-
-}  // namespace transport
+//  #include "StdAfx.h"
+//  #include "tcp_connection_manager2.h"
+//  #include <boost/bind.hpp>
+//
+//  namespace transport {
+//
+//  void tcp_connection_manager2::add_connection(tcp_connection_ptr tcp_connection)
+//  {
+//    tcp_connections_.insert(tcp_connection);
+//    tcp_connection->start();	
+//  }
+//
+//  void tcp_connection_manager2::remove_connection(tcp_connection_ptr tcp_connection)
+//  {
+//    tcp_connections_.erase(tcp_connection);
+//  }
+//
+//  void tcp_connection_manager2::remove_all()
+//  {
+//    tcp_connections_.empty();
+//  }
+//
+//  }  // namespace transport

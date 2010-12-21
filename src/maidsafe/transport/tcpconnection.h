@@ -24,7 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+/*
 #ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 
@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/enable_shared_from_this.hpp>
 
 namespace transport {
-/*
+
 class TcpTransport;
 
 class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
@@ -74,7 +74,8 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   RawBuffer buffer_;
   boost::uint32_t timeout_for_response_;
 };
-*/
+
 }  // namespace transport
 
 #endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
+*/

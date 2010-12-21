@@ -60,11 +60,11 @@ TransportCondition GetNewSocket(
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_flags = (endpoint.ip == IP() ? AI_PASSIVE : 0);
+  bool empty_ip(endpoint.ip == IP());
+  hints.ai_flags = (empty_ip ? AI_PASSIVE : 0);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  const char *address(endpoint.ip == IP() ? NULL :
-                      endpoint.ip.to_string().c_str());
+  const char *address(empty_ip ? NULL : endpoint.ip.to_string().c_str());
   std::string port_str = boost::lexical_cast<std::string>(endpoint.port);
   int result(0);
   *address_info = SocketGetAddrinfo(address, port_str.c_str(), hints, &result);
