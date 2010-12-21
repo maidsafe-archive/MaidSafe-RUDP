@@ -26,44 +26,42 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <maidsafe/transport/tcpTransport2.h>
-#include <maidsafe/base/log.h>
+#ifndef MAIDSAFE_TRANSPORT_TCP_TRANSPORT2_H_
+#define MAIDSAFE_TRANSPORT_TCP_TRANSPORT2_H_
 
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-#include <google/protobuf/descriptor.h>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio.hpp>
+#include "transport2.h"
+#include "tcp_connection2.h"
+#include "tcp_connection_manager2.h"
 
-namespace asio = boost::asio;
-namespace bs = boost::system;
-namespace ip = asio::ip;
-namespace pt = boost::posix_time;
+using namespace boost::asio;
 
 namespace transport {
 
-tcpTransport2::tcpTransport2(io_service& io_service_, 
-               boost::asio::tcp::endpoint& endpoint_):this->io_service_(io_service_),
-                acceptor_(io_service), connection_(io_service)
-{
-  acceptor_.open(endpoint.protocol());
-  acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-  accpetor_.bind(endpoint);
-  acceptor_.listen();
-  acceptor_.async_accept(connection_->socket(), 
-    boost::bind(&tcpTransport::handle_accept, this, asio::placeholders::error));
-}
+class tcp_transport2 : public Transport2 {
+public:
+	explicit tcp_transport2(io_service& ioservice_, const Endpoint &endpoint);
+  	~tcp_transport2();
 
-tcpTransport2::handle_accept(const asio::error_code& e)
-{
-  if (!e)
-  {
-    connection_->reset(new connection(io_service));
-    acceptor_.async_accept(connection_->socket(), 
-      boost::bind(handle_accept, this, asio::placeholders::error));
-  }
-}
+	/**
+	* Enables the transport to accept incoming communication. Fails if already
+	* listening or the requested endpoint is unavailable.
+	* @param e It is not NULL if an error has occured whcih may affect the operations in the method.
+	* @return Success or an appropriate error code.
+	*/
+  
+	void accept_connection(const boost::system::error_code& e);
+	void start();
+	void stop();
 
-tcpTransport2::~tcpTransport2() 
-{
-    acceptor_.close();	
-}
+private:
+	tcp_connection_manager2 tcp_connection_manager_;
+	tcp_connection_ptr connection_;
+	//Acceptor listens for incoming connections.
+	boost::asio::ip::tcp::acceptor acceptor_;
+};
+
 }  // namespace transport
+
+#endif  // MAIDSAFE_TRANSPORT_TCPTRANSPORT2_H_
