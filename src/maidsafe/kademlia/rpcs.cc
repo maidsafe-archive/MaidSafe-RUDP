@@ -27,51 +27,72 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/transport/transport.h"
 #include "maidsafe/kademlia/messagehandler.h"
-// #include "maidsafe/transport/udttransport.h"
+#include "maidsafe/kademlia/contact.h"
+#include "maidsafe/transport/transport.h"
 
 namespace kademlia {
 // TODO(dirvine) Dec 12 2010 - template this to take mutiple
 // transports to support tcp as well as reliable udp
 
-Rpcs::Rpcs() {}
-
+template <class TransportType>
+Rpcs::Rpcs()
+      {}
+template <class TransportType>
 void Rpcs::FindNodes(const NodeId &key,
                      const Endpoint &ep,
                      FindNodesFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::FindNodesRequest args;
   args.set_key(key.String());
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestFindNodes(args, ep, boost::bind(&FindNodesCallback,
-                                    this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_find_nodes_response()->connect(boost::bind(
+                                                     &Rpc::FindNodesCallback,
+                                                     this, _1, callback,
+                                                     message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
-
+template <class TransportType>
 void Rpcs::FindValue(const NodeId &key,
                      const Endpoint &ep,
                      FindValueFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::FindValueRequest args;
   args.set_key(key.String());
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestFindValue(args, ep, boost::bind(&FindValueCallback,
-                                    this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_find_value_response()->connect(boost::bind(
+                                                     &Rpc::FindValueCallback,
+                                                     this, _1, callback,
+                                                     message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
+template <class TransportType>
 void Rpcs::Ping(const Endpoint &ep,
                 PingFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::PingRequest args;
   args.set_ping("ping");
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestPing(args, ep, boost::bind(&PingCallback,
-                               this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_ping_response()->connect(boost::bind(&Rpc::PingCallback,
+                                               this, _1, callback,
+                                               message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
+template <class TransportType>
 void Rpcs::Store(const NodeId &key,
                  const protobuf::SignedValue &value,
                  const protobuf::SignedRequest &sig_req,
@@ -80,6 +101,8 @@ void Rpcs::Store(const NodeId &key,
                  const bool &publish,
                  StoreSigFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::StoreRequest args;
   args.set_key(key.String());
   protobuf::SignedValue *svalue = args.mutable_sig_value();
@@ -90,10 +113,15 @@ void Rpcs::Store(const NodeId &key,
   *sreq = sig_req;
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestStore(args, ep, boost::bind(&StoreSigCallback,
-                                this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_store_response()->connect(boost::bind(
+                                               &Rpc::StoreCallback,
+                                               this, _1, callback,
+                                               message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
+template <class TransportType>
 void Rpcs::Store(const NodeId &key,
                  const std::string &value,
                  const Endpoint &ep,
@@ -101,6 +129,8 @@ void Rpcs::Store(const NodeId &key,
                  const bool &publish,
                  StoreFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::StoreRequest args;
   args.set_key(key.String());
   args.set_value(value);
@@ -108,43 +138,43 @@ void Rpcs::Store(const NodeId &key,
   args.set_publish(publish);
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestStore(args, ep, boost::bind(&StoreCallback,
-                                this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_store_response()->connect(boost::bind(
+                                                &Rpc::StoreCallback,
+                                                this, _1, callback,
+                                                message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
+template <class TransportType>
 void Rpcs::Downlist(const std::vector<std::string> downlist,
                     const Endpoint &ep,
                     DownlistFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::DownlistRequest args;
   for (unsigned int i = 0; i < downlist.size(); ++i)
     args.add_downlist(downlist[i]);
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestDownlist(args, ep, boost::bind(&DownlistCallback,
-                                   this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_downlist_response()->connect(boost::bind(
+                                                   &Rpc::DownlistCallback,
+                                                   this, _1, callback,
+                                                   message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
-void Rpcs::Bootstrap(const NodeId &local_id,
-                     const Endpoint &ep,
-                     const NodeType &type,
-                     BootStrapFunctor callback) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  protobuf::BootstrapRequest args;
-  args.set_newcomer_id(local_id.String());
-  args.set_newcomer_local_ip(ep.ip);
-  args.set_newcomer_local_port(ep.port);
-  args.set_node_type(type);
-  message_handler->RequestBootstrap(args, ep, boost::bind(&BootStrapCallback,
-                                    this, _1, callback, message_handler));
-}
-
+template <class TransportType>
 void Rpcs::Delete(const NodeId &key,
                   const protobuf::SignedValue &value,
                   const protobuf::SignedRequest &sig_req,
                   const Endpoint &ep,
                   DeleteFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::DeleteRequest args;
   args.set_key(key.String());
   protobuf::SignedValue *svalue = args.mutable_value();
@@ -153,10 +183,15 @@ void Rpcs::Delete(const NodeId &key,
   *sreq = sig_req;
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestDelete(args, ep, boost::bind(&DeleteCallback,
-                                 this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_delete_response()->connect(boost::bind(
+                                                 &Rpc::DeleteCallback,
+                                                 this, _1, callback,
+                                                 message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
 
+template <class TransportType>
 void Rpcs::Update(const NodeId &key,
                   const protobuf::SignedValue &old_value,
                   const protobuf::SignedValue &new_value,
@@ -165,6 +200,8 @@ void Rpcs::Update(const NodeId &key,
                   const Endpoint &ep,
                   UpdateFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
+  boost::shared_ptr<transport::Transport> transport(new TransportType);
+  transport::Timeout timeout(transport::kDefaultInitialTimeout);
   protobuf::UpdateRequest args;
   args.set_key(key.String());
   protobuf::SignedValue *newvalue = args.mutable_new_value();
@@ -176,54 +213,82 @@ void Rpcs::Update(const NodeId &key,
   *sreq = sig_req;
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
-  message_handler->RequestUpdate(args, ep, boost::bind(&UpdateCallback,
-                                 this, _1, callback, message_handler));
+  std::string msg = message_handler->WrapMessage(args);
+  message_handler->on_update_response()->connect(boost::bind(
+                                                 &Rpc::UpdateCallback,
+                                                 this, _1, callback,
+                                                 message_handler, transport));
+  transport->Send(msg, ep, timeout);
 }
-void FindNodesCallback(const protobuf::FindNodesResponse &response,
+
+template <class TransportType>
+void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
                        FindNodesFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler) {
-// need to change type of contact 
-callback(response.result, response.contact);
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport) {
+  std::vector<Contact> contacts; 
+  for (int i =0; i < response.closest_nodes_size(); ++i) {
+    Contact contact(response.closest_nodes(i));
+    contacts[i] = contact;
+  }
+  callback(response.result(), contacts);
 }
-void FindValueCallback(const protobuf::FindValueResponse &response,
+
+template <class TransportType>
+void Rpcs::FindValueCallback(const protobuf::FindValueResponse &response,
                        FindValueFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport) {
+  std::vector<Contact> contacts; 
+  for (int i =0; i < response.closest_nodes_size(); ++i) {
+    Contact contact(response.closest_nodes(i));
+    contacts[i] = contact;
+  }
+  callback(response.result(), contacts);
 }
-void PingCallback(const protobuf::PingResponse &response,
+
+template <class TransportType>
+void Rpcs::PingCallback(const protobuf::PingResponse &response,
                        PingFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport) {
+  callback(response.result(), response.echo());
 }
-void StoreSigCallback(const protobuf::StoreResponse &response,
+
+template <class TransportType>
+void Rpcs::StoreSigCallback(const protobuf::StoreResponse &response,
                        StoreSigFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport>transport) {
+  callback(response.result(), response.signed_request());
 }
-void StoreCallback(const protobuf::StoreResponse &response,
+
+template <class TransportType>
+void Rpcs::StoreCallback(const protobuf::StoreResponse &response,
                        StoreFunctor callback,
                        boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+  callback(response.result());
 }
-void DownlistCallback(const protobuf::DownlistResponse &response,
+
+template <class TransportType>
+void Rpcs::DownlistCallback(const protobuf::DownlistResponse &response,
                        DownlistFunctor callback,
                        boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+  callback(response.result());
 }
-void BootStrapCallback(const protobuf::BootStrapResponse &response,
-                       BootStrapFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
-}
-void DeleteCallback(const protobuf::DeleteResponse &response,
+
+template <class TransportType>
+void Rpcs::DeleteCallback(const protobuf::DeleteResponse &response,
                        DeleteFunctor callback,
                        boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+  callback(response.result());
 }
-void UpdateCallback(const protobuf::UpdateResponse &response,
+
+template <class TransportType>
+void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
                        UpdateFunctor callback,
                        boost::shared_ptr<MessageHandler> message_handler) {
- // code for callback calling
+  callback(response.result());
 }
 
 }  // namespace kademlia

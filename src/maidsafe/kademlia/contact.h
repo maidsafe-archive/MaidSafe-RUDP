@@ -37,40 +37,40 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <maidsafe/kademlia/nodeid.h>
 #include <maidsafe/kademlia/config.h>
+#include<maidsafe/kademlia/kademlia.pb.h>
+#include<maidsafe/transport/transport.h>
 #include <string>
 
 
 namespace kademlia {
 
-class ContactInfo;
-
 class Contact {
-// This class contains information on a single remote contact
+// This class contains information on a single remote contact (Now support multiple remote contact
  public:
   Contact();
   Contact(const std::string &node_id,
           const Endpoint ep,
           const Endpoint &local_ip);
-  explicit Contact(const ContactInfo &contact_info);
+  explicit Contact(const protobuf::Contact &contact);
+  bool FromProtobuf(const protobuf::Contact &contact);
+  protobuf::Contact& Contact::ToProtobuf();
   Contact(const Contact &other);
   // Equality is based on node id or (IP and port) if dummy
   bool Equals(const Contact &other) const;
   Contact& operator=(const Contact &other);
-  bool SerialiseToString(std::string *serialised_output);
-  std::string SerialiseAsString();
-  bool ParseFromString(const std::string &data);
   std::string DebugString() const;
   inline const NodeId &node_id() const { return node_id_; }
   inline const Endpoint &ep() const { return ep_; }
   inline boost::uint16_t failed_rpc() const { return failed_rpc_; }
   inline void IncreaseFailed_RPC() { ++failed_rpc_; }
   const Endpoint &rendezvous_ip() const { return rv_ep_; }
- // Port rendezvous_port() const { return rendezvous_port_; }
   inline boost::uint64_t last_seen() const { return last_seen_; }
   inline void set_last_seen(boost::uint64_t last_seen) {
     last_seen_ = last_seen;
   }
-  inline const Endpoint &local_eps() const { return local_eps_; }
+  bool SetPreferredEndpoint(transport::IP ip);
+  Endpoint GetPreferredEndpoint();
+  inline const std::list<Endpoint> &local_eps() const { return local_eps_; }
   bool operator<(const Contact &rhs) const;
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
 
@@ -79,8 +79,9 @@ class Contact {
   Endpoint ep_;
   boost::uint16_t failed_rpc_;
   Endpoint rv_ep_;
-  Endpoint local_eps_;
+  std::list<Endpoint> local_eps_;
   boost::uint64_t last_seen_;
+  bool prefer_local_;
 };
 
 }  // namespace kademlia

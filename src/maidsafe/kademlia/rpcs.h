@@ -39,25 +39,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
+#include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/tcptransport2.h"
 
 namespace transport {
-class Transport;
-}  // namespace transport
+ class Transport;
+} // namespace transport
 
 namespace kademlia {
-class NodeId;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> FindNodesFunctor;
-// Need to update arguments
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> FindValueFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> PingFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> StoreFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> StoreSigFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> DownlistFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> BootStrapFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> DeleteFunctor;
-typedef boost::function<void(bool, std::vector<protobuf::Contact>)> UpdateFunctor;
-// Need to update
+ class NodeId;
+ typedef boost::function<void(bool, const std::vector<Contact>&)>
+                              FindNodesFunctor;
+ typedef boost::function<void(bool, const std::vector<Contact>&)>
+                              FindValueFunctor;
+ typedef boost::function<void(bool, std::string)> PingFunctor;
+ typedef boost::function<void(bool)> StoreFunctor;
+ typedef boost::function<void(bool, protobuf::SignedRequest)> StoreSigFunctor;
+ typedef boost::function<void(bool)> DownlistFunctor;
+ typedef boost::function<void(bool)> DeleteFunctor;
+ typedef boost::function<void(bool)> UpdateFunctor;
 
+template <class T>
 class Rpcs {
  public:
   Rpcs() {}
@@ -86,10 +88,6 @@ class Rpcs {
   void Downlist(const std::vector<std::string> downlist,
                 const Endpoint &ep,
                 DownlistFunctor callback);
-  void Bootstrap(const NodeId &local_id,
-                 const Endpoint &ep,
-                 const NodeType &type,
-                 BootStrapFunctor callback);
   void Delete(const NodeId &key,
               const protobuf::SignedValue &value,
               const protobuf::SignedRequest &sig_req,
@@ -103,7 +101,35 @@ class Rpcs {
               const Endpoint &ep,
               UpdateFunctor callback);
   inline void set_info(const protobuf::Contact &info) { info_ = info; }
- private:
+private:
+  void FindNodesCallback(const protobuf::FindNodesResponse &response,
+                       FindNodesFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport);
+  void FindValueCallback(const protobuf::FindValueResponse &response,
+                       FindValueFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport);
+  void PingCallback(const protobuf::PingResponse &response,
+                       PingFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport> transport);
+  void StoreSigCallback(const protobuf::StoreResponse &response,
+                       StoreSigFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler,
+                       boost::shared_ptr<transport::Transport>transport);
+  void StoreCallback(const protobuf::StoreResponse &response,
+                       StoreFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler);
+  void DownlistCallback(const protobuf::DownlistResponse &response,
+                       DownlistFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler);
+  void DeleteCallback(const protobuf::DeleteResponse &response,
+                       DeleteFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler);
+  void UpdateCallback(const protobuf::UpdateResponse &response,
+                       UpdateFunctor callback,
+                       boost::shared_ptr<MessageHandler> message_handler);
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   protobuf::Contact info_;
