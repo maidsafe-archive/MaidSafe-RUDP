@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/base/utils.h"
-#include "maidsafe/protobuf/contact_info.pb.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 
@@ -41,21 +41,46 @@ Contact::Contact()
       last_seen_(base::GetEpochMilliseconds())
       {}
 
-
-Contact::Contact(const ContactInfo &contact_info)
-    : node_id_(contact_info.node_id()), ep_(),
-      failed_rpc_(0),
+Contact::Contact(const protobuf::Contact &contact)
+     :failed_rpc_(0),
+      local_eps_(),
       rv_ep_(),
-      last_seen_(base::GetEpochMilliseconds()),
-      local_eps_()
-      {
-        ep_.ip.from_string(contact_info.ip());
-        ep_.port = contact_info.port();
-        rv_ep_.ip.from_string(contact_info.rendezvous_ip());
-        rv_ep_.port = contact_info.rendezvous_port();
-        local_eps_.ip.from_string(contact_info.local_ips());
-        local_eps_.port = contact_info.local_port();
-      }
+      last_seen_(base::GetEpochMilliseconds()) {
+  if (!FromProtobuf(contact)) {
+   node_id_ = NodeId(kZeroId);
+   ep_();
+   rv_ep_();
+   local_eps_.clear();
+  }   
+}
+
+bool Contact::FromProtobuf(const protobuf::Contact &contact) {
+  if (!contact.IsInitialized())
+    return false;
+  node_id_ = NodeId(contact.node_id());
+  ep_(contact.enpoint());
+  if (contact.has_rendezvous())
+    rv_ep_(contact.rendezvous());
+  for (int i = 0; i < contact.local_ips_size(); ++i) {
+    Endpoint ep;
+    if (!ep.ip.ParseFromString(contact.local_ips(i)))
+      return false;
+    ep.port = contact.local_port();
+    local_eps_.push_back(ep);
+  }
+  return true;
+}
+
+protobuf::Contact& Contact::ToProtobuf() {
+  protobuf::Contact contact;
+  contact.set_node_id(node_id_.String());
+  contact.enpoint() = ep_;
+  contact.rendezvous() = rv_ep_;
+  std::list<Endpoint>::iterator it = local_eps_.begin();
+  for (; it != local_eps_.end(); ++it)
+    contact.add_local_ips((*it).ip.to_string());
+  contact.set_local_port((*it).port);
+}
 
 Contact::Contact(const Contact &other)
     : node_id_(other.node_id_), ep_(other.ep_),
@@ -81,52 +106,29 @@ Contact& Contact::operator=(const Contact &other) {
   return *this;
 }
 
-bool Contact::SerialiseToString(std::string *serialised_output) {
-  ContactInfo info;
-  info.set_node_id(node_id_.String());
-  info.set_ip(ep_.ip.to_string());
-  info.set_port(ep_.port);
-  info.set_rendezvous_ip(rv_ep_.ip.to_string());
-  info.set_rendezvous_port(rv_ep_.port);
-  info.set_local_ips(local_eps_.ip.to_string());
-  info.set_local_port(local_eps_.port);
-  return info.SerializeToString(serialised_output);
-}
+bool Contact::SetPreferredEndpoint(transport::IP ip) {
+   prefer_local_ = false;
+   if (ep_.ip != ip) {
+     std::list<Endpoint>::iterator it = local_eps_.begin();
+     for (; it != local_eps_.end(); ++it) {
+       if ((ip == (*it).ip) && (it != local_eps_.begin())) {
+         Endpoint ep = (*it);
+         local_eps_.erase(it);
+         local_eps_.push_front(ep);
+         prefer_local_ = true;
+         break;
+       }
+     }
+   }      
+ }
 
-std::string Contact::SerialiseAsString() {
-  ContactInfo info;
-  info.set_node_id(node_id_.String());
-  info.set_ip(ep_.ip.to_string());
-  info.set_port(ep_.port);
-  info.set_rendezvous_ip(rv_ep_.ip.to_string());
-  info.set_rendezvous_port(rv_ep_.port);
-  info.set_local_ips(local_eps_.ip.to_string());
-  info.set_local_port(local_eps_.port);
-  return info.SerializeAsString();
-}
-
-bool Contact::ParseFromString(const std::string &data) {
-  kademlia::ContactInfo info;
-  if (!info.ParseFromString(data))
-    return false;
-  node_id_ = NodeId(info.node_id());
-  if (!node_id_.IsValid())
-    return false;
-  
-  ep_.ip.from_string(info.ip());
-  ep_.port = info.port();
-  if (info.has_rendezvous_ip()) {
-    rv_ep_.ip.from_string(info.rendezvous_ip());
-    rv_ep_.port = info.rendezvous_port();
-  }
-  local_eps_.ip.from_string(info.local_ips());
-  local_eps_.port = info.local_port();
-  last_seen_ = base::GetEpochMilliseconds();
-  return true;
-}
-
-
-
+ Endpoint Contact::GetPreferredEndpoint() {
+   if (prefer_local_ && (local_eps_.size() != 0))
+     return local_eps_.front();
+   else
+     return ep_;
+ }
+ 
 bool Contact::operator<(const Contact &rhs) const {
   return this->node_id().String() < rhs.node_id().String();
 }
