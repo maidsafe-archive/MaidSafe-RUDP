@@ -52,7 +52,7 @@ class Contact {
   Contact(const std::string &node_id,
           const transport::Endpoint ep);
   bool FromProtobuf(const protobuf::Contact &contact);
-  protobuf::Contact Contact::ToProtobuf() const;
+  protobuf::Contact ToProtobuf() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
   
