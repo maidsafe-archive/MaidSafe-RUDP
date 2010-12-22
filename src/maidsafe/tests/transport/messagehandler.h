@@ -28,91 +28,51 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
 #define MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
 
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/signals2/signal.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <maidsafe/maidsafe-dht_config.h>
-#include <maidsafe/transport/transportconditions.h>
-#include <list>
-#include <set>
+#include <boost/thread/mutex.hpp>
 #include <string>
-
-
-namespace  bs2 = boost::signals2;
-
-namespace  rpcprotocol {
-class RpcMessage;
-}  // namespace  rpcprotocol
+#include <utility>
+#include <vector>
+#include "maidsafe/transport/transport.h"
 
 namespace transport {
 
-class Signals;
-class ManagedEndpointMessage;
-class SocketPerformanceStats;
-
 namespace test {
+
+typedef std::vector< std::pair<std::string, Info> > IncomingMessages;
+typedef std::vector<std::string> OutgoingResponses;
+typedef std::vector<TransportCondition> Errors;
 
 class MessageHandler {
  public:
-  typedef std::list< boost::tuple<std::string, SocketId, float> >
-      RawMessageList;
-  typedef std::list< boost::tuple<rpcprotocol::RpcMessage, SocketId, float> >
-      RpcMessageList;
-  typedef std::list< boost::tuple<SocketId, TransportCondition> >
-      MessageResultList;
-  typedef std::list< boost::tuple<ManagedEndpointId, ManagedEndpointMessage> >
-      ManagedEndpointMessageList;
-  MessageHandler(boost::shared_ptr<Signals> signals,
-                 const std::string &message_handler_id,
-                 bool display_stats);
-  ~MessageHandler();
-  void OnMessageReceived(const std::string &message,
-                         const int &socket_id,
-                         const float &rtt);
-  void OnRpcMessageReceived(const rpcprotocol::RpcMessage &rpc_message,
-                            const int &socket_id,
-                            const float &rtt,
-                            bool is_request);
-  void OnManagedEndpointReceived(const ManagedEndpointId &managed_endpoint_id,
-                                 const ManagedEndpointMessage &message);
-  void OnManagedEndpointLost(const ManagedEndpointId &managed_endpoint_id);
-  void OnResult(const int &socket_id,
-                const TransportCondition &result,
-                bool is_send);
-  void OnStats(boost::shared_ptr<SocketPerformanceStats> stats);
+  explicit MessageHandler(const std::string &id)
+    : this_id_(id),
+      requests_received_(),
+      responses_received_(),
+      responses_sent_(),
+      errors_(),
+      mutex_() {}
+  void DoOnRequestReceived(const std::string &request,
+                           const Info &info,
+                           std::string *response,
+                           Timeout *timeout);
+  void DoOnResponseReceived(const std::string &request,
+                            const Info &info,
+                            std::string *response,
+                            Timeout *timeout);
+  void DoOnError(const TransportCondition &tc);
   void ClearContainers();
-  // Getters
-  RawMessageList raw_messages();
-  RpcMessageList rpc_requests();
-  RpcMessageList rpc_responses();
-  MessageResultList sent_results();
-  MessageResultList received_results();
-  ManagedEndpointMessageList managed_endpoint_messages();
-  std::set<ManagedEndpointId> managed_endpoint_ids();
-  std::set<ManagedEndpointId> lost_managed_endpoint_ids();
-
+  IncomingMessages requests_received();
+  IncomingMessages responses_received();
+  OutgoingResponses responses_sent();
+  Errors errors();
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
-  boost::shared_ptr<Signals> signals_;
-  RawMessageList raw_messages_;
-  RpcMessageList rpc_requests_, rpc_responses_;
-  MessageResultList sent_results_, received_results_;
-  ManagedEndpointMessageList managed_endpoint_messages_;
-  std::set<ManagedEndpointId> managed_endpoint_ids_;
-  std::set<ManagedEndpointId> lost_managed_endpoint_ids_;
-  std::string message_handler_id_;
+  std::string this_id_;
+  IncomingMessages requests_received_, responses_received_;
+  OutgoingResponses responses_sent_;
+  Errors errors_;
   boost::mutex mutex_;
-  bs2::connection message_received_connection_;
-  bs2::connection rpc_request_received_connection_;
-  bs2::connection rpc_response_received_connection_;
-  bs2::connection managed_endpoint_received_connection_;
-  bs2::connection managed_endpoint_lost_connection_;
-  bs2::connection send_connection_;
-  bs2::connection receive_connection_;
-  bs2::connection stats_connection_;
 };
 
 }  // namespace test
