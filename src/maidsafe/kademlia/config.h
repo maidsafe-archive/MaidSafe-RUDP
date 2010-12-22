@@ -29,13 +29,30 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_CONFIG_H_
 
 #include <boost/cstdint.hpp>
+#include <boost/function.hpp>
 #include <string>
-#include <vector>
 
 namespace kademlia {
 
 // Functor for general callback functions.
 typedef boost::function<void(std::string)> VoidFunctorOneString;
+typedef boost::function<void(bool)> VoidFunctorOneBool;
+
+struct Signature {
+  Signature() : signer_id(), public_key(), signed_public_key(), signature() {}
+  std::string signer_id;
+  std::string public_key;
+  std::string signed_public_key;
+  std::string signature;
+};
+
+struct SignedValue {
+  SignedValue() : value(), signature() {}
+  SignedValue(const std::string &value, const std::string &signature)
+    : value(value), signature(signature) {}
+  std::string value;
+  std::string signature;
+};
 
 enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
@@ -79,8 +96,6 @@ const boost::uint32_t kMaxBootstrapContacts = 10000;
 
 // Signature used to sign anonymous RPC requests.
 const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
-
-typedef transport::Endpoint Endpoint;
 
 }  // namespace kademlia
 

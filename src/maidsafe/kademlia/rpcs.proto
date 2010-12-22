@@ -40,22 +40,21 @@ message FindNodesResponse {
 message StoreRequest {
   required bytes key = 1;
   optional bytes value = 2;
-  optional SignedValue sig_value = 3;
+  optional SignedValue signed_value = 3;
   required int32 ttl = 4;
-  required Contact sender = 5;
-  required bool publish = 6;
-  optional SignedRequest signed_request = 7;
+  required bool publish = 5;
+  optional Signature signature = 6;
+  required Contact sender = 7;
 };
 
 message StoreResponse {
   required bool result = 1;
-  optional SignedRequest signed_request = 2;
 };
 
 message DeleteRequest {
   required bytes key = 1;
-  required SignedValue value = 2;
-  required SignedRequest signed_request = 3;
+  required SignedValue signed_value = 2;
+  required Signature signature = 3;
   required Contact sender = 4;
 };
 
@@ -65,10 +64,10 @@ message DeleteResponse {
 
 message UpdateRequest {
   required bytes key = 1;
-  required SignedValue new_value = 2;
-  required SignedValue old_value = 3;
+  required SignedValue new_signed_value = 2;
+  required SignedValue old_signed_value = 3;
   required int32 ttl = 4;
-  required SignedRequest request = 5;
+  required Signature signature = 5;
   required Contact sender = 6;
 };
 

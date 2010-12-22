@@ -32,107 +32,114 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/contact.h"
+
 #include <string>
 #include <vector>
 
-#include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/kademlia/config.h"
-#include "maidsafe/kademlia/kademlia.pb.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
-#include "maidsafe/transport/udttransport.h"
-#include "maidsafe/transport/tcptransport2.h"
-
 namespace transport {
- class Transport;
-} // namespace transport
+class Endpoint;
+}  // namespace transport
 
 namespace kademlia {
- class NodeId;
- typedef boost::function<void(bool, const std::vector<Contact>&)>
-                              FindNodesFunctor;
- typedef boost::function<void(bool, const std::vector<Contact>&)>
-                              FindValueFunctor;
- typedef boost::function<void(bool, std::string)> PingFunctor;
- typedef boost::function<void(bool)> StoreFunctor;
- typedef boost::function<void(bool, protobuf::SignedRequest)> StoreSigFunctor;
- typedef boost::function<void(bool)> DownlistFunctor;
- typedef boost::function<void(bool)> DeleteFunctor;
- typedef boost::function<void(bool)> UpdateFunctor;
 
-template <class T>
+class MessageHandler;
+class NodeId;
+
+namespace protobuf {
+class PingResponse;
+class FindValueResponse;
+class FindNodesResponse;
+class StoreResponse;
+class DeleteResponse;
+class UpdateResponse;
+class DownlistResponse;
+}  // namespace protobuf
+
+typedef boost::function<void(bool, std::string)> PingFunctor;
+typedef boost::function<void(bool, const std::vector<Contact>&,
+                             const std::vector<std::string>&,
+                             const std::string<SignedValue>&,
+                             const Contact&, bool)> FindValueFunctor;
+typedef boost::function<void(bool, const std::vector<Contact>&)>
+    FindNodesFunctor;
+
+template <class TransportType>
 class Rpcs {
  public:
-  Rpcs() {}
- 
-  void FindNodes(const NodeId &key,
-                 const Endpoint &ep,
-                 FindNodesFunctor callback);
-  void FindValue(const NodeId &key,
-                 const Endpoint &ep,
-                 FindValueFunctor callback);
-  void Ping(const Endpoint &ep,
+  Rpcs() : node_contact_() {} 
+  void Ping(const transport::Endpoint &endpoint,
             PingFunctor callback);
+  void FindValue(const NodeId &key,
+                 const transport::Endpoint &endpoint,
+                 FindValueFunctor callback);
+  void FindNodes(const NodeId &key,
+                 const transport::Endpoint &endpoint,
+                 FindNodesFunctor callback);
   void Store(const NodeId &key,
-             const protobuf::SignedValue &value,
-             const protobuf::SignedRequest &sig_req,
-             const Endpoint &ep,
+             const SignedValue &signed_value,
+             const Signature &signature,
+             const transport::Endpoint &endpoint,
              const boost::int32_t &ttl,
              const bool &publish,
-             StoreSigFunctor callback );
+             VoidFunctorOneBool callback);
   void Store(const NodeId &key,
              const std::string &value,
-             const Endpoint &ep,
+             const transport::Endpoint &endpoint,
              const boost::int32_t &ttl,
              const bool &publish,
-             StoreFunctor callback);
-  void Downlist(const std::vector<std::string> downlist,
-                const Endpoint &ep,
-                DownlistFunctor callback);
+             VoidFunctorOneBool callback);
   void Delete(const NodeId &key,
-              const protobuf::SignedValue &value,
-              const protobuf::SignedRequest &sig_req,
-              const Endpoint &ep,
-              DeleteFunctor callback);
+              const SignedValue &signed_value,
+              const Signature &signature,
+              const transport::Endpoint &endpoint,
+              VoidFunctorOneBool callback);
   void Update(const NodeId &key,
-              const protobuf::SignedValue &new_value,
-              const protobuf::SignedValue &old_value,
+              const SignedValue &new_signed_value,
+              const SignedValue &old_signed_value,
               const boost::int32_t &ttl,
-              const protobuf::SignedRequest &sig_req,
-              const Endpoint &ep,
-              UpdateFunctor callback);
-  inline void set_info(const protobuf::Contact &info) { info_ = info; }
-private:
-  void FindNodesCallback(const protobuf::FindNodesResponse &response,
-                       FindNodesFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
-  void FindValueCallback(const protobuf::FindValueResponse &response,
-                       FindValueFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
+              const Signature &signature,
+              const transport::Endpoint &endpoint,
+              VoidFunctorOneBool callback);
+  void Downlist(const std::vector<std::string> &downlist,
+                const transport::Endpoint &endpoint,
+                VoidFunctorOneBool callback);
+  void set_node_contact(const Contact &node_contact) {
+    node_contact_ = node_contact;
+  }
+ private:
   void PingCallback(const protobuf::PingResponse &response,
-                       PingFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
-  void StoreSigCallback(const protobuf::StoreResponse &response,
-                       StoreSigFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport>transport);
+                    PingFunctor callback,
+                    boost::shared_ptr<MessageHandler> message_handler,
+                    boost::shared_ptr<TransportType> transport);
+  void FindValueCallback(const protobuf::FindValueResponse &response,
+                         FindValueFunctor callback,
+                         boost::shared_ptr<MessageHandler> message_handler,
+                         boost::shared_ptr<TransportType> transport);
+  void FindNodesCallback(const protobuf::FindNodesResponse &response,
+                         FindNodesFunctor callback,
+                         boost::shared_ptr<MessageHandler> message_handler,
+                         boost::shared_ptr<TransportType> transport);
   void StoreCallback(const protobuf::StoreResponse &response,
-                       StoreFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
-  void DownlistCallback(const protobuf::DownlistResponse &response,
-                       DownlistFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
+                     VoidFunctorOneBool callback,
+                     boost::shared_ptr<MessageHandler> message_handler,
+                     boost::shared_ptr<TransportType> transport);
   void DeleteCallback(const protobuf::DeleteResponse &response,
-                       DeleteFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
+                      VoidFunctorOneBool callback,
+                      boost::shared_ptr<MessageHandler> message_handler,
+                      boost::shared_ptr<TransportType> transport);
   void UpdateCallback(const protobuf::UpdateResponse &response,
-                       UpdateFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
+                      VoidFunctorOneBool callback,
+                      boost::shared_ptr<MessageHandler> message_handler,
+                      boost::shared_ptr<TransportType> transport);
+  void DownlistCallback(const protobuf::DownlistResponse &response,
+                        VoidFunctorOneBool callback,
+                        boost::shared_ptr<MessageHandler> message_handler,
+                        boost::shared_ptr<TransportType> transport);
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
-  protobuf::Contact info_;
+  Contact node_contact_;
 };
 
 }  // namespace kademlia
