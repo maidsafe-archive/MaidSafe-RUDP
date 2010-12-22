@@ -42,37 +42,37 @@ UdtTransport::UdtTransport(
           managed_endpoint_listening_port_(0),
           timer_(*asio_service, boost::posix_time::milliseconds(10)),
           accepted_connection_count_(0),
+          nat_detection_endpoints_(),
 //          managed_endpoint_sockets_(),
 //          pending_managed_endpoint_sockets_(),
 //          stop_managed_endpoints_(false),
 //          managed_endpoints_stopped_(true),
 //          managed_endpoint_sockets_mutex_(),
 //          managed_endpoints_cond_var_(),
-          managed_endpoint_listening_addrinfo_(),
+          managed_endpoint_listening_addrinfo_() {
 //          check_connections_(),
-          nat_detection_nodes_() {
 //          nat_detection_thread_() {
   UDT::startup();
 }
 
 UdtTransport::UdtTransport(
     boost::shared_ptr<boost::asio::io_service> asio_service,
-    std::vector<NatDetectionNode> nat_detection_nodes)
+    std::vector<Endpoint> nat_detection_endpoints)
         : Transport(asio_service),
           listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_port_(0),
           timer_(*asio_service, boost::posix_time::milliseconds(10)),
           accepted_connection_count_(0),
+          nat_detection_endpoints_(nat_detection_endpoints),
 //          managed_endpoint_sockets_(),
 //          pending_managed_endpoint_sockets_(),
 //          stop_managed_endpoints_(false),
 //          managed_endpoints_stopped_(true),
 //          managed_endpoint_sockets_mutex_(),
 //          managed_endpoints_cond_var_(),
-          managed_endpoint_listening_addrinfo_(),
+          managed_endpoint_listening_addrinfo_() {
 //          check_connections_(),
-          nat_detection_nodes_(nat_detection_nodes) {
 //          nat_detection_thread_() {
   UDT::startup();
 }
@@ -170,10 +170,8 @@ TransportCondition UdtTransport::DoStartListening(
   }
 
   // Do NAT detection if needed
-  if (!nat_detection_nodes_.empty()) {
-//  nat_detection_thread_ = boost::thread(&UdtTransport::DoNatDetection, this);
-    DetectNat();
-  }
+  if (!nat_detection_endpoints_.empty())
+    asio_service_->post(boost::bind(&UdtTransport::DetectNat, this));
 
   return kSuccess;
 }
@@ -232,21 +230,25 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
 }
 
 void UdtTransport::DetectNat() {
-  boost::shared_ptr<addrinfo const> address_info;
-} /*
-  for (size_t b = 0; b < nat_detection_nodes_.size(); ++b) {
-    UdtConnection udt_connection(this, nat_detection_nodes_.at(b).rendezvous_ip,
-                           nat_detection_nodes_.at(b).rendezvous_port, "", 0);
+  // Create message
+  protobuf::NatDetectionRequest nat_detection_request;
+  std::vector<IP> addresses(base::GetLocalAddresses());
+  for (size_t n = 0; n < addresses.size(); ++n)
+    nd->add_candidate_ips(addresses.at(n));
+  nat_detection_request->set_local_port(listening_port_);
 
-    // Create message
+  boost::shared_ptr<addrinfo const> address_info;
+  for (std::vector<Endpoint>::iterator it(nat_detection_endpoints_.begin());
+       it != nat_detection_endpoints_.end(); ++it) {
+    UdtConnection udt_connection(shared_from_this(), *it,
+                                 UdtConnection::kOutgoing);
+
+
+
     TransportMessage transport_message;
     transport_message.set_type(TransportMessage::kKeepAlive);
     NatDetection *nd =
         transport_message.mutable_data()->mutable_nat_detection();
-    nd->set_candidate_port(listening_ports().at(0));
-    std::vector<IP> addresses(base::GetLocalAddresses());
-    for (size_t n = 0; n < addresses.size(); ++n)
-      nd->add_candidate_ips(addresses.at(n));
 
     // Send message
     udt_connection.transport_message_ = transport_message;
@@ -281,7 +283,7 @@ void UdtTransport::DetectNat() {
     if (field_descriptors.at(0)->number() ==
         TransportMessage::Data::kNatInformationFieldNumber) {
       // We're done with Nat Detection. We're directly connected or full cone
-      b = nat_detection_nodes_.size();
+      b = nat_detection_endpoints_.size();
       NatInformation nat_info =
           udt_connection.transport_message_.data().nat_information();
       if (!nat_info.IsInitialized())
@@ -314,20 +316,20 @@ void UdtTransport::DetectNat() {
       if (!rv_connection.transport_message_.IsInitialized() ||
           !rv_connection.transport_message_.data().has_nat_information())
         continue;
-      b = nat_detection_nodes_.size();
+      b = nat_detection_endpoints_.size();
       NatInformation nat_info =
           rv_connection.transport_message_.data().nat_information();
       nat_details_.nat_type = kPortRestricted;
       nat_details_.external_ip = nat_info.ip();
       nat_details_.external_port = nat_info.port();
-      nat_details_.rendezvous_ip = nat_detection_nodes_.at(b).rendezvous_ip;
-      nat_details_.rendezvous_port = nat_detection_nodes_.at(b).rendezvous_port;
+      nat_details_.rendezvous_ip = nat_detection_endpoints_.at(b).rendezvous_ip;
+      nat_details_.rendezvous_port = nat_detection_endpoints_.at(b).rendezvous_port;
     }
   }
   if (nat_details_.nat_type == kFullCone ||
       nat_details_.nat_type == kPortRestricted) {}  // Setup pinging routine
 }
-*/
+
 
 
 

@@ -73,34 +73,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-struct NatDetectionNode {
-  NatDetectionNode() : rendezvous_ip(), rendezvous_port() {}
-  NatDetectionNode(const IP &ip, const Port &port)
-      : rendezvous_ip(ip),
-        rendezvous_port(port) {}
-  IP rendezvous_ip;
-  Port rendezvous_port;
-};
-
 struct NatDetails {
   NatDetails()
       : nat_type(kNotConnected),
-        external_ip(),
-        external_port(),
-        rendezvous_ip(),
-        rendezvous_port(),
-        candidate_ips() {}
+        external_endpoint(),
+        rendezvous_endpoint(),
+        local_endpoints() {}
   NatType nat_type;
-  IP external_ip;
-  Port external_port;
-  IP rendezvous_ip;
-  Port rendezvous_port;
-
-  // These IPs refer to the ones read from the interfaces
-  std::vector<IP> candidate_ips;
+  Endpoint external_endpoint, rendezvous_endpoint;
+  // These endpoints refer to the ones read from the interfaces
+  std::vector<Endpoint> local_endpoints;
 };
-
-class HolePunchingMessage;
 
 namespace test {
 class TestNatTraversal;
@@ -119,7 +102,7 @@ class UdtTransport : public Transport,
   explicit UdtTransport(
       boost::shared_ptr<boost::asio::io_service> asio_service);
   UdtTransport(boost::shared_ptr<boost::asio::io_service> asio_service,
-               std::vector<NatDetectionNode> nat_detection_nodes);
+               std::vector<Endpoint> nat_detection_endpoints);
   virtual ~UdtTransport();
   static void CleanUp();
   virtual TransportCondition StartListening(const Endpoint &endpoint);
@@ -141,11 +124,6 @@ class UdtTransport : public Transport,
   // Allows new incoming managed connections after StopManagedEndpoints has
   // been called.
   void ReAllowIncomingManagedEndpoints();
-  // Create a hole to remote endpoint using rendezvous endpoint.
-  TransportCondition PunchHole(const IP &remote_ip,
-                               const Port &remote_port,
-                               const IP &rendezvous_ip,
-                               const Port &rendezvous_port);
   // Adds an endpoint that is checked at frequency milliseconds, or which keeps
   // alive the connection if frequency == 0.  Checking persists until
   // RemoveManagedEndpoint called, or endpoint is unavailable.
@@ -182,11 +160,12 @@ class UdtTransport : public Transport,
               const SocketId &socket_id,
               const Timeout &timeout);
 
+  // NAT Detection methods
   void DetectNat();
 
 
 
-
+  // Managed Endpoint methods
   TransportCondition StartManagedEndpointListener(
       const SocketId &initial_peer_socket_id,
       boost::shared_ptr<addrinfo const> peer);
@@ -215,6 +194,8 @@ class UdtTransport : public Transport,
   Port managed_endpoint_listening_port_;
   boost::asio::deadline_timer timer_;
   boost::detail::atomic_count accepted_connection_count_;
+  static NatDetails nat_details_;
+  std::vector<Endpoint> nat_detection_endpoints_;
 
 
 
@@ -226,9 +207,7 @@ class UdtTransport : public Transport,
 //  boost::condition_variable managed_endpoints_cond_var_;
   boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
 //  boost::shared_ptr<boost::thread> check_connections_;
-  std::vector<NatDetectionNode> nat_detection_nodes_;
 //  boost::thread nat_detection_thread_;
-  static NatDetails nat_details_;
 };
 
 }  // namespace transport

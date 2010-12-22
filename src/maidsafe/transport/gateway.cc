@@ -28,7 +28,7 @@ Created by Julian Cain on 11/3/09.
 
 */
 
-#include "maidsafe/base/gateway.h"
+#include "maidsafe/transport/gateway.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
     && !defined(MAIDSAFE_LINUX)
@@ -54,7 +54,7 @@ Created by Julian Cain on 11/3/09.
 
 #include <boost/bind.hpp>
 
-namespace base {
+namespace transport {
 
 boost::asio::ip::address Gateway::DefaultRoute(
     boost::asio::io_service & ios,
@@ -355,4 +355,4 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
   return ret;
 }
 
-}  // namespace base
+}  // namespace transport

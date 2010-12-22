@@ -28,7 +28,7 @@ Created by Julian Cain on 11/3/09.
 
 */
 
-#include "maidsafe/base/network_interface.h"
+#include "maidsafe/transport/network_interface.h"
 #include "maidsafe/maidsafe-dht_config.h"  // NOLINT (Fraser) - This is needed
                                            // for preprocessor definitions
 
@@ -43,7 +43,7 @@ Created by Julian Cain on 11/3/09.
 #include <netdb.h>
 #endif
 
-namespace base {
+namespace transport {
 
 bool NetworkInterface::IsLocal(const boost::asio::ip::address & addr) {
   if (addr.is_v6()) {
@@ -282,4 +282,4 @@ std::vector<NetworkInterface> NetworkInterface::LocalList(
   return ret;
 }
 
-}  // namespace base
+}  // namespace transport
