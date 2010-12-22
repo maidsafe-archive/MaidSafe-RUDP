@@ -28,15 +28,15 @@ Created by Julian Cain on 11/3/09.
 
 */
 
-#ifndef MAIDSAFE_BASE_NETWORK_INTERFACE_H_
-#define MAIDSAFE_BASE_NETWORK_INTERFACE_H_
+#ifndef MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
+#define MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
 
 #include <boost/asio.hpp>
 
 #include <string>
 #include <vector>
 
-namespace base {
+namespace transport {
 
 /**
   * Network interface utilities.
@@ -125,6 +125,6 @@ struct NetworkInterface {
   char name[64];
 };
 
-}  // namespace base
+}  // namespace transport
 
-#endif  // MAIDSAFE_BASE_NETWORK_INTERFACE_H_
+#endif  // MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_

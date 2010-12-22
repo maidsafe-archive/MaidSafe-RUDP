@@ -34,17 +34,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_BASE_UTILS_H_
 #define MAIDSAFE_BASE_UTILS_H_
 
-#include <boost/asio/ip/address.hpp>
 #include <boost/cstdint.hpp>
 #include <maidsafe/maidsafe-dht_config.h>
 #include <string>
 #include <vector>
-
-
-namespace kademlia {
-class Contact;
-}  // namespace kademlia
-
 
 namespace base {
 
@@ -156,27 +149,6 @@ boost::uint64_t GetEpochMilliseconds();
 
 // Return the number of nanoseconds since 1st January 2000.
 boost::uint64_t GetEpochNanoseconds();
-
-// Convert an IP in ASCII format to IPv4 or IPv6 bytes
-std::string IpAsciiToBytes(const std::string &decimal_ip);
-
-// Convert an IPv4 or IPv6 in bytes format to ASCII format
-std::string IpBytesToAscii(const std::string &bytes_ip);
-
-// Convert an internet network address into dotted string format.
-void IpNetToAscii(boost::uint32_t address, char *ip_buffer);
-
-// Convert a dotted string format internet address into Ipv4 format.
-boost::uint32_t IpAsciiToNet(const char *buffer);
-
-// Return a list of network interfaces in the format of "address, adapter name".
-void GetNetInterfaces(std::vector<struct DeviceStruct> *alldevices);
-
-// Return the first local network interface found.
-bool GetLocalAddress(boost::asio::ip::address *local_address);
-
-// Return all local addresses
-std::vector<std::string> GetLocalAddresses();
 
 // Generate a (transaction) id between 1 & 2147483646 inclusive.
 boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id);

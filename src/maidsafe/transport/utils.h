@@ -25,19 +25,34 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include "maidsafe/base/log.h"
+/*******************************************************************************
+ * NOTE: This header is unlikely to have any breaking changes applied.         *
+ *       However, it should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
+ ******************************************************************************/
 
-int main(int argc, char **argv) {
-  // Initialising logging
-  google::InitGoogleLogging(argv[0]);
-  // Choose to direct output to stderr or not.
-  FLAGS_logtostderr = true;
-  // If Google logging is linked in, log messages at or above this level.
-  // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = 0;
-  testing::InitGoogleTest(&argc, argv);
-  int result(RUN_ALL_TESTS());
-  int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
-  return (test_count == 0) ? -1 : result;
-}
+#ifndef MAIDSAFE_TRANSPORT_UTILS_H_
+#define MAIDSAFE_TRANSPORT_UTILS_H_
+
+#include "maidsafe/transport/transport.h"
+
+namespace transport {
+
+// Convert an IP in ASCII format to IPv4 or IPv6 bytes
+std::string IpAsciiToBytes(const std::string &decimal_ip);
+
+// Convert an IPv4 or IPv6 in bytes format to ASCII format
+std::string IpBytesToAscii(const std::string &bytes_ip);
+
+// Convert an internet network address into dotted string format.
+void IpNetToAscii(boost::uint32_t address, char *ip_buffer);
+
+// Convert a dotted string format internet address into Ipv4 format.
+boost::uint32_t IpAsciiToNet(const char *buffer);
+
+// Return all local addresses
+std::vector<IP> GetLocalAddresses();
+
+}  // namespace transport
+
+#endif  // MAIDSAFE_TRANSPORT_UTILS_H_

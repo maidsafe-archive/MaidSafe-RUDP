@@ -21,8 +21,8 @@ message ManagedEndpointMessage {
 }
 
 message NatDetectionRequest {
-  repeated bytes candidate_ips = 1;
-  required int32 candidate_port = 2;
+  repeated bytes local_ips = 1;
+  required int32 local_port = 2;
 }
 
 message NatDetectionResponse {

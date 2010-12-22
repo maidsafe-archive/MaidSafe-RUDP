@@ -37,15 +37,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/log.h"
 #include "maidsafe/base/utils.h"
 
-namespace test_utils {
+namespace base {
+
+namespace test {
 
 void GenerateRandomStrings(const int &string_count,
                            const size_t &string_size) {
   for (int i = 0; i < string_count; ++i)
-    base::RandomString(string_size);
+    RandomString(string_size);
 }
-
-}  // namespace test_utils
 
 TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
   int thread_count(20);
@@ -63,7 +63,7 @@ TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
 
 TEST(UtilsTest, BEH_BASE_Stats) {
   {
-    base::Stats<int> stats;
+    Stats<int> stats;
     EXPECT_EQ(0, stats.Size());
     EXPECT_EQ(0, stats.Min());
     EXPECT_EQ(0, stats.Max());
@@ -82,7 +82,7 @@ TEST(UtilsTest, BEH_BASE_Stats) {
     EXPECT_EQ(3, stats.Mean());
   }
   {
-    base::Stats<float> stats;
+    Stats<float> stats;
     EXPECT_EQ(0, stats.Size());
     EXPECT_FLOAT_EQ(0.0, stats.Min());
     EXPECT_FLOAT_EQ(0.0, stats.Max());
@@ -103,17 +103,17 @@ TEST(UtilsTest, BEH_BASE_Stats) {
 }
 
 TEST(UtilsTest, BEH_BASE_IntToString) {
-  EXPECT_EQ("1234567890", base::IntToString(1234567890));
-  EXPECT_EQ("-1234567890", base::IntToString(-1234567890));
-  EXPECT_EQ("0", base::IntToString(0));
-  EXPECT_EQ("0", base::IntToString(-0));
+  EXPECT_EQ("1234567890", IntToString(1234567890));
+  EXPECT_EQ("-1234567890", IntToString(-1234567890));
+  EXPECT_EQ("0", IntToString(0));
+  EXPECT_EQ("0", IntToString(-0));
 }
 
 
 TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
   const size_t kStringSize = 4096;
-  std::string test1 = base::RandomAlphaNumericString(kStringSize);
-  std::string test2 = base::RandomAlphaNumericString(kStringSize);
+  std::string test1 = RandomAlphaNumericString(kStringSize);
+  std::string test2 = RandomAlphaNumericString(kStringSize);
   EXPECT_EQ(kStringSize, test1.size());
   EXPECT_EQ(kStringSize, test2.size());
   EXPECT_NE(test1, test2);
@@ -128,16 +128,16 @@ TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
 TEST(UtilsTest, BEH_BASE_HexEncodeDecode) {
   const std::string kKnownEncoded("0123456789abcdef");
   const std::string kKnownDecoded("\x1\x23\x45\x67\x89\xab\xcd\xef");
-  EXPECT_EQ(kKnownEncoded, base::EncodeToHex(kKnownDecoded));
-  EXPECT_EQ(kKnownDecoded, base::DecodeFromHex(kKnownEncoded));
-  EXPECT_TRUE(base::EncodeToHex("").empty());
-  EXPECT_TRUE(base::DecodeFromHex("").empty());
-  EXPECT_TRUE(base::DecodeFromHex("{").empty());
+  EXPECT_EQ(kKnownEncoded, EncodeToHex(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, DecodeFromHex(kKnownEncoded));
+  EXPECT_TRUE(EncodeToHex("").empty());
+  EXPECT_TRUE(DecodeFromHex("").empty());
+  EXPECT_TRUE(DecodeFromHex("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = base::RandomString(100);
-    std::string encoded = base::EncodeToHex(original);
+    std::string original = RandomString(100);
+    std::string encoded = EncodeToHex(original);
     EXPECT_EQ(200U, encoded.size());
-    std::string decoded = base::DecodeFromHex(encoded);
+    std::string decoded = DecodeFromHex(encoded);
     EXPECT_EQ(original, decoded);
   }
 }
@@ -149,16 +149,16 @@ TEST(UtilsTest, BEH_BASE_Base64EncodeDecode) {
       "\xd0\x45\x24\xd4\x55\x65\xd8\x65\xa6\xdc\x75\xe7\xe0\x86\x28\xe4\x96\x69"
       "\xe8\xa6\xaa\xec\xb6\xeb\xf0\xc7\x2c\xf4\xd7\x6d\xf8\xe7\xae\xfc\xf7\xef"
       "\xc0");
-  EXPECT_EQ(kKnownEncoded, base::EncodeToBase64(kKnownDecoded));
-  EXPECT_EQ(kKnownDecoded, base::DecodeFromBase64(kKnownEncoded));
-  EXPECT_TRUE(base::EncodeToBase64("").empty());
-  EXPECT_TRUE(base::DecodeFromBase64("").empty());
-  EXPECT_TRUE(base::DecodeFromBase64("{").empty());
+  EXPECT_EQ(kKnownEncoded, EncodeToBase64(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, DecodeFromBase64(kKnownEncoded));
+  EXPECT_TRUE(EncodeToBase64("").empty());
+  EXPECT_TRUE(DecodeFromBase64("").empty());
+  EXPECT_TRUE(DecodeFromBase64("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = base::RandomString(100);
-    std::string encoded = base::EncodeToBase64(original);
+    std::string original = RandomString(100);
+    std::string encoded = EncodeToBase64(original);
     EXPECT_EQ(136U, encoded.size()) << "Encoding failed.";
-    std::string decoded = base::DecodeFromBase64(encoded);
+    std::string decoded = DecodeFromBase64(encoded);
     EXPECT_EQ(original, decoded) << "encoded -> decoded failed.";
   }
 }
@@ -167,49 +167,25 @@ TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
   const std::string kKnownEncoded("bcdefghijkmnpqrstuvwxyz23456789a");
   const std::string kKnownDecoded("\x08\x86\x42\x98\xe8\x4a\x96\xc6\xb9\xf0\x8c"
                                   "\xa7\x4a\xda\xf8\xce\xb7\xce\xfb\xe0");
-  EXPECT_EQ(kKnownEncoded, base::EncodeToBase32(kKnownDecoded));
-  EXPECT_EQ(kKnownDecoded, base::DecodeFromBase32(kKnownEncoded));
-  EXPECT_TRUE(base::EncodeToBase32("").empty());
-  EXPECT_TRUE(base::DecodeFromBase32("").empty());
-  EXPECT_TRUE(base::DecodeFromBase32("{").empty());
+  EXPECT_EQ(kKnownEncoded, EncodeToBase32(kKnownDecoded));
+  EXPECT_EQ(kKnownDecoded, DecodeFromBase32(kKnownEncoded));
+  EXPECT_TRUE(EncodeToBase32("").empty());
+  EXPECT_TRUE(DecodeFromBase32("").empty());
+  EXPECT_TRUE(DecodeFromBase32("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = base::RandomString(100);
-    std::string encoded = base::EncodeToBase32(original);
+    std::string original = RandomString(100);
+    std::string encoded = EncodeToBase32(original);
     EXPECT_EQ(160U, encoded.size()) << "Encoding failed.";
-    std::string decoded = base::DecodeFromBase32(encoded);
+    std::string decoded = DecodeFromBase32(encoded);
     EXPECT_EQ(original, decoded) << "encoded -> decoded failed.";
   }
 }
 
-TEST(UtilsTest, BEH_BASE_BytesAndAscii) {
-  std::string good_string_v4("71.111.111.100");
-  std::string good_string_v6("2001:db8:85a3::8a2e:370:7334");
-  std::string bad_string("Not an IP");
-  EXPECT_EQ("Good", base::IpAsciiToBytes(good_string_v4));
-  EXPECT_EQ(good_string_v4, base::IpBytesToAscii("Good"));
-  std::string result_v6 = base::IpAsciiToBytes(good_string_v6);
-  EXPECT_FALSE(result_v6.empty());
-  EXPECT_EQ(good_string_v6, base::IpBytesToAscii(result_v6));
-  EXPECT_TRUE(base::IpAsciiToBytes(bad_string).empty());
-  EXPECT_TRUE(base::IpBytesToAscii(bad_string).empty());
-}
-
-TEST(UtilsTest, BEH_BASE_DecimalAndAscii) {
-  std::string dotted("121.12.121.1");
-  boost::scoped_array<char> ipbuf(new char[32]);
-  boost::uint32_t n = base::IpAsciiToNet(dotted.c_str());
-  boost::uint32_t g = 2030860545;
-  EXPECT_EQ(g, n);
-  base::IpNetToAscii(n, ipbuf.get());
-  std::string reformed(ipbuf.get());
-  EXPECT_EQ(dotted, reformed);
-}
-
 TEST(UtilsTest, BEH_BASE_TimeFunctions) {
   boost::uint64_t s, ms, ns;
-  ms = base::GetEpochMilliseconds();
-  ns = base::GetEpochNanoseconds();
-  s = base::GetEpochTime();
+  ms = GetEpochMilliseconds();
+  ns = GetEpochNanoseconds();
+  s = GetEpochTime();
 
   // Within a second
   EXPECT_NEAR(s*1000, ms, 1000) << "s vs. ms failed.";
@@ -220,24 +196,14 @@ TEST(UtilsTest, BEH_BASE_TimeFunctions) {
 }
 
 TEST(UtilsTest, BEH_BASE_NextTransactionId) {
-  boost::uint32_t id1 = base::GenerateNextTransactionId(0);
-  boost::uint32_t id2 = base::GenerateNextTransactionId(0);
+  boost::uint32_t id1 = GenerateNextTransactionId(0);
+  boost::uint32_t id2 = GenerateNextTransactionId(0);
   EXPECT_NE(0U, id1);
   EXPECT_NE(0U, id2);
   EXPECT_NE(id1, id2);
   id1 = 2147483645;
-  id2 = base::GenerateNextTransactionId(id1);
+  id2 = GenerateNextTransactionId(id1);
   EXPECT_EQ(1U, id2);
-}
-
-TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
-  std::vector<base::DeviceStruct> alldevices;
-  base::GetNetInterfaces(&alldevices);
-  EXPECT_FALSE(alldevices.empty());
-  for (size_t n = 0; n < alldevices.size(); ++n) {
-    base::DeviceStruct ds = alldevices[n];
-    DLOG(INFO) << n << " - " << ds.ip_address.to_string() << std::endl;
-  }
 }
 
 TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
@@ -247,9 +213,13 @@ TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
   // look for less than 0.01% duplicates
   const size_t kMaxDuplicates(kCount * 0.0001);
   for (size_t i = 0; i < kCount; ++i) {
-    random_ints.insert(base::RandomInt32());
-    random_uints.insert(base::RandomUint32());
+    random_ints.insert(RandomInt32());
+    random_uints.insert(RandomUint32());
   }
   EXPECT_GE(kMaxDuplicates, kCount - random_ints.size());
   EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());
 }
+
+}  // namespace test
+
+}  // namespace base

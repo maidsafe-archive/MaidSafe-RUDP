@@ -79,12 +79,9 @@ Sequence for joining node behind port restricted router
    |                     |                      |
    |                     |<--- ProxyConnect ----|
    |                     |       Response
-   |<--- Rendezvous -----|
-   |      Request        |
    |                     |
-   |---- Rendezvous ---->|(on port to be used for RV connect; not listning port)
-   |  Response (on diff- |
-   |  erent connection)  |------- RV type ProxyConnectRequest ------->|
+   |<--- Rendezvous -----|
+   |      Request        |------- RV type ProxyConnectRequest ------->|
    |                                                                  |
 Try to RV connect                                              Try to RV connect
 (no message) ------------------------> <------------------------ (no message)

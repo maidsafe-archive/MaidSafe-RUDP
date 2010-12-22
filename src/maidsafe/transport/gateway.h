@@ -28,13 +28,13 @@ Created by Julian Cain on 11/3/09.
 
 */
 
-#ifndef MAIDSAFE_BASE_GATEWAY_H_
-#define MAIDSAFE_BASE_GATEWAY_H_
+#ifndef MAIDSAFE_TRANSPORT_GATEWAY_H_
+#define MAIDSAFE_TRANSPORT_GATEWAY_H_
 
 #include <boost/asio.hpp>
 #include <vector>
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/network_interface.h"
+#include "maidsafe/transport/network_interface.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
     && !defined(MAIDSAFE_LINUX)
@@ -43,7 +43,7 @@ struct rt_msghdr;
 struct nlmsghdr;
 #endif
 
-namespace base {
+namespace transport {
 
 class Gateway {
  public:
@@ -95,6 +95,6 @@ class Gateway {
 #endif
 };
 
-}  // namespace base
+}  // namespace transport
 
-#endif  // MAIDSAFE_BASE_GATEWAY_H_
+#endif  // MAIDSAFE_TRANSPORT_GATEWAY_H_
