@@ -182,6 +182,8 @@ class UdtTransport : public Transport,
               const SocketId &socket_id,
               const Timeout &timeout);
 
+  void DetectNat();
+
 
 
 
@@ -201,7 +203,6 @@ class UdtTransport : public Transport,
   // This is only meant to be used as a predicate where
   // managed_endpoint_sockets_mutex_ is already locked.
   bool PendingManagedSocketReplied(const SocketId &socket_id);
-  void DoNatDetection();
   TransportCondition TryRendezvous(const IP &ip, const Port &port,
                                    SocketId *rendezvous_socket_id);
   void PerformNatDetection(const SocketId &socket_id,

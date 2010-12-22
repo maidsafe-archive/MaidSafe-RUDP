@@ -36,7 +36,11 @@ enum MessageType {
   kNatDetectionResponse = 3,
   kProxyConnectRequest = 4,
   kProxyConnectResponse = 5,
-  kRendezvousRequest = 6
+  kForwardRendezvousRequest = 6,
+  kForwardRendezvousResponse = 7,
+  kRendezvousRequest = 8,
+  kRendezvousResponse = 9,
+  kMaxValue = 999
 };
 
 void MessageHandler::OnMessageReceived(const std::string &request,
@@ -98,7 +102,7 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
                                               const std::string &payload,
                                               std::string *response,
                                               Timeout *timeout) {
-  *response = "";
+  response->clear();
   *timeout = kImmediateTimeout;
   
   switch (message_type) {
@@ -107,7 +111,7 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::ManagedEndpointMessage rsp;
         (*on_managed_endpoint_message_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;

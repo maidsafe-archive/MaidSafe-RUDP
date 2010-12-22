@@ -43,7 +43,6 @@ namespace transport {
 
 class MessageHandler {
  public:
-  const int kMessageTypeExt;  // Offset for type extensions.
   typedef boost::shared_ptr<bs2::signal<void(protobuf::ManagedEndpointMessage,
       protobuf::ManagedEndpointMessage*)> > ManagedEndpointMsgSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::NatDetectionRequest,
@@ -54,18 +53,28 @@ class MessageHandler {
       protobuf::ProxyConnectResponse*)> > ProxyConnectReqSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::ProxyConnectResponse)> >
       ProxyConnectRspSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(
+      protobuf::ForwardRendezvousRequest)> > ForwardRendezvousReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(
+      protobuf::ForwardRendezvousResponse)> > ForwardRendezvousRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::RendezvousRequest)> >
       RendezvousReqSigPtr;
+  typedef boost::shared_ptr<bs2::signal<void(protobuf::RendezvousResponse)> >
+      RendezvousRspSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(int, Info)> >MsgInfoSigPtr;
 
   MessageHandler()
-    : kMessageTypeExt(7),
-      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
       on_proxy_connect_response_(new ProxyConnectRspSigPtr::element_type),
+      on_forward_rendezvous_request_(
+          new ForwardRendezvousReqSigPtr::element_type),
+      on_forward_rendezvous_response_(
+          new ForwardRendezvousRspSigPtr::element_type),
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
+      on_rendezvous_response_(new RendezvousRspSigPtr::element_type),
       on_info_(new MsgInfoSigPtr::element_type) {}
   virtual ~MessageHandler() {}
   void OnMessageReceived(const std::string &request,
@@ -79,7 +88,10 @@ class MessageHandler {
   std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
   std::string WrapMessage(const protobuf::ProxyConnectRequest &msg);
   std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
+  std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
+  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
   std::string WrapMessage(const protobuf::RendezvousRequest &msg);
+  std::string WrapMessage(const protobuf::RendezvousResponse &msg);
   
   ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
     return on_managed_endpoint_message_;
@@ -96,8 +108,17 @@ class MessageHandler {
   ProxyConnectRspSigPtr on_proxy_connect_response() {
     return on_proxy_connect_response_;
   }
+  ForwardRendezvousReqSigPtr on_forward_rendezvous_request() {
+    return on_forward_rendezvous_request_;
+  }
+  ForwardRendezvousRspSigPtr on_forward_rendezvous_response() {
+    return on_forward_rendezvous_response_;
+  }
   RendezvousReqSigPtr on_rendezvous_request() {
     return on_rendezvous_request_;
+  }
+  RendezvousRspSigPtr on_rendezvous_response() {
+    return on_rendezvous_response_;
   }
   MsgInfoSigPtr on_info() {
     return on_info_;
@@ -117,7 +138,10 @@ class MessageHandler {
   NatDetectionRspSigPtr on_nat_detection_response_;
   ProxyConnectReqSigPtr on_proxy_connect_request_;
   ProxyConnectRspSigPtr on_proxy_connect_response_;
+  ForwardRendezvousReqSigPtr on_forward_rendezvous_request_;
+  ForwardRendezvousRspSigPtr on_forward_rendezvous_response_;
   RendezvousReqSigPtr on_rendezvous_request_;
+  RendezvousRspSigPtr on_rendezvous_response_;
   MsgInfoSigPtr on_info_;
 };
 

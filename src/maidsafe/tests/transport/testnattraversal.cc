@@ -26,15 +26,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
+
 Sequence for directly-connected joining node
 ============================================
  Node A                Node B
 (Joining)            (Bootstrap)
    |
    |--- NatDetection --->|
+   |      Request        |
    |                     |
-   |<-- NatInformation --|
+   |<-- NatDetection ----|
+   |      Response
    |
+
 
 Sequence for joining node behind full cone router
 =================================================
@@ -42,17 +46,21 @@ Sequence for joining node behind full cone router
 (Joining)            (Bootstrap)       (Directly-connected
    |                                       rendezvous)
    |--- NatDetection --->|
+   |      Request        |
    |                     |
-   |                     |--- ConnectionNode -->|
+   |                     |---- ProxyConnect --->|
+   |                     |        Request       |
    |                     |                      |
    |                     |                Try to connect
    |<------------------------------------- (no message)
    |                     |                   Succeeds
    |                     |                      |
-   |                     |<-- ConnectionResult -|
-   |                     |
-   |<-- NatInformation --|
+   |                     |<--- ProxyConnect ----|
+   |                     |       Response
+   |<-- NatDetection ----|
+   |      Response
    |
+
 
 Sequence for joining node behind port restricted router
 =======================================================
@@ -60,24 +68,32 @@ Sequence for joining node behind port restricted router
 (Joining)            (Bootstrap)       (Directly-connected   (Directly-connected
    |                                       rendezvous)           rendezvous)
    |--- NatDetection --->|
-   |                     |
-   |                     |--- ConnectionNode -->|
+   |      Request        |
+   |                     |     Non-RV type
+   |                     |---- ProxyConnect --->|
+   |                     |       Request        |
    |                     |                      |
    |                     |                Try to connect
    |<------------------------------------- (no message)
    |                     |                    Fails
    |                     |                      |
-   |                     |<-- ConnectionResult -|
+   |                     |<--- ProxyConnect ----|
+   |                     |       Response
+   |<--- Rendezvous -----|
+   |      Request        |
    |                     |
-   |<-- RendezvousNode --|
-   |                     |--------------- ConnectionNode ------------>|
+   |---- Rendezvous ---->|(on port to be used for RV connect; not listning port)
+   |  Response (on diff- |
+   |  erent connection)  |------- RV type ProxyConnectRequest ------->|
    |                                                                  |
 Try to RV connect                                              Try to RV connect
 (no message) ------------------------> <------------------------ (no message)
 Succeeds                                                           Succeeds
    |                                                                  |
-   |<-------------------------- NatInformation -----------------------|
+   |<---------------------- NatDetectionResponse ---------------------|
    |
+   |
+
 */
 
 #include <gmock/gmock.h>

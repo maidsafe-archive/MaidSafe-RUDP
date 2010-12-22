@@ -41,7 +41,6 @@ namespace kademlia {
 
 class MessageHandler : public transport::MessageHandler {
  public:
-  const int kMessageTypeExt;  // Offset for type extensions.
   typedef boost::shared_ptr<bs2::signal<void(protobuf::PingRequest,
       protobuf::PingResponse*)> > PingReqSigPtr;
   typedef boost::shared_ptr<bs2::signal<void(protobuf::PingResponse)> >
@@ -72,8 +71,7 @@ class MessageHandler : public transport::MessageHandler {
       DownlistRspSigPtr;
    
   MessageHandler()
-    : kMessageTypeExt(transport::MessageHandler::kMessageTypeExt + 14),
-      on_ping_request_(new PingReqSigPtr::element_type),
+    : on_ping_request_(new PingReqSigPtr::element_type),
       on_ping_response_(new PingRspSigPtr::element_type),
       on_find_value_request_(new FindValueReqSigPtr::element_type),
       on_find_value_response_(new FindValueRspSigPtr::element_type),

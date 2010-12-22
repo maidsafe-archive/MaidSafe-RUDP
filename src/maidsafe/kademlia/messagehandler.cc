@@ -30,20 +30,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kademlia {
 
 enum MessageType {
-  kPingRequest = transport::MessageHandler::kMessageTypeExt,
-  kPingResponse = transport::MessageHandler::kMessageTypeExt + 1,
-  kFindValueRequest = transport::MessageHandler::kMessageTypeExt + 2,
-  kFindValueResponse = transport::MessageHandler::kMessageTypeExt + 3,
-  kFindNodesRequest = transport::MessageHandler::kMessageTypeExt + 4,
-  kFindNodesResponse = transport::MessageHandler::kMessageTypeExt + 5,
-  kStoreRequest = transport::MessageHandler::kMessageTypeExt + 6,
-  kStoreResponse = transport::MessageHandler::kMessageTypeExt + 7,
-  kDeleteRequest = transport::MessageHandler::kMessageTypeExt + 8,
-  kDeleteResponse = transport::MessageHandler::kMessageTypeExt + 9,
-  kUpdateRequest = transport::MessageHandler::kMessageTypeExt + 10,
-  kUpdateResponse = transport::MessageHandler::kMessageTypeExt + 11,
-  kDownlistRequest = transport::MessageHandler::kMessageTypeExt + 12,
-  kDownlistResponse = transport::MessageHandler::kMessageTypeExt + 13
+  kPingRequest = transport::MessageType::kMaxValue + 1,
+  kPingResponse,
+  kFindValueRequest,
+  kFindValueResponse,
+  kFindNodesRequest,
+  kFindNodesResponse,
+  kStoreRequest,
+  kStoreResponse,
+  kDeleteRequest,
+  kDeleteResponse,
+  kUpdateRequest,
+  kUpdateResponse,
+  kDownlistRequest,
+  kDownlistResponse,
+  kMaxValue = transport::MessageType::kMaxValue + 1000
 };
 
 std::string MessageHandler::WrapMessage(const protobuf::PingRequest &msg) {
