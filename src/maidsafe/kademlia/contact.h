@@ -35,51 +35,62 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_CONTACT_H_
 
 #include <boost/cstdint.hpp>
-#include <maidsafe/kademlia/nodeid.h>
-#include <maidsafe/kademlia/config.h>
-#include<maidsafe/kademlia/kademlia.pb.h>
-#include<maidsafe/transport/transport.h>
-#include <string>
 
+#include "maidsafe/kademlia/kademlia.pb.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/transport/transport.h"
+
+#include <string>
 
 namespace kademlia {
 
 class Contact {
-// This class contains information on a single remote contact (Now support multiple remote contact
  public:
   Contact();
-  Contact(const std::string &node_id,
-          const Endpoint ep,
-          const Endpoint &local_ip);
+  explicit Contact(const Contact &other);
   explicit Contact(const protobuf::Contact &contact);
+  Contact(const std::string &node_id,
+          const transport::Endpoint ep);
   bool FromProtobuf(const protobuf::Contact &contact);
-  protobuf::Contact& Contact::ToProtobuf();
-  Contact(const Contact &other);
-  // Equality is based on node id or (IP and port) if dummy
-  bool Equals(const Contact &other) const;
-  Contact& operator=(const Contact &other);
-  std::string DebugString() const;
-  inline const NodeId &node_id() const { return node_id_; }
-  inline const Endpoint &ep() const { return ep_; }
-  inline boost::uint16_t failed_rpc() const { return failed_rpc_; }
-  inline void IncreaseFailed_RPC() { ++failed_rpc_; }
-  const Endpoint &rendezvous_ip() const { return rv_ep_; }
-  inline boost::uint64_t last_seen() const { return last_seen_; }
-  inline void set_last_seen(boost::uint64_t last_seen) {
+  protobuf::Contact Contact::ToProtobuf() const;
+  bool SetPreferredEndpoint(const transport::IP &ip);
+  transport::Endpoint GetPreferredEndpoint() const;
+  
+  NodeId node_id() const { return node_id_; }
+  void set_node_id(const NodeId &node_id) { node_id_ = node_id; }
+  transport::Endpoint endpoint() const { return endpoint_; }
+  void set_endpoint(const transport::Endpoint &endpoint) {
+    endpoint_ = endpoint;
+  }
+  transport::Endpoint rendezvous_endpoint() const {
+    return rendezvous_endpoint_;
+  }
+  void set_rendezvous_endpoint(const transport::Endpoint &rendezvous_endpoint) {
+    rendezvous_endpoint_ = rendezvous_endpoint;
+  }
+  std::list<transport::Endpoint> local_endpoints() const {
+    return local_endpoints_;
+  }
+  void add_local_endpoint(const transport::Endpoint &local_endpoint) {
+    local_endpoints_.push_back(local_endpoint);
+  }
+  boost::uint16_t num_failed_rpcs() const { return num_failed_rpcs_; }
+  void IncreaseFailedRpcs() { ++num_failed_rpcs_; }
+  boost::uint64_t last_seen() const { return last_seen_; }
+  void set_last_seen(const boost::uint64_t &last_seen) {
     last_seen_ = last_seen;
   }
-  bool SetPreferredEndpoint(transport::IP ip);
-  Endpoint GetPreferredEndpoint();
-  inline const std::list<Endpoint> &local_eps() const { return local_eps_; }
+  
+  // Equality is based on node id or (IP and port) if dummy
+  bool Equals(const Contact &other) const;
   bool operator<(const Contact &rhs) const;
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
-
+  Contact& operator=(const Contact &other);
  private:
   NodeId node_id_;
-  Endpoint ep_;
-  boost::uint16_t failed_rpc_;
-  Endpoint rv_ep_;
-  std::list<Endpoint> local_eps_;
+  transport::Endpoint endpoint_, rendezvous_endpoint_;
+  std::list<transport::Endpoint> local_endpoints_;
+  boost::uint16_t num_failed_rpcs_;
   boost::uint64_t last_seen_;
   bool prefer_local_;
 };
