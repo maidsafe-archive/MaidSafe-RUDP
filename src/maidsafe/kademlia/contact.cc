@@ -101,13 +101,15 @@ protobuf::Contact Contact::ToProtobuf() const {
   protobuf::Contact contact;
   boost::system::error_code ec;
   contact.set_node_id(node_id_.String());
-  contact.mutable_endpoint()->set_ip(endpoint.ip.to_string(ec));
-  contact.mutable_endpoint()->set_port(endpoint.port);
+  contact.mutable_endpoint()->set_ip(endpoint_.ip.to_string(ec));
+  contact.mutable_endpoint()->set_port(endpoint_.port);
   if (rendezvous_endpoint_.port != 0) {
-    contact.mutable_rendezvous()->set_ip(rendezvous_endpoint_.ip.to_string(ec));
+    contact.mutable_rendezvous()->set_ip(
+        rendezvous_endpoint_.ip.to_string(ec));
     contact.mutable_rendezvous()->set_port(rendezvous_endpoint_.port);
   }
-  for (std::list<transport::Endpoint>::iterator it = local_endpoints_.begin();
+  for (std::list<transport::Endpoint>::const_iterator it =
+         local_endpoints_.begin();
        it != local_endpoints_.end(); ++it) {
     contact.add_local_ips((*it).ip.to_string(ec));
     contact.set_local_port((*it).port);
@@ -154,7 +156,7 @@ bool Contact::operator<(const Contact &rhs) const {
   return node_id().String() < rhs.node_id().String();
 }
 
-Contact Contact::operator=(const Contact &other) {
+Contact& Contact::operator=(const Contact &other) {
   node_id_ = other.node_id_;
   endpoint_ = other.endpoint_;
   rendezvous_endpoint_ = other.rendezvous_endpoint_;
