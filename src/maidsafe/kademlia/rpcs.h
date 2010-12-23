@@ -60,7 +60,7 @@ class DownlistResponse;
 typedef boost::function<void(bool, std::string)> PingFunctor;
 typedef boost::function<void(bool, const std::vector<Contact>&,
                              const std::vector<std::string>&,
-                             const std::string<SignedValue>&,
+                             const std::vector<SignedValue>&,
                              const Contact&, bool)> FindValueFunctor;
 typedef boost::function<void(bool, const std::vector<Contact>&)>
     FindNodesFunctor;
