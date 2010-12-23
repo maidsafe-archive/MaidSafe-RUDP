@@ -76,7 +76,9 @@ bool Contact::FromProtobuf(const protobuf::Contact &contact) {
     return false;
   for (int i = 0; i < contact.local_ips_size(); ++i) {
     transport::Endpoint ep;
-    if (!ep.ip.from_string(contact.local_ips(i))) {
+    boost::system::error_code ec;
+    ep.ip = ep.ip.from_string(contact.local_ips(i), ec);
+    if (!ec) {
       local_endpoints_.clear();
       return false;
     }
