@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kademlia {
 
 template <class TransportType>
-void Rpcs::Ping(const transport::Endpoint &endpoint,
-                PingFunctor callback) {
+void Rpcs<TransportType>::Ping(const transport::Endpoint &endpoint,
+                               PingFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::PingRequest req;
@@ -48,9 +48,9 @@ void Rpcs::Ping(const transport::Endpoint &endpoint,
 }
 
 template <class TransportType>
-void Rpcs::FindValue(const NodeId &key,
-                     const transport::Endpoint &endpoint,
-                     FindValueFunctor callback) {
+void Rpcs<TransportType>::FindValue(const NodeId &key,
+                                    const transport::Endpoint &endpoint,
+                                    FindValueFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::FindValueRequest req;
@@ -64,9 +64,9 @@ void Rpcs::FindValue(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::FindNodes(const NodeId &key,
-                     const transport::Endpoint &endpoint,
-                     FindNodesFunctor callback) {
+void Rpcs<TransportType>::FindNodes(const NodeId &key,
+                                    const transport::Endpoint &endpoint,
+                                    FindNodesFunctor callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::FindNodesRequest req;
@@ -80,13 +80,13 @@ void Rpcs::FindNodes(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::Store(const NodeId &key,
-                 const SignedValue &signed_value,
-                 const Signature &signature,
-                 const transport::Endpoint &endpoint,
-                 const boost::int32_t &ttl,
-                 const bool &publish,
-                 VoidFunctorOneBool callback) {
+void Rpcs<TransportType>::Store(const NodeId &key,
+                                const SignedValue &signed_value,
+                                const Signature &signature,
+                                const transport::Endpoint &endpoint,
+                                const boost::int32_t &ttl,
+                                const bool &publish,
+                                VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::StoreRequest req;
@@ -107,12 +107,12 @@ void Rpcs::Store(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::Store(const NodeId &key,
-                 const std::string &value,
-                 const transport::Endpoint &endpoint,
-                 const boost::int32_t &ttl,
-                 const bool &publish,
-                 VoidFunctorOneBool callback) {
+void Rpcs<TransportType>::Store(const NodeId &key,
+                                const std::string &value,
+                                const transport::Endpoint &endpoint,
+                                const boost::int32_t &ttl,
+                                const bool &publish,
+                                VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::StoreRequest req;
@@ -128,11 +128,11 @@ void Rpcs::Store(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::Delete(const NodeId &key,
-                  const SignedValue &signed_value,
-                  const Signature &signature,
-                  const transport::Endpoint &endpoint,
-                  VoidFunctorOneBool callback) {
+void Rpcs<TransportType>::Delete(const NodeId &key,
+                                 const SignedValue &signed_value,
+                                 const Signature &signature,
+                                 const transport::Endpoint &endpoint,
+                                 VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::DeleteRequest req;
@@ -151,13 +151,13 @@ void Rpcs::Delete(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::Update(const NodeId &key,
-                  const SignedValue &old_signed_value,
-                  const SignedValue &new_signed_value,
-                  const boost::int32_t &ttl,
-                  const Signature &signature,
-                  const transport::Endpoint &endpoint,
-                  VoidFunctorOneBool callback) {
+void Rpcs<TransportType>::Update(const NodeId &key,
+                                 const SignedValue &old_signed_value,
+                                 const SignedValue &new_signed_value,
+                                 const boost::int32_t &ttl,
+                                 const Signature &signature,
+                                 const transport::Endpoint &endpoint,
+                                 VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::UpdateRequest req;
@@ -179,9 +179,9 @@ void Rpcs::Update(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs::Downlist(const std::vector<std::string> &downlist,
-                    const transport::Endpoint &endpoint,
-                    VoidFunctorOneBool callback) {
+void Rpcs<TransportType>::Downlist(const std::vector<std::string> &downlist,
+                                   const transport::Endpoint &endpoint,
+                                   VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::DownlistRequest req;
@@ -195,18 +195,19 @@ void Rpcs::Downlist(const std::vector<std::string> &downlist,
 }
 
 template <class TransportType>
-void Rpcs::PingCallback(const protobuf::PingResponse &response,
-                        PingFunctor callback,
-                        boost::shared_ptr<MessageHandler>,
-                        boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::PingCallback(const protobuf::PingResponse &response,
+                                       PingFunctor callback,
+                                       boost::shared_ptr<MessageHandler>,
+                                       boost::shared_ptr<TransportType>) {
   callback(response.result(), response.echo());
 }
 
 template <class TransportType>
-void Rpcs::FindValueCallback(const protobuf::FindValueResponse &response,
-                             FindValueFunctor callback,
-                             boost::shared_ptr<MessageHandler>,
-                             boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::FindValueCallback(
+    const protobuf::FindValueResponse &response,
+    FindValueFunctor callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   std::vector<Contact> contacts; 
   for (int i = 0; i < response.closest_nodes_size(); ++i) {
     Contact contact(response.closest_nodes(i));
@@ -215,7 +216,7 @@ void Rpcs::FindValueCallback(const protobuf::FindValueResponse &response,
 
   std::vector<std::string> values;
   for (int i = 0; i < response.values_size(); ++i)
-    values.push_back(response.values(i);
+    values.push_back(response.values(i));
   
   std::vector<SignedValue> signed_values;
   for (int i = 0; i < response.signed_values_size(); ++i) {
@@ -237,10 +238,11 @@ void Rpcs::FindValueCallback(const protobuf::FindValueResponse &response,
 }
 
 template <class TransportType>
-void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
-                             FindNodesFunctor callback,
-                             boost::shared_ptr<MessageHandler>,
-                             boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::FindNodesCallback(
+    const protobuf::FindNodesResponse &response,
+    FindNodesFunctor callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   std::vector<Contact> contacts; 
   for (int i = 0; i < response.closest_nodes_size(); ++i) {
     Contact contact(response.closest_nodes(i));
@@ -251,34 +253,38 @@ void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
 }
 
 template <class TransportType>
-void Rpcs::StoreCallback(const protobuf::StoreResponse &response,
-                         VoidFunctorOneBool callback,
-                         boost::shared_ptr<MessageHandler>,
-                         boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::StoreCallback(
+    const protobuf::StoreResponse &response,
+    VoidFunctorOneBool callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   callback(response.result());
 }
 
 template <class TransportType>
-void Rpcs::DeleteCallback(const protobuf::DeleteResponse &response,
-                          VoidFunctorOneBool callback,
-                          boost::shared_ptr<MessageHandler>,
-                          boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::DeleteCallback(
+    const protobuf::DeleteResponse &response,
+    VoidFunctorOneBool callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   callback(response.result());
 }
 
 template <class TransportType>
-void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
-                          VoidFunctorOneBool callback,
-                          boost::shared_ptr<MessageHandler>,
-                          boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::UpdateCallback(
+    const protobuf::UpdateResponse &response,
+    VoidFunctorOneBool callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   callback(response.result());
 }
 
 template <class TransportType>
-void Rpcs::DownlistCallback(const protobuf::DownlistResponse &response,
-                            VoidFunctorOneBool callback,
-                            boost::shared_ptr<MessageHandler>,
-                            boost::shared_ptr<TransportType>) {
+void Rpcs<TransportType>::DownlistCallback(
+    const protobuf::DownlistResponse &response,
+    VoidFunctorOneBool callback,
+    boost::shared_ptr<MessageHandler>,
+    boost::shared_ptr<TransportType>) {
   callback(response.result());
 }
 
