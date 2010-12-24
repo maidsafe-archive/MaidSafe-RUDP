@@ -29,80 +29,67 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_SERVICE_H_
 
 #include <boost/cstdint.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
 
 #include <string>
 #include <vector>
 
-#include "maidsafe/kademlia/config.h"
-#include "maidsafe/protobuf/contact_info.pb.h"
-#include "maidsafe/transport/transport.h"
+// #include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/contact.h"
 
 namespace base {
-class Threadpool;
 class SignatureValidator;
 class AlternativeStore;
 }  // namespace base
 
-namespace transport {
-class PingRequest;
-class FindRequest;
-class StoreRequest;
-class DownlistRequest;
-class DeleteRequest;
-class UpdateRequest;
-class StoreResponse;
-}  // namespace transport
-
 namespace kademlia {
 
-class Contact;
 class DataStore;
 class NodeId;
 class RoutingTable;
 class SignedValue;
 
-namespace test_service { class ServicesTest_BEH_KAD_UpdateValue_Test; }
+namespace protobuf {
+class PingRequest;
+class PingResponse;
+class FindValueRequest;
+class FindValueResponse;
+class FindNodesRequest;
+class FindNodesResponse;
+class StoreRequest;
+class StoreResponse;
+class DeleteRequest;
+class DeleteResponse;
+class UpdateRequest;
+class UpdateResponse;
+class DownlistRequest;
+class DownlistResponse;
+}  // namespace protobuf
 
-//typedef boost::function<int(Contact, float, bool)> AddContactFunctor;  // NOLINT
-//
-//typedef boost::function<void(NodeId)> RemoveContactFunctor;  // NOLINT
-//
-//typedef boost::function<void(boost::uint16_t,
-//                             std::vector<Contact>,
-//                             std::vector<Contact>*)> GetRandomContactsFunctor;
-//
-//typedef boost::function<bool(const NodeId, Contact*)> GetContactFunctor;  // NOLINT
-//
-//typedef boost::function<void(NodeId,
-//                             std::vector<Contact>,
-//                             std::vector<Contact>*)> GetKClosestFunctor;
-//
-//typedef boost::function<void(Contact, VoidFunctorOneString)> PingFunctor;
+namespace test_service { class ServicesTest_BEH_KAD_UpdateValue_Test; }
 
 class Service {
  public:
-  Service(boost::shared_ptr<MessageHandler> transport,
-             boost::shared_ptr<RoutingTable> routing_table,
-             boost::shared_ptr<base::Threadpool> threadpool,
-             boost::shared_ptr<DataStore> datastore,
-             bool using_signatures);
-  void Ping(transport::SocketId message_id,
-            boost::shared_ptr<transport::PingRequest> request);
-  void FindValue(transport::SocketId message_id,
-                 boost::shared_ptr<transport::FindRequest> request);
-  void FindNode(transport::SocketId message_id,
-                boost::shared_ptr<transport::FindRequest> request);
-  void Store(transport::SocketId message_id,
-             boost::shared_ptr<transport::StoreRequest> request);
-  void Downlist(transport::SocketId message_id,
-                boost::shared_ptr<transport::DownlistRequest> request);
-  void Delete(transport::SocketId message_id,
-              boost::shared_ptr<transport::DeleteRequest> request);
-  void Update(transport::SocketId message_id,
-              boost::shared_ptr<transport::UpdateRequest> request);
+  Service(boost::shared_ptr<RoutingTable> routing_table,
+          boost::shared_ptr<DataStore> datastore,
+          bool using_signatures);
+  void Ping(const Info &info, const protobuf::PingRequest &request,
+            protobuf::PingResponse *response);
+  void FindValue(const Info &info, const protobuf::FindValueRequest &request,
+                 protobuf::FindValueResponse *response);
+  void FindNodes(const Info &info, const protobuf::FindNodesRequest &request,
+                 protobuf::FindNodesResponse *response);
+  void Store(const Info &info, const protobuf::StoreRequest &request,
+             protobuf::StoreResponse *response);
+  void Delete(const Info &info, const protobuf::DeleteRequest &request,
+              protobuf::DeleteResponse *response);
+  void Update(const Info &info, const protobuf::UpdateRequest &request,
+              protobuf::UpdateResponse *response);
+  void Downlist(const Info &info, const protobuf::DownlistRequest &request,
+                protobuf::DownlistResponse *response);
   void set_node_joined(bool joined) { node_joined_ = joined; }
-  void set_node_info(const ContactInfo &info) { node_info_ = info; }
+  void set_node_contact(const Contact &contact) { node_contact_ = contact; }
   void set_alternative_store(base::AlternativeStore* alt_store) {
     alternative_store_ = alt_store;
   }
@@ -113,42 +100,27 @@ class Service {
   friend class test_service::ServicesTest_BEH_KAD_UpdateValue_Test;
   Service(const Service&);
   Service& operator=(const Service&);
-  void Demux(transport::SocketId message_id,
-             transport::TransportMessage message,
-             transport::Stats stats);
-  bool GetSender(const ContactInfo &sender_info, Contact *sender);
-  bool CheckStoreRequest(boost::shared_ptr<transport::StoreRequest> request,
-                         Contact *sender);
-  void StoreValueLocal(const std::string &key,
+  bool CheckStoreRequest(const protobuf::StoreRequest &request) const;
+  bool StoreValueLocal(const std::string &key,
                        const std::string &value,
                        Contact sender,
                        const boost::int32_t &ttl,
-                       const bool &publish,
-                       transport::StoreResponse *response);
+                       const bool &publish);
   void StoreValueLocal(const std::string &key,
                        const SignedValue &value,
                        Contact sender,
                        const boost::int32_t &ttl,
                        const bool &publish,
-                       transport::StoreResponse *response);
+                       protobuf::StoreResponse *response);
   bool CanStoreSignedValueHashable(const std::string &key,
                                    const std::string &value,
                                    bool *hashable);
-  boost::shared_ptr<transport::Transport> transport_;
   boost::shared_ptr<RoutingTable> routing_table_;
-  boost::shared_ptr<base::Threadpool> threadpool_;
   boost::shared_ptr<DataStore> datastore_;
   bool node_joined_, using_signatures_;
-  ContactInfo node_info_;
-  base::AlternativeStore *alternative_store_;
-  base::SignatureValidator *signature_validator_;
-//   AddContactFunctor add_contact_;
-//   GetRandomContactsFunctor get_random_contacts_;
-//   GetContactFunctor get_contact_;
-//   GetKClosestFunctor get_closestK_contacts_;
-//   PingFunctor ping_;
-//   RemoveContactFunctor remove_contact_;
-  boost::signals2::connection connection_to_message_received_;
+  Contact node_contact_;
+  boost::shared_ptr<base::AlternativeStore> alternative_store_;
+  boost::shared_ptr<base::SignatureValidator> signature_validator_;
 };
 
 }  // namespace kademlia
