@@ -29,16 +29,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
 
 #include <gtest/gtest.h>
+
+#include "maidsafe/maidsafe-dht.h"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/protobuf/transport.pb.h"
+#include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/tests/transport/messagehandler.h"
+
 #include <list>
 #include <set>
 #include <string>
 #include <vector>
-
-#include "maidsafe/maidsafe-dht.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/protobuf/transport_message.pb.h"
-#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/tests/transport/messagehandler.h"
 
 namespace transport {
 
@@ -53,19 +54,90 @@ class TransportAPITest: public testing::Test {
  protected:
   // creates a transport listening on the given or random port (if zero)
   boost::shared_ptr<Transport> SetupTransport(bool listen, Port lport) {
-    boost::shared_ptr<Transport> transport(new T);
+    boost::shared_ptr<boost::asio::io_service> asio_service;
+    boost::shared_ptr<Transport> transport(new T(asio_service));
     if (listen) {
       if (lport != Port(0))
         EXPECT_EQ(kSuccess, transport->StartListening(EndPoint(kIP, lport)));
       else while (kSuccess != transport->StartListening(EndPoint(kIP,
           (base::RandomUint32() % 1000) + 5000)));
+      // TODO some handling for asio_service
     }
     return transport;
   };
   // test a conversation between the given transports
   void RunTransportTest(
       const std::vector< boost::shared_ptr<Transport> > &transports,
-      const int &conversation_length) {
+      const int &num_messages) {
+    std::vector<MessageHandler> msgh;
+    std::string msg;
+    Endpoint endpoint;
+    endpoint.ip = kIP;
+    std::vector<Transport>::iterator it = transports.begin();
+    boost::uint16_t num_transport = transports.size();
+    while (it != transports.end()) {
+      if ((*it)->listening_port() == 0) {
+        MessageHandler msg_h((*it)->signals(), "Sender" , false);
+        (*it)->on_message_received()->connect(boost::bind(
+            &MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3, _4));
+        (*it)->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
+                                              &msg_h, _1));
+        msgh.push_back(msg_h);
+      }
+      else {
+        MessageHandler msg_h(*(it)->signals(), "Receiver", false);
+        (*it)->on_message_received()->connect(boost::bind(
+            &MessageHandler::DoOnRequestReceived, &msg_h, _1, _2, _3, _4));
+        (*it)->on_message_received()->connect(boost::bind(
+            &MessageHandler::DoResponseReceived, &msg_h, _1, _2, _3, _4));
+        (*it)->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
+                                              &msg_h, _1));
+        msgh.push_back(msg_h);
+      }
+      ++it;
+    }
+    it = transports.begin();
+    msg_it = msgh.begin();
+
+    /*
+    In this block of code sender(listening_port = 0) can only send msg to receiver with listening_port. 
+    then sender and receiver will check their corresponding request_received ,response_received, error_ queues.
+              req
+    Sender1 -----------------> receiver1      compare queues  (request_received ,response_received, error_) and messages
+              response
+            <--------------
+
+                   req
+    Receiver1 ----------------> Receiver2   compare queues  (request_received ,response_received, error_) and messages
+                  response
+              <---------------
+                 
+                   req
+    Receiver2 -----------------> Receiver1  compare queues  (request_received ,response_received, error_) and messages
+                   response
+              <-----------------
+    */
+    for (int i = 0; i < num_transport ; ++i) {
+      for (int j = 0 ; j < num_transport ; ++j) {
+        if ( ( i == j ) && ( *(it+j)->listening_port() == 0 ) )
+          continue;
+        endpoint.port = *(it+j)->listening_port();
+        for (int num = 1; num <= num_messages ; ++num) {
+          std::string request = base::RandomString(25);
+          int num_of_req_received = (*(msg_it+j))->request_received().size();
+          int num_of_errors = (*(msg_it+i))->errors().size();
+          int num_of_res_received = (*(msg_it+i))->response_received().size();
+          (*(it+i))->Send(request, endpoint);
+          ASSERT_EQ((num_of_received_msgs+1), (*(msg_it+j)->request_received().size()));
+          ASSERT_EQ(num_of_errors, (*(msg_it+i))->errors().size());
+          std::string response = base::RandomString(25);
+          endpoint.port = (*(it+i))->listening_port();
+          (*(it+j))->send(response, endpoint);
+          ASSERT_STREQ(response, /* (*(msg_it+i))->response_received().string */);
+        }
+      }
+    }
+
     /**
      * TODO
      * - create message handler for transports and connect to signals
@@ -85,14 +157,16 @@ TYPED_TEST_CASE_P(TransportAPITest);
 // NOTE: register new test patterns using macro at bottom
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  boost::shared_ptr<Transport> transport(new TypeParam);
+  boost::shared_ptr<boost::asio::io_service> asio_service;
+  boost::shared_ptr<Transport> transport(new TypeParam(asio_service));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidEndpoint, transport->StartListening(Endpoint(kIP, 0));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77));
   EXPECT_EQ(Port(77), transport->listening_port());
   EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 77));
-  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 55123));
   EXPECT_EQ(Port(77), transport->listening_port());
+  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123));
+  EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123));
