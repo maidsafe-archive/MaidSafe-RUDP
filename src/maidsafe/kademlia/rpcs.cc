@@ -208,7 +208,7 @@ void Rpcs<TransportType>::FindValueCallback(
     FindValueFunctor callback,
     boost::shared_ptr<MessageHandler>,
     boost::shared_ptr<TransportType>) {
-  std::vector<Contact> contacts; 
+  std::vector<Contact> contacts;
   for (int i = 0; i < response.closest_nodes_size(); ++i) {
     Contact contact(response.closest_nodes(i));
     contacts.push_back(contact);
@@ -217,22 +217,22 @@ void Rpcs<TransportType>::FindValueCallback(
   std::vector<std::string> values;
   for (int i = 0; i < response.values_size(); ++i)
     values.push_back(response.values(i));
-  
+
   std::vector<SignedValue> signed_values;
   for (int i = 0; i < response.signed_values_size(); ++i) {
     SignedValue signed_value(response.signed_values(i).value(),
                              response.signed_values(i).signature());
     signed_values.push_back(signed_value);
   }
-  
+
   Contact alternative_value_holder;
   if (response.has_alternative_value_holder())
     alternative_value_holder.FromProtobuf(response.alternative_value_holder());
-  
+
   bool needs_cache_copy(false);
   if (response.has_needs_cache_copy())
     needs_cache_copy = response.needs_cache_copy();
-  
+
   callback(response.result(), contacts, values, signed_values,
            alternative_value_holder, needs_cache_copy);
 }
@@ -243,12 +243,12 @@ void Rpcs<TransportType>::FindNodesCallback(
     FindNodesFunctor callback,
     boost::shared_ptr<MessageHandler>,
     boost::shared_ptr<TransportType>) {
-  std::vector<Contact> contacts; 
+  std::vector<Contact> contacts;
   for (int i = 0; i < response.closest_nodes_size(); ++i) {
     Contact contact(response.closest_nodes(i));
     contacts.push_back(contact);
   }
-  
+
   callback(response.result(), contacts);
 }
 

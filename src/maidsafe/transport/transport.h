@@ -41,10 +41,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iostream>  // NOLINT
 
-//#if MAIDSAFE_DHT_VERSION < 25
-//#error This API is not compatible with the installed library.
-//#error Please update the maidsafe-dht library.
-//#endif
+// #if MAIDSAFE_DHT_VERSION < 25
+// #error This API is not compatible with the installed library.
+// #error Please update the maidsafe-dht library.
+// #endif
 
 namespace bs2 = boost::signals2;
 
@@ -101,12 +101,6 @@ enum NatType { kManualPortMapped,  // behind manually port-mapped router.
                                    // be contacted via its rendezvous node.
                kNotConnected };    // behind symmetric NAT or offline.
 
-struct Info {
-  Info() : rtt(0) {}
-  virtual ~Info() {}
-  boost::uint32_t rtt;
-};
-
 struct Endpoint {
   Endpoint() : ip(), port(0) {}
   Endpoint(const IP &ip, const Port &port) : ip(ip), port(port) {}
@@ -118,6 +112,12 @@ struct Endpoint {
   }
   IP ip;
   Port port;
+};
+
+struct Info {
+  Info() : endpoint(), rtt(0) {}
+  Endpoint endpoint;
+  boost::uint32_t rtt;
 };
 
 // In bytes

@@ -36,11 +36,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 
-#include "maidsafe/kademlia/kademlia.pb.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/transport/transport.h"
-
 #include <string>
+#include <list>
+
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
 
 namespace kademlia {
 
@@ -55,7 +56,7 @@ class Contact {
   protobuf::Contact ToProtobuf() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
-  
+
   NodeId node_id() const { return node_id_; }
   void set_node_id(const NodeId &node_id) { node_id_ = node_id; }
   transport::Endpoint endpoint() const { return endpoint_; }
@@ -80,7 +81,7 @@ class Contact {
   void set_last_seen(const boost::uint64_t &last_seen) {
     last_seen_ = last_seen;
   }
-  
+
   // Equality is based on node id or (IP and port) if dummy
   bool Equals(const Contact &other) const;
   bool operator<(const Contact &rhs) const;

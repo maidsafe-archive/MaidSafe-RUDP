@@ -25,18 +25,18 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_KADEMLIA_KADRPC_H_
-#define MAIDSAFE_KADEMLIA_KADRPC_H_
+#ifndef MAIDSAFE_KADEMLIA_RPCS_H_
+#define MAIDSAFE_KADEMLIA_RPCS_H_
 
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include "maidsafe/kademlia/config.h"
-#include "maidsafe/kademlia/contact.h"
-
 #include <string>
 #include <vector>
+
+#include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/contact.h"
 
 namespace transport {
 class Endpoint;
@@ -68,7 +68,7 @@ typedef boost::function<void(bool, const std::vector<Contact>&)>
 template <class TransportType>
 class Rpcs {
  public:
-  Rpcs() : node_contact_() {} 
+  Rpcs() : node_contact_() {}
   void Ping(const transport::Endpoint &endpoint,
             PingFunctor callback);
   void FindValue(const NodeId &key,
@@ -144,4 +144,4 @@ class Rpcs {
 
 }  // namespace kademlia
 
-#endif  // MAIDSAFE_KADEMLIA_KADRPC_H_
+#endif  // MAIDSAFE_KADEMLIA_RPCS_H_

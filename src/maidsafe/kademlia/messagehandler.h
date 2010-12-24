@@ -32,46 +32,72 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
 
+#include <string>
+
 #include "maidsafe/transport/messagehandler.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace bs2 = boost::signals2;
 
 namespace kademlia {
 
+namespace protobuf {
+class PingRequest;
+class PingResponse;
+class FindValueRequest;
+class FindValueResponse;
+class FindNodesRequest;
+class FindNodesResponse;
+class StoreRequest;
+class StoreResponse;
+class DeleteRequest;
+class DeleteResponse;
+class UpdateRequest;
+class UpdateResponse;
+class DownlistRequest;
+class DownlistResponse;
+}  // namespace protobuf
+
 class MessageHandler : public transport::MessageHandler {
  public:
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::PingRequest,
-      protobuf::PingResponse*)> > PingReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::PingResponse)> >
+  const int kMaxMessageType;  // Offset used for type extensions.
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::PingRequest&, protobuf::PingResponse*)> > PingReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const protobuf::PingResponse&)> >
       PingRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindValueRequest,
-      protobuf::FindValueResponse*)> > FindValueReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindValueResponse)> >
-      FindValueRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindNodesRequest,
-      protobuf::FindNodesResponse*)> > FindNodesReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::FindNodesResponse)> >
-      FindNodesRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::StoreRequest,
-      protobuf::StoreResponse*)> > StoreReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::StoreResponse)> >
-      StoreRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::DeleteRequest,
-      protobuf::DeleteResponse*)> > DeleteReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::DeleteResponse)> >
-      DeleteRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::UpdateRequest,
-      protobuf::UpdateResponse*)> > UpdateReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::UpdateResponse)> >
-      UpdateRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::DownlistRequest,
-      protobuf::DownlistResponse*)> > DownlistReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::DownlistResponse)> >
-      DownlistRspSigPtr;
-   
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::FindValueRequest&, protobuf::FindValueResponse*)> >
+      FindValueReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::FindValueResponse&)> > FindValueRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::FindNodesRequest&, protobuf::FindNodesResponse*)> >
+      FindNodesReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::FindNodesResponse&)> > FindNodesRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::StoreRequest&, protobuf::StoreResponse*)> >
+      StoreReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::StoreResponse&)> > StoreRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::DeleteRequest&, protobuf::DeleteResponse*)> >
+      DeleteReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::DeleteResponse&)> > DeleteRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::UpdateRequest&, protobuf::UpdateResponse*)> >
+      UpdateReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::UpdateResponse&)> > UpdateRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
+      const protobuf::DownlistRequest&, protobuf::DownlistResponse*)> >
+      DownlistReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::DownlistResponse&)> > DownlistRspSigPtr;
+
   MessageHandler()
-    : on_ping_request_(new PingReqSigPtr::element_type),
+    : kMaxMessageType(transport::MessageHandler::kMaxMessageType),
+      on_ping_request_(new PingReqSigPtr::element_type),
       on_ping_response_(new PingRspSigPtr::element_type),
       on_find_value_request_(new FindValueReqSigPtr::element_type),
       on_find_value_response_(new FindValueRspSigPtr::element_type),
@@ -101,7 +127,7 @@ class MessageHandler : public transport::MessageHandler {
   std::string WrapMessage(const protobuf::UpdateResponse &msg);
   std::string WrapMessage(const protobuf::DownlistRequest &msg);
   std::string WrapMessage(const protobuf::DownlistResponse &msg);
-  
+
   PingReqSigPtr on_ping_request() { return on_ping_request_; }
   PingRspSigPtr on_ping_response() { return on_ping_response_; }
   FindValueReqSigPtr on_find_value_request() { return on_find_value_request_; }
@@ -123,6 +149,7 @@ class MessageHandler : public transport::MessageHandler {
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const Info &info,
                                         std::string *response,
                                         transport::Timeout *timeout);
  private:

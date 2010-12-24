@@ -36,7 +36,7 @@ namespace kademlia {
 
 // Functor for general callback functions.
 typedef boost::function<void(std::string)> VoidFunctorOneString;
-typedef boost::function<void(bool)> VoidFunctorOneBool;
+typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
 
 struct Signature {
   Signature() : signer_id(), public_key(), signed_public_key(), signature() {}
