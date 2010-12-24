@@ -32,39 +32,59 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
 
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transport.pb.h"
-
 #include <string>
+
+#include "maidsafe/transport/transport.h"
 
 namespace bs2 = boost::signals2;
 
 namespace transport {
 
+namespace protobuf {
+class Endpoint;
+class WrapperMessage;
+class ManagedEndpointMessage;
+class NatDetectionRequest;
+class NatDetectionResponse;
+class ProxyConnectRequest;
+class ProxyConnectResponse;
+class ForwardRendezvousRequest;
+class ForwardRendezvousResponse;
+class RendezvousRequest;
+class RendezvousAcknowledgement;
+}  // namespace protobuf
+
 class MessageHandler {
  public:
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::ManagedEndpointMessage,
+  const int kMaxMessageType;  // Offset used for type extensions.
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::ManagedEndpointMessage&,
       protobuf::ManagedEndpointMessage*)> > ManagedEndpointMsgSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::NatDetectionRequest,
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::NatDetectionRequest&,
       protobuf::NatDetectionResponse*)> > NatDetectionReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::NatDetectionResponse)> >
-      NatDetectionRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::ProxyConnectRequest,
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::NatDetectionResponse&)> > NatDetectionRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::ProxyConnectRequest&,
       protobuf::ProxyConnectResponse*)> > ProxyConnectReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::ProxyConnectResponse)> >
-      ProxyConnectRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(
-      protobuf::ForwardRendezvousRequest)> > ForwardRendezvousReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(
-      protobuf::ForwardRendezvousResponse)> > ForwardRendezvousRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::RendezvousRequest)> >
-      RendezvousReqSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(protobuf::RendezvousResponse)> >
-      RendezvousRspSigPtr;
-  typedef boost::shared_ptr<bs2::signal<void(int, Info)> >MsgInfoSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::ProxyConnectResponse&)> > ProxyConnectRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::ForwardRendezvousRequest&,
+      protobuf::ForwardRendezvousResponse*)> > ForwardRendezvousReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::ForwardRendezvousResponse&)> > ForwardRendezvousRspSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::RendezvousRequest&)> > RendezvousReqSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(
+      const protobuf::RendezvousAcknowledgement&)> > RendezvousAckSigPtr;
+  typedef boost::shared_ptr< bs2::signal< void(int, const Info&)> >
+      MsgInfoSigPtr;
 
   MessageHandler()
-    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+    : kMaxMessageType(1000),
+      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
@@ -74,14 +94,13 @@ class MessageHandler {
       on_forward_rendezvous_response_(
           new ForwardRendezvousRspSigPtr::element_type),
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
-      on_rendezvous_response_(new RendezvousRspSigPtr::element_type),
+      on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
       on_info_(new MsgInfoSigPtr::element_type) {}
   virtual ~MessageHandler() {}
   void OnMessageReceived(const std::string &request,
                          const Info &info,
                          std::string *response,
                          Timeout *timout);
-  void OnError(const TransportCondition &transport_condition);
 
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
@@ -91,8 +110,8 @@ class MessageHandler {
   std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
   std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
   std::string WrapMessage(const protobuf::RendezvousRequest &msg);
-  std::string WrapMessage(const protobuf::RendezvousResponse &msg);
-  
+  std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
+
   ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
     return on_managed_endpoint_message_;
   }
@@ -117,8 +136,8 @@ class MessageHandler {
   RendezvousReqSigPtr on_rendezvous_request() {
     return on_rendezvous_request_;
   }
-  RendezvousRspSigPtr on_rendezvous_response() {
-    return on_rendezvous_response_;
+  RendezvousAckSigPtr on_rendezvous_acknowledgement() {
+    return on_rendezvous_acknowledgement_;
   }
   MsgInfoSigPtr on_info() {
     return on_info_;
@@ -126,6 +145,7 @@ class MessageHandler {
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const Info &info,
                                         std::string *response,
                                         Timeout *timeout);
   std::string MakeSerialisedWrapperMessage(const int &message_type,
@@ -141,7 +161,7 @@ class MessageHandler {
   ForwardRendezvousReqSigPtr on_forward_rendezvous_request_;
   ForwardRendezvousRspSigPtr on_forward_rendezvous_response_;
   RendezvousReqSigPtr on_rendezvous_request_;
-  RendezvousRspSigPtr on_rendezvous_response_;
+  RendezvousAckSigPtr on_rendezvous_acknowledgement_;
   MsgInfoSigPtr on_info_;
 };
 

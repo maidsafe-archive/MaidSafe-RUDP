@@ -50,6 +50,6 @@ message ForwardRendezvousResponse {
 message RendezvousRequest {
   required Endpoint originator_endpoint = 1;
 }
-message RendezvousResponse {
+message RendezvousAcknowledgement {
   required Endpoint originator_endpoint = 1;
 }

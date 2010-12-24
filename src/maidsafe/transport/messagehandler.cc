@@ -26,21 +26,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/messagehandler.h"
+#include "maidsafe/transport/transport.pb.h"
 
 namespace transport {
 
 enum MessageType {
-  kRaw = 0,
   kManagedEndpointMessage = 1,
-  kNatDetectionRequest = 2,
-  kNatDetectionResponse = 3,
-  kProxyConnectRequest = 4,
-  kProxyConnectResponse = 5,
-  kForwardRendezvousRequest = 6,
-  kForwardRendezvousResponse = 7,
-  kRendezvousRequest = 8,
-  kRendezvousResponse = 9,
-  kMaxValue = 999
+  kNatDetectionRequest,
+  kNatDetectionResponse,
+  kProxyConnectRequest,
+  kProxyConnectResponse,
+  kForwardRendezvousRequest,
+  kForwardRendezvousResponse,
+  kRendezvousRequest,
+  kRendezvousAcknowledgement
 };
 
 void MessageHandler::OnMessageReceived(const std::string &request,
@@ -54,12 +53,8 @@ void MessageHandler::OnMessageReceived(const std::string &request,
     return;
 
   (*on_info_)(wrapper.msg_type(), info);
-  ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), response,
-                           timeout);
-}
-
-void MessageHandler::OnError(const TransportCondition&) {
-  // TODO
+  ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
+                           response, timeout);
 }
 
 std::string MessageHandler::WrapMessage(
@@ -93,18 +88,37 @@ std::string MessageHandler::WrapMessage(
 }
 
 std::string MessageHandler::WrapMessage(
+    const protobuf::ForwardRendezvousRequest &msg) {
+  return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
+                                      msg.SerializeAsString());
+}
+
+std::string MessageHandler::WrapMessage(
+    const protobuf::ForwardRendezvousResponse &msg) {
+  return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
+                                      msg.SerializeAsString());
+}
+
+std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
                                       msg.SerializeAsString());
 }
 
+std::string MessageHandler::WrapMessage(
+    const protobuf::RendezvousAcknowledgement &msg) {
+  return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
+                                      msg.SerializeAsString());
+}
+
 void MessageHandler::ProcessSerialisedMessage(const int &message_type,
                                               const std::string &payload,
+                                              const Info&,
                                               std::string *response,
                                               Timeout *timeout) {
   response->clear();
   *timeout = kImmediateTimeout;
-  
+
   switch (message_type) {
     case kManagedEndpointMessage: {
       protobuf::ManagedEndpointMessage req;
@@ -128,7 +142,7 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
 //                                         conversation_id));
         protobuf::NatDetectionResponse rsp;
         (*on_nat_detection_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
@@ -144,7 +158,7 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::ProxyConnectResponse rsp;
         (*on_proxy_connect_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
@@ -155,10 +169,32 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
         (*on_proxy_connect_response_)(req);
       break;
     }
+    case kForwardRendezvousRequest: {
+      protobuf::ForwardRendezvousRequest req;
+      if (req.ParseFromString(payload) && req.IsInitialized()) {
+        protobuf::ForwardRendezvousResponse rsp;
+        (*on_forward_rendezvous_request_)(req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
+          *timeout = kDefaultInitialTimeout;
+      }
+      break;
+    }
+    case kForwardRendezvousResponse: {
+      protobuf::ForwardRendezvousResponse req;
+      if (req.ParseFromString(payload) && req.IsInitialized())
+        (*on_forward_rendezvous_response_)(req);
+      break;
+    }
     case kRendezvousRequest: {
       protobuf::RendezvousRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized())
         (*on_rendezvous_request_)(req);
+      break;
+    }
+    case kRendezvousAcknowledgement: {
+      protobuf::RendezvousAcknowledgement req;
+      if (req.ParseFromString(payload) && req.IsInitialized())
+        (*on_rendezvous_acknowledgement_)(req);
       break;
     }
   }

@@ -148,10 +148,10 @@ transport::Endpoint Contact::GetPreferredEndpoint() const {
 bool Contact::Equals(const Contact &other) const {
   if (node_id_ == other.node_id_)
     return (node_id_.String() != kClientId) ||
-           (endpoint_.ip == other.endpoint_.ip );
+           (endpoint_.ip == other.endpoint_.ip);
   return false;
 }
- 
+
 bool Contact::operator<(const Contact &rhs) const {
   return node_id().String() < rhs.node_id().String();
 }

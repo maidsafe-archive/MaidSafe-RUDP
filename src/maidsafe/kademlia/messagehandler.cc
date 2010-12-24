@@ -26,11 +26,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/kademlia/messagehandler.h"
+#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace kademlia {
 
 enum MessageType {
-  kPingRequest = transport::MessageType::kMaxValue + 1,
+  kPingRequest = transport::MessageHandler::kMaxMessageType + 1,
   kPingResponse,
   kFindValueRequest,
   kFindValueResponse,
@@ -43,8 +44,7 @@ enum MessageType {
   kUpdateRequest,
   kUpdateResponse,
   kDownlistRequest,
-  kDownlistResponse,
-  kMaxValue = transport::MessageType::kMaxValue + 1000
+  kDownlistResponse
 };
 
 std::string MessageHandler::WrapMessage(const protobuf::PingRequest &msg) {
@@ -113,9 +113,10 @@ std::string MessageHandler::WrapMessage(const protobuf::DownlistResponse &msg) {
 
 void MessageHandler::ProcessSerialisedMessage(const int& message_type,
                                               const std::string& payload,
+                                              const Info& info,
                                               std::string* response,
                                               transport::Timeout* timeout) {
-  *response = "";
+  response->clear();
   *timeout = transport::kImmediateTimeout;
 
   switch (message_type) {
@@ -123,8 +124,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::PingRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::PingResponse rsp;
-        (*on_ping_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_ping_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -139,8 +140,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::FindValueRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::FindValueResponse rsp;
-        (*on_find_value_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_find_value_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -155,8 +156,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::FindNodesRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::FindNodesResponse rsp;
-        (*on_find_nodes_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_find_nodes_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -171,8 +172,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::StoreRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::StoreResponse rsp;
-        (*on_store_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_store_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -187,8 +188,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::DeleteRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::DeleteResponse rsp;
-        (*on_delete_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_delete_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -203,8 +204,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::UpdateRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::UpdateResponse rsp;
-        (*on_update_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_update_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -219,8 +220,8 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
       protobuf::DownlistRequest req;
       if (req.ParseFromString(payload) && req.IsInitialized()) {
         protobuf::DownlistResponse rsp;
-        (*on_downlist_request_)(req, &rsp);
-        if ((*response = WrapMessage(rsp)) != "")
+        (*on_downlist_request_)(info, req, &rsp);
+        if (!(*response = WrapMessage(rsp)).empty())
           *timeout = transport::kDefaultInitialTimeout;
       }
       break;
@@ -233,9 +234,9 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
     }
     default:
       transport::MessageHandler::ProcessSerialisedMessage(message_type, payload,
-                                                          response, timeout);
+                                                          info, response,
+                                                          timeout);
   }
 }
-
 
 }  // namespace kademlia
