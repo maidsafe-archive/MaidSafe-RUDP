@@ -32,8 +32,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/maidsafe-dht.h"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/protobuf/transport.pb.h"
-#include "maidsafe/protobuf/kademlia.pb.h"
+#include "maidsafe/transport/transport.pb.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/tests/transport/messagehandler.h"
 
 #include <list>
@@ -99,11 +99,16 @@ class TransportAPITest: public testing::Test {
     it = transports.begin();
     msg_it = msgh.begin();
 
-    /*
+    /* Example (sender1, receiver1, receiver2)
     In this block of code sender(listening_port = 0) can only send msg to receiver with listening_port. 
     then sender and receiver will check their corresponding request_received ,response_received, error_ queues.
               req
-    Sender1 -----------------> receiver1      compare queues  (request_received ,response_received, error_) and messages
+    Sender1 -----------------> Receiver1      compare queues  (request_received ,response_received, error_) and messages
+              response
+            <--------------
+
+              req
+    Sender1 -----------------> Receiver2      compare queues  (request_received ,response_received, error_) and messages
               response
             <--------------
 
@@ -129,10 +134,12 @@ class TransportAPITest: public testing::Test {
           int num_of_res_received = (*(msg_it+i))->response_received().size();
           (*(it+i))->Send(request, endpoint);
           ASSERT_EQ((num_of_received_msgs+1), (*(msg_it+j)->request_received().size()));
+          ASSERT_STREQ(request, /* (*(msg_it+j))->request_received().string */);
           ASSERT_EQ(num_of_errors, (*(msg_it+i))->errors().size());
           std::string response = base::RandomString(25);
           endpoint.port = (*(it+i))->listening_port();
           (*(it+j))->send(response, endpoint);
+          ASSERT_EQ((num_of_res_received+1), (*(msg_it+j)->request_received().size()));
           ASSERT_STREQ(response, /* (*(msg_it+i))->response_received().string */);
         }
       }
