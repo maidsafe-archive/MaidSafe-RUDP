@@ -81,7 +81,8 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
   threads1.join_all();
   threads2.join_all();
 }
-// INSTANTIATE_TYPED_TEST_CASE_P(UDT, TransportAPITest, UdtTransport);
+
+INSTANTIATE_TYPED_TEST_CASE_P(UDT, TransportAPITest, UdtTransport);
 
 }  // namespace test
 }  // namespace transport
