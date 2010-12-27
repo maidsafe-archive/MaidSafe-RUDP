@@ -43,18 +43,19 @@ message StoreRequest {
   optional SignedValue signed_value = 3;
   required int32 ttl = 4;
   required bool publish = 5;
-  optional Signature signature = 6;
+  optional Signature request_signature = 6;
   required Contact sender = 7;
 };
 
 message StoreResponse {
   required bool result = 1;
+  optional Signature deletion_signature = 2;
 };
 
 message DeleteRequest {
   required bytes key = 1;
   required SignedValue signed_value = 2;
-  required Signature signature = 3;
+  required Signature request_signature = 3;
   required Contact sender = 4;
 };
 
@@ -67,7 +68,7 @@ message UpdateRequest {
   required SignedValue new_signed_value = 2;
   required SignedValue old_signed_value = 3;
   required int32 ttl = 4;
-  required Signature signature = 5;
+  required Signature request_signature = 5;
   required Contact sender = 6;
 };
 
@@ -76,7 +77,7 @@ message UpdateResponse {
 };
 
 message DownlistRequest {
-  repeated bytes downlist = 1;
+  repeated bytes node_ids = 1;
   required Contact sender = 2;
 };
 

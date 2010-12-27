@@ -102,7 +102,7 @@ class Rpcs {
               const Signature &signature,
               const transport::Endpoint &endpoint,
               VoidFunctorOneBool callback);
-  void Downlist(const std::vector<std::string> &downlist,
+  void Downlist(const std::vector<NodeId> &node_ids,
                 const transport::Endpoint &endpoint,
                 VoidFunctorOneBool callback);
   void set_node_contact(const Contact &node_contact) {

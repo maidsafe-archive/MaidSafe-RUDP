@@ -24,5 +24,5 @@ message Signature {
   required bytes signer_id = 1;
   required bytes public_key = 2;
   required bytes signed_public_key = 3;
-  required bytes signature = 4;
+  required bytes payload_signature = 4;
 };

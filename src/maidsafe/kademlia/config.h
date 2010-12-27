@@ -39,11 +39,12 @@ typedef boost::function<void(std::string)> VoidFunctorOneString;
 typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
 
 struct Signature {
-  Signature() : signer_id(), public_key(), signed_public_key(), signature() {}
+  Signature()
+    : signer_id(), public_key(), signed_public_key(), payload_signature() {}
   std::string signer_id;
   std::string public_key;
   std::string signed_public_key;
-  std::string signature;
+  std::string payload_signature;
 };
 
 struct SignedValue {

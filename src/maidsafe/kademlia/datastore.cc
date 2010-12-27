@@ -50,6 +50,28 @@ bool DataStore::Keys(std::set<std::string> *keys) {
   return true;
 }
 
+bool DataStore::HasItem(const std::string &key) {
+  if (key.empty())
+    return false;
+
+  boost::mutex::scoped_lock guard(mutex_);
+  std::pair<datastore::iterator, datastore::iterator> p =
+      datastore_.equal_range(boost::make_tuple(key));
+  if (p.first == p.second)
+    return false;
+
+  boost::uint32_t now = base::GetEpochTime();
+  while (p.first != p.second) {
+    boost::int32_t ttl_remaining = p.first->expire_time_ - now;
+    if ((ttl_remaining > 0 || p.first->ttl_ == -1) &&
+        (p.first->del_status_ == NOT_DELETED))
+      return true;
+    ++p.first;
+  }
+
+  return false;
+}
+
 bool DataStore::StoreItem(const std::string &key, const std::string &value,
                           const boost::int32_t &time_to_live,
                           const bool &hashable) {
@@ -280,4 +302,4 @@ bool DataStore::UpdateItem(const std::string &key,
   return datastore_.replace(it, tuple);
 }
 
-}  // namespace kademlia 
+}  // namespace kademlia

@@ -95,10 +95,11 @@ void Rpcs<TransportType>::Store(const NodeId &key,
   req.mutable_signed_value()->set_signature(signed_value.signature);
   req.set_ttl(ttl);
   req.set_publish(publish);
-  req.mutable_signature()->set_signer_id(signature.signer_id);
-  req.mutable_signature()->set_public_key(signature.public_key);
-  req.mutable_signature()->set_signed_public_key(signature.signed_public_key);
-  req.mutable_signature()->set_signature(signature.signature);
+  protobuf::Signature *signature_msg(req.mutable_request_signature);
+  signature_msg->set_signer_id(signature.signer_id);
+  signature_msg->set_public_key(signature.public_key);
+  signature_msg->set_signed_public_key(signature.signed_public_key);
+  signature_msg->set_payload_signature(signature.payload_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_store_response()->connect(boost::bind(
@@ -139,10 +140,11 @@ void Rpcs<TransportType>::Delete(const NodeId &key,
   req.set_key(key.String());
   req.mutable_signed_value()->set_value(signed_value.value);
   req.mutable_signed_value()->set_signature(signed_value.signature);
-  req.mutable_signature()->set_signer_id(signature.signer_id);
-  req.mutable_signature()->set_public_key(signature.public_key);
-  req.mutable_signature()->set_signed_public_key(signature.signed_public_key);
-  req.mutable_signature()->set_signature(signature.signature);
+  protobuf::Signature *signature_msg(req.mutable_request_signature);
+  signature_msg->set_signer_id(signature.signer_id);
+  signature_msg->set_public_key(signature.public_key);
+  signature_msg->set_signed_public_key(signature.signed_public_key);
+  signature_msg->set_payload_signature(signature.payload_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_delete_response()->connect(boost::bind(
@@ -167,10 +169,11 @@ void Rpcs<TransportType>::Update(const NodeId &key,
   req.mutable_old_signed_value()->set_value(old_signed_value.value);
   req.mutable_old_signed_value()->set_signature(old_signed_value.signature);
   req.set_ttl(ttl);
-  req.mutable_signature()->set_signer_id(signature.signer_id);
-  req.mutable_signature()->set_public_key(signature.public_key);
-  req.mutable_signature()->set_signed_public_key(signature.signed_public_key);
-  req.mutable_signature()->set_signature(signature.signature);
+  protobuf::Signature *signature_msg(req.mutable_request_signature);
+  signature_msg->set_signer_id(signature.signer_id);
+  signature_msg->set_public_key(signature.public_key);
+  signature_msg->set_signed_public_key(signature.signed_public_key);
+  signature_msg->set_payload_signature(signature.payload_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_update_response()->connect(boost::bind(
@@ -179,14 +182,14 @@ void Rpcs<TransportType>::Update(const NodeId &key,
 }
 
 template <class TransportType>
-void Rpcs<TransportType>::Downlist(const std::vector<std::string> &downlist,
+void Rpcs<TransportType>::Downlist(const std::vector<NodeId> &node_ids,
                                    const transport::Endpoint &endpoint,
                                    VoidFunctorOneBool callback) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
   protobuf::DownlistRequest req;
-  for (size_t i = 0; i < downlist.size(); ++i)
-    req.add_downlist(downlist[i]);
+  for (size_t i = 0; i < node_ids.size(); ++i)
+    req.add_node_ids(node_ids[i].String());
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_downlist_response()->connect(boost::bind(
