@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kademlia {
 
-static void downlist_ping_cb(const std::string&) {}
+// static void downlist_ping_cb(const std::string&) {}
 
 Service::Service(boost::shared_ptr<RoutingTable> routing_table,
                  boost::shared_ptr<DataStore> datastore,
@@ -57,8 +57,8 @@ Service::Service(boost::shared_ptr<RoutingTable> routing_table,
       node_joined_(false),
       using_signatures_(using_signatures),
       node_contact_(),
-      alternative_store_(NULL),
-      signature_validator_(NULL) {
+      alternative_store_(),
+      signature_validator_() {
   // Connect message handler to transport for incoming raw messages
 /*  transport_->on_message_received()->connect(boost::bind(
       &MessageHandler::OnMessageReceived, message_handler_, _1, _2, _3, _4));
@@ -79,7 +79,7 @@ Service::Service(boost::shared_ptr<RoutingTable> routing_table,
       &Service::Downlist, this, _1, _2)); */
 }
 
-void Service::Ping(const Info &info,
+void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response) {
   response->set_echo("pong");
@@ -87,7 +87,7 @@ void Service::Ping(const Info &info,
   routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
 }
 
-void Service::FindValue(const Info &info,
+void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
                         protobuf::FindValueResponse *response) {
   response->set_result(false);
@@ -127,12 +127,11 @@ void Service::FindValue(const Info &info,
   find_nodes_req.mutable_sender()->CopyFrom(request.sender());
   protobuf::FindNodesResponse find_nodes_rsp;
   FindNodes(info, find_nodes_req, &find_nodes_rsp);
-  response->mutable_closest_nodes()->MergeFrom(
-      find_nodes_rsp.mutable_closest_nodes());
+  response->mutable_closest_nodes()->MergeFrom(find_nodes_rsp.closest_nodes());
   response->set_result(find_nodes_rsp.result());
 }
 
-void Service::FindNodes(const Info &info,
+void Service::FindNodes(const transport::Info &info,
                         const protobuf::FindNodesRequest &request,
                         protobuf::FindNodesResponse *response) {
   response->set_result(false);
@@ -146,7 +145,8 @@ void Service::FindNodes(const Info &info,
     return;
 
   exclude_contacts.push_back(sender);
-  routing_table_->FindCloseNodes(key, exclude_contacts, &closest_contacts);
+  // TODO change to an overloaded method with implicit K
+  routing_table_->FindCloseNodes(key, -1, exclude_contacts, &closest_contacts);
   bool found_node(false);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
     (*response->add_closest_nodes()) = closest_contacts[i].ToProtobuf();
@@ -164,7 +164,7 @@ void Service::FindNodes(const Info &info,
   routing_table_->AddContact(sender);  // TODO pass info
 }
 
-void Service::Store(const Info &info,
+void Service::Store(const transport::Info &info,
                     const protobuf::StoreRequest &request,
                     protobuf::StoreResponse *response) {
 /*
@@ -206,7 +206,7 @@ void Service::Store(const Info &info,
 */
 }
 
-void Service::Delete(const Info &info,
+void Service::Delete(const transport::Info &info,
                      const protobuf::DeleteRequest &request,
                      protobuf::DeleteResponse *response) {
 /*
@@ -266,7 +266,7 @@ void Service::Delete(const Info &info,
 */
 }
 
-void Service::Update(const Info &info,
+void Service::Update(const transport::Info &info,
                      const protobuf::UpdateRequest &request,
                      protobuf::UpdateResponse *response) {
 /*
@@ -414,7 +414,7 @@ hashable replacement values.
 */
 }
 
-void Service::Downlist(const Info &info,
+void Service::Downlist(const transport::Info &info,
                        const protobuf::DownlistRequest &request,
                        protobuf::DownlistResponse *response) {
 /*
@@ -456,7 +456,7 @@ void Service::Downlist(const Info &info,
 
 bool Service::CheckStoreRequest(const protobuf::StoreRequest &request) const {
   return (using_signatures_ && request.has_signature() &&
-          request.has_signed_value()) || request->has_value();
+          request.has_signed_value()) || request.has_value();
 }
 
 bool Service::StoreValueLocal(const std::string &key,
@@ -529,6 +529,7 @@ void Service::StoreValueLocal(const std::string &key,
 bool Service::CanStoreSignedValueHashable(const std::string &key,
                                           const std::string &value,
                                           bool *hashable) {
+/*
   std::vector< std::pair<std::string, bool> > attr;
   attr = datastore_->LoadKeyAppendableAttr(key);
   *hashable = false;
@@ -544,6 +545,7 @@ bool Service::CanStoreSignedValueHashable(const std::string &key,
     }
   }
   return true;
+*/
 }
 
 }  // namespace kademlia

@@ -54,9 +54,11 @@ class RendezvousRequest;
 class RendezvousAcknowledgement;
 }  // namespace protobuf
 
+// Highest possible message type ID, use as offset for type extensions.
+const int kMaxMessageType(1000);
+
 class MessageHandler {
  public:
-  const int kMaxMessageType;  // Offset used for type extensions.
   typedef boost::shared_ptr< bs2::signal< void(
       const protobuf::ManagedEndpointMessage&,
       protobuf::ManagedEndpointMessage*)> > ManagedEndpointMsgSigPtr;
@@ -83,8 +85,7 @@ class MessageHandler {
       MsgInfoSigPtr;
 
   MessageHandler()
-    : kMaxMessageType(1000),
-      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),

@@ -74,27 +74,36 @@ class Service {
   Service(boost::shared_ptr<RoutingTable> routing_table,
           boost::shared_ptr<DataStore> datastore,
           bool using_signatures);
-  void Ping(const Info &info, const protobuf::PingRequest &request,
+  void Ping(const transport::Info &info,
+            const protobuf::PingRequest &request,
             protobuf::PingResponse *response);
-  void FindValue(const Info &info, const protobuf::FindValueRequest &request,
+  void FindValue(const transport::Info &info,
+                 const protobuf::FindValueRequest &request,
                  protobuf::FindValueResponse *response);
-  void FindNodes(const Info &info, const protobuf::FindNodesRequest &request,
+  void FindNodes(const transport::Info &info,
+                 const protobuf::FindNodesRequest &request,
                  protobuf::FindNodesResponse *response);
-  void Store(const Info &info, const protobuf::StoreRequest &request,
+  void Store(const transport::Info &info,
+             const protobuf::StoreRequest &request,
              protobuf::StoreResponse *response);
-  void Delete(const Info &info, const protobuf::DeleteRequest &request,
+  void Delete(const transport::Info &info,
+              const protobuf::DeleteRequest &request,
               protobuf::DeleteResponse *response);
-  void Update(const Info &info, const protobuf::UpdateRequest &request,
+  void Update(const transport::Info &info,
+              const protobuf::UpdateRequest &request,
               protobuf::UpdateResponse *response);
-  void Downlist(const Info &info, const protobuf::DownlistRequest &request,
+  void Downlist(const transport::Info &info,
+                const protobuf::DownlistRequest &request,
                 protobuf::DownlistResponse *response);
   void set_node_joined(bool joined) { node_joined_ = joined; }
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
-  void set_alternative_store(base::AlternativeStore* alt_store) {
-    alternative_store_ = alt_store;
+  void set_alternative_store(
+      boost::shared_ptr<base::AlternativeStore> alternative_store) {
+    alternative_store_ = alternative_store;
   }
-  void set_signature_validator(base::SignatureValidator *sig_validator) {
-    signature_validator_ = sig_validator;
+  void set_signature_validator(
+      boost::shared_ptr<base::SignatureValidator> signature_validator) {
+    signature_validator_ = signature_validator;
   }
  private:
   friend class test_service::ServicesTest_BEH_KAD_UpdateValue_Test;
