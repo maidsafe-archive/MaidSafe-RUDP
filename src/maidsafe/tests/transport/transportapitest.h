@@ -51,6 +51,7 @@ const IP kIP(boost::asio::ip::address::from_string("127.0.0.1"));
 typedef boost::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef boost::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef boost::shared_ptr<Transport> TransportPtr;
+typedef boost::shared_ptr<MessageHandler> MessageHandlerPtr;
 
 template <class T>
 struct TransportGroup {
@@ -76,7 +77,9 @@ class TransportAPITest: public testing::Test {
  public:
   TransportAPITest()
       : listening_transports_(),
+        listening_message_handlers_(),
         sending_transports_(),
+        sending_message_handlers_(),
         asio_service_(new boost::asio::io_service),
         work_(new boost::asio::io_service::work(*asio_service_)),
         thread_group_() {
@@ -113,34 +116,32 @@ class TransportAPITest: public testing::Test {
   };
   // test a conversation between the given transports
   void RunTransportTest(const int &num_messages) {
-    std::vector<MessageHandler> msgh;
-    std::string msg;
     Endpoint endpoint;
     endpoint.ip = kIP;
     std::vector<TransportPtr>::iterator sending_transports_itr(
         sending_transports_.begin());
     while (sending_transports_itr != sending_transports_.end()) {
-      MessageHandler msg_h("Sender");
+      MessageHandlerPtr msg_h(new MessageHandler("Sender"));
       (*sending_transports_itr)->on_message_received()->connect(boost::bind(
-          &MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3, _4));
+          &MessageHandler::DoOnResponseReceived, msg_h, _1, _2, _3, _4));
       (*sending_transports_itr)->on_error()->connect(
-          boost::bind(&MessageHandler::DoOnError, &msg_h, _1));
-      msgh.push_back(msg_h);
+          boost::bind(&MessageHandler::DoOnError, msg_h, _1));
+      sending_message_handlers_.push_back(msg_h);
       ++sending_transports_itr;
     }
     std::vector< TransportGroup<T> >::iterator listening_transports_itr(
         listening_transports_.begin());
     while(listening_transports_itr != listening_transports_.end()) {
-      MessageHandler msg_h("Receiver");
+      MessageHandlerPtr msg_h(new MessageHandler("Receiver"));
       (*listening_transports_itr).transport->on_message_received()->connect(
-          boost::bind(&MessageHandler::DoOnRequestReceived, &msg_h, _1, _2, _3,
+          boost::bind(&MessageHandler::DoOnRequestReceived, msg_h, _1, _2, _3,
                       _4));
       (*listening_transports_itr).transport->on_message_received()->connect(
-          boost::bind(&MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3,
+          boost::bind(&MessageHandler::DoOnResponseReceived, msg_h, _1, _2, _3,
                       _4));
       (*listening_transports_itr).transport->on_error()->connect(boost::bind(
-          &MessageHandler::DoOnError, &msg_h, _1));
-      msgh.push_back(msg_h);
+          &MessageHandler::DoOnError, msg_h, _1));
+      listening_message_handlers_.push_back(msg_h);
       ++listening_transports_itr;
     }
 
@@ -206,7 +207,9 @@ class TransportAPITest: public testing::Test {
     FAIL() << "RunTransportTest() not implemented.";
   }
   std::vector< TransportGroup<T> > listening_transports_;
+  std::vector<MessageHandlerPtr> listening_message_handlers_;
   std::vector<TransportPtr> sending_transports_;
+  std::vector<MessageHandlerPtr> sending_message_handlers_;
   IoServicePtr asio_service_;
   WorkPtr work_;
   boost::thread_group thread_group_;
