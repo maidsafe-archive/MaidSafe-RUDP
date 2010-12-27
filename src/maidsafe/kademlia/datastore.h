@@ -121,6 +121,7 @@ class DataStore {
   explicit DataStore(const boost::uint32_t &t_refresh);
   ~DataStore();
   bool Keys(std::set<std::string> *keys);
+  bool HasItem(const std::string &key);
   // time_to_live is in seconds.
   bool StoreItem(const std::string &key, const std::string &value,
                  const boost::int32_t &time_to_live, const bool &hashable);

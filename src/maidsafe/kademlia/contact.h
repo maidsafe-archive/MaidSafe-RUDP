@@ -86,7 +86,6 @@ class Contact {
   bool Equals(const Contact &other) const;
   bool operator<(const Contact &rhs) const;
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
-  Contact& operator=(const Contact &other);
  private:
   NodeId node_id_;
   transport::Endpoint endpoint_, rendezvous_endpoint_;

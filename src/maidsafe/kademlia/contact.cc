@@ -156,15 +156,4 @@ bool Contact::operator<(const Contact &rhs) const {
   return node_id().String() < rhs.node_id().String();
 }
 
-Contact& Contact::operator=(const Contact &other) {
-  node_id_ = other.node_id_;
-  endpoint_ = other.endpoint_;
-  rendezvous_endpoint_ = other.rendezvous_endpoint_;
-  local_endpoints_ = other.local_endpoints_;
-  num_failed_rpcs_ = other.num_failed_rpcs_;
-  last_seen_ = other.last_seen_;
-  prefer_local_ = other.prefer_local_;
-  return *this;
-}
-
 }  // namespace kademlia

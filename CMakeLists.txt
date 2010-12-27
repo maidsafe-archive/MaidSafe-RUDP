@@ -397,6 +397,7 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
 # is only used to check if these compile, and will be removed on branch merger.
 LIST(APPEND DHT_PARTIAL_BUILD_FILES
         #${ALL_FILES_BASE_DIR}
+        ${ALL_FILES_TRANSPORT_DIR}
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/config.h
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/contact.cc
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/contact.h
@@ -413,15 +414,7 @@ LIST(APPEND DHT_PARTIAL_BUILD_FILES
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.cc
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.h
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.cc
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/detail.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/messagehandler.cc
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/messagehandler.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.pb.cc
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.pb.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/utils.cc
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/utils.h)
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.h)
 
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"

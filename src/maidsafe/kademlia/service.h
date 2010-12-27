@@ -46,9 +46,7 @@ class AlternativeStore;
 namespace kademlia {
 
 class DataStore;
-class NodeId;
 class RoutingTable;
-class SignedValue;
 
 namespace protobuf {
 class PingRequest;
@@ -109,20 +107,20 @@ class Service {
   friend class test_service::ServicesTest_BEH_KAD_UpdateValue_Test;
   Service(const Service&);
   Service& operator=(const Service&);
-  bool CheckStoreRequest(const protobuf::StoreRequest &request) const;
   bool StoreValueLocal(const std::string &key,
                        const std::string &value,
-                       Contact sender,
                        const boost::int32_t &ttl,
-                       const bool &publish);
-  void StoreValueLocal(const std::string &key,
-                       const SignedValue &value,
-                       Contact sender,
+                       bool publish,
+                       std::string *serialised_deletion_signature);
+  bool StoreValueLocal(const std::string &key,
+                       const protobuf::SignedValue &signed_value,
                        const boost::int32_t &ttl,
-                       const bool &publish,
-                       protobuf::StoreResponse *response);
+                       bool publish,
+                       std::string *serialised_deletion_signature);
+  bool SignedValueHashable(const std::string &key,
+                           const protobuf::SignedValue &signed_value);
   bool CanStoreSignedValueHashable(const std::string &key,
-                                   const std::string &value,
+                                   const protobuf::SignedValue &signed_value,
                                    bool *hashable);
   boost::shared_ptr<RoutingTable> routing_table_;
   boost::shared_ptr<DataStore> datastore_;
