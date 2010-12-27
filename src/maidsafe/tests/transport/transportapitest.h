@@ -29,17 +29,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
 
 #include <gtest/gtest.h>
-
-#include "maidsafe/maidsafe-dht.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transport.pb.h"
-#include "maidsafe/kademlia/kademlia.pb.h"
-#include "maidsafe/tests/transport/messagehandler.h"
-
+#include <cstdlib>
 #include <list>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "maidsafe/transport/transport.h"
+//  #include "maidsafe/base/utils.h"
+#include "maidsafe/transport/transport.pb.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
+#include "maidsafe/tests/transport/messagehandler.h"
 
 namespace transport {
 
@@ -48,56 +48,101 @@ namespace test {
 // default local IP address
 const IP kIP(boost::asio::ip::address::from_string("127.0.0.1"));
 
-// type-parametrised test case for the transport API
+typedef boost::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef boost::shared_ptr<boost::asio::io_service::work> WorkPtr;
+typedef boost::shared_ptr<Transport> TransportPtr;
+
+template <class T>
+struct TransportGroup {
+  TransportGroup()
+    : asio_service(new boost::asio::io_service),
+      work(new boost::asio::io_service::work(*asio_service)),
+      thread(new boost::thread(boost::bind(&boost::asio::io_service::run,
+                                           asio_service))),
+      transport(new T(asio_service)) {}
+  ~TransportGroup() {
+    work.reset();
+    thread->join();
+  }
+  IoServicePtr asio_service;
+  WorkPtr work;
+  boost::shared_ptr<boost::thread> thread;
+  TransportPtr transport;
+};
+
+// type-parameterised test case for the transport API
 template <class T>
 class TransportAPITest: public testing::Test {
+ public:
+  TransportAPITest()
+      : listening_transports_(),
+        sending_transports_(),
+        asio_service_(new boost::asio::io_service),
+        work_(new boost::asio::io_service::work(*asio_service_)),
+        thread_group_() {
+    for (int i = 0; i < 3; ++i)
+      thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
+                                              asio_service_));
+  }
+  ~TransportAPITest() {
+    work_.reset();
+    thread_group_.join_all();
+  }
  protected:
-  // creates a transport listening on the given or random port (if zero)
-  boost::shared_ptr<Transport> SetupTransport(bool listen, Port lport) {
-    boost::shared_ptr<boost::asio::io_service> asio_service;
-    boost::shared_ptr<Transport> transport(new T(asio_service));
+  // Creates a transport and an io_service listening on the given or random port
+  // (if zero) if listen == true.  If not, only a transport is created, and the
+  // test member asio_service_ is used.
+  void SetupTransport(bool listen, Port lport) {
     if (listen) {
-      if (lport != Port(0))
-        EXPECT_EQ(kSuccess, transport->StartListening(EndPoint(kIP, lport)));
-      else while (kSuccess != transport->StartListening(EndPoint(kIP,
-          (base::RandomUint32() % 1000) + 5000)));
-      // TODO some handling for asio_service
+      TransportGroup<T> transport_group;
+      if (lport != Port(0)) {
+        EXPECT_EQ(kSuccess,
+            transport_group.transport->StartListening(Endpoint(kIP, lport)));
+      } else {
+        while (kSuccess != transport_group.transport->StartListening(Endpoint(
+  // TODO(Fraser#5#): 2010-12-27 - Uncomment once maidsafe_dht_static can be
+  //                               compiled.
+//            kIP, (base::RandomUint32() % 60536) + 5000)));
+            kIP, (rand() % 60536) + 5000)));
+      }
+      listening_transports_.push_back(transport_group);
+    } else {
+      TransportPtr transport(new T(asio_service_));
+      sending_transports_.push_back(transport);
     }
-    return transport;
   };
   // test a conversation between the given transports
-  void RunTransportTest(
-      const std::vector< boost::shared_ptr<Transport> > &transports,
-      const int &num_messages) {
+  void RunTransportTest(const int &num_messages) {
     std::vector<MessageHandler> msgh;
     std::string msg;
     Endpoint endpoint;
     endpoint.ip = kIP;
-    std::vector<Transport>::iterator it = transports.begin();
-    boost::uint16_t num_transport = transports.size();
-    while (it != transports.end()) {
-      if ((*it)->listening_port() == 0) {
-        MessageHandler msg_h((*it)->signals(), "Sender" , false);
-        (*it)->on_message_received()->connect(boost::bind(
-            &MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3, _4));
-        (*it)->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
-                                              &msg_h, _1));
-        msgh.push_back(msg_h);
-      }
-      else {
-        MessageHandler msg_h(*(it)->signals(), "Receiver", false);
-        (*it)->on_message_received()->connect(boost::bind(
-            &MessageHandler::DoOnRequestReceived, &msg_h, _1, _2, _3, _4));
-        (*it)->on_message_received()->connect(boost::bind(
-            &MessageHandler::DoResponseReceived, &msg_h, _1, _2, _3, _4));
-        (*it)->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
-                                              &msg_h, _1));
-        msgh.push_back(msg_h);
-      }
-      ++it;
+    std::vector<TransportPtr>::iterator sending_transports_itr(
+        sending_transports_.begin());
+    while (sending_transports_itr != sending_transports_.end()) {
+      MessageHandler msg_h("Sender");
+      (*sending_transports_itr)->on_message_received()->connect(boost::bind(
+          &MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3, _4));
+      (*sending_transports_itr)->on_error()->connect(
+          boost::bind(&MessageHandler::DoOnError, &msg_h, _1));
+      msgh.push_back(msg_h);
+      ++sending_transports_itr;
     }
-    it = transports.begin();
-    msg_it = msgh.begin();
+    std::vector< TransportGroup<T> >::iterator listening_transports_itr(
+        listening_transports_.begin());
+    while(listening_transports_itr != listening_transports_.end()) {
+      MessageHandler msg_h("Receiver");
+      (*listening_transports_itr).transport->on_message_received()->connect(
+          boost::bind(&MessageHandler::DoOnRequestReceived, &msg_h, _1, _2, _3,
+                      _4));
+      (*listening_transports_itr).transport->on_message_received()->connect(
+          boost::bind(&MessageHandler::DoOnResponseReceived, &msg_h, _1, _2, _3,
+                      _4));
+      (*listening_transports_itr).transport->on_error()->connect(boost::bind(
+          &MessageHandler::DoOnError, &msg_h, _1));
+      msgh.push_back(msg_h);
+      ++listening_transports_itr;
+    }
 
     /* Example (sender1, receiver1, receiver2)
     In this block of code sender(listening_port = 0) can only send msg to receiver with listening_port. 
@@ -122,28 +167,31 @@ class TransportAPITest: public testing::Test {
                    response
               <-----------------
     */
-    for (int i = 0; i < num_transport ; ++i) {
-      for (int j = 0 ; j < num_transport ; ++j) {
-        if ( ( i == j ) && ( *(it+j)->listening_port() == 0 ) )
-          continue;
-        endpoint.port = *(it+j)->listening_port();
-        for (int num = 1; num <= num_messages ; ++num) {
-          std::string request = base::RandomString(25);
-          int num_of_req_received = (*(msg_it+j))->request_received().size();
-          int num_of_errors = (*(msg_it+i))->errors().size();
-          int num_of_res_received = (*(msg_it+i))->response_received().size();
-          (*(it+i))->Send(request, endpoint);
-          ASSERT_EQ((num_of_received_msgs+1), (*(msg_it+j)->request_received().size()));
-          ASSERT_STREQ(request, /* (*(msg_it+j))->request_received().string */);
-          ASSERT_EQ(num_of_errors, (*(msg_it+i))->errors().size());
-          std::string response = base::RandomString(25);
-          endpoint.port = (*(it+i))->listening_port();
-          (*(it+j))->send(response, endpoint);
-          ASSERT_EQ((num_of_res_received+1), (*(msg_it+j)->request_received().size()));
-          ASSERT_STREQ(response, /* (*(msg_it+i))->response_received().string */);
-        }
-      }
-    }
+//    it = transports.begin();
+//    msg_it = msgh.begin();
+//    boost::uint16_t num_transport = transports.size();
+//    for (int i = 0; i < num_transport ; ++i) {
+//      for (int j = 0 ; j < num_transport ; ++j) {
+//        if ( ( i == j ) && ( *(it+j)->listening_port() == 0 ) )
+//          continue;
+//        endpoint.port = *(it+j)->listening_port();
+//        for (int num = 1; num <= num_messages ; ++num) {
+//          std::string request = base::RandomString(25);
+//          int num_of_req_received = (*(msg_it+j))->request_received().size();
+//          int num_of_errors = (*(msg_it+i))->errors().size();
+//          int num_of_res_received = (*(msg_it+i))->response_received().size();
+//          (*(it+i))->Send(request, endpoint);
+//          ASSERT_EQ((num_of_received_msgs+1), (*(msg_it+j)->request_received().size()));
+//          ASSERT_STREQ(request, /* (*(msg_it+j))->request_received().string */);
+//          ASSERT_EQ(num_of_errors, (*(msg_it+i))->errors().size());
+//          std::string response = base::RandomString(25);
+//          endpoint.port = (*(it+i))->listening_port();
+//          (*(it+j))->send(response, endpoint);
+//          ASSERT_EQ((num_of_res_received+1), (*(msg_it+j)->request_received().size()));
+//          ASSERT_STREQ(response, /* (*(msg_it+i))->response_received().string */);
+//        }
+//      }
+//    }
 
     /**
      * TODO
@@ -157,6 +205,11 @@ class TransportAPITest: public testing::Test {
      */
     FAIL() << "RunTransportTest() not implemented.";
   }
+  std::vector< TransportGroup<T> > listening_transports_;
+  std::vector<TransportPtr> sending_transports_;
+  IoServicePtr asio_service_;
+  WorkPtr work_;
+  boost::thread_group thread_group_;
 };
 
 TYPED_TEST_CASE_P(TransportAPITest);
@@ -164,19 +217,17 @@ TYPED_TEST_CASE_P(TransportAPITest);
 // NOTE: register new test patterns using macro at bottom
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  boost::shared_ptr<boost::asio::io_service> asio_service;
-  boost::shared_ptr<Transport> transport(new TypeParam(asio_service));
+  TransportPtr transport(new TypeParam(asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
-  EXPECT_EQ(kInvalidEndpoint, transport->StartListening(Endpoint(kIP, 0));
-  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77));
+  EXPECT_EQ(kInvalidAddress, transport->StartListening(Endpoint(kIP, 0)));
+  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77)));
   EXPECT_EQ(Port(77), transport->listening_port());
-  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 77));
+  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 77)));
+  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 55123)));
   EXPECT_EQ(Port(77), transport->listening_port());
-  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123));
-  EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
   EXPECT_EQ(Port(0), transport->listening_port());
-  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123));
+  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123)));
   EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
 }
@@ -184,7 +235,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   FAIL() << "Not implemented.";
   /*
-  boost::shared_ptr<Transport> sender(new TypeParam), receiver(new TypeParam);
+  TransportPtr sender(new TypeParam), receiver(new TypeParam);
   // MessageHandler sender_msgh(sender->signals(), "Send", false);
   const int kTimeout(rpcprotocol::kRpcTimeout + 1000);
   TransportMessage request = this->MakeTransportMessage(
@@ -207,46 +258,48 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
-  std::vector< boost::shared_ptr<Transport> > transports;
-  transports.push_back(this->SetupTransport(false, 0));  // sender
-  transports.push_back(this->SetupTransport(true, 0));  // receiver
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(transports, 1));
+  SetupTransport(false, 0);  // sender
+  SetupTransport(true, 0);  // receiver
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneReply) {
-  std::vector< boost::shared_ptr<Transport> > transports;
-  transports.push_back(this->SetupTransport(false, 0));  // sender
-  transports.push_back(this->SetupTransport(true, 0));  // receiver
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(transports, 2));
+  this->SetupTransport(false, 0);  // sender
+  this->SetupTransport(true, 0);  // receiver
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
-  std::vector< boost::shared_ptr<Transport> > transports;
-  transports.push_back(this->SetupTransport(false, 0));  // sender
-  transports.push_back(this->SetupTransport(true, 0));  // receiver
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(transports, 123));
+  this->SetupTransport(false, 0);  // sender
+  this->SetupTransport(true, 0);  // receiver
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(123));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyNodesSingleMessage) {
-  std::vector< boost::shared_ptr<Transport> > transports;
   for (int i = 0; i < 20; ++i)
-    transports.push_back(this->SetupTransport(true, 0));  // sender & receiver
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(transports, 1));
+    SetupTransport(true, 0);  // sender & receiver
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
-  std::vector< boost::shared_ptr<Transport> > transports;
-  int num_transports(static_cast<int>(base::RandomUint32() % 10 + 5));  // 5-14
-  int num_messages(static_cast<int>(base::RandomUint32() % 100 + 1));  // 1-100
-  for (int i = 0; i < num_transports; ++i)
-    transports.push_back(this->SetupTransport(true, 0));
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(transports, num_messages));
+  boost::uint8_t num_transports(static_cast<boost::uint8_t>(rand() % 10 + 5));
+  boost::uint8_t num_messages(static_cast<boost::uint8_t>(rand() % 100 + 1));
+  // TODO(Fraser#5#): 2010-12-27 - Uncomment once maidsafe_dht_static can be
+  //                               compiled.
+//  boost::uint8_t num_transports(
+//      static_cast<boost::uint8_t>(boost::RandomUint32() % 10 + 5));
+//  boost::uint8_t num_messages(
+//      static_cast<boost::uint8_t>(boost::RandomUint32() % 100 + 1));
+  for (boost::uint8_t i = 0; i < num_transports; ++i)
+    SetupTransport(true, 0);
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(num_messages));
 }
 
 REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
                            BEH_TRANS_StartStopListening,
                            BEH_TRANS_Send,
                            BEH_TRANS_OneToOneSingleMessage,
+                           BEH_TRANS_OneToOneReply,
                            BEH_TRANS_OneToOneMultiMessage,
                            BEH_TRANS_ManyNodesSingleMessage,
                            BEH_TRANS_Random);

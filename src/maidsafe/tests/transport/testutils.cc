@@ -26,16 +26,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <gtest/gtest.h>
-#include <boost/timer.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/progress.hpp>
-#include <boost/thread.hpp>
+#include <boost/scoped_array.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <set>
-#include "maidsafe/base/crypto.h"
 #include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/transport/utils.h"
 
 namespace transport {
 
@@ -45,34 +41,31 @@ TEST(UtilsTest, BEH_BASE_BytesAndAscii) {
   std::string good_string_v4("71.111.111.100");
   std::string good_string_v6("2001:db8:85a3::8a2e:370:7334");
   std::string bad_string("Not an IP");
-  EXPECT_EQ("Good", base::IpAsciiToBytes(good_string_v4));
-  EXPECT_EQ(good_string_v4, base::IpBytesToAscii("Good"));
-  std::string result_v6 = base::IpAsciiToBytes(good_string_v6);
+  EXPECT_EQ("Good", IpAsciiToBytes(good_string_v4));
+  EXPECT_EQ(good_string_v4, IpBytesToAscii("Good"));
+  std::string result_v6 = IpAsciiToBytes(good_string_v6);
   EXPECT_FALSE(result_v6.empty());
-  EXPECT_EQ(good_string_v6, base::IpBytesToAscii(result_v6));
-  EXPECT_TRUE(base::IpAsciiToBytes(bad_string).empty());
-  EXPECT_TRUE(base::IpBytesToAscii(bad_string).empty());
+  EXPECT_EQ(good_string_v6, IpBytesToAscii(result_v6));
+  EXPECT_TRUE(IpAsciiToBytes(bad_string).empty());
+  EXPECT_TRUE(IpBytesToAscii(bad_string).empty());
 }
 
 TEST(UtilsTest, BEH_BASE_DecimalAndAscii) {
   std::string dotted("121.12.121.1");
   boost::scoped_array<char> ipbuf(new char[32]);
-  boost::uint32_t n = base::IpAsciiToNet(dotted.c_str());
+  boost::uint32_t n = IpAsciiToNet(dotted.c_str());
   boost::uint32_t g = 2030860545;
   EXPECT_EQ(g, n);
-  base::IpNetToAscii(n, ipbuf.get());
+  IpNetToAscii(n, ipbuf.get());
   std::string reformed(ipbuf.get());
   EXPECT_EQ(dotted, reformed);
 }
 
 TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
-  std::vector<base::DeviceStruct> alldevices;
-  base::GetNetInterfaces(&alldevices);
-  EXPECT_FALSE(alldevices.empty());
-  for (size_t n = 0; n < alldevices.size(); ++n) {
-    base::DeviceStruct ds = alldevices[n];
-    DLOG(INFO) << n << " - " << ds.ip_address.to_string() << std::endl;
-  }
+  std::vector<IP> all_local_ips(GetLocalAddresses());
+  EXPECT_FALSE(all_local_ips.empty());
+  for (size_t n = 0; n < all_local_ips.size(); ++n)
+    DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string() << std::endl;
 }
 
 }  // namespace test

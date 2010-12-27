@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/log.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/transport/messagehandler.h"
-// #include "maidsafe/tests/transport/transportapitest.h"
+#include "maidsafe/tests/transport/transportapitest.h"
 
 namespace transport {
 

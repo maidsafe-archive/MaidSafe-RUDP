@@ -92,7 +92,7 @@ Succeeds                                                           Succeeds
    |
 
 */
-
+/*
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "maidsafe/transport/udttransport.h"
@@ -146,3 +146,4 @@ TEST_F(TestNatTraversal, BEH_UDT_DirectlyConnected) {
 
 }  // namespace test
 }  // namespace transport
+*/
