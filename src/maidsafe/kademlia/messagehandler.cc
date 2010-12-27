@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace kademlia {
 
 enum MessageType {
-  kPingRequest = transport::MessageHandler::kMaxMessageType + 1,
+  kPingRequest = transport::kMaxMessageType + 1,
   kPingResponse,
   kFindValueRequest,
   kFindValueResponse,
@@ -113,7 +113,7 @@ std::string MessageHandler::WrapMessage(const protobuf::DownlistResponse &msg) {
 
 void MessageHandler::ProcessSerialisedMessage(const int& message_type,
                                               const std::string& payload,
-                                              const Info& info,
+                                              const transport::Info& info,
                                               std::string* response,
                                               transport::Timeout* timeout) {
   response->clear();

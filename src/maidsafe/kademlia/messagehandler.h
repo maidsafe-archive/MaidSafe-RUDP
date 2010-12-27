@@ -57,9 +57,11 @@ class DownlistRequest;
 class DownlistResponse;
 }  // namespace protobuf
 
+// Highest possible message type ID, use as offset for type extensions.
+const int kMaxMessageType(transport::kMaxMessageType);
+
 class MessageHandler : public transport::MessageHandler {
  public:
-  const int kMaxMessageType;  // Offset used for type extensions.
   typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
       const protobuf::PingRequest&, protobuf::PingResponse*)> > PingReqSigPtr;
   typedef boost::shared_ptr< bs2::signal< void(const protobuf::PingResponse&)> >
@@ -96,8 +98,7 @@ class MessageHandler : public transport::MessageHandler {
       const protobuf::DownlistResponse&)> > DownlistRspSigPtr;
 
   MessageHandler()
-    : kMaxMessageType(transport::MessageHandler::kMaxMessageType),
-      on_ping_request_(new PingReqSigPtr::element_type),
+    : on_ping_request_(new PingReqSigPtr::element_type),
       on_ping_response_(new PingRspSigPtr::element_type),
       on_find_value_request_(new FindValueReqSigPtr::element_type),
       on_find_value_response_(new FindValueRspSigPtr::element_type),
@@ -149,7 +150,7 @@ class MessageHandler : public transport::MessageHandler {
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
-                                        const Info &info,
+                                        const transport::Info &info,
                                         std::string *response,
                                         transport::Timeout *timeout);
  private:

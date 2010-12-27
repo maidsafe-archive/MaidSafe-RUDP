@@ -393,6 +393,36 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
                              ${ALL_FILES_NATPMP_DIR}
                              ${ALL_FILES_MAIDSAFE_DIR})
 
+# Add more source files here as you update them. The partial_dht_static target
+# is only used to check if these compile, and will be removed on branch merger.
+LIST(APPEND DHT_PARTIAL_BUILD_FILES
+        #${ALL_FILES_BASE_DIR}
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/config.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/contact.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/contact.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/datastore.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/datastore.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/kademlia.pb.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/kademlia.pb.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/messagehandler.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/messagehandler.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/nodeid.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/nodeid.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/detail.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/messagehandler.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/messagehandler.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.pb.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/transport.pb.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/utils.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/utils.h)
+
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"
                               "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.h")
@@ -494,11 +524,13 @@ ENDIF()
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
 ADD_LIBRARY(transport_static STATIC ${ALL_FILES_TRANSPORT_DIR})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
+ADD_LIBRARY(partial_dht_static STATIC ${DHT_PARTIAL_BUILD_FILES})  # only to test building
 
 #Rename maidsafe_dht_static as maidsafe_dht on way out NOT in MSVC names clash of static and import lib
 #IF(NOT MSVC)
   SET_TARGET_PROPERTIES(transport_static PROPERTIES OUTPUT_NAME transport)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES OUTPUT_NAME maidsafe_dht)
+  SET_TARGET_PROPERTIES(partial_dht_static PROPERTIES OUTPUT_NAME partial_dht)
 #ENDIF()
 
 # When this target is built, it removes all .gcda files from the build directory and its subdirectories
@@ -535,6 +567,7 @@ ELSE()
   ENDIF()
   SET_TARGET_PROPERTIES(transport_static PROPERTIES IMPORTED_LOCATION bin/libtransport.a)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.a)
+  SET_TARGET_PROPERTIES(partial_dht_static PROPERTIES IMPORTED_LOCATION bin/libpartial_dht.a)
   SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.a)
   SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.a)
 ENDIF()
@@ -656,6 +689,7 @@ IF(MSVC)
 
   SET_TARGET_PROPERTIES(transport_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
+  SET_TARGET_PROPERTIES(partial_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ENDIF()
 
 
