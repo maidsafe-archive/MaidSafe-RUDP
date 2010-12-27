@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "maidsafe/protobuf/transport_message.pb.h"
 #include "maidsafe/udt/api.h"
 
 namespace transport {
@@ -41,48 +40,6 @@ bool SocketAlive(const SocketId &udt_socket_id) {
   std::vector<int> socket_to_check(1, udt_socket_id);
   std::vector<int> sockets_bad;
   return (UDT::selectEx(socket_to_check, NULL, NULL, &sockets_bad, 1000) == 0);
-}
-
-testing::AssertionResult MessagesMatch(
-    const TransportMessage &first_transport_message,
-    const TransportMessage &second_transport_message) {
-  // Check type field
-  if (first_transport_message.has_type()) {
-    if (second_transport_message.has_type()) {
-      if (first_transport_message.type() != second_transport_message.type())
-        return testing::AssertionFailure() << "message type " <<
-            first_transport_message.type() << " doesn't equal " <<
-            second_transport_message.type();
-    } else {
-      return testing::AssertionFailure() << "first message has type " <<
-          first_transport_message.type() << " and second message has no type.";
-    }
-  } else {
-    if (second_transport_message.has_type()) {
-      return testing::AssertionFailure() << "second message has type " <<
-          second_transport_message.type() << " and first message has no type.";
-    }
-  }
-
-  // Check data field
-  if (first_transport_message.has_data()) {
-    std::string first_data = first_transport_message.data().SerializeAsString();
-    if (second_transport_message.has_data()) {
-      std::string second_data =
-          second_transport_message.data().SerializeAsString();
-      if (first_data != second_data)
-        return testing::AssertionFailure() << "messages' data unequal.";
-    } else {
-      return testing::AssertionFailure() << "first message has data and "
-                                              "second has none.";
-    }
-  } else {
-    if (second_transport_message.has_data()) {
-      return testing::AssertionFailure() << "second message has data and "
-                                              "first has none.";
-    }
-  }
-  return testing::AssertionSuccess();
 }
 
 }  // namespace test

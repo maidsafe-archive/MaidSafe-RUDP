@@ -28,20 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_TRANSPORT_UDTTESTSHELPERS_H_
 #define MAIDSAFE_TESTS_TRANSPORT_UDTTESTSHELPERS_H_
 
-#include <maidsafe/maidsafe-dht_config.h>
-#include <gtest/gtest.h>
+#include "maidsafe/transport/udttransport.h"
 
 namespace transport {
 
-class TransportMessage;
-
 namespace test {
 
-bool SocketAlive(const int &socket_id);
-
-testing::AssertionResult MessagesMatch(
-    const TransportMessage &first_transport_message,
-    const TransportMessage &second_transport_message);
+bool SocketAlive(const SocketId &socket_id);
 
 }  // namespace test
 

@@ -170,8 +170,8 @@ TransportCondition UdtTransport::DoStartListening(
   }
 
   // Do NAT detection if needed
-  if (!nat_detection_endpoints_.empty())
-    asio_service_->post(boost::bind(&UdtTransport::DetectNat, this));
+//                                                  if (!nat_detection_endpoints_.empty())
+//                                                    asio_service_->post(boost::bind(&UdtTransport::DetectNat, this));
 
   return kSuccess;
 }
@@ -229,106 +229,106 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
                                         const Timeout &timeout) {
 }
 
-void UdtTransport::DetectNat() {
-  // Create message
-  protobuf::NatDetectionRequest nat_detection_request;
-  std::vector<IP> addresses(base::GetLocalAddresses());
-  for (size_t n = 0; n < addresses.size(); ++n)
-    nd->add_candidate_ips(addresses.at(n));
-  nat_detection_request->set_local_port(listening_port_);
-
-  boost::shared_ptr<addrinfo const> address_info;
-  for (std::vector<Endpoint>::iterator it(nat_detection_endpoints_.begin());
-       it != nat_detection_endpoints_.end(); ++it) {
-    UdtConnection udt_connection(shared_from_this(), *it,
-                                 UdtConnection::kOutgoing);
-
-
-
-    TransportMessage transport_message;
-    transport_message.set_type(TransportMessage::kKeepAlive);
-    NatDetection *nd =
-        transport_message.mutable_data()->mutable_nat_detection();
-
-    // Send message
-    udt_connection.transport_message_ = transport_message;
-    TransportCondition tc = udt_connection.SendDataSize();
-    if (tc != kSuccess) {
-      UDT::close(udt_connection.socket_id());
-      continue;
-    }
-
-    tc = udt_connection.SendDataContent();
-    if (tc != kSuccess) {
-      UDT::close(udt_connection.socket_id());
-      continue;
-    }
-
-    // Get the incoming message size
-    Timeout timeout(456);
-    udt_connection.ReceiveData(timeout);
-
-    // Analyse message
-    const google::protobuf::Message::Reflection *reflection =
-        udt_connection.transport_message_.data().GetReflection();
-    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
-    reflection->ListFields(udt_connection.transport_message_.data(),
-                           &field_descriptors);
-    if (field_descriptors.size() != 1U) {
-      UDT::close(udt_connection.socket_id());
-      continue;
-    }
-
-    UDT::close(udt_connection.socket_id());
-    if (field_descriptors.at(0)->number() ==
-        TransportMessage::Data::kNatInformationFieldNumber) {
-      // We're done with Nat Detection. We're directly connected or full cone
-      b = nat_detection_endpoints_.size();
-      NatInformation nat_info =
-          udt_connection.transport_message_.data().nat_information();
-      if (!nat_info.IsInitialized())
-        continue;
-      if (nat_info.nat_type() != kFullCone ||
-          nat_info.nat_type() != kDirectlyConnected) {
-        DLOG(ERROR) << "something's very very wrong. Not awesome." << std::endl;
-        continue;
-      } else {
-        nat_details_.nat_type = static_cast<NatType>(nat_info.nat_type());
-        nat_details_.external_ip = nat_info.ip();
-        nat_details_.external_port = nat_info.port();
-      }
-    } else if (TransportMessage::Data::kRendezvousNodeFieldNumber) {
-      RendezvousNode rv_node =
-          udt_connection.transport_message_.data().rendezvous_node();
-      if (!rv_node.IsInitialized())
-        continue;
-      SocketId rendezvous_socket_id(UDT::INVALID_SOCK);
-      if (TryRendezvous(rv_node.rendezvous_node_ip(),
-                        rv_node.rendezvous_node_port(),
-                        &rendezvous_socket_id) !=
-          kSuccess) {
-        continue;
-      }
-      UdtConnection rv_connection(this, rendezvous_socket_id);
-      Timeout rendezvous_timeout(456);
-      rv_connection.ReceiveData(rendezvous_timeout);
-      UDT::close(rendezvous_socket_id);
-      if (!rv_connection.transport_message_.IsInitialized() ||
-          !rv_connection.transport_message_.data().has_nat_information())
-        continue;
-      b = nat_detection_endpoints_.size();
-      NatInformation nat_info =
-          rv_connection.transport_message_.data().nat_information();
-      nat_details_.nat_type = kPortRestricted;
-      nat_details_.external_ip = nat_info.ip();
-      nat_details_.external_port = nat_info.port();
-      nat_details_.rendezvous_ip = nat_detection_endpoints_.at(b).rendezvous_ip;
-      nat_details_.rendezvous_port = nat_detection_endpoints_.at(b).rendezvous_port;
-    }
-  }
-  if (nat_details_.nat_type == kFullCone ||
-      nat_details_.nat_type == kPortRestricted) {}  // Setup pinging routine
-}
+//void UdtTransport::DetectNat() {
+//  // Create message
+//  protobuf::NatDetectionRequest nat_detection_request;
+//  std::vector<IP> addresses(base::GetLocalAddresses());
+//  for (size_t n = 0; n < addresses.size(); ++n)
+//    nd->add_candidate_ips(addresses.at(n));
+//  nat_detection_request->set_local_port(listening_port_);
+//
+//  boost::shared_ptr<addrinfo const> address_info;
+//  for (std::vector<Endpoint>::iterator it(nat_detection_endpoints_.begin());
+//       it != nat_detection_endpoints_.end(); ++it) {
+//    UdtConnection udt_connection(shared_from_this(), *it,
+//                                 UdtConnection::kOutgoing);
+//
+//
+//
+//    TransportMessage transport_message;
+//    transport_message.set_type(TransportMessage::kKeepAlive);
+//    NatDetection *nd =
+//        transport_message.mutable_data()->mutable_nat_detection();
+//
+//    // Send message
+//    udt_connection.transport_message_ = transport_message;
+//    TransportCondition tc = udt_connection.SendDataSize();
+//    if (tc != kSuccess) {
+//      UDT::close(udt_connection.socket_id());
+//      continue;
+//    }
+//
+//    tc = udt_connection.SendDataContent();
+//    if (tc != kSuccess) {
+//      UDT::close(udt_connection.socket_id());
+//      continue;
+//    }
+//
+//    // Get the incoming message size
+//    Timeout timeout(456);
+//    udt_connection.ReceiveData(timeout);
+//
+//    // Analyse message
+//    const google::protobuf::Message::Reflection *reflection =
+//        udt_connection.transport_message_.data().GetReflection();
+//    std::vector<const google::protobuf::FieldDescriptor*> field_descriptors;
+//    reflection->ListFields(udt_connection.transport_message_.data(),
+//                           &field_descriptors);
+//    if (field_descriptors.size() != 1U) {
+//      UDT::close(udt_connection.socket_id());
+//      continue;
+//    }
+//
+//    UDT::close(udt_connection.socket_id());
+//    if (field_descriptors.at(0)->number() ==
+//        TransportMessage::Data::kNatInformationFieldNumber) {
+//      // We're done with Nat Detection. We're directly connected or full cone
+//      b = nat_detection_endpoints_.size();
+//      NatInformation nat_info =
+//          udt_connection.transport_message_.data().nat_information();
+//      if (!nat_info.IsInitialized())
+//        continue;
+//      if (nat_info.nat_type() != kFullCone ||
+//          nat_info.nat_type() != kDirectlyConnected) {
+//        DLOG(ERROR) << "something's very very wrong. Not awesome." << std::endl;
+//        continue;
+//      } else {
+//        nat_details_.nat_type = static_cast<NatType>(nat_info.nat_type());
+//        nat_details_.external_ip = nat_info.ip();
+//        nat_details_.external_port = nat_info.port();
+//      }
+//    } else if (TransportMessage::Data::kRendezvousNodeFieldNumber) {
+//      RendezvousNode rv_node =
+//          udt_connection.transport_message_.data().rendezvous_node();
+//      if (!rv_node.IsInitialized())
+//        continue;
+//      SocketId rendezvous_socket_id(UDT::INVALID_SOCK);
+//      if (TryRendezvous(rv_node.rendezvous_node_ip(),
+//                        rv_node.rendezvous_node_port(),
+//                        &rendezvous_socket_id) !=
+//          kSuccess) {
+//        continue;
+//      }
+//      UdtConnection rv_connection(this, rendezvous_socket_id);
+//      Timeout rendezvous_timeout(456);
+//      rv_connection.ReceiveData(rendezvous_timeout);
+//      UDT::close(rendezvous_socket_id);
+//      if (!rv_connection.transport_message_.IsInitialized() ||
+//          !rv_connection.transport_message_.data().has_nat_information())
+//        continue;
+//      b = nat_detection_endpoints_.size();
+//      NatInformation nat_info =
+//          rv_connection.transport_message_.data().nat_information();
+//      nat_details_.nat_type = kPortRestricted;
+//      nat_details_.external_ip = nat_info.ip();
+//      nat_details_.external_port = nat_info.port();
+//      nat_details_.rendezvous_ip = nat_detection_endpoints_.at(b).rendezvous_ip;
+//      nat_details_.rendezvous_port = nat_detection_endpoints_.at(b).rendezvous_port;
+//    }
+//  }
+//  if (nat_details_.nat_type == kFullCone ||
+//      nat_details_.nat_type == kPortRestricted) {}  // Setup pinging routine
+//}
 
 
 
