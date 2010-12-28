@@ -319,13 +319,9 @@ hashable replacement values.
 }
 
 void Service::Downlist(const transport::Info &info,
-                       const protobuf::DownlistRequest &request,
-                       protobuf::DownlistResponse *response) {
-  if (!node_joined_) {
-    response->set_result(false);
+                       const protobuf::DownlistNotification &request) {
+  if (!node_joined_)
     return;
-  }
-  response->set_result(true);  // TODO needed?
 
   // A sophisticated attacker possibly sent a random downlist. We only verify
   // the offline status of the nodes in our routing table.
@@ -340,8 +336,6 @@ void Service::Downlist(const transport::Info &info,
   }
 
   // TODO async ping all contacts in set and remove from RT if no answer
-
-  routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
 }
 
 bool Service::StoreValueLocal(const std::string &key,

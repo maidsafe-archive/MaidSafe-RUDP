@@ -76,11 +76,7 @@ message UpdateResponse {
   required bool result = 1;
 };
 
-message DownlistRequest {
+message DownlistNotification {
   repeated bytes node_ids = 1;
   required Contact sender = 2;
-};
-
-message DownlistResponse {
-  required bool result = 1;
 };

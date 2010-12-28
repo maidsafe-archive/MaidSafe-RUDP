@@ -54,7 +54,6 @@ class FindNodesResponse;
 class StoreResponse;
 class DeleteResponse;
 class UpdateResponse;
-class DownlistResponse;
 }  // namespace protobuf
 
 typedef boost::function<void(bool, std::string)> PingFunctor;
@@ -103,8 +102,7 @@ class Rpcs {
               const transport::Endpoint &endpoint,
               VoidFunctorOneBool callback);
   void Downlist(const std::vector<NodeId> &node_ids,
-                const transport::Endpoint &endpoint,
-                VoidFunctorOneBool callback);
+                const transport::Endpoint &endpoint);
   void set_node_contact(const Contact &node_contact) {
     node_contact_ = node_contact;
   }
@@ -133,10 +131,6 @@ class Rpcs {
                       VoidFunctorOneBool callback,
                       boost::shared_ptr<MessageHandler> message_handler,
                       boost::shared_ptr<TransportType> transport);
-  void DownlistCallback(const protobuf::DownlistResponse &response,
-                        VoidFunctorOneBool callback,
-                        boost::shared_ptr<MessageHandler> message_handler,
-                        boost::shared_ptr<TransportType> transport);
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   Contact node_contact_;

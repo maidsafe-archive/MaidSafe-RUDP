@@ -43,8 +43,7 @@ enum MessageType {
   kDeleteResponse,
   kUpdateRequest,
   kUpdateResponse,
-  kDownlistRequest,
-  kDownlistResponse
+  kDownlistNotification
 };
 
 std::string MessageHandler::WrapMessage(const protobuf::PingRequest &msg) {
@@ -101,13 +100,9 @@ std::string MessageHandler::WrapMessage(const protobuf::UpdateResponse &msg) {
   return MakeSerialisedWrapperMessage(kUpdateResponse, msg.SerializeAsString());
 }
 
-std::string MessageHandler::WrapMessage(const protobuf::DownlistRequest &msg) {
-  return MakeSerialisedWrapperMessage(kDownlistRequest,
-                                      msg.SerializeAsString());
-}
-
-std::string MessageHandler::WrapMessage(const protobuf::DownlistResponse &msg) {
-  return MakeSerialisedWrapperMessage(kDownlistResponse,
+std::string MessageHandler::WrapMessage(
+    const protobuf::DownlistNotification &msg) {
+  return MakeSerialisedWrapperMessage(kDownlistNotification,
                                       msg.SerializeAsString());
 }
 
@@ -216,20 +211,10 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
         (*on_update_response_)(req);
       break;
     }
-    case kDownlistRequest: {
-      protobuf::DownlistRequest req;
-      if (req.ParseFromString(payload) && req.IsInitialized()) {
-        protobuf::DownlistResponse rsp;
-        (*on_downlist_request_)(info, req, &rsp);
-        if (!(*response = WrapMessage(rsp)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
-      }
-      break;
-    }
-    case kDownlistResponse: {
-      protobuf::DownlistResponse req;
+    case kDownlistNotification: {
+      protobuf::DownlistNotification req;
       if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_downlist_response_)(req);
+        (*on_downlist_notification_)(info, req);
       break;
     }
     default:

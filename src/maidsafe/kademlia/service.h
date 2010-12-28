@@ -61,8 +61,7 @@ class DeleteRequest;
 class DeleteResponse;
 class UpdateRequest;
 class UpdateResponse;
-class DownlistRequest;
-class DownlistResponse;
+class DownlistNotification;
 }  // namespace protobuf
 
 namespace test_service { class ServicesTest_BEH_KAD_UpdateValue_Test; }
@@ -91,8 +90,7 @@ class Service {
               const protobuf::UpdateRequest &request,
               protobuf::UpdateResponse *response);
   void Downlist(const transport::Info &info,
-                const protobuf::DownlistRequest &request,
-                protobuf::DownlistResponse *response);
+                const protobuf::DownlistNotification &request);
   void set_node_joined(bool joined) { node_joined_ = joined; }
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
   void set_alternative_store(

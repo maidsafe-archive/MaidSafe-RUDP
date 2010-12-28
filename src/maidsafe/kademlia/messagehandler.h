@@ -53,8 +53,7 @@ class DeleteRequest;
 class DeleteResponse;
 class UpdateRequest;
 class UpdateResponse;
-class DownlistRequest;
-class DownlistResponse;
+class DownlistNotification;
 }  // namespace protobuf
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -92,10 +91,8 @@ class MessageHandler : public transport::MessageHandler {
   typedef boost::shared_ptr< bs2::signal< void(
       const protobuf::UpdateResponse&)> > UpdateRspSigPtr;
   typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::DownlistRequest&, protobuf::DownlistResponse*)> >
-      DownlistReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::DownlistResponse&)> > DownlistRspSigPtr;
+      const protobuf::DownlistNotification&)> >
+      DownlistNtfSigPtr;
 
   MessageHandler()
     : on_ping_request_(new PingReqSigPtr::element_type),
@@ -110,8 +107,7 @@ class MessageHandler : public transport::MessageHandler {
       on_delete_response_(new DeleteRspSigPtr::element_type),
       on_update_request_(new UpdateReqSigPtr::element_type),
       on_update_response_(new UpdateRspSigPtr::element_type),
-      on_downlist_request_(new DownlistReqSigPtr::element_type),
-      on_downlist_response_(new DownlistRspSigPtr::element_type) {}
+      on_downlist_notification_(new DownlistNtfSigPtr::element_type) {}
   virtual ~MessageHandler() {}
 
   std::string WrapMessage(const protobuf::PingRequest &msg);
@@ -126,8 +122,7 @@ class MessageHandler : public transport::MessageHandler {
   std::string WrapMessage(const protobuf::DeleteResponse &msg);
   std::string WrapMessage(const protobuf::UpdateRequest &msg);
   std::string WrapMessage(const protobuf::UpdateResponse &msg);
-  std::string WrapMessage(const protobuf::DownlistRequest &msg);
-  std::string WrapMessage(const protobuf::DownlistResponse &msg);
+  std::string WrapMessage(const protobuf::DownlistNotification &msg);
 
   PingReqSigPtr on_ping_request() { return on_ping_request_; }
   PingRspSigPtr on_ping_response() { return on_ping_response_; }
@@ -145,8 +140,9 @@ class MessageHandler : public transport::MessageHandler {
   DeleteRspSigPtr on_delete_response() { return on_delete_response_; }
   UpdateReqSigPtr on_update_request() { return on_update_request_; }
   UpdateRspSigPtr on_update_response() { return on_update_response_; }
-  DownlistReqSigPtr on_downlist_request() { return on_downlist_request_; }
-  DownlistRspSigPtr on_downlist_response() { return on_downlist_response_; }
+  DownlistNtfSigPtr on_downlist_notification() {
+    return on_downlist_notification_;
+  }
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
@@ -168,8 +164,7 @@ class MessageHandler : public transport::MessageHandler {
   DeleteRspSigPtr on_delete_response_;
   UpdateReqSigPtr on_update_request_;
   UpdateRspSigPtr on_update_response_;
-  DownlistReqSigPtr on_downlist_request_;
-  DownlistRspSigPtr on_downlist_response_;
+  DownlistNtfSigPtr on_downlist_notification_;
 };
 
 }  // namespace kademlia
