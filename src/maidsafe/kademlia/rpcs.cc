@@ -183,18 +183,15 @@ void Rpcs<TransportType>::Update(const NodeId &key,
 
 template <class TransportType>
 void Rpcs<TransportType>::Downlist(const std::vector<NodeId> &node_ids,
-                                   const transport::Endpoint &endpoint,
-                                   VoidFunctorOneBool callback) {
+                                   const transport::Endpoint &endpoint) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<TransportType> transport(new TransportType);
-  protobuf::DownlistRequest req;
+  protobuf::DownlistNotification req;
   for (size_t i = 0; i < node_ids.size(); ++i)
     req.add_node_ids(node_ids[i].String());
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_downlist_response()->connect(boost::bind(
-      &Rpcs::DownlistCallback, this, _1, callback, message_handler, transport));
-  transport->Send(msg, endpoint, transport::kDefaultInitialTimeout);
+  transport->Send(msg, endpoint, transport::kImmediateTimeout);
 }
 
 template <class TransportType>
@@ -276,15 +273,6 @@ void Rpcs<TransportType>::DeleteCallback(
 template <class TransportType>
 void Rpcs<TransportType>::UpdateCallback(
     const protobuf::UpdateResponse &response,
-    VoidFunctorOneBool callback,
-    boost::shared_ptr<MessageHandler>,
-    boost::shared_ptr<TransportType>) {
-  callback(response.result());
-}
-
-template <class TransportType>
-void Rpcs<TransportType>::DownlistCallback(
-    const protobuf::DownlistResponse &response,
     VoidFunctorOneBool callback,
     boost::shared_ptr<MessageHandler>,
     boost::shared_ptr<TransportType>) {
