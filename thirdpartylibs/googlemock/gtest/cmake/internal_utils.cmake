@@ -62,14 +62,14 @@ macro(config_compiler_and_linker)
     set(cxx_no_exception_flags "-D_HAS_EXCEPTIONS=0")
     set(cxx_no_rtti_flags "-GR-")
   elseif (CMAKE_COMPILER_IS_GNUCXX)
-    set(cxx_base_flags "-Wall -Wshadow")
+    set(cxx_base_flags "-W") #FIXME (dirvine ugly hack) -Wall -Wshadow")
     set(cxx_exception_flags "-fexceptions")
     set(cxx_no_exception_flags "-fno-exceptions")
     # Until version 4.3.2, GCC doesn't define a macro to indicate
     # whether RTTI is enabled.  Therefore we define GTEST_HAS_RTTI
     # explicitly.
     set(cxx_no_rtti_flags "-fno-rtti -DGTEST_HAS_RTTI=0")
-    set(cxx_strict_flags "-Wextra")
+    set(cxx_strict_flags "") #FIXME (dirvine)- ugly hack part 2 (from above)"-Wextra")
   elseif (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
     set(cxx_exception_flags "-features=except")
     # Sun Pro doesn't provide macros to indicate whether exceptions and
