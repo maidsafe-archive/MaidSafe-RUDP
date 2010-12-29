@@ -116,6 +116,7 @@ struct Endpoint {
 
 struct Info {
   Info() : endpoint(), rtt(0) {}
+  virtual ~Info() {}
   Endpoint endpoint;
   boost::uint32_t rtt;
 };
