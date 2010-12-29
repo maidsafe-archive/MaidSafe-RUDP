@@ -129,7 +129,7 @@ class TransportAPITest: public testing::Test {
       sending_message_handlers_.push_back(msg_h);
       ++sending_transports_itr;
     }
-    std::vector< TransportGroup<T> >::iterator listening_transports_itr(
+    typename std::vector<TransportGroup<T> >::iterator listening_transports_itr(
         listening_transports_.begin());
     while(listening_transports_itr != listening_transports_.end()) {
       MessageHandlerPtr msg_h(new MessageHandler("Receiver"));
@@ -146,7 +146,7 @@ class TransportAPITest: public testing::Test {
     }
 
     /* Example (sender1, receiver1, receiver2)
-    In this block of code sender(listening_port = 0) can only send msg to receiver with listening_port. 
+    In this block of code sender(listening_port = 0) can only send msg to receiver with listening_port.
     then sender and receiver will check their corresponding request_received ,response_received, error_ queues.
               req
     Sender1 -----------------> Receiver1      compare queues  (request_received ,response_received, error_) and messages
@@ -162,7 +162,7 @@ class TransportAPITest: public testing::Test {
     Receiver1 ----------------> Receiver2   compare queues  (request_received ,response_received, error_) and messages
                   response
               <---------------
-                 
+
                    req
     Receiver2 -----------------> Receiver1  compare queues  (request_received ,response_received, error_) and messages
                    response
@@ -220,7 +220,7 @@ TYPED_TEST_CASE_P(TransportAPITest);
 // NOTE: register new test patterns using macro at bottom
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  TransportPtr transport(new TypeParam(asio_service_));
+  TransportPtr transport(new TypeParam(this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidAddress, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77)));
@@ -261,8 +261,8 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
-  SetupTransport(false, 0);  // sender
-  SetupTransport(true, 0);  // receiver
+  this->SetupTransport(false, 0);  // sender
+  this->SetupTransport(true, 0);  // receiver
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
@@ -280,7 +280,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyNodesSingleMessage) {
   for (int i = 0; i < 20; ++i)
-    SetupTransport(true, 0);  // sender & receiver
+    this->SetupTransport(true, 0);  // sender & receiver
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
@@ -294,7 +294,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
 //  boost::uint8_t num_messages(
 //      static_cast<boost::uint8_t>(boost::RandomUint32() % 100 + 1));
   for (boost::uint8_t i = 0; i < num_transports; ++i)
-    SetupTransport(true, 0);
+    this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(num_messages));
 }
 
