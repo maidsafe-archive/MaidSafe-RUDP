@@ -586,6 +586,11 @@ const char* CUDTException::getErrorMessage()
 
         break;
 
+     case 7:
+        m_strMsg = "The peer side has signalled an error";
+
+        break;
+
       default:
         m_strMsg = "Unknown error";
    }
@@ -660,6 +665,7 @@ const int CUDTException::EINVPOLLID = 5013;
 const int CUDTException::EASYNCFAIL = 6000;
 const int CUDTException::EASYNCSND = 6001;
 const int CUDTException::EASYNCRCV = 6002;
+const int CUDTException::EPEERERR = 7000;
 const int CUDTException::EUNKNOWN = -1;
 
 
