@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 10/12/2010
+   Yunhong Gu, last updated 12/28/2010
 *****************************************************************************/
 
 #ifdef WIN32
@@ -94,6 +94,7 @@ CUDTSocket::~CUDTSocket()
    }
 
    delete m_pUDT;
+   m_pUDT = NULL;
 
    delete m_pQueuedSockets;
    delete m_pAcceptSockets;
@@ -777,8 +778,8 @@ int CUDTUnited::close(const UDTSOCKET u)
       // broadcast all "accept" waiting
       #ifndef WIN32
          pthread_mutex_lock(&(s->m_AcceptLock));
-         pthread_mutex_unlock(&(s->m_AcceptLock));
          pthread_cond_broadcast(&(s->m_AcceptCond));
+         pthread_mutex_unlock(&(s->m_AcceptLock));
       #else
          SetEvent(s->m_AcceptCond);
       #endif
@@ -786,22 +787,27 @@ int CUDTUnited::close(const UDTSOCKET u)
       return 0;
    }
 
+   s->m_pUDT->close();
+
+   // synchronize with garbage collection.
+   CGuard cg(m_ControlLock);
+
+   // since "s" is located before m_ControlLock, locate it again in case it became invalid
+   map<UDTSOCKET, CUDTSocket*>::iterator i = m_Sockets.find(u);
+   if ((i == m_Sockets.end()) || (i->second->m_Status == CUDTSocket::CLOSED))
+      return 0;
+   s = i->second;
+
+   s->m_Status = CUDTSocket::CLOSED;
+
    // a socket will not be immediated removed when it is closed
    // in order to prevent other methods from accessing invalid address
    // a timer is started and the socket will be removed after approximately 1 second
    s->m_TimeStamp = CTimer::getTime();
 
-   s->m_pUDT->close();
-
-   // synchronize with garbage collection.
-   CGuard::enterCS(m_ControlLock);
-
-   s->m_Status = CUDTSocket::CLOSED;
-
    m_Sockets.erase(s->m_SocketID);
-   m_ClosedSockets[s->m_SocketID] = s;
+   m_ClosedSockets.insert(pair<UDTSOCKET, CUDTSocket*>(s->m_SocketID, s));
 
-   CGuard::leaveCS(m_ControlLock);
 
    CTimer::triggerEvent();
 
@@ -1092,13 +1098,13 @@ CUDTSocket* CUDTUnited::locate(const UDTSOCKET u)
 
    map<UDTSOCKET, CUDTSocket*>::iterator i = m_Sockets.find(u);
 
-   if ( (i == m_Sockets.end()) || (i->second->m_Status == CUDTSocket::CLOSED))
+   if ((i == m_Sockets.end()) || (i->second->m_Status == CUDTSocket::CLOSED))
       return NULL;
 
    return i->second;
 }
 
-CUDTSocket* CUDTUnited::locate(const UDTSOCKET u, const sockaddr* peer, const UDTSOCKET& id, const int32_t& isn)
+CUDTSocket* CUDTUnited::locate(const UDTSOCKET /*u*/, const sockaddr* peer, const UDTSOCKET& id, const int32_t& isn)
 {
    CGuard cg(m_ControlLock);
 
@@ -1125,8 +1131,8 @@ void CUDTUnited::checkBrokenSockets()
    CGuard cg(m_ControlLock);
 
    // set of sockets To Be Closed and To Be Removed
-   set<UDTSOCKET> tbc;
-   set<UDTSOCKET> tbr;
+   vector<UDTSOCKET> tbc;
+   vector<UDTSOCKET> tbr;
 
    for (map<UDTSOCKET, CUDTSocket*>::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++ i)
    {
@@ -1148,7 +1154,7 @@ void CUDTUnited::checkBrokenSockets()
          //close broken connections and start removal timer
          i->second->m_Status = CUDTSocket::CLOSED;
          i->second->m_TimeStamp = CTimer::getTime();
-         tbc.insert(i->first);
+         tbc.push_back(i->first);
          m_ClosedSockets[i->first] = i->second;
 
          // remove from listener's queue
@@ -1171,17 +1177,15 @@ void CUDTUnited::checkBrokenSockets()
    {
       // timeout 1 second to destroy a socket AND it has been removed from RcvUList
       if ((CTimer::getTime() - j->second->m_TimeStamp > 1000000) && ((NULL == j->second->m_pUDT->m_pRNode) || !j->second->m_pUDT->m_pRNode->m_bOnList))
-         tbr.insert(j->first);
-
-      // sockets cannot be removed here because it will invalidate the map iterator
+         tbr.push_back(j->first);
    }
 
    // move closed sockets to the ClosedSockets structure
-   for (set<UDTSOCKET>::iterator k = tbc.begin(); k != tbc.end(); ++ k)
+   for (vector<UDTSOCKET>::iterator k = tbc.begin(); k != tbc.end(); ++ k)
       m_Sockets.erase(*k);
 
    // remove those timeout sockets
-   for (set<UDTSOCKET>::iterator l = tbr.begin(); l != tbr.end(); ++ l)
+   for (vector<UDTSOCKET>::iterator l = tbr.begin(); l != tbr.end(); ++ l)
       removeSocket(*l);
 }
 
@@ -1203,6 +1207,7 @@ void CUDTUnited::removeSocket(const UDTSOCKET u)
       // if it is a listener, close all un-accepted sockets in its queue and remove them later
       for (set<UDTSOCKET>::iterator q = i->second->m_pQueuedSockets->begin(); q != i->second->m_pQueuedSockets->end(); ++ q)
       {
+         m_Sockets[*q]->m_pUDT->m_bBroken = true;
          m_Sockets[*q]->m_pUDT->close();
          m_Sockets[*q]->m_TimeStamp = CTimer::getTime();
          m_Sockets[*q]->m_Status = CUDTSocket::CLOSED;
@@ -1431,6 +1436,7 @@ void CUDTUnited::updateMux(CUDTSocket* s, const CUDTSocket* ls)
    CGuard::enterCS(self->m_ControlLock);
    for (map<UDTSOCKET, CUDTSocket*>::iterator i = self->m_Sockets.begin(); i != self->m_Sockets.end(); ++ i)
    {
+      i->second->m_pUDT->m_bBroken = true;
       i->second->m_pUDT->close();
       i->second->m_Status = CUDTSocket::CLOSED;
       i->second->m_TimeStamp = CTimer::getTime();
@@ -1807,7 +1813,7 @@ int CUDT::recvmsg(UDTSOCKET u, char* buf, int len)
    }
 }
 
-int64_t CUDT::sendfile(UDTSOCKET u, fstream& ifs, const int64_t& offset, const int64_t& size, const int& block)
+int64_t CUDT::sendfile(UDTSOCKET u, fstream& ifs, int64_t& offset, const int64_t& size, const int& block)
 {
    try
    {
@@ -1831,7 +1837,7 @@ int64_t CUDT::sendfile(UDTSOCKET u, fstream& ifs, const int64_t& offset, const i
    }
 }
 
-int64_t CUDT::recvfile(UDTSOCKET u, fstream& ofs, const int64_t& offset, const int64_t& size, const int& block)
+int64_t CUDT::recvfile(UDTSOCKET u, fstream& ofs, int64_t& offset, const int64_t& size, const int& block)
 {
    try
    {
@@ -2161,12 +2167,12 @@ int recvmsg(UDTSOCKET u, char* buf, int len)
    return CUDT::recvmsg(u, buf, len);
 }
 
-int64_t sendfile(UDTSOCKET u, fstream& ifs, int64_t offset, int64_t size, int block)
+int64_t sendfile(UDTSOCKET u, fstream& ifs, int64_t& offset, int64_t size, int block)
 {
    return CUDT::sendfile(u, ifs, offset, size, block);
 }
 
-int64_t recvfile(UDTSOCKET u, fstream& ofs, int64_t offset, int64_t size, int block)
+int64_t recvfile(UDTSOCKET u, fstream& ofs, int64_t& offset, int64_t size, int block)
 {
    return CUDT::recvfile(u, ofs, offset, size, block);
 }

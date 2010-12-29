@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 07/20/2010
+   Yunhong Gu, last updated 12/14/2010
 *****************************************************************************/
 
 
@@ -116,6 +116,9 @@ written by
 //              Add. Info:    Message ID
 //              Control Info: first sequence number of the message
 //                            last seqeunce number of the message
+//      8: Error Signal from the Peer Side
+//              Add. Info:    Error code
+//              Control Info: None
 //      0x7FFF: Explained by bits 16 - 31
 //
 //   bit 16 - 31:
@@ -257,6 +260,15 @@ void CPacket::pack(const int& pkttype, void* lparam, void* rparam, const int& si
       m_PacketVector[1].iov_len = size;
 
       break;
+
+   case 8: //1000 - Error Signal from the Peer Side
+      // Error type
+      m_nHeader[1] = *(int32_t *)lparam;
+
+      // control info field should be none
+      // but "writev" does not allow this
+      m_PacketVector[1].iov_base = (char *)&__pad; //NULL;
+      m_PacketVector[1].iov_len = 4; //0;
 
    case 32767: //0x7FFF - Reserved for user defined control packets
       // for extended control packet
