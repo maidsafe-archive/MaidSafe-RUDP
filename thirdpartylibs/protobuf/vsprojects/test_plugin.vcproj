@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="8.00"
 	Name="test_plugin"
 	ProjectGUID="{CBBD34E5-02B0-40D5-B6D8-BFEA83E18B32}"
 	RootNamespace="test_plugin"

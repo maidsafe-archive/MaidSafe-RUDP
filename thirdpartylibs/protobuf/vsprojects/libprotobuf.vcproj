@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="8.00"
 	Name="libprotobuf"
 	ProjectGUID="{3E283F37-A4ED-41B7-A3E6-A2D89D131A30}"
 	Keyword="Win32Proj"
