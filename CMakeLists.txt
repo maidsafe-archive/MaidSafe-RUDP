@@ -399,8 +399,8 @@ LIST(APPEND DHT_PARTIAL_BUILD_FILES
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/nodeid.h
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.cc
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.h
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.cc
-        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/rpcs.pb.h
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/kademlia_rpc_messages.pb.cc
+        ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/kademlia_rpc_messages.pb.h
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.cc
         ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/service.h)
 
