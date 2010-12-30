@@ -41,10 +41,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
+#include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
-
+#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace kademlia {
+
+class Signature;
+class SignedValue;
 
 enum RemoteFindMethod { FIND_NODE, FIND_VALUE, BOOTSTRAP };
 
@@ -91,7 +95,7 @@ struct IterativeLookUpData {
   std::list<struct DownListData> downlist;
   bool downlist_sent, in_final_iteration, is_callbacked, wait_for_key;
   VoidFunctorOneString callback;
-  ContactInfo alternative_value_holder;
+  Contact alternative_value_holder;
   std::list<kademlia::SignedValue> sig_values_found;
 };
 
@@ -102,7 +106,7 @@ struct IterativeStoreValueData {
                           const bool &publish_val,
                           const boost::int32_t &timetolive,
                           const SignedValue &svalue,
-                          const SignedRequest &sreq)
+                          const Signature &sreq)
       : closest_nodes(close_nodes), key(key), value(value), save_nodes(0),
         contacted_nodes(0), index(-1), callback(callback), is_callbacked(false),
         data_type(0), publish(publish_val), ttl(timetolive), sig_value(svalue),
@@ -112,9 +116,18 @@ struct IterativeStoreValueData {
                           VoidFunctorOneString callback,
                           const bool &publish_val,
                           const boost::uint32_t &timetolive)
-      : closest_nodes(close_nodes), key(key), value(value), save_nodes(0),
-        contacted_nodes(0), index(-1), callback(callback), is_callbacked(false),
-        data_type(0), publish(publish_val), ttl(timetolive), sig_value(),
+      : closest_nodes(close_nodes),
+        key(key),
+        value(value),
+        save_nodes(0),
+        contacted_nodes(0),
+        index(-1),
+        callback(callback),
+        is_callbacked(false),
+        data_type(0),
+        publish(publish_val),
+        ttl(timetolive),
+        sig_value(),
         sig_request() {}
   std::vector<Contact> closest_nodes;
   NodeId key;
@@ -126,15 +139,21 @@ struct IterativeStoreValueData {
   bool publish;
   boost::int32_t ttl;
   SignedValue sig_value;
-  SignedRequest sig_request;
+  Signature sig_request;
 };
 
 struct IterativeDelValueData {
   IterativeDelValueData(const std::vector<Contact> &close_nodes,
       const NodeId &key, const SignedValue &svalue,
-      const SignedRequest &sreq, VoidFunctorOneString callback)
-      : closest_nodes(close_nodes), key(key), del_nodes(0), contacted_nodes(0),
-        index(-1), callback(callback), is_callbacked(false), value(svalue),
+      const Signature &sreq, VoidFunctorOneString callback)
+      : closest_nodes(close_nodes),
+        key(key),
+        del_nodes(0),
+        contacted_nodes(0),
+        index(-1),
+        callback(callback),
+        is_callbacked(false),
+        value(svalue),
         sig_request(sreq) {}
   std::vector<Contact> closest_nodes;
   NodeId key;
@@ -142,21 +161,28 @@ struct IterativeDelValueData {
   VoidFunctorOneString callback;
   bool is_callbacked;
   SignedValue value;
-  SignedRequest sig_request;
+  Signature sig_request;
 };
 
 struct UpdateValueData {
   UpdateValueData(const NodeId &key, const SignedValue &old_value,
-                  const SignedValue &new_value, const SignedRequest &sreq,
+                  const SignedValue &new_value, const Signature &sreq,
                   VoidFunctorOneString callback, boost::uint8_t foundnodes)
-      : uvd_key(key), uvd_old_value(old_value), uvd_new_value(new_value),
-        uvd_request_signature(sreq), uvd_callback(callback), uvd_calledback(0),
-        uvd_succeeded(0), retries(0), found_nodes(foundnodes), ttl(0),
+      : uvd_key(key),
+        uvd_old_value(old_value),
+        uvd_new_value(new_value),
+        uvd_request_signature(sreq),
+        uvd_callback(callback),
+        uvd_calledback(0),
+        uvd_succeeded(0),
+        retries(0),
+        found_nodes(foundnodes),
+        ttl(0),
         mutex() {}
   NodeId uvd_key;
   SignedValue uvd_old_value;
   SignedValue uvd_new_value;
-  SignedRequest uvd_request_signature;
+  Signature uvd_request_signature;
   VoidFunctorOneString uvd_callback;
   boost::uint8_t uvd_calledback;
   boost::uint8_t uvd_succeeded;
@@ -169,116 +195,122 @@ struct UpdateValueData {
 struct FindCallbackArgs {
  public:
   explicit FindCallbackArgs(boost::shared_ptr<IterativeLookUpData> data)
-      : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+      : remote_ctc(), data(data), retry(false) {}
   FindCallbackArgs(const FindCallbackArgs &findcbargs)
-      : remote_ctc(findcbargs.remote_ctc), data(findcbargs.data),
-        retry(findcbargs.retry), rpc_ctrler(findcbargs.rpc_ctrler) {}
+      : remote_ctc(findcbargs.remote_ctc),
+        data(findcbargs.data),
+        retry(findcbargs.retry) {}
   FindCallbackArgs &operator=(const FindCallbackArgs &findcbargs) {
     if (this != &findcbargs) {
       remote_ctc = findcbargs.remote_ctc;
       data = findcbargs.data;
       retry = findcbargs.retry;
-      delete rpc_ctrler;
-      rpc_ctrler = findcbargs.rpc_ctrler;
+//      delete rpc_ctrler;
+//      rpc_ctrler = findcbargs.rpc_ctrler;
     }
     return *this;
   }
   Contact remote_ctc;
   boost::shared_ptr<IterativeLookUpData> data;
   bool retry;
-  rpcprotocol::Controller *rpc_ctrler;
+//  rpcprotocol::Controller *rpc_ctrler;
 };
 
 struct StoreCallbackArgs {
   explicit StoreCallbackArgs(boost::shared_ptr<IterativeStoreValueData> data)
-      : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+      : remote_ctc(), data(data), retry(false) {}
   StoreCallbackArgs(const StoreCallbackArgs &storecbargs)
-      : remote_ctc(storecbargs.remote_ctc), data(storecbargs.data),
-        retry(storecbargs.retry), rpc_ctrler(storecbargs.rpc_ctrler) {}
+      : remote_ctc(storecbargs.remote_ctc),
+        data(storecbargs.data),
+        retry(storecbargs.retry) {}
   StoreCallbackArgs &operator=(const StoreCallbackArgs &storecbargs) {
     if (this != &storecbargs) {
       remote_ctc = storecbargs.remote_ctc;
       data = storecbargs.data;
       retry = storecbargs.retry;
-      delete rpc_ctrler;
-      rpc_ctrler = storecbargs.rpc_ctrler;
+//      delete rpc_ctrler;
+//      rpc_ctrler = storecbargs.rpc_ctrler;
     }
     return *this;
   }
   Contact remote_ctc;
   boost::shared_ptr<IterativeStoreValueData> data;
   bool retry;
-  rpcprotocol::Controller *rpc_ctrler;
+//  rpcprotocol::Controller *rpc_ctrler;
 };
 
 struct PingCallbackArgs {
   explicit PingCallbackArgs(VoidFunctorOneString callback)
-      : remote_ctc(), callback(callback), retry(false), rpc_ctrler(NULL) {}
+      : remote_ctc(), callback(callback), retry(false) {}
   PingCallbackArgs(const PingCallbackArgs &pingcbargs)
-      : remote_ctc(pingcbargs.remote_ctc), callback(pingcbargs.callback),
-        retry(pingcbargs.retry), rpc_ctrler(pingcbargs.rpc_ctrler) {}
+      : remote_ctc(pingcbargs.remote_ctc),
+        callback(pingcbargs.callback),
+        retry(pingcbargs.retry) {}
   PingCallbackArgs &operator=(const PingCallbackArgs &pingcbargs) {
     if (this != &pingcbargs) {
       remote_ctc = pingcbargs.remote_ctc;
       callback = pingcbargs.callback;
       retry = pingcbargs.retry;
-      delete rpc_ctrler;
-      rpc_ctrler = pingcbargs.rpc_ctrler;
+//      delete rpc_ctrler;
+//      rpc_ctrler = pingcbargs.rpc_ctrler;
     }
     return *this;
   }
   Contact remote_ctc;
   VoidFunctorOneString callback;
   bool retry;
-  rpcprotocol::Controller *rpc_ctrler;
+//  rpcprotocol::Controller *rpc_ctrler;
 };
 
 struct DeleteCallbackArgs {
   explicit DeleteCallbackArgs(boost::shared_ptr<IterativeDelValueData> data)
-      : remote_ctc(), data(data), retry(false), rpc_ctrler(NULL) {}
+      : remote_ctc(), data(data), retry(false) {}
   DeleteCallbackArgs(const DeleteCallbackArgs &delcbargs)
-      : remote_ctc(delcbargs.remote_ctc), data(delcbargs.data),
-        retry(delcbargs.retry), rpc_ctrler(delcbargs.rpc_ctrler) {}
+      : remote_ctc(delcbargs.remote_ctc),
+        data(delcbargs.data),
+        retry(delcbargs.retry) {}
   DeleteCallbackArgs &operator=(const DeleteCallbackArgs &delcbargs) {
     if (this != &delcbargs) {
       remote_ctc = delcbargs.remote_ctc;
       data = delcbargs.data;
       retry = delcbargs.retry;
-      delete rpc_ctrler;
-      rpc_ctrler = delcbargs.rpc_ctrler;
+//      delete rpc_ctrler;
+//      rpc_ctrler = delcbargs.rpc_ctrler;
     }
     return *this;
   }
   Contact remote_ctc;
   boost::shared_ptr<IterativeDelValueData> data;
   bool retry;
-  rpcprotocol::Controller *rpc_ctrler;
+//  rpcprotocol::Controller *rpc_ctrler;
 };
 
 struct UpdateCallbackArgs {
   UpdateCallbackArgs()
-      : uvd(), retries(0), response(NULL), controller(NULL), ct(), contact() {}
+      : uvd(), retries(0), ct(), contact() {}
   UpdateCallbackArgs(const UpdateCallbackArgs &updatecbargs)
-      : uvd(updatecbargs.uvd), retries(updatecbargs.retries),
-        response(updatecbargs.response), controller(updatecbargs.controller),
-        ct(updatecbargs.ct), contact(updatecbargs.contact) {}
+      : uvd(updatecbargs.uvd),
+        retries(updatecbargs.retries),
+//        response(updatecbargs.response),
+        ct(updatecbargs.ct),
+        contact(updatecbargs.contact) {}
   UpdateCallbackArgs &operator=(const UpdateCallbackArgs &updatecbargs) {
     if (this != &updatecbargs) {
       uvd = updatecbargs.uvd;
       retries = updatecbargs.retries;
       ct = updatecbargs.ct;
       contact = updatecbargs.contact;
-      delete response;
-      delete controller;
-      response = updatecbargs.response;
-      controller = updatecbargs.controller;
+//      delete response;
+//      delete controller;
+//      response = updatecbargs.response;
+//      controller = updatecbargs.controller;
     }
     return *this;
   }
   boost::shared_ptr<UpdateValueData> uvd;
   boost::uint8_t retries;
-  UpdateResponse *response;
-  rpcprotocol::Controller *controller;
+//  UpdateResponse *response;
+//  rpcprotocol::Controller *controller;
   ConnectionType ct;
   Contact contact;
 };
@@ -382,11 +414,11 @@ struct FindNodesParams {
   std::vector<Contact> start_nodes;
   std::vector<Contact> exclude_nodes;
   bool use_routingtable;
-  VoidFunctorOneString callback;
+  VoidFunctorContactList callback;
 };
 
 struct FindNodesArgs {
-  FindNodesArgs(const NodeId &fna_key, VoidFunctorOneString fna_callback)
+  FindNodesArgs(const NodeId &fna_key, VoidFunctorContactList fna_callback)
       : key(fna_key),
         kth_closest(),
         nc(),
@@ -398,7 +430,7 @@ struct FindNodesArgs {
   NodeId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
-  VoidFunctorOneString callback;
+  VoidFunctorContactList callback;
   bool calledback;
   int round, nodes_pending;
 };
@@ -407,33 +439,12 @@ struct FindNodesRpc {
   FindNodesRpc(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
       : contact(c),
         rpc_fna(fna),
-        response(new FindResponse),
-        ctler(new rpcprotocol::Controller),
         round(0) {
     boost::mutex::scoped_lock loch_lavittese(fna->mutex);
     round = fna->round;
   }
-  FindNodesRpc(const FindNodesRpc &fnrpc)
-      : contact(fnrpc.contact),
-        rpc_fna(fnrpc.rpc_fna),
-        response(fnrpc.response),
-        ctler(fnrpc.ctler),
-        round(fnrpc.round) {}
-  FindNodesRpc &operator=(const FindNodesRpc &fnrpc) {
-    if (this != &fnrpc) {
-      contact = fnrpc.contact;
-      rpc_fna = fnrpc.rpc_fna;
-      delete response;
-      delete ctler;
-      response = fnrpc.response;
-      ctler = fnrpc.ctler;
-    }
-    return *this;
-  }
   Contact contact;
   boost::shared_ptr<FindNodesArgs> rpc_fna;
-  FindResponse *response;
-  rpcprotocol::Controller *ctler;
   int round;
 };
 

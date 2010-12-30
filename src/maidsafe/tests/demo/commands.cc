@@ -44,7 +44,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 
 
 namespace kaddemo {
