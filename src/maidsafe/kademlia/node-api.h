@@ -53,17 +53,21 @@ class SignatureValidator;
 
 namespace transport {
 class Transport;
+class UdtTransport;
 }  // namespace transport
 
 namespace kademlia {
 
 class Contact;
 class ContactInfo;
-class rpcs;
 class NodeImpl;
-class SignedValue;
-class SignedRequest;
+class Rpcs;
 struct NodeConstructionParameters;
+
+namespace protobuf {
+class SignedValue;
+class Signature;
+}  // namespace protobuf
 
 /**
 * @class Node
@@ -146,14 +150,14 @@ class Node {
   * network is formed by nodes that have private and public key.
   * @param key a kademlia::NodeId object that is the key to store the value
   * @param signed_value signed value to be stored
-  * @param signed_request request to store the value, it is validated before the value is
-  * stored
+  * @param signed_request request to store the value,
+           it is validated before the value is stored
   * @param ttl time to live of the value in seconds, if ttl = -1, then it has
   * infinite time to live
   * @param callback callback function where result of the operation is notified
   */
-  void StoreValue(const NodeId &key, const SignedValue &signed_value,
-                  const SignedRequest &signed_request,
+  void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
+                  const protobuf::Signature &signed_request,
                   const boost::int32_t &ttl, VoidFunctorOneString callback);
   /**
   * Store a value (a simple string) in the network.  Used if the
@@ -176,8 +180,8 @@ class Node {
   * value is deleted
   * @param callback callback function where result of the operation is notified
   */
-  void DeleteValue(const NodeId &key, const SignedValue &signed_value,
-                   const SignedRequest &signed_request,
+  void DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
+                   const protobuf::Signature &signed_request,
                    VoidFunctorOneString callback);
   /**
   * Update a Value of the network, only in networks with nodes that have public
@@ -191,9 +195,9 @@ class Node {
   * @param callback callback function where result of the operation is notified
   */
   void UpdateValue(const NodeId &key,
-                   const SignedValue &old_value,
-                   const SignedValue &new_value,
-                   const SignedRequest &signed_request,
+                   const protobuf::SignedValue &old_value,
+                   const protobuf::SignedValue &new_value,
+                   const protobuf::Signature &signed_request,
                    boost::uint32_t ttl,
                    VoidFunctorOneString callback);
   /**
@@ -340,7 +344,7 @@ class Node {
   */
   void UpdatePDRTContactToRemote(const NodeId &node_id,
                                  const IP &ip);
-  ContactInfo contact_info() const;
+  Contact contact_info() const;
   NodeId node_id() const;
   IP ip() const;
   Port port() const;
@@ -394,12 +398,6 @@ class Node {
   void set_alternative_store(base::AlternativeStore *alternative_store);
   base::AlternativeStore *alternative_store();
   void set_signature_validator(base::SignatureValidator *validator);
-  /**
-  * Returns the type of nat which the node is behind.  If used when the node
-  * is not joined it will return kSymmetric
-  * @return type of nat
-  */
-  NatType nat_type();
 
  private:
   boost::shared_ptr<NodeImpl> pimpl_;
