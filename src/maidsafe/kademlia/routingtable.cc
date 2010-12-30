@@ -27,7 +27,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/routingtable.h"
 #include <boost/cstdint.hpp>
+
 #include "maidsafe/base/log.h"
+
 #include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
@@ -131,14 +133,13 @@ void RoutingTable::SplitKbucket(const boost::uint16_t &index) {
   std::vector<Contact> contacts, ex_contacts;
   k_buckets_[index]->GetContacts(K_, ex_contacts, &contacts);
   int clb(0), crb(0);
-  for (int i = contacts.size()-1; i > -1; --i) {
-    Contact contact = contacts[i];
+  for (size_t i = contacts.size(); i > 0; --i) {
     KBucketExitCode exitcode;
-    if (kb_left->KeyInRange(contact.node_id())) {
-      exitcode = kb_left->AddContact(contact);
+    if (kb_left->KeyInRange(contacts.at(i - 1).node_id())) {
+      exitcode = kb_left->AddContact(contacts.at(i - 1));
       ++clb;
     } else {
-      exitcode = kb_right->AddContact(contact);
+      exitcode = kb_right->AddContact(contacts.at(i - 1));
       ++crb;
     }
   }

@@ -93,7 +93,7 @@ bool UpnpIgdClientImpl::AddPortMapping(const PortMapping &mapping) {
 
   if (has_services_) {
     boost::asio::ip::address ip_addr;
-    base::GetLocalAddress(&ip_addr);
+//    base::GetLocalAddress(&ip_addr);
 
     int res = UPNP_AddPortMapping(upnp_urls_.controlURL,
                                   igd_data_.servicetype,

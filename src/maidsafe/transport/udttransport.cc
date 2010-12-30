@@ -107,8 +107,10 @@ TransportCondition UdtTransport::DoStartListening(
   // Get a new socket descriptor
   SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;
-  TransportCondition result = udtutils::GetNewSocket(endpoint, true,
-                              &listening_socket_id, &address_info);
+  TransportCondition result = udtutils::GetNewSocket(endpoint,
+                                                     true,
+                                                     &listening_socket_id,
+                                                     &address_info);
   if (result != kSuccess)
     return result;
 
