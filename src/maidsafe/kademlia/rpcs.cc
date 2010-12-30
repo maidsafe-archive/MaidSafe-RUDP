@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/messagehandler.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
+#include "maidsafe/kademlia/kademlia_rpc_messages.pb.h"
 #include "maidsafe/transport/transport.h"
 
 namespace kademlia {

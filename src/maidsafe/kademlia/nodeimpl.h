@@ -49,7 +49,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeimplstructs.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/config.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/upnp/upnpclient.h"
 
