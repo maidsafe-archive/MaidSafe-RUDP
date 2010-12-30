@@ -46,8 +46,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/routingtable.h"
-#include "maidsafe/protobuf/contact_info.pb.h"
-#include "maidsafe/protobuf/signed_kadvalue.pb.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/utils.h"
 
