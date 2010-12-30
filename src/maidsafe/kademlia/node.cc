@@ -30,10 +30,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kademlia {
 
-Node::Node(boost::shared_ptr<rpcprotocol::ChannelManager> channel_manager,
-             boost::shared_ptr<transport::Transport> transport,
-             const NodeConstructionParameters &node_parameters)
-    : pimpl_(new NodeImpl(channel_manager, transport, node_parameters)) {}
+Node::Node(boost::shared_ptr<transport::Transport> transport,
+           const NodeConstructionParameters &node_parameters)
+    : pimpl_(new NodeImpl(transport, node_parameters)) {}
 
 Node::~Node() {}
 
@@ -64,10 +63,11 @@ void Node::Leave() {
   pimpl_->Leave();
 }
 
-void Node::StoreValue(const NodeId &key, const SignedValue &signed_value,
-                       const SignedRequest &signed_request,
-                       const boost::int32_t &ttl,
-                       VoidFunctorOneString callback) {
+void Node::StoreValue(const NodeId &key,
+                      const protobuf::SignedValue &signed_value,
+                      const protobuf::Signature &signed_request,
+                      const boost::int32_t &ttl,
+                      VoidFunctorOneString callback) {
   pimpl_->StoreValue(key, signed_value, signed_request, ttl, callback);
 }
 
@@ -157,7 +157,7 @@ void Node::UpdatePDRTContactToRemote(const NodeId &node_id,
   pimpl_->UpdatePDRTContactToRemote(node_id, ip);
 }
 
-ContactInfo Node::contact_info() const {
+Contact Node::contact_info() const {
   return pimpl_->contact_info();
 }
 
@@ -193,7 +193,7 @@ bool Node::is_joined() const {
   return pimpl_->is_joined();
 }
 
-boost::shared_ptr<rpcs> Node::rpcs() {
+boost::shared_ptr<Rpcs> Node::rpcs() {
   return pimpl_->rpcs();
 }
 
@@ -228,21 +228,17 @@ void Node::set_signature_validator(base::SignatureValidator *validator) {
   pimpl_->set_signature_validator(validator);
 }
 
-void Node::UpdateValue(const NodeId &key, const SignedValue &old_value,
-                        const SignedValue &new_value,
-                        const SignedRequest &signed_request,
+void Node::UpdateValue(const NodeId &key, const protobuf::SignedValue &old_value,
+                        const protobuf::SignedValue &new_value,
+                        const protobuf::Signature &signed_request,
                         boost::uint32_t ttl, VoidFunctorOneString callback) {
   pimpl_->UpdateValue(key, old_value, new_value, signed_request, ttl, callback);
 }
 
-void Node::DeleteValue(const NodeId &key, const SignedValue &signed_value,
-                        const SignedRequest &signed_request,
+void Node::DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
+                        const protobuf::Signature &signed_request,
                         VoidFunctorOneString callback) {
   pimpl_->DeleteValue(key, signed_value, signed_request, callback);
-}
-
-NatType Node::nat_type() {
-  return pimpl_->nat_type();
 }
 
 }  // namespace kademlia

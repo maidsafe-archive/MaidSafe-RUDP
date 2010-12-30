@@ -45,7 +45,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/routingtable.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"

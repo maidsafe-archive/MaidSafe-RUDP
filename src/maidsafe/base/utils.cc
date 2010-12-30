@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits>
 #include <string>
 #include "maidsafe/base/log.h"
-#include "maidsafe/base/network_interface.h"
+#include "maidsafe/transport/network_interface.h"
 
 namespace base {
 
