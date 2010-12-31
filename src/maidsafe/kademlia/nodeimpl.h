@@ -49,7 +49,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeimplstructs.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/config.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/upnp/upnpclient.h"
 
@@ -92,17 +91,21 @@ class NodeImpl {
  public:
   NodeImpl(boost::shared_ptr<transport::Transport> transport,
         const NodeConstructionParameters &node_parameters);
-  ~NodeImpl();
+  virtual ~NodeImpl();
 
   void Join(const NodeId &node_id, const std::string &kad_config_file,
             VoidFunctorOneString callback) {}
   void Join(const std::string &kad_config_file, VoidFunctorOneString callback) {}
-  void JoinFirstNode(const NodeId &node_id, const std::string &kad_config_file,
-                     const IP &ip, const Port &port,
+  void JoinFirstNode(const NodeId &node_id,
+                     const std::string &kad_config_file,
+                     const IP &ip,
+                     const Port &port,
                      VoidFunctorOneString callback) {}
-  void JoinFirstNode(const std::string &kad_config_file, const IP &ip,
-                     const Port &port, VoidFunctorOneString callback) {}
-  void Leave() {}
+  void JoinFirstNode(const std::string &kad_config_file,
+                     const IP &ip,
+                     const Port &port,
+                     VoidFunctorOneString callback);
+  void Leave();
   void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
                   const protobuf::Signature &signed_request,
                   const boost::int32_t &ttl, VoidFunctorOneString callback) {}
@@ -128,7 +131,7 @@ class NodeImpl {
   void Ping(const NodeId &node_id, VoidFunctorOneString callback) {}
   void Ping(const Contact &remote, VoidFunctorOneString callback) {}
 
-  int AddContact(Contact new_contact, const float &rtt, const bool &only_db) {}
+  int AddContact(Contact new_contact, const float &rtt, const bool &only_db);
   void RemoveContact(const NodeId &node_id) {}
   bool GetContact(const NodeId &id, Contact *contact) {}
   bool FindValueLocal(const NodeId &key, std::vector<std::string> *values) {}
@@ -206,8 +209,7 @@ class NodeImpl {
   virtual void IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
                                bool top_nodes_done,
                                bool calledback,
-                               std::list<Contact> *contacts,
-                               int nodes_pending);
+                               std::list<Contact> *contacts);
   void IterativeSearchResponse(bool, const std::vector<Contact>&,
                                boost::shared_ptr<FindNodesRpc> fnrpc);
 
@@ -217,8 +219,6 @@ class NodeImpl {
                pendingcts_mutex_;
   boost::shared_ptr<base::CallLaterTimer> ptimer_;
   boost::shared_ptr<transport::Transport> transport_;
-//  boost::shared_ptr<rpcprotocol::ChannelManager> pchannel_manager_;
-//  boost::shared_ptr<rpcprotocol::Channel> pservice_channel_;
   boost::shared_ptr<DataStore> pdata_store_;
   boost::shared_ptr<Service> premote_service_;
   boost::shared_ptr<RoutingTable> prouting_table_;

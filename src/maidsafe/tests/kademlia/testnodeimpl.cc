@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/transport/udttransport.h"
+#include "maidsafe/transport/utils.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
 namespace kademlia {
@@ -50,20 +51,11 @@ namespace test_nodeimpl {
 static const boost::uint16_t K = 16;
 
 void GenericCallback(const std::string&, bool *done) { *done = true; }
-void IterativeSearchCallback(const std::string &result, bool *done,
-                             const std::list<Contact> &cs) {
-//  cs->clear();
-//  kademlia::protobuf::FindNodesResponse fr;
-//  if (fr.ParseFromString(result) && fr.result()) {
-//    for (int n = 0; n < fr.closest_nodes_size(); ++n) {
-//      Contact c;
-//      if (c.ParseFromString(fr.closest_nodes(n)))
-//        cs->push_back(c);
-//    }
-//  } else {
-//    DLOG(INFO) << "Protobufs! Figures..." << std::endl;
-//  }
-//  *done = true;
+void IterativeSearchCallback(const std::list<Contact> &cs, bool *done,
+                             std::list<Contact> *contacts) {
+  contacts->clear();
+  *contacts = cs;
+  *done = true;
 }
 
 void CreateParameters(NodeConstructionParameters *kcp) {
@@ -98,9 +90,10 @@ class TestNodeImpl : public testing::Test {
   static void SetUpTestCase() {
     test_dir_ = std::string("temp/TestNodeImpl") +
                 boost::lexical_cast<std::string>(base::RandomUint32());
-
+    asio_service_.reset(new boost::asio::io_service);
     udt_.reset(new transport::UdtTransport(asio_service_));
-    transport::Endpoint ep = {"", 0};
+    std::vector<IP> ips = transport::GetLocalAddresses();
+    transport::Endpoint ep = {ips.at(0), 50000};
     EXPECT_EQ(transport::kSuccess, udt_->StartListening(ep));
 
     crypto::RsaKeyPair rkp;
@@ -115,11 +108,9 @@ class TestNodeImpl : public testing::Test {
     kcp.refresh_time = kRefreshTime;
     node_.reset(new NodeImpl(udt_, kcp));
 
-//    boost::asio::ip::address local_ip;
-//    ASSERT_TRUE(base::GetLocalAddress(&local_ip));
     node_->JoinFirstNode(test_dir_ + std::string(".kadconfig"),
                          ep.ip, ep.port,
-                         boost::bind(&kademlia::GeneralKadCallback::CallbackFunc,
+                         boost::bind(&GeneralKadCallback::CallbackFunc,
                                      &cb_, _1));
     wait_result(&cb_);
     ASSERT_TRUE(cb_.result());
@@ -296,14 +287,17 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
   ASSERT_FALSE(svc.result());
   node_->is_joined_ = true;
 }
+*/
 
 */
 TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
+  std::list<Contact> lcontacts;
   boost::shared_ptr<FindNodesArgs> fna(
       new FindNodesArgs(NodeId(NodeId::kRandomId),
-                        boost::bind(&IterativeSearchCallback, "", &done, _1)));
+                        boost::bind(&IterativeSearchCallback, _1, &done,
+                                    &lcontacts)));
   ASSERT_TRUE(fna->nc.empty());
   node_->AddContactsToContainer(contacts, fna);
   ASSERT_TRUE(fna->nc.empty());
@@ -795,6 +789,271 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //
 //  node_->rpcs_ = old_rpcs;
 //}
+
+class MockRpcs : public Rpcs {
+ public:
+  MockRpcs(boost::shared_ptr<boost::asio::io_service> asio_service)
+      : Rpcs(asio_service),
+        node_list_mutex_(),
+        node_list_(),
+        backup_node_list_() {}
+  MOCK_METHOD4(FindNodes, void(const NodeId &key,
+                               const Contact &contact,
+                               FindNodesFunctor callback,
+                               TransportType type));
+  void FindNodeDummy(FindNodesFunctor callback) {
+    std::vector<Contact> response_list;
+    {
+      boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+      if (!node_list_.empty()) {
+        int summat(K/4 + 1);
+        int size = node_list_.size();
+        int elements = base::RandomUint32() % summat % size;
+        for (int n = 0; n < elements; ++n) {
+          response_list.push_back(node_list_.front());
+          node_list_.pop_front();
+        }
+      }
+    }
+    boost::thread th(boost::bind(&MockRpcs::FunctionForThread, this, callback,
+                                 response_list));
+  }
+  void FunctionForThread(FindNodesFunctor callback,
+                         std::vector<Contact> response_list) {
+    boost::uint16_t interval(100 * (base::RandomUint32() % 5 + 1));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    callback(true, response_list);
+  }
+  bool AllAlphasBack(boost::shared_ptr<FindNodesArgs> fna) {
+    boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
+    NodeContainerByState &index_state = fna->nc.get<nc_state>();
+    std::pair<NCBSit, NCBSit> pa = index_state.equal_range(kSelectedAlpha);
+    return pa.first == pa.second;
+  }
+  bool GenerateContacts(const boost::uint16_t &total) {
+    if (total > 100 || total < 1)
+      return false;
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::string ip("123.234.134.1");
+    for (boost::uint16_t n = 0; n < total; ++n) {
+      transport::Endpoint ep = {ip, n};
+      Contact c(NodeId(NodeId::kRandomId).String(), ep);
+      node_list_.push_back(c);
+    }
+    backup_node_list_ = node_list_;
+    return true;
+  }
+  std::list<Contact> node_list() {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    return node_list_;
+  }
+  std::list<Contact> backup_node_list() { return backup_node_list_; }
+
+ private:
+  boost::mutex node_list_mutex_;
+  std::list<Contact> node_list_, backup_node_list_;
+};
+
+TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
+  bool done(false);
+  NodeId key(NodeId::kRandomId);
+  std::list<Contact> lcontacts;
+  boost::shared_ptr<FindNodesArgs> fna(
+      new FindNodesArgs(key,
+                        boost::bind(&IterativeSearchCallback, _1, &done,
+                                    &lcontacts)));
+  boost::uint16_t k(K);
+  std::string ip("123.234.231.134");
+  std::vector<Contact> vcontacts, popped;
+  transport::Endpoint ep;
+  for (boost::uint16_t n = 0; n < k; ++n) {
+    ep.ip = boost::asio::ip::address::from_string(ip);
+    ep.port = 5000 + n;
+    Contact c(NodeId(NodeId::kRandomId).String(), ep);
+    vcontacts.push_back(c);
+  }
+  node_->AddContactsToContainer(vcontacts, fna);
+  ASSERT_EQ(K, fna->nc.size());
+
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(node_->asio_service_));
+  node_->rpcs_ = new_rpcs;
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_))
+      .Times(K)
+      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+
+  NodeContainer::iterator node_it = fna->nc.begin();
+  std::list<Contact> alphas;
+  boost::uint16_t a(0);
+  for (; node_it != fna->nc.end() && a < kAlpha; ++node_it, ++a) {
+    alphas.push_back((*node_it).contact);
+  }
+  SortContactList(fna->key, &alphas);
+  node_->IterativeSearch(fna, false, false, &alphas);
+  while (!done || !new_rpcs->AllAlphasBack(fna))
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  std::set<Contact> lset(lcontacts.begin(), lcontacts.end()),
+                    vset(vcontacts.begin(), vcontacts.end());
+  ASSERT_TRUE(lset == vset);
+  node_->rpcs_ = old_rpcs;
+}
+
+TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
+  bool done(false);
+  std::list<Contact> lcontacts;
+  node_->prouting_table_->Clear();
+  std::string ip("156.148.126.159");
+  std::vector<Contact> vcontacts;
+  transport::Endpoint ep;
+  for (boost::uint16_t n = 0; n < K; ++n) {
+    ep.ip = boost::asio::ip::address::from_string(ip);
+    ep.port = 5000 + n;
+    Contact c(NodeId(NodeId::kRandomId).String(), ep);
+    ASSERT_EQ(0, node_->AddContact(c, 1, false));
+    vcontacts.push_back(c);
+  }
+
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(node_->asio_service_));
+  node_->rpcs_ = new_rpcs;
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_))
+      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+
+  FindNodesParams fnp1;
+  fnp1.key = NodeId(NodeId::kRandomId);
+  fnp1.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
+  node_->FindNodes(fnp1);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  std::set<Contact> lset(lcontacts.begin(), lcontacts.end()),
+                    vset(vcontacts.begin(), vcontacts.end());
+  ASSERT_TRUE(lset == vset);
+
+  lcontacts.clear();
+  done = false;
+  FindNodesParams fnp2;
+  fnp2.key = NodeId(NodeId::kRandomId);
+  fnp2.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
+  std::list<Contact> winners, backup;
+  ip = std::string("156.148.126.160");
+  for (boost::uint16_t a = 0; a < K; ++a) {
+    ep.ip = boost::asio::ip::address::from_string(ip);
+    ep.port = 5000 + a;
+    Contact c(NodeId(NodeId::kRandomId).String(), ep);
+    fnp2.start_nodes.push_back(c);
+    winners.push_back(c);
+    winners.push_back(vcontacts[a]);
+  }
+
+  node_->FindNodes(fnp2);
+  SortContactList(fnp2.key, &winners);
+  backup = winners;
+  winners.resize(K);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  vset = std::set<Contact>(winners.begin(), winners.end());
+  lset = std::set<Contact>(lcontacts.begin(), lcontacts.end());
+  ASSERT_EQ(vset.size(), lset.size());
+  ASSERT_TRUE(lset == vset);
+
+  lcontacts.clear();
+  done = false;
+  FindNodesParams fnp3;
+  fnp3.key = NodeId(NodeId::kRandomId);
+  fnp3.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
+  fnp3.start_nodes = fnp2.start_nodes;
+  int top(K/4 + 1);
+  for (int y = 0; y < top; ++y)
+    fnp3.exclude_nodes.push_back(vcontacts[y]);
+
+  node_->FindNodes(fnp3);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  lset = std::set<Contact>(lcontacts.begin(), lcontacts.end());
+  std::set<Contact> back(backup.begin(), backup.end());
+  std::set<Contact>::iterator it;
+  for (size_t e = 0; e < fnp3.exclude_nodes.size(); ++e) {
+    it = lset.find(fnp3.exclude_nodes[e]);
+    ASSERT_TRUE(it == lset.end());
+    it = back.find(fnp3.exclude_nodes[e]);
+    ASSERT_TRUE(it != back.end());
+    back.erase(it);
+  }
+
+  backup = std::list<Contact>(back.begin(), back.end());
+  SortContactList(fnp3.key, &backup);
+  backup.resize(K);
+  back = std::set<Contact>(backup.begin(), backup.end());
+  ASSERT_EQ(lset.size(), back.size());
+  ASSERT_TRUE(lset == back);
+
+  node_->rpcs_ = old_rpcs;
+}
+
+TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
+  bool done(false);
+  std::list<Contact> lcontacts;
+  node_->prouting_table_->Clear();
+  std::string ip("156.148.126.159");
+  std::vector<Contact> vcontacts;
+  transport::Endpoint ep;
+  for (boost::uint16_t n = 0; n < K; ++n) {
+    ep.ip = boost::asio::ip::address::from_string(ip);
+    ep.port = 5000 + n;
+    Contact c(NodeId(NodeId::kRandomId).String(), ep);
+    EXPECT_EQ(0, node_->AddContact(c, 1, false));
+    vcontacts.push_back(c);
+  }
+
+  boost::shared_ptr<Rpcs> old_rpcs = node_->rpcs_;
+  boost::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(node_->asio_service_));
+  node_->rpcs_ = new_rpcs;
+  ASSERT_TRUE(new_rpcs->GenerateContacts(100));
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_))
+      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+
+  FindNodesParams fnp1;
+  fnp1.key = NodeId(NodeId::kRandomId);
+  fnp1.callback = boost::bind(&IterativeSearchCallback, _1, &done, &lcontacts);
+  node_->FindNodes(fnp1);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  std::list<Contact> bcontacts = new_rpcs->backup_node_list();
+  bcontacts.insert(bcontacts.end(), vcontacts.begin(), vcontacts.end());
+  std::set<Contact> sss(bcontacts.begin(), bcontacts.end());
+  std::list<Contact> ncontacts = new_rpcs->node_list();
+  std::set<Contact>::iterator it;
+  while (!ncontacts.empty()) {
+    it = sss.find(ncontacts.front());
+    if (it != sss.end())
+      sss.erase(it);
+    ncontacts.pop_front();
+  }
+  bcontacts = std::list<Contact>(sss.begin(), sss.end());
+  SortContactList(fnp1.key, &bcontacts);
+  bcontacts.resize(K);
+  sss = std::set<Contact>(bcontacts.begin(), bcontacts.end());
+
+  std::set<Contact> lset(lcontacts.begin(), lcontacts.end());
+  ASSERT_EQ(lset.size(), sss.size());
+  ASSERT_TRUE(lset == sss);
+
+  node_->rpcs_ = old_rpcs;
+}
 
 }  // namespace test_nodeimpl
 
