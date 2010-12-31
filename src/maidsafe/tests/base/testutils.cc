@@ -54,7 +54,7 @@ TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
   std::vector< boost::shared_ptr<boost::thread> > test_threads;
   for (int i = 0; i < thread_count; ++i) {
     test_threads.push_back(boost::shared_ptr<boost::thread>(new boost::thread(
-        &test_utils::GenerateRandomStrings, string_count, string_size)));
+        &test::GenerateRandomStrings, string_count, string_size)));
   }
   for (int i = 0; i < thread_count; ++i) {
     test_threads.at(i)->join();

@@ -35,18 +35,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/kademlia/datastore.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
+#include "maidsafe/kademlia/kademlia_rpc_messages.pb.h"
 #include "maidsafe/base/alternativestore.h"
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/base/log.h"
 
-// #include "maidsafe/kademlia/rpcs.h"
-// #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/base/crypto.h"
-// #include "maidsafe/base/utils.h"
-// #include "maidsafe/kademlia/node-api.h"
-// #include "maidsafe/protobuf/signed_kadvalue.pb.h"
-// #include "maidsafe/kademlia/nodeid.h"
 
 namespace kademlia {
 

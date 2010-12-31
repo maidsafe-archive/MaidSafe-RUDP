@@ -40,6 +40,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace kademlia {
 
+enum TransportType { kUdt, kTcp, kOther };
+
 class MessageHandler;
 class NodeId;
 
@@ -63,20 +65,21 @@ typedef boost::function<void(bool, const std::vector<Contact>&)>
 class Rpcs {
  public:
   Rpcs(boost::shared_ptr<boost::asio::io_service> asio_service)
-      : asio_service_(asio_service),
-        node_contact_() {}
+      : node_contact_(),
+        asio_service_(asio_service) {}
   virtual ~Rpcs() {}
-  template <typename T>
   void Ping(const Contact &contact,
-            PingFunctor callback);
+            PingFunctor callback,
+            TransportType type);
   template <typename T>
   void FindValue(const NodeId &key,
                  const Contact &contact,
-                 FindValueFunctor callback);
-  template <typename T>
-  void FindNodes(const NodeId &key,
-                 const Contact &contact,
-                 FindNodesFunctor callback);
+                 FindValueFunctor callback,
+                 TransportType type);
+  virtual void FindNodes(const NodeId &key,
+                         const Contact &contact,
+                         FindNodesFunctor callback,
+                         TransportType type);
   template <typename T>
   void Store(const NodeId &key,
              const SignedValue &signed_value,
@@ -84,20 +87,23 @@ class Rpcs {
              const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback);
+             VoidFunctorOneBool callback,
+             TransportType type);
   template <typename T>
   void Store(const NodeId &key,
              const std::string &value,
              const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback);
+             VoidFunctorOneBool callback,
+             TransportType type);
   template <typename T>
   void Delete(const NodeId &key,
               const SignedValue &signed_value,
               const Signature &signature,
               const Contact &contact,
-              VoidFunctorOneBool callback);
+              VoidFunctorOneBool callback,
+              TransportType type);
   template <typename T>
   void Update(const NodeId &key,
               const SignedValue &new_signed_value,
@@ -105,13 +111,16 @@ class Rpcs {
               const boost::int32_t &ttl,
               const Signature &signature,
               const Contact &contact,
-              VoidFunctorOneBool callback);
+              VoidFunctorOneBool callback,
+              TransportType type);
   template <typename T>
   void Downlist(const std::vector<NodeId> &node_ids,
-                const Contact &contact);
+                const Contact &contact,
+            TransportType type);
   void set_node_contact(const Contact &node_contact) {
     node_contact_ = node_contact;
   }
+
  private:
   void PingCallback(const protobuf::PingResponse &response,
                     PingFunctor callback,
@@ -137,6 +146,7 @@ class Rpcs {
                       VoidFunctorOneBool callback,
                       boost::shared_ptr<MessageHandler> message_handler,
                       boost::shared_ptr<transport::Transport> transport);
+  boost::shared_ptr<transport::Transport> CreateTransport(TransportType type);
 
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
