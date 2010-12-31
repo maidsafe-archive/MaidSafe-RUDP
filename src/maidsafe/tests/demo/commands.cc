@@ -43,7 +43,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/node-api.h"
-#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 
 
 namespace kaddemo {
@@ -76,93 +75,93 @@ void Commands::Run() {
 
 void Commands::StoreCallback(const std::string &result, const kademlia::NodeId &key,
                              const boost::int32_t &ttl) {
-  kademlia::StoreResponse msg;
-  if (!msg.ParseFromString(result)) {
-    printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
-        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    result_arrived_ = true;
-    return;
-  }
-  if (!msg.result()) {
-    printf("Failed to store %f copies of values for key %s.\n",
-        min_succ_stores_, key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    printf("Some copies might have been stored\n");
-  } else {
-    printf("Successfully stored key %s with ttl %d\n",
-        key.ToStringEncoded(kademlia::NodeId::kHex).c_str(), ttl);
-  }
+//  kademlia::StoreResponse msg;
+//  if (!msg.ParseFromString(result)) {
+//    printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    result_arrived_ = true;
+//    return;
+//  }
+//  if (!msg.result()) {
+//    printf("Failed to store %f copies of values for key %s.\n",
+//        min_succ_stores_, key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    printf("Some copies might have been stored\n");
+//  } else {
+//    printf("Successfully stored key %s with ttl %d\n",
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str(), ttl);
+//  }
   result_arrived_ = true;
 }
 
 void Commands::PingCallback(const std::string &result, const kademlia::NodeId &id) {
-  kademlia::PingResponse msg;
-  if (!msg.ParseFromString(result)) {
-    printf("ERROR. Invalid response. Kademlia Ping Node to node with id %s\n",
-        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    result_arrived_ = true;
-    return;
-  }
-  if (!msg.result()) {
-    printf("Node with id %s is down.\n",
-           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-  } else {
-    printf("Node with id %s is up.\n",
-           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-  }
+//  kademlia::PingResponse msg;
+//  if (!msg.ParseFromString(result)) {
+//    printf("ERROR. Invalid response. Kademlia Ping Node to node with id %s\n",
+//        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    result_arrived_ = true;
+//    return;
+//  }
+//  if (!msg.result()) {
+//    printf("Node with id %s is down.\n",
+//           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//  } else {
+//    printf("Node with id %s is up.\n",
+//           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//  }
   result_arrived_ = true;
 }
 
 void Commands::GetNodeContactDetailsCallback(const std::string &result,
       const kademlia::NodeId &id) {
-  kademlia::FindNodeResult msg;
-  if (!msg.ParseFromString(result)) {
-    printf("ERROR. Invalid Response. Kademlia Find Node to node with id %s\n",
-        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    result_arrived_ = true;
-    return;
-  }
-  if (!msg.result()) {
-    printf("Could not find node with id %s.\n",
-           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-  } else {
-    kademlia::Contact ctc;
-    if (!msg.has_contact() || !ctc.ParseFromString(msg.contact()))
-      printf("Could not find node with id %s.\n",
-             id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    else
-      printf("Node with id %s found. Node info:\n=%s",
-             id.ToStringEncoded(kademlia::NodeId::kHex).c_str(),
-             ctc.DebugString().c_str());
-  }
+//  kademlia::FindNodeResult msg;
+//  if (!msg.ParseFromString(result)) {
+//    printf("ERROR. Invalid Response. Kademlia Find Node to node with id %s\n",
+//        id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    result_arrived_ = true;
+//    return;
+//  }
+//  if (!msg.result()) {
+//    printf("Could not find node with id %s.\n",
+//           id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//  } else {
+//    kademlia::Contact ctc;
+//    if (!msg.has_contact() || !ctc.ParseFromString(msg.contact()))
+//      printf("Could not find node with id %s.\n",
+//             id.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    else
+//      printf("Node with id %s found. Node info:\n=%s",
+//             id.ToStringEncoded(kademlia::NodeId::kHex).c_str(),
+//             ctc.DebugString().c_str());
+//  }
   result_arrived_ = true;
 }
 
 void Commands::FindValueCallback(const std::string &result,
        const kademlia::NodeId &key, const bool &write_to_file,
        const std::string &path) {
-  kademlia::FindResponse msg;
-  if (!msg.ParseFromString(result)) {
-    printf("ERROR.  Invalid response. Kademlia Load Value key %s\n",
-        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    result_arrived_ = true;
-    return;
-  }
-  if (!msg.result() || msg.values_size() == 0) {
-    printf("There is no value stored under key %s\n",
-        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-  } else {
-    printf("Successfully retrieved value(s) for key %s\n",
-        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-    if (write_to_file) {
-      // we only write to file the first value
-      WriteToFile(path, msg.values(0));
-    } else {
-      printf("Values found for key %s\n",
-             key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
-      for (int i = 0; i < msg.values_size(); ++i)
-        printf("%d.  %s\n", i+1, msg.values(i).c_str());
-    }
-  }
+//  kademlia::FindResponse msg;
+//  if (!msg.ParseFromString(result)) {
+//    printf("ERROR.  Invalid response. Kademlia Load Value key %s\n",
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    result_arrived_ = true;
+//    return;
+//  }
+//  if (!msg.result() || msg.values_size() == 0) {
+//    printf("There is no value stored under key %s\n",
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//  } else {
+//    printf("Successfully retrieved value(s) for key %s\n",
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//    if (write_to_file) {
+//      // we only write to file the first value
+//      WriteToFile(path, msg.values(0));
+//    } else {
+//      printf("Values found for key %s\n",
+//             key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//      for (int i = 0; i < msg.values_size(); ++i)
+//        printf("%d.  %s\n", i+1, msg.values(i).c_str());
+//    }
+//  }
   result_arrived_ = true;
 }
 
@@ -352,8 +351,8 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       }
     }
   } else if (cmd == "getinfo") {
-    kademlia::Contact ctc(node_->contact_info());
-    printf("Node info:\n, %s", ctc.DebugString().c_str());
+//    kademlia::Contact ctc(node_->contact_info());
+//    printf("Node info:\n, %s", ctc.DebugString().c_str());
     *wait_for_cb = false;
   } else if (cmd == "help") {
     PrintUsage();
@@ -402,35 +401,36 @@ void Commands::Store50Values(const std::string &prefix) {
 
 void Commands::Store50Callback(const std::string &result,
       const std::string &key, bool *arrived) {
-  kademlia::StoreResponse msg;
-  if (!msg.ParseFromString(result)) {
-    printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
-        key.c_str());
-    result_arrived_ = true;
-    return;
-  }
-  if (!msg.result()) {
-    printf("Failed to store %f copies of values for key %s.\n",
-        min_succ_stores_, key.c_str());
-    printf("Some copies might have been stored\n");
-  } else {
-    printf("Successfully stored key %s\n", key.c_str());
-  }
+//  kademlia::StoreResponse msg;
+//  if (!msg.ParseFromString(result)) {
+//    printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
+//        key.c_str());
+//    result_arrived_ = true;
+//    return;
+//  }
+//  if (!msg.result()) {
+//    printf("Failed to store %f copies of values for key %s.\n",
+//        min_succ_stores_, key.c_str());
+//    printf("Some copies might have been stored\n");
+//  } else {
+//    printf("Successfully stored key %s\n", key.c_str());
+//  }
   *arrived = true;
 }
 
 void Commands::PrintRpcTimings() {
-  rpcprotocol::RpcStatsMap rpc_timings(chmanager_->RpcTimings());
-  std::cout << boost::format("Calls  RPC Name  %40t% min/avg/max\n");
-  for (rpcprotocol::RpcStatsMap::const_iterator it = rpc_timings.begin();
-       it != rpc_timings.end();
-       ++it) {
-  std::cout << boost::format("%1% : %2% %40t% %3% / %4% / %5% \n")
-           % it->second.Size()
-           % it->first.c_str()
-           % it->second.Min()  // / 1000.0
-           % it->second.Mean()  // / 1000.0
-           % it->second.Max();  // / 1000.0;
-  }
+//  rpcprotocol::RpcStatsMap rpc_timings(chmanager_->RpcTimings());
+//  std::cout << boost::format("Calls  RPC Name  %40t% min/avg/max\n");
+//  for (rpcprotocol::RpcStatsMap::const_iterator it = rpc_timings.begin();
+//       it != rpc_timings.end();
+//       ++it) {
+//  std::cout << boost::format("%1% : %2% %40t% %3% / %4% / %5% \n")
+//           % it->second.Size()
+//           % it->first.c_str()
+//           % it->second.Min()  // / 1000.0
+//           % it->second.Mean()  // / 1000.0
+//           % it->second.Max();  // / 1000.0;
+//  }
 }
-}
+
+}  // namespace kaddemo
