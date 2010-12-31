@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/distributed_network/mysqlppwrap.h"
 #include "maidsafe/distributed_network/operator.h"
 #include "maidsafe/maidsafe-dht.h"
-#include "maidsafe/protobuf/general_messages.pb.h"
 
 namespace fs = boost::filesystem;
 
@@ -161,37 +160,39 @@ void RunSmallTest() {
   }
 }
 
-void StartTest(boost::shared_ptr<Operator> op, boost::shared_ptr<kademlia::KNode> kn,
-               const std::string &public_key, const std::string &private_key) {
+void StartTest(boost::shared_ptr<Operator> op,
+               boost::shared_ptr<kademlia::Node> kn,
+               const std::string &public_key,
+               const std::string &private_key) {
   op.reset(new Operator(kn, public_key, private_key));
   op->Run();
 }
 
 bool WriteKadConfig() {
-  base::KadConfig kadconfig;
-  fs::path kadconfig_path("/.kadconfig");
-  try {
-    base::KadConfig::Contact *contact = kadconfig.add_contact();
-    contact->set_ip("173.230.145.156");
-    contact->set_node_id("916a6578803acd5ee57c5ffcba76e2e0688dcc079cf3912bab87d"
-                         "43d5213cfedfb337ec8a62664fd85a11e02ca58724623abe17f1f"
-                         "699a43fcbe970c77578266");
-    contact->set_port(33818);
-    contact->set_local_ip("173.230.145.156");
-    contact->set_local_port(9000);
-    boost::filesystem::fstream output(kadconfig_path.string().c_str(),
-                                      std::ios::out | std::ios::trunc |
-                                      std::ios::binary);
-    if (!kadconfig.SerializeToOstream(&output)) {
-      output.close();
-      return false;
-    }
-    output.close();
-    return fs::exists(kadconfig_path);
-  }
-  catch(const std::exception &) {
-    return false;
-  }
+//  base::KadConfig kadconfig;
+//  fs::path kadconfig_path("/.kadconfig");
+//  try {
+//    base::KadConfig::Contact *contact = kadconfig.add_contact();
+//    contact->set_ip("173.230.145.156");
+//    contact->set_node_id("916a6578803acd5ee57c5ffcba76e2e0688dcc079cf3912bab87d"
+//                         "43d5213cfedfb337ec8a62664fd85a11e02ca58724623abe17f1f"
+//                         "699a43fcbe970c77578266");
+//    contact->set_port(33818);
+//    contact->set_local_ip("173.230.145.156");
+//    contact->set_local_port(9000);
+//    boost::filesystem::fstream output(kadconfig_path.string().c_str(),
+//                                      std::ios::out | std::ios::trunc |
+//                                      std::ios::binary);
+//    if (!kadconfig.SerializeToOstream(&output)) {
+//      output.close();
+//      return false;
+//    }
+//    output.close();
+//    return fs::exists(kadconfig_path);
+//  }
+//  catch(const std::exception &) {
+//    return false;
+//  }
 }
 
 bool KadConfigOK() {
@@ -220,21 +221,21 @@ class JoinCallback {
                    result_arrived_(false),
                    success_(false) {}
   void AssessResult(const std::string &result) {
-    base::GeneralResponse message;
-    boost::mutex::scoped_lock lock(mutex_);
-    success_ = true;
-    if (!message.ParseFromString(result)) {
-      DLOG(ERROR) << "Can't parse join response." << std::endl;
-      success_ = false;
-    }
-    if (success_ && !message.IsInitialized()) {
-      DLOG(ERROR) << "Join response isn't initialised." << std::endl;
-      success_ = false;
-    }
-    if (success_ && !message.result()) {
-      DLOG(ERROR) << "Join failed." << std::endl;
-      success_ = false;
-    }
+//    base::GeneralResponse message;
+//    boost::mutex::scoped_lock lock(mutex_);
+//    success_ = true;
+//    if (!message.ParseFromString(result)) {
+//      DLOG(ERROR) << "Can't parse join response." << std::endl;
+//      success_ = false;
+//    }
+//    if (success_ && !message.IsInitialized()) {
+//      DLOG(ERROR) << "Join response isn't initialised." << std::endl;
+//      success_ = false;
+//    }
+//    if (success_ && !message.result()) {
+//      DLOG(ERROR) << "Join failed." << std::endl;
+//      success_ = false;
+//    }
     result_arrived_ = true;
     cond_var_.notify_one();
   }

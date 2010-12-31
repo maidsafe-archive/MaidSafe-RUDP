@@ -44,7 +44,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/node-api.h"
-#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
 
 
 namespace benchmark {
@@ -82,7 +81,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
         data->condition.wait(lock);
       stats.Add(base::GetEpochMilliseconds() - t);
       kademlia::Contact ctc;
-      ctc.ParseFromString(data->content);
+//      ctc.ParseFromString(data->content);
       contacts.push_back(ctc);
     }
 
@@ -163,8 +162,8 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
         kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
         kademlia::NodeId key(nodes[i] ^ mod);
-        kademlia::SignedValue sig_val;
-        kademlia::SignedRequest sig_req;
+        kademlia::protobuf::SignedValue sig_val;
+        kademlia::protobuf::Signature sig_req;
         if (sign) {
           std::string req_sig, ser_sig_val;
           req_sig = cryobj_.AsymSign(cryobj_.Hash(public_key_ +
@@ -172,13 +171,13 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
               crypto::STRING_STRING, false), "", private_key_,
               crypto::STRING_STRING);
           sig_val.set_value(value);
-          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
-              private_key_, crypto::STRING_STRING));
-          ser_sig_val = sig_val.SerializeAsString();
-          sig_req.set_signer_id(node_->node_id().String());
-          sig_req.set_public_key(public_key_);
-          sig_req.set_signed_public_key(public_key_signature_);
-          sig_req.set_signed_request(req_sig);
+//          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
+//              private_key_, crypto::STRING_STRING));
+//          ser_sig_val = sig_val.SerializeAsString();
+//          sig_req.set_signer_id(node_->node_id().String());
+//          sig_req.set_public_key(public_key_);
+//          sig_req.set_signed_public_key(public_key_signature_);
+//          sig_req.set_signed_request(req_sig);
         }
         boost::uint64_t t = base::GetEpochMilliseconds();
         if (sign) {
@@ -248,9 +247,9 @@ void Operations::PingCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kademlia::PingResponse msg;
-  if (msg.ParseFromString(result) && msg.result())
-    ++data->succeeded_count;
+//  kademlia::PingResponse msg;
+//  if (msg.ParseFromString(result) && msg.result())
+//    ++data->succeeded_count;
   data->condition.notify_one();
 }
 
@@ -259,11 +258,11 @@ void Operations::GetNodeContactDetailsCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kademlia::FindNodeResult msg;
-  if (msg.ParseFromString(result) && msg.result()) {
-    ++data->succeeded_count;
-    data->content = msg.contact();
-  }
+//  kademlia::FindNodeResult msg;
+//  if (msg.ParseFromString(result) && msg.result()) {
+//    ++data->succeeded_count;
+//    data->content = msg.contact();
+//  }
   data->condition.notify_one();
 }
 
@@ -272,9 +271,9 @@ void Operations::StoreCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kademlia::StoreResponse msg;
-  if (msg.ParseFromString(result) && msg.result())
-    ++data->succeeded_count;
+//  kademlia::StoreResponse msg;
+//  if (msg.ParseFromString(result) && msg.result())
+//    ++data->succeeded_count;
   data->condition.notify_one();
 }
 
@@ -283,10 +282,10 @@ void Operations::FindValueCallback(const std::string &result,
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
-  kademlia::FindResponse msg;
-  if (msg.ParseFromString(result) && msg.result() &&
-      (msg.values_size() > 0 || msg.signed_values_size() > 0))
-    ++data->succeeded_count;
+//  kademlia::FindResponse msg;
+//  if (msg.ParseFromString(result) && msg.result() &&
+//      (msg.values_size() > 0 || msg.signed_values_size() > 0))
+//    ++data->succeeded_count;
   data->condition.notify_one();
 }
 
