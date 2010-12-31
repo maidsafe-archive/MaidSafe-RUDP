@@ -128,9 +128,9 @@ int CEPoll::add_ssock(const int eid, const SYSSOCKET& s, const int* events)
    ev.data.fd = s;
    if (epoll_ctl(p->second.m_iLocalID, EPOLL_CTL_ADD, s, &ev) < 0)
       throw CUDTException();
-#else
-   p->second.m_sLocals.insert(s);
 #endif
+
+   p->second.m_sLocals.insert(s);
 
    return 0;
 }
@@ -174,9 +174,9 @@ int CEPoll::remove_ssock(const int eid, const SYSSOCKET& s, const int* events)
    ev.data.fd = s;
    if (epoll_ctl(p->second.m_iLocalID, EPOLL_CTL_DEL, s, &ev) < 0)
       throw CUDTException();
-#else
-   p->second.m_sLocals.erase(s);
 #endif
+
+   p->second.m_sLocals.erase(s);
 
    return 0;
 }
@@ -221,6 +221,7 @@ int CEPoll::wait(const int eid, set<UDTSOCKET>* readfds, set<UDTSOCKET>* writefd
          const int max_events = p->second.m_sLocals.size();
          epoll_event ev[max_events];
          int nfds = epoll_wait(p->second.m_iLocalID, ev, max_events, 0);
+
          for (int i = 0; i < nfds; ++ i)
          {
             if ((NULL != lrfds) && (ev[i].events & EPOLLIN))

@@ -128,6 +128,7 @@ CUDT::CUDT()
    m_bShutdown = false;
    m_bBroken = false;
    m_bPeerHealth = true;
+   m_ullLingerExpiration = 0;
 }
 
 CUDT::CUDT(const CUDT& ancestor)
@@ -179,6 +180,7 @@ CUDT::CUDT(const CUDT& ancestor)
    m_bShutdown = false;
    m_bBroken = false;
    m_bPeerHealth = true;
+   m_ullLingerExpiration = 0;
 }
 
 CUDT::~CUDT()
@@ -859,15 +861,25 @@ void CUDT::close()
    if (!m_bOpened)
       return;
 
-   if (!m_bConnected)
-      m_bClosing = true;
-
    if (0 != m_Linger.l_onoff)
    {
       uint64_t entertime = CTimer::getTime();
 
       while (!m_bBroken && m_bConnected && (m_pSndBuffer->getCurrBufSize() > 0) && (CTimer::getTime() - entertime < m_Linger.l_linger * 1000000ULL))
       {
+         // linger has been checked by previous close() call and has expired
+         if (m_ullLingerExpiration >= entertime)
+            break;
+
+         if (!m_bSynSending)
+         {
+            // if this socket enables asynchronous sending, return immediately and let GC to close it later
+            if (0 == m_ullLingerExpiration)
+               m_ullLingerExpiration = entertime + m_Linger.l_linger * 1000000ULL;
+
+            return;
+         }
+
          #ifndef WIN32
             timespec ts;
             ts.tv_sec = 0;
@@ -882,6 +894,10 @@ void CUDT::close()
    // remove this socket from the snd queue
    if (m_bConnected)
       m_pSndQueue->m_pSndUList->remove(this);
+
+   // remove itself from all epoll monitoring
+   for (set<int>::iterator i = m_sPollID.begin(); i != m_sPollID.end(); ++ i)
+      s_UDTUnited.m_EPoll.remove_usock(*i, m_SocketID);
 
    CGuard cg(m_ConnectionLock);
 
