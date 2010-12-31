@@ -38,19 +38,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // General files
 #include <maidsafe/base/alternativestore.h>
 #include <maidsafe/base/crypto.h>
-#include <maidsafe/kademlia/nodeid.h>
 #include <maidsafe/base/log.h>
-#include <maidsafe/kademlia/contact.h>
 #include <maidsafe/base/online.h>
 #include <maidsafe/base/routingtable.h>
-#include <maidsafe/transport/udttransport.h>
 #include <maidsafe/base/utils.h>
 #include <maidsafe/base/validationinterface.h>
-
-// Generated protocol buffer files
-#include <maidsafe/protobuf/signed_kadvalue.pb.h>
-#include <maidsafe/protobuf/kademlia_service_messages.pb.h>
-#include <maidsafe/protobuf/contact_info.pb.h>
-#include <maidsafe/protobuf/general_messages.pb.h>
+#include <maidsafe/kademlia/contact.h>
+#include <maidsafe/kademlia/nodeid.h>
+#include <maidsafe/transport/udttransport.h>
 
 #endif  // MAIDSAFE_MAIDSAFE_DHT_H_
