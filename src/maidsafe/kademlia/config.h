@@ -30,13 +30,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
+#include <boost/asio/ip/address.hpp>
+
+#include <list>
 #include <string>
 
 namespace kademlia {
 
+class Contact;
+
 // Functor for general callback functions.
 typedef boost::function<void(std::string)> VoidFunctorOneString;
 typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
+typedef boost::function<void(std::list<Contact> contacts)>
+        VoidFunctorContactList;
+typedef boost::asio::ip::address IP;
+typedef boost::uint16_t Port;
 
 struct Signature {
   Signature()

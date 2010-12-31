@@ -29,12 +29,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
 
 #include <boost/thread/thread.hpp>
+
 #include <list>
 #include <vector>
 #include <string>
-#include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/protobuf/kademlia_service_messages.pb.h"
+
+#include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/rpcs.pb.h"
+
+namespace kademlia {
 
 class FakeCallback {
  public:
@@ -63,7 +66,7 @@ class PingCallback : public FakeCallback {
     result_ = "";
   }
  private:
-  kademlia::PingResponse result_msg;
+  protobuf::PingResponse result_msg;
 };
 
 class StoreValueCallback :public FakeCallback {
@@ -81,7 +84,7 @@ class StoreValueCallback :public FakeCallback {
     result_ = "";
   };
  private:
-  kademlia::StoreResponse result_msg;
+  protobuf::StoreResponse result_msg;
 };
 
 class FindCallback : public FakeCallback {
@@ -93,12 +96,8 @@ class FindCallback : public FakeCallback {
     if (!result_msg.ParseFromString(res)) {
       result_msg.set_result(false);
     }
-    for (int i = 0; i < result_msg.values_size(); i++)
-      values_.push_back(result_msg.values(i));
     for (int i = 0; i < result_msg.closest_nodes_size(); i++)
-      closest_nodes_.push_back(result_msg.closest_nodes(i));
-    for (int i = 0; i < result_msg.signed_values_size(); i++)
-      signed_values_.push_back(result_msg.signed_values(i));
+      closest_nodes_.push_back(Contact(result_msg.closest_nodes(i)));
     result_ = result_msg.result();
   };
   void Reset() {
@@ -109,37 +108,37 @@ class FindCallback : public FakeCallback {
     signed_values_.clear();
   };
   std::vector<std::string> values() const {return values_;}
-  std::vector<std::string> closest_nodes() const {return closest_nodes_;}
-  std::vector<kademlia::SignedValue> signed_values() {return signed_values_;}
+  std::vector<Contact> closest_nodes() const {return closest_nodes_;}
+  std::vector<protobuf::SignedValue> signed_values() {return signed_values_;}
  private:
-  kademlia::FindResponse result_msg;
+  protobuf::FindNodesResponse result_msg;
   std::vector<std::string> values_;
-  std::vector<std::string> closest_nodes_;
-  std::vector<kademlia::SignedValue> signed_values_;
+  std::vector<Contact> closest_nodes_;
+  std::vector<protobuf::SignedValue> signed_values_;
 };
 
-class GetNodeContactDetailsCallback : public FakeCallback {
- public:
-  GetNodeContactDetailsCallback() : result_msg(), contact_() {
-  }
-  void CallbackFunc(const std::string &res) {
-    if (!result_msg.ParseFromString(res)) {
-      result_msg.set_result(false);
-    }
-    if (result_msg.has_contact())
-      contact_ = result_msg.contact();
-    result_ = result_msg.result();
-  };
-  void Reset() {
-    result_msg.Clear();
-    result_ = "";
-    contact_ = "";
-  };
-  std::string contact() const {return contact_;}
- private:
-  kademlia::FindNodeResult result_msg;
-  std::string contact_;
-};
+//class GetNodeContactDetailsCallback : public FakeCallback {
+// public:
+//  GetNodeContactDetailsCallback() : result_msg(), contact_() {
+//  }
+//  void CallbackFunc(const std::string &res) {
+//    if (!result_msg.ParseFromString(res)) {
+//      result_msg.set_result(false);
+//    }
+//    if (result_msg.has_contact())
+//      contact_ = result_msg.contact();
+//    result_ = result_msg.result();
+//  };
+//  void Reset() {
+//    result_msg.Clear();
+//    result_ = "";
+//    contact_ = "";
+//  };
+//  std::string contact() const {return contact_;}
+// private:
+//  protobuf::FindNodeResult result_msg;
+//  std::string contact_;
+//};
 
 class GeneralKadCallback : public FakeCallback {
  public:
@@ -156,7 +155,7 @@ class GeneralKadCallback : public FakeCallback {
     result_ = "";
   };
  private:
-  base::GeneralResponse result_msg;
+  protobuf::GeneralResponse result_msg;
 };
 
 class DeleteValueCallback : public FakeCallback {
@@ -174,7 +173,7 @@ class DeleteValueCallback : public FakeCallback {
     result_ = false;
   };
  private:
-  kademlia::DeleteResponse result_msg;
+  protobuf::DeleteResponse result_msg;
 };
 
 class UpdateValueCallback : public FakeCallback {
@@ -193,7 +192,7 @@ class UpdateValueCallback : public FakeCallback {
   }
 
  private:
-  kademlia::UpdateResponse result_msg;
+  protobuf::UpdateResponse result_msg;
 };
 
 inline void wait_result(FakeCallback *callback) {
@@ -205,5 +204,7 @@ inline void wait_result(FakeCallback *callback) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(500));
   }
 }
+
+}  // namespace kademlia
 
 #endif  // MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_

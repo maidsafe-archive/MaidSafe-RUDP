@@ -35,9 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/service.h"
 #include "maidsafe/kademlia/routingtable.h"
-#include "maidsafe/protobuf/signed_kadvalue.pb.h"
-#include "maidsafe/rpcprotocol/channel-api.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
@@ -91,6 +88,7 @@ class Callback {
   void CallbackFunction() {}
 };
 
+/*
 class ServicesTest: public testing::Test {
  protected:
   ServicesTest() : contact_(), crypto_(), node_id_(), service_(),
@@ -1395,7 +1393,7 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
     ASSERT_EQ(node_id_.String(), response.node_id());
   }
 }
-
+*/
 }  // namespace test_service
 
 }  // namespace kademlia

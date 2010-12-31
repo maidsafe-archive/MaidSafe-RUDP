@@ -34,7 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/utils.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
@@ -44,6 +43,7 @@ namespace kademlia {
 
 namespace refresh_test {
 
+/*
 class TestRefresh : public testing::Test {
  public:
   TestRefresh() : transports_(), ch_managers_(), nodes_(), datadirs_(),
@@ -163,11 +163,10 @@ class TestRefresh : public testing::Test {
   boost::uint16_t testK_;
   boost::uint32_t testRefresh_;
   boost::int16_t testNetworkSize_;
-  std::vector<rpcprotocol::Port> transport_ports_;
+//  std::vector<rpcprotocol::Port> transport_ports_;
 };
 
 TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
-/**/
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
@@ -206,7 +205,6 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
               nodes_[indxs[i]]->KeyLastRefreshTime(key, value))
               << "FAILED  WITH NODE " << indxs[i];
   }
-/**/
 }
 
 TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
@@ -757,6 +755,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   chm->Stop();
 }
 
+*/
 }  // namespace refresh_test
 
 }  // namespace kademlia
