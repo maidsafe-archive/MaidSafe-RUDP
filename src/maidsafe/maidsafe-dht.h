@@ -33,8 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // API files
 #include <maidsafe/transport/transport.h>
-#include <maidsafe/rpcprotocol/channelmanager-api.h>
-#include <maidsafe/rpcprotocol/channel-api.h>
 #include <maidsafe/kademlia/node-api.h>
 
 // General files
