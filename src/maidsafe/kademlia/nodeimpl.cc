@@ -178,6 +178,146 @@ NodeImpl::~NodeImpl() {
     Leave();
 }
 
+void NodeImpl::JoinFirstNode(const NodeId &node_id,
+                             const std::string &kad_config_file,
+                             const IP &ip, const Port &port,
+                             VoidFunctorOneString callback) {
+  protobuf::GeneralResponse local_result;
+  std::string local_result_str;
+  if (is_joined_ || !node_id.IsValid()) {
+    if (is_joined_) {
+      local_result.set_result(true);
+    } else {
+      local_result.set_result(false);
+    }
+    local_result.SerializeToString(&local_result_str);
+    callback(local_result_str);
+    return;
+  }
+
+//  RegisterService();
+
+  node_id_ = node_id;
+  if (type_ == CLIENT || type_ == CLIENT_PORT_MAPPED) {
+    // Client nodes can not start a network on their own
+    local_result.set_result(false);
+    local_result.SerializeToString(&local_result_str);
+    callback(local_result_str);
+    return;
+  }
+
+  local_port_ = port;
+  if (use_upnp_) {
+//    UPnPMap(local_port_);
+//    if (upnp_mapped_port_ != 0) {
+//      port_ = upnp_mapped_port_;
+//      // It is now directly connected
+//    } else {
+//      local_result.set_result(false);
+//      local_result.SerializeToString(&local_result_str);
+//      callback(local_result_str);
+//      return;
+//    }
+  } else if (/*ip.empty() || */port == 0) {
+    local_result.set_result(false);
+    local_result.SerializeToString(&local_result_str);
+    callback(local_result_str);
+    return;
+  } else {
+    ip_ = ip;
+    port_ = port;
+  }
+
+  // Set kad_config_path_
+  kad_config_path_ = fs::path(kad_config_file);
+  prouting_table_.reset(new RoutingTable(node_id_, K_));
+
+  is_joined_ = true;
+//  premote_service_->set_node_joined(true);
+
+//  addcontacts_routine_.reset(new boost::thread(&NodeImpl::CheckAddContacts,
+//                                               this));
+  if (!refresh_routine_started_) {
+//    ptimer_->AddCallLater(kRefreshTime * 1000,
+//                          boost::bind(&NodeImpl::RefreshRoutine, this));
+//    ptimer_->AddCallLater(2000, boost::bind(&NodeImpl::RefreshValuesRoutine,
+//                                            this));
+    refresh_routine_started_ = true;
+  }
+  local_result.set_result(true);
+  local_result.SerializeToString(&local_result_str);
+  callback(local_result_str);
+}
+
+void NodeImpl::JoinFirstNode(const std::string &kad_config_file,
+                             const IP &ip, const Port &port,
+                             VoidFunctorOneString callback) {
+  JoinFirstNode(NodeId(NodeId::kRandomId), kad_config_file, ip, port, callback);
+}
+
+void NodeImpl::Leave() {
+  if (is_joined_) {
+    if (upnp_mapped_port_ != 0) {
+//      UnMapUPnP();
+    }
+    stopping_ = true;
+    {
+      boost::mutex::scoped_lock gaurd(leave_mutex_);
+      is_joined_ = false;
+//      premote_service_->set_node_joined(false);
+      ptimer_->CancelAll();
+//      pchannel_manager_->ClearCallLaters();
+//      UnRegisterService();
+      pdata_store_->Clear();
+      add_ctc_cond_.notify_one();
+//      addcontacts_routine_->join();
+//      SaveBootstrapContacts();
+      exclude_bs_contacts_.clear();
+      prouting_table_->Clear();
+      prth_->Clear();
+    }
+    stopping_ = false;
+  }
+}
+
+int NodeImpl::AddContact(Contact new_contact, const float &rtt,
+                          const bool &only_db) {
+  int result = -1;
+  if (new_contact.node_id().String() != kClientId &&
+      new_contact.node_id() != node_id_) {
+    if (!only_db) {
+      boost::mutex::scoped_lock gaurd(routingtable_mutex_);
+      new_contact.set_last_seen(base::GetEpochMilliseconds());
+      result = prouting_table_->AddContact(new_contact);
+    } else {
+      result = 0;
+    }
+
+    // Adding to routing table db
+//    IP remote_ip, rendezvous_ip;
+//    remote_ip = base::IpBytesToAscii(new_contact.ip());
+//    if (!new_contact.rendezvous_ip().empty()) {
+//      rendezvous_ip = base::IpBytesToAscii(new_contact.rendezvous_ip());
+//    }
+//    base::PublicRoutingTableTuple tuple(new_contact.node_id().String(),
+//                                        remote_ip,
+//                                        new_contact.port(),
+//                                        rendezvous_ip,
+//                                        new_contact.rendezvous_port(),
+//                                        new_contact.node_id().String(),
+//                                        rtt, 0, 0);
+//    prth_->AddTuple(tuple);
+    if (result == 2 && is_joined_) {
+      {
+        boost::mutex::scoped_lock gaurd(pendingcts_mutex_);
+        contacts_to_add_.push_back(new_contact);
+      }
+      add_ctc_cond_.notify_one();
+    }
+  }
+  return result;
+}
+
 void NodeImpl::AddContactsToContainer(const std::vector<Contact> contacts,
                                        boost::shared_ptr<FindNodesArgs> fna) {
   boost::mutex::scoped_lock loch_lavitesse(fna->mutex);
@@ -242,11 +382,11 @@ bool NodeImpl::HandleIterationStructure(const Contact &contact,
     return true;
   } else {
 //    printf("NodeImpl::AnalyseIteration - Search not complete at Round(%d) - "
-//           "%d times - %d alphas\n", round, times, contacts->size());
+//           "%d alphas\n", round, nodes->size());
   }
 
   bool b = MarkResponse(contact, fna, mark, nodes);
- *nodes_pending = NodesPending(fna);
+  *nodes_pending = NodesPending(fna);
 
   // Check how many of the nodes of the iteration are back
   NodeContainerByRound &index_car = fna->nc.get<nc_round>();
@@ -386,13 +526,13 @@ void NodeImpl::FindNodes(const FindNodesParams &fnp) {
     }
   }
 
-  IterativeSearch(fna, false, false, &alphas, 0);
+  IterativeSearch(fna, false, false, &alphas);
 }
 
 void NodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
-                               bool top_nodes_done, bool calledback,
-                               std::list<Contact> *contacts,
-                               int nodes_pending) {
+                               bool top_nodes_done,
+                               bool calledback,
+                               std::list<Contact> *contacts) {
   if (top_nodes_done) {
     if (!calledback) {
       DLOG(INFO) << "NodeImpl::IterativeSearch - Done" << std::endl;
@@ -408,9 +548,10 @@ void NodeImpl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
   std::list<Contact>::iterator it = contacts->begin();
   for (; it != contacts->end(); ++it) {
     boost::shared_ptr<FindNodesRpc> fnrpc(new FindNodesRpc(*it, fna));
-    rpcs_->FindNodes<transport::UdtTransport>(fna->key, *it,
+    rpcs_->FindNodes(fna->key, *it,
                      boost::bind(&NodeImpl::IterativeSearchResponse, this,
-                                 _1, _2, fnrpc));
+                                 _1, _2, fnrpc),
+                     kUdt);
   }
 }
 
@@ -436,8 +577,7 @@ void NodeImpl::IterativeSearchResponse(bool result,
     printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
   }
 
-  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes,
-                  nodes_pending);
+  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
 }
 
 }  // namespace kademlia
