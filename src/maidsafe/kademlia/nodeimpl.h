@@ -93,14 +93,16 @@ class NodeImpl {
         const NodeConstructionParameters &node_parameters);
   virtual ~NodeImpl();
 
-  void Join(const NodeId &node_id, const std::string &kad_config_file,
+  void Join(const NodeId &node_id,
+            const std::string &kad_config_file,
             VoidFunctorOneString callback) {}
-  void Join(const std::string &kad_config_file, VoidFunctorOneString callback) {}
+  void Join(const std::string &kad_config_file,
+            VoidFunctorOneString callback) {}
   void JoinFirstNode(const NodeId &node_id,
                      const std::string &kad_config_file,
                      const IP &ip,
                      const Port &port,
-                     VoidFunctorOneString callback) {}
+                     VoidFunctorOneString callback);
   void JoinFirstNode(const std::string &kad_config_file,
                      const IP &ip,
                      const Port &port,
