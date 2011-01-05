@@ -366,13 +366,13 @@ int NodeImpl::NodesPending(boost::shared_ptr<FindNodesArgs> fna) {
 }
 
 bool NodeImpl::HandleIterationStructure(const Contact &contact,
-                                         boost::shared_ptr<FindNodesArgs> fna,
-                                         int round,
-                                         SearchMarking mark,
-                                         std::list<Contact> *nodes,
-                                         bool *top_nodes_done,
-                                         bool *calledback,
-                                         int *nodes_pending) {
+                                        boost::shared_ptr<FindNodesArgs> fna,
+                                        int round,
+                                        SearchMarking mark,
+                                        std::list<Contact> *nodes,
+                                        bool *top_nodes_done,
+                                        bool *calledback,
+                                        int *nodes_pending) {
   boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
   if (fna->calledback) {
     *nodes_pending = NodesPending(fna);

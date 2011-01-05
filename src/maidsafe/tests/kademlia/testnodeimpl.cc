@@ -289,7 +289,6 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
 }
 */
 
-*/
 TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
