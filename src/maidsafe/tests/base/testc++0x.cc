@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 
+
 namespace base {
 
 TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
@@ -57,7 +58,7 @@ TEST(cplusplus, BEH_BASE_auto) {
 	 *it = *it+1;
   ASSERT_EQ(v, p);
 }
-
+/* gcc 4.5
 TEST(cplusplus, BEH_BASE_decltype) {
 	int i = 7;
 	static const decltype(i++) j = 4;
@@ -80,13 +81,34 @@ TEST(cplusplus, BEH_BASE_decltype) {
   // const int, the redundant const qualifier is ignored 
   const decltype(k) var2 = 1;  
 		ASSERT_EQ(typeid(var2), typeid(const int));
-}
+}*/
 
 TEST(cplusplus, BEH_BASE_lambda) {
 	std::vector<int> v = {50, -10, 20, -30};
 	std::vector<int> q = {-10, 20, -30, 50};
  	sort(v.begin(), v.end(), [](int a, int b) { return abs(a)<abs(b); });
  	ASSERT_EQ(v, q);
+}
+
+
+// gcc 4.6
+TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
+	
+// 	int my_array[5] = {1, 2, 3, 4, 5};
+//   for (int &x: my_array) {
+//     x *= 2;
+//    }
+// 	
+}
+
+TEST(DISABLE_cplusplus, BEH_BASE_localAndUnamedTemplteArgs) {
+	
+// template< typename First, typename Second, int third>
+// class SomeType;
+//  
+// template< typename Second>
+// using TypedefName = SomeType<OtherType, Second, 5>;
+	
 }
 
 
