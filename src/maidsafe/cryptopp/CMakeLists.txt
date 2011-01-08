@@ -135,8 +135,8 @@ ELSEIF(WIN32 AND MSVC)
                                             LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG"
                                             LINK_FLAGS_RELWITHDEBINFO "/LTCG"
                                             LINK_FLAGS_MINSIZEREL "/LTCG")
-  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Oi /Oy /GL /DNDEBUG /GF /MD /Gy /Zi")
-  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Oi /D_DEBUG /MDd /arch:SSE /ZI")
+  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Oi /Oy /GL /DNDEBUG /GF /MT /Gy /Zi")
+  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Oi /D_DEBUG /MTd /arch:SSE /ZI")
   LIST(REMOVE_ITEM cryptopp_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dll.cpp") # this file doesn't use precompiled headers
   LIST(REMOVE_ITEM cryptopp_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/iterhash.cpp") # this file doesn't use precompiled headers
   LIST(REMOVE_ITEM cryptopp_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/pch.cpp") # this file is used to create precompiled headers
