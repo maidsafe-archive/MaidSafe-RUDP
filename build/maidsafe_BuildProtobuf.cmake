@@ -35,18 +35,6 @@
 #                                                                              #
 #  Module used to build Google Protocol Buffers libs & compiler.               #
 #                                                                              #
-#  Settable variables to aid with finding protobuf and protoc are:             #
-#    PROTOBUF_LIB_DIR, PROTOBUF_INC_DIR, PROTOC_EXE_DIR and PROTOBUF_ROOT_DIR  #
-#                                                                              #
-#  If PROTOBUF_REQUIRED is set to TRUE, failure of this module will result in  #
-#  a FATAL_ERROR message being generated.                                      #
-#                                                                              #
-#  Variables set and cached by this module are:                                #
-#    Protobuf_INCLUDE_DIR, Protobuf_LIBRARY_DIR, Protobuf_LIBRARY,             #
-#    Protobuf_PROTOC_EXECUTABLE, and Protobuf_FOUND                            #
-#                                                                              #
-#  For MSVC, Protobuf_LIBRARY_DIR_DEBUG is also set and cached.                #
-#                                                                              #
 #==============================================================================#
 
 IF(MSVC)
@@ -78,7 +66,7 @@ IF(MSVC)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}")
   ENDIF()
-    MESSAGE("-- Building Google Protocol Buffers release libraries and compiler")
+  MESSAGE("-- Building Google Protocol Buffers release libraries and compiler")
   EXECUTE_PROCESS(COMMAND devenv ${PROTOBUF_SLN} /Build "Release|Win32" /Project protoc OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}")
