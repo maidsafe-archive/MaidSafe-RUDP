@@ -72,8 +72,8 @@ TEST_F(TestRoutingTable, BEH_KAD_AddContact) {
   RoutingTable routingtable(holder_id, test_routing_table::K);
   std::string ip("127.0.0.1");
   boost::uint16_t port = 5001;
-  for (int  i = 1; i <= test_routing_table::K ;++i) {
-    transport::Endpoint ep = {ip, port++};
+  for (int  i = 1; i <= test_routing_table::K; ++i) {
+    transport::Endpoint ep(ip, port++);
     NodeId contact_id(NodeId::kRandomId);
     Contact contact(contact_id.String(), ep);
     Contact empty;
