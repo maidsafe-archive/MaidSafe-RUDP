@@ -133,12 +133,12 @@ class NodeImpl {
 
   int AddContact(Contact new_contact, const float &rtt, const bool &only_db);
   void RemoveContact(const NodeId &node_id) {}
-  bool GetContact(const NodeId &id, Contact *contact) {}
-  bool FindValueLocal(const NodeId &key, std::vector<std::string> *values) {}
+  bool GetContact(const NodeId &id, Contact *contact) { return false; }
+  bool FindValueLocal(const NodeId &key, std::vector<std::string> *values) { return false; }
   bool StoreValueLocal(const NodeId &key, const std::string &value,
-                       const boost::int32_t &ttl) {}
+                       const boost::int32_t &ttl) { return false; }
   bool RefreshValueLocal(const NodeId &key, const std::string &value,
-                         const boost::int32_t &ttl) {}
+                         const boost::int32_t &ttl) { return false; }
   void GetRandomContacts(const size_t &count,
                          const std::vector<Contact> &exclude_contacts,
                          std::vector<Contact> *contacts) {}
@@ -147,30 +147,30 @@ class NodeImpl {
   ConnectionType CheckContactLocalAddress(const NodeId &id,
                                           const IP &ip,
                                           const Port &port,
-                                          const IP &ext_ip) {}
+                                          const IP &ext_ip) { return LOCAL; }
   void UpdatePDRTContactToRemote(const NodeId &node_id,
                                  const IP &ip) {}
 
-  Contact contact_info() const {}
-  NodeId node_id() const {}
-  IP ip() const {}
-  Port port() const {}
-  IP local_ip() const {}
-  Port local_port() const {}
-  IP rendezvous_ip() const {}
-  Port rendezvous_port() const {}
-  bool is_joined() const {}
+  Contact contact_info() const { return Contact(); }
+  NodeId node_id() const { return NodeId(); }
+  IP ip() const { return IP(); }
+  Port port() const { return Port(0); }
+  IP local_ip() const { return IP(); }
+  Port local_port() const { return Port(0); }
+  IP rendezvous_ip() const { return IP(); }
+  Port rendezvous_port() const { return Port(0); }
+  bool is_joined() const { return false; }
 
-  boost::shared_ptr<Rpcs> rpcs() {}
+  boost::shared_ptr<Rpcs> rpcs() { return rpcs_; }
 
   boost::uint32_t KeyLastRefreshTime(const NodeId &key,
-                                     const std::string &value) {}
-  boost::uint32_t KeyExpireTime(const NodeId &key, const std::string &value) {}
+                                     const std::string &value) { return 0; }
+  boost::uint32_t KeyExpireTime(const NodeId &key, const std::string &value) { return 0; }
 
-  bool using_signatures() {}
-  boost::int32_t KeyValueTTL(const NodeId &key, const std::string &value) const {}
+  bool using_signatures() { return false; }
+  boost::int32_t KeyValueTTL(const NodeId &key, const std::string &value) const { return 0; }
   void set_alternative_store(base::AlternativeStore *alternative_store) {}
-  base::AlternativeStore *alternative_store() {}
+  base::AlternativeStore *alternative_store() { return alternative_store_; }
   void set_signature_validator(base::SignatureValidator *validator) {}
 
  private:
