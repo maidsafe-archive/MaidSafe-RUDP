@@ -98,7 +98,7 @@ bool kadconfig_empty(const std::string &path) {
 //  catch(const std::exception &) {
 //    return true;
 //
-//  return false;
+  return false;
 }
 
 bool write_to_kadconfig(const std::string &path,
