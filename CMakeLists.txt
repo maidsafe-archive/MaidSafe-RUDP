@@ -236,7 +236,12 @@ INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmo
 # Google Log library search - Glog can't currently be compiled on Windows with MinGW              #
 ###################################################################################################
 IF((NOT WIN32) OR MSVC)
+  SET(GLOG_MESSAGE_REQUIRED FALSE)
   INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
+  IF(NOT Glog_FOUND)
+    SET(GLOG_MESSAGE_REQUIRED TRUE)
+    INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildGlog.cmake)
+  ENDIF()
   IF(Glog_FOUND)
     SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
     SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
