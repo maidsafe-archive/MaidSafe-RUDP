@@ -71,7 +71,6 @@ class Rpcs {
   void Ping(const Contact &contact,
             PingFunctor callback,
             TransportType type);
-  template <typename T>
   void FindValue(const NodeId &key,
                  const Contact &contact,
                  FindValueFunctor callback,
@@ -80,7 +79,6 @@ class Rpcs {
                          const Contact &contact,
                          FindNodesFunctor callback,
                          TransportType type);
-  template <typename T>
   void Store(const NodeId &key,
              const SignedValue &signed_value,
              const Signature &signature,
@@ -89,7 +87,6 @@ class Rpcs {
              const bool &publish,
              VoidFunctorOneBool callback,
              TransportType type);
-  template <typename T>
   void Store(const NodeId &key,
              const std::string &value,
              const Contact &contact,
@@ -97,14 +94,12 @@ class Rpcs {
              const bool &publish,
              VoidFunctorOneBool callback,
              TransportType type);
-  template <typename T>
   void Delete(const NodeId &key,
               const SignedValue &signed_value,
               const Signature &signature,
               const Contact &contact,
               VoidFunctorOneBool callback,
               TransportType type);
-  template <typename T>
   void Update(const NodeId &key,
               const SignedValue &new_signed_value,
               const SignedValue &old_signed_value,
@@ -113,7 +108,6 @@ class Rpcs {
               const Contact &contact,
               VoidFunctorOneBool callback,
               TransportType type);
-  template <typename T>
   void Downlist(const std::vector<NodeId> &node_ids,
                 const Contact &contact,
             TransportType type);

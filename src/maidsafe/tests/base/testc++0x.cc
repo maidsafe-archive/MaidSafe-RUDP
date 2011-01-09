@@ -47,53 +47,69 @@ TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
 // uncomment line below to test
 // static_assert ((sizeof(bool) > 800), "I need this to be bigger");
 }
-	
+  
 TEST(cplusplus, BEH_BASE_auto) {
- auto x = 7;
- ASSERT_EQ(x, 7);
- ASSERT_EQ(typeid(int), typeid(7));
- 	std::vector<int> v = {50, -10, 20, -30};
- 	std::vector<int> p = {51, -9, 21, -29};
-	for (auto it = v.begin(); it != v.end(); ++it) 
-	 *it = *it+1;
+  auto x = 7;
+  ASSERT_EQ(x, 7);
+  ASSERT_EQ(typeid(int), typeid(7));
+  std::vector<int> v;
+  v.push_back(50);
+  v.push_back(-10);
+  v.push_back(20);
+  v.push_back(-30);
+  std::vector<int> p;
+  p.push_back(51);
+  p.push_back(-9);
+  p.push_back(21);
+  p.push_back(-29);
+  for (auto it = v.begin(); it != v.end(); ++it) 
+   *it = *it+1;
   ASSERT_EQ(v, p);
 }
 /* gcc 4.5
 TEST(cplusplus, BEH_BASE_decltype) {
-	int i = 7;
-	static const decltype(i++) j = 4;
-	ASSERT_EQ(7, i); //decltype has own scope so i unchanged
-	ASSERT_EQ(sizeof(int), sizeof(j));
-	ASSERT_EQ(4, j);
+  int i = 7;
+  static const decltype(i++) j = 4;
+  ASSERT_EQ(7, i); //decltype has own scope so i unchanged
+  ASSERT_EQ(sizeof(int), sizeof(j));
+  ASSERT_EQ(4, j);
   int& p = i;
   ASSERT_EQ(p, 7);
-	// references are ignored
-	ASSERT_NE(typeid(&p), typeid(i));
-	ASSERT_EQ(typeid(p), typeid(i));
-	
+  // references are ignored
+  ASSERT_NE(typeid(&p), typeid(i));
+  ASSERT_EQ(typeid(p), typeid(i));
+  
   const int k = 1;
-	decltype(k) d = 1;
-	ASSERT_EQ(typeid(d), typeid(const int));
+  decltype(k) d = 1;
+  ASSERT_EQ(typeid(d), typeid(const int));
 
   decltype(j)&  var1 = i;
-	ASSERT_EQ(typeid(j), typeid(i)); // ignores references
-	ASSERT_EQ(typeid(j), typeid(int));
+  ASSERT_EQ(typeid(j), typeid(i)); // ignores references
+  ASSERT_EQ(typeid(j), typeid(int));
   // const int, the redundant const qualifier is ignored 
   const decltype(k) var2 = 1;  
-		ASSERT_EQ(typeid(var2), typeid(const int));
+    ASSERT_EQ(typeid(var2), typeid(const int));
 }*/
 
 TEST(cplusplus, BEH_BASE_lambda) {
-	std::vector<int> v = {50, -10, 20, -30};
-	std::vector<int> q = {-10, 20, -30, 50};
- 	sort(v.begin(), v.end(), [](int a, int b) { return abs(a)<abs(b); });
- 	ASSERT_EQ(v, q);
+  std::vector<int> v;
+  v.push_back(50);
+  v.push_back(-10);
+  v.push_back(20);
+  v.push_back(-30);
+  std::vector<int> q;
+  q.push_back(-10);
+  q.push_back(20);
+  q.push_back(-30);
+  q.push_back(50);
+  std::sort(v.begin(), v.end(), [](int a, int b) { return abs(a)<abs(b); });
+  ASSERT_EQ(v, q);
 }
 
 
 // gcc 4.6
 TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
-	
+  
 // 	int my_array[5] = {1, 2, 3, 4, 5};
 //   for (int &x: my_array) {
 //     x *= 2;
@@ -102,13 +118,13 @@ TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
 }
 
 TEST(DISABLE_cplusplus, BEH_BASE_localAndUnamedTemplteArgs) {
-	
+  
 // template< typename First, typename Second, int third>
 // class SomeType;
 //  
 // template< typename Second>
 // using TypedefName = SomeType<OtherType, Second, 5>;
-	
+  
 }
 
 

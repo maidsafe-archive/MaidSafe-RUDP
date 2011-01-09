@@ -327,7 +327,7 @@ TEST(TestKadId, BEH_KAD_SplitRange) {
 
 TEST(TestKadId, BEH_KAD_InsertKadContact) {
   std::vector<Contact> contacts;
-  transport::Endpoint ep = {"IP", 10000};
+  transport::Endpoint ep("IP", 10000);
   for (char c = '9'; c >= '0'; --c)
     contacts.push_back(Contact(std::string(64, c), ep));
   ASSERT_EQ(size_t(10), contacts.size());
