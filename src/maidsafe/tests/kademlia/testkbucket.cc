@@ -84,20 +84,20 @@ TEST_F(TestKbucket, BEH_KAD_AddAndGetContact) {
     ASSERT_EQ(i, kbucket.Size());
     id[i] = NodeId(cry_obj.Hash(boost::lexical_cast<std::string>(i), "",
                                 crypto::STRING_STRING, false));
-    transport::Endpoint ep = {ip, ++port};
+    transport::Endpoint ep(ip, ++port);
     Contact contact(id[i].String(), ep);
     ASSERT_EQ(SUCCEED, kbucket.AddContact(contact));
   }
   ++port;
   NodeId id1(cry_obj.Hash("125486", "", crypto::STRING_STRING, false));
   ASSERT_EQ(K, kbucket.Size());
-  transport::Endpoint ep1 = {ip, port};
+  transport::Endpoint ep1(ip, port);
   Contact contact1(id1.String(), ep1);
   ASSERT_EQ(FULL, kbucket.AddContact(contact1));
   ASSERT_EQ(K, kbucket.Size());
   port = 8880;
   for (boost::int16_t i = 0; i < K; ++i) {
-    transport::Endpoint ep = {ip, ++port};
+    transport::Endpoint ep(ip, ++port);
     Contact contact(id[i].String(), ep);
     Contact contact_rec;
     ASSERT_TRUE(kbucket.GetContact(id[i], &contact_rec));
