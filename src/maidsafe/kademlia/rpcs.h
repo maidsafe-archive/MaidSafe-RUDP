@@ -38,11 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
 
-namespace transport {
-class Endpoint;
-}  // namespace transport
-
 namespace kademlia {
+
+enum TransportType { kUdt, kTcp, kOther };
 
 class MessageHandler;
 class NodeId;
@@ -62,78 +60,92 @@ typedef boost::function<void(bool, const std::vector<Contact>&,
                              const std::vector<SignedValue>&,
                              const Contact&, bool)> FindValueFunctor;
 typedef boost::function<void(bool, const std::vector<Contact>&)>
-    FindNodesFunctor;
+        FindNodesFunctor;
 
-template <class TransportType>
 class Rpcs {
  public:
-  Rpcs() : node_contact_() {}
-  void Ping(const transport::Endpoint &endpoint,
-            PingFunctor callback);
+  Rpcs(boost::shared_ptr<boost::asio::io_service> asio_service)
+      : node_contact_(),
+        asio_service_(asio_service) {}
+  virtual ~Rpcs() {}
+  void Ping(const Contact &contact,
+            PingFunctor callback,
+            TransportType type);
   void FindValue(const NodeId &key,
-                 const transport::Endpoint &endpoint,
-                 FindValueFunctor callback);
-  void FindNodes(const NodeId &key,
-                 const transport::Endpoint &endpoint,
-                 FindNodesFunctor callback);
+                 const Contact &contact,
+                 FindValueFunctor callback,
+                 TransportType type);
+  virtual void FindNodes(const NodeId &key,
+                         const Contact &contact,
+                         FindNodesFunctor callback,
+                         TransportType type);
   void Store(const NodeId &key,
              const SignedValue &signed_value,
              const Signature &signature,
-             const transport::Endpoint &endpoint,
+             const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback);
+             VoidFunctorOneBool callback,
+             TransportType type);
   void Store(const NodeId &key,
              const std::string &value,
-             const transport::Endpoint &endpoint,
+             const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback);
+             VoidFunctorOneBool callback,
+             TransportType type);
   void Delete(const NodeId &key,
               const SignedValue &signed_value,
               const Signature &signature,
-              const transport::Endpoint &endpoint,
-              VoidFunctorOneBool callback);
+              const Contact &contact,
+              VoidFunctorOneBool callback,
+              TransportType type);
   void Update(const NodeId &key,
               const SignedValue &new_signed_value,
               const SignedValue &old_signed_value,
               const boost::int32_t &ttl,
               const Signature &signature,
-              const transport::Endpoint &endpoint,
-              VoidFunctorOneBool callback);
+              const Contact &contact,
+              VoidFunctorOneBool callback,
+              TransportType type);
   void Downlist(const std::vector<NodeId> &node_ids,
-                const transport::Endpoint &endpoint);
+                const Contact &contact,
+            TransportType type);
   void set_node_contact(const Contact &node_contact) {
     node_contact_ = node_contact;
   }
+
  private:
   void PingCallback(const protobuf::PingResponse &response,
                     PingFunctor callback,
                     boost::shared_ptr<MessageHandler> message_handler,
-                    boost::shared_ptr<TransportType> transport);
+                    boost::shared_ptr<transport::Transport> transport);
   void FindValueCallback(const protobuf::FindValueResponse &response,
                          FindValueFunctor callback,
                          boost::shared_ptr<MessageHandler> message_handler,
-                         boost::shared_ptr<TransportType> transport);
+                         boost::shared_ptr<transport::Transport> transport);
   void FindNodesCallback(const protobuf::FindNodesResponse &response,
                          FindNodesFunctor callback,
                          boost::shared_ptr<MessageHandler> message_handler,
-                         boost::shared_ptr<TransportType> transport);
+                         boost::shared_ptr<transport::Transport> transport);
   void StoreCallback(const protobuf::StoreResponse &response,
                      VoidFunctorOneBool callback,
                      boost::shared_ptr<MessageHandler> message_handler,
-                     boost::shared_ptr<TransportType> transport);
+                     boost::shared_ptr<transport::Transport> transport);
   void DeleteCallback(const protobuf::DeleteResponse &response,
                       VoidFunctorOneBool callback,
                       boost::shared_ptr<MessageHandler> message_handler,
-                      boost::shared_ptr<TransportType> transport);
+                      boost::shared_ptr<transport::Transport> transport);
   void UpdateCallback(const protobuf::UpdateResponse &response,
                       VoidFunctorOneBool callback,
                       boost::shared_ptr<MessageHandler> message_handler,
-                      boost::shared_ptr<TransportType> transport);
+                      boost::shared_ptr<transport::Transport> transport);
+  boost::shared_ptr<transport::Transport> CreateTransport(TransportType type);
+
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   Contact node_contact_;
+  boost::shared_ptr<boost::asio::io_service> asio_service_;
 };
 
 }  // namespace kademlia

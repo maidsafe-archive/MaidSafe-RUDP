@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
@@ -60,6 +59,7 @@ class TestValidator : public base::SignatureValidator {
 
 static const boost::uint16_t K = 16;
 
+/*
 class TestNodeFunctions : public testing::Test {
  protected:
   static void SetUpTestCase() {
@@ -211,6 +211,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
   ASSERT_EQ(kDirectConnected, node_->nat_type());
 }
 
+*/
 }  // namespace test_kbucket
 
 }  // namespace kademlia

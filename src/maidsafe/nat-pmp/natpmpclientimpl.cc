@@ -32,7 +32,7 @@ Created by Julian Cain on 11/3/09.
 
 #include <boost/bind.hpp>
 
-#include "maidsafe/base/gateway.h"
+#include "maidsafe/transport/gateway.h"
 #include "maidsafe/base/log.h"
 
 namespace natpmp {
@@ -67,7 +67,7 @@ void NatPmpClientImpl::Start() {
     boost::system::error_code ec;
 
     // Obtain the default gateway/route.
-    m_gateway_address_ = base::Gateway::DefaultRoute(*io_service_, ec);
+    m_gateway_address_ = transport::Gateway::DefaultRoute(*io_service_, ec);
 
     if (ec) {
       throw std::runtime_error(ec.message());

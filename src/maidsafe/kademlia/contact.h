@@ -48,10 +48,9 @@ namespace kademlia {
 class Contact {
  public:
   Contact();
-  explicit Contact(const Contact &other);
-  explicit Contact(const protobuf::Contact &contact);
-  Contact(const std::string &node_id,
-          const transport::Endpoint ep);
+  Contact(const Contact &other);
+  Contact(const protobuf::Contact &contact);
+  Contact(const std::string &node_id, const transport::Endpoint ep);
   bool FromProtobuf(const protobuf::Contact &contact);
   protobuf::Contact ToProtobuf() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
@@ -86,6 +85,7 @@ class Contact {
   bool Equals(const Contact &other) const;
   bool operator<(const Contact &rhs) const;
   bool operator==(const Contact &rhs) const { return Equals(rhs); }
+
  private:
   NodeId node_id_;
   transport::Endpoint endpoint_, rendezvous_endpoint_;

@@ -327,14 +327,15 @@ TEST(TestKadId, BEH_KAD_SplitRange) {
 
 TEST(TestKadId, BEH_KAD_InsertKadContact) {
   std::vector<Contact> contacts;
+  transport::Endpoint ep("IP", 10000);
   for (char c = '9'; c >= '0'; --c)
-    contacts.push_back(Contact(std::string(64, c), "IP", 10000));
+    contacts.push_back(Contact(std::string(64, c), ep));
   ASSERT_EQ(size_t(10), contacts.size());
   // Copy the vector.
   std::vector<Contact> contacts_before(contacts);
   std::string key(64, 'b');
   NodeId kad_key(key);
-  Contact new_contact(std::string(64, 'a'), "IP", 10000);
+  Contact new_contact(std::string(64, 'a'), ep);
   InsertKadContact(kad_key, new_contact, &contacts);
   ASSERT_EQ(size_t(11), contacts.size());
   // Check contacts have been re-ordered correctly.

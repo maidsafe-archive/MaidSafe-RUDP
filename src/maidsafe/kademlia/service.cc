@@ -40,13 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/validationinterface.h"
 #include "maidsafe/base/log.h"
 
-// #include "maidsafe/kademlia/rpcs.h"
-// #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/base/crypto.h"
-// #include "maidsafe/base/utils.h"
-// #include "maidsafe/kademlia/node-api.h"
-// #include "maidsafe/protobuf/signed_kadvalue.pb.h"
-// #include "maidsafe/kademlia/nodeid.h"
 
 namespace kademlia {
 
