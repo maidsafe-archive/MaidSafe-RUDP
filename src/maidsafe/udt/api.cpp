@@ -808,7 +808,6 @@ int CUDTUnited::close(const UDTSOCKET u)
    m_Sockets.erase(s->m_SocketID);
    m_ClosedSockets.insert(pair<UDTSOCKET, CUDTSocket*>(s->m_SocketID, s));
 
-
    CTimer::triggerEvent();
 
    return 0;
@@ -1175,9 +1174,13 @@ void CUDTUnited::checkBrokenSockets()
 
    for (map<UDTSOCKET, CUDTSocket*>::iterator j = m_ClosedSockets.begin(); j != m_ClosedSockets.end(); ++ j)
    {
-      // timeout 1 second to destroy a socket AND it has been removed from RcvUList
-      if ((CTimer::getTime() - j->second->m_TimeStamp > 1000000) && ((NULL == j->second->m_pUDT->m_pRNode) || !j->second->m_pUDT->m_pRNode->m_bOnList))
+      // timeout 1 second to destroy a socket AND it has been removed from RcvUList AND no linger data to send
+      if ((CTimer::getTime() - j->second->m_TimeStamp > 1000000) && 
+          ((NULL == j->second->m_pUDT->m_pRNode) || !j->second->m_pUDT->m_pRNode->m_bOnList) &&
+          ((0 == j->second->m_pUDT->m_pSndBuffer->getCurrBufSize()) || (j->second->m_pUDT->m_ullLingerExpiration < CTimer::getTime())))
+      {
          tbr.push_back(j->first);
+      }
    }
 
    // move closed sockets to the ClosedSockets structure

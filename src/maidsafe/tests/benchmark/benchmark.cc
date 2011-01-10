@@ -36,9 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/base/log.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/protobuf/contact_info.pb.h"
-#include "maidsafe/protobuf/general_messages.pb.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/benchmark/operations.h"
 
@@ -52,11 +49,11 @@ class JoinCallback {
  public:
   JoinCallback() : result_arrived_(false), success_(false) {}
   void Callback(const std::string &result) {
-    base::GeneralResponse msg;
-    if (!msg.ParseFromString(result))
+//    base::GeneralResponse msg;
+//    if (!msg.ParseFromString(result))
       success_ = false;
-    else
-      success_ = (msg.result());
+//    else
+//      success_ = (msg.result());
     result_arrived_ = true;
   }
   bool result_arrived() const { return result_arrived_; }
@@ -84,45 +81,45 @@ void option_dependency(const po::variables_map& vm,
 }
 
 bool kadconfig_empty(const std::string &path) {
-  base::KadConfig kadconfig;
-  try {
-    boost::filesystem::ifstream input(path.c_str(),
-                                      std::ios::in | std::ios::binary);
-    if (!kadconfig.ParseFromIstream(&input)) {;
-      return true;
-    }
-    input.close();
-    if (kadconfig.contact_size() == 0)
-      return true;
-  }
-  catch(const std::exception &) {
-    return true;
-  }
+//  base::KadConfig kadconfig;
+//  try {
+//    boost::filesystem::ifstream input(path.c_str(),
+//                                      std::ios::in | std::ios::binary);
+//    if (!kadconfig.ParseFromIstream(&input)) {;
+//      return true;
+//    }
+//    input.close();
+//    if (kadconfig.contact_size() == 0)
+//      return true;
+//  }
+//  catch(const std::exception &) {
+//    return true;
+//  }
   return false;
 }
 
 bool write_to_kadconfig(const std::string &path, const std::string &node_id,
     const std::string &ip, const boost::uint16_t &port,
     const std::string &local_ip, const boost::uint16_t &local_port) {
-  base::KadConfig kadconfig;
-  try {
-    base::KadConfig::Contact *ctc = kadconfig.add_contact();
-    ctc->set_ip(ip);
-    ctc->set_node_id(node_id);
-    ctc->set_port(port);
-    ctc->set_local_ip(local_ip);
-    ctc->set_local_port(local_port);
-    boost::filesystem::fstream output(path.c_str(), std::ios::out |
-                                      std::ios::trunc | std::ios::binary);
-    if (!kadconfig.SerializeToOstream(&output)) {
-      output.close();
-      return false;
-    }
-    output.close();
-  }
-    catch(const std::exception &) {
-    return false;
-  }
+//  base::KadConfig kadconfig;
+//  try {
+//    base::KadConfig::Contact *ctc = kadconfig.add_contact();
+//    ctc->set_ip(ip);
+//    ctc->set_node_id(node_id);
+//    ctc->set_port(port);
+//    ctc->set_local_ip(local_ip);
+//    ctc->set_local_port(local_port);
+//    boost::filesystem::fstream output(path.c_str(), std::ios::out |
+//                                      std::ios::trunc | std::ios::binary);
+//    if (!kadconfig.SerializeToOstream(&output)) {
+//      output.close();
+//      return false;
+//    }
+//    output.close();
+//  }
+//    catch(const std::exception &) {
+//    return false;
+//  }
   return boost::filesystem::exists(path);
 }
 
@@ -228,6 +225,7 @@ int main(int argc, char **argv) {
     }
     google::InitGoogleLogging(argv[0]);
 
+/*
     // Starting transport on port
     port = vm["port"].as<boost::uint16_t>();
     boost::shared_ptr<transport::UdtTransport> tra(new transport::UdtTransport);
@@ -324,12 +322,12 @@ int main(int argc, char **argv) {
     cm->Stop();
     printf("\nNode stopped successfully.\n\n");
     benchmark::Operations::PrintRpcTimings(cm->RpcTimings());
+*/
   }
   catch(const std::exception &e) {
     printf("Error: %s\n", e.what());
     return 1;
   }
-
   return 0;
 }
 

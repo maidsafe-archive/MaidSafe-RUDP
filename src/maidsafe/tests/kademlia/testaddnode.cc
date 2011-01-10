@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/rpcprotocol/channelmanager-api.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
@@ -46,6 +45,7 @@ namespace test_add_node {
 
 static const boost::uint16_t K = 16;
 
+/*
 class MessageHandler {
  public:
   MessageHandler(): msgs(), ids(), dead_server_(true), server_ip_(),
@@ -380,6 +380,7 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
   ASSERT_FALSE(nodes_[0].is_joined());
   ASSERT_FALSE(nodes_[1].is_joined());
 }
+*/
 
 }  // namespace test_add_node
 

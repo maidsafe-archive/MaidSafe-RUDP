@@ -35,18 +35,6 @@
 #                                                                              #
 #  Module used to build Google Protocol Buffers libs & compiler.               #
 #                                                                              #
-#  Settable variables to aid with finding protobuf and protoc are:             #
-#    PROTOBUF_LIB_DIR, PROTOBUF_INC_DIR, PROTOC_EXE_DIR and PROTOBUF_ROOT_DIR  #
-#                                                                              #
-#  If PROTOBUF_REQUIRED is set to TRUE, failure of this module will result in  #
-#  a FATAL_ERROR message being generated.                                      #
-#                                                                              #
-#  Variables set and cached by this module are:                                #
-#    Protobuf_INCLUDE_DIR, Protobuf_LIBRARY_DIR, Protobuf_LIBRARY,             #
-#    Protobuf_PROTOC_EXECUTABLE, and Protobuf_FOUND                            #
-#                                                                              #
-#  For MSVC, Protobuf_LIBRARY_DIR_DEBUG is also set and cached.                #
-#                                                                              #
 #==============================================================================#
 
 IF(MSVC)
@@ -78,7 +66,7 @@ IF(MSVC)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}")
   ENDIF()
-    MESSAGE("-- Building Google Protocol Buffers release libraries and compiler")
+  MESSAGE("-- Building Google Protocol Buffers release libraries and compiler")
   EXECUTE_PROCESS(COMMAND devenv ${PROTOBUF_SLN} /Build "Release|Win32" /Project protoc OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}")
@@ -103,15 +91,20 @@ ELSE()
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DPROTOBUF_ROOT_DIR=<Path to protobuf root directory>\n")
     MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
   ENDIF()
+  # Make a copy of protobuf to work with to avoid modified files being accidentally committed to repository
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/thirdpartylibs)
+  FILE(COPY ${PROTOBUF_SRC_DIR} DESTINATION ${CMAKE_BINARY_DIR}/thirdpartylibs)
+  SET(PROTOBUF_ROOT_DIR ${CMAKE_BINARY_DIR}/thirdpartylibs/protobuf CACHE PATH "Path to Google Protocol Buffers root directory" FORCE)
+  FIND_FILE(PROTOBUF_AUTOGEN autogen.sh PATHS ${PROTOBUF_ROOT_DIR} NO_DEFAULT_PATH)
   MESSAGE("-- Generating configure file for Google Protocol Buffers")
   MESSAGE("     This may take a few minutes...")
-  EXECUTE_PROCESS(COMMAND sh ${PROTOBUF_AUTOGEN} WORKING_DIRECTORY ${PROTOBUF_SRC_DIR} OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR ERROR_VARIABLE ERRVAR)
+  EXECUTE_PROCESS(COMMAND sh ${PROTOBUF_AUTOGEN} WORKING_DIRECTORY ${PROTOBUF_ROOT_DIR} OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR ERROR_VARIABLE ERRVAR)
   IF(${RESVAR} EQUAL 0)
-    FIND_FILE(PROTOBUF_CONFIGURE configure PATHS ${PROTOBUF_SRC_DIR} NO_DEFAULT_PATH)
+    FIND_FILE(PROTOBUF_CONFIGURE configure PATHS ${PROTOBUF_ROOT_DIR} NO_DEFAULT_PATH)
   ENDIF()
   IF(NOT PROTOBUF_CONFIGURE)
     SET(ERROR_MESSAGE "${OUTVAR}\n${ERRVAR}\nCould not create configure file for Google Protocol Buffers.\n")
-    SET(ERROR_MESSAGE "${ERROR_MESSAGE}This needs autoconf and libtool to complete successfully.")
+    SET(ERROR_MESSAGE "${ERROR_MESSAGE}This needs autoconf and libtool to complete successfully.\n")
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}If protobuf is already installed, run:\n")
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DPROTOBUF_INC_DIR=<Path to protobuf include directory> and/or")
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DPROTOBUF_LIB_DIR=<Path to protobuf lib directory> and/or")
@@ -119,18 +112,16 @@ ELSE()
     SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DPROTOBUF_ROOT_DIR=<Path to protobuf root directory>\n")
     MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
   ENDIF()
-  SET(PROTOBUF_ROOT_DIR ${CMAKE_BINARY_DIR}/thirdpartylibs/protobuf CACHE PATH "Path to Google Protocol Buffers root directory" FORCE)
-  FILE(MAKE_DIRECTORY ${PROTOBUF_ROOT_DIR})
   GET_FILENAME_COMPONENT(PROTOBUF_SRC_DIR ${PROTOBUF_CONFIGURE} PATH)
   MESSAGE("-- Configuring Google Protocol Buffers")
   MESSAGE("     This may take a few minutes...")
-  EXECUTE_PROCESS(COMMAND sh ${PROTOBUF_CONFIGURE} --prefix=${PROTOBUF_ROOT_DIR} WORKING_DIRECTORY ${PROTOBUF_SRC_DIR} OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR)
+  EXECUTE_PROCESS(COMMAND sh ${PROTOBUF_CONFIGURE} --prefix=${PROTOBUF_ROOT_DIR} --enable-shared=no WORKING_DIRECTORY ${PROTOBUF_SRC_DIR} OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}")
   ENDIF()
   MESSAGE("-- Making Google Protocol Buffers")
   MESSAGE("     This may take a few minutes...")
-  EXECUTE_PROCESS(COMMAND make -C ${PROTOBUF_SRC_DIR} install OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR ERROR_VARIABLE ERRVAR)
+  EXECUTE_PROCESS(COMMAND make -C ${PROTOBUF_ROOT_DIR} install OUTPUT_VARIABLE OUTVAR RESULT_VARIABLE RESVAR ERROR_VARIABLE ERRVAR)
   IF(NOT ${RESVAR} EQUAL 0)
     MESSAGE("${OUTVAR}\n${ERRVAR}")
   ENDIF()
