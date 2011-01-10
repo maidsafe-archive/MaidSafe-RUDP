@@ -229,7 +229,6 @@ SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Protobuf_LIBRARY_DIR_DEBUG})
 ###################################################################################################
 # Google Mock and Test library                                                                    #
 ###################################################################################################
-SET(gtest_force_shared_crt ON CACHE INTERNAL "" FORCE)
 ADD_SUBDIRECTORY(${${PROJECT_NAME}_ROOT}/thirdpartylibs/googlemock)
 INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR})
 
@@ -237,7 +236,12 @@ INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmo
 # Google Log library search - Glog can't currently be compiled on Windows with MinGW              #
 ###################################################################################################
 IF((NOT WIN32) OR MSVC)
+  SET(GLOG_MESSAGE_REQUIRED FALSE)
   INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
+  IF(NOT Glog_FOUND)
+    SET(GLOG_MESSAGE_REQUIRED TRUE)
+    INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildGlog.cmake)
+  ENDIF()
   IF(Glog_FOUND)
     SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
     SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
@@ -590,10 +594,10 @@ IF(MSVC)
   # prevents from automatic linking of boost libraries
   ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB)
 
-  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Ot /Oy /GL /D \"NDEBUG\" /EHsc /MD /Gy /W3 /Zi")
-  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Ot /Oy /D \"_DEBUG\" /EHsc /MDd  /c /ZI /TP")
-  SET(CMAKE_CXX_FLAGS_MINSIZEREL "/EHsc /MD")
-  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/EHsc /MD")
+  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Ot /Oy /GL /D \"NDEBUG\" /EHsc /MT /Gy /W3 /Zi")
+  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Ot /Oy /D \"_DEBUG\" /EHsc /MTd  /c /ZI /TP")
+  SET(CMAKE_CXX_FLAGS_MINSIZEREL "/EHsc /MT")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/EHsc /MT")
 
   # warning 4503 disabled due to excessive generation through use of Boost multi_index
   SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/node.cc
