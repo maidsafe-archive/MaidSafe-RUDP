@@ -25,14 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/base/routingtable.h"
+#include "maidsafe/common/routingtable.h"
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 #include <algorithm>
 #include <vector>
 #include "maidsafe/kademlia/nodeid.h"
 
-namespace base {
+namespace maidsafe {
 
 int PublicRoutingTableHandler::GetTupleInfo(const std::string &kademlia_id,
                                             PublicRoutingTableTuple *tuple) {
@@ -125,7 +125,7 @@ int PublicRoutingTableHandler::GetClosestContacts(
   return 0;
 }
 
-int PublicRoutingTableHandler::AddTuple(base::PublicRoutingTableTuple tuple) {
+int PublicRoutingTableHandler::AddTuple(PublicRoutingTableTuple tuple) {
   boost::mutex::scoped_lock guard(mutex_);
   routingtable::index<t_key>::type& key_indx = routingtable_.get<t_key>();
   routingtable::index<t_key>::type::iterator it =
@@ -347,4 +347,4 @@ boost::shared_ptr<PublicRoutingTableHandler> PublicRoutingTable::operator[] (
   return it->second;
 }
 
-}  // namespace base
+}  // namespace maidsafe

@@ -29,8 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 
 namespace kademlia {
 

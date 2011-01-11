@@ -29,15 +29,15 @@
 //
 ////#include <boost/compressed_pair.hpp>
 ////#include <utility>
-//#include "maidsafe/base/alternativestore.h"
-//#include "maidsafe/base/log.h"
-//#include "maidsafe/base/threadpool.h"
-//#include "maidsafe/base/validationinterface.h"
+//#include "maidsafe/common/alternativestore.h"
+//#include "maidsafe/common/log.h"
+//#include "maidsafe/common/threadpool.h"
+//#include "maidsafe/common/validationinterface.h"
 ////#include "maidsafe/kademlia/rpcs.h"
 ////#include "maidsafe/kademlia/nodeimpl.h"
 ////#include "maidsafe/kademlia/datastore.h"
-////#include "maidsafe/base/crypto.h"
-////#include "maidsafe/base/utils.h"
+////#include "maidsafe/common/crypto.h"
+////#include "maidsafe/common/utils.h"
 ////#include "maidsafe/kademlia/node-api.h"
 ////#include "maidsafe/protobuf/signed_kadvalue.pb.h"
 ////#include "maidsafe/kademlia/nodeid.h"

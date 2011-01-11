@@ -38,10 +38,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
 
-namespace base {
+namespace maidsafe {
+
 class SignatureValidator;
 class AlternativeStore;
-}  // namespace base
 
 namespace kademlia {
 
@@ -129,4 +129,7 @@ class Service {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
+
 #endif  // MAIDSAFE_KADEMLIA_SERVICE_H_

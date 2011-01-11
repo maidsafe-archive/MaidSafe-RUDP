@@ -40,9 +40,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <vector>
 
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/routingtable.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/routingtable.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/transport/udttransport.h"
@@ -981,7 +981,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
     if (i != r_node) {
       Contact test_contact;
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
-        if (test_contact.failed_rpc() == kFailedRpc) {
+        if (test_contact.failed_rpc() == kFailedRpcTolerance) {
           ++sum_0;
           holders.push_back(i);
         }
@@ -1045,7 +1045,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
         ++sum_1;
       } else {
-        if (test_contact.failed_rpc() > kFailedRpc)
+        if (test_contact.failed_rpc() > kFailedRpcTolerance)
           ++sum_1;
       }
     }

@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/datastore.h"
 #include <exception>
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/utils.h"
 
 
 namespace kademlia {

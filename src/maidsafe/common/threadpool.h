@@ -31,52 +31,43 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
-#define MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
+#ifndef MAIDSAFE_COMMON_THREADPOOL_H_
+#define MAIDSAFE_COMMON_THREADPOOL_H_
 
-#include <string>
+#include <boost/asio.hpp>
+#include <boost/concept_check.hpp>
+#include <boost/function.hpp>
+#include <boost/thread/condition_variable.hpp>
+#include <boost/thread/thread.hpp>
+#include <queue>
+#include <vector>
 
+namespace maidsafe {
 
-namespace base {
-/**
- * Base class to validate with a public key requests signed with a private key
- * and to validate the id of the sender of the request.  This methods should be
- * implemented by the user.
- * id_ is the ID of the node doing the validation.
- */
-class SignatureValidator {
+class Threadpool {
  public:
-  explicit SignatureValidator(const std::string &id) : id_(id) {}
-  SignatureValidator() : id_() {}
-  virtual ~SignatureValidator() {}
-  /**
-   * Validates the Id of the signer
-   * @param signer_id id to be validated
-   * @param public_key public key
-   * @param signed_public_key public key signed
-   */
-  virtual bool ValidateSignerId(const std::string &signer_id,
-                                const std::string &public_key,
-                                const std::string &signed_public_key) = 0;
-  /**
-   * Validates the request signed by sender
-   * @param signed_request request to be validated with the public key
-   * @param public_key used to validate signature of the request
-   * @param signed_public_key public key signed
-   * @param key key to store/delete value
-   * @param rec_id id of the node receiving the request
-   */
-  virtual bool ValidateRequest(const std::string &signed_request,
-                               const std::string &public_key,
-                               const std::string &signed_public_key,
-                               const std::string &key) = 0;
-  inline std::string id() const { return id_; }
-  inline void set_id(const std::string &id) { id_ = id; }
-
+  explicit Threadpool(const boost::uint8_t &poolsize);
+  ~Threadpool();
+  typedef boost::function<void()> VoidFunctor;
+  // we may add this method plus the private run now method later
+  // template <typename T>
+  // AddTask (io_service_.post(
+  //    boost::bind( &Threadpool::Run<T>, this, function )
+  bool EnqueueTask(const VoidFunctor &functor);
  private:
-  std::string id_;
+  //     template <typename T>
+  //     void Run(T function) {
+  //   An Object
+  //       function(Object); // use shared pointer to object to do this properly
+  //     }
+  // no copy or assign for thread safety (functors)
+  Threadpool(const Threadpool&);
+  Threadpool &operator=(const Threadpool&);
+  boost::asio::io_service io_service_;
+  boost::shared_ptr<boost::asio::io_service::work> work_;
+  boost::thread_group thread_group_;
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
-#endif  // MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
+#endif  // MAIDSAFE_COMMON_THREADPOOL_H_

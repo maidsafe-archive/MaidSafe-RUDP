@@ -31,18 +31,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_CRYPTO_H_
-#define MAIDSAFE_BASE_CRYPTO_H_
+#ifndef MAIDSAFE_COMMON_CRYPTO_H_
+#define MAIDSAFE_COMMON_CRYPTO_H_
 
 #include <boost/cstdint.hpp>
 #include <string>
 
+namespace maidsafe {
 
 namespace crypto {
 
 namespace test {
-class CryptoTest_BEH_BASE_Hash_Test;
-class CryptoTest_BEH_BASE_SymmEncrypt_Test;
+class CryptoTest_BEH_COMMON_Hash_Test;
+class CryptoTest_BEH_COMMON_SymmEncrypt_Test;
 }  // namespace test
 
 const boost::uint16_t AES256_KeySize = 32;  // size in bytes
@@ -248,8 +249,8 @@ class Crypto {
   std::string Uncompress(const std::string &input,
                          const std::string &output,
                          const OperationType &operation_type);
-  friend class test::CryptoTest_BEH_BASE_Hash_Test;
-  friend class test::CryptoTest_BEH_BASE_SymmEncrypt_Test;
+  friend class test::CryptoTest_BEH_COMMON_Hash_Test;
+  friend class test::CryptoTest_BEH_COMMON_SymmEncrypt_Test;
  private:
   /**
   * XOR obfuscation operation.
@@ -296,5 +297,6 @@ class RsaKeyPair {
 
 }   // namespace crypto
 
-#endif  // MAIDSAFE_BASE_CRYPTO_H_
+}  // namespace maidsafe
 
+#endif  // MAIDSAFE_COMMON_CRYPTO_H_

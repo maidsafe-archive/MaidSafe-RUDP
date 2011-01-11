@@ -94,7 +94,7 @@ void KBucket::RemoveContact(const NodeId &node_id, const bool &force) {
     Contact current_element = *it;
     current_element.IncreaseFailedRpcs();
     contacts_.erase(it);
-    if (current_element.num_failed_rpcs() <= kFailedRpc && !force) {
+    if (current_element.num_failed_rpcs() <= kFailedRpcTolerance && !force) {
       std::list<Contact>::iterator new_it = contacts_.begin();
       std::advance(new_it, position);
       contacts_.insert(new_it, current_element);

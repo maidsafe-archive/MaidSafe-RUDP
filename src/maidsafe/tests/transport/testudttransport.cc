@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/thread.hpp>
 #include <gtest/gtest.h>
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/transport/messagehandler.h"
 #include "maidsafe/tests/transport/transportapitest.h"

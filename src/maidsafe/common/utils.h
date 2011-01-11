@@ -31,15 +31,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_UTILS_H_
-#define MAIDSAFE_BASE_UTILS_H_
+#ifndef MAIDSAFE_COMMON_UTILS_H_
+#define MAIDSAFE_COMMON_UTILS_H_
 
 #include <boost/cstdint.hpp>
 #include <maidsafe/maidsafe-dht_config.h>
 #include <string>
 #include <vector>
 
-namespace base {
+namespace maidsafe {
 
 struct DeviceStruct {
   DeviceStruct() : ip_address(), device_interface() {}
@@ -153,6 +153,6 @@ boost::uint64_t GetEpochNanoseconds();
 // Generate a (transaction) id between 1 & 2147483646 inclusive.
 boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id);
 
-}  // namespace base
+}  // namespace maidsafe
 
-#endif  // MAIDSAFE_BASE_UTILS_H_
+#endif  // MAIDSAFE_COMMON_UTILS_H_

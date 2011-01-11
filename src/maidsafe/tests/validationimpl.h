@@ -29,11 +29,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_VALIDATIONIMPL_H_
 
 #include <string>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/validationinterface.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/validationinterface.h"
 
 
-namespace base {
+namespace maidsafe {
 
 class TestValidator : public SignatureValidator {
  public:
@@ -63,6 +63,6 @@ class TestValidator : public SignatureValidator {
   }
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_VALIDATIONIMPL_H_

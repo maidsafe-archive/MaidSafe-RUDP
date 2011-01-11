@@ -27,9 +27,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
@@ -196,7 +196,7 @@ TEST_F(TestKbucket, BEH_KAD_DeleteContact) {
     Contact contact(id[i], ip, port, ip, port);
     ASSERT_EQ(SUCCEED, kbucket.AddContact(contact));
   }
-  for (boost::int16_t i = 0; i < kFailedRpc; ++i) {
+  for (boost::int16_t i = 0; i < kFailedRpcTolerance; ++i) {
     ASSERT_EQ(K - 1, kbucket.Size());
     kbucket.RemoveContact(id[2], false);
     Contact contact;

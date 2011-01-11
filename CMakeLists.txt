@@ -212,10 +212,10 @@ SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Boost_LIBRARY_DIRS})
 ###################################################################################################
 # Protocol Buffers library search                                                                 #
 ###################################################################################################
-FILE(GLOB PROTO_FILES_BASE RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/*.proto")
+FILE(GLOB PROTO_FILES_COMMON RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.proto")
 FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.proto")
 FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.proto")
-SET(PROTO_FILES "${PROTO_FILES_BASE};${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
+SET(PROTO_FILES "${PROTO_FILES_COMMON};${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
 SET(PROTOBUF_REQUIRED FALSE)
 INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
 IF(NOT Protobuf_FOUND)
@@ -332,11 +332,11 @@ SET(ALL_FILES_MAIDSAFE_DIR ${SOURCE_FILES_MAIDSAFE_DIR} ${HEADER_FILES_MAIDSAFE_
 SOURCE_GROUP("maidsafe Source Files" FILES ${SOURCE_FILES_MAIDSAFE_DIR})
 SOURCE_GROUP("maidsafe Header Files" FILES ${HEADER_FILES_MAIDSAFE_DIR})
 
-FILE(GLOB SOURCE_FILES_BASE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/*.cc")
-FILE(GLOB HEADER_FILES_BASE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/*.h")
-SET(ALL_FILES_BASE_DIR ${SOURCE_FILES_BASE_DIR} ${HEADER_FILES_BASE_DIR})
-SOURCE_GROUP("base Source Files" FILES ${SOURCE_FILES_BASE_DIR})
-SOURCE_GROUP("base Header Files" FILES ${HEADER_FILES_BASE_DIR})
+FILE(GLOB SOURCE_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.cc")
+FILE(GLOB HEADER_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.h")
+SET(ALL_FILES_COMMON_DIR ${SOURCE_FILES_COMMON_DIR} ${HEADER_FILES_COMMON_DIR})
+SOURCE_GROUP("common Source Files" FILES ${SOURCE_FILES_COMMON_DIR})
+SOURCE_GROUP("common Header Files" FILES ${HEADER_FILES_COMMON_DIR})
 
 FILE(GLOB SOURCE_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.cc")
 FILE(GLOB HEADER_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.h")
@@ -377,7 +377,7 @@ SET(ALL_FILES_UPNP_DIR ${SOURCE_FILES_UPNP_DIR} ${HEADER_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Source Files" FILES ${SOURCE_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
 
-LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
+LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_COMMON_DIR}
                              ${ALL_FILES_KADEMLIA_DIR}
 #                             ${ALL_FILES_TRANSPORT_DIR}
                              ${ALL_FILES_LIBUPNP_DIR}
@@ -388,8 +388,8 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"
                               "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.h")
-FILE(GLOB ALL_FILES_TEST_BASE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/base/*.cc"
-                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/base/*.h")
+FILE(GLOB ALL_FILES_TEST_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/common/*.cc"
+                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/common/*.h")
 FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/benchmark/*.cc"
                                        "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/benchmark/*.h")
 FILE(GLOB ALL_FILES_TEST_BOOST_DIR  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/boost/*.cc")
@@ -420,13 +420,13 @@ ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/cryptopp ${CMAKE_BINARY_
 ###################################################################################################
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
-ADD_EXECUTABLE(TESTbase ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BASE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTcommon ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_COMMON_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnode ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/log.cc" ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/log.cc" ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/log.cc")
+ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/log.cc")
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
 #ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(kaddemo_static ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -438,10 +438,10 @@ ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 IF(NOT MSVC)
-  SET_TARGET_PROPERTIES(TESTbase PROPERTIES
-                          DEBUG_OUTPUT_NAME TESTbase${CMAKE_DEBUG_POSTFIX}
-                          RELWITHDEBINFO_OUTPUT_NAME TESTbase${CMAKE_RELWITHDEBINFO_POSTFIX}
-                          MINSIZEREL_OUTPUT_NAME TESTbase${CMAKE_MINSIZEREL_POSTFIX})
+  SET_TARGET_PROPERTIES(TESTcommon PROPERTIES
+                          DEBUG_OUTPUT_NAME TESTcommon${CMAKE_DEBUG_POSTFIX}
+                          RELWITHDEBINFO_OUTPUT_NAME TESTcommon${CMAKE_RELWITHDEBINFO_POSTFIX}
+                          MINSIZEREL_OUTPUT_NAME TESTcommon${CMAKE_MINSIZEREL_POSTFIX})
   SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES
                           DEBUG_OUTPUT_NAME TESTkademlia${CMAKE_DEBUG_POSTFIX}
                           RELWITHDEBINFO_OUTPUT_NAME TESTkademlia${CMAKE_RELWITHDEBINFO_POSTFIX}
@@ -542,7 +542,7 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${Boost_SYSTEM_LIBRARIES}
                         ${Boost_REGEX_LIBRARIES}
                         ${SYS_LIB})
-TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static gtest_main)
+TARGET_LINK_LIBRARIES(TESTcommon maidsafe_dht_static gtest_main)
 #TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_main)
 TARGET_LINK_LIBRARIES(TESTtransport transport_static udt_static ${Glog_LIBRARY} ${Boost_SYSTEM_LIBRARIES} ${Boost_THREAD_LIBRARIES} gtest_main)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gtest_main gmock_main)
@@ -603,8 +603,8 @@ IF(MSVC)
   SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/node.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/node.h
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/routingtable.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/routingtable.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/routingtable.h
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/routingtable.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/routingtable.h
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testcontact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/testnode.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/testnatpmp.cc
@@ -630,7 +630,7 @@ IF(MSVC)
     STRING(REPLACE "\\" "\\\\" LIBS_DIR_DEBUG ${LIBS_DIR_DEBUG})
     SET(LINKER_LIBS_DIRS_DEBUG "${LINKER_LIBS_DIRS_DEBUG} /LIBPATH:\"${LIBS_DIR_DEBUG}\"")
   ENDFOREACH()
-  SET_TARGET_PROPERTIES(TESTbase TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp kaddemo_static benchmark_static TESTboost PROPERTIES
+  SET_TARGET_PROPERTIES(TESTcommon TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp kaddemo_static benchmark_static TESTboost PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
@@ -656,13 +656,13 @@ IF(UNIX)
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg -fprofile-arcs -ftest-coverage")
-  FILE(GLOB PROTO_SOURCE_FILES_BASE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/*.pb.cc")
+  FILE(GLOB PROTO_SOURCE_FILES_COMMON "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.pb.cc")
-  SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_BASE};${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
+  SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_COMMON};${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/crypto.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/utils.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/crypto.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/utils.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   IF(APPLE)
     ADD_DEFINITIONS(-DMAIDSAFE_APPLE -DBSD)
@@ -684,9 +684,9 @@ ELSEIF(WIN32 AND NOT MSVC)
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-    SET_TARGET_PROPERTIES(TESTbase TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp PROPERTIES LINK_FLAGS "-lgcov -pg -fprofile-arcs -ftest-coverage")
+    SET_TARGET_PROPERTIES(TESTcommon TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp PROPERTIES LINK_FLAGS "-lgcov -pg -fprofile-arcs -ftest-coverage")
   ENDIF()
-  SET_TARGET_PROPERTIES(TESTbase TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp kaddemo_static benchmark_static PROPERTIES LINK_FLAGS "-mthreads")
+  SET_TARGET_PROPERTIES(TESTcommon TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp kaddemo_static benchmark_static PROPERTIES LINK_FLAGS "-mthreads")
   IF(Mysqlpp_FOUND)
     SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES LINK_FLAGS "-mthreads")
   ENDIF()
@@ -707,8 +707,8 @@ IF(PYTHONINTERP_FOUND)
   IF(UNIX)
     ADD_TEST(STYLE_CHECK_KAD python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_KAD PROPERTY LABELS Functional Kademlia CodingStyle)
-    ADD_TEST(STYLE_CHECK_BASE python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${ALL_FILES_BASE_DIR} ${ALL_FILES_TEST_BASE_DIR})
-    SET_PROPERTY(TEST STYLE_CHECK_BASE PROPERTY LABELS Functional Base CodingStyle)
+    ADD_TEST(STYLE_CHECK_COMMON python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${ALL_FILES_COMMON_DIR} ${ALL_FILES_TEST_COMMON_DIR})
+    SET_PROPERTY(TEST STYLE_CHECK_COMMON PROPERTY LABELS Functional Common CodingStyle)
     ADD_TEST(STYLE_CHECK_TRANSPORT python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${ALL_FILES_TRANSPORT_DIR} ${ALL_FILES_TEST_TRANSPORT_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_TRANSPORT PROPERTY LABELS Functional Transport CodingStyle)
   ELSE()
@@ -797,14 +797,14 @@ FUNCTION(ADD_MAIDSAFE_TEST GTEST_GROUP_NAME GTEST_NAME TEST_PATH)
   ENDIF()
 ENDFUNCTION()
 
-SET(TEST_EXECUTABLES TESTupnp TESTnatpmp TESTbase TESTnode TESTkademlia TESTtransport TESTboost)
+SET(TEST_EXECUTABLES TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost)
 FOREACH(TEST_EXECUTABLE ${TEST_EXECUTABLES})
   IF(TEST_EXECUTABLE STREQUAL "TESTupnp")
     SET(GTEST_SOURCE_FILES ${ALL_FILES_TEST_UPNP_DIR})
   ELSEIF(TEST_EXECUTABLE STREQUAL "TESTnatpmp")
     SET(GTEST_SOURCE_FILES ${ALL_FILES_TEST_NATPMP_DIR})
-  ELSEIF(TEST_EXECUTABLE STREQUAL "TESTbase")
-    SET(GTEST_SOURCE_FILES ${ALL_FILES_TEST_BASE_DIR})
+  ELSEIF(TEST_EXECUTABLE STREQUAL "TESTcommon")
+    SET(GTEST_SOURCE_FILES ${ALL_FILES_TEST_COMMON_DIR})
   ELSEIF(TEST_EXECUTABLE STREQUAL "TESTnode")
     SET(GTEST_SOURCE_FILES ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR})
   ELSEIF(TEST_EXECUTABLE STREQUAL "TESTkademlia")
@@ -896,15 +896,15 @@ ENDIF()
 MESSAGE("================================================================================")
 MESSAGE("")
 
-SET(MAIDSAFE_BASE_INSTALL_FILES
-      maidsafe/base/alternativestore.h
-      maidsafe/base/crypto.h
-      maidsafe/base/generalmessages.pb.h
-      maidsafe/base/log.h
-      maidsafe/base/online.h
-      maidsafe/base/routingtable.h
-      maidsafe/base/utils.h
-      maidsafe/base/validationinterface.h)
+SET(MAIDSAFE_COMMON_INSTALL_FILES
+      maidsafe/common/alternativestore.h
+      maidsafe/common/crypto.h
+      maidsafe/common/generalmessages.pb.h
+      maidsafe/common/log.h
+      maidsafe/common/online.h
+      maidsafe/common/routingtable.h
+      maidsafe/common/utils.h
+      maidsafe/common/validationinterface.h)
 SET(MAIDSAFE_KAD_INSTALL_FILES
       maidsafe/kademlia/contact.h
       maidsafe/kademlia/contactinfo.pb.h
@@ -921,12 +921,12 @@ SET(MAIDSAFE_TRANS_INSTALL_FILES
 # Check the script /build/Win_MSVC/extract_includes.bat matches this list
 FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)
 STRING(REPLACE "\\" "/" EXTRACT_INCLUDE_BAT "${EXTRACT_INCLUDE_BAT}")
-FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_BASE_INSTALL_FILES})
+FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_COMMON_INSTALL_FILES})
   STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
   IF(NOT FOUND)
     MESSAGE(FATAL_ERROR "\nUpdate build/Win_MSVC/extract_includes.bat to include ${MAIDSAFE_INSTALL_FILE}\n")
   ENDIF()
-  SET(ABS_MAIDSAFE_BASE_INSTALL_FILES ${ABS_MAIDSAFE_BASE_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
+  SET(ABS_MAIDSAFE_COMMON_INSTALL_FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
 ENDFOREACH()
 FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_KAD_INSTALL_FILES})
   STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
@@ -965,7 +965,7 @@ ELSE()
           )
 ENDIF()
 
-INSTALL(FILES ${ABS_MAIDSAFE_BASE_INSTALL_FILES} DESTINATION include/maidsafe/base)
+INSTALL(FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} DESTINATION include/maidsafe/common)
 INSTALL(FILES ${ABS_MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe/kademlia)
 INSTALL(FILES ${ABS_MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe)
 INSTALL(FILES ${ABS_MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe/transport)

@@ -31,8 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_ROUTINGTABLE_H_
-#define MAIDSAFE_BASE_ROUTINGTABLE_H_
+#ifndef MAIDSAFE_COMMON_ROUTINGTABLE_H_
+#define MAIDSAFE_COMMON_ROUTINGTABLE_H_
 
 #include <boost/cstdint.hpp>
 #include <boost/thread/mutex.hpp>
@@ -53,8 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <string>
 
-
-namespace base {
+namespace maidsafe {
 
 struct PublicRoutingTableTuple {
   PublicRoutingTableTuple()
@@ -157,7 +156,7 @@ class PublicRoutingTableHandler {
   int GetClosestContacts(const std::string &target_key,
                          const boost::uint32_t &count,
                          std::list<PublicRoutingTableTuple> *tuples);
-  int AddTuple(base::PublicRoutingTableTuple tuple);
+  int AddTuple(PublicRoutingTableTuple tuple);
   int DeleteTupleByKadId(const std::string &kademlia_id);
   int UpdateHostIp(const std::string &kademlia_id,
                    const std::string &new_ip);
@@ -205,6 +204,6 @@ class PublicRoutingTable {
       pdroutingtablehdls_;
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
-#endif  // MAIDSAFE_BASE_ROUTINGTABLE_H_
+#endif  // MAIDSAFE_COMMON_ROUTINGTABLE_H_

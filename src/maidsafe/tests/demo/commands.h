@@ -32,13 +32,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <string>
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
+
+namespace maidsafe {
 
 namespace rpcprotocol {
 class ChannelManager;
 class NodeId;
-typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
+typedef std::map<std::string, Stats<boost::uint64_t> > RpcStatsMap;
 }  // namespace rpcprotocol
 
 namespace kademlia {
@@ -77,6 +79,8 @@ class Commands {
   crypto::Crypto cryobj_;
 };
 
-}  // namespace
+}  // namespace kaddemo
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_DEMO_COMMANDS_H_

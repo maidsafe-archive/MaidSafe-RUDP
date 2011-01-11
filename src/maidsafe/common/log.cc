@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #ifndef HAVE_GLOG
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 bool NoGlog::logtostderr = true;
 int NoGlog::minloglevel = 0;
 #endif

@@ -28,10 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
-#include "maidsafe/base/validationinterface.h"
+#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/common/validationinterface.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"

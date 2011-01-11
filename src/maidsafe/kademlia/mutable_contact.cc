@@ -25,12 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <maidsafe/common/contact.h>
+#include "maidsafe/kademlia/mutable_contact.h"
 
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/common/utils.h"
 
-namespace maidsafe {
+namespace kademlia {
 
 Contact::Contact()
     : node_id_(),
@@ -61,8 +61,8 @@ Contact::Contact(const protobuf::Contact &contact)
   FromProtobuf(contact);
 }
 
-Contact::Contact(const NodeId &node_id,
-                 const transport::Endpoint &endpoint)
+Contact::Contact(const std::string &node_id,
+                 const transport::Endpoint ep)
     : node_id_(node_id),
       endpoint_(ep),
       rendezvous_endpoint_(),
@@ -157,4 +157,4 @@ bool Contact::operator==(const Contact &rhs) const {
     return false;
 }
 
-}  // namespace maidsafe
+}  // namespace kademlia

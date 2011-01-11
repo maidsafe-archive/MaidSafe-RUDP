@@ -1,17 +1,18 @@
-import "maidsafe/transport/transport.proto";
+import "maidsafe/common/validation.proto";
 import "maidsafe/kademlia/kademlia.proto";
+import "maidsafe/transport/transport.proto";
 
-package kademlia.protobuf;
+package maidsafe.kademlia.protobuf;
 
 // Internal message required by client Kademlia logic
 message GeneralResponse {
   required bool result = 1;
-}
+};
 
 message PingRequest {
   required bytes ping = 1;
   required Contact sender = 2;
-}
+};
 
 message PingResponse {
   required bool result = 1;
@@ -27,7 +28,7 @@ message FindValueResponse {
   required bool result = 1;
   repeated Contact closest_nodes = 2;
   repeated bytes values = 3;
-  repeated SignedValue signed_values = 4;
+  repeated maidsafe.protobuf.SignedValue signed_values = 4;
   optional Contact alternative_value_holder = 5;
   optional bytes needs_cache_copy = 6;
 };
@@ -45,22 +46,22 @@ message FindNodesResponse {
 message StoreRequest {
   required bytes key = 1;
   optional bytes value = 2;
-  optional SignedValue signed_value = 3;
+  optional maidsafe.protobuf.SignedValue signed_value = 3;
   required int32 ttl = 4;
   required bool publish = 5;
-  optional Signature request_signature = 6;
+  optional maidsafe.protobuf.Signature request_signature = 6;
   required Contact sender = 7;
 };
 
 message StoreResponse {
   required bool result = 1;
-  optional Signature deletion_signature = 2;
+  optional maidsafe.protobuf.Signature deletion_signature = 2;
 };
 
 message DeleteRequest {
   required bytes key = 1;
-  required SignedValue signed_value = 2;
-  required Signature request_signature = 3;
+  required maidsafe.protobuf.SignedValue signed_value = 2;
+  required maidsafe.protobuf.Signature request_signature = 3;
   required Contact sender = 4;
 };
 
@@ -70,10 +71,10 @@ message DeleteResponse {
 
 message UpdateRequest {
   required bytes key = 1;
-  required SignedValue new_signed_value = 2;
-  required SignedValue old_signed_value = 3;
+  required maidsafe.protobuf.SignedValue new_signed_value = 2;
+  required maidsafe.protobuf.SignedValue old_signed_value = 3;
   required int32 ttl = 4;
-  required Signature request_signature = 5;
+  required maidsafe.protobuf.Signature request_signature = 5;
   required Contact sender = 6;
 };
 

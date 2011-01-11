@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread.hpp>
 
 #include "maidsafe/nat-pmp/natpmpclient.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 
 class NATPMPTest : public testing::Test {
  public:

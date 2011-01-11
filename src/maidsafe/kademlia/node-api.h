@@ -45,10 +45,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
-namespace base {
+namespace maidsafe {
+
 class AlternativeStore;
 class SignatureValidator;
-}  // namespace base
 
 
 namespace transport {
@@ -404,5 +404,7 @@ class Node {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_NODE_API_H_
