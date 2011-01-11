@@ -28,9 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/routingtable.h"
 #include <boost/cstdint.hpp>
 
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 

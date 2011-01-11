@@ -36,11 +36,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
-#include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/validationinterface.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/common/validationinterface.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/base/crypto.h"
+#include "maidsafe/common/crypto.h"
 
 namespace kademlia {
 

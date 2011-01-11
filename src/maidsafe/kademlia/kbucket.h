@@ -38,6 +38,8 @@ namespace kademlia {
 
 class Contact;
 
+enum KBucketExitCode { SUCCEED, FULL, FAIL };
+
 class KBucket {
  public:
   // The lower and upper boundary for the range in the 512-bit ID

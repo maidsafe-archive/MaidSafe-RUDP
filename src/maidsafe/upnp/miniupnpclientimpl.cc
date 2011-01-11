@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/bind.hpp>
 #include <boost/assert.hpp>
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/libupnp/miniwget.h"
 #include "maidsafe/libupnp/miniupnpc.h"
 #include "maidsafe/libupnp/upnpcommands.h"

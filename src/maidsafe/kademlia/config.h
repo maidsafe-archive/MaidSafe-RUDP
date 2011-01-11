@@ -39,41 +39,11 @@ namespace kademlia {
 
 class Contact;
 
-// Functor for general callback functions.
-typedef boost::function<void(std::string)> VoidFunctorOneString;
 typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
 typedef boost::function<void(std::list<Contact> contacts)>
         VoidFunctorContactList;
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
-
-struct Signature {
-  Signature()
-    : signer_id(), public_key(), signed_public_key(), payload_signature() {}
-  std::string signer_id;
-  std::string public_key;
-  std::string signed_public_key;
-  std::string payload_signature;
-};
-
-struct SignedValue {
-  SignedValue() : value(), signature() {}
-  SignedValue(const std::string &value, const std::string &signature)
-    : value(value), signature(signature) {}
-  std::string value;
-  std::string signature;
-};
-
-enum KBucketExitCode { SUCCEED, FULL, FAIL };
-
-// CLIENT - does not map external ip and port, is not stored in other  nodes
-//          routing table
-// CLIENT_PORT_MAPPED - maps external ip and port, is not stored in other nodes
-//                      routing table
-// VAULT - maps external ip and port, complete functionality of a kademlia node
-enum NodeType { CLIENT, CLIENT_PORT_MAPPED, VAULT };
-
-enum ConnectionType { LOCAL, REMOTE, UNKNOWN };
 
 // The size of DHT keys and node IDs in bytes.
 const boost::uint16_t kKeySizeBytes = 64;
@@ -95,11 +65,11 @@ const boost::uint32_t kRepublishTime = 43200;  // 12 hours
 const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
-const double kMinSuccessfulPecentageStore = 0.75;
+const double kMinSuccessfulPecentageStore = 0.75d;
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // k-bucket.
-const boost::uint16_t kFailedRpc = 0;
+const boost::uint16_t kFailedRpcTolerance = 0;
 
 // The maximum number of bootstrap contacts allowed in the .kadconfig file.
 const boost::uint32_t kMaxBootstrapContacts = 10000;

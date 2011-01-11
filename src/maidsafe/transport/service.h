@@ -38,11 +38,11 @@
 ////#include "maidsafe/protobuf/contact_info.pb.h"
 ////#include "maidsafe/transport/transport.h"
 //
-////namespace base {
+////namespace maidsafe {
 ////class Threadpool;
 ////class SignatureValidator;
 ////class AlternativeStore;
-////}  // namespace base
+////}  // namespace maidsafe
 ////
 ////namespace transport {
 ////class PingRequest;

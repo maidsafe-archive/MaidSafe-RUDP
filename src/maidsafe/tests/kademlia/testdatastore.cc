@@ -33,8 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/datastore.h"
 

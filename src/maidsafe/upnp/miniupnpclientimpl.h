@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include "maidsafe/upnp/upnpcfg.h"
 #include "maidsafe/libupnp/miniupnpc.h"
-#include "maidsafe/base/calllatertimer.h"
+#include "maidsafe/common/calllatertimer.h"
 
 namespace upnp {
 

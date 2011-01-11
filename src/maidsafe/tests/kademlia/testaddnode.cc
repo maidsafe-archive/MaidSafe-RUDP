@@ -30,8 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/routingtable.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/routingtable.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"

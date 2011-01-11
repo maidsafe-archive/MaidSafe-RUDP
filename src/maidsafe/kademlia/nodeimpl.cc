@@ -38,11 +38,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <set>
 
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/online.h"
-#include "maidsafe/base/routingtable.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/online.h"
+#include "maidsafe/common/routingtable.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/routingtable.h"

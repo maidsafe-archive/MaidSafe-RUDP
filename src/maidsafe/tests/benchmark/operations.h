@@ -34,11 +34,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <string>
 #include <vector>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
+
+namespace maidsafe {
 
 namespace rpcprotocol {
-typedef std::map<std::string, base::Stats<boost::uint64_t> > RpcStatsMap;
+typedef std::map<std::string, Stats<boost::uint64_t>> RpcStatsMap;
 }  // namespace rpcprotocol
 
 namespace kademlia {
@@ -81,5 +83,7 @@ class Operations {
 };
 
 }  // namespace benchmark
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_BENCHMARK_OPERATIONS_H_

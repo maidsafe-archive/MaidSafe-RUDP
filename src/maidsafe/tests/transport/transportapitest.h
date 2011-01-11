@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/transport/transport.h"
-//  #include "maidsafe/base/utils.h"
+//  #include "maidsafe/common/utils.h"
 #include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/tests/transport/messagehandler.h"

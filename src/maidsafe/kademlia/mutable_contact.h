@@ -31,27 +31,29 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_COMMON_CONTACT_H_
-#define MAIDSAFE_COMMON_CONTACT_H_
+#ifndef MAIDSAFE_KADEMLIA_MUTABLE_CONTACT_H_
+#define MAIDSAFE_KADEMLIA_MUTABLE_CONTACT_H_
 
-//#include <boost/cstdint.hpp>
-//
-//#include <string>
-//#include <list>
-//
-//#include "maidsafe/transport/transport.h"
-//#include "maidsafe/kademlia/nodeid.h"
+#include <boost/cstdint.hpp>
+
+#include <string>
+#include <list>
+
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/kademlia/nodeid.h"
 
 namespace maidsafe {
 
 namespace protobuf { class Contact; }
 
+namespace kademlia {
+
 class Contact {
  public:
   Contact();
   Contact(const Contact &other);
-  Contact(const protobuf::Contact &contact);
-  Contact(const kademlia::NodeId &node_id, const transport::Endpoint &endpoint);
+  Contact(const base::protobuf::Contact &contact);
+  Contact(const std::string &node_id, const transport::Endpoint ep);
   bool FromProtobuf(const protobuf::Contact &contact);
   protobuf::Contact ToProtobuf() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
@@ -95,6 +97,8 @@ class Contact {
   bool prefer_local_;
 };
 
+}  // namespace kademlia
+
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_COMMON_CONTACT_H_
+#endif  // MAIDSAFE_KADEMLIA_MUTABLE_CONTACT_H_

@@ -41,9 +41,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 
 #include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/base/validationinterface.h"
+#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/common/calllatertimer.h"
+#include "maidsafe/common/validationinterface.h"
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/service.h"
 #include "maidsafe/kademlia/nodeimplstructs.h"
@@ -52,9 +52,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/upnp/upnpclient.h"
 
-namespace base {
+namespace maidsafe {
 class PublicRoutingTableHandler;
-}  // namespace base
+}  // namespace maidsafe
 
 namespace kademlia {
 

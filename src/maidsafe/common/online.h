@@ -31,15 +31,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_ONLINE_H_
-#define MAIDSAFE_BASE_ONLINE_H_
+#ifndef MAIDSAFE_COMMON_ONLINE_H_
+#define MAIDSAFE_COMMON_ONLINE_H_
 
 #include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
 #include <map>
 
-
-namespace base {
+namespace maidsafe {
 
 class OnlineController {
  public:
@@ -66,6 +65,6 @@ class OnlineController {
   std::map<boost::uint16_t, GroupedObserver> observers_;
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
-#endif  // MAIDSAFE_BASE_ONLINE_H_
+#endif  // MAIDSAFE_COMMON_ONLINE_H_

@@ -28,8 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/routingtable.h"
@@ -139,7 +139,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Remove_Contact) {
   Contact contact(contact_id, ip, port, ip, port);
   ASSERT_EQ(0, routingtable.AddContact(contact));
 
-  for (int i = 0; i < kFailedRpc; ++i) {
+  for (int i = 0; i < kFailedRpcTolerance; ++i) {
     routingtable.RemoveContact(contact_id, false);
     Contact rec_contact;
     ASSERT_TRUE(routingtable.GetContact(contact_id, &rec_contact));

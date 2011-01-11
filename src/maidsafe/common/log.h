@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,26 +25,34 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_ALTERNATIVESTORE_H_
-#define MAIDSAFE_BASE_ALTERNATIVESTORE_H_
+#ifndef MAIDSAFE_COMMON_LOG_H_
+#define MAIDSAFE_COMMON_LOG_H_
 
-#include <string>
+#ifdef HAVE_GLOG
+// For MSVC, we need to include windows.h which in turn includes WinGDI.h
+// which defines ERROR (which conflicts with Glog's ERROR definition)
+#ifdef __MSVC__
+#include <windows.h>
+#undef ERROR
+#endif
+#include <glog/logging.h>
+#else
+#include <iostream>  // NOLINT
+namespace google { inline void InitGoogleLogging(char*) {} }   // NOLINT
 
-
-namespace base {
-
-class AlternativeStore {
- public:
-  virtual ~AlternativeStore() {}
-  virtual bool Has(const std::string &key) = 0;
+struct NoGlog {
+static bool logtostderr;
+static int minloglevel;
 };
 
-}  // namespace base
+static std::ostream void_ostream(NULL);
 
-#endif  // MAIDSAFE_BASE_ALTERNATIVESTORE_H_
+#define FLAGS_minloglevel NoGlog::minloglevel
+#define FLAGS_logtostderr NoGlog::logtostderr
+#define DLOG(severity) (NoGlog::logtostderr?std::cerr:void_ostream)
+#define LOG(severity) DLOG(severity)
+
+#endif
+
+#endif  // MAIDSAFE_COMMON_LOG_H_

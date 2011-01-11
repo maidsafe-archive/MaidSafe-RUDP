@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udttransport.h"
 
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udtconnection.h"
 
 namespace transport {

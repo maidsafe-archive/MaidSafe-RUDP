@@ -33,7 +33,7 @@ Created by Julian Cain on 11/3/09.
 #include <boost/bind.hpp>
 
 #include "maidsafe/transport/gateway.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 
 namespace natpmp {
 

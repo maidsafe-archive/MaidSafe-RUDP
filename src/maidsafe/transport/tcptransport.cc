@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <maidsafe/transport/tcptransport.h>
-#include <maidsafe/base/log.h>
+#include <maidsafe/common/log.h>
 
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>

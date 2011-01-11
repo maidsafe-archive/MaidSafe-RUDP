@@ -25,34 +25,61 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/base/threadpool.h"
-#include "maidsafe/base/log.h"
+#include <maidsafe/common/validation.pb.h>
+#include <maidsafe/common/validationinterface.h>
 
-namespace base {
+namespace maidsafe {
 
-Threadpool::Threadpool(const boost::uint8_t &poolsize)
-    : io_service_(), work_(), thread_group_() {
-  // add work to prevent io_service completing
-  work_.reset(new boost::asio::io_service::work(io_service_));
-  for (boost::uint8_t i = 0; i < poolsize; ++i)
-    thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
-                                            &io_service_));
+SignedValue::SignedValue(const protobuf::SignedValue &signed_value)
+    : value_(),
+      signature_() {
+  FromProtobuf(signed_value);
 }
 
-Threadpool::~Threadpool() {
-  work_.reset();  // stop all new jobs
-  thread_group_.join_all();  // wait on current threads completing
-}
-
-bool Threadpool::EnqueueTask(const VoidFunctor &functor) {
-  try {
-    io_service_.post(functor);
+bool SignedValue::FromProtobuf(const protobuf::SignedValue &signed_value) {
+  if (signed_value.IsInitialized()) {
+    value_ = signed_value.value();
+    signature_ = signed_value.signature();
     return true;
-  }
-  catch(const std::exception &e) {
-    DLOG(ERROR) << "Cannot post job to pool: " << e.what() << std::endl;
+  } else {
     return false;
   }
 }
 
-}  // namespace base
+protobuf::SignedValue SignedValue::ToProtobuf() const {
+  protobuf::SignedValue signed_value;
+  signed_value.set_value(value_);
+  signed_value.set_signature(signature_);
+  return signed_value;
+}
+
+Signature::Signature(const protobuf::Signature &signature)
+    : signer_id_(),
+      public_key_(),
+      public_key_signature_(),
+      payload_signature_() {
+  FromProtobuf(signature);
+}
+
+bool Signature::FromProtobuf(const protobuf::Signature &signature) {
+  if (signature.IsInitialized()) {
+    signer_id_ = signature.signer_id();
+    public_key_ = signature.public_key();
+    public_key_signature_ = signature.public_key_signature();
+    payload_signature_ = signature.payload_signature();
+    return true;
+  } else {
+    return false;
+  }
+}
+
+protobuf::Signature Signature::ToProtobuf() const {
+  protobuf::Signature signature;
+  signature.set_signer_id(signer_id_);
+  signature.set_public_key(public_key_);
+  signature.set_public_key_signature(public_key_signature_);
+  signature.set_payload_signature(payload_signature_);
+  return signature;
+}
+
+}  // namespace maidsafe
