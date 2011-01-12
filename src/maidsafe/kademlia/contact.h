@@ -44,6 +44,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+namespace kademlia {
+
 namespace protobuf { class Contact; }
 
 class Contact {
@@ -94,6 +96,8 @@ class Contact {
   boost::uint64_t last_seen_;
   bool prefer_local_;
 };
+
+}  // namespace kademlia
 
 }  // namespace maidsafe
 

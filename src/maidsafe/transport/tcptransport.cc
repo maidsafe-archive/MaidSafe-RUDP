@@ -37,6 +37,8 @@ namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
+namespace maidsafe {
+
 namespace transport {
 /*
 TcpTransport::TcpTransport()
@@ -99,7 +101,7 @@ Port TcpTransport::StartListening(const IP &ip,
     return 0;
   }
 
-  acceptor->listen(asio::socket_base::max_connections, ec);
+  acceptor->listen(asio::socket_max_connections, ec);
 
   if (ec) {
     if (condition)
@@ -245,3 +247,5 @@ void TcpTransport::RemoveConnection(SocketId id) {
 }
 */
 }  // namespace transport
+
+}  // namespace maidsafe

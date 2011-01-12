@@ -44,6 +44,7 @@
 //#include "maidsafe/protobuf/kademlia.pb.h"
 //#include "maidsafe/protobuf/transport_message.pb.h"
 //
+//namespace maidsafe {
 //
 //namespace transport {
 //
@@ -51,7 +52,7 @@
 //
 //Service::Service(boost::shared_ptr<transport::Transport> transport,
 //                       boost::shared_ptr<RoutingTable> routing_table,
-//                       boost::shared_ptr<base::Threadpool> threadpool,
+//                       boost::shared_ptr<Threadpool> threadpool,
 //                       boost::shared_ptr<DataStore> datastore,
 //                       bool using_signatures)
 //    : transport_(transport),
@@ -601,3 +602,6 @@
 //}
 //
 //}  // namespace transport
+//
+//}  // namespace maidsafe
+//

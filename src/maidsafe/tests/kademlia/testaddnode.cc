@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -88,7 +89,7 @@ class TestNodes : public testing::Test {
   void SetUp() {
     transports_.clear();
     test_dir_ = std::string("temp/TestNodes") +
-                boost::lexical_cast<std::string>(base::RandomUint32());
+                boost::lexical_cast<std::string>(RandomUint32());
     try {
       if (boost::filesystem::exists(test_dir_))
         boost::filesystem::remove_all(test_dir_);
@@ -168,7 +169,7 @@ TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
     id += "1";
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
-  ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+  ASSERT_TRUE(GetLocalAddress(&local_ip));
   kademlia::NodeId node_id(id, kademlia::NodeId::kHex);
   nodes_[0].JoinFirstNode(node_id, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
@@ -217,13 +218,13 @@ TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
     ++port;
   }
   for (int i = test_add_node::K - 2; i < test_add_node::K + 1; ++i) {
-    std::string id = base::DecodeFromHex(bucket2ids[i]);
+    std::string id = DecodeFromHex(bucket2ids[i]);
     Contact contact(id, ip, port, ip, port);
     ASSERT_EQ(0, nodes_[0].AddContact(contact, 0.0, false));
     ++port;
   }
   ++port;
-  id = base::DecodeFromHex(bucket2ids[0]);
+  id = DecodeFromHex(bucket2ids[0]);
   Contact contact(id, ip, port, ip, port);
   ASSERT_EQ(2, nodes_[0].AddContact(contact, 0.0, false));
 
@@ -237,7 +238,7 @@ TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
   ASSERT_FALSE(nodes_[0].GetContact(last_seen.node_id(), &rec_contact));
 
   nodes_[0].Leave();
-  base::KadConfig kad_config;
+  KadConfig kad_config;
   std::ifstream inputfile(kconfig_file.c_str(),
                           std::ios::in | std::ios::binary);
   ASSERT_TRUE(kad_config.ParseFromIstream(&inputfile));
@@ -262,7 +263,7 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
   }
   GeneralKadCallback callback;
   boost::asio::ip::address local_ip;
-  ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+  ASSERT_TRUE(GetLocalAddress(&local_ip));
   kademlia::NodeId kid(id, kademlia::NodeId::kHex), kid2(id2, kademlia::NodeId::kHex);
   nodes_[0].JoinFirstNode(kid, kconfig_file, local_ip.to_string(),
                           transport_ports_[0],
@@ -274,8 +275,8 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
   ASSERT_TRUE(nodes_[0].is_joined());
   // Joining node 2 bootstrapped to node 1 so that node 1 adds him to its
   // routing table
-  base::KadConfig kad_config1;
-  base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+  KadConfig kad_config1;
+  KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0].node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0].ip());
   kad_contact->set_port(nodes_[0].port());
@@ -357,8 +358,8 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
   ASSERT_TRUE(nodes_[0].GetContact(last_seen.node_id(), &rec_contact));
 
   // Getting info from base routing table to check rtt
-  base::PublicRoutingTableTuple tuple;
-  ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[base::IntToString(
+  PublicRoutingTableTuple tuple;
+  ASSERT_EQ(0, (*PublicRoutingTable::GetInstance())[IntToString(
                 nodes_[0].port())]->GetTupleInfo(
                 nodes_[1].node_id().String(), &tuple));
   ASSERT_EQ(nodes_[1].node_id().String(), tuple.kademlia_id);
@@ -370,7 +371,7 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
 
   nodes_[1].Leave();
   nodes_[0].Leave();
-  base::KadConfig kad_config;
+  KadConfig kad_config;
   std::ifstream inputfile(kconfig_file.c_str(),
                           std::ios::in | std::ios::binary);
   ASSERT_TRUE(kad_config.ParseFromIstream(&inputfile));
@@ -385,3 +386,5 @@ TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
 }  // namespace test_add_node
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

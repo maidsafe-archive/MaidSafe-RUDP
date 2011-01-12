@@ -38,6 +38,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace bs2 = boost::signals2;
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace protobuf {
@@ -167,5 +169,7 @@ class MessageHandler {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_MESSAGEHANDLER_H_

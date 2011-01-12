@@ -94,11 +94,11 @@ class Service {
   void set_node_joined(bool joined) { node_joined_ = joined; }
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
   void set_alternative_store(
-      boost::shared_ptr<base::AlternativeStore> alternative_store) {
+      boost::shared_ptr<AlternativeStore> alternative_store) {
     alternative_store_ = alternative_store;
   }
   void set_signature_validator(
-      boost::shared_ptr<base::SignatureValidator> signature_validator) {
+      boost::shared_ptr<SignatureValidator> signature_validator) {
     signature_validator_ = signature_validator;
   }
  private:
@@ -124,8 +124,8 @@ class Service {
   boost::shared_ptr<DataStore> datastore_;
   bool node_joined_, using_signatures_;
   Contact node_contact_;
-  boost::shared_ptr<base::AlternativeStore> alternative_store_;
-  boost::shared_ptr<base::SignatureValidator> signature_validator_;
+  boost::shared_ptr<AlternativeStore> alternative_store_;
+  boost::shared_ptr<SignatureValidator> signature_validator_;
 };
 
 }  // namespace kademlia

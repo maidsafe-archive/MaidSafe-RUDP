@@ -37,6 +37,8 @@ Created by Julian Cain on 11/3/09.
 
 #include "maidsafe/nat-pmp/natpmpclientimpl.h"
 
+namespace maidsafe {
+
 namespace natpmp {
 
 /**
@@ -106,5 +108,7 @@ class NatPmpClient {
 };
 
 }  // namespace natpmp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_NAT_PMP_NATPMPCLIENT_H_

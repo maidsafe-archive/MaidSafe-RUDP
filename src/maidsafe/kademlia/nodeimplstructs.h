@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 class Signature;
@@ -451,5 +453,7 @@ struct FindNodesRpc {
 enum SearchMarking { SEARCH_DOWN, SEARCH_CONTACTED };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_

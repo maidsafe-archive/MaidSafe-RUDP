@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/libupnp/miniupnpc.h"
 #include "maidsafe/libupnp/upnpcommands.h"
 
-// #define DEBUG
+namespace maidsafe {
 
 namespace upnp {
 
@@ -93,7 +93,7 @@ bool UpnpIgdClientImpl::AddPortMapping(const PortMapping &mapping) {
 
   if (has_services_) {
     boost::asio::ip::address ip_addr;
-//    base::GetLocalAddress(&ip_addr);
+//    GetLocalAddress(&ip_addr);
 
     int res = UPNP_AddPortMapping(upnp_urls_.controlURL,
                                   igd_data_.servicetype,
@@ -226,3 +226,5 @@ void UpnpIgdClientImpl::RefreshCallback() {
 }
 
 }  // namespace upnp
+
+}  // namespace maidsafe

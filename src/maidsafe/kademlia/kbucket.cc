@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/contact.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 KBucket::KBucket(const NodeId &min, const NodeId &max,
@@ -147,3 +149,5 @@ Contact KBucket::LastSeenContact() {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

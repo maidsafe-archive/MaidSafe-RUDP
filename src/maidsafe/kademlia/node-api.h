@@ -393,11 +393,11 @@ class Node {
   /**
   * If this is set to a non-NULL value, then the AlternativeStore will be used
   * before Kad's native DataStore.
-  * @param alternative_store reference to a base::AlternativeStore object
+  * @param alternative_store reference to an AlternativeStore object
   */
-  void set_alternative_store(base::AlternativeStore *alternative_store);
-  base::AlternativeStore *alternative_store();
-  void set_signature_validator(base::SignatureValidator *validator);
+  void set_alternative_store(AlternativeStore *alternative_store);
+  AlternativeStore *alternative_store();
+  void set_signature_validator(SignatureValidator *validator);
 
  private:
   boost::shared_ptr<NodeImpl> pimpl_;

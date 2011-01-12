@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <string>
 
+namespace maidsafe {
+
 namespace kademlia {
 
 class Contact;
@@ -78,5 +80,7 @@ const boost::uint32_t kMaxBootstrapContacts = 10000;
 const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_CONFIG_H_

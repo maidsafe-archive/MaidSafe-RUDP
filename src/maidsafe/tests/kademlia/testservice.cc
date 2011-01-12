@@ -40,6 +40,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 namespace test_service {
@@ -70,10 +72,10 @@ inline void CreateSignedRequest(const std::string &pub_key,
 inline void CreateDecodedKey(std::string *key) {
   crypto::Crypto cobj;
   cobj.set_hash_algorithm(crypto::SHA_512);
-  *key = cobj.Hash(base::RandomString(64), "", crypto::STRING_STRING, false);
+  *key = cobj.Hash(RandomString(64), "", crypto::STRING_STRING, false);
 }
 
-class DummyAltStore : public base::AlternativeStore {
+class DummyAltStore : public AlternativeStore {
  public:
   DummyAltStore() : keys_() {}
   bool Has(const std::string &key) { return keys_.find(key) != keys_.end();}
@@ -101,7 +103,7 @@ class ServicesTest: public testing::Test {
     hex_id += "01";
     node_id_ = kademlia::NodeId(hex_id, kademlia::NodeId::kHex);
     hex_id.assign(128, 'e');
-    contact_.set_node_id(base::DecodeFromHex(hex_id));
+    contact_.set_node_id(DecodeFromHex(hex_id));
     contact_.set_ip("127.0.0.1");
     contact_.set_port(1234);
     contact_.set_local_ips("127.0.0.2");
@@ -140,7 +142,7 @@ class ServicesTest: public testing::Test {
   boost::shared_ptr<Service> service_;
   boost::shared_ptr<DataStore> datastore_;
   boost::shared_ptr<RoutingTable> routingtable_;
-  base::TestValidator validator_;
+  TestValidator validator_;
 
  private:
   int AddCtc(Contact ctc, const float&, const bool &only_db) {
@@ -229,7 +231,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
   CreateRSAKeys(&public_key, &private_key);
   for (int i = 0; i < 128; ++i)
     hex_key += "a";
-  std::string key = base::DecodeFromHex(hex_key);
+  std::string key = DecodeFromHex(hex_key);
   find_value_request.set_key(key);
   ContactInfo *sender_info = find_value_request.mutable_sender_info();
   *sender_info = contact_;
@@ -261,7 +263,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     for (int j = 0; j < 126; ++j)
       hex_id += character;
     hex_id += boost::lexical_cast<std::string>(i+10);
-    std::string id = base::DecodeFromHex(hex_id);
+    std::string id = DecodeFromHex(hex_id);
     if (i < test_service::K)
       ids.push_back(id);
     std::string ip = "127.0.0.6";
@@ -275,7 +277,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
   std::string wrong_hex_key;
   for (int i = 0; i < 128; ++i)
     wrong_hex_key += "b";
-  std::string wrong_key = base::DecodeFromHex(wrong_hex_key);
+  std::string wrong_key = DecodeFromHex(wrong_hex_key);
   EXPECT_TRUE(datastore_->StoreItem(wrong_key, "X", 24*3600, false));
   google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
@@ -346,7 +348,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindNode) {
   std::string hex_key;
   for (int i = 0; i < 128; ++i)
     hex_key += "a";
-  std::string key = base::DecodeFromHex(hex_key);
+  std::string key = DecodeFromHex(hex_key);
   find_node_request.set_key(key);
   ContactInfo *sender_info = find_node_request.mutable_sender_info();
   *sender_info = contact_;
@@ -392,7 +394,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindNode) {
       }
       rand_ids.push_back(hex_id);
     }
-    std::string id = base::DecodeFromHex(hex_id);
+    std::string id = DecodeFromHex(hex_id);
     later_key = id;
     std::string ip("127.0.0.11");
     boost::uint16_t port = 10101+i;
@@ -429,7 +431,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindNode) {
     for (int j = 0; j < 126; ++j)
       hex_id += character;
     hex_id += boost::lexical_cast<std::string>(i+10);
-    std::string id = base::DecodeFromHex(hex_id);
+    std::string id = DecodeFromHex(hex_id);
     std::string ip("127.0.0.6");
     boost::uint16_t port = 9000+i;
     Contact contact(id, ip, port + i, ip, port + i);
@@ -508,7 +510,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesStore) {
     hex_key += "a";
   std::string value1("Val1"), value2("Val2"), value3("Val10");
   std::string public_key, private_key, signed_public_key, signed_request;
-  std::string key = base::DecodeFromHex(hex_key);
+  std::string key = DecodeFromHex(hex_key);
   CreateRSAKeys(&public_key, &private_key);
   CreateSignedRequest(public_key, private_key, key, &signed_public_key,
                       &signed_request);
@@ -752,7 +754,7 @@ TEST_F(ServicesTest, FUNC_KAD_ServicesDownlist) {
     std::string hex_id, id;
     for (int j = 0; j < 128; ++j)
       hex_id += character;
-    id = base::DecodeFromHex(hex_id);
+    id = DecodeFromHex(hex_id);
     std::string ip("127.0.0.6");
     boost::uint16_t port = 9000 + i;
     Contact contact(id, ip, port, ip, port);
@@ -860,7 +862,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValAltStore) {
   FindRequest find_value_request;
   std::string hex_key(128, 'a'), public_key, private_key;
   CreateRSAKeys(&public_key, &private_key);
-  std::string key = base::DecodeFromHex(hex_key);
+  std::string key = DecodeFromHex(hex_key);
   find_value_request.set_key(key);
   *(find_value_request.mutable_sender_info()) = contact_;
   find_value_request.set_is_boostrap(false);
@@ -890,7 +892,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValAltStore) {
     for (int j = 0; j < 126; ++j)
       hex_id += character;
     hex_id += boost::lexical_cast<std::string>(i+10);
-    std::string id = base::DecodeFromHex(hex_id);
+    std::string id = DecodeFromHex(hex_id);
     if (i < test_service::K)
       ids.push_back(id);
     std::string ip = "127.0.0.6";
@@ -902,7 +904,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValAltStore) {
   }
   EXPECT_GE(routingtable_->Size(), static_cast<size_t>(2*test_service::K));
   std::string wrong_hex_key(128, 'b');
-  std::string wrong_key = base::DecodeFromHex(wrong_hex_key);
+  std::string wrong_key = DecodeFromHex(wrong_hex_key);
   EXPECT_TRUE(datastore_->StoreItem(wrong_key, "X", 24*3600, false));
   google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
@@ -1016,7 +1018,7 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
     hex_key += "a";
   std::string value1("Val1"), value2("Val2");
   std::string public_key, private_key, signed_public_key, signed_request;
-  std::string key = base::DecodeFromHex(hex_key);
+  std::string key = DecodeFromHex(hex_key);
   CreateRSAKeys(&public_key, &private_key);
   CreateSignedRequest(public_key, private_key, key, &signed_public_key,
     &signed_request);
@@ -1153,7 +1155,7 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
 TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
   std::string value("Value");
   std::string public_key, private_key, signed_public_key, signed_request;
-  std::string key = crypto_.Hash(base::RandomString(5), "",
+  std::string key = crypto_.Hash(RandomString(5), "",
                                  crypto::STRING_STRING, false);
 
   SignedValue svalue;
@@ -1260,11 +1262,11 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
 
   // Fail: trying to update non-existent value
   crypto::Crypto co;
-  std::string nv(base::RandomString(16));
+  std::string nv(RandomString(16));
   new_value->set_value(nv);
   new_value->set_value_signature(co.AsymSign(nv, "", private_key,
                                              crypto::STRING_STRING));
-  std::string ov(base::RandomString(16));
+  std::string ov(RandomString(16));
   old_value->set_value(ov);
   old_value->set_value_signature(co.AsymSign(ov, "", private_key,
                                              crypto::STRING_STRING));
@@ -1288,7 +1290,7 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
   size_t total_values(5);
   for (size_t n = 0; n < total_values; ++n) {
     SignedValue sv;
-    sv.set_value("value" + base::IntToString(n));
+    sv.set_value("value" + IntToString(n));
     sv.set_value_signature(co.AsymSign(sv.value(), "", private_key,
                                        crypto::STRING_STRING));
     ASSERT_TRUE(service_->pdatastore_->StoreItem(key, sv.SerializeAsString(),
@@ -1375,12 +1377,12 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
   // Successful updates
   for (size_t a = 0; a < total_values; ++a) {
     old_value = request.mutable_old_value();
-    old_value->set_value("value" + base::IntToString(a));
+    old_value->set_value("value" + IntToString(a));
     old_value->set_value_signature(co.AsymSign(old_value->value(), "",
                                                private_key,
                                                crypto::STRING_STRING));
     new_value = request.mutable_new_value();
-    new_value->set_value("value_" + base::IntToString(a));
+    new_value->set_value("value_" + IntToString(a));
     new_value->set_value_signature(co.AsymSign(new_value->value(), "",
                                                private_key,
                                                crypto::STRING_STRING));
@@ -1397,3 +1399,5 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
 }  // namespace test_service
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/messagehandler.h"
 #include "maidsafe/transport/transport.pb.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 enum MessageType {
@@ -210,3 +212,5 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

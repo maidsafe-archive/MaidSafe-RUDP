@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "maidsafe/common/log.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace udtutils {
@@ -137,3 +139,5 @@ TransportCondition SetSyncMode(const SocketId &socket_id, bool synchronous) {
 }  // namespace udtutils
 
 }  // namespace transport
+
+}  // namespace maidsafe

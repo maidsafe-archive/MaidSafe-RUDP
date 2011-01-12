@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/nodeid.h"
 
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -116,4 +117,7 @@ class RoutingTable {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
+
 #endif  // MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_

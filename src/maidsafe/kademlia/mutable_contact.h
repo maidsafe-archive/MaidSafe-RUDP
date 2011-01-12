@@ -52,7 +52,7 @@ class Contact {
  public:
   Contact();
   Contact(const Contact &other);
-  Contact(const base::protobuf::Contact &contact);
+  Contact(const protobuf::Contact &contact);
   Contact(const std::string &node_id, const transport::Endpoint ep);
   bool FromProtobuf(const protobuf::Contact &contact);
   protobuf::Contact ToProtobuf() const;

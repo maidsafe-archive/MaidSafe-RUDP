@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/udtconnection.h"
 
+namespace maidsafe {
 
 namespace transport {
 
@@ -680,7 +681,7 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
 
 
   // data is raw_message request
-  const std::string kSentRawMessage(base::RandomString(100));
+  const std::string kSentRawMessage(RandomString(100));
   *(udt_connections.at(2).transport_message_.mutable_data()->
       mutable_raw_message()) = kSentRawMessage;
   udt_connections.at(2).transport_message_.set_type(
@@ -717,12 +718,12 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   // data is rpc_message request
   rpcprotocol::RpcMessage *sent_rpc_message = udt_connections.at(4).
       transport_message_.mutable_data()->mutable_rpc_message();
-  const boost::uint32_t kSentRpcId(base::RandomUint32());
-  const std::string kSentRpcMethod(base::RandomString(100));
+  const boost::uint32_t kSentRpcId(RandomUint32());
+  const std::string kSentRpcMethod(RandomString(100));
   kademlia::NatDetectionPingRequest kad_request;
-  kad_request.set_ping(base::RandomString(100));
+  kad_request.set_ping(RandomString(100));
   const kademlia::NatDetectionPingRequest kSentRpcDetail(kad_request);
-  const std::string kSentRpcService(base::RandomString(100));
+  const std::string kSentRpcService(RandomString(100));
   sent_rpc_message->set_rpc_id(kSentRpcId);
   sent_rpc_message->set_method(kSentRpcMethod);
   google::protobuf::Message *mutable_message =
@@ -767,8 +768,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   // data is hole_punching_message request
   HolePunchingMessage *sent_hole_punch_message = udt_connections.at(6).
       transport_message_.mutable_data()->mutable_hole_punching_message();
-  sent_hole_punch_message->set_ip(base::RandomString(100));
-  sent_hole_punch_message->set_port(base::RandomInt32());
+  sent_hole_punch_message->set_ip(RandomString(100));
+  sent_hole_punch_message->set_port(RandomInt32());
   sent_hole_punch_message->set_type(HolePunchingMessage::FORWARD_REQ);
   udt_connections.at(6).transport_message_.set_type(
       TransportMessage::kKeepAlive);
@@ -812,8 +813,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
   Ping *sent_ping_message =
       udt_connections.at(8).transport_message_.mutable_data()->mutable_ping();
   Address *address = sent_ping_message->mutable_from_address();
-  address->set_ip(base::RandomString(100));
-  address->set_port(base::RandomInt32());
+  address->set_ip(RandomString(100));
+  address->set_port(RandomInt32());
   udt_connections.at(8).transport_message_.set_type(
       TransportMessage::kKeepAlive);
   rtt = 1.8;
@@ -841,8 +842,8 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       transport_message_.mutable_data()->mutable_proxy_ping();
   sent_proxy_ping_message->set_result(ProxyPing::kNACK);
   address = sent_proxy_ping_message->mutable_address();
-  address->set_ip(base::RandomString(100));
-  address->set_port(base::RandomInt32());
+  address->set_ip(RandomString(100));
+  address->set_port(RandomInt32());
   udt_connections.at(10).transport_message_.set_type(
       TransportMessage::kKeepAlive);
   rtt = 2.0;
@@ -870,14 +871,14 @@ TEST_F(UdtConnectionTest, FUNC_TRANS_UdtConnHandleTransportMessage) {
       udt_connections.at(12).transport_message_.mutable_data()->
           mutable_managed_endpoint_message();
   address = sent_managed_endpoint_message->mutable_address();
-  address->set_ip(base::RandomString(100));
-  address->set_port(base::RandomInt32());
+  address->set_ip(RandomString(100));
+  address->set_port(RandomInt32());
   sent_managed_endpoint_message->set_result(true);
-  sent_managed_endpoint_message->set_message_id(base::RandomInt32());
-  sent_managed_endpoint_message->set_identifier(base::RandomString(100));
-  sent_managed_endpoint_message->set_frequency(base::RandomInt32());
-  sent_managed_endpoint_message->set_retry_count(base::RandomInt32());
-  sent_managed_endpoint_message->set_retry_frequency(base::RandomInt32());
+  sent_managed_endpoint_message->set_message_id(RandomInt32());
+  sent_managed_endpoint_message->set_identifier(RandomString(100));
+  sent_managed_endpoint_message->set_frequency(RandomInt32());
+  sent_managed_endpoint_message->set_retry_count(RandomInt32());
+  sent_managed_endpoint_message->set_retry_frequency(RandomInt32());
   udt_connections.at(12).transport_message_.set_type(
       TransportMessage::kKeepAlive);
   rtt = 2.2;
@@ -958,7 +959,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   TransportMessage sent_message;
   std::string *sent_raw_message =
       sent_message.mutable_data()->mutable_raw_message();
-  *sent_raw_message = base::RandomString(100);
+  *sent_raw_message = RandomString(100);
   sent_message.set_type(TransportMessage::kClose);
   SocketId receiving_socket_id;
 
@@ -986,7 +987,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
 
   // Send request (response expected) and don't send response
   ++test_count;  // 1
-  *sent_raw_message = base::RandomString(100);
+  *sent_raw_message = RandomString(100);
   sent_message.set_type(TransportMessage::kKeepAlive);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
   send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
@@ -1017,7 +1018,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
 
   // Send request and send response
   ++test_count;  // 2
-  *sent_raw_message = base::RandomString(100);
+  *sent_raw_message = RandomString(100);
   EXPECT_TRUE(send_connections.at(test_count).worker_.get() == NULL);
   send_connections.at(test_count).Send(sent_message, kTestRpcTimeout);
   EXPECT_TRUE(WaitForRawMessage(kTimeout, *sent_raw_message, test_count + 1,
@@ -1032,7 +1033,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnSendRecvDataFull) {
   TransportMessage reply_message;
   std::string *reply_raw_message =
       reply_message.mutable_data()->mutable_raw_message();
-  *reply_raw_message = base::RandomString(100);
+  *reply_raw_message = RandomString(100);
   reply_message.set_type(TransportMessage::kClose);
   reply_connection.Send(reply_message, 0);
   count = 0;
@@ -1058,7 +1059,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnBigMessage) {
   std::string *sent_raw_message =
       sent_message.mutable_data()->mutable_raw_message();
   try {
-    sent_raw_message->assign(base::RandomString(kMaxTransportMessageSize - 12));
+    sent_raw_message->assign(RandomString(kMaxTransportMessageSize - 12));
   }
   catch(const std::exception &e) {
     FAIL() << e.what() << std::endl;
@@ -1090,4 +1091,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnBigMessage) {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe
+
 */

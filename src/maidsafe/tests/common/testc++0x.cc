@@ -36,9 +36,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * at the moment they work with gcc 4.5 and MSVC-10
  */
 
+namespace maidsafe {
 
-
-namespace base {
+namespace test {
 
 TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
 // well enable this to check your compiler fails on a static assert
@@ -130,4 +130,6 @@ TEST(DISABLE_cplusplus, BEH_BASE_localAndUnamedTemplteArgs) {
 
 
 
-}  // namespace base
+}  // namespace test
+
+}  // namespace maidsafe

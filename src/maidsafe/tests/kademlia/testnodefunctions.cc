@@ -38,17 +38,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 namespace test_node_functions {
 
-class TestAlternativeStore : public base::AlternativeStore {
+class TestAlternativeStore : public AlternativeStore {
  public:
   ~TestAlternativeStore() {}
   bool Has(const std::string&) { return false; }
 };
 
-class TestValidator : public base::SignatureValidator {
+class TestValidator : public SignatureValidator {
  public:
   ~TestValidator() {}
   bool ValidateSignerId(const std::string&, const std::string&,
@@ -64,7 +66,7 @@ class TestNodeFunctions : public testing::Test {
  protected:
   static void SetUpTestCase() {
     test_dir_ = std::string("temp/TestNodeFunctions") +
-                boost::lexical_cast<std::string>(base::RandomUint32());
+                boost::lexical_cast<std::string>(RandomUint32());
 
     udt_.reset(new transport::UdtTransport);
     transport::TransportCondition tc;
@@ -91,7 +93,7 @@ class TestNodeFunctions : public testing::Test {
     node_.reset(new Node(manager_, udt_, kcp));
 
     boost::asio::ip::address local_ip;
-    ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+    ASSERT_TRUE(GetLocalAddress(&local_ip));
     node_->JoinFirstNode(test_dir_ + std::string(".kadconfig"),
                          local_ip.to_string(), p,
                          boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -127,7 +129,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_GetNodesFromRoutingTable) {
 
 TEST_F(TestNodeFunctions, BEH_NODE_AddGetRemoveContact) {
   boost::asio::ip::address local_ip;
-  ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+  ASSERT_TRUE(GetLocalAddress(&local_ip));
   NodeId key(NodeId::kRandomId);
   Contact c(key, local_ip.to_string(), 5000, local_ip.to_string(), 5000), o, n;
   ASSERT_EQ(0, node_->AddContact(c, 1.0f, false));
@@ -144,7 +146,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_AddGetRemoveContact) {
 
 TEST_F(TestNodeFunctions, BEH_NODE_StoreRefreshTTLValueLocal) {
   NodeId key(NodeId::kRandomId);
-  std::string value(base::RandomString(200));
+  std::string value(RandomString(200));
   boost::uint32_t ttl(3600);
   node_->StoreValueLocal(key, value, ttl);
   ASSERT_EQ(ttl, node_->KeyValueTTL(key, value));
@@ -168,18 +170,18 @@ TEST_F(TestNodeFunctions, BEH_NODE_CheckContactLocalAddress) {
 
   ASSERT_EQ(REMOTE, node_->CheckContactLocalAddress(c.node_id(), "", 0, ""));
   boost::asio::ip::address local_ip;
-  ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+  ASSERT_TRUE(GetLocalAddress(&local_ip));
   node_->UpdatePDRTContactToRemote(key, local_ip.to_string());
   ASSERT_TRUE(node_->GetContact(key, &o));
   ASSERT_TRUE(c.Equals(o));
-//  ASSERT_EQ(local_ip.to_string(), base::IpBytesToAscii(o.ip()));
+//  ASSERT_EQ(local_ip.to_string(), IpBytesToAscii(o.ip()));
 }
 
 TEST_F(TestNodeFunctions, BEH_NODE_RpcsKeysAlternativeStoreValidator) {
   boost::shared_ptr<Rpcs> rpcs = node_->rpcs();
   ASSERT_FALSE(NULL == rpcs);
   ASSERT_TRUE(node_->using_signatures());
-  base::AlternativeStore *bas = node_->alternative_store();
+  AlternativeStore *bas = node_->alternative_store();
   ASSERT_TRUE(NULL == bas);
   TestAlternativeStore tas;
   node_->set_alternative_store(&tas);
@@ -201,11 +203,11 @@ TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
   boost::uint16_t rendezvous_port = node_->rendezvous_port();
 
   ASSERT_EQ(ci.node_id(), kid.String());
-  ASSERT_EQ(base::IpBytesToAscii(ci.ip()), ip);
+  ASSERT_EQ(IpBytesToAscii(ci.ip()), ip);
   ASSERT_EQ(ci.port(), port);
-  ASSERT_EQ(base::IpBytesToAscii(ci.local_ips()), local_ip);
+  ASSERT_EQ(IpBytesToAscii(ci.local_ips()), local_ip);
   ASSERT_EQ(ci.local_port(), local_port);
-  ASSERT_EQ(base::IpBytesToAscii(ci.rendezvous_ip()), rendezvous_ip);
+  ASSERT_EQ(IpBytesToAscii(ci.rendezvous_ip()), rendezvous_ip);
   ASSERT_EQ(ci.rendezvous_port(), rendezvous_port);
 
   ASSERT_EQ(kDirectConnected, node_->nat_type());
@@ -215,3 +217,5 @@ TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
 }  // namespace test_kbucket
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

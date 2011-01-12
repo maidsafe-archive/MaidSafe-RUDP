@@ -32,6 +32,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/transport/messagehandler.h"
 #include "maidsafe/tests/transport/transportapitest.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
@@ -85,4 +87,7 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
 INSTANTIATE_TYPED_TEST_CASE_P(UDT, TransportAPITest, UdtTransport);
 
 }  // namespace test
+
 }  // namespace transport
+
+}  // namespace maidsafe

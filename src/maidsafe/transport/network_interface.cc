@@ -43,6 +43,8 @@ Created by Julian Cain on 11/3/09.
 #include <netdb.h>
 #endif
 
+namespace maidsafe {
+
 namespace transport {
 
 bool NetworkInterface::IsLocal(const boost::asio::ip::address & addr) {
@@ -283,3 +285,5 @@ std::vector<NetworkInterface> NetworkInterface::LocalList(
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

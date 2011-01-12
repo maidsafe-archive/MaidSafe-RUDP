@@ -51,6 +51,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace fs = boost::filesystem;
 
+namespace maidsafe {
+
 namespace kademlia {
 
 // some tools which will be used in the implementation of NodeImpl class
@@ -132,7 +134,7 @@ NodeImpl::NodeImpl(boost::shared_ptr<transport::Transport> transport,
           leave_mutex_(),
           activeprobes_mutex_(),
           pendingcts_mutex_(),
-          ptimer_(new base::CallLaterTimer),
+          ptimer_(new CallLaterTimer),
           transport_(transport),
           pdata_store_(new DataStore(node_parameters.refresh_time)),
           premote_service_(),
@@ -168,7 +170,7 @@ NodeImpl::NodeImpl(boost::shared_ptr<transport::Transport> transport,
           add_ctc_cond_(),
           private_key_(node_parameters.private_key),
           public_key_(node_parameters.public_key) {
-  prth_ = (*base::PublicRoutingTable::GetInstance())
+  prth_ = (*PublicRoutingTable::GetInstance())
               [boost::lexical_cast<std::string>(port_)];
 }
 
@@ -287,7 +289,7 @@ int NodeImpl::AddContact(Contact new_contact, const float &rtt,
       new_contact.node_id() != node_id_) {
     if (!only_db) {
       boost::mutex::scoped_lock gaurd(routingtable_mutex_);
-      new_contact.set_last_seen(base::GetEpochMilliseconds());
+      new_contact.set_last_seen(GetEpochMilliseconds());
       result = prouting_table_->AddContact(new_contact);
     } else {
       result = 0;
@@ -295,11 +297,11 @@ int NodeImpl::AddContact(Contact new_contact, const float &rtt,
 
     // Adding to routing table db
 //    IP remote_ip, rendezvous_ip;
-//    remote_ip = base::IpBytesToAscii(new_contact.ip());
+//    remote_ip = IpBytesToAscii(new_contact.ip());
 //    if (!new_contact.rendezvous_ip().empty()) {
-//      rendezvous_ip = base::IpBytesToAscii(new_contact.rendezvous_ip());
+//      rendezvous_ip = IpBytesToAscii(new_contact.rendezvous_ip());
 //    }
-//    base::PublicRoutingTableTuple tuple(new_contact.node_id().String(),
+//    PublicRoutingTableTuple tuple(new_contact.node_id().String(),
 //                                        remote_ip,
 //                                        new_contact.port(),
 //                                        rendezvous_ip,
@@ -582,3 +584,4 @@ void NodeImpl::IterativeSearchResponse(bool result,
 
 }  // namespace kademlia
 
+}  // namespace maidsafe

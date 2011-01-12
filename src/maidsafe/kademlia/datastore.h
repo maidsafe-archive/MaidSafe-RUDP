@@ -40,6 +40,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <utility>
 
+namespace maidsafe {
+
 namespace kademlia {
 // This class implements physical storage (for data published and fetched via
 // the RPCs) for the Kademlia DHT. Boost::multiindex are used
@@ -160,4 +162,7 @@ class DataStore {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
+
 #endif  // MAIDSAFE_KADEMLIA_DATASTORE_H_

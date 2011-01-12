@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/transport/transport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 template <class TransportType>
@@ -290,4 +292,6 @@ void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe
 */

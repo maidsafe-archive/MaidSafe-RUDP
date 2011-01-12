@@ -34,11 +34,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "maidsafe/transport/transport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
 
-typedef std::vector< std::pair<std::string, Info> > IncomingMessages;
+typedef std::vector<std::pair<std::string, Info>> IncomingMessages;
 typedef std::vector<std::string> OutgoingResponses;
 typedef std::vector<TransportCondition> Errors;
 
@@ -78,6 +80,8 @@ class MessageHandler {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
 

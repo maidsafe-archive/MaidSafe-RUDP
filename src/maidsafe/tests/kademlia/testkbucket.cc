@@ -33,6 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 namespace test_kbucket {
@@ -222,7 +224,7 @@ TEST_F(TestKbucket, BEH_KAD_SetLastAccessed) {
     hex_max_val += "f";
   NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  boost::uint32_t time_accessed = base::GetEpochTime();
+  boost::uint32_t time_accessed = GetEpochTime();
   kbucket.set_last_accessed(time_accessed);
   ASSERT_EQ(time_accessed, kbucket.last_accessed());
 }
@@ -363,3 +365,5 @@ TEST_F(TestKbucket, BEH_KAD_GetOldestContact) {
 }  // namespace test_kbucket
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
