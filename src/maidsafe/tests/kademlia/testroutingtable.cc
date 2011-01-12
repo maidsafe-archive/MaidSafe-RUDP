@@ -464,7 +464,6 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   NodeId max_holder_id(strmax_holder_id, NodeId::kHex);
   NodeId holder_id(range1, max_holder_id);
   RoutingTable routingtable(holder_id, test_routing_table::K);
-  boost::uint64_t now = GetEpochMilliseconds();
 
   // fill the first bucket
   std::string ip("127.0.0.1");
@@ -507,7 +506,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   std::string id = range5.String();
   --id[id.size()-1];
   Contact furthest_contact(id, ip, port, ip, port);
-  furthest_contact.set_last_seen(now);  // make sure this peer has the highest
+  furthest_contact.SetLastSeenToNow();  // make sure this peer has the highest
                                         // score
   ASSERT_EQ(0, routingtable.AddContact(furthest_contact));
   ASSERT_EQ((2 * test_routing_table::K) - 1, routingtable.Size());
@@ -554,7 +553,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   id[0] = 127;
   id[63] = static_cast<char>(254);
   Contact furthest_contact2(id, ip, port, ip, port);
-  furthest_contact2.set_last_seen(now);  // make sure this peer has the highest
+  furthest_contact2.SetLastSeenToNow();  // make sure this peer has the highest
                                          // score
   ASSERT_EQ(0, routingtable.AddContact(furthest_contact2));
   ASSERT_EQ(3 * test_routing_table::K - 1, routingtable.Size());

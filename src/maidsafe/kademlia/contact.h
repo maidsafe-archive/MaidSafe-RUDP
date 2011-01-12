@@ -31,21 +31,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_COMMON_CONTACT_H_
-#define MAIDSAFE_COMMON_CONTACT_H_
+#ifndef MAIDSAFE_KADEMLIA_CONTACT_H_
+#define MAIDSAFE_KADEMLIA_CONTACT_H_
 
-//#include <boost/cstdint.hpp>
-//
-//#include <string>
-//#include <list>
-//
-//#include "maidsafe/transport/transport.h"
-//#include "maidsafe/kademlia/nodeid.h"
+#include <boost/cstdint.hpp>
+#include <boost/scoped_ptr.hpp>
+#include <list>
+#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 
 namespace kademlia {
 
+class NodeId;
 namespace protobuf { class Contact; }
 
 class Contact {
@@ -53,52 +51,30 @@ class Contact {
   Contact();
   Contact(const Contact &other);
   Contact(const protobuf::Contact &contact);
-  Contact(const kademlia::NodeId &node_id, const transport::Endpoint &endpoint);
+  Contact(const NodeId &node_id, const transport::Endpoint &endpoint);
   bool FromProtobuf(const protobuf::Contact &contact);
   protobuf::Contact ToProtobuf() const;
+  NodeId node_id() const;
+  transport::Endpoint endpoint() const;
+  transport::Endpoint rendezvous_endpoint() const;
+  std::list<transport::Endpoint> local_endpoints() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
-
-  NodeId node_id() const { return node_id_; }
-  void set_node_id(const NodeId &node_id) { node_id_ = node_id; }
-  transport::Endpoint endpoint() const { return endpoint_; }
-  void set_endpoint(const transport::Endpoint &endpoint) {
-    endpoint_ = endpoint;
-  }
-  transport::Endpoint rendezvous_endpoint() const {
-    return rendezvous_endpoint_;
-  }
-  void set_rendezvous_endpoint(const transport::Endpoint &rendezvous_endpoint) {
-    rendezvous_endpoint_ = rendezvous_endpoint;
-  }
-  std::list<transport::Endpoint> local_endpoints() const {
-    return local_endpoints_;
-  }
-  void add_local_endpoint(const transport::Endpoint &local_endpoint) {
-    local_endpoints_.push_back(local_endpoint);
-  }
-  boost::uint16_t num_failed_rpcs() const { return num_failed_rpcs_; }
-  void IncreaseFailedRpcs() { ++num_failed_rpcs_; }
-  boost::uint64_t last_seen() const { return last_seen_; }
-  void set_last_seen(const boost::uint64_t &last_seen) {
-    last_seen_ = last_seen;
-  }
-
+  boost::uint16_t num_failed_rpcs() const;
+  void IncrementFailedRpcs();
+  boost::uint64_t last_seen() const;
+  void SetLastSeenToNow();
+  Contact& operator=(const Contact &other);
+  bool operator<(const Contact &other) const;
   // Equality is based on node id or (IP and port) if dummy
-  bool operator<(const Contact &rhs) const;
-  bool operator==(const Contact &rhs) const;
-
+  bool operator==(const Contact &other) const;
  private:
-  NodeId node_id_;
-  transport::Endpoint endpoint_, rendezvous_endpoint_;
-  std::list<transport::Endpoint> local_endpoints_;
-  boost::uint16_t num_failed_rpcs_;
-  boost::uint64_t last_seen_;
-  bool prefer_local_;
+  class Impl;
+  boost::scoped_ptr<Impl> pimpl_;
 };
 
 }  // namespace kademlia
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_COMMON_CONTACT_H_
+#endif  // MAIDSAFE_KADEMLIA_CONTACT_H_

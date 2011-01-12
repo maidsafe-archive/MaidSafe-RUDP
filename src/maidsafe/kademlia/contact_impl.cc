@@ -25,16 +25,17 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/kademlia/mutable_contact.h"
-
-#include <boost/lexical_cast.hpp>
+#include "maidsafe/kademlia/contact_impl.h"
+#include <algorithm>
+#include <boost/bind.hpp>
 #include "maidsafe/common/utils.h"
+#include "maidsafe/kademlia/kademlia.pb.h"
 
 namespace maidsafe {
 
 namespace kademlia {
 
-Contact::Contact()
+Contact::Impl::Impl()
     : node_id_(),
       endpoint_(),
       rendezvous_endpoint_(),
@@ -43,16 +44,16 @@ Contact::Contact()
       last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
-Contact::Contact(const Contact &other)
-    : node_id_(other.node_id_),
-      endpoint_(other.endpoint_),
-      rendezvous_endpoint_(other.rendezvous_endpoint_),
-      local_endpoints_(other.local_endpoints_),
-      num_failed_rpcs_(other.num_failed_rpcs_),
-      last_seen_(other.last_seen_),
-      prefer_local_(other.prefer_local_) {}
+Contact::Impl::Impl(const Contact &other)
+    : node_id_(other.pimpl_->node_id_),
+      endpoint_(other.pimpl_->endpoint_),
+      rendezvous_endpoint_(other.pimpl_->rendezvous_endpoint_),
+      local_endpoints_(other.pimpl_->local_endpoints_),
+      num_failed_rpcs_(other.pimpl_->num_failed_rpcs_),
+      last_seen_(other.pimpl_->last_seen_),
+      prefer_local_(other.pimpl_->prefer_local_) {}
 
-Contact::Contact(const protobuf::Contact &contact)
+Contact::Impl::Impl(const protobuf::Contact &contact)
     : node_id_(),
       endpoint_(),
       rendezvous_endpoint_(),
@@ -63,17 +64,17 @@ Contact::Contact(const protobuf::Contact &contact)
   FromProtobuf(contact);
 }
 
-Contact::Contact(const std::string &node_id,
-                 const transport::Endpoint ep)
+Contact::Impl::Impl(const NodeId &node_id,
+                    const transport::Endpoint &endpoint)
     : node_id_(node_id),
-      endpoint_(ep),
+      endpoint_(endpoint),
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
       last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
-bool Contact::FromProtobuf(const protobuf::Contact &contact) {
+bool Contact::Impl::FromProtobuf(const protobuf::Contact &contact) {
   if (!contact.IsInitialized())
     return false;
   for (int i = 0; i < contact.local_ips_size(); ++i) {
@@ -99,7 +100,7 @@ bool Contact::FromProtobuf(const protobuf::Contact &contact) {
   return true;
 }
 
-protobuf::Contact Contact::ToProtobuf() const {
+protobuf::Contact Contact::Impl::ToProtobuf() const {
   protobuf::Contact contact;
   boost::system::error_code ec;
   contact.set_node_id(node_id_.String());
@@ -119,42 +120,61 @@ protobuf::Contact Contact::ToProtobuf() const {
   return contact;
 }
 
-bool Contact::SetPreferredEndpoint(const transport::IP &ip) {
+bool Contact::Impl::SetPreferredEndpoint(const transport::IP &ip) {
   prefer_local_ = false;
   if (endpoint_.ip == ip) {
     return true;
   } else {
-    std::list<transport::Endpoint>::iterator it = local_endpoints_.begin();
-    for (; it != local_endpoints_.end(); ++it) {
-      if (ip == (*it).ip) {
-        if (it != local_endpoints_.begin()) {
-          transport::Endpoint ep = (*it);
-          local_endpoints_.erase(it);
-          local_endpoints_.push_front(ep);
-        }
-        prefer_local_ = true;
-        return true;
-      }
+    boost::system::error_code ec;
+    auto it = std::find_if(local_endpoints_.begin(), local_endpoints_.end(),
+              boost::bind(&Contact::Impl::IpMatchesEndpoint, this, ip, _1));
+    if (it == local_endpoints_.end()) {
+      return false;
+    } else {
+      std::iter_swap(it, local_endpoints_.begin());
+      prefer_local_ = true;
+      return true;
     }
   }
-  return false;
 }
 
-transport::Endpoint Contact::GetPreferredEndpoint() const {
+bool Contact::Impl::IpMatchesEndpoint(const transport::IP &ip,
+                                      const transport::Endpoint &endpoint) {
+  return ip == endpoint.ip;
+}
+
+transport::Endpoint Contact::Impl::GetPreferredEndpoint() const {
   if (prefer_local_ && !local_endpoints_.empty())
     return local_endpoints_.front();
   else
     return endpoint_;
 }
 
-bool Contact::operator<(const Contact &rhs) const {
-  return node_id().String() < rhs.node_id().String();
+void Contact::Impl::SetLastSeenToNow() {
+  last_seen_ = GetEpochMilliseconds();
 }
 
-bool Contact::operator==(const Contact &rhs) const {
-  if (node_id_ == rhs.node_id_)
+Contact::Impl& Contact::Impl::operator=(const Contact::Impl &other) {
+  if (this != &other) {
+    node_id_ = other.node_id_;
+    endpoint_ = other.endpoint_;
+    rendezvous_endpoint_ = other.rendezvous_endpoint_;
+    local_endpoints_ = other.local_endpoints_;
+    num_failed_rpcs_ = other.num_failed_rpcs_;
+    last_seen_ = other.last_seen_;
+    prefer_local_ = other.prefer_local_;
+  }
+  return *this;
+}
+
+bool Contact::Impl::operator<(const Contact::Impl &other) const {
+  return node_id_ < other.node_id_;
+}
+
+bool Contact::Impl::operator==(const Contact::Impl &other) const {
+  if (node_id_ == other.node_id_)
     return (node_id_.String() != kClientId) ||
-           (endpoint_.ip == rhs.endpoint_.ip);
+           (endpoint_.ip == other.endpoint_.ip);
   else
     return false;
 }
