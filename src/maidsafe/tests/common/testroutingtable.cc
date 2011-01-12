@@ -28,28 +28,31 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
-#include "maidsafe/base/routingtable.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/common/routingtable.h"
 
+namespace maidsafe {
+
+namespace test {
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_AddTuple) {
-  std::string kademlia_id = base::RandomString(64);
+  std::string kademlia_id = RandomString(64);
   std::string ip("192.168.1.188");
   boost::uint16_t port = 8888;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 200;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 55555;
-  base::PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
+  PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
       rendezvous_ip, rendezvous_port, public_key, rtt, rank, space);
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
 
-  base::PublicRoutingTableHandler rt_handler1;
+  PublicRoutingTableHandler rt_handler1;
   ASSERT_EQ(0, rt_handler1.AddTuple(tuple_to_store));
   ASSERT_EQ(0, rt_handler1.AddTuple(tuple_to_store));
   rt_handler.Clear();
@@ -57,24 +60,24 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_AddTuple) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_ReadTuple) {
-  std::string kademlia_id = base::RandomString(64);
+  std::string kademlia_id = RandomString(64);
   std::string ip("192.168.1.188");
   boost::uint16_t port = 8888;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 200;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 55555;
-  base::PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
+  PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
       rendezvous_ip, rendezvous_port, public_key, rtt, rank, space);
 
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
 
-  base::PublicRoutingTableTuple non_existing_tuple;
+  PublicRoutingTableTuple non_existing_tuple;
   ASSERT_EQ(1, rt_handler.GetTupleInfo(kademlia_id, &non_existing_tuple));
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
-  base::PublicRoutingTableTuple retrieved_tuple;
+  PublicRoutingTableTuple retrieved_tuple;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
   ASSERT_EQ(tuple_to_store.kademlia_id, retrieved_tuple.kademlia_id);
   ASSERT_EQ(tuple_to_store.rendezvous_ip, retrieved_tuple.rendezvous_ip);
@@ -84,13 +87,13 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_ReadTuple) {
   ASSERT_EQ(tuple_to_store.rank, retrieved_tuple.rank);
   ASSERT_EQ(tuple_to_store.space, retrieved_tuple.space);
 
-  base::PublicRoutingTableTuple tuple_to_store1(kademlia_id, ip,
+  PublicRoutingTableTuple tuple_to_store1(kademlia_id, ip,
                                                 port + 1, rendezvous_ip,
                                                 rendezvous_port + 1, public_key,
                                                 rtt + 1, rank, space + 1);
 
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store1));
-  base::PublicRoutingTableTuple retrieved_tuple1;
+  PublicRoutingTableTuple retrieved_tuple1;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple1));
   ASSERT_EQ(tuple_to_store1.kademlia_id, retrieved_tuple1.kademlia_id);
   ASSERT_EQ(tuple_to_store1.rendezvous_ip, retrieved_tuple1.rendezvous_ip);
@@ -104,7 +107,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_ReadTuple) {
   float prev_rtt = tuple_to_store1.rtt;
   tuple_to_store1.rtt = 0.0;
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store1));
-  base::PublicRoutingTableTuple retrieved_tuple2;
+  PublicRoutingTableTuple retrieved_tuple2;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple2));
   ASSERT_EQ(tuple_to_store1.kademlia_id, retrieved_tuple2.kademlia_id);
   ASSERT_EQ(tuple_to_store1.rendezvous_ip, retrieved_tuple2.rendezvous_ip);
@@ -119,22 +122,22 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_ReadTuple) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_DeleteTuple) {
-  std::string kademlia_id = base::RandomString(64);
+  std::string kademlia_id = RandomString(64);
   std::string ip("192.168.1.188");
   boost::uint16_t port = 8888;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 32;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 3232;
-  base::PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
+  PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
       rendezvous_ip, rendezvous_port, public_key, rtt, rank, space);
 
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
 
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
-  base::PublicRoutingTableTuple retrieved_tuple;
+  PublicRoutingTableTuple retrieved_tuple;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
   ASSERT_EQ(0, rt_handler.DeleteTupleByKadId(kademlia_id));
   ASSERT_EQ(1, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
@@ -143,18 +146,18 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_DeleteTuple) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateTuple) {
-  std::string kademlia_id = base::RandomString(64);
+  std::string kademlia_id = RandomString(64);
   std::string ip("192.168.1.188");
   boost::uint16_t port = 8888;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 32;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 3232;
-  base::PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
+  PublicRoutingTableTuple tuple_to_store(kademlia_id, ip, port,
       rendezvous_ip, rendezvous_port, public_key, rtt, rank, space);
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
 
   ASSERT_EQ(2, rt_handler.ContactLocal(kademlia_id));
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
@@ -170,7 +173,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateTuple) {
   ASSERT_EQ(0, rt_handler.UpdateContactLocal(kademlia_id, "211.11.11.11",
             kademlia::LOCAL));
   ASSERT_EQ(0, rt_handler.ContactLocal(kademlia_id));
-  base::PublicRoutingTableTuple retrieved_tuple;
+  PublicRoutingTableTuple retrieved_tuple;
   ASSERT_EQ(0, rt_handler.GetTupleInfo(kademlia_id, &retrieved_tuple));
   ASSERT_EQ("211.11.11.11", retrieved_tuple.ip);
   ASSERT_EQ(9999, retrieved_tuple.port);
@@ -190,21 +193,21 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateTuple) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateToUnknown) {
-  std::string kademlia_id = base::RandomString(64);
+  std::string kademlia_id = RandomString(64);
   std::string ip("192.168.1.188");
   std::string local_ip("192.168.1.187");
   boost::uint16_t local_port = 7777;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 32;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 3232;
-  base::PublicRoutingTableTuple tuple_to_store(kademlia_id, local_ip,
+  PublicRoutingTableTuple tuple_to_store(kademlia_id, local_ip,
                                                local_port, rendezvous_ip,
                                                rendezvous_port, public_key, rtt,
                                                rank, space);
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
   ASSERT_EQ(2, rt_handler.ContactLocal(kademlia_id));
   ASSERT_EQ(0, rt_handler.AddTuple(tuple_to_store));
   ASSERT_EQ(2, rt_handler.ContactLocal(kademlia_id));
@@ -217,21 +220,21 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_UpdateToUnknown) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestRtt) {
-  std::vector<base::PublicRoutingTableTuple> tuples;
-  tuples.push_back(base::PublicRoutingTableTuple("id1", "192.168.1.188", 8888,
+  std::vector<PublicRoutingTableTuple> tuples;
+  tuples.push_back(PublicRoutingTableTuple("id1", "192.168.1.188", 8888,
                    "", 0, "", 35.55, 1, 3232));
-  tuples.push_back(base::PublicRoutingTableTuple("id2", "192.168.1.186", 8889,
+  tuples.push_back(PublicRoutingTableTuple("id2", "192.168.1.186", 8889,
                    "", 0, "", 24.95, 1, 3232));
-  tuples.push_back(base::PublicRoutingTableTuple("id3", "192.168.1.188", 8890,
+  tuples.push_back(PublicRoutingTableTuple("id3", "192.168.1.188", 8890,
                    "", 0, "", 64.8, 1, 3232));
-  tuples.push_back(base::PublicRoutingTableTuple("id4", "192.168.1.187", 8891,
+  tuples.push_back(PublicRoutingTableTuple("id4", "192.168.1.187", 8891,
                    "", 0, "", 35.44, 1, 3232));
-  tuples.push_back(base::PublicRoutingTableTuple("id5", "192.168.1.190", 8892,
+  tuples.push_back(PublicRoutingTableTuple("id5", "192.168.1.190", 8892,
                    "", 0, "", 48.69, 1, 3232));
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
   float rtt = 30;
   std::set<std::string> ex_ids;
-  base::PublicRoutingTableTuple rec_tuple;
+  PublicRoutingTableTuple rec_tuple;
   ASSERT_EQ(1, rt_handler.GetClosestRtt(rtt, ex_ids, &rec_tuple));
   for (unsigned int n = 0; n < tuples.size(); n++)
     ASSERT_EQ(0, rt_handler.AddTuple(tuples[n]));
@@ -289,31 +292,31 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestRtt) {
 }
 
 TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
-  typedef std::map<kademlia::NodeId, base::PublicRoutingTableTuple> TuplesMap;
+  typedef std::map<kademlia::NodeId, PublicRoutingTableTuple> TuplesMap;
   TuplesMap tuples;
   std::pair<TuplesMap::iterator, bool> result;
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  std::string target_key = co.Hash(base::RandomString(222), "",
+  std::string target_key = co.Hash(RandomString(222), "",
                                    crypto::STRING_STRING, false);
   kademlia::NodeId target_id(target_key);
   const int kTupleCount(177);
-  base::PublicRoutingTableHandler rt_handler;
+  PublicRoutingTableHandler rt_handler;
   for (int i = 0; i < kTupleCount; ++i) {
-    std::string kad_id = co.Hash(base::RandomString(111), "",
+    std::string kad_id = co.Hash(RandomString(111), "",
                                  crypto::STRING_STRING, false);
     kademlia::NodeId id(kad_id);
     kademlia::NodeId dist = id ^ target_id;
-    result = tuples.insert(std::pair<kademlia::NodeId, base::PublicRoutingTableTuple>(
+    result = tuples.insert(std::pair<kademlia::NodeId, PublicRoutingTableTuple>(
         dist,
-        base::PublicRoutingTableTuple(kad_id, "192.168.1." +
-            base::IntToString(i % 256), 8000 + (i % 1000), "", 0, "",
+        PublicRoutingTableTuple(kad_id, "192.168.1." +
+            IntToString(i % 256), 8000 + (i % 1000), "", 0, "",
             static_cast<float>(i), 1, 3232)));
     ASSERT_TRUE(result.second);
     ASSERT_EQ(0, rt_handler.AddTuple((*result.first).second));
   }
 
-  std::list<base::PublicRoutingTableTuple> returned_tuples;
+  std::list<PublicRoutingTableTuple> returned_tuples;
   boost::uint32_t requested_count(7);
   ASSERT_EQ(-1, rt_handler.GetClosestContacts(target_key, requested_count,
             NULL));
@@ -321,7 +324,7 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
             &returned_tuples));
   ASSERT_EQ(requested_count, returned_tuples.size());
   TuplesMap::iterator tuples_map_itr = tuples.begin();
-  std::list<base::PublicRoutingTableTuple>::iterator tuples_itr =
+  std::list<PublicRoutingTableTuple>::iterator tuples_itr =
       returned_tuples.begin();
   kademlia::NodeId dist, previous_dist;
   while (tuples_itr != returned_tuples.end()) {
@@ -409,40 +412,40 @@ TEST(PublicRoutingTableHandlerTest, BEH_BASE_GetClosestContacts) {
 
 TEST(PublicRoutingTableTest, BEH_BASE_MultipleHandlers) {
   std::string dbname1("routingtable");
-  dbname1 += boost::lexical_cast<std::string>(base::RandomUint32()) +
+  dbname1 += boost::lexical_cast<std::string>(RandomUint32()) +
             std::string(".db");
   std::string dbname2("routingtable");
-  dbname2 += boost::lexical_cast<std::string>(base::RandomUint32()) +
+  dbname2 += boost::lexical_cast<std::string>(RandomUint32()) +
             std::string(".db");
   ASSERT_NE(dbname1, dbname2);
-  std::string kademlia_id1 = base::RandomString(64);
-  std::string kademlia_id2 = base::RandomString(64);
+  std::string kademlia_id1 = RandomString(64);
+  std::string kademlia_id2 = RandomString(64);
   ASSERT_NE(kademlia_id1, kademlia_id2);
   std::string ip("192.168.1.188");
   boost::uint16_t port = 8888;
   std::string rendezvous_ip("81.149.64.82");
   boost::uint16_t rendezvous_port = 5555;
-  std::string public_key = base::RandomString(64);
+  std::string public_key = RandomString(64);
   float rtt = 200;
   boost::uint16_t rank = 5;
   boost::uint32_t space = 55555;
-  base::PublicRoutingTableTuple tuple_to_store1(kademlia_id1, ip,
+  PublicRoutingTableTuple tuple_to_store1(kademlia_id1, ip,
                                                 port, rendezvous_ip,
                                                 rendezvous_port, public_key,
                                                 rtt, rank, space);
-  ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[dbname1]->AddTuple(
+  ASSERT_EQ(0, (*PublicRoutingTable::GetInstance())[dbname1]->AddTuple(
       tuple_to_store1));
-  base::PublicRoutingTableTuple tuple_to_store2(kademlia_id2, ip,
+  PublicRoutingTableTuple tuple_to_store2(kademlia_id2, ip,
                                                 port - 1, rendezvous_ip,
                                                 rendezvous_port - 1, public_key,
                                                 rtt - 100, rank - 2, space);
-  ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[dbname2]->AddTuple(
+  ASSERT_EQ(0, (*PublicRoutingTable::GetInstance())[dbname2]->AddTuple(
       tuple_to_store2));
 
-  base::PublicRoutingTableTuple rec_tuple_1, rec_tuple_2;
-  ASSERT_EQ(1, (*base::PublicRoutingTable::GetInstance())[dbname1]->
+  PublicRoutingTableTuple rec_tuple_1, rec_tuple_2;
+  ASSERT_EQ(1, (*PublicRoutingTable::GetInstance())[dbname1]->
             GetTupleInfo(kademlia_id2, &rec_tuple_1));
-  ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[dbname1]->
+  ASSERT_EQ(0, (*PublicRoutingTable::GetInstance())[dbname1]->
             GetTupleInfo(kademlia_id1, &rec_tuple_1));
   ASSERT_EQ(tuple_to_store1.kademlia_id, rec_tuple_1.kademlia_id);
   ASSERT_EQ(tuple_to_store1.rendezvous_ip, rec_tuple_1.rendezvous_ip);
@@ -452,9 +455,9 @@ TEST(PublicRoutingTableTest, BEH_BASE_MultipleHandlers) {
   ASSERT_EQ(tuple_to_store1.rank, rec_tuple_1.rank);
   ASSERT_EQ(tuple_to_store1.space, rec_tuple_1.space);
 
-  ASSERT_EQ(1, (*base::PublicRoutingTable::GetInstance())[dbname2]->
+  ASSERT_EQ(1, (*PublicRoutingTable::GetInstance())[dbname2]->
             GetTupleInfo(kademlia_id1, &rec_tuple_2));
-  ASSERT_EQ(0, (*base::PublicRoutingTable::GetInstance())[dbname2]->
+  ASSERT_EQ(0, (*PublicRoutingTable::GetInstance())[dbname2]->
             GetTupleInfo(kademlia_id2, &rec_tuple_2));
   ASSERT_EQ(tuple_to_store2.kademlia_id, rec_tuple_2.kademlia_id);
   ASSERT_EQ(tuple_to_store2.rendezvous_ip, rec_tuple_2.rendezvous_ip);
@@ -464,3 +467,7 @@ TEST(PublicRoutingTableTest, BEH_BASE_MultipleHandlers) {
   ASSERT_EQ(tuple_to_store2.rank, rec_tuple_2.rank);
   ASSERT_EQ(tuple_to_store2.space, rec_tuple_2.space);
 }
+
+}  // namespace test
+
+}  // namespace maidsafe

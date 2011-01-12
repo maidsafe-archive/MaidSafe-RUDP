@@ -33,6 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/utils.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
@@ -71,3 +73,5 @@ TEST(UtilsTest, BEH_COMMON_NetworkInterfaces) {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe

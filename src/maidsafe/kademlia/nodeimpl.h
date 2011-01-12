@@ -53,8 +53,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/upnp/upnpclient.h"
 
 namespace maidsafe {
+
 class PublicRoutingTableHandler;
-}  // namespace maidsafe
 
 namespace kademlia {
 
@@ -169,9 +169,9 @@ class NodeImpl {
 
   bool using_signatures() { return false; }
   boost::int32_t KeyValueTTL(const NodeId &key, const std::string &value) const { return 0; }
-  void set_alternative_store(base::AlternativeStore *alternative_store) {}
-  base::AlternativeStore *alternative_store() { return alternative_store_; }
-  void set_signature_validator(base::SignatureValidator *validator) {}
+  void set_alternative_store(AlternativeStore *alternative_store) {}
+  AlternativeStore *alternative_store() { return alternative_store_; }
+  void set_signature_validator(SignatureValidator *validator) {}
 
  private:
   friend class test_nodeimpl::TestNodeImpl_BEH_NodeImpl_ExecuteRPCs_Test;
@@ -217,16 +217,16 @@ class NodeImpl {
   boost::mutex routingtable_mutex_, kadconfig_mutex_, extendshortlist_mutex_,
                joinbootstrapping_mutex_, leave_mutex_, activeprobes_mutex_,
                pendingcts_mutex_;
-  boost::shared_ptr<base::CallLaterTimer> ptimer_;
+  boost::shared_ptr<CallLaterTimer> ptimer_;
   boost::shared_ptr<transport::Transport> transport_;
   boost::shared_ptr<DataStore> pdata_store_;
   boost::shared_ptr<Service> premote_service_;
   boost::shared_ptr<RoutingTable> prouting_table_;
   boost::shared_ptr<Rpcs> rpcs_;
   boost::shared_ptr<boost::thread> addcontacts_routine_;
-  boost::shared_ptr<base::PublicRoutingTableHandler> prth_;
-  base::AlternativeStore *alternative_store_;
-  base::SignatureValidator *signature_validator_;
+  boost::shared_ptr<PublicRoutingTableHandler> prth_;
+  AlternativeStore *alternative_store_;
+  SignatureValidator *signature_validator_;
   upnp::UpnpIgdClient upnp_;
   NodeId node_id_, fake_kClientId_;
   IP ip_, rv_ip_, local_ip_;
@@ -243,5 +243,7 @@ class NodeImpl {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_NODEIMPL_H_

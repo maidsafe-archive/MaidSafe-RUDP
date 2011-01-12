@@ -29,12 +29,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <exception>
 #include "maidsafe/common/utils.h"
 
+namespace maidsafe {
 
 namespace kademlia {
 
 DataStore::DataStore(const boost::uint32_t &t_refresh)
     : datastore_(), t_refresh_(0), mutex_() {
-  t_refresh_ = t_refresh + (base::RandomUint32() % 5);
+  t_refresh_ = t_refresh + (RandomUint32() % 5);
 }
 
 DataStore::~DataStore() {
@@ -60,7 +61,7 @@ bool DataStore::HasItem(const std::string &key) {
   if (p.first == p.second)
     return false;
 
-  boost::uint32_t now = base::GetEpochTime();
+  boost::uint32_t now = GetEpochTime();
   while (p.first != p.second) {
     boost::int32_t ttl_remaining = p.first->expire_time_ - now;
     if ((ttl_remaining > 0 || p.first->ttl_ == -1) &&
@@ -78,7 +79,7 @@ bool DataStore::StoreItem(const std::string &key, const std::string &value,
   if (key.empty() || value.empty() || time_to_live == 0)
     return false;
 
-  boost::uint32_t time_stamp = base::GetEpochTime();
+  boost::uint32_t time_stamp = GetEpochTime();
   key_value_tuple tuple(key, value, time_stamp,
       time_to_live + time_stamp, time_to_live, hashable);
   boost::mutex::scoped_lock guard(mutex_);
@@ -104,7 +105,7 @@ bool DataStore::LoadItem(const std::string &key,
       datastore_.equal_range(boost::make_tuple(key));
   if (p.first == p.second)
     return false;
-  boost::uint32_t now = base::GetEpochTime();
+  boost::uint32_t now = GetEpochTime();
   while (p.first != p.second) {
     boost::int32_t ttl_remaining = p.first->expire_time_ - now;
     if ((ttl_remaining > 0 || p.first->ttl_ == -1) &&
@@ -160,7 +161,7 @@ std::vector<refresh_value> DataStore::ValuesToRefresh() {
   boost::mutex::scoped_lock guard(mutex_);
   datastore::index<kademlia::t_last_refresh_time>::type& indx =
       datastore_.get<kademlia::t_last_refresh_time>();
-  boost::uint32_t now = base::GetEpochTime();
+  boost::uint32_t now = GetEpochTime();
   boost::uint32_t time_limit = now - t_refresh_;
   up_limit = indx.upper_bound(time_limit);
   for (it = indx.begin(); it != up_limit; ++it) {
@@ -182,7 +183,7 @@ void DataStore::DeleteExpiredValues() {
   boost::mutex::scoped_lock guard(mutex_);
   datastore::index<kademlia::t_expire_time>::type& indx =
       datastore_.get<kademlia::t_expire_time>();
-  boost::uint32_t now = base::GetEpochTime();
+  boost::uint32_t now = GetEpochTime();
   up_limit = indx.lower_bound(now);
   down_limit = indx.upper_bound(0);
   indx.erase(down_limit, up_limit);
@@ -233,7 +234,7 @@ bool DataStore::RefreshItem(const std::string &key,
     *str_delete_req = it->ser_delete_req_;
     return false;
   }
-  boost::uint32_t time_stamp = base::GetEpochTime();
+  boost::uint32_t time_stamp = GetEpochTime();
   key_value_tuple tuple(key, value, time_stamp);
   tuple.ttl_ = it->ttl_;
   tuple.expire_time_ = it->expire_time_;
@@ -292,7 +293,7 @@ bool DataStore::UpdateItem(const std::string &key,
     return false;
 
   key_value_tuple tuple(key, new_value, 0);
-  boost::uint32_t now(base::GetEpochTime());
+  boost::uint32_t now(GetEpochTime());
   tuple.ttl_ = time_to_live;
   tuple.expire_time_ = now + time_to_live;
   tuple.last_refresh_time_ = now;
@@ -303,3 +304,5 @@ bool DataStore::UpdateItem(const std::string &key,
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

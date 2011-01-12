@@ -34,6 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 RoutingTable::RoutingTable(const NodeId &holder_id, const boost::uint16_t &rt_K)
@@ -111,7 +113,7 @@ void RoutingTable::TouchKBucket(const NodeId &node_id) {
   int index = KBucketIndex(node_id);
   if (index < 0)
     return;
-  k_buckets_[index]->set_last_accessed(base::GetEpochTime());
+  k_buckets_[index]->set_last_accessed(GetEpochTime());
 }
 
 void RoutingTable::RemoveContact(const NodeId &node_id, const bool &force) {
@@ -220,7 +222,7 @@ void RoutingTable::FindCloseNodes(
 
 void RoutingTable::GetRefreshList(const boost::uint16_t &start_kbucket,
                                   const bool &force, std::vector<NodeId> *ids) {
-  boost::uint32_t curr_time = base::GetEpochTime();
+  boost::uint32_t curr_time = GetEpochTime();
   for (size_t i = start_kbucket; i < k_buckets_.size(); ++i)
     if (force || curr_time-k_buckets_[i]->last_accessed() > kRefreshTime) {
       ids->push_back(NodeId(k_buckets_[i]->range_min(),
@@ -439,3 +441,5 @@ void RoutingTable::GetFurthestContacts(
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

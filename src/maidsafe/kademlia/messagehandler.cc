@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/messagehandler.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 enum MessageType {
@@ -225,3 +227,5 @@ void MessageHandler::ProcessSerialisedMessage(const int& message_type,
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

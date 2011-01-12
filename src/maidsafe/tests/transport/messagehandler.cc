@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/transport/messagehandler.h"
 #include "maidsafe/common/log.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
@@ -96,3 +98,5 @@ Errors MessageHandler::errors() {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe

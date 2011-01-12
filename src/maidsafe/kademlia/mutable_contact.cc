@@ -30,6 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/common/utils.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 Contact::Contact()
@@ -38,7 +40,7 @@ Contact::Contact()
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
 Contact::Contact(const Contact &other)
@@ -56,7 +58,7 @@ Contact::Contact(const protobuf::Contact &contact)
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {
   FromProtobuf(contact);
 }
@@ -68,7 +70,7 @@ Contact::Contact(const std::string &node_id,
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
 bool Contact::FromProtobuf(const protobuf::Contact &contact) {
@@ -158,3 +160,5 @@ bool Contact::operator==(const Contact &rhs) const {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

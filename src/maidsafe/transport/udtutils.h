@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/detail.h"
 #include "maidsafe/udt/udt.h"
 
+namespace maidsafe {
 
 namespace transport {
 
@@ -69,6 +70,8 @@ TransportCondition SetSyncMode(const SocketId &socket_id, bool synchronous);
 }  // namespace udtutils
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_UDTUTILS_H_
 

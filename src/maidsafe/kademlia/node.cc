@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/kademlia/node-api.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 Node::Node(boost::shared_ptr<transport::Transport> transport,
@@ -216,15 +218,15 @@ boost::int32_t Node::KeyValueTTL(const NodeId &key,
   return pimpl_->KeyValueTTL(key, value);
 }
 
-void Node::set_alternative_store(base::AlternativeStore* alternative_store) {
+void Node::set_alternative_store(AlternativeStore* alternative_store) {
   pimpl_->set_alternative_store(alternative_store);
 }
 
-base::AlternativeStore* Node::alternative_store() {
+AlternativeStore* Node::alternative_store() {
   return pimpl_->alternative_store();
 }
 
-void Node::set_signature_validator(base::SignatureValidator *validator) {
+void Node::set_signature_validator(SignatureValidator *validator) {
   pimpl_->set_signature_validator(validator);
 }
 
@@ -242,3 +244,5 @@ void Node::DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_va
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

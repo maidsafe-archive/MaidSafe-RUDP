@@ -32,6 +32,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 void Rpcs::Ping(const Contact &contact,
@@ -290,5 +292,6 @@ boost::shared_ptr<transport::Transport> Rpcs::CreateTransport(
   return t;
 }
 
-
 }  // namespace kademlia
+
+}  // namespace maidsafe

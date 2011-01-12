@@ -42,6 +42,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/crypto.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 Service::Service(boost::shared_ptr<RoutingTable> routing_table,
@@ -399,3 +401,5 @@ bool Service::CanStoreSignedValueHashable(
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

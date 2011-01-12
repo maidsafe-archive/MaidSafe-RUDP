@@ -45,6 +45,8 @@ namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
+namespace maidsafe {
+
 namespace transport {
 
 TcpConnection::TcpConnection(TcpTransport *tcp_transport,
@@ -262,4 +264,6 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe
 */

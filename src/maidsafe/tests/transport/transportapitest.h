@@ -41,6 +41,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/tests/transport/messagehandler.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
@@ -310,5 +312,7 @@ REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_

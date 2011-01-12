@@ -32,13 +32,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+namespace kademlia {
+
 Contact::Contact()
     : node_id_(),
       endpoint_(),
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
 Contact::Contact(const Contact &other)
@@ -56,7 +58,7 @@ Contact::Contact(const protobuf::Contact &contact)
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {
   FromProtobuf(contact);
 }
@@ -68,7 +70,7 @@ Contact::Contact(const NodeId &node_id,
       rendezvous_endpoint_(),
       local_endpoints_(),
       num_failed_rpcs_(0),
-      last_seen_(base::GetEpochMilliseconds()),
+      last_seen_(GetEpochMilliseconds()),
       prefer_local_(false) {}
 
 bool Contact::FromProtobuf(const protobuf::Contact &contact) {
@@ -156,5 +158,7 @@ bool Contact::operator==(const Contact &rhs) const {
   else
     return false;
 }
+
+}  // namespace kademlia
 
 }  // namespace maidsafe

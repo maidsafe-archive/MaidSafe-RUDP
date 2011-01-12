@@ -48,6 +48,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace bs2 = boost::signals2;
 
+namespace maidsafe {
+
 namespace transport {
 
 typedef boost::asio::ip::address IP;
@@ -200,5 +202,7 @@ class Transport {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_TRANSPORT_H_

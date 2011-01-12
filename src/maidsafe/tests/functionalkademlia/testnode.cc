@@ -51,6 +51,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace fs = boost::filesystem;
 
+namespace maidsafe {
+
 namespace kademlia {
 
 namespace test_node {
@@ -1524,3 +1526,5 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
 }  // namespace test_node
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

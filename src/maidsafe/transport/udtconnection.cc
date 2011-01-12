@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 UdtConnection::UdtConnection(boost::shared_ptr<UdtTransport> transport,
@@ -324,3 +326,5 @@ TransportCondition UdtConnection::MoveData(bool sending,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

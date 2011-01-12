@@ -34,6 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
+namespace maidsafe {
+
 namespace kademlia {
 
 /**
@@ -161,5 +163,7 @@ class NodeId {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_KADID_H_

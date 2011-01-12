@@ -28,11 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread/thread.hpp>
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/base/calllatertimer.h"
+#include "maidsafe/common/calllatertimer.h"
 
-namespace base {
+namespace maidsafe {
+
+namespace test {
 
 class Lynyrd {
  public:
@@ -220,4 +222,6 @@ TEST_F(CallLaterTest, BEH_BASE_AddPtrCallLater) {
   ASSERT_EQ(0, clt_.TimersMapSize()) << "List not empty";
 }
 
-}  // namespace base
+}  // namespace test
+
+}  // namespace maidsafe

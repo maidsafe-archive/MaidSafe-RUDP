@@ -42,6 +42,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/tcptransport2.h"
 
+namespace maidsafe {
+
 namespace transport {
 
  class NodeId;
@@ -133,6 +135,8 @@ private:
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_KADRPC_H_
 */

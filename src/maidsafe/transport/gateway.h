@@ -43,6 +43,8 @@ struct rt_msghdr;
 struct nlmsghdr;
 #endif
 
+namespace maidsafe {
+
 namespace transport {
 
 class Gateway {
@@ -96,5 +98,7 @@ class Gateway {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_GATEWAY_H_

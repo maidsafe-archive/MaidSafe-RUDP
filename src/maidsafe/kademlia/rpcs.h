@@ -38,6 +38,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 enum TransportType { kUdt, kTcp, kOther };
@@ -149,5 +151,7 @@ class Rpcs {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_RPCS_H_
