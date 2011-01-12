@@ -67,7 +67,7 @@ const boost::uint32_t kRepublishTime = 43200;  // 12 hours
 const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
-const double kMinSuccessfulPecentageStore = 0.75d;
+const double kMinSuccessfulPecentageStore = 0.75;
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // k-bucket.

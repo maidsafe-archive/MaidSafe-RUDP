@@ -289,7 +289,7 @@ int NodeImpl::AddContact(Contact new_contact, const float &rtt,
       new_contact.node_id() != node_id_) {
     if (!only_db) {
       boost::mutex::scoped_lock gaurd(routingtable_mutex_);
-      new_contact.set_last_seen(GetEpochMilliseconds());
+      new_contact.SetLastSeenToNow(GetEpochMilliseconds());
       result = prouting_table_->AddContact(new_contact);
     } else {
       result = 0;
