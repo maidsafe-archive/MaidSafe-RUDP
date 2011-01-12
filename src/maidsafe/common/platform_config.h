@@ -33,19 +33,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       it should not be regarded as final until this notice is removed.      *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_MAIDSAFE_DHT_CONFIG_H_
-#define MAIDSAFE_MAIDSAFE_DHT_CONFIG_H_
+#ifndef MAIDSAFE_COMMON_PLATFORM_CONFIG_H_
+#define MAIDSAFE_COMMON_PLATFORM_CONFIG_H_
 
-
-/*******************************************************************************
- * maidsafe-dht Version                                                        *
- ******************************************************************************/
-#define MAIDSAFE_DHT_VERSION 25
-
-
-/*******************************************************************************
- * Platform detection and platform-specific includes                           *
- ******************************************************************************/
 #if defined(linux) || defined(__linux) || defined(__linux__) || \
   defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
   defined(__DragonFly__) || defined(sun) || defined(__sun) || \
@@ -83,20 +73,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ifaddrs.h>  // used for implementation of LocalIPPort()
 #endif
 
-#if defined(_WIN32) && defined(GetMessage)
+#if defined(MAIDSAFE_WIN32) && defined(GetMessage)
 #undef GetMessage
 #endif
 
-#include <boost/cstdint.hpp>
-#include <boost/function.hpp>
-#include <boost/signals2/signal.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/asio/ip/address.hpp>
-
-#include <string>
-
-
-
-
-
-#endif  // MAIDSAFE_MAIDSAFE_DHT_CONFIG_H_
+#endif  // MAIDSAFE_COMMON_PLATFORM_CONFIG_H_

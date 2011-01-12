@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
 
 namespace maidsafe {
 

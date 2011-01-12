@@ -33,15 +33,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_NODE_API_H_
 #define MAIDSAFE_KADEMLIA_NODE_API_H_
 
-#include <maidsafe/maidsafe-dht_config.h>
-#include "maidsafe/kademlia/config.h"
-#include <maidsafe/kademlia/nodeid.h>
-#include <string>
-#include <vector>
+#include <boost/asio/io_service.hpp>
+#include <boost/cstdint.hpp>
+#include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
+//#include "maidsafe/common/platform_config.h"
+//#include "maidsafe/kademlia/config.h"
+//#include <maidsafe/kademlia/nodeid.h>
+//#include <string>
+//#include <vector>
 
 #if MAIDSAFE_DHT_VERSION < 25
-#error This API is not compatible with the installed library.
-#error Please update the maidsafe-dht library.
+#error This API is not compatible with the installed library.\
+  Please update the maidsafe-dht library.
 #endif
 
 
@@ -53,21 +57,21 @@ class SignatureValidator;
 
 namespace transport {
 class Transport;
-class UdtTransport;
+//class UdtTransport;
 }  // namespace transport
 
-namespace kademlia {
-
-class Contact;
-class ContactInfo;
-class NodeImpl;
-class Rpcs;
-struct NodeConstructionParameters;
-
-namespace protobuf {
-class SignedValue;
-class Signature;
-}  // namespace protobuf
+//namespace kademlia {
+//
+//class Contact;
+//class ContactInfo;
+//class NodeImpl;
+//class Rpcs;
+//struct NodeConstructionParameters;
+//
+//namespace protobuf {
+//class SignedValue;
+//class Signature;
+//}  // namespace protobuf
 
 /**
 * @class Node
@@ -94,8 +98,15 @@ class Node {
   * for NAT traversal
   * @param k Maximum number of elements in the node's kbuckets
   */
-  Node(boost::shared_ptr<transport::Transport> transport,
-        const NodeConstructionParameters &node_parameters);
+  Node(boost::shared_ptr<boost::asio::io_service> asio_service,
+       boost::shared_ptr<transport::Transport> transport,
+       bool client_only_node,
+       const boost::uint16_t &k,
+       const boost::uint16_t &alpha,
+       const boost::uint16_t &beta,
+       const boost::uint32_t &refresh_frequency,
+       const std::string &private_key,
+       const std::string &public_key);
 
   ~Node();
 
@@ -398,9 +409,17 @@ class Node {
   void set_alternative_store(AlternativeStore *alternative_store);
   AlternativeStore *alternative_store();
   void set_signature_validator(SignatureValidator *validator);
+bool client_only_node,
+       const boost::uint16_t &k,
+       const boost::uint16_t &alpha,
+       const boost::uint16_t &beta,
+       const boost::uint32_t &refresh_frequency,
+       const std::string &private_key,
+       const std::string &public_key  
 
  private:
-  boost::shared_ptr<NodeImpl> pimpl_;
+  class Impl;
+  boost::scoped_ptr<Impl> pimpl_;
 };
 
 }  // namespace kademlia
