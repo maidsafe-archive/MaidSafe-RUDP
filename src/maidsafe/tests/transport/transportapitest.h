@@ -260,8 +260,52 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
-  FAIL() << "Not implemented.";
-}
+  TransportPtr sender(new TypeParam(asio_service_));
+  TransportPtr listener(new TypeParam(asio_service_));
+  ASSERT_EQ(kSuccess, listener->StartListening(0));
+  MessageHandlerPtr msgh_sender(new MessageHandler("Sender"));
+  MessageHandlerPtr msgh_listener(new MessageHandler("listener"));
+  sender->on_message_received()->connect(
+      boost::bind(&MessageHandler::DoOnResponseReceived, msgh_sender, _1, _2,
+      _3, _4));
+  sender->on_error()->connect(boost::bind(&MessageHandler::DoOnError, 
+                                          msgh_sender, _1));
+  listener->on_message_received()->connect(
+      boost::bind(&MessageHandler::DoOnRequestReceived, msgh_listener, _1, _2,
+      _3, _4));
+  listener->on_error()->connect(boost::bind(&MessageHandler::DoOnError, _1));
+  std::string request("Request");
+  std::string response("Response");
+  sender->Send(request, Endpoint(kIP, listener->listening_port()),
+               Timeout(1000));
+  ASSERT_EQ(size_t(0), msgh_sender->errors().size());
+  ASSERT_EQ(size_t(1), msgh_listener->requests_received().size());
+  ASSERT_STREQ(request, msgh_listener->requests_received().at(0));
+  listener->Send(response, Endpoint(kIP, sender->listening_port()),
+                 Timeout(1000));
+  ASSERT_EQ(size_t(1), msgh_listener->responses_sent().size());
+  ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
+  ASSERT_STREQ(msgh_listener->responses_sent().at(0),
+               msgh_sender->responses_received().at(0));
+  
+  request = "Request1";
+  response = "Response1";
+  sender->Send(request, Endpoint(kIP, listener->listening_port()),
+               Timeout(1000));
+  ASSERT_EQ(size_t(0), msgh_sender->errors().size());
+  ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
+  ASSERT_STREQ(request, msgh_listener->requests_received().at(1));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  listener->Send(response, Endpoint(kIP, sender->listening_port()),
+                 Timeout(1000));
+  ASSERT_EQ(size_t(2), msgh_listener->responses_sent().size());
+  ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
+
+  sender->Send(request, Endpoint(kIP, 10000), Timeout(1000));
+  ASSERT_EQ(size_t(1), msgh_sender->errors().size());
+  ASSERT_EQ(kRemoteUnreachable, msgh_sender->errors().at(0));
+  ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
+ }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
   this->SetupTransport(false, 0);  
@@ -330,3 +374,4 @@ REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
 }  // namespace transport
 
 #endif  // MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
+
