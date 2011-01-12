@@ -317,30 +317,6 @@ struct UpdateCallbackArgs {
   Contact contact;
 };
 
-struct NodeConstructionParameters {
-  NodeConstructionParameters()
-      : type(VAULT),
-        k(4),
-        alpha(3),
-        beta(2),
-        refresh_time(0),
-        private_key(),
-        public_key(),
-        port_forwarded(false),
-        use_upnp(false),
-        port(0) {}
-  NodeType type;
-  boost::uint16_t k;
-  boost::uint16_t alpha;
-  boost::uint16_t beta;
-  boost::uint32_t refresh_time;
-  std::string private_key;
-  std::string public_key;
-  bool port_forwarded;
-  bool use_upnp;
-  Port port;
-};
-
 enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
 
 struct NodeContainerTuple {

@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <memory>
 
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/alternativestore.h"
 #include "maidsafe/common/calllatertimer.h"
 #include "maidsafe/common/validationinterface.h"

@@ -899,25 +899,24 @@ MESSAGE("")
 SET(MAIDSAFE_COMMON_INSTALL_FILES
       maidsafe/common/alternativestore.h
       maidsafe/common/crypto.h
-      maidsafe/common/generalmessages.pb.h
       maidsafe/common/log.h
       maidsafe/common/online.h
       maidsafe/common/routingtable.h
+      maidsafe/common/threadpool.h
       maidsafe/common/utils.h
-      maidsafe/common/validationinterface.h)
+      maidsafe/common/validationinterface.h
+      maidsafe/common/validation.pb.h)
 SET(MAIDSAFE_KAD_INSTALL_FILES
-      maidsafe/kademlia/contact.h
-      maidsafe/kademlia/contactinfo.pb.h
-      maidsafe/kademlia/nodeid.h
       maidsafe/kademlia/node-api.h
-      maidsafe/kademlia/rpcmessages.pb.h
-      maidsafe/kademlia/signedvalue.pb.h)
+      maidsafe/kademlia/contact.h
+      maidsafe/kademlia/nodeid.h
+      maidsafe/kademlia/kademlia.pb.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
-      maidsafe/maidsafe-dht.h
-      maidsafe/maidsafe-dht_config.h)
+      maidsafe/maidsafe-dht.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
       maidsafe/transport/transport.h
-      maidsafe/transport/udttransport.h)
+      maidsafe/transport/udttransport.h
+      maidsafe/transport/tcptransport.h)
 # Check the script /build/Win_MSVC/extract_includes.bat matches this list
 FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)
 STRING(REPLACE "\\" "/" EXTRACT_INCLUDE_BAT "${EXTRACT_INCLUDE_BAT}")

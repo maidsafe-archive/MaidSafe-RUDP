@@ -42,10 +42,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/member.hpp>
 
-#ifdef WIN32
+#ifdef MAIDSAFE_WIN32
 #include <shlobj.h>
 #endif
-#include <maidsafe/maidsafe-dht_config.h>
+#include "maidsafe/common/platform_config.h"
 #include <maidsafe/kademlia/config.h>
 #include <functional>
 #include <list>

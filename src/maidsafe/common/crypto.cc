@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/cryptopp/modes.h>
 #include <maidsafe/cryptopp/rsa.h>
 #include <maidsafe/cryptopp/osrng.h>
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/log.h"
 

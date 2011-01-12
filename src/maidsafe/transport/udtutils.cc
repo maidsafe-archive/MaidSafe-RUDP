@@ -97,7 +97,7 @@ TransportCondition GetNewSocket(
   }
 
   // Windows UDP problems fix
-#ifdef WIN32
+#ifdef MAIDSAFE_WIN32
   int mtu(1052);
   UDT::setsockopt(*socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif

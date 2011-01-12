@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/rpcs.pb.h"

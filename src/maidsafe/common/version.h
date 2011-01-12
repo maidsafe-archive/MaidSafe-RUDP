@@ -25,38 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_MAIDSAFE_DHT_H_
-#define MAIDSAFE_MAIDSAFE_DHT_H_
+#ifndef MAIDSAFE_COMMON_VERSION_H_
+#define MAIDSAFE_COMMON_VERSION_H_
 
-#include "maidsafe/common/version.h"
-#include "maidsafe/common/platform_config.h"
+#define MAIDSAFE_DHT_VERSION 25
 
-#include <maidsafe/kademlia/contact.h>
-
-
-
-
-
-
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/kademlia/node-api.h>
-
-#include <maidsafe/common/alternativestore.h>
-#include <maidsafe/common/crypto.h>
-#include <maidsafe/common/log.h>
-#include <maidsafe/common/online.h>
-#include <maidsafe/common/routingtable.h>
-#include <maidsafe/common/utils.h>
-#include <maidsafe/kademlia/nodeid.h>
-#include <maidsafe/transport/udttransport.h>
-
-
-
-
-
-#include <maidsafe/kademlia/config.h>
-
-#include <maidsafe/common/base.pb.h>
-#include <maidsafe/common/validationinterface.h>
-
-#endif  // MAIDSAFE_MAIDSAFE_DHT_H_
+#endif  // MAIDSAFE_COMMON_VERSION_H_
