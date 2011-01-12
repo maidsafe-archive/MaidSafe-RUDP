@@ -85,7 +85,7 @@ class TransportAPITest: public testing::Test {
       TransportPtr transport(new T(asio_service_));
       if (lport != Port(0)) {
         EXPECT_EQ(kSuccess,
-            transport->StartListening(Endpoint(kIP, lport)));
+                  transport->StartListening(Endpoint(kIP, lport)));
       } else {
         while (kSuccess != transport->StartListening(Endpoint(
             kIP, (rand() % 60536) + 5000)));
@@ -118,10 +118,10 @@ class TransportAPITest: public testing::Test {
         listening_transports_.begin());
     while(listening_transports_itr != listening_transports_.end()) {
       MessageHandlerPtr msg_h(new MessageHandler("Receiver"));
-      (*listening_transports_itr).transport->on_message_received()->connect(
+      (*listening_transports_itr)->on_message_received()->connect(
           boost::bind(&MessageHandler::DoOnRequestReceived, msg_h, _1, _2, _3,
                       _4));
-      (*listening_transports_itr).transport->on_error()->connect(boost::bind(
+      (*listening_transports_itr)->on_error()->connect(boost::bind(
           &MessageHandler::DoOnError, msg_h, _1));
       listening_message_handlers_.push_back(msg_h);
       ++listening_transports_itr;
@@ -131,9 +131,9 @@ class TransportAPITest: public testing::Test {
       listening_transports_itr = listening_transports_.begin();
       while (listening_transports_itr != listening_transports_.end()) {
         for (int i = 0 ; i < num_messages; ++i) {
-          asio_service_->post(boost::bind(SendMessage,
-                                          *sending_transports_itr,
-                                          *listening_transports_itr));
+          asio_service_->post(boost::bind(
+              &transport::test::TransportAPITest<T>::SendMessage, this,
+              *sending_transports_itr, *listening_transports_itr));
         }
         ++listening_transports_itr;
       }
@@ -143,8 +143,8 @@ class TransportAPITest: public testing::Test {
     std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
         sending_message_handlers_.begin());
     while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
-      ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size,
-                num_messages);
+      ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
+                 num_messages);
       ++sending_msg_handlers_itr;
     }
     FAIL() << "RunTransportTest() not implemented.";
@@ -169,38 +169,35 @@ class TransportAPITest: public testing::Test {
         listening_message_handlers_.begin());
     while (listening_msg_handlers_itr != listening_message_handlers_.end()) {
       IncomingMessages listening_request_received =
-          (*listening_msg_handlers_itr)->request_received();
-      IncomingMessages.iterator listening_request_received_itr =
+          (*listening_msg_handlers_itr)->requests_received();
+      IncomingMessages::iterator listening_request_received_itr =
           listening_request_received.begin();
       while (listening_request_received_itr !=
           listening_request_received.end()) {
         found = false;
-        std::vector<Messages>::iterator request_messages_itr;
-        request_messages_itr = std::find(request_messages_.begin(),
-                                         request_messages_.end(),
-                                         (*listening_request_received_itr));
-        if (request_messages_itr != request_messages_.end()) {
+        std::vector<std::string>::iterator request_messages_itr;
+        request_messages_itr = std::find(
+            request_messages_.begin(), request_messages_.end(),
+            (*listening_request_received_itr).first);
+        if (request_messages_itr != request_messages_.end())
           found = true;
-          break;
-        }
         ++listening_request_received_itr;
       }
       if (!found)
         break;
       ++listening_msg_handlers_itr;
     }
-    ASSERT_EQ(listening_request_received_itr,
-                listening_request_received.end());
+    ASSERT_EQ(listening_msg_handlers_itr,
+              listening_message_handlers_.end());
     
     // compare response
     std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
         sending_message_handlers_.begin());
     listening_msg_handlers_itr = listening_message_handlers_.begin();
     while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
-      found = false;
       IncomingMessages sending_response_received =
           (*sending_msg_handlers_itr)->responses_received();
-      IncomingMessages.iterator sending_response_received_itr =
+      IncomingMessages::iterator sending_response_received_itr =
           sending_response_received.begin();
       for (; sending_response_received_itr != sending_response_received.end();
           ++sending_response_received_itr) {
@@ -209,8 +206,8 @@ class TransportAPITest: public testing::Test {
         while (listening_msg_handlers_itr !=
             listening_message_handlers_.end()) {
           OutgoingResponses listening_response_sent =
-              (*listening_msg_handlers_itr)->response_sent();
-          OutgoingResponses.iterator listening_response_sent_itr;
+              (*listening_msg_handlers_itr)->responses_sent();
+          OutgoingResponses::iterator listening_response_sent_itr;
           listening_response_sent_itr = std::find(
               listening_response_sent.begin(), listening_response_sent.end(),
               (*sending_response_received_itr).first);
@@ -229,7 +226,7 @@ class TransportAPITest: public testing::Test {
     }
  }
 
-  std::vector< TransportPtr> > listening_transports_;
+  std::vector< TransportPtr> listening_transports_;
   std::vector<MessageHandlerPtr> listening_message_handlers_;
   std::vector<TransportPtr> sending_transports_;
   std::vector<MessageHandlerPtr> sending_message_handlers_;
@@ -262,7 +259,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   TransportPtr sender(new TypeParam(asio_service_));
   TransportPtr listener(new TypeParam(asio_service_));
-  ASSERT_EQ(kSuccess, listener->StartListening(0));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   MessageHandlerPtr msgh_sender(new MessageHandler("Sender"));
   MessageHandlerPtr msgh_listener(new MessageHandler("listener"));
   sender->on_message_received()->connect(
@@ -273,28 +270,30 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   listener->on_message_received()->connect(
       boost::bind(&MessageHandler::DoOnRequestReceived, msgh_listener, _1, _2,
       _3, _4));
-  listener->on_error()->connect(boost::bind(&MessageHandler::DoOnError, _1));
-  std::string request("Request");
-  std::string response("Response");
+  listener->on_error()->connect(boost::bind(&MessageHandler::DoOnError, 
+                                            msgh_listener, _1));
+  std::string request("FirstRequest");
+  std::string response("FirstResponse");
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                Timeout(1000));
+  
   ASSERT_EQ(size_t(0), msgh_sender->errors().size());
   ASSERT_EQ(size_t(1), msgh_listener->requests_received().size());
-  ASSERT_STREQ(request, msgh_listener->requests_received().at(0));
+  ASSERT_EQ(request, msgh_listener->requests_received().at(0).first);
   listener->Send(response, Endpoint(kIP, sender->listening_port()),
                  Timeout(1000));
   ASSERT_EQ(size_t(1), msgh_listener->responses_sent().size());
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
-  ASSERT_STREQ(msgh_listener->responses_sent().at(0),
-               msgh_sender->responses_received().at(0));
+  ASSERT_EQ(msgh_listener->responses_sent().at(0),
+            msgh_sender->responses_received().at(0).first);
   
-  request = "Request1";
-  response = "Response1";
+  request = "SecondRequest";
+  response = "SecondResponse";
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                Timeout(1000));
   ASSERT_EQ(size_t(0), msgh_sender->errors().size());
   ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
-  ASSERT_STREQ(request, msgh_listener->requests_received().at(1));
+  ASSERT_EQ(request, msgh_listener->requests_received().at(1).first);
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   listener->Send(response, Endpoint(kIP, sender->listening_port()),
                  Timeout(1000));
@@ -305,7 +304,8 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   ASSERT_EQ(size_t(1), msgh_sender->errors().size());
   ASSERT_EQ(kRemoteUnreachable, msgh_sender->errors().at(0));
   ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
- }
+}
+
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
   this->SetupTransport(false, 0);  
