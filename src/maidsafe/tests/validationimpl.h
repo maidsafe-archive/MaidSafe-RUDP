@@ -49,17 +49,17 @@ class TestValidator : public SignatureValidator {
    * Validates the request signed with private key that corresponds
    * to public_key
    */
-  bool ValidateRequest(const std::string &signed_request,
+  bool ValidateRequest(const std::string &request_signature,
                        const std::string &public_key,
-                       const std::string &signed_public_key,
+                       const std::string &public_key_signature,
                        const std::string &key) {
-    if (signed_request == kademlia::kAnonymousSignedRequest)
+    if (request_signature == kademlia::kAnonymousSignedRequest)
       return true;
     crypto::Crypto checker;
     return checker.AsymCheckSig(
-               checker.Hash(public_key + signed_public_key + key, "",
+               checker.Hash(public_key + public_key_signature + key, "",
                             crypto::STRING_STRING, true),
-               signed_request, public_key, crypto::STRING_STRING);
+               request_signature, public_key, crypto::STRING_STRING);
   }
 };
 

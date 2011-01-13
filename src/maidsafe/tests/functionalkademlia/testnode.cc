@@ -393,8 +393,8 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   SignedRequest req;
   req.set_signer_id(node_local_1.node_id().String());
   req.set_public_key(pubkey);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
   node_local_1.StoreValue(key, sig_value, req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cb_1, _1));
@@ -559,8 +559,8 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -651,8 +651,8 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
   nodes_[kTestK / 3]->StoreValue(key, sig_value, req, 24*3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
@@ -733,8 +733,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
     int a(n % (kNetworkSize - 1));
     req.set_signer_id(nodes_[a]->node_id().String());
     req.set_public_key(pub_key);
-    req.set_signed_public_key(sig_pub_key);
-    req.set_signed_request(sig_req);
+    req.set_public_key_signature(sig_pub_key);
+    req.set_request_signature(sig_req);
     nodes_[a]->StoreValue(keys[n], values[n], req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cbs[n], _1));
@@ -879,8 +879,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK * 3 / 4]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
   nodes_[kTestK * 3 / 4]->StoreValue(key, sig_value, req, 24 * 3600,
                                       boost::bind(&FakeCallback::CallbackFunc,
                                                   &cb_1, _1));
@@ -1087,8 +1087,8 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request("bad request");
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature("bad request");
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1099,7 +1099,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   create_rsakeys(&new_pub_key, &new_priv_key);
   ASSERT_NE(pub_key, new_pub_key);
   cb_.Reset();
-  req.set_signed_request(sig_req);
+  req.set_request_signature(sig_req);
   req.set_public_key(new_pub_key);
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1234,8 +1234,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1325,8 +1325,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 3]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1361,8 +1361,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   req.Clear();
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key1);
-  req.set_signed_public_key(sig_pub_key1);
-  req.set_signed_request(sig_req1);
+  req.set_public_key_signature(sig_pub_key1);
+  req.set_request_signature(sig_req1);
   DeleteValueCallback del_cb;
   nodes_[kNetworkSize - 1]->DeleteValue(
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
@@ -1374,8 +1374,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   req.Clear();
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key1);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
   nodes_[kTestK / 3]->DeleteValue(
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
@@ -1428,8 +1428,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_signature(sig_pub_key);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,

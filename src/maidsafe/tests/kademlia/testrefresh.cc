@@ -440,10 +440,10 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = RandomString(1024*5);
   StoreValueCallback store_cb;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(keys_[4].first, "", keys_[4].second,
+  std::string public_key_signature, request_signature;
+  public_key_signature = co.AsymSign(keys_[4].first, "", keys_[4].second,
                                   crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(keys_[4].first + signed_public_key +
+  request_signature = co.AsymSign(co.Hash(keys_[4].first + public_key_signature +
                                        key.String(), "",
                                        crypto::STRING_STRING, true),
                                "", keys_[4].second, crypto::STRING_STRING);
@@ -455,8 +455,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(keys_[4].first);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  req.set_public_key_signature(public_key_signature);
+  req.set_request_signature(request_signature);
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -503,9 +503,9 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
+  std::string public_key_signature, request_signature;
+  public_key_signature = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
+  request_signature = co.AsymSign(co.Hash(pub_key+public_key_signature+key.String(),
                                        "", crypto::STRING_STRING, true),
                                "", priv_key, crypto::STRING_STRING);
   kademlia::SignedValue sig_value;
@@ -516,8 +516,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  req.set_public_key_signature(public_key_signature);
+  req.set_request_signature(request_signature);
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -620,9 +620,9 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
+  std::string public_key_signature, request_signature;
+  public_key_signature = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
+  request_signature = co.AsymSign(co.Hash(pub_key+public_key_signature+key.String(),
                                        "", crypto::STRING_STRING, true),
                                "", priv_key, crypto::STRING_STRING);
   kademlia::SignedValue sig_value;
@@ -633,8 +633,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   kademlia::SignedRequest req;
   req.set_signer_id(nodes_[4]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  req.set_public_key_signature(public_key_signature);
+  req.set_request_signature(request_signature);
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));

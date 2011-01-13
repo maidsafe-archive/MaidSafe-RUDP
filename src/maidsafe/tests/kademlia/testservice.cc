@@ -509,18 +509,18 @@ TEST_F(ServicesTest, BEH_KAD_ServicesStore) {
   for (int i = 0; i < 128; ++i)
     hex_key += "a";
   std::string value1("Val1"), value2("Val2"), value3("Val10");
-  std::string public_key, private_key, signed_public_key, signed_request;
+  std::string public_key, private_key, public_key_signature, request_signature;
   std::string key = DecodeFromHex(hex_key);
   CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &signed_public_key,
-                      &signed_request);
+  CreateSignedRequest(public_key, private_key, key, &public_key_signature,
+                      &request_signature);
   store_request.set_key(key);
   store_request.set_value(value1);
-  SignedRequest *sig_req = store_request.mutable_signed_request();
+  SignedRequest *sig_req = store_request.mutable_request_signature();
   sig_req->set_signer_id("id1");
   sig_req->set_public_key(public_key);
-  sig_req->set_signed_public_key(signed_public_key);
-  sig_req->set_signed_request(signed_request);
+  sig_req->set_public_key_signature(public_key_signature);
+  sig_req->set_request_signature(request_signature);
   store_request.set_publish(true);
   store_request.set_ttl(3600*24);
   ContactInfo *sender_info = store_request.mutable_sender_info();
@@ -638,10 +638,10 @@ TEST_F(ServicesTest, BEH_KAD_InvalidStoreValue) {
   std::vector<std::string> values;
   EXPECT_FALSE(datastore_->LoadItem(key, &values));
 
-  std::string public_key, private_key, signed_public_key, signed_request;
+  std::string public_key, private_key, public_key_signature, request_signature;
   CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &signed_public_key,
-      &signed_request);
+  CreateSignedRequest(public_key, private_key, key, &public_key_signature,
+      &request_signature);
 
   store_request.clear_value();
   SignedValue *sig_value = store_request.mutable_sig_value();
@@ -650,11 +650,11 @@ TEST_F(ServicesTest, BEH_KAD_InvalidStoreValue) {
       crypto::STRING_STRING));
   std::string ser_sig_value = sig_value->SerializeAsString();
 
-  SignedRequest *sig_req = store_request.mutable_signed_request();
+  SignedRequest *sig_req = store_request.mutable_request_signature();
   sig_req->set_signer_id("id1");
   sig_req->set_public_key("public_key");
-  sig_req->set_signed_public_key(signed_public_key);
-  sig_req->set_signed_request(signed_request);
+  sig_req->set_public_key_signature(public_key_signature);
+  sig_req->set_request_signature(request_signature);
 
   google::protobuf::Closure *done6 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
@@ -707,15 +707,15 @@ TEST_F(ServicesTest, BEH_KAD_InvalidStoreValue) {
   store_request.set_key(key1);
   store_request.set_publish(true);
   store_request.set_ttl(24*3600);
-  signed_public_key = "";
-  signed_request = "";
-  CreateSignedRequest(public_key, private_key, key1, &signed_public_key,
-      &signed_request);
-  SignedRequest *sig_req1 = store_request.mutable_signed_request();
+  public_key_signature = "";
+  request_signature = "";
+  CreateSignedRequest(public_key, private_key, key1, &public_key_signature,
+      &request_signature);
+  SignedRequest *sig_req1 = store_request.mutable_request_signature();
   sig_req1->set_signer_id("id1");
   sig_req1->set_public_key(public_key);
-  sig_req1->set_signed_public_key(signed_public_key);
-  sig_req1->set_signed_request(signed_request);
+  sig_req1->set_public_key_signature(public_key_signature);
+  sig_req1->set_request_signature(request_signature);
   google::protobuf::Closure *done4 = google::protobuf::NewCallback<Callback>
       (&cb_obj, &Callback::CallbackFunction);
   service_->Store(&controller, &store_request, &store_response, done4);
@@ -1017,11 +1017,11 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
   for (int i = 0; i < 128; ++i)
     hex_key += "a";
   std::string value1("Val1"), value2("Val2");
-  std::string public_key, private_key, signed_public_key, signed_request;
+  std::string public_key, private_key, public_key_signature, request_signature;
   std::string key = DecodeFromHex(hex_key);
   CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &signed_public_key,
-    &signed_request);
+  CreateSignedRequest(public_key, private_key, key, &public_key_signature,
+    &request_signature);
 
   SignedValue svalue;
   svalue.set_value(value1);
@@ -1069,11 +1069,11 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
   req_svalue->set_value(value1);
   req_svalue->set_value_signature(crypto_.AsymSign(value1, "", private_key,
       crypto::STRING_STRING));
-  SignedRequest *sreq = delete_request.mutable_signed_request();
+  SignedRequest *sreq = delete_request.mutable_request_signature();
   sreq->set_signer_id("id1");
   sreq->set_public_key(public_key);
-  sreq->set_signed_public_key(signed_public_key);
-  sreq->set_signed_request(signed_request);
+  sreq->set_public_key_signature(public_key_signature);
+  sreq->set_request_signature(request_signature);
   DeleteResponse delete_response;
   Callback cb_obj;
   google::protobuf::Closure *done =
@@ -1100,15 +1100,15 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
   req_svalue->set_value(value1);
   req_svalue->set_value_signature(crypto_.AsymSign(value1, "", private_key,
       crypto::STRING_STRING));
-  std::string public_key1, private_key1, signed_public_key1, signed_request1;
+  std::string public_key1, private_key1, public_key_signature1, request_signature1;
   CreateRSAKeys(&public_key1, &private_key1);
-  CreateSignedRequest(public_key1, private_key1, key, &signed_public_key1,
-    &signed_request1);
+  CreateSignedRequest(public_key1, private_key1, key, &public_key_signature1,
+    &request_signature1);
   sreq->Clear();
   sreq->set_signer_id("id1");
   sreq->set_public_key(public_key);
-  sreq->set_signed_public_key(signed_public_key1);
-  sreq->set_signed_request(signed_request1);
+  sreq->set_public_key_signature(public_key_signature1);
+  sreq->set_request_signature(request_signature1);
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
   EXPECT_FALSE(delete_response.result());
@@ -1118,8 +1118,8 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
   sreq->Clear();
   sreq->set_signer_id("id1");
   sreq->set_public_key(public_key);
-  sreq->set_signed_public_key(signed_public_key);
-  sreq->set_signed_request(signed_request);
+  sreq->set_public_key_signature(public_key_signature);
+  sreq->set_request_signature(request_signature);
 
   service_->Delete(&controller, &delete_request, &delete_response, done);
   EXPECT_TRUE(delete_response.IsInitialized());
@@ -1146,15 +1146,15 @@ TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
   SignedRequest req;
   ASSERT_TRUE(req.ParseFromString(ser_req));
   ASSERT_EQ(sreq->public_key(), req.public_key());
-  ASSERT_EQ(sreq->signed_public_key(), req.signed_public_key());
-  ASSERT_EQ(sreq->signed_request(), req.signed_request());
+  ASSERT_EQ(sreq->public_key_signature(), req.public_key_signature());
+  ASSERT_EQ(sreq->request_signature(), req.request_signature());
 
   delete done;
 }
 
 TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
   std::string value("Value");
-  std::string public_key, private_key, signed_public_key, signed_request;
+  std::string public_key, private_key, public_key_signature, request_signature;
   std::string key = crypto_.Hash(RandomString(5), "",
                                  crypto::STRING_STRING, false);
 
@@ -1165,13 +1165,13 @@ TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
   std::string ser_svalue(svalue.SerializeAsString());
   ASSERT_TRUE(datastore_->StoreItem(key, ser_svalue, -1, false));
   CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &signed_public_key,
-                      &signed_request);
+  CreateSignedRequest(public_key, private_key, key, &public_key_signature,
+                      &request_signature);
   SignedRequest sreq;
   sreq.set_signer_id("id1");
   sreq.set_public_key(public_key);
-  sreq.set_signed_public_key(signed_public_key);
-  sreq.set_signed_request(signed_request);
+  sreq.set_public_key_signature(public_key_signature);
+  sreq.set_request_signature(request_signature);
   std::string ser_sreq(sreq.SerializeAsString());
   ASSERT_TRUE(datastore_->MarkForDeletion(key, ser_svalue, ser_sreq));
 
@@ -1180,16 +1180,16 @@ TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
   request.set_key(key);
   public_key.clear();
   private_key.clear();
-  signed_request.clear();
+  request_signature.clear();
 
   CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &signed_public_key,
-                      &signed_request);
-  SignedRequest *sig_req = request.mutable_signed_request();
+  CreateSignedRequest(public_key, private_key, key, &public_key_signature,
+                      &request_signature);
+  SignedRequest *sig_req = request.mutable_request_signature();
   sig_req->set_signer_id("id2");
   sig_req->set_public_key(public_key);
-  sig_req->set_signed_public_key(signed_public_key);
-  sig_req->set_signed_request(signed_request);
+  sig_req->set_public_key_signature(public_key_signature);
+  sig_req->set_request_signature(request_signature);
   request.set_publish(false);
   request.set_ttl(-1);
   ContactInfo *sender_info = request.mutable_sender_info();
@@ -1204,24 +1204,24 @@ TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
   service_->Store(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
   ASSERT_FALSE(response.result());
-  ASSERT_TRUE(response.has_signed_request());
-  EXPECT_EQ(sreq.signer_id(), response.signed_request().signer_id());
-  EXPECT_EQ(sreq.public_key(), response.signed_request().public_key());
-  EXPECT_EQ(sreq.signed_public_key(),
-            response.signed_request().signed_public_key());
-  EXPECT_EQ(sreq.signed_request(), response.signed_request().signed_request());
+  ASSERT_TRUE(response.has_request_signature());
+  EXPECT_EQ(sreq.signer_id(), response.request_signature().signer_id());
+  EXPECT_EQ(sreq.public_key(), response.request_signature().public_key());
+  EXPECT_EQ(sreq.public_key_signature(),
+            response.request_signature().public_key_signature());
+  EXPECT_EQ(sreq.request_signature(), response.request_signature().request_signature());
 
   response.Clear();
   ASSERT_TRUE(datastore_->MarkAsDeleted(key, ser_svalue));
   service_->Store(&controller, &request, &response, done);
   ASSERT_TRUE(response.IsInitialized());
   ASSERT_FALSE(response.result());
-  ASSERT_TRUE(response.has_signed_request());
-  EXPECT_EQ(sreq.signer_id(), response.signed_request().signer_id());
-  EXPECT_EQ(sreq.public_key(), response.signed_request().public_key());
-  EXPECT_EQ(sreq.signed_public_key(),
-            response.signed_request().signed_public_key());
-  EXPECT_EQ(sreq.signed_request(), response.signed_request().signed_request());
+  ASSERT_TRUE(response.has_request_signature());
+  EXPECT_EQ(sreq.signer_id(), response.request_signature().signer_id());
+  EXPECT_EQ(sreq.public_key(), response.request_signature().public_key());
+  EXPECT_EQ(sreq.public_key_signature(),
+            response.request_signature().public_key_signature());
+  EXPECT_EQ(sreq.request_signature(), response.request_signature().request_signature());
   delete done;
 }
 
@@ -1250,7 +1250,7 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
   SignedValue *new_value = request.mutable_new_value();
   SignedValue *old_value = request.mutable_old_value();
   request.set_ttl(86400);
-  SignedRequest *signed_request = request.mutable_request();
+  SignedRequest *request_signature = request.mutable_request();
   ContactInfo *sender_info = request.mutable_sender_info();
   done = google::protobuf::NewCallback<Callback>
          (&cb_obj, &Callback::CallbackFunction);
@@ -1273,10 +1273,10 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
 
   std::string kad_id(co.Hash(public_key + publickey_signature, "",
                              crypto::STRING_STRING, false));
-  signed_request->set_signer_id(kad_id);
-  signed_request->set_public_key(public_key);
-  signed_request->set_signed_public_key(publickey_signature);
-  signed_request->set_signed_request(request_signature);
+  request_signature->set_signer_id(kad_id);
+  request_signature->set_public_key(public_key);
+  request_signature->set_public_key_signature(publickey_signature);
+  request_signature->set_request_signature(request_signature);
   *sender_info = contact_;
   done = google::protobuf::NewCallback<Callback>
          (&cb_obj, &Callback::CallbackFunction);
@@ -1337,11 +1337,11 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
   new_value->set_value_signature(co.AsymSign(new_value->value(), "",
                                              wrong_private,
                                              crypto::STRING_STRING));
-  signed_request = request.mutable_request();
-  signed_request->set_signer_id(kad_id);
-  signed_request->set_public_key(wrong_public);
-  signed_request->set_signed_public_key(wrong_publickey_signature);
-  signed_request->set_signed_request(wrong_request_signature);
+  request_signature = request.mutable_request();
+  request_signature->set_signer_id(kad_id);
+  request_signature->set_public_key(wrong_public);
+  request_signature->set_public_key_signature(wrong_publickey_signature);
+  request_signature->set_request_signature(wrong_request_signature);
   done = google::protobuf::NewCallback<Callback>
          (&cb_obj, &Callback::CallbackFunction);
   response.Clear();
@@ -1361,11 +1361,11 @@ TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
   new_value->set_value_signature(co.AsymSign(new_value->value(), "",
                                              private_key,
                                              crypto::STRING_STRING));
-  signed_request = request.mutable_request();
-  signed_request->set_signer_id(kad_id);
-  signed_request->set_public_key(public_key);
-  signed_request->set_signed_public_key(publickey_signature);
-  signed_request->set_signed_request(request_signature);
+  request_signature = request.mutable_request();
+  request_signature->set_signer_id(kad_id);
+  request_signature->set_public_key(public_key);
+  request_signature->set_public_key_signature(publickey_signature);
+  request_signature->set_request_signature(request_signature);
   done = google::protobuf::NewCallback<Callback>
          (&cb_obj, &Callback::CallbackFunction);
   response.Clear();

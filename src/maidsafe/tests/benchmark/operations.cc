@@ -178,8 +178,8 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
 //          ser_sig_val = sig_val.SerializeAsString();
 //          sig_req.set_signer_id(node_->node_id().String());
 //          sig_req.set_public_key(public_key_);
-//          sig_req.set_signed_public_key(public_key_signature_);
-//          sig_req.set_signed_request(req_sig);
+//          sig_req.set_public_key_signature(public_key_signature_);
+//          sig_req.set_request_signature(req_sig);
         }
         boost::uint64_t t = GetEpochMilliseconds();
         if (sign) {

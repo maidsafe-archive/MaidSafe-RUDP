@@ -217,13 +217,13 @@
 //  } else if (using_signatures_) {
 //    if (signature_validator_ == NULL ||
 //        !signature_validator_->ValidateSignerId(
-//            request->signed_request().signer_id(),
-//            request->signed_request().public_key(),
-//            request->signed_request().signed_public_key()) ||
+//            request->request_signature().signer_id(),
+//            request->request_signature().public_key(),
+//            request->request_signature().public_key_signature()) ||
 //        !signature_validator_->ValidateRequest(
-//            request->signed_request().signed_request(),
-//            request->signed_request().public_key(),
-//            request->signed_request().signed_public_key(), request->key())) {
+//            request->request_signature().request_signature(),
+//            request->request_signature().public_key(),
+//            request->request_signature().public_key_signature(), request->key())) {
 //      DLOG(WARNING) << "Failed to validate Store request for kademlia value"
 //                    << std::endl;
 //      response->set_result(false);
@@ -254,13 +254,13 @@
 //  // validating request
 //  if (signature_validator_ == NULL ||
 //        !signature_validator_->ValidateSignerId(
-//          request->signed_request().signer_id(),
-//          request->signed_request().public_key(),
-//          request->signed_request().signed_public_key()) ||
+//          request->request_signature().signer_id(),
+//          request->request_signature().public_key(),
+//          request->request_signature().public_key_signature()) ||
 //        !signature_validator_->ValidateRequest(
-//          request->signed_request().signed_request(),
-//          request->signed_request().public_key(),
-//          request->signed_request().signed_public_key(), request->key())) {
+//          request->request_signature().request_signature(),
+//          request->request_signature().public_key(),
+//          request->request_signature().public_key_signature(), request->key())) {
 //    response->set_result(false);
 //    done->Run();
 //    return;
@@ -276,11 +276,11 @@
 //  crypto::Crypto cobj;
 //  if (cobj.AsymCheckSig(request->value().value(),
 //      request->value().value_signature(),
-//      request->signed_request().public_key(), crypto::STRING_STRING)) {
+//      request->request_signature().public_key(), crypto::STRING_STRING)) {
 //    Contact sender;
 //    if (pdatastore_->MarkForDeletion(request->key(),
 //        request->value().SerializeAsString(),
-//        request->signed_request().SerializeAsString()) &&
+//        request->request_signature().SerializeAsString()) &&
 //        GetSender(request->sender_info(), &sender)) {
 //      rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
 //        (controller);
@@ -324,11 +324,11 @@
 //      !signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().signed_public_key()) ||
+//          request->request().public_key_signature()) ||
 //       !signature_validator_->ValidateRequest(
-//          request->request().signed_request(),
+//          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().signed_public_key(), request->key())) {
+//          request->request().public_key_signature(), request->key())) {
 //    done->Run();
 //#ifdef DEBUG
 //    if (signature_validator_ == NULL)
@@ -337,13 +337,13 @@
 //    if (!signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().signed_public_key()))
+//          request->request().public_key_signature()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateSignerId" <<
 //                 std::endl;
 //    if (!signature_validator_->ValidateRequest(
-//          request->request().signed_request(),
+//          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().signed_public_key(), request->key()))
+//          request->request().public_key_signature(), request->key()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateRequest" <<
 //                 std::endl;
 //#endif
@@ -493,7 +493,7 @@
 //  if (!request->IsInitialized())
 //    return false;
 //  if (using_signatures_) {
-//    if (!request->has_signed_request() || !request->has_sig_value())
+//    if (!request->has_request_signature() || !request->has_sig_value())
 //      return false;
 //  } else {
 //    if (!request->has_value())
@@ -516,7 +516,7 @@
 //    if (!result && ser_del_request.empty()) {
 //      result = pdatastore_->StoreItem(key, value, ttl, false);
 //    } else if (!result && !ser_del_request.empty()) {
-//      SignedRequest *req = response->mutable_signed_request();
+//      SignedRequest *req = response->mutable_request_signature();
 //      req->ParseFromString(ser_del_request);
 //    }
 //  }
@@ -562,7 +562,7 @@
 //      if (!result)
 //        DLOG(WARNING) << "pdatastore_->StoreItem 2 Failed.";
 //    } else if (!result && !ser_del_request.empty()) {
-//      SignedRequest *req = response->mutable_signed_request();
+//      SignedRequest *req = response->mutable_request_signature();
 //      req->ParseFromString(ser_del_request);
 //      DLOG(WARNING) << "Weird Fail. - adding signed req to resp." << std::endl;
 //    } else if (!result) {

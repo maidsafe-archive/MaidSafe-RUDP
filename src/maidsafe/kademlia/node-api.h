@@ -40,8 +40,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "maidsafe/common/platform_config.h"
 //#include "maidsafe/kademlia/config.h"
 //#include <maidsafe/kademlia/nodeid.h>
-//#include <string>
-//#include <vector>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "maidsafe/kademlia/config.h"
 
 #if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.\
@@ -54,32 +58,28 @@ namespace maidsafe {
 class AlternativeStore;
 class SignatureValidator;
 
-
 namespace transport {
 class Transport;
-//class UdtTransport;
+struct Endpoint;
 }  // namespace transport
 
-//namespace kademlia {
-//
+namespace kademlia {
+
+class NodeId;
 //class Contact;
-//class ContactInfo;
-//class NodeImpl;
 //class Rpcs;
-//struct NodeConstructionParameters;
-//
-//namespace protobuf {
-//class SignedValue;
-//class Signature;
-//}  // namespace protobuf
+
+namespace protobuf {
+class SignedValue;
+class Signature;
+}  // namespace protobuf
 
 /**
 * @class Node
 * This class represents a kademlia node providing the API to join the network,
 * find nodes and values, store and delete values, ping nodes, as well as the
-* methods to access the local storage of the node and its routing table  .
+* methods to access the local storage of the node and its routing table.
 */
-
 class Node {
  public:
   /**
@@ -98,8 +98,9 @@ class Node {
   * for NAT traversal
   * @param k Maximum number of elements in the node's kbuckets
   */
-  Node(boost::shared_ptr<boost::asio::io_service> asio_service,
-       boost::shared_ptr<transport::Transport> transport,
+  Node(std::shared_ptr<boost::asio::io_service> asio_service,
+       std::shared_ptr<transport::Transport> listening_transport,
+       std::shared_ptr<Securer>
        bool client_only_node,
        const boost::uint16_t &k,
        const boost::uint16_t &alpha,
@@ -117,15 +118,17 @@ class Node {
   * stored.
   * @param callback callback function where result of the operation is notified
   */
-  void Join(const NodeId &node_id, const std::string &kad_config_file,
-            VoidFunctorOneString callback);
+  void Join(const NodeId &node_id,
+            const std::string &kad_config_file,
+            boost::function<void(int)> callback);
   /**
   * Join the network using a random id. This is a non-blocking operation.
   * @param kad_config_file path to the config file where bootstrapping nodes are
   * stored.
   * @param callback callback function where result of the operation is notified
   */
-  void Join(const std::string &kad_config_file, VoidFunctorOneString callback);
+  void Join(const std::string &kad_config_file,
+            boost::function<void(int)> callback);
   /**
   * Join the first node of the network using a specific id.
   * This is a non-blocking operation.
@@ -136,9 +139,11 @@ class Node {
   * @param port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void JoinFirstNode(const NodeId &node_id, const std::string &kad_config_file,
-                     const IP &ip, const Port &port,
-                     VoidFunctorOneString callback);
+  void JoinFirstNode(const NodeId &node_id,
+                     const std::string &kad_config_file,
+                     const std::string &ip,
+                     const boost::uint16_t &port,
+                     boost::function<void(int)> callback);
   /**
   * Join the first node of the network using a random id.
   * This is a non-blocking operation.
@@ -148,8 +153,10 @@ class Node {
   * @param port external port of the node
   * @param callback callback function where result of the operation is notified
   */
-  void JoinFirstNode(const std::string &kad_config_file, const IP &ip,
-                     const Port &port, VoidFunctorOneString callback);
+  void JoinFirstNode(const std::string &kad_config_file,
+                     const std::string &ip,
+                     const boost::uint16_t &port,
+                     boost::function<void(int)> callback);
   /**
   * Leave the kademlia network.  All values stored in the node are erased and
   * nodes from the routing table are saved as bootstrapping nodes in the
@@ -161,15 +168,17 @@ class Node {
   * network is formed by nodes that have private and public key.
   * @param key a kademlia::NodeId object that is the key to store the value
   * @param signed_value signed value to be stored
-  * @param signed_request request to store the value,
+  * @param request_signature request to store the value,
            it is validated before the value is stored
   * @param ttl time to live of the value in seconds, if ttl = -1, then it has
   * infinite time to live
   * @param callback callback function where result of the operation is notified
   */
-  void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                  const protobuf::Signature &signed_request,
-                  const boost::int32_t &ttl, VoidFunctorOneString callback);
+  void StoreValue(const NodeId &key,
+                  const protobuf::SignedValue &signed_value,
+                  const protobuf::Signature &request_signature,
+                  const boost::int32_t &ttl,
+                  boost::function<void(int)> callback);
   /**
   * Store a value (a simple string) in the network.  Used if the
   * network is formed by nodes that do not have private and public key.
@@ -179,21 +188,25 @@ class Node {
   * infinite time to live
   * @param callback callback function where result of the operation is notified
   */
-  void StoreValue(const NodeId &key, const std::string &value,
-                  const boost::int32_t &ttl, VoidFunctorOneString callback);
+  void StoreValue(const NodeId &key,
+                  const std::string &value,
+                  const boost::int32_t &ttl,
+                  std::shared_ptr<
+                  boost::function<void(int)> callback);
   /**
   * Delete a Value of the network, only in networks with nodes that have public
   * and private keys a value, that is of the form data; signed data, can be
   * deleted.  Only the one who signed the value can delete it.
   * @param key kademlia::NodeId object that is the key under which the value is stored
   * @param signed_value signed value to be deleted
-  * @param signed_request request to delete the value, it is validated before the
+  * @param request_signature request to delete the value, it is validated before the
   * value is deleted
   * @param callback callback function where result of the operation is notified
   */
-  void DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                   const protobuf::Signature &signed_request,
-                   VoidFunctorOneString callback);
+  void DeleteValue(const NodeId &key,
+                   const protobuf::SignedValue &signed_value,
+                   const protobuf::Signature &request_signature,
+                   boost::function<void(int)> callback);
   /**
   * Update a Value of the network, only in networks with nodes that have public
   * and private keys a value, that is of the form <data, signed data>, can be
@@ -201,16 +214,16 @@ class Node {
   * @param key kademlia::NodeId object that is the key under which the value is stored
   * @param old_value signed value to be updated
   * @param new_value signed value to be updated
-  * @param signed_request request to update the value, it is validated before the
+  * @param request_signature request to update the value, it is validated before the
   * value is updated
   * @param callback callback function where result of the operation is notified
   */
   void UpdateValue(const NodeId &key,
                    const protobuf::SignedValue &old_value,
                    const protobuf::SignedValue &new_value,
-                   const protobuf::Signature &signed_request,
-                   boost::uint32_t ttl,
-                   VoidFunctorOneString callback);
+                   const protobuf::Signature &request_signature,
+                   const boost::int32_t &ttl,
+                   boost::function<void(int)> callback);
   /**
   * Find a value in the network.  If several values are stored under the same
   * key, a list with all the values is returned.
@@ -223,8 +236,10 @@ class Node {
   * checked
   * @param callback callback function where result of the operation is notified
   */
-  void FindValue(const NodeId &key, const bool &check_alternative_store,
-                 VoidFunctorOneString callback);
+  void FindValue(const NodeId &key,
+                 bool check_alternative_store,
+                 boost::function<void(std::vector<>
+                                      std::list<Contact>)> callback);
   /**
   * Find the contact details of a node in the network with its id.
   * @param node_id id of the node. It is a kademlia::NodeId object
@@ -249,8 +264,8 @@ class Node {
   * are returned
   */
   void GetNodesFromRoutingTable(const NodeId &key,
-                                 const std::vector<Contact> &exclude_contacts,
-                                 std::vector<Contact> *close_nodes);
+                                const std::vector<Contact> &exclude_contacts,
+                                std::vector<Contact> *close_nodes);
   /**
   * Ping the node with id node_id.  First the node is found in the network, and
   * then the node is pinged
@@ -332,29 +347,7 @@ class Node {
   * server is up, False server is down
   */
   void HandleDeadRendezvousServer(const bool &dead_server);
-  /**
-  * Check if the local endpoint corresponding to the local ip and port of a node
-  * can be contacted if it is not already marked in the database routing table.
-  * If the status is in the database routing table, it returns that status.
-  * @param id id of the node we are checking
-  * @param ip local ip
-  * @param port local port
-  * @param ext_ip external ip of the node
-  * @return If the node can be contacted through its local endpoint (LOCAL) or
-  * not (REMOTE)
-  */
-  ConnectionType CheckContactLocalAddress(const NodeId &id,
-                                          const IP &ip,
-                                          const Port &port,
-                                          const IP &ext_ip);
-  /**
-  * Updates the database routing table in the entry for the node id passed to be
-  * to be contacted only via the remote endpoint.
-  * @param node_id id of the node
-  * @param ip ip of the node
-  */
-  void UpdatePDRTContactToRemote(const NodeId &node_id,
-                                 const IP &ip);
+
   Contact contact_info() const;
   NodeId node_id() const;
   IP ip() const;
@@ -364,11 +357,6 @@ class Node {
   IP rendezvous_ip() const;
   Port rendezvous_port() const;
   bool is_joined() const;
-  /**
-  * Returns a shared pointer to Rpcs
-  * @return Shared pointer to Rpcs
-  */
-  boost::shared_ptr<Rpcs> rpcs();
   /**
   * Get the time of the last time a key/value pair stored in the node was
   * refreshed
@@ -409,13 +397,15 @@ class Node {
   void set_alternative_store(AlternativeStore *alternative_store);
   AlternativeStore *alternative_store();
   void set_signature_validator(SignatureValidator *validator);
-bool client_only_node,
-       const boost::uint16_t &k,
-       const boost::uint16_t &alpha,
-       const boost::uint16_t &beta,
-       const boost::uint32_t &refresh_frequency,
-       const std::string &private_key,
-       const std::string &public_key  
+  SignatureValidator *validator();
+  std::shared_ptr<boost::asio::io_service> asio_service();
+  bool client_only_node() const;
+  boost::uint16_t k() const;
+  boost::uint16_t alpha() const;
+  boost::uint16_t beta() const;
+  boost::uint32_t refresh_frequency() const;
+  std::string private_key() const;
+  std::string public_key() const;
 
  private:
   class Impl;

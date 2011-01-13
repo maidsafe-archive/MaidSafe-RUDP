@@ -41,33 +41,30 @@ namespace kademlia {
 
 class Contact;
 
+typedef boost::function<void(int)> JoinFunctor;
+
 typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
-typedef boost::function<void(std::list<Contact> contacts)>
-        VoidFunctorContactList;
+typedef boost::function<void(std::list<Contact>)> VoidFunctorContactList;
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 
 // The size of DHT keys and node IDs in bytes.
 const boost::uint16_t kKeySizeBytes = 64;
 
-// The parallel level of search iterations.
-const boost::uint16_t kAlpha = 3;
-
-// The number of replies required in a search iteration to allow the next
-// iteration to begin.
-const boost::uint16_t kBeta = 2;
-
-// The frequency (in seconds) of the refresh routine.
-const boost::uint32_t kRefreshTime = 3600;  // 1 hour
-
 // The frequency (in seconds) of the <key,value> republish routine.
-const boost::uint32_t kRepublishTime = 43200;  // 12 hours
+const boost::uint32_t kRepublishFrequency = 43200;  // 12 hours
 
 // The duration (in seconds) after which a given <key,value> is deleted locally.
-const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
+const boost::uint32_t kKeyValueLifespan = kRepublishFrequency + 7200;
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
 const double kMinSuccessfulPecentageStore = 0.75;
+
+// The ratio of k successful individual kad delete RPCs to yield overall success
+const double kMinSuccessfulPecentageDelete = 0.75;
+
+// The ratio of k successful individual kad update RPCs to yield overall success
+const double kMinSuccessfulPecentageUpdate = 0.75;
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // k-bucket.

@@ -107,17 +107,17 @@ class NodeImpl {
                      VoidFunctorOneString callback);
   void Leave();
   void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                  const protobuf::Signature &signed_request,
+                  const protobuf::Signature &request_signature,
                   const boost::int32_t &ttl, VoidFunctorOneString callback) {}
   void StoreValue(const NodeId &key, const std::string &value,
                   const boost::int32_t &ttl, VoidFunctorOneString callback) {}
   void DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                   const protobuf::Signature &signed_request,
+                   const protobuf::Signature &request_signature,
                    VoidFunctorOneString callback) {}
   void UpdateValue(const NodeId &key,
                    const protobuf::SignedValue &old_value,
                    const protobuf::SignedValue &new_value,
-                   const protobuf::Signature &signed_request,
+                   const protobuf::Signature &request_signature,
                    boost::uint32_t ttl,
                    VoidFunctorOneString callback) {}
   void FindValue(const NodeId &key, const bool &check_alternative_store,
@@ -214,11 +214,24 @@ class NodeImpl {
                                boost::shared_ptr<FindNodesRpc> fnrpc);
 
   boost::shared_ptr<boost::asio::io_service> asio_service_;
+  boost::shared_ptr<transport::Transport> listening_transport_;
+
+
+  bool client_only_node,
+       const boost::uint16_t &k,
+       const boost::uint16_t &alpha,
+       const boost::uint16_t &beta,
+       const boost::uint32_t &refresh_frequency,
+       const std::string &private_key,
+       const std::string &public_key  
+
+
+
+
   boost::mutex routingtable_mutex_, kadconfig_mutex_, extendshortlist_mutex_,
                joinbootstrapping_mutex_, leave_mutex_, activeprobes_mutex_,
                pendingcts_mutex_;
   boost::shared_ptr<CallLaterTimer> ptimer_;
-  boost::shared_ptr<transport::Transport> transport_;
   boost::shared_ptr<DataStore> pdata_store_;
   boost::shared_ptr<Service> premote_service_;
   boost::shared_ptr<RoutingTable> prouting_table_;

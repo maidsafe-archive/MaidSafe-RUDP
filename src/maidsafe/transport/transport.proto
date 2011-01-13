@@ -1,3 +1,5 @@
+import "maidsafe/common/validation.proto";
+
 package maidsafe.transport.protobuf;
 
 message Endpoint {
@@ -8,6 +10,7 @@ message Endpoint {
 message WrapperMessage {
   required int32 msg_type = 1;
   required bytes payload = 2;
+  optional maidsafe.protobuf.MessageSignature signature = 3;
 }
 
 message ManagedEndpointMessage {

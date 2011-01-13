@@ -177,10 +177,10 @@ void Service::Store(const transport::Info &info,
         signature_validator_ == NULL ||
         !signature_validator_->ValidateSignerId(
             signature.signer_id(), signature.public_key(),
-            signature.signed_public_key()) ||
+            signature.public_key_signature()) ||
         !signature_validator_->ValidateRequest(
-            signature.payload_signature(), signature.public_key(),
-            signature.signed_public_key(), request.key())) {
+            signature.request_signature(), signature.public_key(),
+            signature.public_key_signature(), request.key())) {
       DLOG(WARNING) << "Failed to validate Store request for kademlia value"
                     << std::endl;
       return;
@@ -218,10 +218,10 @@ void Service::Delete(const transport::Info &info,
   const protobuf::Signature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.signed_public_key()) ||
-      !signature_validator_->ValidateRequest(signature.payload_signature(),
+                                              signature.public_key_signature()) ||
+      !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.signed_public_key(),
+                                             signature.public_key_signature(),
                                              request.key()))
     return;
 
@@ -255,10 +255,10 @@ void Service::Update(const transport::Info &info,
   const protobuf::Signature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.signed_public_key()) ||
-      !signature_validator_->ValidateRequest(signature.payload_signature(),
+                                              signature.public_key_signature()) ||
+      !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.signed_public_key(),
+                                             signature.public_key_signature(),
                                              request.key()))
     return;
 

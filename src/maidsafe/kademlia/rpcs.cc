@@ -105,8 +105,8 @@ void Rpcs::Store(const NodeId &key,
   protobuf::Signature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_store_response()->connect(boost::bind(
@@ -152,8 +152,8 @@ void Rpcs::Delete(const NodeId &key,
   protobuf::Signature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_delete_response()->connect(boost::bind(
@@ -182,8 +182,8 @@ void Rpcs::Update(const NodeId &key,
   protobuf::Signature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_update_response()->connect(boost::bind(
