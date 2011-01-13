@@ -64,27 +64,27 @@ struct Signature {
       : signer_id_(),
         public_key_(),
         public_key_signature_(),
-        payload_signature_() {}
+        request_signature_() {}
   Signature(const protobuf::Signature &signature);
   Signature(const std::string &signer_id,
             const std::string &public_key,
             const std::string &public_key_signature,
-            const std::string &payload_signature)
+            const std::string &request_signature)
       : signer_id_(signer_id),
         public_key_(public_key),
         public_key_signature_(public_key_signature),
-        payload_signature_(payload_signature) {}
+        request_signature_(request_signature) {}
   bool FromProtobuf(const protobuf::Signature &signature);
   protobuf::Signature ToProtobuf() const;
   std::string signer_id() const { return signer_id_; }
   std::string public_key() const { return public_key_; }
   std::string public_key_signature() const { return public_key_signature_; }
-  std::string payload_signature() const { return payload_signature_; }
+  std::string request_signature() const { return request_signature_; }
  private:
   std::string signer_id_;
   std::string public_key_;
   std::string public_key_signature_;
-  std::string payload_signature_;
+  std::string request_signature_;
 };
 
 
@@ -94,31 +94,32 @@ struct Signature {
  * implemented by the user.
  * id_ is the ID of the node doing the validation.
  */
-class SignatureValidator {
+class Validifier {
  public:
-  explicit SignatureValidator(const std::string &id) : id_(id) {}
+  Validifier(const std::string &id) : id_(id) {}
   SignatureValidator() : id_() {}
   virtual ~SignatureValidator() {}
+  virtual bool Validate(const std::string &input
   /**
    * Validates the Id of the signer
    * @param signer_id id to be validated
    * @param public_key public key
-   * @param signed_public_key public key signed
+   * @param public_key_signature public key signed
    */
   virtual bool ValidateSignerId(const std::string &signer_id,
                                 const std::string &public_key,
-                                const std::string &signed_public_key) = 0;
+                                const std::string &public_key_signature) = 0;
   /**
    * Validates the request signed by sender
-   * @param signed_request request to be validated with the public key
+   * @param request_signature request to be validated with the public key
    * @param public_key used to validate signature of the request
-   * @param signed_public_key public key signed
+   * @param public_key_signature public key signed
    * @param key key to store/delete value
    * @param rec_id id of the node receiving the request
    */
-  virtual bool ValidateRequest(const std::string &signed_request,
+  virtual bool ValidateRequest(const std::string &request_signature,
                                const std::string &public_key,
-                               const std::string &signed_public_key,
+                               const std::string &public_key_signature,
                                const std::string &key) = 0;
   inline std::string id() const { return id_; }
   inline void set_id(const std::string &id) { id_ = id; }

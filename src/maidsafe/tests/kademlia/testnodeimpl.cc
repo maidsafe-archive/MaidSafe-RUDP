@@ -161,8 +161,8 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
   DeleteValueCallback dvc;
   SignedValue signed_value, new_value;
-  SignedRequest signed_request;
-  node_->DeleteValue(NodeId(NodeId::kRandomId), signed_value, signed_request,
+  SignedRequest request_signature;
+  node_->DeleteValue(NodeId(NodeId::kRandomId), signed_value, request_signature,
                      boost::bind(&DeleteValueCallback::CallbackFunc, &dvc, _1));
   while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -170,7 +170,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
 
   UpdateValueCallback uvc;
   node_->UpdateValue(NodeId(NodeId::kRandomId), signed_value, new_value,
-                     signed_request, 60 * 60 * 24,
+                     request_signature, 60 * 60 * 24,
                      boost::bind(&UpdateValueCallback::CallbackFunc, &uvc, _1));
   while (!uvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));

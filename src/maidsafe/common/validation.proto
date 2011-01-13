@@ -5,9 +5,9 @@ message SignedValue {
   required bytes signature = 2;
 }
 
-message Signature {
+message MessageSignature {
   required bytes signer_id = 1;
   required bytes public_key = 2;
   required bytes public_key_signature = 3;
-  required bytes payload_signature = 4;
-};
+  required bytes signature = 4;
+}

@@ -57,7 +57,7 @@ Signature::Signature(const protobuf::Signature &signature)
     : signer_id_(),
       public_key_(),
       public_key_signature_(),
-      payload_signature_() {
+      request_signature_() {
   FromProtobuf(signature);
 }
 
@@ -66,7 +66,7 @@ bool Signature::FromProtobuf(const protobuf::Signature &signature) {
     signer_id_ = signature.signer_id();
     public_key_ = signature.public_key();
     public_key_signature_ = signature.public_key_signature();
-    payload_signature_ = signature.payload_signature();
+    request_signature_ = signature.request_signature();
     return true;
   } else {
     return false;
@@ -78,7 +78,7 @@ protobuf::Signature Signature::ToProtobuf() const {
   signature.set_signer_id(signer_id_);
   signature.set_public_key(public_key_);
   signature.set_public_key_signature(public_key_signature_);
-  signature.set_payload_signature(payload_signature_);
+  signature.set_request_signature(request_signature_);
   return signature;
 }
 

@@ -205,10 +205,12 @@ void MessageHandler::ProcessSerialisedMessage(const int &message_type,
 std::string MessageHandler::MakeSerialisedWrapperMessage(
     const int& message_type,
     const std::string& payload) {
-  protobuf::WrapperMessage msg;
-  msg.set_msg_type(message_type);
-  msg.set_payload(payload);
-  return msg.SerializeAsString();
+  protobuf::WrapperMessage wrapper_message;
+  wrapper_message.set_msg_type(message_type);
+  wrapper_message.set_payload(payload);
+  protobuf::MessageSignature *signature(wrapper_message.mutable_signature());
+  validifier->CreateSignature(signature);
+  return wrapper_message.SerializeAsString();
 }
 
 }  // namespace transport
