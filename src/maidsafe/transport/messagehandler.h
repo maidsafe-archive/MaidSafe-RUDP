@@ -40,6 +40,9 @@ namespace bs2 = boost::signals2;
 
 namespace maidsafe {
 
+class Securifier;
+class Validator;
+
 namespace transport {
 
 namespace protobuf {
@@ -86,8 +89,11 @@ class MessageHandler {
   typedef boost::shared_ptr< bs2::signal< void(int, const Info&)> >
       MsgInfoSigPtr;
 
-  MessageHandler()
-    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+  MessageHandler(boost::shared_ptr<Securifier> securifier,
+                 boost::shared_ptr<Validator> validator)
+    : securifier_(securifier),
+      validator_(validator),
+      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
@@ -156,6 +162,8 @@ class MessageHandler {
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
+  boost::shared_ptr<Securifier> securifier_;
+  boost::shared_ptr<Validator> validator_;
   ManagedEndpointMsgSigPtr on_managed_endpoint_message_;
   NatDetectionReqSigPtr on_nat_detection_request_;
   NatDetectionRspSigPtr on_nat_detection_response_;

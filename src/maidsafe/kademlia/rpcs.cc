@@ -102,10 +102,10 @@ void Rpcs::Store(const NodeId &key,
   req.mutable_signed_value()->set_signature(signed_value.signature);
   req.set_ttl(ttl);
   req.set_publish(publish);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
   signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
@@ -149,10 +149,10 @@ void Rpcs::Delete(const NodeId &key,
   req.set_key(key.String());
   req.mutable_signed_value()->set_value(signed_value.value);
   req.mutable_signed_value()->set_signature(signed_value.signature);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
   signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
@@ -179,10 +179,10 @@ void Rpcs::Update(const NodeId &key,
   req.mutable_old_signed_value()->set_value(old_signed_value.value);
   req.mutable_old_signed_value()->set_signature(old_signed_value.signature);
   req.set_ttl(ttl);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_public_key_signature(signature.public_key_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
   signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);

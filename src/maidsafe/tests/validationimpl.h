@@ -35,9 +35,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-class TestValidator : public SignatureValidator {
+class TestValidator : public Validator {
  public:
-  TestValidator() : SignatureValidator() {}
+  TestValidator() : Validator() {}
   /**
    * Signer Id is not validated, return always true
    */
@@ -51,15 +51,11 @@ class TestValidator : public SignatureValidator {
    */
   bool ValidateRequest(const std::string &request_signature,
                        const std::string &public_key,
-                       const std::string &public_key_signature,
+                       const std::string &public_key_validation,
                        const std::string &key) {
     if (request_signature == kademlia::kAnonymousSignedRequest)
       return true;
-    crypto::Crypto checker;
-    return checker.AsymCheckSig(
-               checker.Hash(public_key + public_key_signature + key, "",
-                            crypto::STRING_STRING, true),
-               request_signature, public_key, crypto::STRING_STRING);
+#error
   }
 };
 
