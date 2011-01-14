@@ -40,6 +40,9 @@ namespace bs2 = boost::signals2;
 
 namespace maidsafe {
 
+class Securifier;
+class Validator;
+
 namespace kademlia {
 
 namespace protobuf {
@@ -96,8 +99,10 @@ class MessageHandler : public transport::MessageHandler {
       const protobuf::DownlistNotification&)> >
       DownlistNtfSigPtr;
 
-  MessageHandler()
-    : on_ping_request_(new PingReqSigPtr::element_type),
+  MessageHandler(boost::shared_ptr<Securifier> securifier,
+                 boost::shared_ptr<Validator> validator)
+    : transport::MessageHandler(securifier, validator),
+      on_ping_request_(new PingReqSigPtr::element_type),
       on_ping_response_(new PingRspSigPtr::element_type),
       on_find_value_request_(new FindValueReqSigPtr::element_type),
       on_find_value_response_(new FindValueRspSigPtr::element_type),

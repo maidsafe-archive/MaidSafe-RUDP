@@ -219,11 +219,11 @@
 //        !signature_validator_->ValidateSignerId(
 //            request->request_signature().signer_id(),
 //            request->request_signature().public_key(),
-//            request->request_signature().public_key_signature()) ||
+//            request->request_signature().public_key_validation()) ||
 //        !signature_validator_->ValidateRequest(
 //            request->request_signature().request_signature(),
 //            request->request_signature().public_key(),
-//            request->request_signature().public_key_signature(), request->key())) {
+//            request->request_signature().public_key_validation(), request->key())) {
 //      DLOG(WARNING) << "Failed to validate Store request for kademlia value"
 //                    << std::endl;
 //      response->set_result(false);
@@ -256,11 +256,11 @@
 //        !signature_validator_->ValidateSignerId(
 //          request->request_signature().signer_id(),
 //          request->request_signature().public_key(),
-//          request->request_signature().public_key_signature()) ||
+//          request->request_signature().public_key_validation()) ||
 //        !signature_validator_->ValidateRequest(
 //          request->request_signature().request_signature(),
 //          request->request_signature().public_key(),
-//          request->request_signature().public_key_signature(), request->key())) {
+//          request->request_signature().public_key_validation(), request->key())) {
 //    response->set_result(false);
 //    done->Run();
 //    return;
@@ -324,11 +324,11 @@
 //      !signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().public_key_signature()) ||
+//          request->request().public_key_validation()) ||
 //       !signature_validator_->ValidateRequest(
 //          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().public_key_signature(), request->key())) {
+//          request->request().public_key_validation(), request->key())) {
 //    done->Run();
 //#ifdef DEBUG
 //    if (signature_validator_ == NULL)
@@ -337,13 +337,13 @@
 //    if (!signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().public_key_signature()))
+//          request->request().public_key_validation()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateSignerId" <<
 //                 std::endl;
 //    if (!signature_validator_->ValidateRequest(
 //          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().public_key_signature(), request->key()))
+//          request->request().public_key_validation(), request->key()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateRequest" <<
 //                 std::endl;
 //#endif

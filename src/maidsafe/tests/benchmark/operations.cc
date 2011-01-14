@@ -52,15 +52,13 @@ namespace benchmark {
 
 Operations::Operations(boost::shared_ptr<kademlia::Node> node)
     : node_(node), cryobj_(), private_key_(), public_key_(),
-      public_key_signature_() {
+      public_key_validation_() {
   cryobj_.set_symm_algorithm(crypto::AES_256);
   cryobj_.set_hash_algorithm(crypto::SHA_512);
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   public_key_ = kp.public_key();
   private_key_ = kp.private_key();
-  public_key_signature_ = cryobj_.AsymSign(public_key_, "", private_key_,
-                                           crypto::STRING_STRING);
 }
 
 void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
@@ -165,20 +163,21 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
             GetModId(val * iterations * nodes.size() + i * iterations + j);
         kademlia::NodeId key(nodes[i] ^ mod);
         kademlia::protobuf::SignedValue sig_val;
-        kademlia::protobuf::Signature sig_req;
+        kademlia::protobuf::MessageSignature sig_req;
         if (sign) {
           std::string req_sig, ser_sig_val;
-          req_sig = cryobj_.AsymSign(cryobj_.Hash(public_key_ +
-              public_key_signature_ + key.String(), "",
-              crypto::STRING_STRING, false), "", private_key_,
-              crypto::STRING_STRING);
+
+
+  Validifier signer;
+
+
           sig_val.set_value(value);
 //          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
 //              private_key_, crypto::STRING_STRING));
 //          ser_sig_val = sig_val.SerializeAsString();
 //          sig_req.set_signer_id(node_->node_id().String());
 //          sig_req.set_public_key(public_key_);
-//          sig_req.set_public_key_signature(public_key_signature_);
+//          sig_req.set_public_key_validation(public_key_validation_);
 //          sig_req.set_request_signature(req_sig);
         }
         boost::uint64_t t = GetEpochMilliseconds();

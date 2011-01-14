@@ -440,23 +440,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
   std::string value = RandomString(1024*5);
   StoreValueCallback store_cb;
-  std::string public_key_signature, request_signature;
-  public_key_signature = co.AsymSign(keys_[4].first, "", keys_[4].second,
-                                  crypto::STRING_STRING);
-  request_signature = co.AsymSign(co.Hash(keys_[4].first + public_key_signature +
-                                       key.String(), "",
-                                       crypto::STRING_STRING, true),
-                               "", keys_[4].second, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", keys_[4].second,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(keys_[4].first);
-  req.set_public_key_signature(public_key_signature);
-  req.set_request_signature(request_signature);
+  std::string public_key_validation, request_signature;
+
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -503,21 +492,12 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string public_key_signature, request_signature;
-  public_key_signature = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  request_signature = co.AsymSign(co.Hash(pub_key+public_key_signature+key.String(),
-                                       "", crypto::STRING_STRING, true),
-                               "", priv_key, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(pub_key);
-  req.set_public_key_signature(public_key_signature);
-  req.set_request_signature(request_signature);
+  std::string public_key_validation, request_signature;
+
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -620,21 +600,11 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string public_key_signature, request_signature;
-  public_key_signature = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  request_signature = co.AsymSign(co.Hash(pub_key+public_key_signature+key.String(),
-                                       "", crypto::STRING_STRING, true),
-                               "", priv_key, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(pub_key);
-  req.set_public_key_signature(public_key_signature);
-  req.set_request_signature(request_signature);
+  std::string public_key_validation, request_signature;
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));

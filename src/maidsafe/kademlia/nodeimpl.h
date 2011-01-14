@@ -107,17 +107,17 @@ class NodeImpl {
                      VoidFunctorOneString callback);
   void Leave();
   void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                  const protobuf::Signature &request_signature,
+                  const protobuf::MessageSignature &request_signature,
                   const boost::int32_t &ttl, VoidFunctorOneString callback) {}
   void StoreValue(const NodeId &key, const std::string &value,
                   const boost::int32_t &ttl, VoidFunctorOneString callback) {}
   void DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                   const protobuf::Signature &request_signature,
+                   const protobuf::MessageSignature &request_signature,
                    VoidFunctorOneString callback) {}
   void UpdateValue(const NodeId &key,
                    const protobuf::SignedValue &old_value,
                    const protobuf::SignedValue &new_value,
-                   const protobuf::Signature &request_signature,
+                   const protobuf::MessageSignature &request_signature,
                    boost::uint32_t ttl,
                    VoidFunctorOneString callback) {}
   void FindValue(const NodeId &key, const bool &check_alternative_store,

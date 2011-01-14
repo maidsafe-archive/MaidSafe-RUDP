@@ -56,7 +56,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 class AlternativeStore;
-class SignatureValidator;
+class Validifier;
 
 namespace transport {
 class Transport;
@@ -100,14 +100,12 @@ class Node {
   */
   Node(std::shared_ptr<boost::asio::io_service> asio_service,
        std::shared_ptr<transport::Transport> listening_transport,
-       std::shared_ptr<Securer>
+       std::shared_ptr<Validifier> validator,
        bool client_only_node,
        const boost::uint16_t &k,
        const boost::uint16_t &alpha,
        const boost::uint16_t &beta,
-       const boost::uint32_t &refresh_frequency,
-       const std::string &private_key,
-       const std::string &public_key);
+       const boost::uint32_t &refresh_frequency);
 
   ~Node();
 
@@ -175,8 +173,7 @@ class Node {
   * @param callback callback function where result of the operation is notified
   */
   void StoreValue(const NodeId &key,
-                  const protobuf::SignedValue &signed_value,
-                  const protobuf::Signature &request_signature,
+                  std::shared_ptr<Validifier> signer,
                   const boost::int32_t &ttl,
                   boost::function<void(int)> callback);
   /**
@@ -205,7 +202,7 @@ class Node {
   */
   void DeleteValue(const NodeId &key,
                    const protobuf::SignedValue &signed_value,
-                   const protobuf::Signature &request_signature,
+                   const protobuf::MessageSignature &request_signature,
                    boost::function<void(int)> callback);
   /**
   * Update a Value of the network, only in networks with nodes that have public
@@ -221,7 +218,7 @@ class Node {
   void UpdateValue(const NodeId &key,
                    const protobuf::SignedValue &old_value,
                    const protobuf::SignedValue &new_value,
-                   const protobuf::Signature &request_signature,
+                   const protobuf::MessageSignature &request_signature,
                    const boost::int32_t &ttl,
                    boost::function<void(int)> callback);
   /**

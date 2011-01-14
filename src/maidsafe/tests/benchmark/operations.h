@@ -79,7 +79,7 @@ class Operations {
                          boost::shared_ptr<CallbackData> data);
   boost::shared_ptr<kademlia::Node> node_;
   crypto::Crypto cryobj_;
-  std::string private_key_, public_key_, public_key_signature_;
+  std::string private_key_, public_key_, public_key_validation_;
 };
 
 }  // namespace benchmark

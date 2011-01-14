@@ -25,6 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <boost/lexical_cast.hpp>
 #include "maidsafe/transport/messagehandler.h"
 #include "maidsafe/transport/transport.pb.h"
 
@@ -208,8 +209,10 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   protobuf::WrapperMessage wrapper_message;
   wrapper_message.set_msg_type(message_type);
   wrapper_message.set_payload(payload);
-  protobuf::MessageSignature *signature(wrapper_message.mutable_signature());
-  validifier->CreateSignature(signature);
+  if(securifier_) {
+    wrapper_message.set_message_signature(securifier_->SignMessage(
+        boost::lexical_cast<std::string>(message_type) + payload));
+  }
   return wrapper_message.SerializeAsString();
 }
 

@@ -67,7 +67,7 @@ void Node::Leave() {
 
 void Node::StoreValue(const NodeId &key,
                       const protobuf::SignedValue &signed_value,
-                      const protobuf::Signature &request_signature,
+                      const protobuf::MessageSignature &request_signature,
                       const boost::int32_t &ttl,
                       VoidFunctorOneString callback) {
   pimpl_->StoreValue(key, signed_value, request_signature, ttl, callback);
@@ -232,13 +232,13 @@ void Node::set_signature_validator(SignatureValidator *validator) {
 
 void Node::UpdateValue(const NodeId &key, const protobuf::SignedValue &old_value,
                         const protobuf::SignedValue &new_value,
-                        const protobuf::Signature &request_signature,
+                        const protobuf::MessageSignature &request_signature,
                         boost::uint32_t ttl, VoidFunctorOneString callback) {
   pimpl_->UpdateValue(key, old_value, new_value, request_signature, ttl, callback);
 }
 
 void Node::DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                        const protobuf::Signature &request_signature,
+                        const protobuf::MessageSignature &request_signature,
                         VoidFunctorOneString callback) {
   pimpl_->DeleteValue(key, signed_value, request_signature, callback);
 }

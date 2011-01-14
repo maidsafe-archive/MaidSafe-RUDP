@@ -168,7 +168,7 @@ void Service::Store(const transport::Info &info,
   bool result(false);
   if (!node_joined_)
     return;
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   std::string serialised_deletion_signature;
 
   if (using_signatures_) {
@@ -177,10 +177,10 @@ void Service::Store(const transport::Info &info,
         signature_validator_ == NULL ||
         !signature_validator_->ValidateSignerId(
             signature.signer_id(), signature.public_key(),
-            signature.public_key_signature()) ||
+            signature.public_key_validation()) ||
         !signature_validator_->ValidateRequest(
             signature.request_signature(), signature.public_key(),
-            signature.public_key_signature(), request.key())) {
+            signature.public_key_validation(), request.key())) {
       DLOG(WARNING) << "Failed to validate Store request for kademlia value"
                     << std::endl;
       return;
@@ -215,13 +215,13 @@ void Service::Delete(const transport::Info &info,
   if (!datastore_->HasItem(request.key()))
     return;
 
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.public_key_signature()) ||
+                                              signature.public_key_validation()) ||
       !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.public_key_signature(),
+                                             signature.public_key_validation(),
                                              request.key()))
     return;
 
@@ -252,13 +252,13 @@ void Service::Update(const transport::Info &info,
   if (!datastore_->HasItem(request.key()))
     return;
 
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.public_key_signature()) ||
+                                              signature.public_key_validation()) ||
       !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.public_key_signature(),
+                                             signature.public_key_validation(),
                                              request.key()))
     return;
 
