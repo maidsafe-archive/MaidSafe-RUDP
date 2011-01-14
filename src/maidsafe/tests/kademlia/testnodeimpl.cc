@@ -808,8 +808,8 @@ class MockRpcs : public Rpcs {
                                TransportType type));
   void FindNodeDummy(const Contact &c,
                      FindNodesFunctor callback) {
-    printf("void FindNodeDummy(%s)\n",
-           c.node_id().ToStringEncoded(NodeId::kBase64).c_str());
+    // printf("void FindNodeDummy(%s)\n",
+    //        c.node_id().ToStringEncoded(NodeId::kBase64).c_str());
     std::vector<Contact> response_list;
     {
       boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
