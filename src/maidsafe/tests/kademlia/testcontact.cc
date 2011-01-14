@@ -51,7 +51,7 @@ TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
   std::string local_ip(ip);
   boost::uint16_t port(8888), local_port(port);
   NodeId node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING, false));
-  transport::Endpoint ep = {ip, port};
+  transport::Endpoint ep(ip, port);
   Contact contact(node_id.String(), ep);
   ASSERT_EQ(ip, contact.GetPreferredEndpoint().ip.to_string());
 //  ASSERT_EQ(ip, transport::IpBytesToAscii(contact.ip()));
