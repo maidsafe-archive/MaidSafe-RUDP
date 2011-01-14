@@ -93,7 +93,7 @@ class TestNodeImpl : public testing::Test {
     asio_service_.reset(new boost::asio::io_service);
     udt_.reset(new transport::UdtTransport(asio_service_));
     std::vector<IP> ips = transport::GetLocalAddresses();
-    transport::Endpoint ep = {ips.at(0), 50000};
+    transport::Endpoint ep(ips.at(0), 50000);
     EXPECT_EQ(transport::kSuccess, udt_->StartListening(ep));
 
     crypto::RsaKeyPair rkp;
@@ -304,7 +304,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
   boost::uint16_t k(K);
   std::string ip("123.234.231.134");
   for (boost::uint16_t n = 0; n < k; ++n) {
-    transport::Endpoint ep = {ip, n};
+    transport::Endpoint ep(ip, n);
     Contact c(NodeId(NodeId::kRandomId).String(), ep);
     contacts.push_back(c);
   }
@@ -835,7 +835,7 @@ class MockRpcs : public Rpcs {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::string ip("123.234.134.1");
     for (boost::uint16_t n = 0; n < total; ++n) {
-      transport::Endpoint ep = {ip, n};
+      transport::Endpoint ep(ip, n);
       Contact c(NodeId(NodeId::kRandomId).String(), ep);
       node_list_.push_back(c);
     }

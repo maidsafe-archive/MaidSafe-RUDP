@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kademlia_rpc_messages.pb.h"
+#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace kademlia {
 
