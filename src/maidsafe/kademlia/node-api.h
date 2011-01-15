@@ -56,7 +56,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 class AlternativeStore;
-class Validifier;
+class Securifier;
+class Validator;
 
 namespace transport {
 class Transport;
@@ -100,7 +101,7 @@ class Node {
   */
   Node(std::shared_ptr<boost::asio::io_service> asio_service,
        std::shared_ptr<transport::Transport> listening_transport,
-       std::shared_ptr<Validifier> validator,
+       std::shared_ptr<Validator> validator,
        bool client_only_node,
        const boost::uint16_t &k,
        const boost::uint16_t &alpha,
@@ -173,7 +174,7 @@ class Node {
   * @param callback callback function where result of the operation is notified
   */
   void StoreValue(const NodeId &key,
-                  std::shared_ptr<Validifier> signer,
+                  const Securifier &securifier,
                   const boost::int32_t &ttl,
                   boost::function<void(int)> callback);
   /**

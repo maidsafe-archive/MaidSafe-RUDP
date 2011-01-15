@@ -65,62 +65,6 @@ std::string SignedValue::value() const { return value_; }
 std::string SignedValue::signature() const { return signature_; }
 
 
-Signature::Signature()
-    : signer_id_(),
-      public_key_(),
-      public_key_validation_(),
-      signature_() {}
-
-Signature::Signature(const protobuf::MessageSignature &message_signature)
-    : signer_id_(),
-      public_key_(),
-      public_key_validation_(),
-      signature_() {
-  FromProtobuf(message_signature);
-}
-
-Signature::Signature(const std::string &signer_id,
-                     const std::string &public_key,
-                     const std::string &public_key_validation,
-                     const std::string &signature)
-    : signer_id_(signer_id),
-      public_key_(public_key),
-      public_key_validation_(public_key_validation),
-      signature_(signature) {}
-
-bool Signature::FromProtobuf(
-    const protobuf::MessageSignature &message_signature) {
-  if (message_signature.IsInitialized()) {
-    signer_id_ = message_signature.signer_id();
-    public_key_ = message_signature.public_key();
-    public_key_validation_ = message_signature.public_key_validation();
-    signature_ = message_signature.signature();
-    return true;
-  } else {
-    return false;
-  }
-}
-
-protobuf::MessageSignature Signature::ToProtobuf() const {
-  protobuf::MessageSignature message_signature;
-  message_signature.set_signer_id(signer_id_);
-  message_signature.set_public_key(public_key_);
-  message_signature.set_public_key_validation(public_key_validation_);
-  message_signature.set_signature(signature_);
-  return message_signature;
-}
-
-std::string Signature::signer_id() const { return signer_id_; }
-
-std::string Signature::public_key() const { return public_key_; }
-
-std::string Signature::public_key_validation() const {
-  return public_key_validation_;
-}
-
-std::string Signature::signature() const { return signature_; }
-
-
 Securifier::Securifier(const std::string &id,
                        const std::string &public_key,
                        const std::string &public_key_validation,
@@ -142,24 +86,15 @@ void Securifier::SetData(const std::string &kademlia_key,
   recipient_id_ = recipient_id;
 }
 
-protobuf::SignedValue Securifier::Sign(bool updated_value) const {
-  protobuf::SignedValue signed_value;
-  if (kPrivateKey_.empty())
-    return;
-  signed_value.set_value(updated_value ? kademlia_updated_value_ :
-                         kademlia_value_);
+std::string Securifier::SignValue() const {
   crypto::Crypto co;
-  signed_value.set_signature(co.AsymSign(
-      updated_value ? kademlia_updated_value_ : kademlia_value_, "",
-      kPrivateKey_, crypto::STRING_STRING));
+  return co.AsymSign(kademlia_value_, "", kPrivateKey_, crypto::STRING_STRING);
 }
 
-protobuf::SignedValue Securifier::SignValue() const {
-  return Sign(false);
-}
-
-protobuf::SignedValue Securifier::SignUpdatedValue() const {
-  return Sign(true);
+std::string Securifier::SignUpdatedValue() const {
+  crypto::Crypto co;
+  return co.AsymSign(kademlia_updated_value_, "", kPrivateKey_,
+                     crypto::STRING_STRING);
 }
 
 
