@@ -108,7 +108,6 @@ class Securifier {
    */
   virtual std::string SignMessage(const std::string &message) = 0;
  protected:
-  virtual protobuf::SignedValue Sign(bool updated_value) const;
   const std::string kId_, kPublicKey_, kPublicKeyValidation_, kPrivateKey_;
   std::string kademlia_key_, kademlia_value_, kademlia_updated_value_;
   std::string recipient_id_;
