@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_COMMON_VALIDATIONINTERFACE_H_
 
 #include <string>
+#include <vector>
 
 namespace maidsafe {
 
@@ -71,46 +72,53 @@ class Securifier {
    * @param private_key Private key used to secure the data
    */
   Securifier(const std::string &id,
-             const std::string &public_key,
-             const std::string &public_key_validation,
              const std::string &private_key);
+  /**
+   * Constructor
+   * @param id ID of Securifier
+   * @param public_key Public key to be used by recipient to validate the data
+   * @param public_key_validation Validation data to be used by recipient to
+   * validate the public key
+   * @param private_key Private key used to secure the data
+   */
+  Securifier(const std::string &signing_id,
+             const std::string &signing_private_key,
+             const std::string &encrypting_id,
+             const std::string &encrypting_private_key);
   /**
    * Destructor
    */
   virtual ~Securifier();
   /**
-   * Sets the data to be secured by sender
-   * @param kademlia_key kademlia key under which to store/delete/update
-   * @param kademlia_value kademlia value to be handled
-   * @param kademlia_updated_value kademlia value to replace old value if
-   * applicable (can be empty for Store or Delete operations)
-   * @param recipient_id ID of recipient's Validator
+   * Adds data which can be subsequently used in the signing process.
+   * @param parameters data to be used during signing.  It is appended to
+   * class member parameters_.
    */
-  void SetData(const std::string &kademlia_key,
-               const std::string &kademlia_value,
-               const std::string &kademlia_updated_value,
-               const std::string &recipient_id);
+  void AddParameters(const std::vector<std::string> &parameters);
   /**
-   * Signs the kademlia_value_ using the private_key
-   * @return the signature of kademlia_value_
+   * Clears parameters_ variable.
    */
-  virtual std::string SignValue() const;
+  void ClearParameters();
   /**
-   * Signs the kademlia_updated_value_ using the private_key
-   * @return the signature of kademlia_updated_value_
+   * @return class member parameters_.
    */
-  virtual std::string SignUpdatedValue() const;
+  std::vector<std::string> parameters();
   /**
-   * Signs the message
-   * @param secured_message Pointer to message which takes the result of the
-   * securing process
-   * @return an error code - 0 indicates success, anything else failure
+   * Signs the value
+   * @param value value to be signed.
+   * @return signature of value.
    */
-  virtual std::string SignMessage(const std::string &message) = 0;
+  virtual std::string Sign(const std::string &value) = 0;
+  /**
+   * Signs the value, but may incorporate data from parameters_ in the signing
+   * process.
+   * @param value value to be signed.
+   * @return signature of value and any used data from parameters_.
+   */
+  virtual std::string SignWithParameters(const std::string &value) = 0;
  protected:
   const std::string kId_, kPublicKey_, kPublicKeyValidation_, kPrivateKey_;
-  std::string kademlia_key_, kademlia_value_, kademlia_updated_value_;
-  std::string recipient_id_;
+  std::vector<std::string> parameters_;
 };
 
 

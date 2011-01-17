@@ -70,10 +70,7 @@ class NodeId;
 //class Contact;
 //class Rpcs;
 
-namespace protobuf {
-class SignedValue;
-class Signature;
-}  // namespace protobuf
+namespace protobuf { class SignedValue; }
 
 /**
 * @class Node
@@ -101,6 +98,7 @@ class Node {
   */
   Node(std::shared_ptr<boost::asio::io_service> asio_service,
        std::shared_ptr<transport::Transport> listening_transport,
+       std::shared_ptr<Securifier> securifier,
        std::shared_ptr<Validator> validator,
        bool client_only_node,
        const boost::uint16_t &k,

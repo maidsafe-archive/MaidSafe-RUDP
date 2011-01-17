@@ -168,17 +168,13 @@ class Transport {
    * @param data The message data to transmit.
    * @param endpoint The data receiver's endpoint.
    * @param timeout Time after which to terminate a conversation.
+   * @param close_on_response Whether the connection should be kept alive after
+   * the response arrives (or timeout occurs) or not.
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
-                    const Timeout &timeout) = 0;
-  /**
-   * Sends data that is being streamed from the given source.
-   * @param data The input stream delivering data to send.
-   * @param endpoint The data receiver's endpoint.
-   */
-  virtual void SendStream(const std::istream &data,
-                          const Endpoint &endpoint) = 0;
+                    const Timeout &timeout,
+                    bool close_on_response) = 0;
   /**
    * Getter for the listening port.
    * @return The port number or 0 if not listening.
