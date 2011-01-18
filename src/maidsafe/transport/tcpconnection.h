@@ -24,7 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-/*
+
 #ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 
@@ -37,6 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
+typedef int ConnectionId;
+
 class TcpTransport;
 
 class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
@@ -44,19 +46,16 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   TcpConnection(TcpTransport *tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);
   ~TcpConnection();
-
-  void SetSocketId(SocketId id);
+  void Close();
+  void SetConnectionId(ConnectionId id);
   boost::asio::ip::tcp::socket &Socket();
   void StartReceiving();
-  void Send(const TransportMessage &msg,
-            boost::uint32_t timeout_wait_for_response);
-
-  void Close();
+  void Send(const std::string &data, const Timeout &timeout, bool is_response);
 
  private:
   TcpConnection(const TcpConnection&);
   TcpConnection &operator=(const TcpConnection&);
-  void StartTimeout(int seconds);
+  void StartTimeout(const Timeout &timeout);
 
   void HandleTimeout(boost::system::error_code const& ec);
   void HandleSize(boost::system::error_code const& ec);
@@ -64,18 +63,17 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   void HandleConnect(boost::system::error_code const& ec);
   void HandleWrite(const boost::system::error_code &ec);
 
-  void DispatchMessage(const TransportMessage &msg);
+  void DispatchMessage(const std::string &data);
 
   TcpTransport *transport_;
-  SocketId socket_id_;
+  ConnectionId connection_id_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
   RawBuffer buffer_;
-  boost::uint32_t timeout_for_response_;
+  Timeout timeout_for_response_;
 };
 
 }  // namespace transport
 
 #endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
-*/
