@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
 
 #include <gtest/gtest.h>
-
+#include <boost/thread.hpp>
 #include <cstdlib>
 #include <list>
 #include <set>
@@ -243,7 +243,7 @@ TYPED_TEST_CASE_P(TransportAPITest);
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
   TransportPtr transport(new TypeParam(asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
-  EXPECT_EQ(kInvalidAddress, transport->StartListening(Endpoint(kIP, 0)));
+  EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77)));
   EXPECT_EQ(Port(77), transport->listening_port());
   EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 77)));
@@ -365,6 +365,7 @@ REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
                            BEH_TRANS_Send,
                            BEH_TRANS_OneToOneSingleMessage,
                            BEH_TRANS_OneToOneMultiMessage,
+                           BEH_TRANS_OneToManySingleMessage,
                            BEH_TRANS_OneToManyMultiMessage,
                            BEH_TRANS_ManyToManyMultiMessage,
                            BEH_TRANS_Random);
