@@ -43,13 +43,12 @@ TcpTransport::TcpTransport(
     boost::shared_ptr<boost::asio::io_service> asio_service)
         : Transport(asio_service),
           acceptor_(),
-          current_connection_id_(1),
           connections_(),
           mutex_() {}
 
 TcpTransport::~TcpTransport() {
-  BOOST_FOREACH(ConnectionMap::value_type const& connection, connections_) {
-    asio_service_->post(boost::bind(&TcpConnection::Close, connection.second));
+  BOOST_FOREACH(auto connection, connections_) {
+    asio_service_->post(boost::bind(&TcpConnection::Close, connection));
   }
   StopListening();
 }
@@ -98,16 +97,14 @@ void TcpTransport::StopListening() {
   listening_port_ = 0;
 }
 
-void TcpTransport::HandleAccept(const ConnectionPtr &connection,
+void TcpTransport::HandleAccept(ConnectionPtr connection,
                                 const bs::error_code &ec) {
   if (listening_port_ == 0)
     return;
 
   if (!ec) {
     boost::mutex::scoped_lock lock(mutex_);
-    ConnectionId connection_id = NextConnectionId();
-    connection->SetConnectionId(connection_id);
-    connections_.insert(std::make_pair(connection_id, connection));
+    connections_.insert(connection);
     connection->StartReceiving();
   }
 
@@ -121,12 +118,6 @@ void TcpTransport::HandleAccept(const ConnectionPtr &connection,
                                       new_connection, _1));
 }
 
-ConnectionId TcpTransport::NextConnectionId() {
-  ConnectionId id = current_connection_id_++;
-  if (id == 0) ++id;
-  return id;
-}
-
 void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
@@ -135,17 +126,15 @@ void TcpTransport::Send(const std::string &data,
 
   {
     boost::mutex::scoped_lock lock(mutex_);
-    ConnectionId connection_id = NextConnectionId();
-    connection->SetConnectionId(connection_id);
-    connections_.insert(std::make_pair(connection_id, connection));
+    connections_.insert(connection);
   }
 
   connection->Send(data, timeout, false);
 }
 
-void TcpTransport::RemoveConnection(ConnectionId id) {
+void TcpTransport::RemoveConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
-  connections_.erase(id);
+  connections_.erase(connection);
 }
 
 }  // namespace transport
