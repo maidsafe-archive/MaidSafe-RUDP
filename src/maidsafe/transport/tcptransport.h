@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/transport/tcpconnection.h>
 #include <boost/asio/io_service.hpp>
 #include <boost/thread/thread.hpp>
-#include <map>
+#include <set>
 #include <vector>
 
 namespace transport {
@@ -53,20 +53,18 @@ class TcpTransport : public Transport {
   friend class TcpConnection;
   typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
   typedef boost::shared_ptr<TcpConnection> ConnectionPtr;
-  typedef std::map<ConnectionId, ConnectionPtr> ConnectionMap;
-  ConnectionId NextConnectionId();
-  void HandleAccept(const ConnectionPtr &connection,
+  typedef std::set<ConnectionPtr> ConnectionSet;
+  void HandleAccept(ConnectionPtr connection,
                     const boost::system::error_code &ec);
 
-  void RemoveConnection(ConnectionId id);
+  void RemoveConnection(ConnectionPtr connection);
 
   AcceptorPtr acceptor_;
-  ConnectionId current_connection_id_;
 
   // Because the connections can be in an idle initial state with no pending
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.
-  ConnectionMap connections_;
+  ConnectionSet connections_;
   boost::mutex mutex_;
 };
 

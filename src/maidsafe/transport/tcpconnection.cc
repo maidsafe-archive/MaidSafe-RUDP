@@ -48,7 +48,6 @@ namespace transport {
 TcpConnection::TcpConnection(TcpTransport *tcp_transport,
                              ip::tcp::endpoint const &remote)
   : transport_(tcp_transport),
-    connection_id_(0),
     socket_(*transport_->asio_service_),
     timer_(*transport_->asio_service_),
     remote_endpoint_(remote),
@@ -60,11 +59,7 @@ TcpConnection::~TcpConnection() {}
 void TcpConnection::Close() {
   socket_.close();
   timer_.cancel();
-  transport_->RemoveConnection(connection_id_);
-}
-
-void TcpConnection::SetConnectionId(ConnectionId id) {
-  connection_id_ = id;
+  transport_->RemoveConnection(shared_from_this());
 }
 
 ip::tcp::socket &TcpConnection::Socket() {

@@ -37,8 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace transport {
 
-typedef int ConnectionId;
-
 class TcpTransport;
 
 class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
@@ -47,7 +45,6 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
                 const boost::asio::ip::tcp::endpoint &remote);
   ~TcpConnection();
   void Close();
-  void SetConnectionId(ConnectionId id);
   boost::asio::ip::tcp::socket &Socket();
   void StartReceiving();
   void Send(const std::string &data, const Timeout &timeout, bool is_response);
@@ -66,7 +63,6 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   void DispatchMessage(const std::string &data);
 
   TcpTransport *transport_;
-  ConnectionId connection_id_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
