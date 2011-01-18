@@ -171,13 +171,6 @@ class Transport {
                     const Endpoint &endpoint,
                     const Timeout &timeout) = 0;
   /**
-   * Sends data that is being streamed from the given source.
-   * @param data The input stream delivering data to send.
-   * @param endpoint The data receiver's endpoint.
-   */
-  virtual void SendStream(const std::istream &data,
-                          const Endpoint &endpoint) = 0;
-  /**
    * Getter for the listening port.
    * @return The port number or 0 if not listening.
    */

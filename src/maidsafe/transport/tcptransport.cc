@@ -38,145 +38,76 @@ namespace ip = asio::ip;
 namespace pt = boost::posix_time;
 
 namespace transport {
-/*
-TcpTransport::TcpTransport()
-    : Transport(),
-      io_service_(),
-      keep_alive_(new asio::io_service::work(io_service_)),
-      worker_thread_(),
-      acceptors_(),
-      current_socket_id_(1),
-      connections_() {
-  worker_thread_ = boost::thread(&TcpTransport::Run, this);
-}
+
+TcpTransport::TcpTransport(
+    boost::shared_ptr<boost::asio::io_service> asio_service)
+        : Transport(asio_service),
+          acceptor_(),
+          current_connection_id_(1),
+          connections_(),
+          mutex_() {}
 
 TcpTransport::~TcpTransport() {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-  keep_alive_.reset();
-
   BOOST_FOREACH(ConnectionMap::value_type const& connection, connections_) {
-    io_service_.post(boost::bind(&TcpConnection::Close, connection.second));
+    asio_service_->post(boost::bind(&TcpConnection::Close, connection.second));
   }
-  lock.unlock();
-
-  StopAllListening();
-  worker_thread_.join();
+  StopListening();
 }
 
-asio::io_service &TcpTransport::IOService() {
-  return io_service_;
-}
+TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
+  if (listening_port_ != 0)
+    return kAlreadyStarted;
 
-Port TcpTransport::StartListening(const IP &ip,
-                                  const Port &try_port,
-                                  TransportCondition *condition) {
+  if (endpoint.port == 0)
+    return kInvalidAddress;
+
+  ip::tcp::endpoint ep(endpoint.ip, endpoint.port);
+  acceptor_.reset(new ip::tcp::acceptor(*asio_service_));
+
   bs::error_code ec;
-  ip::address addr = ip.empty() ?
-      ip::address_v4::any() : ip::address::from_string(ip.c_str(), ec);
+  acceptor_->open(ep.protocol(), ec);
 
-  if (ec) {
-    if (condition)
-      *condition = kInvalidAddress;
-    return 0;
-  }
+  if (ec)
+    return kInvalidAddress;
 
-  ip::tcp::endpoint ep(addr, try_port);
-  AcceptorPtr acceptor(new ip::tcp::acceptor(io_service_));
+  acceptor_->bind(ep, ec);
 
-  acceptor->open(ep.protocol(), ec);
+  if (ec)
+    return kBindError;
 
-  if (ec) {
-    if (condition)
-      *condition = kInvalidAddress;
-    return 0;
-  }
+  acceptor_->listen(asio::socket_base::max_connections, ec);
 
-  acceptor->bind(ep, ec);
-
-  if (ec) {
-    if (condition)
-      *condition = kBindError;
-    return 0;
-  }
-
-  acceptor->listen(asio::socket_base::max_connections, ec);
-
-  if (ec) {
-    if (condition)
-      *condition = kListenError;
-    return 0;
-  }
-
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
+  if (ec)
+    return kListenError;
 
   ConnectionPtr new_connection(new TcpConnection(this,
                                boost::asio::ip::tcp::endpoint()));
+  listening_port_ = acceptor_->local_endpoint().port();
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
-  acceptor->async_accept(new_connection->Socket(),
-                         boost::bind(&TcpTransport::HandleAccept,
-                                     this, acceptor, new_connection, _1));
-
-  Port actual_port = acceptor->local_endpoint().port();
-
-  acceptors_.push_back(acceptor);
-  listening_ports_.push_back(actual_port);
-
-  if (condition)
-    *condition = kSuccess;
-
-  return actual_port;
+  acceptor_->async_accept(new_connection->Socket(),
+                          boost::bind(&TcpTransport::HandleAccept, this,
+                                      new_connection, _1));
+  return kSuccess;
 }
 
-bool TcpTransport::StopListening(const Port& port) {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-
-  std::vector<Port>::iterator i = std::find(listening_ports_.begin(),
-                                            listening_ports_.end(),
-                                            port);
-
-  if (i == listening_ports_.end())
-      return false;
-
-  acceptors_.erase(acceptors_.begin() + (i - listening_ports_.begin()));
-  listening_ports_.erase(i);
-
-  return true;
+void TcpTransport::StopListening() {
+  boost::system::error_code ec;
+  acceptor_->close(ec);
+  listening_port_ = 0;
 }
 
-bool TcpTransport::StopAllListening() {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-  listening_ports_.clear();
-
-  BOOST_FOREACH(AcceptorPtr const& acceptor, acceptors_) {
-    acceptor->close();
-  }
-
-  acceptors_.clear();
-  return true;
-}
-
-void TcpTransport::Run() {
-  for (;;) {
-    bs::error_code ec;
-    io_service_.run(ec);
-    if (!ec) break;
-  }
-}
-
-void TcpTransport::HandleAccept(const AcceptorPtr &acceptor,
-                                const ConnectionPtr &connection,
+void TcpTransport::HandleAccept(const ConnectionPtr &connection,
                                 const bs::error_code &ec) {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-
-  if (!keep_alive_)
+  if (listening_port_ == 0)
     return;
 
   if (!ec) {
-    SocketId socket_id = NextSocketId();
-    connection->SetSocketId(socket_id);
-    connections_.insert(std::make_pair(socket_id, connection));
+    boost::mutex::scoped_lock lock(mutex_);
+    ConnectionId connection_id = NextConnectionId();
+    connection->SetConnectionId(connection_id);
+    connections_.insert(std::make_pair(connection_id, connection));
     connection->StartReceiving();
   }
 
@@ -185,63 +116,36 @@ void TcpTransport::HandleAccept(const AcceptorPtr &acceptor,
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
-  acceptor->async_accept(new_connection->Socket(),
-                         boost::bind(&TcpTransport::HandleAccept,
-                                     this, acceptor, new_connection, _1));
+  acceptor_->async_accept(new_connection->Socket(),
+                          boost::bind(&TcpTransport::HandleAccept, this,
+                                      new_connection, _1));
 }
 
-SocketId TcpTransport::NextSocketId() {
-  SocketId id = current_socket_id_++;
+ConnectionId TcpTransport::NextConnectionId() {
+  ConnectionId id = current_connection_id_++;
   if (id == 0) ++id;
   return id;
 }
 
-SocketId TcpTransport::PrepareToSend(const IP &ip,
-                                     const Port &port,
-                                     const IP &rendezvous_ip,
-                                     const Port &rendezvous_port) {
-  bs::error_code ec;
-  ip::address addr = ip::address::from_string(ip.c_str(), ec);
+void TcpTransport::Send(const std::string &data,
+                        const Endpoint &endpoint,
+                        const Timeout &timeout) {
+  ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
+  ConnectionPtr connection(new TcpConnection(this, tcp_endpoint));
 
-  if (ec)
-    return 0;
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    ConnectionId connection_id = NextConnectionId();
+    connection->SetConnectionId(connection_id);
+    connections_.insert(std::make_pair(connection_id, connection));
+  }
 
-  ip::tcp::endpoint ep(addr, port);
-
-  ConnectionPtr connection(new TcpConnection(this, ep));
-
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-  SocketId socket_id = NextSocketId();
-  connection->SetSocketId(socket_id);
-  connections_.insert(std::make_pair(socket_id, connection));
-
-  return socket_id;
+  connection->Send(data, timeout, false);
 }
 
-void TcpTransport::Send(const TransportMessage &msg,
-                        const SocketId &socket_id,
-                        const boost::uint32_t &timeout_wait_for_response) {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
-
-  ConnectionMap::iterator i = connections_.find(socket_id);
-  if (i == connections_.end())
-    return;
-  ConnectionPtr connection = i->second;
-
-  lock.unlock();
-
-  connection->Send(msg, timeout_wait_for_response);
-}
-
-void TcpTransport::SendFile(const boost::filesystem::path &path,
-                            const SocketId &socket_id) {
-  (void)path;
-  (void)socket_id;
-}
-
-void TcpTransport::RemoveConnection(SocketId id) {
-  boost::mutex::scoped_lock lock(listening_ports_mutex_);
+void TcpTransport::RemoveConnection(ConnectionId id) {
+  boost::mutex::scoped_lock lock(mutex_);
   connections_.erase(id);
 }
-*/
+
 }  // namespace transport
