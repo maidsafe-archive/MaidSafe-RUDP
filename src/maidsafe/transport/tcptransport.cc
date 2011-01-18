@@ -58,7 +58,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
     return kAlreadyStarted;
 
   if (endpoint.port == 0)
-    return kInvalidAddress;
+    return kInvalidPort;
 
   ip::tcp::endpoint ep(endpoint.ip, endpoint.port);
   acceptor_.reset(new ip::tcp::acceptor(*asio_service_));
