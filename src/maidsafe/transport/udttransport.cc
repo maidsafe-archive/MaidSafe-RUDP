@@ -104,6 +104,9 @@ TransportCondition UdtTransport::DoStartListening(
   if (!managed_endpoint_listener && listening_port_ != 0)
     return kAlreadyStarted;
 
+  if (endpoint.port == 0)
+    return kInvalidPort;
+
   // Get a new socket descriptor
   SocketId listening_socket_id(UDT::INVALID_SOCK);
   boost::shared_ptr<addrinfo const> address_info;

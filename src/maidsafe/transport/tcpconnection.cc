@@ -51,7 +51,8 @@ TcpConnection::TcpConnection(TcpTransport *tcp_transport,
     socket_(*transport_->asio_service_),
     timer_(*transport_->asio_service_),
     remote_endpoint_(remote),
-    buffer_(),
+    size_buffer_(sizeof(DataSize)),
+    data_buffer_(),
     timeout_for_response_(kDefaultInitialTimeout) {}
 
 TcpConnection::~TcpConnection() {}
@@ -75,8 +76,7 @@ void TcpConnection::StartTimeout(const Timeout &timeout) {
 void TcpConnection::StartReceiving() {
   // Start by receiving the message size.
   // socket_.async_receive(...);
-  buffer_.Allocate(sizeof(DataSize));
-  asio::async_read(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+  asio::async_read(socket_, asio::buffer(size_buffer_, size_buffer_.size()),
                    boost::bind(&TcpConnection::HandleSize,
                                shared_from_this(), _1));
   StartTimeout(timeout_for_response_);
@@ -100,10 +100,10 @@ void TcpConnection::HandleSize(boost::system::error_code const& ec) {
     return Close();
   }
 
-  DataSize size = *reinterpret_cast<DataSize*>(buffer_.Data());
-  buffer_.Allocate(size);
+  DataSize size = *reinterpret_cast<DataSize*>(&size_buffer_);
+  data_buffer_.resize(size);
 
-  asio::async_read(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+  asio::async_read(socket_, asio::buffer(data_buffer_, size),
                    boost::bind(&TcpConnection::HandleRead,
                                shared_from_this(), _1));
 }
@@ -120,19 +120,20 @@ void TcpConnection::HandleRead(boost::system::error_code const& ec) {
     return Close();
   }
 
-  std::string data(buffer_.Data(), buffer_.Size());
   timer_.cancel();
 
-  DispatchMessage(data);
+  DispatchMessage();
 }
 
-void TcpConnection::DispatchMessage(const std::string &data) {
+void TcpConnection::DispatchMessage() {
   // Signal message received and send response if applicable
   std::string response;
   Timeout response_timeout(kImmediateTimeout);
   Info info;
   // TODO(Fraser#5#): 2011-01-18 - Add info details.
-  (*transport_->on_message_received_)(data, info, &response, &response_timeout);
+  (*transport_->on_message_received_)(
+      std::string(data_buffer_.begin(), data_buffer_.end()), info, &response,
+      &response_timeout);
   if (response.empty())
     return;
 
@@ -151,9 +152,9 @@ void TcpConnection::Send(const std::string &data,
     return;
   }
 
-  buffer_.Allocate(msg_size + sizeof(DataSize));
-  *reinterpret_cast<DataSize*>(buffer_.Data()) = msg_size;
-  *reinterpret_cast<std::string*>(buffer_.Data() + sizeof(DataSize)) = data;
+  size_buffer_.assign(reinterpret_cast<char*>(&msg_size),
+                      reinterpret_cast<char*>(&msg_size) + sizeof(DataSize));
+  data_buffer_.assign(data.begin(), data.end());
 
   // TODO(Fraser#5#): 2011-01-18 - Check timeout logic
   timeout_for_response_ = timeout;
@@ -163,7 +164,10 @@ void TcpConnection::Send(const std::string &data,
     Timeout tm_out(std::max(static_cast<Timeout>(msg_size * kTimeoutFactor),
                             kMinTimeout));
     StartTimeout(tm_out);
-    asio::async_write(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+    std::vector<boost::asio::const_buffer> asio_buffer;
+    asio_buffer.push_back(boost::asio::buffer(size_buffer_));
+    asio_buffer.push_back(boost::asio::buffer(data_buffer_));
+    asio::async_write(socket_, asio_buffer,
                       boost::bind(&TcpConnection::HandleWrite,
                                   shared_from_this(), _1));
   } else {
@@ -187,11 +191,14 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
     return Close();
   }
 
-  Timeout tm_out(std::max(static_cast<Timeout>(buffer_.Size() * kTimeoutFactor),
-                          kMinTimeout));
+  Timeout tm_out(std::max(
+      static_cast<Timeout>(data_buffer_.size() * kTimeoutFactor), kMinTimeout));
   StartTimeout(tm_out);
 
-  asio::async_write(socket_, asio::buffer(buffer_.Data(), buffer_.Size()),
+  std::vector<boost::asio::const_buffer> asio_buffer;
+  asio_buffer.push_back(boost::asio::buffer(size_buffer_));
+  asio_buffer.push_back(boost::asio::buffer(data_buffer_));
+  asio::async_write(socket_, asio_buffer,
                     boost::bind(&TcpConnection::HandleWrite,
                                 shared_from_this(), _1));
 }

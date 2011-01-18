@@ -29,7 +29,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 
 #include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/rawbuffer.h>
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -60,13 +59,13 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   void HandleConnect(boost::system::error_code const& ec);
   void HandleWrite(const boost::system::error_code &ec);
 
-  void DispatchMessage(const std::string &data);
+  void DispatchMessage();
 
   TcpTransport *transport_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
-  RawBuffer buffer_;
+  std::vector<char> size_buffer_, data_buffer_;
   Timeout timeout_for_response_;
 };
 
