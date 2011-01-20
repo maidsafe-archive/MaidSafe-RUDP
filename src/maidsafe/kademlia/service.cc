@@ -92,7 +92,7 @@ void Service::FindValue(const transport::Info &info,
 
   // Are we the alternative value holder?
   std::string key(request.key());
-  std::vector<std::string> values_str;
+  std::vector<std::pair<std::string, std::string>> values_str;
   if (alternative_store_ != NULL && alternative_store_->Has(key)) {
     *(response->mutable_alternative_value_holder()) =
         node_contact_.ToProtobuf();
@@ -102,15 +102,16 @@ void Service::FindValue(const transport::Info &info,
   }
 
   // Do we have the values?
-  if (datastore_->LoadItem(key, &values_str)) {
+  if (datastore_->GetValues(key, &values_str)) {
     if (using_signatures_) {
       for (unsigned int i = 0; i < values_str.size(); i++) {
         protobuf::SignedValue *signed_value = response->add_signed_values();
-        signed_value->ParseFromString(values_str[i]);
+        signed_value->set_value(values_str[i].first);
+        signed_value->set_signature(values_str[i].second);
       }
     } else {
       for (unsigned int i = 0; i < values_str.size(); i++)
-        response->add_values(values_str[i]);
+        response->add_values(values_str[i].first);
     }
     response->set_result(true);
     routing_table_->AddContact(sender);  // TODO pass info
@@ -210,7 +211,7 @@ void Service::Delete(const transport::Info &info,
     return;
 
   // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasItem(request.key()))
+  if (!datastore_->HasKey(request.key()))
     return;
 
   const protobuf::Signature &signature(request.request_signature());
@@ -230,9 +231,10 @@ void Service::Delete(const transport::Info &info,
                          request.request_signature().public_key(),
                          crypto::STRING_STRING))
     return;
-
-  if (datastore_->MarkForDeletion(request.key(),
-                                  request.signed_value().SerializeAsString(),
+  KeyValueSignatureTuple keyvaluesignature(request.key(),
+                                           request.signed_value().value(),
+                                           request.signed_value().signature());
+  if (datastore_->MarkForDeletion(keyvaluesignature,
                                   signature.SerializeAsString())) {
     response->set_result(true);
     routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
@@ -247,7 +249,7 @@ void Service::Update(const transport::Info &info,
     return;
 
   // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasItem(request.key()))
+  if (!datastore_->HasKey(request.key()))
     return;
 
   const protobuf::Signature &signature(request.request_signature());
@@ -299,11 +301,15 @@ hashable replacement values.
 
   bool new_hashable(SignedValueHashable(request.key(),
                                         request.new_signed_value()));
+  KeyValueSignatureTuple old_keyvaluesignature(
+      request.key(), request.old_signed_value().value(),
+      request.old_signed_value().signature());
+  KeyValueSignatureTuple new_keyvaluesignature(
+      request.key(), request.new_signed_value().value(),
+      request.new_signed_value().signature());
 
-  if (!datastore_->UpdateItem(request.key(),
-                              request.old_signed_value().SerializeAsString(),
-                              request.new_signed_value().SerializeAsString(),
-                              request.ttl(), new_hashable)) {
+  if (!datastore_->UpdateValue(old_keyvaluesignature, new_keyvaluesignature,
+                               request.ttl(), new_hashable)) {
     DLOG(WARNING) << "Service::Update - Failed UpdateItem" << std::endl;
     return;
   }
@@ -337,14 +343,16 @@ bool Service::StoreValueLocal(const std::string &key,
                               const boost::int32_t &ttl,
                               bool publish,
                               std::string *serialised_deletion_signature) {
+  KeyValueSignatureTuple keyvaluesignature(key, value, "");
   if (publish)
-    return datastore_->StoreItem(key, value, ttl, false);
+    return datastore_->StoreValue(keyvaluesignature, ttl, false);
 
-  if (datastore_->RefreshItem(key, value, serialised_deletion_signature))
+  if (datastore_->RefreshKeyValue(keyvaluesignature,
+                                  serialised_deletion_signature))
     return true;
 
   if (serialised_deletion_signature->empty())
-    return datastore_->StoreItem(key, value, ttl, false);
+    return datastore_->StoreValue(keyvaluesignature, ttl, false);
 
   return false;
 }
@@ -356,18 +364,20 @@ bool Service::StoreValueLocal(const std::string &key,
                               std::string *serialised_deletion_signature) {
   bool hashable;
   std::string ser_signed_value(signed_value.SerializeAsString());
+  KeyValueSignatureTuple keyvaluesignature(key, signed_value.value(),
+                                           signed_value.signature());
 
   if (publish)
     return CanStoreSignedValueHashable(key, signed_value, &hashable) &&
-           datastore_->StoreItem(key, ser_signed_value, ttl, hashable);
+        datastore_->StoreValue(keyvaluesignature, ttl, hashable);
 
-  if (datastore_->RefreshItem(key, ser_signed_value,
-                              serialised_deletion_signature))
+  if (datastore_->RefreshKeyValue(keyvaluesignature,
+                                  serialised_deletion_signature))
     return true;
 
   if (CanStoreSignedValueHashable(key, signed_value, &hashable) &&
       serialised_deletion_signature->empty())
-    return datastore_->StoreItem(key, ser_signed_value, ttl, hashable);
+    return datastore_->StoreValue(keyvaluesignature, ttl, hashable);
 
   return false;
 }
