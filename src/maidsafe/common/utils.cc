@@ -26,7 +26,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/common/utils.h"
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <boost/thread/mutex.hpp>
@@ -43,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/network_interface.h"
 
 namespace maidsafe {
+
+const boost::posix_time::ptime kMaidSafeEpoch(
+    boost::gregorian::date(2000, 1, 1));
 
 CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_random_number_generator;
 boost::mutex g_random_number_generator_mutex;
@@ -153,22 +155,19 @@ std::string DecodeFromBase32(const std::string &base32_input) {
 boost::uint32_t GetEpochTime() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint32_t>((t-start).total_seconds());
+  return static_cast<boost::uint32_t>((t - kMaidSafeEpoch).total_seconds());
 }
 
 boost::uint64_t GetEpochMilliseconds() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint64_t>((t - start).total_milliseconds());
+  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_milliseconds());
 }
 
 boost::uint64_t GetEpochNanoseconds() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint64_t>((t - start).total_nanoseconds());
+  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_nanoseconds());
 }
 
 boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {

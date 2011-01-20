@@ -389,7 +389,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   std::list<Contact> inputs(vcontacts.begin(), vcontacts.end());
   SortContactList(key, &inputs);
   std::list<Contact>::iterator it(inputs.begin()), it2;
-  ASSERT_TRUE(node_->MarkNode(*it, fna, SEARCH_CONTACTED));
+  ASSERT_TRUE(node_->MarkNode(*it, fna, kSearchContacted));
   ASSERT_FALSE(node_->GetAlphas(a, fna, &lcontacts, &calledback));
   ASSERT_EQ(boost::uint16_t(1), fna->round);
   ASSERT_EQ(size_t(a), lcontacts.size());
@@ -398,7 +398,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   }
 
   ++it;
-  ASSERT_TRUE(node_->MarkNode(*it, fna, SEARCH_DOWN));
+  ASSERT_TRUE(node_->MarkNode(*it, fna, kSearchDown));
   ASSERT_FALSE(node_->GetAlphas(a, fna, &lcontacts, &calledback));
   ASSERT_EQ(boost::uint16_t(2), fna->round);
   ASSERT_EQ(size_t(a), lcontacts.size());
@@ -407,7 +407,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   }
 
   Contact not_in_list(NodeId(NodeId::kRandomId), ip, 8000);
-  ASSERT_FALSE(node_->MarkNode(not_in_list, fna, SEARCH_CONTACTED));
+  ASSERT_FALSE(node_->MarkNode(not_in_list, fna, kSearchContacted));
 }
 
 TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
@@ -454,7 +454,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
   ASSERT_EQ(boost::uint16_t(quotient + 1), fna->round);
 
   for (size_t a = 0; a < valphas.size(); ++a) {
-    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, SEARCH_CONTACTED));
+    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, kSearchContacted));
     if (a == valphas.size() - 1)
       ASSERT_TRUE(node_->BetaDone(fna, a + 1));
     else
@@ -463,7 +463,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
   }
 
   for (size_t a = 0; a < valphas.size() - 1; ++a) {
-    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, SEARCH_CONTACTED));
+    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, kSearchContacted));
     ASSERT_TRUE(node_->BetaDone(fna, a));
   }
 }
@@ -513,14 +513,14 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
   std::list<Contact> lcontacts;
   ASSERT_FALSE(misr.GetAlphas(kcp.alpha, fna, &lcontacts, &calledback));
 
-  boost::shared_ptr<FindNodesRpc> rpc(new FindNodesRpc(lcontacts.front(), fna));
+  boost::shared_ptr<FindNodesRpcArgs> rpc(new FindNodesRpcArgs(lcontacts.front(), fna));
   rpc->response->set_result(kRpcResultSuccess);
   misr.IterativeSearchResponse(rpc);
 
   popped.push_back(lcontacts.front());
   lcontacts.pop_front();
   popped.push_back(lcontacts.front());
-  boost::shared_ptr<FindNodesRpc> rpc1(new FindNodesRpc(lcontacts.front(),
+  boost::shared_ptr<FindNodesRpcArgs> rpc1(new FindNodesRpcArgs(lcontacts.front(),
                                                         fna));
   rpc1->response->set_result(kRpcResultSuccess);
   misr.IterativeSearchResponse(rpc1);
@@ -651,7 +651,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
-//  node_->prouting_table_->Clear();
+//  node_->routing_table_->Clear();
 //  std::string ip("156.148.126.159");
 //  std::vector<Contact> vcontacts;
 //  for (boost::uint16_t n = 0; n < K; ++n) {
@@ -746,7 +746,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
-//  node_->prouting_table_->Clear();
+//  node_->routing_table_->Clear();
 //  std::string ip("156.148.126.159");
 //  std::vector<Contact> vcontacts;
 //  for (boost::uint16_t n = 0; n < K; ++n) {
@@ -916,7 +916,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
   bool done(false);
   std::list<Contact> lcontacts;
-  node_->prouting_table_->Clear();
+  node_->routing_table_->Clear();
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   transport::Endpoint ep;
@@ -1016,7 +1016,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
   bool done(false);
   std::list<Contact> lcontacts;
-  node_->prouting_table_->Clear();
+  node_->routing_table_->Clear();
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   transport::Endpoint ep;
