@@ -413,8 +413,8 @@ struct FindNodesArgs {
   int round, nodes_pending;
 };
 
-struct FindNodesRpc {
-  FindNodesRpc(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
+struct FindNodesRpcArgs {
+  FindNodesRpcArgs(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
       : contact(c),
         rpc_fna(fna),
         round(0) {
@@ -425,8 +425,6 @@ struct FindNodesRpc {
   boost::shared_ptr<FindNodesArgs> rpc_fna;
   int round;
 };
-
-enum SearchMarking { SEARCH_DOWN, SEARCH_CONTACTED };
 
 }  // namespace kademlia
 

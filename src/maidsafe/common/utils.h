@@ -35,11 +35,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_COMMON_UTILS_H_
 
 #include <boost/cstdint.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include "maidsafe/common/platform_config.h"
 #include <string>
 #include <vector>
 
 namespace maidsafe {
+
+const boost::posix_time::ptime kMaidSafeEpoch;
 
 struct DeviceStruct {
   DeviceStruct() : ip_address(), device_interface() {}

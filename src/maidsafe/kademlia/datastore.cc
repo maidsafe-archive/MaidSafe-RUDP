@@ -29,16 +29,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <exception>
 #include "maidsafe/common/utils.h"
 
+namespace bptime = boost::posix_time;
+
 namespace maidsafe {
 
 namespace kademlia {
 
-DataStore::DataStore(const boost::uint32_t &refresh_time)
-    : key_value_index_(), refresh_time_(0), mutex_() {
-  refresh_time_ = refresh_time + (base::RandomUint32() % 5);
-}
+DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
+    : key_value_index_(),
+      refresh_interval_(mean_refresh_interval + (bptime::seconds(
+                                                 RandomInt32() % 30))),
+      mutex_() {}
 
 DataStore::~DataStore() {
+  boost::mutex::scoped_lock guard(mutex_);
   key_value_index_.clear();
 }
 
@@ -48,7 +52,7 @@ DataStore::~DataStore() {
   boost::mutex::scoped_lock guard(mutex_);
   for (KeyValueIndex::iterator it = key_value_index_.begin();
        it != key_value_index_.end(); ++it) {
-    p = keys->insert(it->key);
+    p = keys->insert((*it).key);
    // if (!p.second)
    //   return p.second ;
   }
@@ -65,33 +69,32 @@ bool DataStore::HasKey(const std::string &key) {
   if (p.first == p.second)
     return false;
 
-  boost::uint32_t now = GetEpochTime();
+  bptime::ptime now = bptime::microsec_clock::universal_time();
   while (p.first != p.second) {
-    boost::int32_t ttl_remaining = p.first->expire_time - now;
-    if ((ttl_remaining > 0 || p.first->ttl == -1) &&
-        (p.first->delete_status == kNotDeleted))
+    if ((p.first->expire_time > now) && (p.first->delete_status == kNotDeleted))
       return true;
     ++p.first;
   }
   return false;
 }
-bool DataStore::StoreValue(const KeyValueSignatureTuple &keyvaluesignature,
-                           const boost::int32_t &ttl,
+
+bool DataStore::StoreValue(const KeyValueSignature &key_value_signature,
+                           const bptime::seconds &ttl,
                            const bool &hashable) {
-  if (keyvaluesignature.key.empty() || keyvaluesignature.value.empty() ||
-      ttl == 0)
+  if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
+      ttl == bptime::seconds(0))
     return false;
 
-  boost::uint32_t time_stamp = GetEpochTime();
-  KeyValueTuple tuple(keyvaluesignature, time_stamp,
-      ttl + time_stamp, ttl, hashable);
+  bptime::ptime now = bptime::microsec_clock::universal_time();
+  KeyValueTuple tuple(key_value_signature, now, now + ttl, ttl, hashable);
   boost::mutex::scoped_lock guard(mutex_);
   auto p = key_value_index_.insert(tuple);
 
   if (!p.second) {
     if ((p.first->delete_status == kNotDeleted) ||
-        (tuple.ttl == -1) ||  // why we need to compare tuple ttl
-        (p.first->expire_time < tuple.expire_time && p.first->ttl != -1)) {
+        (tuple.ttl.is_pos_infinity()) ||  // why we need to compare tuple ttl
+        (p.first->expire_time < tuple.expire_time &&
+        !p.first->ttl.is_pos_infinity())) {
       key_value_index_.replace(p.first, tuple);
     } else {
       return false;
@@ -102,30 +105,26 @@ bool DataStore::StoreValue(const KeyValueSignatureTuple &keyvaluesignature,
 
 bool DataStore::GetValues(
     const std::string &key,
-    std::vector<std::pair<std::string, std::string>> *values) { 
+    std::vector<std::pair<std::string, std::string>> *values) {
   values->clear();
   boost::mutex::scoped_lock guard(mutex_);
   auto p = key_value_index_.equal_range(key);
   if (p.first == p.second)
     return false;
-  boost::uint32_t now = GetEpochTime();
+  bptime::ptime now = bptime::microsec_clock::universal_time();
+
   while (p.first != p.second) {
-    boost::int32_t ttl_remaining = p.first->expire_time - now;
-    if ((ttl_remaining > 0 || p.first->ttl == -1) &&
+    if ((p.first->expire_time > now || p.first->ttl.is_pos_infinity()) &&
         (p.first->delete_status == kNotDeleted))
-        values->push_back(std::make_pair(p.first->keyvaluesignature.value, 
-                                         p.first->keyvaluesignature.signature));
+    values->push_back(std::make_pair(p.first->key_value_signature.value, 
+                                     p.first->key_value_signature.signature));
     ++p.first;
   }
-  if (values->empty())
-    return false;
-  return true;
+  return values->empty();
 }
 
-/*
 bool DataStore::DeleteValue(const std::string &key, const std::string &value) {
-KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
-                                                                       value));
+  auto it = key_value_index_.find(boost::make_tuple(key, value));
   boost::mutex::scoped_lock guard(mutex_);
   if (it == key_value_index_.end())
     return false;
@@ -133,6 +132,7 @@ KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
   return true;
 }
 
+/*
 bool DataStore::DeleteKey(const std::string &key) {
   boost::mutex::scoped_lock guard(mutex_);
   std::pair<KeyValueIndex::iterator, KeyValueIndex::iterator> p =
@@ -141,50 +141,6 @@ bool DataStore::DeleteKey(const std::string &key) {
     return false;
   key_value_index_.erase(p.first, p.second);
   return true;
-}
-
-boost::uint32_t DataStore::LastRefreshTime(const std::string &key,
-                                           const std::string &value) {
-  boost::mutex::scoped_lock guard(mutex_);
-  KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
-                                                                       value));
-  if (it == key_value_index_.end())
-    return 0;
-  return it->last_refresh_time;
-}
-
-boost::uint32_t DataStore::ExpireTime(const std::string &key,
-                                      const std::string &value) {
-  boost::mutex::scoped_lock guard(mutex_);
-  KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
-                                                                       value));
-  if (it == key_value_index_.end())
-    return 0;
-  return it->expire_time;
-}
-
-std::vector<RefreshValue> DataStore::ValuesToRefresh() { 
-  std::vector<RefreshValue> values;
-  KeyValueIndex::index<TagLastRefreshTime>::type::iterator it,
-    up_limit;
-  boost::mutex::scoped_lock guard(mutex_);
-  KeyValueIndex::index<TagLastRefreshTime>::type& indx =
-      key_value_index_.get<TagLastRefreshTime>();
-  boost::uint32_t now = GetEpochTime();
-  boost::uint32_t time_limit = now - refresh_time_;
-  up_limit = indx.upper_bound(time_limit);
-  for (it = indx.begin(); it != up_limit; ++it) {
-    if (it->ttl == -1 && it->delete_status == kNotDeleted) {
-      values.push_back(RefreshKeyValue(it->key, it->value, it->ttl));
-    } else {
-      boost::int32_t ttl_remaining = it->expire_time - now;
-      if (ttl_remaining > 0 && it->delete_status == kNotDeleted)
-        values.push_back(RefreshValue(it->key, it->value, ttl_remaining));
-      else if (it->delete_status != kNotDeleted)
-        values.push_back(RefreshValue(it->key, it->value, it->delete_status));
-    }
-  }
-  return values;
 }
 
 void DataStore::DeleteExpiredValues() { 
@@ -199,9 +155,49 @@ void DataStore::DeleteExpiredValues() {
   indx.erase(down_limit, up_limit);
 }
 
-void DataStore::Clear() { // Not used
+boost::uint32_t DataStore::LastRefreshTime(const std::string &key,
+                                           const std::string &value) {
   boost::mutex::scoped_lock guard(mutex_);
-  key_value_index_.clear();
+  KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
+                                                                       value));
+  if (it == key_value_index_.end())
+    return 0;
+  return (*it).last_refresh_time;
+}
+
+boost::uint32_t DataStore::ExpireTime(const std::string &key,
+                                      const std::string &value) {
+  boost::mutex::scoped_lock guard(mutex_);
+  KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
+                                                                       value));
+  if (it == key_value_index_.end())
+    return 0;
+  return (*it).expire_time;
+}
+
+std::vector<RefreshValue> DataStore::ValuesToRefresh() { 
+  std::vector<RefreshValue> values;
+  KeyValueIndex::index<TagLastRefreshTime>::type::iterator it,
+    up_limit;
+  boost::mutex::scoped_lock guard(mutex_);
+  KeyValueIndex::index<TagLastRefreshTime>::type& indx =
+      key_value_index_.get<TagLastRefreshTime>();
+  boost::uint32_t now = GetEpochTime();
+  boost::uint32_t time_limit = now - refresh_time_;
+  up_limit = indx.upper_bound(time_limit);
+  for (it = indx.begin(); it != up_limit; ++it) {
+    if ((*it).ttl == -1 && (*it).delete_status == kNotDeleted) {
+      values.push_back(RefreshKeyValue((*it).key, (*it).value, (*it).ttl));
+    } else {
+      boost::int32_t ttl_remaining = (*it).expire_time - now;
+      if (ttl_remaining > 0 && (*it).delete_status == kNotDeleted)
+        values.push_back(RefreshValue((*it).key, (*it).value, ttl_remaining));
+      else if ((*it).delete_status != kNotDeleted)
+        values.push_back(RefreshValue((*it).key, (*it).value,
+                                      (*it).delete_status));
+    }
+  }
+  return values;
 }
 
 boost::int32_t DataStore::TimeToLive(const std::string &key,
@@ -211,63 +207,60 @@ boost::int32_t DataStore::TimeToLive(const std::string &key,
                                                                        value));
   if (it == key_value_index_.end())
     return 0;
-  return it->ttl;
+  return (*it).ttl;
 }
 
-boost::uint32_t DataStore::RefreshTime() const {
-  return refresh_time_;
-} */
-
-std::vector<std::pair<std::string, bool> > DataStore::LoadKeyAppendableAttr(
-    const std::string &key) {
-  std::vector< std::pair<std::string, bool> > result;
+void DataStore::Clear() {  // Not used
   boost::mutex::scoped_lock guard(mutex_);
-  auto p =
-      key_value_index_.equal_range(key);
+  key_value_index_.clear();
+}
+*/
+
+std::vector<std::pair<std::string, bool>> DataStore::LoadKeyAppendableAttr(
+    const std::string &key) {
+  std::vector<std::pair<std::string, bool>> result;
+  boost::mutex::scoped_lock guard(mutex_);
+  auto p = key_value_index_.equal_range(key);
+
   while (p.first != p.second) {
-    result.push_back(std::pair<std::string, bool>(
-        p.first->keyvaluesignature.value, p.first->hashable));
+    result.push_back(std::make_pair(p.first->key_value_signature.value,
+                                    p.first->hashable));
     ++p.first;
   }
   return result;
 }
 
-bool DataStore::RefreshKeyValue(const KeyValueSignatureTuple &keyvaluesignature,
+bool DataStore::RefreshKeyValue(const KeyValueSignature &key_value_signature,
                                 std::string *serialized_delete_request) { 
   boost::mutex::scoped_lock guard(mutex_);
   auto it = key_value_index_.get<TagKeyValue>().find(boost::make_tuple(
-      keyvaluesignature.key, keyvaluesignature.value));
-  if (it == key_value_index_.get<TagKeyValue>().end()) {
+      key_value_signature.key, key_value_signature.value));
+  if (it == key_value_index_.get<TagKeyValue>().end())
     return false;
-  }
-  if (it->delete_status != kNotDeleted) {
+
+  if ((*it).delete_status != kNotDeleted) {
     serialized_delete_request->clear();
-    *serialized_delete_request = it->serialized_delete_request;
+    *serialized_delete_request = (*it).serialized_delete_request;
     return false;
   }
-  boost::uint32_t time_stamp = GetEpochTime();
-  KeyValueTuple tuple(keyvaluesignature, time_stamp);
-  tuple.ttl = it->ttl;
-  tuple.expire_time = it->expire_time;
-  tuple.hashable = it->hashable;
+  KeyValueTuple tuple(key_value_signature,
+                      bptime::microsec_clock::universal_time(),
+                      (*it).expire_time, (*it).ttl, (*it).hashable);
   return key_value_index_.get<TagKeyValue>().replace(it, tuple);
 }
 
-bool DataStore::MarkForDeletion(const KeyValueSignatureTuple &keyvaluesignature,
+bool DataStore::MarkForDeletion(const KeyValueSignature &key_value_signature,
                                 const std::string &serialized_delete_request) {
   boost::mutex::scoped_lock guard(mutex_);
   auto it = key_value_index_.get<TagKeyValue>().find(boost::make_tuple(
-      keyvaluesignature.key, keyvaluesignature.value));
+      key_value_signature.key, key_value_signature.value));
   if (it == key_value_index_.get<TagKeyValue>().end())
     return false;
   // Check if already deleted or marked as deleted
-  if (it->delete_status != kNotDeleted)
+  if ((*it).delete_status != kNotDeleted)
     return true;
-  KeyValueTuple tuple(keyvaluesignature, 0);
-  tuple.ttl = it->ttl;
-  tuple.expire_time = it->expire_time;
-  tuple.hashable = it->hashable;
-  tuple.last_refresh_time = it->last_refresh_time;
+  KeyValueTuple tuple(key_value_signature, (*it).last_refresh_time,
+                      (*it).expire_time, (*it).ttl, (*it).hashable);
   tuple.serialized_delete_request = serialized_delete_request;
   tuple.delete_status = kMarkedForDeletion;
 
@@ -280,39 +273,43 @@ bool DataStore::MarkAsDeleted(const std::string &key,
   boost::mutex::scoped_lock guard(mutex_);
   KeyValueIndex::iterator it = key_value_index_.find(boost::make_tuple(key,
                                                                        value));
-  if (it == key_value_index_.end() || it->delete_status != kMarkedForDeletion)
+  if (it == key_value_index_.end() || (*it).delete_status != kMarkedForDeletion)
     return false;
   KeyValueTuple tuple(key, value, 0);
-  tuple.ttl = it->ttl;
-  tuple.expire_time = it->expire_time;
-  tuple.hashable = it->hashable;
-  tuple.last_refresh_time = it->last_refresh_time;
-  tuple.serialized_delete_request = it->serialized_delete_request;
+  tuple.ttl = (*it).ttl;
+  tuple.expire_time = (*it).expire_time;
+  tuple.hashable = (*it).hashable;
+  tuple.last_refresh_time = (*it).last_refresh_time;
+  tuple.serialized_delete_request = (*it).serialized_delete_request;
   tuple.delete_status = kDeleted;
 
   return key_value_index_.replace(it, tuple);
 } */
 
-bool DataStore::UpdateValue(const KeyValueSignatureTuple &old_keyvaluesignature,
-                            const KeyValueSignatureTuple &new_keyvaluesignature,
-                            const boost::int32_t &ttl,
+bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
+                            const KeyValueSignature &new_key_value_signature,
+                            const bptime::seconds &ttl,
                             const bool &hashable) {
   boost::mutex::scoped_lock guard(mutex_);
   auto it = key_value_index_.get<TagKeyValue>().find(boost::make_tuple(
-      old_keyvaluesignature.key, old_keyvaluesignature.value));
+      old_key_value_signature.key, old_key_value_signature.value));
   if (it == key_value_index_.get<TagKeyValue>().end() || 
-      it->delete_status == kMarkedForDeletion ||
-      it->delete_status == kDeleted)
+      (*it).delete_status == kMarkedForDeletion ||
+      (*it).delete_status == kDeleted)
     return false;
 
-  KeyValueTuple tuple(new_keyvaluesignature, 0);
-  boost::uint32_t now(GetEpochTime());
+  bptime::ptime now = bptime::microsec_clock::universal_time();
+  KeyValueTuple tuple(new_key_value_signature, now, );
   tuple.ttl = ttl;
   tuple.expire_time = now + ttl;
   tuple.last_refresh_time = now;
   tuple.delete_status = kNotDeleted;
   tuple.hashable = hashable;
   return key_value_index_.get<TagKeyValue>().replace(it, tuple);
+}
+
+bptime::seconds DataStore::refresh_interval() const {
+  return refresh_interval_;
 }
 
 }  // namespace kademlia

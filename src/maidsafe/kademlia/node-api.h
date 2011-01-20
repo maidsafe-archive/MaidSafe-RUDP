@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/asio/io_service.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/date_time.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/scoped_ptr.hpp>
 
 #include <memory>
@@ -43,6 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/kademlia/config.h"
+#include "maidsafe/common/version.h"
 
 #if MAIDSAFE_DHT_VERSION < 25
 #error This API is not compatible with the installed library.\
@@ -172,11 +173,11 @@ class Node {
   Contact contact() const;
 
   // Whether node is currently joined to the network.
-  bool is_joined() const;
+  bool joined() const;
 
   // Getters
-  AlternativeStorePtr alternative_store();
   IoServicePtr asio_service();
+  AlternativeStorePtr alternative_store();
   bool client_only_node() const;
   boost::uint16_t k() const;
   boost::uint16_t alpha() const;
