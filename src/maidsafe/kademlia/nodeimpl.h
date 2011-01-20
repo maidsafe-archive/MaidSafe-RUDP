@@ -124,7 +124,7 @@ class NodeImpl {
                  VoidFunctorOneString callback) {}
   void GetNodeContactDetails(const NodeId &node_id,
                              VoidFunctorOneString callback, const bool &local) {}
-  void FindKClosestNodes(const NodeId &node_id, VoidFunctorOneString callback) {}
+  void FindKClosestNodes(const NodeId &key, VoidFunctorOneString callback) {}
   void GetNodesFromRoutingTable(const NodeId &key,
                                 const std::vector<Contact> &exclude_contacts,
                                 std::vector<Contact> *close_nodes) {}
