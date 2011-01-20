@@ -92,7 +92,7 @@ void Rpcs::Store(const NodeId &key,
                  const Contact &contact,
                  const boost::int32_t &ttl,
                  const bool &publish,
-                 VoidFunctorOneBool callback,
+                 RpcResponseFunctor callback,
                  TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -120,7 +120,7 @@ void Rpcs::Store(const NodeId &key,
                  const Contact &contact,
                  const boost::int32_t &ttl,
                  const bool &publish,
-                 VoidFunctorOneBool callback,
+                 RpcResponseFunctor callback,
                  TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -141,7 +141,7 @@ void Rpcs::Delete(const NodeId &key,
                   const SignedValue &signed_value,
                   const Signature &signature,
                   const Contact &contact,
-                  VoidFunctorOneBool callback,
+                  RpcResponseFunctor callback,
                   TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -168,7 +168,7 @@ void Rpcs::Update(const NodeId &key,
                   const boost::int32_t &ttl,
                   const Signature &signature,
                   const Contact &contact,
-                  VoidFunctorOneBool callback,
+                  RpcResponseFunctor callback,
                   TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -260,21 +260,21 @@ void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
 }
 
 void Rpcs::StoreCallback(const protobuf::StoreResponse &response,
-                         VoidFunctorOneBool callback,
+                         RpcResponseFunctor callback,
                          boost::shared_ptr<MessageHandler>,
                          boost::shared_ptr<transport::Transport>) {
   callback(response.result());
 }
 
 void Rpcs::DeleteCallback(const protobuf::DeleteResponse &response,
-                          VoidFunctorOneBool callback,
+                          RpcResponseFunctor callback,
                           boost::shared_ptr<MessageHandler>,
                           boost::shared_ptr<transport::Transport>) {
   callback(response.result());
 }
 
 void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
-                          VoidFunctorOneBool callback,
+                          RpcResponseFunctor callback,
                           boost::shared_ptr<MessageHandler>,
                           boost::shared_ptr<transport::Transport>) {
   callback(response.result());

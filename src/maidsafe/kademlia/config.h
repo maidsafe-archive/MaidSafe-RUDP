@@ -31,22 +31,69 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/io_service.hpp>
 
-#include <list>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace maidsafe {
 
+class AlternativeStore;
+class Securifier;
+class Validator;
+
+
+namespace transport {
+class Transport;
+struct Endpoint;
+}  // namespace transport
+
+
 namespace kademlia {
 
+class NodeId;
 class Contact;
 
-typedef boost::function<void(int)> JoinFunctor;
 
-typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
-typedef boost::function<void(std::list<Contact>)> VoidFunctorContactList;
+// Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
+// return code.
+typedef boost::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,
+                                   UpdateFunctor;
+
+// Functor for use in Node::FindValue.  Parameters in order are: return code,
+// value(s) if found, k closest nodes if value not found, contact details of
+// node holding value in its alternative_store, and contact details of node
+// needing a cache copy of the values.
+typedef boost::function<void(int,
+                             std::vector<std::string>,
+                             std::vector<Contact>,
+                             Contact,
+                             Contact)> FindValueFunctor;
+
+// Functor for use in Node::FindNodes.  Parameters in order are: return code,
+// k closest nodes.
+typedef boost::function<void(int, std::vector<Contact>)> FindNodesFunctor;
+
+// Functor for use in Node::GetContact.  Parameters in order are: return code,
+// node's contact details.
+typedef boost::function<void(int, Contact)> GetContactFunctor;
+
+// Functor for use in many RPCs
+typedef boost::function<void(bool)> RpcResponseFunctor;  // NOLINT
+
+
+typedef NodeId Key;
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
+
+
+typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef std::shared_ptr<transport::Transport> TransportPtr;
+typedef std::shared_ptr<Securifier> SecurifierPtr;
+typedef std::shared_ptr<Validator> ValidatorPtr;
+typedef std::shared_ptr<AlternativeStore> AlternativeStorePtr;
+
 
 // The size of DHT keys and node IDs in bytes.
 const boost::uint16_t kKeySizeBytes = 64;

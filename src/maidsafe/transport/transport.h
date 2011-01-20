@@ -144,9 +144,8 @@ const int kMaxAcceptedConnections(5);
 typedef boost::shared_ptr<bs2::signal<void(const std::string&,
                                            const Info&,
                                            std::string*,
-                                           Timeout*)> > OnMessageReceived;
-typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)> >
-    OnError;
+                                           Timeout*)>> OnMessageReceived;
+typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
 
 // Base class for all transport types.
 class Transport {

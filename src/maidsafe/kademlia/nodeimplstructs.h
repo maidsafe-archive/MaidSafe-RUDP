@@ -392,11 +392,11 @@ struct FindNodesParams {
   std::vector<Contact> start_nodes;
   std::vector<Contact> exclude_nodes;
   bool use_routingtable;
-  VoidFunctorContactList callback;
+  FindNodesFunctor callback;
 };
 
 struct FindNodesArgs {
-  FindNodesArgs(const NodeId &fna_key, VoidFunctorContactList fna_callback)
+  FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
       : key(fna_key),
         kth_closest(),
         nc(),
@@ -408,7 +408,7 @@ struct FindNodesArgs {
   NodeId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
-  VoidFunctorContactList callback;
+  FindNodesFunctor callback;
   bool calledback;
   int round, nodes_pending;
 };
