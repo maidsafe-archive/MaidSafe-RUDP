@@ -170,8 +170,8 @@ class DataStore {
                                   const std::string &value);
   boost::uint32_t ExpireTime(const std::string &key, const std::string &value);
    std::vector<RefreshValue> ValuesToRefresh();
-  boost::int32_t TimeToLive(const std::string &key, const std::string &value);
-  void Clear(); */
+  boost::int32_t TimeToLive(const std::string &key, const std::string &value);*/
+  void Clear();
   std::vector<std::pair<std::string, bool>> LoadKeyAppendableAttr(
       const std::string &key);
 
