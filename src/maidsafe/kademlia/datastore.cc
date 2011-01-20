@@ -215,21 +215,21 @@ boost::int32_t DataStore::TimeToLive(const std::string &key,
 
 boost::uint32_t DataStore::RefreshTime() const {
   return refresh_time_;
-}
+} */
 
 std::vector<std::pair<std::string, bool> > DataStore::LoadKeyAppendableAttr(
     const std::string &key) {
   std::vector< std::pair<std::string, bool> > result;
   boost::mutex::scoped_lock guard(mutex_);
-  std::pair<KeyValueIndex::iterator, KeyValueIndex::iterator> p =
-      key_value_index_.equal_range(boost::make_tuple(key));
+  auto p =
+      key_value_index_.equal_range(key);
   while (p.first != p.second) {
-    result.push_back(std::pair<std::string, bool>(p.first->value,
-        p.first->hashable));
+    result.push_back(std::pair<std::string, bool>(
+        p.first->keyvaluesignature.value, p.first->hashable));
     ++p.first;
   }
   return result;
-} */
+}
 
 bool DataStore::RefreshKeyValue(const KeyValueSignatureTuple &keyvaluesignature,
                                 std::string *serialized_delete_request) { 
