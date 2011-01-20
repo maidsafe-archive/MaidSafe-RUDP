@@ -1,5 +1,3 @@
-import "maidsafe/common/validation.proto";
-
 package maidsafe.transport.protobuf;
 
 message Endpoint {
