@@ -159,7 +159,7 @@ class NodeImpl {
   Port local_port() const { return Port(0); }
   IP rendezvous_ip() const { return IP(); }
   Port rendezvous_port() const { return Port(0); }
-  bool is_joined() const { return false; }
+  bool is_joined() const { return is_joined_; }
 
   boost::shared_ptr<Rpcs> rpcs() { return rpcs_; }
 
@@ -197,6 +197,8 @@ class NodeImpl {
                     boost::shared_ptr<FindNodesArgs> fna, SearchMarking mark,
                     std::list<Contact> *response_nodes);
   int NodesPending(boost::shared_ptr<FindNodesArgs> fna);
+  void MarkAsAlpha(const std::list<Contact> &contacts,
+                   boost::shared_ptr<FindNodesArgs> fna);
   bool HandleIterationStructure(const Contact &contact,
                                 boost::shared_ptr<FindNodesArgs> fna,
                                 int round,

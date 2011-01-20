@@ -92,11 +92,11 @@ class TestNodeImpl : public testing::Test {
   static void SetUpTestCase() {
     test_dir_ = std::string("temp/TestNodeImpl") +
                 boost::lexical_cast<std::string>(RandomUint32());
-    asio_service_.reset(new boost::asio::io_service);
-    udt_.reset(new transport::UdtTransport(asio_service_));
+//    asio_service_.reset(new boost::asio::io_service);
+//    udt_.reset(new transport::UdtTransport(asio_service_));
     std::vector<IP> ips = transport::GetLocalAddresses();
     transport::Endpoint ep(ips.at(0), 50000);
-    EXPECT_EQ(transport::kSuccess, udt_->StartListening(ep));
+//    EXPECT_EQ(transport::kSuccess, udt_->StartListening(ep));
 
     crypto::RsaKeyPair rkp;
     rkp.GenerateKeys(4096);
@@ -108,6 +108,7 @@ class TestNodeImpl : public testing::Test {
     kcp.private_key = rkp.private_key();
     kcp.k = K;
     kcp.refresh_time = kRefreshTime;
+    kcp.port = ep.port;
     node_.reset(new NodeImpl(udt_, kcp));
 
     node_->JoinFirstNode(test_dir_ + std::string(".kadconfig"),
@@ -119,7 +120,10 @@ class TestNodeImpl : public testing::Test {
     ASSERT_TRUE(node_->is_joined());
   }
   static void TearDownTestCase() {
+//    udt_->StopListening();
+//    printf("udt_->StopListening();\n");
     node_->Leave();
+//    transport::UdtTransport::CleanUp();
   }
 
   static std::string test_dir_;
@@ -290,7 +294,6 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
   node_->is_joined_ = true;
 }
 */
-
 
 TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
   bool done(false);
@@ -534,6 +537,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
   }
 }
 */
+/*
 //template <class T>
 //class MockRpcs : public Rpcs<T> {
 // public:
@@ -791,6 +795,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //
 //  node_->rpcs_ = old_rpcs;
 //}
+*/
 
 class MockRpcs : public Rpcs {
  public:
@@ -803,7 +808,10 @@ class MockRpcs : public Rpcs {
                                const Contact &contact,
                                FindNodesFunctor callback,
                                TransportType type));
-  void FindNodeDummy(FindNodesFunctor callback) {
+  void FindNodeDummy(const Contact &c,
+                     FindNodesFunctor callback) {
+    // printf("void FindNodeDummy(%s)\n",
+    //        c.node_id().ToStringEncoded(NodeId::kBase64).c_str());
     std::vector<Contact> response_list;
     {
       boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
@@ -871,7 +879,9 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
   for (boost::uint16_t n = 0; n < k; ++n) {
     ep.ip = boost::asio::ip::address::from_string(ip);
     ep.port = 5000 + n;
-    Contact c(NodeId(NodeId::kRandomId).String(), ep);
+    NodeId ni(NodeId::kRandomId);
+    Contact c(ni.String(), ep);
+    printf("%s\n", ni.ToStringEncoded(NodeId::kBase64).c_str());
     vcontacts.push_back(c);
   }
   node_->AddContactsToContainer(vcontacts, fna);
@@ -884,16 +894,15 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                    testing::_))
       .Times(K)
-      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
-          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+      .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
-  NodeContainer::iterator node_it = fna->nc.begin();
-  std::list<Contact> alphas;
-  boost::uint16_t a(0);
-  for (; node_it != fna->nc.end() && a < kAlpha; ++node_it, ++a) {
-    alphas.push_back((*node_it).contact);
-  }
+  // Need to pick the initial alpha contacts
+  std::list<Contact> alphas(vcontacts.begin(), vcontacts.end());
   SortContactList(fna->key, &alphas);
+  alphas.resize(kAlpha);
+  node_->MarkAsAlpha(alphas, fna);
+
   node_->IterativeSearch(fna, false, false, &alphas);
   while (!done || !new_rpcs->AllAlphasBack(fna))
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -925,8 +934,8 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
 
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                    testing::_))
-      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
-          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+      .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
   FindNodesParams fnp1;
   fnp1.key = NodeId(NodeId::kRandomId);
@@ -954,6 +963,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
     winners.push_back(c);
     winners.push_back(vcontacts[a]);
   }
+  printf("\n\n\n");
 
   node_->FindNodes(fnp2);
   SortContactList(fnp2.key, &winners);
@@ -966,6 +976,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
   lset = std::set<Contact>(lcontacts.begin(), lcontacts.end());
   ASSERT_EQ(vset.size(), lset.size());
   ASSERT_TRUE(lset == vset);
+  printf("\n\n\n");
 
   lcontacts.clear();
   done = false;
@@ -1024,8 +1035,8 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
 
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                    testing::_))
-      .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(
-          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1))));
+      .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
 
   FindNodesParams fnp1;
   fnp1.key = NodeId(NodeId::kRandomId);
