@@ -196,13 +196,13 @@ void DataStore::DeleteExpiredValues() {
   up_limit = indx.lower_bound(now);
   down_limit = indx.upper_bound(0);
   indx.erase(down_limit, up_limit);
-}
+} */
 
-void DataStore::Clear() { // Not used
+void DataStore::Clear() {
   boost::mutex::scoped_lock guard(mutex_);
   key_value_index_.clear();
 }
-
+/*
 boost::int32_t DataStore::TimeToLive(const std::string &key,
                                      const std::string &value) { 
   boost::mutex::scoped_lock guard(mutex_);
