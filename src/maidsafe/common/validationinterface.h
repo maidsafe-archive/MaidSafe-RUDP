@@ -39,23 +39,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-namespace protobuf { class SignedValue; }
-
-class SignedValue {
- public:
-  SignedValue();
-  SignedValue(const protobuf::SignedValue &signed_value);
-  SignedValue(const std::string &value, const std::string &signature);
-  bool FromProtobuf(const protobuf::SignedValue &signed_value);
-  protobuf::SignedValue ToProtobuf() const;
-  std::string value() const;
-  std::string signature() const;
- private:
-  std::string value_;
-  std::string signature_;
-};
-
-
 /**
  * Base class used to secure values and messages with a private key.  Method
  * virtual int Secure() should be provided and should return 0 for success, and

@@ -25,45 +25,10 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <maidsafe/common/validation.pb.h>
 #include <maidsafe/common/validationinterface.h>
 #include "maidsafe/common/crypto.h"
 
 namespace maidsafe {
-
-SignedValue::SignedValue() : value_(), signature_() {}
-
-SignedValue::SignedValue(const protobuf::SignedValue &signed_value)
-    : value_(),
-      signature_() {
-  FromProtobuf(signed_value);
-}
-
-SignedValue::SignedValue(const std::string &value, const std::string &signature)
-    : value_(value),
-      signature_(signature) {}
-
-bool SignedValue::FromProtobuf(const protobuf::SignedValue &signed_value) {
-  if (signed_value.IsInitialized()) {
-    value_ = signed_value.value();
-    signature_ = signed_value.signature();
-    return true;
-  } else {
-    return false;
-  }
-}
-
-protobuf::SignedValue SignedValue::ToProtobuf() const {
-  protobuf::SignedValue signed_value;
-  signed_value.set_value(value_);
-  signed_value.set_signature(signature_);
-  return signed_value;
-}
-
-std::string SignedValue::value() const { return value_; }
-
-std::string SignedValue::signature() const { return signature_; }
-
 
 Securifier::Securifier(const std::string &id,
                        const std::string &public_key,
