@@ -34,6 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/maidsafe-dht_config.h"
 
+#include "maidsafe/kademlia/contact.h"
+
 namespace kademlia {
 
 class Contact;
@@ -72,7 +74,8 @@ class KBucket {
 
  private:
   boost::uint32_t last_accessed_;
-  std::list<Contact> contacts_;
+  //std::list<Contact> contacts_;
+  ContactsContainer contacts_;
   NodeId range_min_, range_max_;
   boost::uint16_t K_;
 };
