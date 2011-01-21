@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_COMMON_UTILS_H_
 #define MAIDSAFE_COMMON_UTILS_H_
 
+#include <boost/asio/ip/address.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "maidsafe/common/platform_config.h"
