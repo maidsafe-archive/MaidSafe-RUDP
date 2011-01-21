@@ -172,8 +172,7 @@ class Transport {
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
-                    const Timeout &timeout,
-                    bool close_on_response) = 0;
+                    const Timeout &timeout) = 0;
   /**
    * Getter for the listening port.
    * @return The port number or 0 if not listening.
