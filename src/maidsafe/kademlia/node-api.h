@@ -67,9 +67,9 @@ class Node {
   // listening_transport is responsible for listening only, not sending.  It
   // need not be listening before it is passed, it will be started in Join.
   //
-  // securifier is responsible for signing and encrypting messages and values.
-  // validator is responsible for verifying signatures and decryption.  If
-  // either are invalid pointers, basic instantiations will be made.
+  // default_securifier is responsible for signing, verification, encrypting and
+  // decrypting messages and values.  If it is an invalid pointers, a basic
+  // instantiations will be made.
   //
   // alternative_store can be used to augment / complement the native Kademlia
   // datastore of <key,values>.  If alternative_store is an invalid pointer, no
@@ -89,7 +89,6 @@ class Node {
   Node(IoServicePtr asio_service,
        TransportPtr listening_transport,
        SecurifierPtr default_securifier,
-       ValidatorPtr default_validator,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
        const boost::uint16_t &k,
@@ -160,6 +159,13 @@ class Node {
   // Find the contact details of a node.  If the node is not in this node's
   // routing table, a FindNode will be executed.
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
+
+  // Mark contact in routing table as having just been seen (i.e. contacted).
+  void SetLastSeenToNow(const Contact &contact);
+
+  // Mark contact in routing table as having failed to respond correctly to an
+  // RPC request.
+  void IncrementFailedRpcs(const Contact &contact);
 
   // Retrieve all contacts from the routing table.  No network operation is
   // executed.

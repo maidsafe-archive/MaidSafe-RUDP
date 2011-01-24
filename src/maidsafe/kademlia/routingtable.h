@@ -30,19 +30,34 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/shared_ptr.hpp>
 #include <boost/cstdint.hpp>
-#include <list>
+
 #include <map>
 #include <string>
 #include <vector>
 
+#include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 
 namespace maidsafe {
 
 namespace kademlia {
 
-class Contact;
 class KBucket;
+
+struct RoutingTableContact {
+  RoutingTableContact(const Contact &contact_in)
+      : contact(contact_in),
+        public_key(),
+        num_failed_rpcs(0),
+        last_seen(bptime::microsec_clock::universal_time()) {}
+  bool operator<(const RoutingTableContact &other) const {
+    return contact < other.contact;
+  }
+  Contact contact;
+  std::string public_key;
+  boost::uint16_t num_failed_rpcs;
+  bptime::ptime last_seen;
+};
 
 class RoutingTable {
  public:
@@ -99,7 +114,7 @@ class RoutingTable {
   // would normally be dropped if it is within the k closest contacts to the
   // holder's ID.
   int ForceKAcceptNewPeer(const Contact &new_contact);
-  std::vector< boost::shared_ptr<KBucket> > k_buckets_;
+  std::vector<std::shared_ptr<KBucket>> k_buckets_;
   // Mapping of each k-bucket's maximum address to its index in the vector of
   // k-buckets
   std::map<NodeId, boost::uint16_t> bucket_upper_address_;

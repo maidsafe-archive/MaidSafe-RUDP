@@ -28,10 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_MESSAGEHANDLER_H_
 #define MAIDSAFE_TRANSPORT_MESSAGEHANDLER_H_
 
-#include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
 
+#include <memory>
 #include <string>
 
 #include "maidsafe/transport/transport.h"
@@ -41,7 +41,12 @@ namespace bs2 = boost::signals2;
 namespace maidsafe {
 
 class Securifier;
-class Validator;
+
+typedef char SecurityType;
+const SecurityType kNone(0x0);
+const SecurityType kSign(0x1);
+const SecurityType kSignWithParameters(0x2);
+const SecurityType kAsymmetricEncrypt(0x4);
 
 namespace transport {
 
@@ -64,35 +69,33 @@ const int kMaxMessageType(1000);
 
 class MessageHandler {
  public:
-  typedef boost::shared_ptr< bs2::signal< void(
+  typedef std::shared_ptr<bs2::signal<void(
       const protobuf::ManagedEndpointMessage&,
-      protobuf::ManagedEndpointMessage*)> > ManagedEndpointMsgSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
+      protobuf::ManagedEndpointMessage*)>> ManagedEndpointMsgSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
       const protobuf::NatDetectionRequest&,
-      protobuf::NatDetectionResponse*)> > NatDetectionReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::NatDetectionResponse&)> > NatDetectionRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
+      protobuf::NatDetectionResponse*)>> NatDetectionReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::NatDetectionResponse&)>> NatDetectionRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
       const protobuf::ProxyConnectRequest&,
-      protobuf::ProxyConnectResponse*)> > ProxyConnectReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::ProxyConnectResponse&)> > ProxyConnectRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
+      protobuf::ProxyConnectResponse*)>> ProxyConnectReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::ProxyConnectResponse&)>> ProxyConnectRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
       const protobuf::ForwardRendezvousRequest&,
-      protobuf::ForwardRendezvousResponse*)> > ForwardRendezvousReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::ForwardRendezvousResponse&)> > ForwardRendezvousRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::RendezvousRequest&)> > RendezvousReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::RendezvousAcknowledgement&)> > RendezvousAckSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(int, const Info&)> >
+      protobuf::ForwardRendezvousResponse*)>> ForwardRendezvousReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::ForwardRendezvousResponse&)>> ForwardRendezvousRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::RendezvousRequest&)>> RendezvousReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::RendezvousAcknowledgement&)>> RendezvousAckSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(int, const Info&)>>
       MsgInfoSigPtr;
 
-  MessageHandler(boost::shared_ptr<Securifier> securifier,
-                 boost::shared_ptr<Validator> validator)
+  explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : securifier_(securifier),
-      validator_(validator),
       on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
@@ -151,19 +154,23 @@ class MessageHandler {
   MsgInfoSigPtr on_info() {
     return on_info_;
   }
+
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const std::string &message_signature,
                                         const Info &info,
-                                        std::string *response,
+                                        bool asymmetrical_encrypted,
+                                        std::string *message_response,
                                         Timeout *timeout);
   std::string MakeSerialisedWrapperMessage(const int &message_type,
-                                           const std::string &payload);
+                                           const std::string &payload,
+                                           SecurityType security_type);
+  std::shared_ptr<Securifier> securifier_;
+
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
-  boost::shared_ptr<Securifier> securifier_;
-  boost::shared_ptr<Validator> validator_;
   ManagedEndpointMsgSigPtr on_managed_endpoint_message_;
   NatDetectionReqSigPtr on_nat_detection_request_;
   NatDetectionRspSigPtr on_nat_detection_response_;

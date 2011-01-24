@@ -69,7 +69,6 @@ class Node::Impl {
   Impl(IoServicePtr asio_service,
        TransportPtr listening_transport,
        SecurifierPtr default_securifier,
-       ValidatorPtr default_validator,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
        const boost::uint16_t &k,
@@ -100,10 +99,12 @@ class Node::Impl {
               const boost::posix_time::seconds &ttl,
               UpdateFunctor callback);
   void FindValue(const Key &key,
-                 ValidatorPtr validator,
+                 SecurifierPtr securifier,
                  FindValueFunctor callback);
   void FindNodes(const Key &key, FindNodesFunctor callback);
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
+  void SetLastSeenToNow(const Contact &contact);
+  void IncrementFailedRpcs(const Contact &contact);
   void GetAllContacts(std::vector<Contact> *contacts);
   void GetBootstrapContacts(std::vector<Contact> *contacts);
   Contact contact() const;
@@ -126,7 +127,7 @@ class Node::Impl {
                     SearchMarking mark,
                     std::vector<Contact> *response_nodes);
   int NodesPending(std::shared_ptr<FindNodesArgs> find_nodes_args);
-  void MarkAsAlpha(const std::list<Contact> &contacts,
+  void MarkAsAlpha(const std::vector<Contact> &contacts,
                    boost::shared_ptr<FindNodesArgs> fna);
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<FindNodesArgs> find_nodes_args,
@@ -149,7 +150,6 @@ class Node::Impl {
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
-  ValidatorPtr default_validator_;
   AlternativeStorePtr alternative_store_;
   bool client_only_node_;
   const boost::uint16_t k_;

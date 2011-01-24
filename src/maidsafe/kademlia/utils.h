@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,46 +25,26 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <maidsafe/common/validationinterface.h>
-#include "maidsafe/common/crypto.h"
+#ifndef MAIDSAFE_KADEMLIA_UTILS_H_
+#define MAIDSAFE_KADEMLIA_UTILS_H_
 
 namespace maidsafe {
 
-Securifier::Securifier(const std::string &id,
-                       const std::string &public_key,
-                       const std::string &public_key_validation,
-                       const std::string &private_key)
-    : kId_(id),
-      kPublicKey_(public_key),
-      kPublicKeyValidation_(public_key_validation),
-      kPrivateKey_(private_key) {}
+namespace transport { struct Endpoint; }
 
-Securifier::~Securifier() {}
+namespace kademlia {
 
-void Securifier::SetData(const std::string &kademlia_key,
-                         const std::string &kademlia_value,
-                         const std::string &kademlia_updated_value,
-                         const std::string &recipient_id) {
-  kademlia_key_ = kademlia_key;
-  kademlia_value_ = kademlia_value;
-  kademlia_updated_value_ = kademlia_updated_value;
-  recipient_id_ = recipient_id;
-}
+class Contact;
+namespace protobuf { class Contact; }
 
-std::string Securifier::SignValue() const {
-  crypto::Crypto co;
-  return co.AsymSign(kademlia_value_, "", kPrivateKey_, crypto::STRING_STRING);
-}
+bool IsValid(const transport::Endpoint &endpoint);
 
-std::string Securifier::SignUpdatedValue() const {
-  crypto::Crypto co;
-  return co.AsymSign(kademlia_updated_value_, "", kPrivateKey_,
-                     crypto::STRING_STRING);
-}
+Contact FromProtobuf(const protobuf::Contact &protobuf_contact);
 
+protobuf::Contact ToProtobuf(const Contact &contact);
 
-Validator::Validator(const std::string &id) : kId_(id) {}
-
-Validator::~Validator() {}
+}  // namespace kademlia
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_KADEMLIA_UTILS_H_

@@ -38,20 +38,18 @@ Contact::Contact() : pimpl_(new Contact::Impl) {}
 
 Contact::Contact(const Contact &other) : pimpl_(new Contact::Impl(other)) {}
 
-Contact::Contact(const protobuf::Contact &contact)
-    : pimpl_(new Contact::Impl(contact)) {}
-
 Contact::Contact(const NodeId &node_id,
                  const transport::Endpoint &endpoint)
     : pimpl_(new Contact::Impl(node_id, endpoint)) {}
 
-bool Contact::FromProtobuf(const protobuf::Contact &contact) {
-  return pimpl_->FromProtobuf(contact);
-}
+Contact::Contact(const NodeId &node_id,
+                 const transport::Endpoint &endpoint,
+                 const transport::Endpoint &rendezvous_endpoint,
+                 std::vector<transport::Endpoint> &local_endpoints)
+    : pimpl_(new Contact::Impl(node_id, endpoint, rendezvous_endpoint,
+                               local_endpoints)) {}
 
-protobuf::Contact Contact::ToProtobuf() const {
-  return pimpl_->ToProtobuf();
-}
+Contact::~Contact() {}
 
 NodeId Contact::node_id() const {
   return pimpl_->node_id();
@@ -65,7 +63,7 @@ transport::Endpoint Contact::rendezvous_endpoint() const {
   return pimpl_->rendezvous_endpoint();
 }
 
-std::list<transport::Endpoint> Contact::local_endpoints() const {
+std::vector<transport::Endpoint> Contact::local_endpoints() const {
   return pimpl_->local_endpoints();
 }
 
@@ -75,22 +73,6 @@ bool Contact::SetPreferredEndpoint(const transport::IP &ip) {
 
 transport::Endpoint Contact::GetPreferredEndpoint() const {
   return pimpl_->GetPreferredEndpoint();
-}
-
-boost::uint16_t Contact::num_failed_rpcs() const {
-  return pimpl_->num_failed_rpcs();
-}
-
-void Contact::IncrementFailedRpcs() {
-  return pimpl_->IncrementFailedRpcs();
-}
-
-boost::uint64_t Contact::last_seen() const {
-  return pimpl_->last_seen();
-}
-
-void Contact::SetLastSeenToNow() {
-  return pimpl_->SetLastSeenToNow();
 }
 
 Contact& Contact::operator=(const Contact &other) {

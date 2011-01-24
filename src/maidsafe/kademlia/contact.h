@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <boost/scoped_ptr.hpp>
-#include <list>
+#include <vector>
 #include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
@@ -44,26 +44,23 @@ namespace maidsafe {
 namespace kademlia {
 
 class NodeId;
-namespace protobuf { class Contact; }
 
 class Contact {
  public:
   Contact();
   Contact(const Contact &other);
-  Contact(const protobuf::Contact &contact);
   Contact(const NodeId &node_id, const transport::Endpoint &endpoint);
-  bool FromProtobuf(const protobuf::Contact &contact);
-  protobuf::Contact ToProtobuf() const;
+  Contact(const NodeId &node_id,
+          const transport::Endpoint &endpoint,
+          const transport::Endpoint &rendezvous_endpoint,
+          std::vector<transport::Endpoint> &local_endpoints);
+  ~Contact();
   NodeId node_id() const;
   transport::Endpoint endpoint() const;
   transport::Endpoint rendezvous_endpoint() const;
-  std::list<transport::Endpoint> local_endpoints() const;
+  std::vector<transport::Endpoint> local_endpoints() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
-  boost::uint16_t num_failed_rpcs() const;
-  void IncrementFailedRpcs();
-  boost::uint64_t last_seen() const;
-  void SetLastSeenToNow();
   Contact& operator=(const Contact &other);
   bool operator<(const Contact &other) const;
   // Equality is based on node id or (IP and port) if dummy
