@@ -36,8 +36,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
+#include "maidsafe/kademlia/utils.h"
+#include "maidsafe/kademlia/messagehandler.h"
 #include "maidsafe/common/alternativestore.h"
-#include "maidsafe/common/validationinterface.h"
+#include "maidsafe/common/securifier.h"
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/common/crypto.h"
@@ -46,34 +48,46 @@ namespace maidsafe {
 
 namespace kademlia {
 
-Service::Service(boost::shared_ptr<RoutingTable> routing_table,
-                 boost::shared_ptr<DataStore> datastore,
-                 bool using_signatures)
+Service::Service(std::shared_ptr<RoutingTable> routing_table,
+                 std::shared_ptr<DataStore> datastore,
+                 AlternativeStorePtr alternative_store,
+                 SecurifierPtr securifier)
     : routing_table_(routing_table),
       datastore_(datastore),
+      alternative_store_(alternative_store),
+      securifier_(securifier),
       node_joined_(false),
-      using_signatures_(using_signatures),
-      node_contact_(),
-      alternative_store_(),
-      signature_validator_() {
+      node_contact_() {}
+
+void Service::ConnectToMessageHandler(
+    std::shared_ptr<MessageHandler> message_handler) {
   // Connect message handler to transport for incoming raw messages
-/*  transport_->on_message_received()->connect(boost::bind(
-      &MessageHandler::OnMessageReceived, message_handler_, _1, _2, _3, _4));
+//  transport_->on_message_received()->connect(boost::bind(
+//      &MessageHandler::OnMessageReceived, message_handler_, _1, _2, _3, _4));
   // Connect service to message handler for incoming parsed requests
-  message_handler_->on_ping_request()->connect(boost::bind(
-      &Service::Ping, this, _1, _2));
-  message_handler_->on_find_value_request()->connect(boost::bind(
-      &Service::FindValue, this, _1, _2));
-  message_handler_->on_find_nodes_request()->connect(boost::bind(
-      &Service::FindNodes, this, _1, _2));
-  message_handler_->on_store_request()->connect(boost::bind(
-      &Service::Store, this, _1, _2));
-  message_handler_->on_delete_request()->connect(boost::bind(
-      &Service::Delete, this, _1, _2));
-  message_handler_->on_update_request()->connect(boost::bind(
-      &Service::Update, this, _1, _2));
-  message_handler_->on_downlist_request()->connect(boost::bind(
-      &Service::Downlist, this, _1, _2)); */
+  message_handler->on_ping_request()->connect(
+      MessageHandler::PingReqSigPtr::element_type::slot_type(
+          &Service::Ping, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_find_value_request()->connect(
+      MessageHandler::FindValueReqSigPtr::element_type::slot_type(
+          &Service::FindValue, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_find_nodes_request()->connect(
+      MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
+          &Service::FindNodes, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_store_request()->connect(
+      MessageHandler::StoreReqSigPtr::element_type::slot_type(
+          &Service::Store, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_delete_request()->connect(
+      MessageHandler::DeleteReqSigPtr::element_type::slot_type(
+          &Service::Delete, this, _1, _2, _3, _4, _5).track(
+              shared_from_this()));
+  message_handler->on_update_request()->connect(
+      MessageHandler::UpdateReqSigPtr::element_type::slot_type(
+          &Service::Update, this, _1, _2, _3, _4, _5).track(
+              shared_from_this()));
+  message_handler->on_downlist_notification()->connect(
+      MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
+          &Service::Downlist, this, _1, _2).track(shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
@@ -81,7 +95,7 @@ void Service::Ping(const transport::Info &info,
                    protobuf::PingResponse *response) {
   response->set_echo("pong");
   response->set_result(true);
-  routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+  routing_table_->AddContact(FromProtobuf(request.sender()), info);
 }
 
 void Service::FindValue(const transport::Info &info,
@@ -134,7 +148,7 @@ void Service::FindNodes(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-  Contact sender(request.sender());
+  Contact sender(FromProtobuf(request.sender()));
   std::vector<Contact> closest_contacts, exclude_contacts;
   NodeId key(request.key());
 
@@ -206,6 +220,8 @@ void Service::Store(const transport::Info &info,
 
 void Service::Delete(const transport::Info &info,
                      const protobuf::DeleteRequest &request,
+                     const std::string &message,
+                     const std::string &message_signature,
                      protobuf::DeleteResponse *response) {
   response->set_result(false);
   if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)
@@ -243,6 +259,8 @@ void Service::Delete(const transport::Info &info,
 
 void Service::Update(const transport::Info &info,
                      const protobuf::UpdateRequest &request,
+                     const std::string &message,
+                     const std::string &message_signature,
                      protobuf::UpdateResponse *response) {
   response->set_result(false);
   if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)

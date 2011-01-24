@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_CONTACT_IMPL_H_
 
 #include <boost/cstdint.hpp>
-#include <list>
+#include <vector>
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/transport/transport.h"
@@ -44,30 +44,25 @@ namespace maidsafe {
 
 namespace kademlia {
 
-namespace protobuf { class Contact; }
-
 class Contact::Impl {
  public:
   Impl();
   Impl(const Contact &other);
-  Impl(const protobuf::Contact &contact);
   Impl(const NodeId &node_id, const transport::Endpoint &endpoint);
-  bool FromProtobuf(const protobuf::Contact &contact);
-  protobuf::Contact ToProtobuf() const;
+  Impl(const NodeId &node_id,
+       const transport::Endpoint &endpoint,
+       const transport::Endpoint &rendezvous_endpoint,
+       std::vector<transport::Endpoint> &local_endpoints);
   NodeId node_id() const { return node_id_; }
   transport::Endpoint endpoint() const { return endpoint_; }
   transport::Endpoint rendezvous_endpoint() const {
     return rendezvous_endpoint_;
   }
-  std::list<transport::Endpoint> local_endpoints() const {
+  std::vector<transport::Endpoint> local_endpoints() const {
     return local_endpoints_;
   }
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
-  boost::uint16_t num_failed_rpcs() const { return num_failed_rpcs_; }
-  void IncrementFailedRpcs() { ++num_failed_rpcs_; }
-  boost::uint64_t last_seen() const { return last_seen_; }
-  void SetLastSeenToNow();
   Impl& operator=(const Impl &other);
   bool operator<(const Impl &other) const;
   bool operator==(const Impl &other) const;
@@ -76,9 +71,7 @@ class Contact::Impl {
                          const transport::Endpoint &endpoint);
   NodeId node_id_;
   transport::Endpoint endpoint_, rendezvous_endpoint_;
-  std::list<transport::Endpoint> local_endpoints_;
-  boost::uint16_t num_failed_rpcs_;
-  boost::uint64_t last_seen_;
+  std::vector<transport::Endpoint> local_endpoints_;
   bool prefer_local_;
 };
 

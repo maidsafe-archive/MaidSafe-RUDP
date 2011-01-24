@@ -29,26 +29,26 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_KADEMLIA_SERVICE_H_
 
 #include <boost/cstdint.hpp>
-#include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
 
+#include <memory>
 #include <string>
 #include <vector>
 
-// #include "maidsafe/kademlia/config.h"
+#include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
 
 namespace maidsafe {
-
-class SignatureValidator;
-class AlternativeStore;
 
 namespace kademlia {
 
 class DataStore;
 class RoutingTable;
+class MessageHandler;
 
 namespace protobuf {
+class SignedValue;
 class PingRequest;
 class PingResponse;
 class FindValueRequest;
@@ -66,11 +66,13 @@ class DownlistNotification;
 
 namespace test_service { class ServicesTest_BEH_KAD_UpdateValue_Test; }
 
-class Service {
+class Service : public boost::enable_shared_from_this<Service> {
  public:
-  Service(boost::shared_ptr<RoutingTable> routing_table,
-          boost::shared_ptr<DataStore> datastore,
-          bool using_signatures);
+  Service(std::shared_ptr<RoutingTable> routing_table,
+          std::shared_ptr<DataStore> datastore,
+          AlternativeStorePtr alternative_store,
+          SecurifierPtr securifier);
+  void ConnectToMessageHandler(std::shared_ptr<MessageHandler> message_handler);
   void Ping(const transport::Info &info,
             const protobuf::PingRequest &request,
             protobuf::PingResponse *response);
@@ -85,22 +87,19 @@ class Service {
              protobuf::StoreResponse *response);
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
+              const std::string &message,
+              const std::string &message_signature,
               protobuf::DeleteResponse *response);
   void Update(const transport::Info &info,
               const protobuf::UpdateRequest &request,
+              const std::string &message,
+              const std::string &message_signature,
               protobuf::UpdateResponse *response);
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
   void set_node_joined(bool joined) { node_joined_ = joined; }
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
-  void set_alternative_store(
-      boost::shared_ptr<AlternativeStore> alternative_store) {
-    alternative_store_ = alternative_store;
-  }
-  void set_signature_validator(
-      boost::shared_ptr<SignatureValidator> signature_validator) {
-    signature_validator_ = signature_validator;
-  }
+  void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
  private:
   friend class test_service::ServicesTest_BEH_KAD_UpdateValue_Test;
   Service(const Service&);
@@ -120,12 +119,12 @@ class Service {
   bool CanStoreSignedValueHashable(const std::string &key,
                                    const protobuf::SignedValue &signed_value,
                                    bool *hashable);
-  boost::shared_ptr<RoutingTable> routing_table_;
-  boost::shared_ptr<DataStore> datastore_;
-  bool node_joined_, using_signatures_;
+  std::shared_ptr<RoutingTable> routing_table_;
+  std::shared_ptr<DataStore> datastore_;
+  AlternativeStorePtr alternative_store_;
+  SecurifierPtr securifier_;
+  bool node_joined_;
   Contact node_contact_;
-  boost::shared_ptr<AlternativeStore> alternative_store_;
-  boost::shared_ptr<SignatureValidator> signature_validator_;
 };
 
 }  // namespace kademlia

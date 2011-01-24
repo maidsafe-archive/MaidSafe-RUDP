@@ -105,12 +105,14 @@ enum NatType { kManualPortMapped,  // behind manually port-mapped router.
 
 struct Endpoint {
   Endpoint() : ip(), port(0) {}
-  Endpoint(const IP &ip, const Port &port) : ip(ip), port(port) {}
-  Endpoint(const std::string &ip_as_string, const Port &port)
+  Endpoint(const IP &ip_in, const Port &port_in) : ip(ip_in), port(port_in) {}
+  Endpoint(const std::string &ip_as_string, const Port &port_in)
       : ip(),
-        port(port) {
+        port(port_in) {
     boost::system::error_code ec;
     ip = IP::from_string(ip_as_string, ec);
+    if (ec)
+      port = 0;
   }
   IP ip;
   Port port;

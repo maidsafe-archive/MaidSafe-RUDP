@@ -41,7 +41,6 @@ namespace maidsafe {
 
 class AlternativeStore;
 class Securifier;
-class Validator;
 
 
 namespace transport {
@@ -91,7 +90,6 @@ typedef boost::uint16_t Port;
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
 typedef std::shared_ptr<Securifier> SecurifierPtr;
-typedef std::shared_ptr<Validator> ValidatorPtr;
 typedef std::shared_ptr<AlternativeStore> AlternativeStorePtr;
 
 
@@ -114,11 +112,8 @@ const double kMinSuccessfulPecentageDelete = 0.75;
 const double kMinSuccessfulPecentageUpdate = 0.75;
 
 // The number of failed RPCs tolerated before a contact is removed from the
-// k-bucket.
+// routing table.
 const boost::uint16_t kFailedRpcTolerance = 0;
-
-// The maximum number of bootstrap contacts allowed in the .kadconfig file.
-const boost::uint32_t kMaxBootstrapContacts = 10000;
 
 // Signature used to sign anonymous RPC requests.
 const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');

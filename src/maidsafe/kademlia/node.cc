@@ -98,6 +98,14 @@ void Node::GetContact(const NodeId &node_id, GetContactFunctor callback) {
   pimpl_->GetContact(node_id, callback);
 }
 
+void Node::SetLastSeenToNow(const Contact &contact) {
+  pimpl_->SetLastSeenToNow(contact);
+}
+
+void IncrementFailedRpcs(const Contact &contact) {
+  pimpl_->IncrementFailedRpcs(contact);
+}
+
 void Node::GetAllContacts(std::vector<Contact> *contacts) {
   pimpl_->GetAllContacts(contacts);
 }
