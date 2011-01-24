@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <vector>
 
+namespace maidsafe {
+
 namespace transport {
 /*
 class TcpTransport : public Transport {
@@ -94,5 +96,7 @@ class TcpTransport : public Transport {
 };
 */
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_

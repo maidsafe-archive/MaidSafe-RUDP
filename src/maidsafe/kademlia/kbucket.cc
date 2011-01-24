@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/foreach.hpp>
 
+namespace maidsafe {
+
 namespace kademlia {
 
 KBucket::KBucket(const NodeId &min, const NodeId &max,
@@ -82,6 +84,7 @@ void KBucket::RemoveContact(const NodeId &node_id, const bool &force) {
     Contact current_element = *it;
     current_element.IncreaseFailedRpcs();
     contacts_.erase(it);
+
     /* this part shall be enabled once kFailedRpcTolerance and SetLastSeenToNow is supported
     if (current_element.num_failed_rpcs() <= kFailedRpcTolerance && !force) {
       current_element.SetLastSeenToNow();
@@ -138,3 +141,5 @@ Contact KBucket::LastSeenContact() {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

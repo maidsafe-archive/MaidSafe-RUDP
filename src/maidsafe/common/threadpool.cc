@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2009 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,8 +25,34 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef HAVE_GLOG
-#include "maidsafe/base/log.h"
-bool NoGlog::logtostderr = true;
-int NoGlog::minloglevel = 0;
-#endif
+#include "maidsafe/common/threadpool.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
+
+Threadpool::Threadpool(const boost::uint8_t &poolsize)
+    : io_service_(), work_(), thread_group_() {
+  // add work to prevent io_service completing
+  work_.reset(new boost::asio::io_service::work(io_service_));
+  for (boost::uint8_t i = 0; i < poolsize; ++i)
+    thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
+                                            &io_service_));
+}
+
+Threadpool::~Threadpool() {
+  work_.reset();  // stop all new jobs
+  thread_group_.join_all();  // wait on current threads completing
+}
+
+bool Threadpool::EnqueueTask(const VoidFunctor &functor) {
+  try {
+    io_service_.post(functor);
+    return true;
+  }
+  catch(const std::exception &e) {
+    DLOG(ERROR) << "Cannot post job to pool: " << e.what() << std::endl;
+    return false;
+  }
+}
+
+}  // namespace maidsafe

@@ -31,10 +31,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <cstdlib>
-#include "maidsafe/base/crypto.h"
+#include "maidsafe/common/crypto.h"
 #include "maidsafe/maidsafe-dht.h"
 
 namespace fs = boost::filesystem;
+
+namespace maidsafe {
 
 namespace crypto {
 
@@ -48,8 +50,8 @@ TEST(CryptoTest, BEH_BASE_Obfuscation) {
   EXPECT_TRUE(test_crypto.Obfuscate("A", "B",
               static_cast<crypto::ObfuscationType>(999)).empty());
   const size_t kStringSize(1024);
-  std::string str1 = base::RandomString(kStringSize);
-  std::string str2 = base::RandomString(kStringSize);
+  std::string str1 = RandomString(kStringSize);
+  std::string str2 = RandomString(kStringSize);
   std::string obfuscated = test_crypto.Obfuscate(str1, str2, XOR);
   EXPECT_EQ(kStringSize, obfuscated.size());
   EXPECT_EQ(obfuscated, test_crypto.Obfuscate(str2, str1, XOR));
@@ -69,20 +71,20 @@ TEST(CryptoTest, BEH_BASE_SecurePasswordGeneration) {
   EXPECT_TRUE(test_crypto.SecurePassword("", "salt", 100).empty());
   EXPECT_TRUE(test_crypto.SecurePassword("password", "", 100).empty());
   EXPECT_TRUE(test_crypto.SecurePassword("password", "salt", 0).empty());
-  const std::string kKnownPassword1(base::DecodeFromHex("70617373776f7264"));
-  const std::string kKnownSalt1(base::DecodeFromHex("1234567878563412"));
+  const std::string kKnownPassword1(DecodeFromHex("70617373776f7264"));
+  const std::string kKnownSalt1(DecodeFromHex("1234567878563412"));
   const boost::uint32_t kKnownIterations1(5);
-  const std::string kKnownDerived1(base::DecodeFromHex("0a89927670e292af98080a3"
+  const std::string kKnownDerived1(DecodeFromHex("0a89927670e292af98080a3"
       "c3e2bdee4289b768de74570f9f470282756390fe36de6da2cbc407f4ecf6a9f62ef6249c"
       "c"));
   EXPECT_EQ(kKnownDerived1, test_crypto.SecurePassword(kKnownPassword1,
             kKnownSalt1, kKnownIterations1));
-  const std::string kKnownPassword2(base::DecodeFromHex("416c6c206e2d656e746974"
+  const std::string kKnownPassword2(DecodeFromHex("416c6c206e2d656e746974"
       "696573206d75737420636f6d6d756e69636174652077697468206f74686572206e2d656e"
       "74697469657320766961206e2d3120656e746974656568656568656573"));
-  const std::string kKnownSalt2(base::DecodeFromHex("1234567878563412"));
+  const std::string kKnownSalt2(DecodeFromHex("1234567878563412"));
   const boost::uint32_t kKnownIterations2(500);
-  const std::string kKnownDerived2(base::DecodeFromHex("ecae5ed132d15bac4c67cc5"
+  const std::string kKnownDerived2(DecodeFromHex("ecae5ed132d15bac4c67cc5"
       "de7c4a5559ca448334bdf9dc8f2b9aa86a363ddaaf7b431a8456e51582508c74405dba27"
       "9"));
   EXPECT_EQ(kKnownDerived2, test_crypto.SecurePassword(kKnownPassword2,
@@ -100,10 +102,10 @@ struct HashTestData {
         SHA256_hex_result(SHA256_hex_res),
         SHA384_hex_result(SHA384_hex_res),
         SHA512_hex_result(SHA512_hex_res),
-        SHA1_raw_result(base::DecodeFromHex(SHA1_hex_res)),
-        SHA256_raw_result(base::DecodeFromHex(SHA256_hex_res)),
-        SHA384_raw_result(base::DecodeFromHex(SHA384_hex_res)),
-        SHA512_raw_result(base::DecodeFromHex(SHA512_hex_res)) {}
+        SHA1_raw_result(DecodeFromHex(SHA1_hex_res)),
+        SHA256_raw_result(DecodeFromHex(SHA256_hex_res)),
+        SHA384_raw_result(DecodeFromHex(SHA384_hex_res)),
+        SHA512_raw_result(DecodeFromHex(SHA512_hex_res)) {}
   std::string input;
   std::string SHA1_hex_result;
   std::string SHA256_hex_result;
@@ -158,7 +160,7 @@ TEST(CryptoTest, BEH_BASE_Hash) {
 
   // Set up temp test dir and files
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(base::RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -285,8 +287,8 @@ testing::AssertionResult ValidateOutputFile(
 std::string CorruptData(const std::string &input) {
   // Replace a single char of input to a different random char.
   std::string output(input);
-  output.at(base::RandomUint32() % input.size()) +=
-      (base::RandomUint32() % 254) + 1;
+  output.at(RandomUint32() % input.size()) +=
+      (RandomUint32() % 254) + 1;
   return output;
 }
 
@@ -310,18 +312,18 @@ bool WriteFile(const fs::path &file, const std::string &content) {
 
 TEST(CryptoTest, BEH_BASE_SymmEncrypt) {
   // Set up data, temp test dir and files
-  const std::string kKeyAndIv(base::DecodeFromHex("0a89927670e292af98080a3c3e2b"
+  const std::string kKeyAndIv(DecodeFromHex("0a89927670e292af98080a3c3e2b"
       "dee4289b768de74570f9f470282756390fe392af98080a3c3e2bdee4289b768de7af"));
-  const std::string kUnencrypted(base::DecodeFromHex("8b4a84c8f409d8c8b4a8e70f4"
+  const std::string kUnencrypted(DecodeFromHex("8b4a84c8f409d8c8b4a8e70f4"
       "9867c63661f2b31d6e4c984a6a01b2r15e48a47bc46af231d2b146e54a87db43f51c2a"
       "5"));
-  const std::string kEncrypted(base::DecodeFromHex("441f907b71a14c2f482c4d1fef6"
+  const std::string kEncrypted(DecodeFromHex("441f907b71a14c2f482c4d1fef6"
       "1f3d7ffc0f14953f4f575601803feed5d10a3387c273f9a92b2ceb4d9236167d707"));
   const std::string kBadKeyAndIv(CorruptData(kKeyAndIv));
   const std::string kBadUnencrypted(CorruptData(kUnencrypted));
   const std::string kBadEncrypted(CorruptData(kEncrypted));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(base::RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -567,12 +569,12 @@ TEST(CryptoTest, BEH_BASE_AsymEncrypt) {
   const std::string kAnotherPrivateKey(rsakp.private_key());
   ASSERT_NE(kPrivateKey, kAnotherPrivateKey);
   Crypto test_crypto;
-  const std::string kUnencrypted(base::RandomString(470));
+  const std::string kUnencrypted(RandomString(470));
   const std::string kBadPublicKey(kPublicKey.substr(0, kPublicKey.size() - 1));
   const std::string kBadPrivateKey(
       kPrivateKey.substr(0, kPrivateKey.size() - 1));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(base::RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -811,12 +813,12 @@ TEST(CryptoTest, BEH_BASE_AsymSign) {
   ASSERT_NE(kPublicKey, kAnotherPublicKey);
   ASSERT_NE(kPrivateKey, kAnotherPrivateKey);
   Crypto test_crypto;
-  const std::string kTestData(base::RandomString(99999));
+  const std::string kTestData(RandomString(99999));
   const std::string kBadPublicKey(kPublicKey.substr(0, kPublicKey.size() - 1));
   const std::string kBadPrivateKey(
       kPrivateKey.substr(0, kPrivateKey.size() - 1));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(base::RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -906,11 +908,11 @@ TEST(CryptoTest, BEH_BASE_Compress) {
   const size_t kTolerance(kTestDataSize * 0.005);
   std::string initial_data(kTestDataSize, 'A');
   initial_data.replace(0, kTestDataSize / 2,
-                       base::RandomString(kTestDataSize / 2));
+                       RandomString(kTestDataSize / 2));
   std::random_shuffle(initial_data.begin(), initial_data.end());
   const std::string kTestData(initial_data);
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(base::RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -1003,7 +1005,7 @@ TEST(CryptoTest, BEH_BASE_Compress) {
 
   // Try to compress and uncompress with invalid operation type
   OperationType invalid_type(static_cast<OperationType>(999));
-  boost::uint16_t level(base::RandomUint32() % (kMaxCompressionLevel + 1));
+  boost::uint16_t level(RandomUint32() % (kMaxCompressionLevel + 1));
   EXPECT_TRUE(test_crypto.Compress(kTestData, "", level, invalid_type).empty());
   EXPECT_TRUE(test_crypto.Uncompress(kTestData, "", invalid_type).empty());
 
@@ -1028,10 +1030,10 @@ TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
   RsaKeyPair rsakp;
   EXPECT_TRUE(rsakp.public_key().empty());
   EXPECT_TRUE(rsakp.private_key().empty());
-  std::string public_key = base::RandomString(100);
+  std::string public_key = RandomString(100);
   rsakp.set_public_key(public_key);
   EXPECT_EQ(rsakp.public_key(), public_key);
-  std::string private_key = base::RandomString(100);
+  std::string private_key = RandomString(100);
   rsakp.set_private_key(private_key);
   EXPECT_EQ(rsakp.private_key(), private_key);
 
@@ -1045,7 +1047,7 @@ TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
   EXPECT_FALSE(private_key.empty());
 
   // Use the first keys to encrypt and decrypt data
-  const std::string kUnencrypted(base::RandomString(400));
+  const std::string kUnencrypted(RandomString(400));
   Crypto test_crypto;
   std::string encrypted(test_crypto.AsymEncrypt(kUnencrypted, "", public_key,
                                                 STRING_STRING));
@@ -1078,3 +1080,5 @@ TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
 }  // namespace test
 
 }  // namespace crypto
+
+}  // namespace maidsafe

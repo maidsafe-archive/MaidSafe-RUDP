@@ -28,8 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_UPNP_MINIUPNPCLIENTIMPL_H_
 #define MAIDSAFE_UPNP_MINIUPNPCLIENTIMPL_H_
 
-// #define VERBOSE_DEBUG
-
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <string>
@@ -37,7 +35,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include "maidsafe/upnp/upnpcfg.h"
 #include "maidsafe/libupnp/miniupnpc.h"
-#include "maidsafe/base/calllatertimer.h"
+#include "maidsafe/common/calllatertimer.h"
+
+namespace maidsafe {
 
 namespace upnp {
 
@@ -88,9 +88,11 @@ class UpnpIgdClientImpl {
   UPNPUrls upnp_urls_;
   IGDdatas igd_data_;
   std::list<PortMapping> port_mappings_;
-  base::CallLaterTimer timer_;
+  CallLaterTimer timer_;
 };
 
 }  // namespace upnp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_UPNP_MINIUPNPCLIENTIMPL_H_

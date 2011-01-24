@@ -32,13 +32,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
+
+namespace maidsafe {
 
 #include "maidsafe/kademlia/contact.h"
 
 namespace kademlia {
 
 class Contact;
+
+enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
 class KBucket {
  public:
@@ -81,5 +85,7 @@ class KBucket {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_KBUCKET_H_

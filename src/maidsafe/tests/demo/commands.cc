@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/node-api.h"
 
+namespace maidsafe {
 
 namespace kaddemo {
 
@@ -434,3 +435,5 @@ void Commands::PrintRpcTimings() {
 }
 
 }  // namespace kaddemo
+
+}  // namespace maidsafe

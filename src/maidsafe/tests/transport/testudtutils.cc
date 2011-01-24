@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/udtconnection.h"
 
+namespace maidsafe {
 
 namespace transport {
 
@@ -106,4 +107,7 @@ TEST_F(UdtConnectionTest, BEH_TRANS_UdtConnConstructors) {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe
+
 */

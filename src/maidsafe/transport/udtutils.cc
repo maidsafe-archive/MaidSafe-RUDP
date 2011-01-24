@@ -29,7 +29,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/udtutils.h"
 #include <boost/lexical_cast.hpp>
 #include <string>
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -95,7 +97,7 @@ TransportCondition GetNewSocket(
   }
 
   // Windows UDP problems fix
-#ifdef WIN32
+#ifdef MAIDSAFE_WIN32
   int mtu(1052);
   UDT::setsockopt(*socket_id, 0, UDT_MSS, &mtu, sizeof(mtu));
 #endif
@@ -137,3 +139,5 @@ TransportCondition SetSyncMode(const SocketId &socket_id, bool synchronous) {
 }  // namespace udtutils
 
 }  // namespace transport
+
+}  // namespace maidsafe

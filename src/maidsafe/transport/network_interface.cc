@@ -29,7 +29,7 @@ Created by Julian Cain on 11/3/09.
 */
 
 #include "maidsafe/transport/network_interface.h"
-#include "maidsafe/maidsafe-dht_config.h"  // NOLINT (Fraser) - This is needed
+#include "maidsafe/common/platform_config.h"  // NOLINT (Fraser) - This is needed
                                            // for preprocessor definitions
 
 #if !defined (MAIDSAFE_WIN32)
@@ -42,6 +42,8 @@ Created by Julian Cain on 11/3/09.
 #include <errno.h>
 #include <netdb.h>
 #endif
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -283,3 +285,5 @@ std::vector<NetworkInterface> NetworkInterface::LocalList(
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

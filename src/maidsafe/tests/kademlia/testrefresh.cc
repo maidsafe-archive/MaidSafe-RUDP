@@ -30,14 +30,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -49,7 +51,7 @@ class TestRefresh : public testing::Test {
   TestRefresh() : transports_(), ch_managers_(), nodes_(), datadirs_(),
                   test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
                   testNetworkSize_(10), transport_ports_() {
-    test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
+    test_dir_ += boost::lexical_cast<std::string>(RandomUint32());
   }
 
   ~TestRefresh() { transport::UdtTransport::CleanUp(); }
@@ -96,7 +98,7 @@ class TestRefresh : public testing::Test {
 
     GeneralKadCallback callback;
     boost::asio::ip::address local_ip;
-    ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+    ASSERT_TRUE(GetLocalAddress(&local_ip));
     DLOG(INFO) << "starting node 0" << std::endl;
     nodes_[0]->JoinFirstNode(datadirs_[0] + "/.kadconfig", local_ip.to_string(),
                              transport_ports_[0],
@@ -110,8 +112,8 @@ class TestRefresh : public testing::Test {
     for (boost::int16_t i = 1; i < testNetworkSize_; ++i) {
       DLOG(INFO) << "starting node " <<  i << std::endl;
       std::string kconfig_file1 = datadirs_[i] + "/.kadconfig";
-      base::KadConfig kad_config1;
-      base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+      KadConfig kad_config1;
+      KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
             nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
       kad_contact->set_ip(nodes_[0]->ip());
@@ -171,7 +173,7 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(1024*5);
+  std::string value = RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
@@ -212,7 +214,7 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(1024*5);
+  std::string value = RandomString(1024*5);
   StoreValueCallback store_cb;
   nodes_[4]->StoreValue(key, value, 24*3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
@@ -260,8 +262,8 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   Node node(chm, trans, kcp);
 
   std::string kconfig_file1(local_dir + "/.kadconfig");
-  base::KadConfig kad_config1;
-  base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+  KadConfig kad_config1;
+  KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
@@ -300,7 +302,7 @@ class TestRefreshSignedValues : public testing::Test {
       : transports_(), ch_managers_(), nodes_(), datadirs_(), keys_(),
         test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
         testNetworkSize_(10), validators_(), transport_ports_() {
-    test_dir_ += boost::lexical_cast<std::string>(base::RandomUint32());
+    test_dir_ += boost::lexical_cast<std::string>(RandomUint32());
   }
 
   ~TestRefreshSignedValues() {
@@ -360,7 +362,7 @@ class TestRefreshSignedValues : public testing::Test {
     DLOG(INFO) << "starting node 0 - port(" << transport_ports_[0] << ")"
               << std::endl;
     boost::asio::ip::address local_ip;
-    ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+    ASSERT_TRUE(GetLocalAddress(&local_ip));
     nodes_[0]->JoinFirstNode(datadirs_[0] + "/.kadconfig", local_ip.to_string(),
                              transport_ports_[0],
                              boost::bind(&GeneralKadCallback::CallbackFunc,
@@ -373,8 +375,8 @@ class TestRefreshSignedValues : public testing::Test {
       DLOG(INFO) << "starting node " << i << " - port(" << transport_ports_[i]
                 << ")" << std::endl;
       std::string kconfig_file1 = datadirs_[i] + "/.kadconfig";
-      base::KadConfig kad_config1;
-      base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+      KadConfig kad_config1;
+      KadConfig::Contact *kad_contact = kad_config1.add_contact();
       kad_contact->set_node_id(
             nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
       kad_contact->set_ip(nodes_[0]->ip());
@@ -427,7 +429,7 @@ class TestRefreshSignedValues : public testing::Test {
   boost::uint16_t testK_;
   boost::uint32_t testRefresh_;
   boost::int16_t testNetworkSize_;
-  std::vector<base::TestValidator> validators_;
+  std::vector<TestValidator> validators_;
   std::vector<transport::Port> transport_ports_;
 };
 
@@ -436,25 +438,14 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(1024*5);
+  std::string value = RandomString(1024*5);
   StoreValueCallback store_cb;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(keys_[4].first, "", keys_[4].second,
-                                  crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(keys_[4].first + signed_public_key +
-                                       key.String(), "",
-                                       crypto::STRING_STRING, true),
-                               "", keys_[4].second, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", keys_[4].second,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(keys_[4].first);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  std::string public_key_validation, request_signature;
+
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -497,25 +488,16 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(1024 * 5);
+  std::string value = RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
-                                       "", crypto::STRING_STRING, true),
-                               "", priv_key, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(pub_key);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  std::string public_key_validation, request_signature;
+
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -567,8 +549,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   Node node(chm, trans, kcp);
 
   std::string kconfig_file1 = local_dir + "/.kadconfig";
-  base::KadConfig kad_config1;
-  base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+  KadConfig kad_config1;
+  KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
@@ -580,7 +562,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   output1.close();
   GeneralKadCallback callback;
   // joining node with id == key of value stored
-  base::TestValidator validator;
+  TestValidator validator;
   node.set_signature_validator(&validator);
   node.Join(key, kconfig_file1,
             boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
@@ -614,25 +596,15 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
   kademlia::NodeId key(co.Hash("key", "", crypto::STRING_STRING, false));
-  std::string value = base::RandomString(1024 * 5);
+  std::string value = RandomString(1024 * 5);
   StoreValueCallback store_cb;
   std::string pub_key = keys_[4].first;
   std::string priv_key = keys_[4].second;
-  std::string signed_public_key, signed_request;
-  signed_public_key = co.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  signed_request = co.AsymSign(co.Hash(pub_key+signed_public_key+key.String(),
-                                       "", crypto::STRING_STRING, true),
-                               "", priv_key, crypto::STRING_STRING);
-  kademlia::SignedValue sig_value;
-  sig_value.set_value(value);
-  sig_value.set_value_signature(co.AsymSign(value, "", priv_key,
-                                            crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value.SerializeAsString();
-  kademlia::SignedRequest req;
-  req.set_signer_id(nodes_[4]->node_id().String());
-  req.set_public_key(pub_key);
-  req.set_signed_public_key(signed_public_key);
-  req.set_signed_request(signed_request);
+  std::string public_key_validation, request_signature;
+
+  Validifier signer; (use keys_[4])
+
+
   nodes_[4]->StoreValue(key, sig_value, req, 24 * 3600,
                         boost::bind(&StoreValueCallback::CallbackFunc,
                                     &store_cb, _1));
@@ -665,8 +637,8 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   Node node(chm, trans, kcp);
 
   std::string kconfig_file1 = local_dir + "/.kadconfig";
-  base::KadConfig kad_config1;
-  base::KadConfig::Contact *kad_contact = kad_config1.add_contact();
+  KadConfig kad_config1;
+  KadConfig::Contact *kad_contact = kad_config1.add_contact();
   kad_contact->set_node_id(nodes_[0]->node_id().ToStringEncoded(NodeId::kHex));
   kad_contact->set_ip(nodes_[0]->ip());
   kad_contact->set_port(nodes_[0]->port());
@@ -678,7 +650,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
   output1.close();
   GeneralKadCallback callback;
   // joining node with id == key of value stored
-  base::TestValidator validator;
+  TestValidator validator;
   node.set_signature_validator(&validator);
   node.Join(key, kconfig_file1,
             boost::bind(&GeneralKadCallback::CallbackFunc, &callback, _1));
@@ -759,3 +731,5 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
 }  // namespace refresh_test
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

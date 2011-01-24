@@ -28,23 +28,35 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_MAIDSAFE_DHT_H_
 #define MAIDSAFE_MAIDSAFE_DHT_H_
 
-// Configuration file
-#include <maidsafe/maidsafe-dht_config.h>
+#include "maidsafe/common/version.h"
+#include "maidsafe/common/platform_config.h"
 
-// API files
+#include <maidsafe/kademlia/contact.h>
+
+
+
+
+
+
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/kademlia/node-api.h>
 
-// General files
-#include <maidsafe/base/alternativestore.h>
-#include <maidsafe/base/crypto.h>
-#include <maidsafe/base/log.h>
-#include <maidsafe/base/online.h>
-#include <maidsafe/base/routingtable.h>
-#include <maidsafe/base/utils.h>
-#include <maidsafe/base/validationinterface.h>
-#include <maidsafe/kademlia/contact.h>
+#include <maidsafe/common/alternativestore.h>
+#include <maidsafe/common/crypto.h>
+#include <maidsafe/common/log.h>
+#include <maidsafe/common/online.h>
+#include <maidsafe/common/routingtable.h>
+#include <maidsafe/common/utils.h>
 #include <maidsafe/kademlia/nodeid.h>
 #include <maidsafe/transport/udttransport.h>
+
+
+
+
+
+#include <maidsafe/kademlia/config.h>
+
+#include <maidsafe/common/base.pb.h>
+#include <maidsafe/common/validationinterface.h>
 
 #endif  // MAIDSAFE_MAIDSAFE_DHT_H_

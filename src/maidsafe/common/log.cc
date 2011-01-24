@@ -25,19 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/tcptransport.h"
-#include "maidsafe/tests/transport/transportapitest.h"
-
-namespace maidsafe {
-
-namespace transport {
-
-namespace test {
-
-// INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
-
-}  // namespace test
-
-}  // namespace transport
-
-}  // namespace maidsafe
+#ifndef HAVE_GLOG
+#include "maidsafe/common/log.h"
+bool NoGlog::logtostderr = true;
+int NoGlog::minloglevel = 0;
+#endif

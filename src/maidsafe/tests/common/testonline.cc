@@ -26,9 +26,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <gtest/gtest.h>
-#include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/online.h"
+#include "maidsafe/common/calllatertimer.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/online.h"
+
+namespace maidsafe {
+
+namespace test {
 
 bool o1, o2, o3, o4;
 
@@ -57,17 +61,17 @@ void Observer4(bool b) {
 }
 
 TEST(OnlineControllerTest, BEH_BASE_SingletonAddress) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   olc1 = olc2 = NULL;
 }
 
 TEST(OnlineControllerTest, BEH_BASE_OnlineReset) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   ASSERT_FALSE(olc1->Online(0));
   ASSERT_FALSE(olc2->Online(0));
@@ -84,9 +88,9 @@ TEST(OnlineControllerTest, BEH_BASE_OnlineReset) {
 }
 
 TEST(OnlineControllerTest, BEH_BASE_SetGetOnline) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   ASSERT_FALSE(olc1->Online(0));
   ASSERT_FALSE(olc2->Online(0));
@@ -112,17 +116,17 @@ TEST(OnlineControllerTest, BEH_BASE_SetGetOnline) {
 }
 
 TEST(OnlineControllerTest, BEH_BASE_ThreadedSetGetOnline) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   ASSERT_FALSE(olc1->Online(0));
   ASSERT_FALSE(olc2->Online(0));
 
-  base::CallLaterTimer clt_;
+  CallLaterTimer clt_;
   ASSERT_TRUE(clt_.IsStarted());
   clt_.CancelAll();
-  clt_.AddCallLater(500, boost::bind(&base::OnlineController::SetOnline,
+  clt_.AddCallLater(500, boost::bind(&OnlineController::SetOnline,
                     olc1, 0, true));
 
   while (!olc2->Online(0))
@@ -131,7 +135,7 @@ TEST(OnlineControllerTest, BEH_BASE_ThreadedSetGetOnline) {
   ASSERT_TRUE(olc1->Online(0));
   ASSERT_TRUE(olc2->Online(0));
 
-  clt_.AddCallLater(500, boost::bind(&base::OnlineController::SetOnline,
+  clt_.AddCallLater(500, boost::bind(&OnlineController::SetOnline,
                     olc2, 0, false));
 
   while (olc1->Online(0))
@@ -144,9 +148,9 @@ TEST(OnlineControllerTest, BEH_BASE_ThreadedSetGetOnline) {
 }
 
 TEST(OnlineControllerTest, BEH_BASE_ObserverRegistration) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   ASSERT_FALSE(olc1->Online(0));
   ASSERT_FALSE(olc2->Online(0));
@@ -182,9 +186,9 @@ TEST(OnlineControllerTest, BEH_BASE_ObserverRegistration) {
 }
 
 TEST(OnlineControllerTest, BEH_BASE_MultipleObserverRegistration) {
-  base::OnlineController *olc1 = base::OnlineController::Instance();
+  OnlineController *olc1 = OnlineController::Instance();
   olc1->Reset();
-  base::OnlineController *olc2 = base::OnlineController::Instance();
+  OnlineController *olc2 = OnlineController::Instance();
   ASSERT_EQ(olc1, olc2);
   ASSERT_FALSE(olc1->Online(0));
   ASSERT_FALSE(olc2->Online(0));
@@ -228,7 +232,7 @@ TEST(OnlineControllerTest, BEH_BASE_MultipleObserverRegistration) {
 
 TEST(OnlineControllerTest, BEH_BASE_GroupedObserverRegistration) {
   DLOG(INFO) << "Zeroth." << std::endl;
-  base::OnlineController *olc = base::OnlineController::Instance();
+  OnlineController *olc = OnlineController::Instance();
   olc->Reset();
 
   ASSERT_EQ(0, olc->ObserversCount());
@@ -324,3 +328,7 @@ TEST(OnlineControllerTest, BEH_BASE_GroupedObserverRegistration) {
 
   olc = NULL;
 }
+
+}  // namespace test
+
+}  // namespace maidsafe

@@ -25,8 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_BASE_CALLLATERTIMER_H_
-#define MAIDSAFE_BASE_CALLLATERTIMER_H_
+#ifndef MAIDSAFE_COMMON_CALLLATERTIMER_H_
+#define MAIDSAFE_COMMON_CALLLATERTIMER_H_
+
 #include <boost/thread.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/bind.hpp>
@@ -36,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <map>
 
-namespace base {
+namespace maidsafe {
 
 typedef boost::function<void()> VoidFunctorEmpty;
 
@@ -77,5 +78,6 @@ class CallLaterTimer {
   boost::uint32_t call_later_id_;
 };
 
-}  // namespace base
-#endif  // MAIDSAFE_BASE_CALLLATERTIMER_H_
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_COMMON_CALLLATERTIMER_H_

@@ -25,8 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/base/utils.h"
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include "maidsafe/common/utils.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <boost/thread/mutex.hpp>
@@ -39,10 +38,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <limits>
 #include <string>
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/network_interface.h"
 
-namespace base {
+namespace maidsafe {
 
 CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_random_number_generator;
 boost::mutex g_random_number_generator_mutex;
@@ -153,22 +152,19 @@ std::string DecodeFromBase32(const std::string &base32_input) {
 boost::uint32_t GetEpochTime() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint32_t>((t-start).total_seconds());
+  return static_cast<boost::uint32_t>((t - kMaidSafeEpoch).total_seconds());
 }
 
 boost::uint64_t GetEpochMilliseconds() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint64_t>((t - start).total_milliseconds());
+  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_milliseconds());
 }
 
 boost::uint64_t GetEpochNanoseconds() {
   boost::posix_time::ptime
       t(boost::posix_time::microsec_clock::universal_time());
-  boost::posix_time::ptime start(boost::gregorian::date(2000, 1, 1));
-  return static_cast<boost::uint64_t>((t - start).total_nanoseconds());
+  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_nanoseconds());
 }
 
 boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {
@@ -180,4 +176,4 @@ boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {
   }
 }
 
-}  // namespace base
+}  // namespace maidsafe

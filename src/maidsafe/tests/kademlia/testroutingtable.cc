@@ -28,12 +28,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
 #include "maidsafe/kademlia/routingtable.h"
 #include "maidsafe/transport/utils.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -67,7 +69,7 @@ class TestRoutingTable : public testing::Test {
 };
 
 TEST_F(TestRoutingTable, BEH_KAD_AddContact) {
-//   std::string enc_id = base::EncodeToHex(base::RandomString(512));
+//   std::string enc_id = EncodeToHex(RandomString(512));
   NodeId holder_id(NodeId::kRandomId);
   RoutingTable routingtable(holder_id, test_routing_table::K);
   std::string ip("127.0.0.1");
@@ -117,7 +119,7 @@ TEST_F(TestRoutingTable, FUNC_KAD_PartFilltable) {
 TEST_F(TestRoutingTable, BEH_KAD_Add_Get_Contact) {
   NodeId holder_id(NodeId::kRandomId);
   RoutingTable routingtable(holder_id, test_routing_table::K);
-  int id = base::RandomInt32();
+  int id = RandomInt32();
   NodeId contact_id(cry_obj.Hash(boost::lexical_cast<std::string>(id),
                                      "", crypto::STRING_STRING, false));
   std::string ip("127.0.0.1");
@@ -139,7 +141,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Remove_Contact) {
   Contact contact(contact_id, ip, port, ip, port);
   ASSERT_EQ(0, routingtable.AddContact(contact));
 
-  for (int i = 0; i < kFailedRpc; ++i) {
+  for (int i = 0; i < kFailedRpcTolerance; ++i) {
     routingtable.RemoveContact(contact_id, false);
     Contact rec_contact;
     ASSERT_TRUE(routingtable.GetContact(contact_id, &rec_contact));
@@ -175,7 +177,7 @@ TEST_F(TestRoutingTable, BEH_KAD_SplitKBucket) {
   RoutingTable routingtable(holder_id, test_routing_table::K);
   boost::uint32_t id[test_routing_table::K + 1];
   Contact contacts[test_routing_table::K + 1];
-  id[0] = (base::RandomUint32() % 5000) +1;
+  id[0] = (RandomUint32() % 5000) +1;
   for (boost::uint16_t i = 0; i < test_routing_table::K + 1; ++i)
     id[i] = id[0] + i;
   std::string contact_id;
@@ -230,14 +232,14 @@ TEST_F(TestRoutingTable, BEH_KAD_NoSplitKBucket) {
   std::string ip("127.0.0.1");
   boost::uint16_t port = 8880;
   for (boost::uint16_t i = 0; i < test_routing_table::K; ++i) {
-    contact_id = base::DecodeFromHex(contacts_id[i]);
+    contact_id = DecodeFromHex(contacts_id[i]);
     ++port;
     Contact contact(contact_id, ip, port, ip, port);
     contacts[i] = contact;
     ASSERT_EQ(0, routingtable.AddContact(contact));
   }
 
-  contact_id = base::DecodeFromHex(contacts_id[test_routing_table::K]);
+  contact_id = DecodeFromHex(contacts_id[test_routing_table::K]);
   ++port;
   Contact contact1(contact_id, ip, port, ip, port);
   ASSERT_LT(0, routingtable.AddContact(contact1));
@@ -430,7 +432,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ClearRoutingTable) {
   ids[15] = "a27b24b72c37e7862613b29e86502dae6f863170eb1621a04a06f909588348427b"
             "2c3bc623d7ef1bf59bd3efa010c69b19a1d8732c8512ff8510ea46176ad383";
   for (boost::uint16_t i = 0; i < 16 && i < test_routing_table::K; ++i) {
-    std::string id = base::DecodeFromHex(ids[i]);
+    std::string id = DecodeFromHex(ids[i]);
     Contact contact(id, ip, port + i, ip, port + i);
     ASSERT_EQ(0, routingtable.AddContact(contact));
   }
@@ -462,7 +464,6 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   NodeId max_holder_id(strmax_holder_id, NodeId::kHex);
   NodeId holder_id(range1, max_holder_id);
   RoutingTable routingtable(holder_id, test_routing_table::K);
-  boost::uint64_t now = base::GetEpochMilliseconds();
 
   // fill the first bucket
   std::string ip("127.0.0.1");
@@ -505,7 +506,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   std::string id = range5.String();
   --id[id.size()-1];
   Contact furthest_contact(id, ip, port, ip, port);
-  furthest_contact.set_last_seen(now);  // make sure this peer has the highest
+  furthest_contact.SetLastSeenToNow();  // make sure this peer has the highest
                                         // score
   ASSERT_EQ(0, routingtable.AddContact(furthest_contact));
   ASSERT_EQ((2 * test_routing_table::K) - 1, routingtable.Size());
@@ -552,7 +553,7 @@ TEST_F(TestRoutingTable, BEH_KAD_ForceK) {
   id[0] = 127;
   id[63] = static_cast<char>(254);
   Contact furthest_contact2(id, ip, port, ip, port);
-  furthest_contact2.set_last_seen(now);  // make sure this peer has the highest
+  furthest_contact2.SetLastSeenToNow();  // make sure this peer has the highest
                                          // score
   ASSERT_EQ(0, routingtable.AddContact(furthest_contact2));
   ASSERT_EQ(3 * test_routing_table::K - 1, routingtable.Size());
@@ -616,18 +617,18 @@ TEST_F(TestRoutingTable, BEH_KAD_GetLastSeenContact) {
   std::string ip("127.0.0.1");
   boost::uint16_t port(8880);
   for (boost::uint16_t i = 0; i < (test_routing_table::K/2)+1; ++i) {
-    contact_id = base::DecodeFromHex(contacts_id_first[i]);
+    contact_id = DecodeFromHex(contacts_id_first[i]);
     ++port;
     Contact contact(contact_id, ip, port, ip, port);
     contacts[i] = contact;
     ASSERT_EQ(0, routingtable.AddContact(contact));
   }
-  contact_id = base::DecodeFromHex(contacts_id_first[0]);
+  contact_id = DecodeFromHex(contacts_id_first[0]);
   Contact last_first(contact_id, ip, 8880 + 1, ip, 8880 + 1);
   result = routingtable.GetLastSeenContact(0);
   ASSERT_TRUE(last_first.Equals(result));
   for (boost::uint16_t i = 0; i < test_routing_table::K/2; ++i) {
-    contact_id = base::DecodeFromHex(contacts_id_second[i]);
+    contact_id = DecodeFromHex(contacts_id_second[i]);
     ++port;
     Contact contact(contact_id, ip, port, ip, port);
     contacts[i] = contact;
@@ -635,7 +636,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetLastSeenContact) {
   }
   ASSERT_EQ(test_routing_table::K == 1 ? 1 : 2, routingtable.KbucketSize());
   ASSERT_EQ(2*(test_routing_table::K/2)+1, routingtable.Size());
-  contact_id = base::DecodeFromHex(
+  contact_id = DecodeFromHex(
       contacts_id_first[test_routing_table::K / 2 + 1]);
   Contact last_second(contact_id,
                            ip, 8880 + test_routing_table::K / 2 + 2,
@@ -669,7 +670,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetKClosestContacts) {
   for (boost::uint16_t i = 0; i < test_routing_table::K/2; ++i) {
     std::string id(kKeySizeBytes*2, '6'), rep(i, 'a'), dec_id("");
     id.replace(1, i, rep);
-    dec_id = base::DecodeFromHex(id);
+    dec_id = DecodeFromHex(id);
     Contact contact(dec_id, ip, port, ip, port);
     ids1[i] = contact;
     ++port;
@@ -680,7 +681,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetKClosestContacts) {
                 rep(test_routing_table::K-1-i, '0'),
                 dec_id("");
     id.replace(1, test_routing_table::K-1-i, rep);
-    dec_id = base::DecodeFromHex(id);
+    dec_id = DecodeFromHex(id);
     Contact contact(dec_id, ip, port, ip, port);
     ids2[i] = contact;
     ++port;
@@ -754,7 +755,7 @@ TEST_F(TestRoutingTable, BEH_KAD_TwoKBucketsSplit) {
   std::string ip("127.0.0.1");
   boost::uint16_t port = 8880;
   for (boost::uint16_t i = 0; i < test_routing_table::K + 1; ++i) {
-    contact_id = base::DecodeFromHex(contacts_id[i]);
+    contact_id = DecodeFromHex(contacts_id[i]);
     ++port;
     Contact contact(contact_id, ip, port, ip, port);
     contacts[i] = contact;
@@ -768,7 +769,7 @@ TEST_F(TestRoutingTable, BEH_KAD_TwoKBucketsSplit) {
   for (boost::uint16_t j = 0; j < kKeySizeBytes*2; ++j)
     id += "e";
   contact_id.clear();
-  contact_id = base::DecodeFromHex(id);
+  contact_id = DecodeFromHex(id);
   Contact ctc1(contact_id, ip, port, ip, port);
   ASSERT_EQ(0, routingtable.AddContact(ctc1));
   ASSERT_EQ(size_t(5), routingtable.KbucketSize());
@@ -779,7 +780,7 @@ TEST_F(TestRoutingTable, BEH_KAD_TwoKBucketsSplit) {
     id += "2";
   ++port;
   contact_id.clear();
-  contact_id = base::DecodeFromHex(id);
+  contact_id = DecodeFromHex(id);
   Contact ctc2(contact_id, ip, port, ip, port);
   ASSERT_EQ(0, routingtable.AddContact(ctc2));
 
@@ -805,8 +806,8 @@ TEST_F(TestRoutingTable, BEH_KAD_GetFurthestNodes) {
   boost::uint16_t port = 5001;
   for (boost::uint16_t i = 1; i < 254; ++i) {
     NodeId contact_id(NodeId::kRandomId);
-    Contact contact(contact_id, ip + base::IntToString(i), port + i,
-                         ip + base::IntToString(i), port + i);
+    Contact contact(contact_id, ip + IntToString(i), port + i,
+                         ip + IntToString(i), port + i);
     Contact empty;
     if (!routingtable.GetContact(contact_id, &empty)) {
       routingtable.AddContact(contact);
@@ -852,3 +853,5 @@ TEST_F(TestRoutingTable, BEH_KAD_GetFurthestNodes) {
 }  // namespace test_routing_table
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

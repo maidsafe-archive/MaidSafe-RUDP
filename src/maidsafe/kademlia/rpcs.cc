@@ -32,6 +32,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 void Rpcs::Ping(const Contact &contact,
@@ -90,7 +92,7 @@ void Rpcs::Store(const NodeId &key,
                  const Contact &contact,
                  const boost::int32_t &ttl,
                  const bool &publish,
-                 VoidFunctorOneBool callback,
+                 RpcResponseFunctor callback,
                  TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -100,11 +102,11 @@ void Rpcs::Store(const NodeId &key,
   req.mutable_signed_value()->set_signature(signed_value.signature);
   req.set_ttl(ttl);
   req.set_publish(publish);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_store_response()->connect(boost::bind(
@@ -118,7 +120,7 @@ void Rpcs::Store(const NodeId &key,
                  const Contact &contact,
                  const boost::int32_t &ttl,
                  const bool &publish,
-                 VoidFunctorOneBool callback,
+                 RpcResponseFunctor callback,
                  TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -139,7 +141,7 @@ void Rpcs::Delete(const NodeId &key,
                   const SignedValue &signed_value,
                   const Signature &signature,
                   const Contact &contact,
-                  VoidFunctorOneBool callback,
+                  RpcResponseFunctor callback,
                   TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -147,11 +149,11 @@ void Rpcs::Delete(const NodeId &key,
   req.set_key(key.String());
   req.mutable_signed_value()->set_value(signed_value.value);
   req.mutable_signed_value()->set_signature(signed_value.signature);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_delete_response()->connect(boost::bind(
@@ -166,7 +168,7 @@ void Rpcs::Update(const NodeId &key,
                   const boost::int32_t &ttl,
                   const Signature &signature,
                   const Contact &contact,
-                  VoidFunctorOneBool callback,
+                  RpcResponseFunctor callback,
                   TransportType type) {
   boost::shared_ptr<MessageHandler> message_handler;
   boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
@@ -177,11 +179,11 @@ void Rpcs::Update(const NodeId &key,
   req.mutable_old_signed_value()->set_value(old_signed_value.value);
   req.mutable_old_signed_value()->set_signature(old_signed_value.signature);
   req.set_ttl(ttl);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
+  protobuf::MessageSignature *signature_msg(req.mutable_request_signature());
   signature_msg->set_signer_id(signature.signer_id);
   signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
+  signature_msg->set_public_key_validation(signature.public_key_validation);
+  signature_msg->set_request_signature(signature.request_signature);
   (*req.mutable_sender()) = node_contact_.ToProtobuf();
   std::string msg = message_handler->WrapMessage(req);
   message_handler->on_update_response()->connect(boost::bind(
@@ -258,21 +260,21 @@ void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
 }
 
 void Rpcs::StoreCallback(const protobuf::StoreResponse &response,
-                         VoidFunctorOneBool callback,
+                         RpcResponseFunctor callback,
                          boost::shared_ptr<MessageHandler>,
                          boost::shared_ptr<transport::Transport>) {
   callback(response.result());
 }
 
 void Rpcs::DeleteCallback(const protobuf::DeleteResponse &response,
-                          VoidFunctorOneBool callback,
+                          RpcResponseFunctor callback,
                           boost::shared_ptr<MessageHandler>,
                           boost::shared_ptr<transport::Transport>) {
   callback(response.result());
 }
 
 void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
-                          VoidFunctorOneBool callback,
+                          RpcResponseFunctor callback,
                           boost::shared_ptr<MessageHandler>,
                           boost::shared_ptr<transport::Transport>) {
   callback(response.result());
@@ -290,5 +292,6 @@ boost::shared_ptr<transport::Transport> Rpcs::CreateTransport(
   return t;
 }
 
-
 }  // namespace kademlia
+
+}  // namespace maidsafe

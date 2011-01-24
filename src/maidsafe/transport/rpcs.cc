@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/transport/transport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 template <class TransportType>
@@ -107,7 +109,7 @@ void Rpcs::Store(const NodeId &key,
   *svalue = value;
   args.set_ttl(ttl);
   args.set_publish(publish);
-  protobuf::SignedRequest *sreq = args.mutable_signed_request();
+  protobuf::SignedRequest *sreq = args.mutable_request_signature();
   *sreq = sig_req;
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
@@ -177,7 +179,7 @@ void Rpcs::Delete(const NodeId &key,
   args.set_key(key.String());
   protobuf::SignedValue *svalue = args.mutable_value();
   *svalue = value;
-  protobuf::SignedRequest *sreq = args.mutable_signed_request();
+  protobuf::SignedRequest *sreq = args.mutable_request_signature();
   *sreq = sig_req;
   protobuf::Contact *sender_info = args.mutable_sender();
   *sender_info = info_;
@@ -258,7 +260,7 @@ void Rpcs::StoreSigCallback(const protobuf::StoreResponse &response,
                        StoreSigFunctor callback,
                        boost::shared_ptr<MessageHandler> message_handler,
                        boost::shared_ptr<transport::Transport>transport) {
-  callback(response.result(), response.signed_request());
+  callback(response.result(), response.request_signature());
 }
 
 template <class TransportType>
@@ -290,4 +292,6 @@ void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe
 */

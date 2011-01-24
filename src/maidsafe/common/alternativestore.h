@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2009 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,19 +25,25 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/tcptransport.h"
-#include "maidsafe/tests/transport/transportapitest.h"
+/*******************************************************************************
+ * NOTE: This header is unlikely to have any breaking changes applied.         *
+ *       However, it should not be regarded as finalised until this notice is  *
+ *       removed.                                                              *
+ ******************************************************************************/
+
+#ifndef MAIDSAFE_COMMON_ALTERNATIVESTORE_H_
+#define MAIDSAFE_COMMON_ALTERNATIVESTORE_H_
+
+#include <string>
 
 namespace maidsafe {
 
-namespace transport {
-
-namespace test {
-
-// INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
-
-}  // namespace test
-
-}  // namespace transport
+class AlternativeStore {
+ public:
+  virtual ~AlternativeStore() {}
+  virtual bool Has(const std::string &key) = 0;
+};
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_COMMON_ALTERNATIVESTORE_H_

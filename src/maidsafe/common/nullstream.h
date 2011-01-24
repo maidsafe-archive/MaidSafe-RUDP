@@ -14,8 +14,8 @@
 //  warranty, and with no claim as to its suitability for any purpose.
 //
 
-#ifndef MAIDSAFE_BASE_NULLSTREAM_H_
-#define MAIDSAFE_BASE_NULLSTREAM_H_
+#ifndef MAIDSAFE_COMMON_NULLSTREAM_H_
+#define MAIDSAFE_COMMON_NULLSTREAM_H_
 
 #include <streambuf>
 #include <ostream>  // NOLINT
@@ -51,4 +51,4 @@ class basic_null_stream
 typedef basic_null_stream<char> null_stream;
 typedef basic_null_stream<wchar_t> null_wstream;
 
-#endif  // MAIDSAFE_BASE_NULLSTREAM_H_
+#endif  // MAIDSAFE_COMMON_NULLSTREAM_H_

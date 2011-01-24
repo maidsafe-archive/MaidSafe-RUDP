@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/base/crypto.h"
+#include "maidsafe/common/crypto.h"
 #include <maidsafe/cryptopp/integer.h>
 #include <maidsafe/cryptopp/pwdbased.h>
 #include <maidsafe/cryptopp/sha.h>
@@ -37,9 +37,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/cryptopp/modes.h>
 #include <maidsafe/cryptopp/rsa.h>
 #include <maidsafe/cryptopp/osrng.h>
-#include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/utils.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/platform_config.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
 
 namespace crypto {
 
@@ -496,7 +498,7 @@ void RsaKeyPair::GenerateKeys(const boost::uint16_t &keySize) {
   private_key_.clear();
   public_key_.clear();
   CryptoPP::RandomPool rand_pool;
-  std::string seed = base::RandomString(keySize);
+  std::string seed = RandomString(keySize);
   rand_pool.IncorporateEntropy(reinterpret_cast<const byte*>(seed.c_str()),
                                                              seed.size());
 
@@ -512,3 +514,5 @@ void RsaKeyPair::GenerateKeys(const boost::uint16_t &keySize) {
 }
 
 }  // namespace crypto
+
+}  // namespace maidsafe

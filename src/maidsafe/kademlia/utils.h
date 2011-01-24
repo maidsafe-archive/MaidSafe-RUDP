@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,34 +25,26 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef MAIDSAFE_KADEMLIA_UTILS_H_
+#define MAIDSAFE_KADEMLIA_UTILS_H_
 
-#ifndef MAIDSAFE_BASE_LOG_H_
-#define MAIDSAFE_BASE_LOG_H_
+namespace maidsafe {
 
-#ifdef HAVE_GLOG
-// For MSVC, we need to include windows.h which in turn includes WinGDI.h
-// which defines ERROR (which conflicts with Glog's ERROR definition)
-#ifdef __MSVC__
-#include <windows.h>
-#undef ERROR
-#endif
-#include <glog/logging.h>
-#else
-#include <iostream>  // NOLINT
-namespace google { inline void InitGoogleLogging(char*) {} }   // NOLINT
+namespace transport { struct Endpoint; }
 
-struct NoGlog {
-static bool logtostderr;
-static int minloglevel;
-};
+namespace kademlia {
 
-static std::ostream void_ostream(NULL);
+class Contact;
+namespace protobuf { class Contact; }
 
-#define FLAGS_minloglevel NoGlog::minloglevel
-#define FLAGS_logtostderr NoGlog::logtostderr
-#define DLOG(severity) (NoGlog::logtostderr?std::cerr:void_ostream)
-#define LOG(severity) DLOG(severity)
+bool IsValid(const transport::Endpoint &endpoint);
 
-#endif
+Contact FromProtobuf(const protobuf::Contact &protobuf_contact);
 
-#endif  // MAIDSAFE_BASE_LOG_H_
+protobuf::Contact ToProtobuf(const Contact &contact);
+
+}  // namespace kademlia
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_KADEMLIA_UTILS_H_

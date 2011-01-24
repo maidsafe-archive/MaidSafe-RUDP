@@ -31,82 +31,97 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/io_service.hpp>
 
-#include <list>
+#include <memory>
 #include <string>
+#include <vector>
+
+namespace maidsafe {
+
+class AlternativeStore;
+class Securifier;
+
+
+namespace transport {
+class Transport;
+struct Endpoint;
+struct Info;
+}  // namespace transport
+
 
 namespace kademlia {
 
+class NodeId;
 class Contact;
 
-// Functor for general callback functions.
-typedef boost::function<void(std::string)> VoidFunctorOneString;
-typedef boost::function<void(bool)> VoidFunctorOneBool;  // NOLINT
-typedef boost::function<void(std::list<Contact> contacts)>
-        VoidFunctorContactList;
+
+// Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
+// return code.
+typedef boost::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,
+                                   UpdateFunctor;
+
+// Functor for use in Node::FindValue.  Parameters in order are: return code,
+// value(s) if found, k closest nodes if value not found, contact details of
+// node holding value in its alternative_store, and contact details of node
+// needing a cache copy of the values.
+typedef boost::function<void(int,
+                             std::vector<std::string>,
+                             std::vector<Contact>,
+                             Contact,
+                             Contact)> FindValueFunctor;
+
+// Functor for use in Node::FindNodes.  Parameters in order are: return code,
+// k closest nodes.
+typedef boost::function<void(int, std::vector<Contact>)> FindNodesFunctor;
+
+// Functor for use in Node::GetContact.  Parameters in order are: return code,
+// node's contact details.
+typedef boost::function<void(int, Contact)> GetContactFunctor;
+
+// Functor for use in many RPCs
+typedef boost::function<void(bool)> RpcResponseFunctor;  // NOLINT
+
+
+typedef NodeId Key;
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 
-struct Signature {
-  Signature()
-    : signer_id(), public_key(), signed_public_key(), payload_signature() {}
-  std::string signer_id;
-  std::string public_key;
-  std::string signed_public_key;
-  std::string payload_signature;
-};
 
-struct SignedValue {
-  SignedValue() : value(), signature() {}
-  SignedValue(const std::string &value, const std::string &signature)
-    : value(value), signature(signature) {}
-  std::string value;
-  std::string signature;
-};
+typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef std::shared_ptr<transport::Transport> TransportPtr;
+typedef std::shared_ptr<Securifier> SecurifierPtr;
+typedef std::shared_ptr<AlternativeStore> AlternativeStorePtr;
+typedef std::shared_ptr<transport::Info> RankInfoPtr;
 
-enum KBucketExitCode { SUCCEED, FULL, FAIL };
-
-// CLIENT - does not map external ip and port, is not stored in other  nodes
-//          routing table
-// CLIENT_PORT_MAPPED - maps external ip and port, is not stored in other nodes
-//                      routing table
-// VAULT - maps external ip and port, complete functionality of a kademlia node
-enum NodeType { CLIENT, CLIENT_PORT_MAPPED, VAULT };
-
-enum ConnectionType { LOCAL, REMOTE, UNKNOWN };
 
 // The size of DHT keys and node IDs in bytes.
 const boost::uint16_t kKeySizeBytes = 64;
 
-// The parallel level of search iterations.
-const boost::uint16_t kAlpha = 3;
-
-// The number of replies required in a search iteration to allow the next
-// iteration to begin.
-const boost::uint16_t kBeta = 2;
-
-// The frequency (in seconds) of the refresh routine.
-const boost::uint32_t kRefreshTime = 3600;  // 1 hour
-
 // The frequency (in seconds) of the <key,value> republish routine.
-const boost::uint32_t kRepublishTime = 43200;  // 12 hours
+const boost::uint32_t kRepublishFrequency = 43200;  // 12 hours
 
 // The duration (in seconds) after which a given <key,value> is deleted locally.
-const boost::uint32_t kExpireTime = kRepublishTime + kRefreshTime + 300;
+const boost::uint32_t kKeyValueLifespan = kRepublishFrequency + 7200;
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
 const double kMinSuccessfulPecentageStore = 0.75;
 
-// The number of failed RPCs tolerated before a contact is removed from the
-// k-bucket.
-const boost::uint16_t kFailedRpc = 0;
+// The ratio of k successful individual kad delete RPCs to yield overall success
+const double kMinSuccessfulPecentageDelete = 0.75;
 
-// The maximum number of bootstrap contacts allowed in the .kadconfig file.
-const boost::uint32_t kMaxBootstrapContacts = 10000;
+// The ratio of k successful individual kad update RPCs to yield overall success
+const double kMinSuccessfulPecentageUpdate = 0.75;
+
+// The number of failed RPCs tolerated before a contact is removed from the
+// routing table.
+const boost::uint16_t kFailedRpcTolerance = 0;
 
 // Signature used to sign anonymous RPC requests.
 const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_CONFIG_H_

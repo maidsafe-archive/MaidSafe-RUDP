@@ -42,11 +42,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>  // NOLINT
 
 // #if MAIDSAFE_DHT_VERSION < 25
-// #error This API is not compatible with the installed library.
-// #error Please update the maidsafe-dht library.
+// #error This API is not compatible with the installed library.\
+//   Please update the maidsafe-dht library.
 // #endif
 
 namespace bs2 = boost::signals2;
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -103,12 +105,14 @@ enum NatType { kManualPortMapped,  // behind manually port-mapped router.
 
 struct Endpoint {
   Endpoint() : ip(), port(0) {}
-  Endpoint(const IP &ip, const Port &port) : ip(ip), port(port) {}
-  Endpoint(const std::string &ip_as_string, const Port &port)
+  Endpoint(const IP &ip_in, const Port &port_in) : ip(ip_in), port(port_in) {}
+  Endpoint(const std::string &ip_as_string, const Port &port_in)
       : ip(),
-        port(port) {
+        port(port_in) {
     boost::system::error_code ec;
     ip = IP::from_string(ip_as_string, ec);
+    if (ec)
+      port = 0;
   }
   IP ip;
   Port port;
@@ -142,9 +146,8 @@ const int kMaxAcceptedConnections(5);
 typedef boost::shared_ptr<bs2::signal<void(const std::string&,
                                            const Info&,
                                            std::string*,
-                                           Timeout*)> > OnMessageReceived;
-typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)> >
-    OnError;
+                                           Timeout*)>> OnMessageReceived;
+typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
 
 // Base class for all transport types.
 class Transport {
@@ -166,17 +169,12 @@ class Transport {
    * @param data The message data to transmit.
    * @param endpoint The data receiver's endpoint.
    * @param timeout Time after which to terminate a conversation.
+   * @param close_on_response Whether the connection should be kept alive after
+   * the response arrives (or timeout occurs) or not.
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout) = 0;
-  /**
-   * Sends data that is being streamed from the given source.
-   * @param data The input stream delivering data to send.
-   * @param endpoint The data receiver's endpoint.
-   */
-  virtual void SendStream(const std::istream &data,
-                          const Endpoint &endpoint) = 0;
   /**
    * Getter for the listening port.
    * @return The port number or 0 if not listening.
@@ -200,5 +198,7 @@ class Transport {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_TRANSPORT_H_

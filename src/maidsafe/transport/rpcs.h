@@ -35,12 +35,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "maidsafe/maidsafe-dht_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/tcptransport2.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -133,6 +135,8 @@ private:
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_KADRPC_H_
 */

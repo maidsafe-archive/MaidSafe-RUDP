@@ -27,8 +27,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <stdio.h>
-#include "maidsafe/maidsafe-dht_config.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/platform_config.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
+
+namespace test {
 
 TEST(FindPlatform, BEH_BASE_DetectPlatform) {
   int macflag(0);
@@ -52,3 +56,6 @@ TEST(FindPlatform, BEH_BASE_DetectPlatform) {
   DLOG(INFO) << log_output << std::endl;
 }
 
+}  // namespace test
+
+}  // namespace maidsafe

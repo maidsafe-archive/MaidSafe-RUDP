@@ -25,10 +25,10 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/base/online.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/online.h"
+#include "maidsafe/common/utils.h"
 
-namespace base {
+namespace maidsafe {
 
 OnlineController* OnlineController::Instance() {
   static OnlineController oc;
@@ -41,12 +41,12 @@ OnlineController::OnlineController()
 boost::uint16_t OnlineController::RegisterObserver(
     const boost::uint16_t &group, const Observer &observer) {
   boost::mutex::scoped_lock loch(ol_mutex_);
-  boost::uint16_t id = 1 + base::RandomUint32() % 65535;
+  boost::uint16_t id = 1 + RandomUint32() % 65535;
   std::pair<std::map<boost::uint16_t, GroupedObserver>::iterator, bool> ret;
   ret = observers_.insert(std::pair<boost::uint16_t, GroupedObserver>
                           (id, GroupedObserver(group, observer)));
   while (!ret.second) {
-    id = 1 + base::RandomUint32() % 65535;
+    id = 1 + RandomUint32() % 65535;
     ret = observers_.insert(std::pair<boost::uint16_t, GroupedObserver>
                             (id, GroupedObserver(group, observer)));
   }
@@ -138,4 +138,4 @@ void OnlineController::Reset() {
   online_.clear();
 }
 
-}  // namespace base
+}  // namespace maidsafe

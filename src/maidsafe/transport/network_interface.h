@@ -36,6 +36,8 @@ Created by Julian Cain on 11/3/09.
 #include <string>
 #include <vector>
 
+namespace maidsafe {
+
 namespace transport {
 
 /**
@@ -126,5 +128,7 @@ struct NetworkInterface {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_

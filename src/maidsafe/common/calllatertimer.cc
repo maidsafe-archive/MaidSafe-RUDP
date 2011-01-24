@@ -26,10 +26,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <limits>
-#include "maidsafe/base/calllatertimer.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/calllatertimer.h"
+#include "maidsafe/common/log.h"
 
-namespace base {
+namespace maidsafe {
 
 void dummy_timeout_func() {}
 
@@ -127,4 +127,5 @@ size_t CallLaterTimer::TimersMapSize() {
   boost::mutex::scoped_lock guard(timers_mutex_);
   return timers_.size();
 }
-}  // namespace base
+
+}  // namespace maidsafe

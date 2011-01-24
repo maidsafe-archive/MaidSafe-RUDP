@@ -38,6 +38,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 enum TransportType { kUdt, kTcp, kOther };
@@ -64,7 +66,7 @@ typedef boost::function<void(bool, const std::vector<Contact>&)>
 
 class Rpcs {
  public:
-  Rpcs(boost::shared_ptr<boost::asio::io_service> asio_service)
+  Rpcs(IoServicePtr asio_service)
       : node_contact_(),
         asio_service_(asio_service) {}
   virtual ~Rpcs() {}
@@ -85,20 +87,20 @@ class Rpcs {
              const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback,
+             RpcResponseFunctor callback,
              TransportType type);
   void Store(const NodeId &key,
              const std::string &value,
              const Contact &contact,
              const boost::int32_t &ttl,
              const bool &publish,
-             VoidFunctorOneBool callback,
+             RpcResponseFunctor callback,
              TransportType type);
   void Delete(const NodeId &key,
               const SignedValue &signed_value,
               const Signature &signature,
               const Contact &contact,
-              VoidFunctorOneBool callback,
+              RpcResponseFunctor callback,
               TransportType type);
   void Update(const NodeId &key,
               const SignedValue &new_signed_value,
@@ -106,7 +108,7 @@ class Rpcs {
               const boost::int32_t &ttl,
               const Signature &signature,
               const Contact &contact,
-              VoidFunctorOneBool callback,
+              RpcResponseFunctor callback,
               TransportType type);
   void Downlist(const std::vector<NodeId> &node_ids,
                 const Contact &contact,
@@ -129,25 +131,27 @@ class Rpcs {
                          boost::shared_ptr<MessageHandler> message_handler,
                          boost::shared_ptr<transport::Transport> transport);
   void StoreCallback(const protobuf::StoreResponse &response,
-                     VoidFunctorOneBool callback,
+                     RpcResponseFunctor callback,
                      boost::shared_ptr<MessageHandler> message_handler,
                      boost::shared_ptr<transport::Transport> transport);
   void DeleteCallback(const protobuf::DeleteResponse &response,
-                      VoidFunctorOneBool callback,
+                      RpcResponseFunctor callback,
                       boost::shared_ptr<MessageHandler> message_handler,
                       boost::shared_ptr<transport::Transport> transport);
   void UpdateCallback(const protobuf::UpdateResponse &response,
-                      VoidFunctorOneBool callback,
+                      RpcResponseFunctor callback,
                       boost::shared_ptr<MessageHandler> message_handler,
                       boost::shared_ptr<transport::Transport> transport);
-  boost::shared_ptr<transport::Transport> CreateTransport(TransportType type);
+  std::shared_ptr<transport::Transport> CreateTransport(TransportType type);
 
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   Contact node_contact_;
-  boost::shared_ptr<boost::asio::io_service> asio_service_;
+  IoServicePtr asio_service_;
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_RPCS_H_

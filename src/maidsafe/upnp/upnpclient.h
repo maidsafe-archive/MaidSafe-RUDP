@@ -33,6 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #include "maidsafe/upnp/upnpclientimpl.h"
 #include "maidsafe/upnp/miniupnpclientimpl.h"
 
+namespace maidsafe {
+
 namespace upnp {
 
 // control point for a UPnP Internet Gateway Device
@@ -58,5 +60,7 @@ class UpnpIgdClient {
 };
 
 }  // namespace upnp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_UPNP_UPNPCLIENT_H_
