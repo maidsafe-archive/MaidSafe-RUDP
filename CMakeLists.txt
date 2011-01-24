@@ -379,7 +379,7 @@ SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
 
 LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_BASE_DIR}
                              ${ALL_FILES_KADEMLIA_DIR}
-#                             ${ALL_FILES_TRANSPORT_DIR}
+                             ${ALL_FILES_TRANSPORT_DIR}
                              ${ALL_FILES_LIBUPNP_DIR}
                              ${ALL_FILES_UPNP_DIR}
                              ${ALL_FILES_NATPMP_DIR}
@@ -423,7 +423,7 @@ ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/cryptopp ${CMAKE_BINARY_
 ADD_EXECUTABLE(TESTbase ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BASE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnode ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/log.cc" ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/base/log.cc")
@@ -483,12 +483,10 @@ IF(NOT MSVC)
 ENDIF()
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
-ADD_LIBRARY(transport_static STATIC ${ALL_FILES_TRANSPORT_DIR})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
 
 #Rename maidsafe_dht_static as maidsafe_dht on way out NOT in MSVC names clash of static and import lib
 #IF(NOT MSVC)
-  SET_TARGET_PROPERTIES(transport_static PROPERTIES OUTPUT_NAME transport)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES OUTPUT_NAME maidsafe_dht)
 #ENDIF()
 
@@ -524,14 +522,12 @@ ELSE()
 #    SET_TARGET_PROPERTIES(cryptopp PROPERTIES IMPORTED_LOCATION bin/libcryptopp.so)
 #    SET_TARGET_PROPERTIES(udt PROPERTIES IMPORTED_LOCATION bin/libudt.so)
   ENDIF()
-  SET_TARGET_PROPERTIES(transport_static PROPERTIES IMPORTED_LOCATION bin/libtransport.a)
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.a)
   SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.a)
   SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.a)
 ENDIF()
 
 TARGET_LINK_LIBRARIES(maidsafe_dht_static
-                        transport_static
                         udt_static
                         cryptopp_static
                         ${Protobuf_LIBRARY}
@@ -543,8 +539,7 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${Boost_REGEX_LIBRARIES}
                         ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTbase maidsafe_dht_static gtest_main)
-#TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTtransport transport_static udt_static ${Glog_LIBRARY} ${Boost_SYSTEM_LIBRARIES} ${Boost_THREAD_LIBRARIES} gtest_main)
+TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_main)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gtest_main gmock_main)
 TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_main)
 TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_main)
@@ -645,7 +640,6 @@ IF(MSVC)
                             LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
   ENDIF()
 
-  SET_TARGET_PROPERTIES(transport_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ENDIF()
 
