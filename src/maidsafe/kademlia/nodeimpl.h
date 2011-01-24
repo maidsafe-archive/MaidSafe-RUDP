@@ -105,6 +105,8 @@ class Node::Impl {
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
   void SetLastSeenToNow(const Contact &contact);
   void IncrementFailedRpcs(const Contact &contact);
+  void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
+  RankInfoPtr GetLocalRankInfo(const Contact &contact);
   void GetAllContacts(std::vector<Contact> *contacts);
   void GetBootstrapContacts(std::vector<Contact> *contacts);
   Contact contact() const;

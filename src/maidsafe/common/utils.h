@@ -43,7 +43,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-const boost::posix_time::ptime kMaidSafeEpoch;
+// 01 Jan 2000
+const boost::posix_time::ptime kMaidSafeEpoch(
+    boost::posix_time::from_iso_string("20000101T000000"));
 
 struct DeviceStruct {
   DeviceStruct() : ip_address(), device_interface() {}

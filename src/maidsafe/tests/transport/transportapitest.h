@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/transport/transport.h"
-//  #include "maidsafe/common/utils.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 #include "maidsafe/tests/transport/messagehandler.h"
@@ -88,11 +88,7 @@ class TransportAPITest: public testing::Test {
                   transport->StartListening(Endpoint(kIP, lport)));
       } else {
         while (kSuccess != transport->StartListening(Endpoint(
-            kIP, (rand() % 60536) + 5000)));
-          // TODO(Fraser#5#): 2010-12-27 - Uncomment once maidsafe_dht_static
-          //      can be compiled.
-          //            kIP, (base::RandomUint32() % 60536) + 5000)));
-          //  kIP, (rand() % 60536) + 5000)));
+            kIP, (base::RandomUint32() % 60536) + 5000)));
       } // do check for fail listening port
       listening_transports_.push_back(transport);
     } else {
@@ -343,16 +339,11 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
   boost::uint8_t num_sender_transports(
-      static_cast<boost::uint8_t>(rand() % 10 + 5));
+      static_cast<boost::uint8_t>(boost::RandomUint32() % 10 + 5));
   boost::uint8_t num_listener_transports(
-      static_cast<boost::uint8_t>(rand() % 10 + 5));
-  boost::uint8_t num_messages(static_cast<boost::uint8_t>(rand() % 100 + 1));
-  // TODO(Fraser#5#): 2010-12-27 - Uncomment once maidsafe_dht_static can be
-  //                               compiled.
-//  boost::uint8_t num_transports(
-//      static_cast<boost::uint8_t>(boost::RandomUint32() % 10 + 5));
-//  boost::uint8_t num_messages(
-//      static_cast<boost::uint8_t>(boost::RandomUint32() % 100 + 1));
+      static_cast<boost::uint8_t>(boost::RandomUint32() % 10 + 5));
+  boost::uint8_t num_messages(
+      static_cast<boost::uint8_t>(boost::RandomUint32() % 100 + 1));
   for (boost::uint8_t i = 0; i < num_sender_transports; ++i)
     this->SetupTransport(false, 0);
   for (boost::uint8_t i = 0; i < num_listener_transports; ++i)

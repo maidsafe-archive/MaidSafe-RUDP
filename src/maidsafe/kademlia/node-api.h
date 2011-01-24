@@ -150,7 +150,7 @@ class Node {
   // other callback parameters are completed.  Otherwise, iff no value exists
   // under key, the k closest nodes' details are passed in callback.
   void FindValue(const Key &key,
-                 ValidatorPtr validator,
+                 SecurifierPtr securifier,
                  FindValueFunctor callback);
 
   // Find the k closest nodes to key.
@@ -166,6 +166,13 @@ class Node {
   // Mark contact in routing table as having failed to respond correctly to an
   // RPC request.
   void IncrementFailedRpcs(const Contact &contact);
+
+  // Update contact in routing table with revised rank info.
+  void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
+
+  // Retrieve rank info from contact in routing table.  No network operation is
+  // executed.
+  RankInfoPtr GetLocalRankInfo(const Contact &contact);
 
   // Retrieve all contacts from the routing table.  No network operation is
   // executed.

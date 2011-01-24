@@ -46,6 +46,7 @@ class Securifier;
 namespace transport {
 class Transport;
 struct Endpoint;
+struct Info;
 }  // namespace transport
 
 
@@ -91,6 +92,7 @@ typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
 typedef std::shared_ptr<Securifier> SecurifierPtr;
 typedef std::shared_ptr<AlternativeStore> AlternativeStorePtr;
+typedef std::shared_ptr<transport::Info> RankInfoPtr;
 
 
 // The size of DHT keys and node IDs in bytes.

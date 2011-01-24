@@ -98,12 +98,12 @@ struct KeyValueTuple {
                 const bool &hashable);
   const std::string &key() const;
   const std::string &value() const;
-  void update_key_value_signature(
+  void UpdateKeyValueSignature(
       const KeyValueSignature &new_key_value_signature,
       const bptime::ptime &new_refresh_time);
   void set_refresh_time(const bptime::ptime &new_refresh_time);
-  void update_delete_status(const DeleteStatus &new_delete_status,
-                            const bptime::ptime &new_refresh_time);
+  void UpdateDeleteStatus(const DeleteStatus &new_delete_status,
+                          const bptime::ptime &new_refresh_time);
   KeyValueSignature key_value_signature;
   bptime::ptime expire_time, refresh_time;
   bool hashable;

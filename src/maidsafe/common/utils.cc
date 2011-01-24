@@ -43,9 +43,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-const boost::posix_time::ptime kMaidSafeEpoch(
-    boost::gregorian::date(2000, 1, 1));
-
 CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_random_number_generator;
 boost::mutex g_random_number_generator_mutex;
 

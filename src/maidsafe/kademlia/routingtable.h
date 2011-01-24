@@ -28,17 +28,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_
 #define MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_
 
-#include <boost/shared_ptr.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/nodeid.h"
 
+namespace bptime = boost::posix_time;
+
 namespace maidsafe {
+
+namespace transport { struct Info; }
 
 namespace kademlia {
 
@@ -57,6 +62,7 @@ struct RoutingTableContact {
   std::string public_key;
   boost::uint16_t num_failed_rpcs;
   bptime::ptime last_seen;
+  std::shared_ptr<transport::Info> info;
 };
 
 class RoutingTable {

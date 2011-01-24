@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "maidsafe/common/routingtable.h"
 //#include "maidsafe/common/utils.h"
 //#include "maidsafe/common/platform_config.h"
-#include "maidsafe/common/validationinterface.h"
+#include "maidsafe/common/securifier.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/rpcs.h"
