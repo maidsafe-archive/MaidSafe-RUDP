@@ -37,6 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 class FakeCallback {
@@ -206,5 +208,7 @@ inline void wait_result(FakeCallback *callback) {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_

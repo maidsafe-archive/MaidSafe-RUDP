@@ -31,52 +31,52 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
-#define MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
+#ifndef MAIDSAFE_KADEMLIA_CONTACT_IMPL_H_
+#define MAIDSAFE_KADEMLIA_CONTACT_IMPL_H_
 
-#include <string>
+#include <boost/cstdint.hpp>
+#include <vector>
+#include "maidsafe/kademlia/contact.h"
+#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/transport/transport.h"
 
+namespace maidsafe {
 
-namespace base {
-/**
- * Base class to validate with a public key requests signed with a private key
- * and to validate the id of the sender of the request.  This methods should be
- * implemented by the user.
- * id_ is the ID of the node doing the validation.
- */
-class SignatureValidator {
+namespace kademlia {
+
+class Contact::Impl {
  public:
-  explicit SignatureValidator(const std::string &id) : id_(id) {}
-  SignatureValidator() : id_() {}
-  virtual ~SignatureValidator() {}
-  /**
-   * Validates the Id of the signer
-   * @param signer_id id to be validated
-   * @param public_key public key
-   * @param signed_public_key public key signed
-   */
-  virtual bool ValidateSignerId(const std::string &signer_id,
-                                const std::string &public_key,
-                                const std::string &signed_public_key) = 0;
-  /**
-   * Validates the request signed by sender
-   * @param signed_request request to be validated with the public key
-   * @param public_key used to validate signature of the request
-   * @param signed_public_key public key signed
-   * @param key key to store/delete value
-   * @param rec_id id of the node receiving the request
-   */
-  virtual bool ValidateRequest(const std::string &signed_request,
-                               const std::string &public_key,
-                               const std::string &signed_public_key,
-                               const std::string &key) = 0;
-  inline std::string id() const { return id_; }
-  inline void set_id(const std::string &id) { id_ = id; }
-
+  Impl();
+  Impl(const Contact &other);
+  Impl(const NodeId &node_id, const transport::Endpoint &endpoint);
+  Impl(const NodeId &node_id,
+       const transport::Endpoint &endpoint,
+       const transport::Endpoint &rendezvous_endpoint,
+       std::vector<transport::Endpoint> &local_endpoints);
+  NodeId node_id() const { return node_id_; }
+  transport::Endpoint endpoint() const { return endpoint_; }
+  transport::Endpoint rendezvous_endpoint() const {
+    return rendezvous_endpoint_;
+  }
+  std::vector<transport::Endpoint> local_endpoints() const {
+    return local_endpoints_;
+  }
+  bool SetPreferredEndpoint(const transport::IP &ip);
+  transport::Endpoint GetPreferredEndpoint() const;
+  Impl& operator=(const Impl &other);
+  bool operator<(const Impl &other) const;
+  bool operator==(const Impl &other) const;
  private:
-  std::string id_;
+  bool IpMatchesEndpoint(const transport::IP &ip,
+                         const transport::Endpoint &endpoint);
+  NodeId node_id_;
+  transport::Endpoint endpoint_, rendezvous_endpoint_;
+  std::vector<transport::Endpoint> local_endpoints_;
+  bool prefer_local_;
 };
 
-}  // namespace base
+}  // namespace kademlia
 
-#endif  // MAIDSAFE_BASE_VALIDATIONINTERFACE_H_
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_KADEMLIA_CONTACT_IMPL_H_

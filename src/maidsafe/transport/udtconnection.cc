@@ -33,8 +33,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <vector>
 
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -324,3 +326,5 @@ TransportCondition UdtConnection::MoveData(bool sending,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

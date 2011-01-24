@@ -28,15 +28,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_MESSAGEHANDLER_H_
 #define MAIDSAFE_KADEMLIA_MESSAGEHANDLER_H_
 
-#include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
 #include <boost/signals2/signal.hpp>
 
+#include <memory>
 #include <string>
 
 #include "maidsafe/transport/messagehandler.h"
 
 namespace bs2 = boost::signals2;
+
+namespace maidsafe {
+
+class Securifier;
 
 namespace kademlia {
 
@@ -57,45 +61,46 @@ class DownlistNotification;
 }  // namespace protobuf
 
 // Highest possible message type ID, use as offset for type extensions.
-const int kMaxMessageType(transport::kMaxMessageType);
+const int kMaxMessageType(transport::kMaxMessageType + 1000);
 
 class MessageHandler : public transport::MessageHandler {
  public:
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::PingRequest&, protobuf::PingResponse*)> > PingReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const protobuf::PingResponse&)> >
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::PingRequest&, protobuf::PingResponse*)>> PingReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const protobuf::PingResponse&)>>
       PingRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::FindValueRequest&, protobuf::FindValueResponse*)> >
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::FindValueRequest&, protobuf::FindValueResponse*)>>
       FindValueReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::FindValueResponse&)> > FindValueRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::FindNodesRequest&, protobuf::FindNodesResponse*)> >
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::FindNodesRequest&, protobuf::FindNodesResponse*)>>
       FindNodesReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::FindNodesResponse&)> > FindNodesRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::StoreRequest&, protobuf::StoreResponse*)> >
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::StoreRequest&, protobuf::StoreResponse*)>>
       StoreReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::StoreResponse&)> > StoreRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::DeleteRequest&, protobuf::DeleteResponse*)> >
-      DeleteReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::DeleteResponse&)> > DeleteRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::UpdateRequest&, protobuf::UpdateResponse*)> >
-      UpdateReqSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(
-      const protobuf::UpdateResponse&)> > UpdateRspSigPtr;
-  typedef boost::shared_ptr< bs2::signal< void(const transport::Info&,
-      const protobuf::DownlistNotification&)> >
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::StoreResponse&)>> StoreRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::DeleteRequest&, const std::string&, const std::string&,
+      protobuf::DeleteResponse*)>> DeleteReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::UpdateRequest&, const std::string&, const std::string&,
+      protobuf::UpdateResponse*)>> UpdateReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(
+      const protobuf::UpdateResponse&)>> UpdateRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::DownlistNotification&)>>
       DownlistNtfSigPtr;
 
-  MessageHandler()
-    : on_ping_request_(new PingReqSigPtr::element_type),
+  explicit MessageHandler(std::shared_ptr<Securifier> securifier)
+    : transport::MessageHandler(securifier),
+      on_ping_request_(new PingReqSigPtr::element_type),
       on_ping_response_(new PingRspSigPtr::element_type),
       on_find_value_request_(new FindValueReqSigPtr::element_type),
       on_find_value_response_(new FindValueRspSigPtr::element_type),
@@ -146,8 +151,10 @@ class MessageHandler : public transport::MessageHandler {
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const std::string &message_signature,
                                         const transport::Info &info,
-                                        std::string *response,
+                                        bool asymmetrical_encrypted,
+                                        std::string *message_response,
                                         transport::Timeout *timeout);
  private:
   MessageHandler(const MessageHandler&);
@@ -168,5 +175,7 @@ class MessageHandler : public transport::MessageHandler {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_MESSAGEHANDLER_H_

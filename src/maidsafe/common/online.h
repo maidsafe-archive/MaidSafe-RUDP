@@ -31,46 +31,40 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *       removed.                                                              *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_BASE_THREADPOOL_H_
-#define MAIDSAFE_BASE_THREADPOOL_H_
+#ifndef MAIDSAFE_COMMON_ONLINE_H_
+#define MAIDSAFE_COMMON_ONLINE_H_
 
-#include <boost/asio.hpp>
-#include <boost/concept_check.hpp>
 #include <boost/function.hpp>
-#include <boost/thread/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
-#include <queue>
-#include <vector>
+#include <map>
 
-namespace base {
+namespace maidsafe {
 
-namespace test {
-}  // namespace test
-
-class Threadpool {
+class OnlineController {
  public:
-  explicit Threadpool(const boost::uint8_t &poolsize);
-  ~Threadpool();
-  typedef boost::function<void()> VoidFunctor;
-  // we may add this method plus the private run now method later
-  // template <typename T>
-  // AddTask (io_service_.post(
-  //    boost::bind( &Threadpool::Run<T>, this, function )
-  bool EnqueueTask(const VoidFunctor &functor);
+  typedef boost::function<void(const bool&)> Observer;
+  typedef std::pair<boost::uint16_t, Observer> GroupedObserver;
+  static OnlineController* Instance();
+  boost::uint16_t RegisterObserver(const boost::uint16_t &group,
+                                   const Observer &observer);
+  bool UnregisterObserver(boost::uint16_t id);
+  void UnregisterGroup(const boost::uint16_t &group);
+  void UnregisterAll();
+  void SetOnline(const boost::uint16_t &group, const bool &online);
+  void SetAllOnline(const bool &online);
+  bool Online(const boost::uint16_t &group);
+  boost::uint16_t ObserversCount();
+  boost::uint16_t ObserversInGroupCount(const boost::uint16_t &group);
+  void Reset();
+
  private:
-  //     template <typename T>
-  //     void Run(T function) {
-  //   An Object
-  //       function(Object); // use shared pointer to object to do this properly
-  //     }
-  // no copy or assign for thread safety (functors)
-  Threadpool(const Threadpool&);
-  Threadpool &operator=(const Threadpool&);
-  boost::asio::io_service io_service_;
-  boost::shared_ptr<boost::asio::io_service::work> work_;
-  boost::thread_group thread_group_;
+  OnlineController();
+  ~OnlineController() {}
+  std::map<boost::uint16_t, bool> online_;
+  boost::mutex ol_mutex_;
+  std::map<boost::uint16_t, GroupedObserver> observers_;
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
-#endif  // MAIDSAFE_BASE_THREADPOOL_H_
+#endif  // MAIDSAFE_COMMON_ONLINE_H_

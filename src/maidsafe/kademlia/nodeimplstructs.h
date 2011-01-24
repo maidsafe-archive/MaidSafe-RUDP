@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 
+namespace maidsafe {
+
 namespace kademlia {
 
 class Signature;
@@ -315,30 +317,6 @@ struct UpdateCallbackArgs {
   Contact contact;
 };
 
-struct NodeConstructionParameters {
-  NodeConstructionParameters()
-      : type(VAULT),
-        k(4),
-        alpha(3),
-        beta(2),
-        refresh_time(0),
-        private_key(),
-        public_key(),
-        port_forwarded(false),
-        use_upnp(false),
-        port(0) {}
-  NodeType type;
-  boost::uint16_t k;
-  boost::uint16_t alpha;
-  boost::uint16_t beta;
-  boost::uint32_t refresh_time;
-  std::string private_key;
-  std::string public_key;
-  bool port_forwarded;
-  bool use_upnp;
-  Port port;
-};
-
 enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
 
 struct NodeContainerTuple {
@@ -414,11 +392,11 @@ struct FindNodesParams {
   std::vector<Contact> start_nodes;
   std::vector<Contact> exclude_nodes;
   bool use_routingtable;
-  VoidFunctorContactList callback;
+  FindNodesFunctor callback;
 };
 
 struct FindNodesArgs {
-  FindNodesArgs(const NodeId &fna_key, VoidFunctorContactList fna_callback)
+  FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
       : key(fna_key),
         kth_closest(),
         nc(),
@@ -430,13 +408,13 @@ struct FindNodesArgs {
   NodeId key, kth_closest;
   NodeContainer nc;
   boost::mutex mutex;
-  VoidFunctorContactList callback;
+  FindNodesFunctor callback;
   bool calledback;
   int round, nodes_pending;
 };
 
-struct FindNodesRpc {
-  FindNodesRpc(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
+struct FindNodesRpcArgs {
+  FindNodesRpcArgs(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
       : contact(c),
         rpc_fna(fna),
         round(0) {
@@ -448,8 +426,8 @@ struct FindNodesRpc {
   int round;
 };
 
-enum SearchMarking { SEARCH_DOWN, SEARCH_CONTACTED };
-
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_

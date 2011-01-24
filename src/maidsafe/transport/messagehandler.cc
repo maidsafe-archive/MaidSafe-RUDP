@@ -25,8 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <boost/lexical_cast.hpp>
 #include "maidsafe/transport/messagehandler.h"
 #include "maidsafe/transport/transport.pb.h"
+#include "maidsafe/common/securifier.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -47,166 +51,202 @@ void MessageHandler::OnMessageReceived(const std::string &request,
                                        std::string *response,
                                        Timeout *timeout) {
   protobuf::WrapperMessage wrapper;
-  if (!wrapper.ParseFromString(request))
-    return;
-  if (!wrapper.IsInitialized())
-    return;
 
-  (*on_info_)(wrapper.msg_type(), info);
-  ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
-                           response, timeout);
+  // Try to parse without decrypting first
+  if (wrapper.ParseFromString(request) && wrapper.IsInitialized()) {
+    (*on_info_)(wrapper.msg_type(), info);
+    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
+                                    false, response, timeout);
+  } else {  // Now try decrypting
+    if (!securifier_)
+      return;
+    std::string decrypted(securifier_->AsymmetricDecrypt(request));
+    if (!wrapper.ParseFromString(decrypted))
+      return;
+    if (!wrapper.IsInitialized())
+      return;
+    (*on_info_)(wrapper.msg_type(), info);
+    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
+                                    true, response, timeout);
+  }
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ManagedEndpointMessage &msg) {
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionRequest &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionResponse &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectRequest &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectResponse &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousResponse &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousAcknowledgement &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-                                      msg.SerializeAsString());
+                                      msg.SerializeAsString(), kNone);
 }
 
-void MessageHandler::ProcessSerialisedMessage(const int &message_type,
-                                              const std::string &payload,
-                                              const Info&,
-                                              std::string *response,
-                                              Timeout *timeout) {
-  response->clear();
+void MessageHandler::ProcessSerialisedMessage(
+    const int &message_type,
+    const std::string &payload,
+    const std::string &/*message_signature*/,
+    const Info &/*info*/,
+    bool /*asymmetrical_encrypted*/,
+    std::string *message_response,
+    Timeout *timeout) {
+  message_response->clear();
   *timeout = kImmediateTimeout;
 
   switch (message_type) {
     case kManagedEndpointMessage: {
-      protobuf::ManagedEndpointMessage req;
-      if (req.ParseFromString(payload) && req.IsInitialized()) {
-        protobuf::ManagedEndpointMessage rsp;
-        (*on_managed_endpoint_message_)(req, &rsp);
-        if (!(*response = WrapMessage(rsp)).empty())
+      protobuf::ManagedEndpointMessage request;
+      if (request.ParseFromString(payload) && request.IsInitialized()) {
+        protobuf::ManagedEndpointMessage response;
+        (*on_managed_endpoint_message_)(request, &response);
+        if (!(*message_response = WrapMessage(response)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
     }
     case kNatDetectionRequest: {
-      protobuf::NatDetectionRequest req;
-      if (req.ParseFromString(payload) && req.IsInitialized()) {
+      protobuf::NatDetectionRequest request;
+      if (request.ParseFromString(payload) && request.IsInitialized()) {
 //         NatDetectionReqSigPtr::element_type::result_type
 //             (NatDetectionReqSigPtr::element_type::*sig)
 //             (NatDetectionReqSigPtr::element_type::arg<0>::type,
 //              NatDetectionReqSigPtr::element_type::arg<1>::type) =
 //             &NatDetectionReqSigPtr::element_type::operator();
-//         asio_service_->post(boost::bind(sig, on_nat_detection_, req,
+//         asio_service_->post(boost::bind(sig, on_nat_detection_, request,
 //                                         conversation_id));
-        protobuf::NatDetectionResponse rsp;
-        (*on_nat_detection_request_)(req, &rsp);
-        if (!(*response = WrapMessage(rsp)).empty())
+        protobuf::NatDetectionResponse response;
+        (*on_nat_detection_request_)(request, &response);
+        if (!(*message_response = WrapMessage(response)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
     }
     case kNatDetectionResponse: {
-      protobuf::NatDetectionResponse req;
-      if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_nat_detection_response_)(req);
+      protobuf::NatDetectionResponse response;
+      if (response.ParseFromString(payload) && response.IsInitialized())
+        (*on_nat_detection_response_)(response);
       break;
     }
     case kProxyConnectRequest: {
-      protobuf::ProxyConnectRequest req;
-      if (req.ParseFromString(payload) && req.IsInitialized()) {
-        protobuf::ProxyConnectResponse rsp;
-        (*on_proxy_connect_request_)(req, &rsp);
-        if (!(*response = WrapMessage(rsp)).empty())
+      protobuf::ProxyConnectRequest request;
+      if (request.ParseFromString(payload) && request.IsInitialized()) {
+        protobuf::ProxyConnectResponse response;
+        (*on_proxy_connect_request_)(request, &response);
+        if (!(*message_response = WrapMessage(response)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
     }
     case kProxyConnectResponse: {
-      protobuf::ProxyConnectResponse req;
-      if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_proxy_connect_response_)(req);
+      protobuf::ProxyConnectResponse response;
+      if (response.ParseFromString(payload) && response.IsInitialized())
+        (*on_proxy_connect_response_)(response);
       break;
     }
     case kForwardRendezvousRequest: {
-      protobuf::ForwardRendezvousRequest req;
-      if (req.ParseFromString(payload) && req.IsInitialized()) {
-        protobuf::ForwardRendezvousResponse rsp;
-        (*on_forward_rendezvous_request_)(req, &rsp);
-        if (!(*response = WrapMessage(rsp)).empty())
+      protobuf::ForwardRendezvousRequest request;
+      if (request.ParseFromString(payload) && request.IsInitialized()) {
+        protobuf::ForwardRendezvousResponse response;
+        (*on_forward_rendezvous_request_)(request, &response);
+        if (!(*message_response = WrapMessage(response)).empty())
           *timeout = kDefaultInitialTimeout;
       }
       break;
     }
     case kForwardRendezvousResponse: {
-      protobuf::ForwardRendezvousResponse req;
-      if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_forward_rendezvous_response_)(req);
+      protobuf::ForwardRendezvousResponse response;
+      if (response.ParseFromString(payload) && response.IsInitialized())
+        (*on_forward_rendezvous_response_)(response);
       break;
     }
     case kRendezvousRequest: {
-      protobuf::RendezvousRequest req;
-      if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_rendezvous_request_)(req);
+      protobuf::RendezvousRequest request;
+      if (request.ParseFromString(payload) && request.IsInitialized())
+        (*on_rendezvous_request_)(request);
       break;
     }
     case kRendezvousAcknowledgement: {
-      protobuf::RendezvousAcknowledgement req;
-      if (req.ParseFromString(payload) && req.IsInitialized())
-        (*on_rendezvous_acknowledgement_)(req);
+      protobuf::RendezvousAcknowledgement acknowledgement;
+      if (acknowledgement.ParseFromString(payload) &&
+          acknowledgement.IsInitialized())
+        (*on_rendezvous_acknowledgement_)(acknowledgement);
       break;
     }
   }
 }
 
 std::string MessageHandler::MakeSerialisedWrapperMessage(
-    const int& message_type,
-    const std::string& payload) {
-  protobuf::WrapperMessage msg;
-  msg.set_msg_type(message_type);
-  msg.set_payload(payload);
-  return msg.SerializeAsString();
+    const int &message_type,
+    const std::string &payload,
+    SecurityType security_type) {
+  protobuf::WrapperMessage wrapper_message;
+  wrapper_message.set_msg_type(message_type);
+  wrapper_message.set_payload(payload);
+
+  // If we asked for security but provided no securifier, fail.
+  if (security_type && !securifier_)
+    return "";
+
+  // Handle signing
+  if (security_type & kSign) {
+    wrapper_message.set_message_signature(securifier_->Sign(
+        boost::lexical_cast<std::string>(message_type) + payload));
+  } else if (security_type & kSignWithParameters) {
+    wrapper_message.set_message_signature(securifier_->SignWithParameters(
+        boost::lexical_cast<std::string>(message_type) + payload));
+  }
+
+  // Handle encryption
+  if (security_type & kAsymmetricEncrypt) {
+    return securifier_->AsymmetricEncrypt(wrapper_message.SerializeAsString());
+  } else {
+    return wrapper_message.SerializeAsString();
+  }
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

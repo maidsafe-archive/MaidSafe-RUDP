@@ -40,9 +40,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <vector>
 
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/routingtable.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/routingtable.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/nodeimpl.h"
 #include "maidsafe/transport/udttransport.h"
@@ -50,6 +50,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 
 namespace fs = boost::filesystem;
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -68,15 +70,8 @@ inline void create_rsakeys(std::string *pub_key, std::string *priv_key) {
 }
 
 inline void create_req(const std::string &pub_key, const std::string &priv_key,
-                       const std::string &key, std::string *sig_pub_key,
+                       const std::string &key, std::string *pub_key_val,
                        std::string *sig_req) {
-  crypto::Crypto cobj;
-  cobj.set_symm_algorithm(crypto::AES_256);
-  cobj.set_hash_algorithm(crypto::SHA_512);
-  *sig_pub_key = cobj.AsymSign(pub_key, "", priv_key, crypto::STRING_STRING);
-  *sig_req = cobj.AsymSign(cobj.Hash(pub_key + *sig_pub_key + key, "",
-                                     crypto::STRING_STRING, true),
-                           "", priv_key, crypto::STRING_STRING);
 }
 
 std::string get_app_directory() {
@@ -381,9 +376,13 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   std::string value = base::RandomString(1024 * 10);  // 10KB
   SignedValue sig_value;
   StoreValueCallback cb_1;
-  std::string sig_pub_key, sig_req;
+  std::string pub_key_val, sig_req;
   create_rsakeys(&pubkey, &privkey);
-  create_req(pubkey, privkey, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value(value);
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", privkey,
                                                   crypto::STRING_STRING));
@@ -391,8 +390,8 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   SignedRequest req;
   req.set_signer_id(node_local_1.node_id().String());
   req.set_public_key(pubkey);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
   node_local_1.StoreValue(key, sig_value, req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cb_1, _1));
@@ -551,14 +550,18 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   sig_value.set_value(value);
   // save key/value pair from a node
   StoreValueCallback cb_;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -641,16 +644,20 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   sig_value.set_value(value);
   // save key/value pair from a node
   StoreValueCallback cb_;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
   nodes_[kTestK / 3]->StoreValue(key, sig_value, req, 24*3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
                                               &cb_, _1));
@@ -717,22 +724,26 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   std::vector<NodeId> keys(count);
   std::vector<SignedValue> values(count);
   std::vector<StoreValueCallback> cbs(count);
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
   DLOG(INFO) << "Store..." << std::endl;
   for (boost::int16_t n = 0; n < count; ++n) {
     keys[n] = NodeId(cry_obj_.Hash("key" + base::IntToString(n), "",
                   crypto::STRING_STRING, false));
     values[n].set_value(base::RandomString(1024));
-    create_req(pub_key, priv_key, keys[n].String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
     values[n].set_value_signature(cry_obj_.AsymSign(values[n].value(), "",
                                   priv_key, crypto::STRING_STRING));
     SignedRequest req;
     int a(n % (kNetworkSize - 1));
     req.set_signer_id(nodes_[a]->node_id().String());
     req.set_public_key(pub_key);
-    req.set_signed_public_key(sig_pub_key);
-    req.set_signed_request(sig_req);
+    req.set_public_key_validation(pub_key_val);
+    req.set_request_signature(sig_req);
     nodes_[a]->StoreValue(keys[n], values[n], req, 24 * 3600,
                            boost::bind(&StoreValueCallback::CallbackFunc,
                                        &cbs[n], _1));
@@ -869,16 +880,20 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_1;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK * 3 / 4]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
   nodes_[kTestK * 3 / 4]->StoreValue(key, sig_value, req, 24 * 3600,
                                       boost::bind(&FakeCallback::CallbackFunc,
                                                   &cb_1, _1));
@@ -981,7 +996,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
     if (i != r_node) {
       Contact test_contact;
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
-        if (test_contact.failed_rpc() == kFailedRpc) {
+        if (test_contact.failed_rpc() == kFailedRpcTolerance) {
           ++sum_0;
           holders.push_back(i);
         }
@@ -1045,7 +1060,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
         ++sum_1;
       } else {
-        if (test_contact.failed_rpc() > kFailedRpc)
+        if (test_contact.failed_rpc() > kFailedRpcTolerance)
           ++sum_1;
       }
     }
@@ -1076,17 +1091,21 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   std::string ser_sig_value = sig_value.SerializeAsString();
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request("bad request");
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature("bad request");
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1097,7 +1116,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   create_rsakeys(&new_pub_key, &new_priv_key);
   ASSERT_NE(pub_key, new_pub_key);
   cb_.Reset();
-  req.set_signed_request(sig_req);
+  req.set_request_signature(sig_req);
   req.set_public_key(new_pub_key);
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1224,16 +1243,20 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1315,16 +1338,20 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   sig_value.set_value(value);
   // save key/value pair from no.8 node
   StoreValueCallback cb_;
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
   sig_value.set_value_signature(cry_obj_.AsymSign(value, "", priv_key,
                                                   crypto::STRING_STRING));
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 3]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 3]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1353,14 +1380,18 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   }
 
   // Deleting Value
-  std::string pub_key1, priv_key1, sig_pub_key1, sig_req1;
+  std::string pub_key1, priv_key1, pub_key_val1, sig_req1;
   create_rsakeys(&pub_key1, &priv_key1);
-  create_req(pub_key1, priv_key1, key.String(), &sig_pub_key1, &sig_req1);
+
+
+  Validifier signer;
+
+
   req.Clear();
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key1);
-  req.set_signed_public_key(sig_pub_key1);
-  req.set_signed_request(sig_req1);
+  req.set_public_key_validation(pub_key_val1);
+  req.set_request_signature(sig_req1);
   DeleteValueCallback del_cb;
   nodes_[kNetworkSize - 1]->DeleteValue(
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
@@ -1372,8 +1403,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_InvalidRequestDeleteValue) {
   req.Clear();
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key1);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
   nodes_[kTestK / 3]->DeleteValue(
       key, sig_value, req, boost::bind(&DeleteValueCallback::CallbackFunc,
                                        &del_cb, _1));
@@ -1414,9 +1445,13 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   NodeId key(cry_obj_.Hash(base::RandomString(5), "", crypto::STRING_STRING,
                           false));
   std::string value(base::RandomString(1024 * 5));  // 5KB
-  std::string pub_key, priv_key, sig_pub_key, sig_req;
+  std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
-  create_req(pub_key, priv_key, key.String(), &sig_pub_key, &sig_req);
+
+
+  Validifier signer;
+
+
 
   SignedValue sig_value;
   sig_value.set_value(value);
@@ -1426,8 +1461,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   SignedRequest req;
   req.set_signer_id(nodes_[kTestK / 2]->node_id().String());
   req.set_public_key(pub_key);
-  req.set_signed_public_key(sig_pub_key);
-  req.set_signed_request(sig_req);
+  req.set_public_key_validation(pub_key_val);
+  req.set_request_signature(sig_req);
 
   nodes_[kTestK / 2]->StoreValue(key, sig_value, req, 24 * 3600,
                                   boost::bind(&StoreValueCallback::CallbackFunc,
@@ -1524,3 +1559,5 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
 }  // namespace test_node
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

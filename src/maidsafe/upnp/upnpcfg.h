@@ -32,6 +32,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <map>
 
+namespace maidsafe {
+
 namespace upnp {
 
 const int kSearchTime = 2;
@@ -62,5 +64,7 @@ struct PortMapping {
 };
 
 }  // namespace upnp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_UPNP_UPNPCFG_H_

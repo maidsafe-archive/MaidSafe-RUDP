@@ -33,11 +33,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cstdlib>
 #include <set>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
-namespace base {
+namespace maidsafe {
 
 namespace test {
 
@@ -222,4 +222,4 @@ TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
 
 }  // namespace test
 
-}  // namespace base
+}  // namespace maidsafe

@@ -30,6 +30,8 @@ Created by Julian Cain on 11/3/09.
 
 #include "maidsafe/nat-pmp/natpmpprotocol.h"
 
+namespace maidsafe {
+
 namespace natpmp {
 
 const char * Protocol::StringFromOpcode(unsigned int opcode) {
@@ -60,3 +62,5 @@ const char * Protocol::StringFromOpcode(unsigned int opcode) {
 }
 
 }  // namespace natpmp
+
+}  // namespace maidsafe

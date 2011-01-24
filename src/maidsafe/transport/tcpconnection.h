@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
+namespace maidsafe {
+
 namespace transport {
 
 class TcpTransport;
@@ -76,6 +78,8 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 */

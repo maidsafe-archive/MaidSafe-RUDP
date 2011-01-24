@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <maidsafe/transport/tcptransport.h>
-#include <maidsafe/base/log.h>
+#include <maidsafe/common/log.h>
 
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
@@ -36,6 +36,8 @@ namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace pt = boost::posix_time;
+
+namespace maidsafe {
 
 namespace transport {
 /*
@@ -99,7 +101,7 @@ Port TcpTransport::StartListening(const IP &ip,
     return 0;
   }
 
-  acceptor->listen(asio::socket_base::max_connections, ec);
+  acceptor->listen(asio::socket_max_connections, ec);
 
   if (ec) {
     if (condition)
@@ -245,3 +247,5 @@ void TcpTransport::RemoveConnection(SocketId id) {
 }
 */
 }  // namespace transport
+
+}  // namespace maidsafe

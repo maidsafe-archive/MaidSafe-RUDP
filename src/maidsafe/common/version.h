@@ -25,26 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
+#ifndef MAIDSAFE_COMMON_VERSION_H_
+#define MAIDSAFE_COMMON_VERSION_H_
 
-#ifndef MAIDSAFE_BASE_ALTERNATIVESTORE_H_
-#define MAIDSAFE_BASE_ALTERNATIVESTORE_H_
+#define MAIDSAFE_DHT_VERSION 25
 
-#include <string>
-
-
-namespace base {
-
-class AlternativeStore {
- public:
-  virtual ~AlternativeStore() {}
-  virtual bool Has(const std::string &key) = 0;
-};
-
-}  // namespace base
-
-#endif  // MAIDSAFE_BASE_ALTERNATIVESTORE_H_
+#endif  // MAIDSAFE_COMMON_VERSION_H_

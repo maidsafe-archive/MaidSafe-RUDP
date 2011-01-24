@@ -1,4 +1,4 @@
-package transport.protobuf;
+package maidsafe.transport.protobuf;
 
 message Endpoint {
   required bytes ip = 1;
@@ -8,6 +8,7 @@ message Endpoint {
 message WrapperMessage {
   required int32 msg_type = 1;
   required bytes payload = 2;
+  optional bytes message_signature = 3;
 }
 
 message ManagedEndpointMessage {

@@ -39,8 +39,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include <algorithm>
 //#include <limits>
 //#include <string>
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/network_interface.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -135,3 +137,5 @@ std::vector<IP> GetLocalAddresses() {
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

@@ -29,21 +29,22 @@
 //
 ////#include <boost/compressed_pair.hpp>
 ////#include <utility>
-//#include "maidsafe/base/alternativestore.h"
-//#include "maidsafe/base/log.h"
-//#include "maidsafe/base/threadpool.h"
-//#include "maidsafe/base/validationinterface.h"
+//#include "maidsafe/common/alternativestore.h"
+//#include "maidsafe/common/log.h"
+//#include "maidsafe/common/threadpool.h"
+//#include "maidsafe/common/validationinterface.h"
 ////#include "maidsafe/kademlia/rpcs.h"
 ////#include "maidsafe/kademlia/nodeimpl.h"
 ////#include "maidsafe/kademlia/datastore.h"
-////#include "maidsafe/base/crypto.h"
-////#include "maidsafe/base/utils.h"
+////#include "maidsafe/common/crypto.h"
+////#include "maidsafe/common/utils.h"
 ////#include "maidsafe/kademlia/node-api.h"
 ////#include "maidsafe/protobuf/signed_kadvalue.pb.h"
 ////#include "maidsafe/kademlia/nodeid.h"
 //#include "maidsafe/protobuf/kademlia.pb.h"
 //#include "maidsafe/protobuf/transport_message.pb.h"
 //
+//namespace maidsafe {
 //
 //namespace transport {
 //
@@ -51,7 +52,7 @@
 //
 //Service::Service(boost::shared_ptr<transport::Transport> transport,
 //                       boost::shared_ptr<RoutingTable> routing_table,
-//                       boost::shared_ptr<base::Threadpool> threadpool,
+//                       boost::shared_ptr<Threadpool> threadpool,
 //                       boost::shared_ptr<DataStore> datastore,
 //                       bool using_signatures)
 //    : transport_(transport),
@@ -216,13 +217,13 @@
 //  } else if (using_signatures_) {
 //    if (signature_validator_ == NULL ||
 //        !signature_validator_->ValidateSignerId(
-//            request->signed_request().signer_id(),
-//            request->signed_request().public_key(),
-//            request->signed_request().signed_public_key()) ||
+//            request->request_signature().signer_id(),
+//            request->request_signature().public_key(),
+//            request->request_signature().public_key_validation()) ||
 //        !signature_validator_->ValidateRequest(
-//            request->signed_request().signed_request(),
-//            request->signed_request().public_key(),
-//            request->signed_request().signed_public_key(), request->key())) {
+//            request->request_signature().request_signature(),
+//            request->request_signature().public_key(),
+//            request->request_signature().public_key_validation(), request->key())) {
 //      DLOG(WARNING) << "Failed to validate Store request for kademlia value"
 //                    << std::endl;
 //      response->set_result(false);
@@ -253,13 +254,13 @@
 //  // validating request
 //  if (signature_validator_ == NULL ||
 //        !signature_validator_->ValidateSignerId(
-//          request->signed_request().signer_id(),
-//          request->signed_request().public_key(),
-//          request->signed_request().signed_public_key()) ||
+//          request->request_signature().signer_id(),
+//          request->request_signature().public_key(),
+//          request->request_signature().public_key_validation()) ||
 //        !signature_validator_->ValidateRequest(
-//          request->signed_request().signed_request(),
-//          request->signed_request().public_key(),
-//          request->signed_request().signed_public_key(), request->key())) {
+//          request->request_signature().request_signature(),
+//          request->request_signature().public_key(),
+//          request->request_signature().public_key_validation(), request->key())) {
 //    response->set_result(false);
 //    done->Run();
 //    return;
@@ -275,11 +276,11 @@
 //  crypto::Crypto cobj;
 //  if (cobj.AsymCheckSig(request->value().value(),
 //      request->value().value_signature(),
-//      request->signed_request().public_key(), crypto::STRING_STRING)) {
+//      request->request_signature().public_key(), crypto::STRING_STRING)) {
 //    Contact sender;
 //    if (pdatastore_->MarkForDeletion(request->key(),
 //        request->value().SerializeAsString(),
-//        request->signed_request().SerializeAsString()) &&
+//        request->request_signature().SerializeAsString()) &&
 //        GetSender(request->sender_info(), &sender)) {
 //      rpcprotocol::Controller *ctrl = static_cast<rpcprotocol::Controller*>
 //        (controller);
@@ -323,11 +324,11 @@
 //      !signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().signed_public_key()) ||
+//          request->request().public_key_validation()) ||
 //       !signature_validator_->ValidateRequest(
-//          request->request().signed_request(),
+//          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().signed_public_key(), request->key())) {
+//          request->request().public_key_validation(), request->key())) {
 //    done->Run();
 //#ifdef DEBUG
 //    if (signature_validator_ == NULL)
@@ -336,13 +337,13 @@
 //    if (!signature_validator_->ValidateSignerId(
 //          request->request().signer_id(),
 //          request->request().public_key(),
-//          request->request().signed_public_key()))
+//          request->request().public_key_validation()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateSignerId" <<
 //                 std::endl;
 //    if (!signature_validator_->ValidateRequest(
-//          request->request().signed_request(),
+//          request->request().request_signature(),
 //          request->request().public_key(),
-//          request->request().signed_public_key(), request->key()))
+//          request->request().public_key_validation(), request->key()))
 //      DLOG(WARNING) << "Service::Update - Failed ValidateRequest" <<
 //                 std::endl;
 //#endif
@@ -492,7 +493,7 @@
 //  if (!request->IsInitialized())
 //    return false;
 //  if (using_signatures_) {
-//    if (!request->has_signed_request() || !request->has_sig_value())
+//    if (!request->has_request_signature() || !request->has_sig_value())
 //      return false;
 //  } else {
 //    if (!request->has_value())
@@ -515,7 +516,7 @@
 //    if (!result && ser_del_request.empty()) {
 //      result = pdatastore_->StoreItem(key, value, ttl, false);
 //    } else if (!result && !ser_del_request.empty()) {
-//      SignedRequest *req = response->mutable_signed_request();
+//      SignedRequest *req = response->mutable_request_signature();
 //      req->ParseFromString(ser_del_request);
 //    }
 //  }
@@ -561,7 +562,7 @@
 //      if (!result)
 //        DLOG(WARNING) << "pdatastore_->StoreItem 2 Failed.";
 //    } else if (!result && !ser_del_request.empty()) {
-//      SignedRequest *req = response->mutable_signed_request();
+//      SignedRequest *req = response->mutable_request_signature();
 //      req->ParseFromString(ser_del_request);
 //      DLOG(WARNING) << "Weird Fail. - adding signed req to resp." << std::endl;
 //    } else if (!result) {
@@ -601,3 +602,6 @@
 //}
 //
 //}  // namespace transport
+//
+//}  // namespace maidsafe
+//

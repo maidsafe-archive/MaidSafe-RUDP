@@ -33,7 +33,9 @@ Created by Julian Cain on 11/3/09.
 #include <boost/bind.hpp>
 
 #include "maidsafe/transport/gateway.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
 
 namespace natpmp {
 
@@ -413,3 +415,5 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
 }
 
 }  // namespace natpmp
+
+}  // namespace maidsafe

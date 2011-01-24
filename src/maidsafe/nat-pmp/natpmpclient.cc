@@ -32,8 +32,10 @@ Created by Julian Cain on 11/3/09.
 
 #include <stdexcept>
 
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/nat-pmp/natpmpprotocol.h"
+
+namespace maidsafe {
 
 namespace natpmp {
 
@@ -89,3 +91,5 @@ void NatPmpClient::MapPort(boost::uint32_t protocol,
 }
 
 }  // namespace natpmp
+
+}  // namespace maidsafe

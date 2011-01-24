@@ -29,10 +29,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/mutex.hpp>
 #include <gtest/gtest.h>
 
-#include "maidsafe/base/threadpool.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/threadpool.h"
+#include "maidsafe/common/utils.h"
 
-namespace base {
+namespace maidsafe {
 
 namespace test {
 
@@ -64,7 +64,7 @@ class Work {
         sleeptime = boost::posix_time::milliseconds(min_task_sleep_);
         done_max_sleep_ = true;
       } else if (task_sleep_difference_ != 1) {
-        sleeptime += boost::posix_time::milliseconds(base::RandomUint32() %
+        sleeptime += boost::posix_time::milliseconds(RandomUint32() %
                                                      task_sleep_difference_);
       }
     }
@@ -167,4 +167,4 @@ TEST_F(ThreadpoolTest, BEH_BASE_MultipleTasks) {
 
 }  // namespace test
 
-}  // namespace base
+}  // namespace maidsafe

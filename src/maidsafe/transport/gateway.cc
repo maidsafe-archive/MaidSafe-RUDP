@@ -54,6 +54,8 @@ Created by Julian Cain on 11/3/09.
 
 #include <boost/bind.hpp>
 
+namespace maidsafe {
+
 namespace transport {
 
 boost::asio::ip::address Gateway::DefaultRoute(
@@ -356,3 +358,5 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

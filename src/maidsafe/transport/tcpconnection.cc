@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <maidsafe/transport/tcpconnection.h>
 #include <maidsafe/transport/udtconnection.h>  // for timeout constants
 #include <maidsafe/protobuf/transport_message.pb.h>
-#include <maidsafe/base/log.h>
+#include <maidsafe/common/log.h>
 
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
@@ -44,6 +44,8 @@ namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace pt = boost::posix_time;
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -262,4 +264,6 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe
 */

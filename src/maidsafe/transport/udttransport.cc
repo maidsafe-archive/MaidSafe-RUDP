@@ -27,8 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udttransport.h"
 
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udtconnection.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -234,7 +236,7 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
 //void UdtTransport::DetectNat() {
 //  // Create message
 //  protobuf::NatDetectionRequest nat_detection_request;
-//  std::vector<IP> addresses(base::GetLocalAddresses());
+//  std::vector<IP> addresses(GetLocalAddresses());
 //  for (size_t n = 0; n < addresses.size(); ++n)
 //    nd->add_candidate_ips(addresses.at(n));
 //  nat_detection_request->set_local_port(listening_port_);
@@ -400,7 +402,7 @@ void UdtTransport::PerformNatDetection(
   }
 
   std::multimap<std::string, boost::uint16_t> nodes;
-  (*base::PublicRoutingTable::GetInstance())
+  (*PublicRoutingTable::GetInstance())
       [boost::lexical_cast<std::string>(listening_ports_[0])]->
           GetShuffledDirectlyConnectedNodes(&nodes);
   ConnectionNode *cn = tm.mutable_data()->mutable_connection_node();
@@ -808,7 +810,7 @@ void UdtTransport::CheckManagedSockets() {
   managed_endpoints_stopped_ = false;
   boost::scoped_array<char> holder(new char[10]);
   int received_count;
-//  int indicator = base::RandomInt32();
+//  int indicator = RandomInt32();
 //  std::cout << "CheckManagedSockets START  " << indicator << std::endl;
   while (true) {
     if (stop_managed_endpoints_) {
@@ -991,3 +993,5 @@ bool UdtTransport::PendingManagedSocketReplied(
 */
 
 }  // namespace transport
+
+}  // namespace maidsafe

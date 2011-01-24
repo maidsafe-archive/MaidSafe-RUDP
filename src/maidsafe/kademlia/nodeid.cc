@@ -27,9 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/nodeid.h"
 #include <bitset>
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -48,7 +49,7 @@ NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
     case kRandomId :
       for (std::string::iterator it = raw_id_.begin(); it != raw_id_.end();
            ++it) {
-        (*it) = base::RandomUint32();
+        (*it) = RandomUint32();
       }
       break;
     default :
@@ -64,11 +65,11 @@ NodeId::NodeId(const std::string &id, const EncodingType &encoding_type)
     switch (encoding_type) {
       case kBinary : DecodeFromBinary(id);
         break;
-      case kHex : raw_id_ = base::DecodeFromHex(id);
+      case kHex : raw_id_ = DecodeFromHex(id);
         break;
-      case kBase32 : raw_id_ = base::DecodeFromBase32(id);
+      case kBase32 : raw_id_ = DecodeFromBase32(id);
         break;
-      case kBase64 : raw_id_ = base::DecodeFromBase64(id);
+      case kBase64 : raw_id_ = DecodeFromBase64(id);
         break;
       default : raw_id_ = id;
     }
@@ -119,7 +120,7 @@ NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
       if (max_id_char == 0) {
         raw_id_[pos] = 0;
       } else {
-        raw_id_[pos] = (base::RandomUint32() % (max_id_char - min_id_char + 1))
+        raw_id_[pos] = (RandomUint32() % (max_id_char - min_id_char + 1))
                        + min_id_char;
         this_char = raw_id_[pos];
         less_than_upper_limit = (this_char < max_id_char);
@@ -127,11 +128,11 @@ NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
       }
     } else if (!greater_than_lower_limit) {
       min_id_char = min_id[pos];
-      raw_id_[pos] = (base::RandomUint32() % (256 - min_id_char)) + min_id_char;
+      raw_id_[pos] = (RandomUint32() % (256 - min_id_char)) + min_id_char;
       this_char = raw_id_[pos];
       greater_than_lower_limit = (this_char > min_id_char);
     } else {
-      raw_id_[pos] = base::RandomUint32();
+      raw_id_[pos] = RandomUint32();
     }
   }
 }
@@ -209,9 +210,9 @@ const std::string NodeId::ToStringEncoded(
     return "";
   switch (encoding_type) {
     case kBinary : return EncodeToBinary();
-    case kHex : return base::EncodeToHex(raw_id_);
-    case kBase32 : return base::EncodeToBase32(raw_id_);
-    case kBase64 : return base::EncodeToBase64(raw_id_);
+    case kHex : return EncodeToHex(raw_id_);
+    case kBase32 : return EncodeToBase32(raw_id_);
+    case kBase64 : return EncodeToBase64(raw_id_);
     default : return raw_id_;
   }
 }
@@ -258,4 +259,7 @@ const NodeId NodeId::operator ^ (const NodeId &rhs) const {
     *result_it = *this_it ^ *rhs_it;
   return result;
 }
-}
+
+}  // namespace kademlia
+
+}  // namespace maidsafe

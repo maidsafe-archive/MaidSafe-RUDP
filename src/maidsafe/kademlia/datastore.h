@@ -28,136 +28,170 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_DATASTORE_H_
 #define MAIDSAFE_KADEMLIA_DATASTORE_H_
 
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/composite_key.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <boost/thread/locks.hpp>
 #include <string>
 #include <vector>
 #include <set>
 #include <utility>
 
+namespace bptime = boost::posix_time;
+
+namespace maidsafe {
+
 namespace kademlia {
 // This class implements physical storage (for data published and fetched via
-// the RPCs) for the Kademlia DHT. Boost::multiindex are used
+// the RPCs) for the Kademlia DHT.
 
-enum delete_status {
-  NOT_DELETED,
-  MARKED_FOR_DELETION,
-  DELETED
+enum DeleteStatus {
+  kNotDeleted,
+  kMarkedForDeletion,
+  kDeleted
 };
 
-struct refresh_value {
-  std::string key_, value_;
-  boost::int32_t ttl_;
-  delete_status del_status_;
-  refresh_value(const std::string &key, const std::string &value, const
-                boost::int32_t &ttl)
-      : key_(key), value_(value), ttl_(ttl), del_status_(NOT_DELETED) {}
-  refresh_value(const std::string &key, const std::string &value, const
-                delete_status &del_status)
-      : key_(key), value_(value), ttl_(0), del_status_(del_status) {}
+struct KeyValueSignature {
+  KeyValueSignature(const std::string &key,
+                    const std::string &value,
+                    const std::string &signature)
+      : key(key),
+        value(value),
+        signature(signature) {}
+  std::string key;
+  std::string value;
+  std::string signature;
 };
 
-struct key_value_tuple {
-  std::string key_, value_, ser_delete_req_;
-  boost::uint32_t last_refresh_time_, expire_time_;
-  boost::int32_t ttl_;
-  bool hashable_;
-  delete_status del_status_;
-
-  key_value_tuple(const std::string &key, const std::string &value,
-                  const boost::uint32_t &last_refresh_time,
-                  const boost::uint32_t &expire_time, const boost::int32_t &ttl,
-                  const bool &hashable)
-      : key_(key), value_(value), ser_delete_req_(),
-        last_refresh_time_(last_refresh_time), expire_time_(expire_time),
-        ttl_(ttl), hashable_(hashable), del_status_(NOT_DELETED) {
-    if (ttl < 0)
-      expire_time_ = 0;
-  }
-  key_value_tuple(const std::string &key, const std::string &value,
-                  const boost::uint32_t &last_refresh_time)
-      : key_(key), value_(value), ser_delete_req_(),
-        last_refresh_time_(last_refresh_time), expire_time_(0), ttl_(0),
-        hashable_(true), del_status_(NOT_DELETED) {}
+struct RefreshValue {
+  RefreshValue(const KeyValueSignature &key_value_signature,
+               const bptime::seconds &ttl)
+      : key_value_signature(key_value_signature),
+        ttl(ttl),
+        delete_status(kNotDeleted) {}
+  RefreshValue(const KeyValueSignature &key_value_signature,
+               const DeleteStatus &delete_status)
+      : key_value_signature(key_value_signature),
+        ttl(0),
+        delete_status(delete_status) {}
+  KeyValueSignature key_value_signature;
+  bptime::seconds ttl;
+  DeleteStatus delete_status;
 };
 
-/* Tags */
-struct t_key {};
-struct t_last_refresh_time {};
-struct t_expire_time {};
+struct KeyValueTuple {
+  KeyValueTuple(const KeyValueSignature &key_value_signature,
+                const bptime::ptime &expire_time,
+                const bptime::ptime &refresh_time,
+                const bool &hashable,
+                std::string serialized_delete_request,
+                DeleteStatus delete_status);
+  KeyValueTuple(const KeyValueSignature &key_value_signature,
+                const bptime::ptime &expire_time,
+                const bptime::ptime &refresh_time,
+                const bool &hashable);
+  const std::string &key() const;
+  const std::string &value() const;
+  void UpdateKeyValueSignature(
+      const KeyValueSignature &new_key_value_signature,
+      const bptime::ptime &new_refresh_time);
+  void set_refresh_time(const bptime::ptime &new_refresh_time);
+  void UpdateDeleteStatus(const DeleteStatus &new_delete_status,
+                          const bptime::ptime &new_refresh_time);
+  KeyValueSignature key_value_signature;
+  bptime::ptime expire_time, refresh_time;
+  bool hashable;
+  std::string serialized_delete_request;
+  DeleteStatus delete_status;
+};
+
+struct TagKey {};
+struct TagKeyValue {};
+struct TagExpireTime {};
 
 typedef boost::multi_index::multi_index_container<
-  key_value_tuple,
+  KeyValueTuple,
   boost::multi_index::indexed_by<
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<TagKey>,
+      BOOST_MULTI_INDEX_CONST_MEM_FUN(KeyValueTuple, const std::string&, key)
+    >,
     boost::multi_index::ordered_unique<
-      boost::multi_index::tag<t_key>,
+      boost::multi_index::tag<TagKeyValue>,
       boost::multi_index::composite_key<
-        key_value_tuple,
-        BOOST_MULTI_INDEX_MEMBER(key_value_tuple, std::string, key_),
-        BOOST_MULTI_INDEX_MEMBER(key_value_tuple, std::string, value_)
+        KeyValueTuple,
+        BOOST_MULTI_INDEX_CONST_MEM_FUN(KeyValueTuple, const std::string&, key),
+        BOOST_MULTI_INDEX_CONST_MEM_FUN(KeyValueTuple, const std::string&,
+                                        value)
       >
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<t_last_refresh_time>,
-      BOOST_MULTI_INDEX_MEMBER(key_value_tuple, boost::uint32_t,
-                               last_refresh_time_)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<t_expire_time>,
-      BOOST_MULTI_INDEX_MEMBER(key_value_tuple, boost::uint32_t,
-                               expire_time_)
+      boost::multi_index::tag<TagExpireTime>,
+      BOOST_MULTI_INDEX_MEMBER(KeyValueTuple, bptime::ptime, expire_time)
     >
   >
-> datastore;
+> KeyValueIndex;
 
 class DataStore {
  public:
-  // t_refresh = refresh time of key/value pair in seconds
-  explicit DataStore(const boost::uint32_t &t_refresh);
+  explicit DataStore(const bptime::seconds &mean_refresh_interval);
   ~DataStore();
-  bool Keys(std::set<std::string> *keys);
-  bool HasItem(const std::string &key);
-  // time_to_live is in seconds.
-  bool StoreItem(const std::string &key, const std::string &value,
-                 const boost::int32_t &time_to_live, const bool &hashable);
-  bool LoadItem(const std::string &key, std::vector<std::string> *values);
-  bool DeleteKey(const std::string &key);
-  bool DeleteItem(const std::string &key, const std::string &value);
-  void DeleteExpiredValues();
+  bool HasKey(const std::string &key);
+  // Infinite ttl is indicated by bptime::pos_infin.
+  bool StoreValue(const KeyValueSignature &key_value_signature,
+                  const bptime::seconds &ttl,
+                  const bool &hashable);
+  bool GetValues(const std::string &key,
+                 std::vector<std::pair<std::string, std::string>> *values);
+  bool DeleteValue(const std::string &key, const std::string &value);
 
+  // These functions are commented only to make sure whether required or not
+  /* bool DeleteKey(const std::string &key);
+  void DeleteExpiredValues();
   boost::uint32_t LastRefreshTime(const std::string &key,
                                   const std::string &value);
   boost::uint32_t ExpireTime(const std::string &key, const std::string &value);
-  std::vector<refresh_value> ValuesToRefresh();
+  std::vector<RefreshValue> ValuesToRefresh();
   boost::int32_t TimeToLive(const std::string &key, const std::string &value);
-  void Clear();
-  std::vector< std::pair<std::string, bool> > LoadKeyAppendableAttr(
+  void Clear(); */
+  std::vector<std::pair<std::string, bool>> LoadKeyAppendableAttr(
       const std::string &key);
-  bool RefreshItem(const std::string &key, const std::string &value,
-                   std::string *str_delete_req);
+
+  bool RefreshKeyValue(const KeyValueSignature &key_value_signature,
+                       std::string *serialized_delete_request);
   // If key, value pair does not exist, then it returns false
-  bool MarkForDeletion(const std::string &key, const std::string &value,
-                       const std::string &ser_del_request);
-  // If key, value pair does not exist or its status is not MARKED_FOR_DELETION,
+  bool MarkForDeletion(const KeyValueSignature &key_value_signature,
+                       const std::string &serialized_delete_request);
+  
+  // If key, value pair does not exist or its status is not kMarkedForDeletion,
   // then it returns false
-  bool MarkAsDeleted(const std::string &key, const std::string &value);
-  bool UpdateItem(const std::string &key,
-                  const std::string &old_value,
-                  const std::string &new_value,
-                  const boost::int32_t &time_to_live,
-                  const bool &hashable);
-  boost::uint32_t t_refresh() const;
+  // bool MarkAsDeleted(const std::string &key, const std::string &value);
+
+  // Infinite ttl is indicated by bptime::pos_infin.
+  bool UpdateValue(const KeyValueSignature &old_key_value_signature,
+                   const KeyValueSignature &new_key_value_signature,
+                   const bptime::seconds &ttl,
+                   const bool &hashable);
+  bptime::seconds refresh_interval() const;
  private:
-  datastore datastore_;
-  // refresh time in seconds
-  boost::uint32_t t_refresh_;
-  boost::mutex mutex_;
+  typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+  typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+  typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+  typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
+      UpgradeToUniqueLock;
+  KeyValueIndex key_value_index_;
+  const bptime::seconds refresh_interval_;
+  boost::shared_mutex shared_mutex_;
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
+
 #endif  // MAIDSAFE_KADEMLIA_DATASTORE_H_

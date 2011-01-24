@@ -27,7 +27,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/lexical_cast.hpp>
 #include "maidsafe/tests/transport/messagehandler.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -96,3 +98,5 @@ Errors MessageHandler::errors() {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe

@@ -29,15 +29,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TESTS_VALIDATIONIMPL_H_
 
 #include <string>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/validationinterface.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/validationinterface.h"
 
 
-namespace base {
+namespace maidsafe {
 
-class TestValidator : public SignatureValidator {
+class TestValidator : public Validator {
  public:
-  TestValidator() : SignatureValidator() {}
+  TestValidator() : Validator() {}
   /**
    * Signer Id is not validated, return always true
    */
@@ -49,20 +49,16 @@ class TestValidator : public SignatureValidator {
    * Validates the request signed with private key that corresponds
    * to public_key
    */
-  bool ValidateRequest(const std::string &signed_request,
+  bool ValidateRequest(const std::string &request_signature,
                        const std::string &public_key,
-                       const std::string &signed_public_key,
+                       const std::string &public_key_validation,
                        const std::string &key) {
-    if (signed_request == kademlia::kAnonymousSignedRequest)
+    if (request_signature == kademlia::kAnonymousSignedRequest)
       return true;
-    crypto::Crypto checker;
-    return checker.AsymCheckSig(
-               checker.Hash(public_key + signed_public_key + key, "",
-                            crypto::STRING_STRING, true),
-               signed_request, public_key, crypto::STRING_STRING);
+#error
   }
 };
 
-}  // namespace base
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_VALIDATIONIMPL_H_

@@ -41,6 +41,8 @@ Created by Julian Cain on 11/3/09.
 
 #include "maidsafe/nat-pmp/natpmpprotocol.h"
 
+namespace maidsafe {
+
 namespace natpmp {
 
 typedef boost::function <void (
@@ -220,5 +222,7 @@ class NatPmpClientImpl {
 };
 
 }  // namespace natpmp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_NAT_PMP_NATPMPCLIENTIMPL_H_
