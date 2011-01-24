@@ -36,7 +36,6 @@ namespace kademlia {
 Node::Node(IoServicePtr asio_service,
            TransportPtr listening_transport,
            SecurifierPtr default_securifier,
-           ValidatorPtr default_validator,
            AlternativeStorePtr alternative_store,
            bool client_only_node,
            const boost::uint16_t &k,
@@ -44,8 +43,8 @@ Node::Node(IoServicePtr asio_service,
            const boost::uint16_t &beta,
            const boost::posix_time::seconds &mean_refresh_interval)
     : pimpl_(new Impl(asio_service, listening_transport, default_securifier,
-                      default_validator, alternative_store, client_only_node,
-                      k, alpha, beta, mean_refresh_interval)) {}
+                      alternative_store, client_only_node, k, alpha, beta,
+                      mean_refresh_interval)) {}
 
 Node::~Node() {}
 
@@ -85,9 +84,9 @@ void Node::Update(const Key &key,
 }
 
 void Node::FindValue(const Key &key,
-                     ValidatorPtr validator,
+                     SecurifierPtr securifier,
                      FindValueFunctor callback) {
-  pimpl_->FindValue(key, validator, callback);
+  pimpl_->FindValue(key, securifier, callback);
 }
 
 void Node::FindNodes(const Key &key, FindNodesFunctor callback) {
@@ -102,8 +101,16 @@ void Node::SetLastSeenToNow(const Contact &contact) {
   pimpl_->SetLastSeenToNow(contact);
 }
 
-void IncrementFailedRpcs(const Contact &contact) {
+void Node::IncrementFailedRpcs(const Contact &contact) {
   pimpl_->IncrementFailedRpcs(contact);
+}
+
+void Node::UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info) {
+  pimpl_->UpdateRankInfo(contact, rank_info);
+}
+
+RankInfoPtr Node::GetLocalRankInfo(const Contact &contact) {
+  return pimpl_->GetLocalRankInfo(contact);
 }
 
 void Node::GetAllContacts(std::vector<Contact> *contacts) {

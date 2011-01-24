@@ -67,20 +67,22 @@ const std::string &KeyValueTuple::value() const {
   return key_value_signature.value;
 }
 
-void KeyValueTuple::update_key_value_signature(
+void KeyValueTuple::UpdateKeyValueSignature(
     const KeyValueSignature &new_key_value_signature,
     const bptime::ptime &new_refresh_time) {
   key_value_signature = new_key_value_signature;
+  refresh_time = new_refresh_time;
 }
 
 void KeyValueTuple::set_refresh_time(const bptime::ptime &new_refresh_time) {
   refresh_time = new_refresh_time;
 }
 
-void KeyValueTuple::update_delete_status(
+void KeyValueTuple::UpdateDeleteStatus(
     const DeleteStatus &new_delete_status,
     const bptime::ptime &new_refresh_time) {
   delete_status = new_delete_status;
+  refresh_time = new_refresh_time;
 }
 
 
@@ -323,7 +325,7 @@ bool DataStore::MarkForDeletion(const KeyValueSignature &key_value_signature,
   bptime::ptime now(bptime::microsec_clock::universal_time());
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   return index_by_key_value.modify(it,
-      boost::bind(&KeyValueTuple::update_delete_status, _1, kMarkedForDeletion,
+      boost::bind(&KeyValueTuple::UpdateDeleteStatus, _1, kMarkedForDeletion,
                   now + refresh_interval_));
 }
 
@@ -363,7 +365,7 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
   bptime::ptime now(bptime::microsec_clock::universal_time());
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   return index_by_key_value.modify(it,
-      boost::bind(&KeyValueTuple::update_key_value_signature, _1,
+      boost::bind(&KeyValueTuple::UpdateKeyValueSignature, _1,
                   new_key_value_signature, now + refresh_interval_));
 }
 

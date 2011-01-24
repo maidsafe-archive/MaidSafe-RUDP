@@ -104,16 +104,15 @@ void Service::FindValue(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-  Contact sender(request.sender());
+  Contact sender(FromProtobuf(request.sender()));
 
   // Are we the alternative value holder?
   std::string key(request.key());
   std::vector<std::string> values_str;
   if (alternative_store_ != NULL && alternative_store_->Has(key)) {
-    *(response->mutable_alternative_value_holder()) =
-        node_contact_.ToProtobuf();
+    *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
-    routing_table_->AddContact(sender);  // TODO pass info
+    routing_table_->AddContact(sender, info);
     return;
   }
 
@@ -129,7 +128,7 @@ void Service::FindValue(const transport::Info &info,
         response->add_values(values_str[i]);
     }
     response->set_result(true);
-    routing_table_->AddContact(sender);  // TODO pass info
+    routing_table_->AddContact(sender, info);
     return;
   }
 
@@ -160,7 +159,7 @@ void Service::FindNodes(const transport::Info &info,
   routing_table_->FindCloseNodes(key, -1, exclude_contacts, &closest_contacts);
   bool found_node(false);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
-    (*response->add_closest_nodes()) = closest_contacts[i].ToProtobuf();
+    (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
     if (key == closest_contacts[i].node_id())
       found_node = true;
   }
@@ -168,11 +167,11 @@ void Service::FindNodes(const transport::Info &info,
   if (!found_node) {
     Contact key_node;
     if (routing_table_->GetContact(key, &key_node))
-      (*response->add_closest_nodes()) = key_node.ToProtobuf();
+      (*response->add_closest_nodes()) = ToProtobuf(key_node);
   }
 
   response->set_result(true);
-  routing_table_->AddContact(sender);  // TODO pass info
+  routing_table_->AddContact(sender, info);
 }
 
 void Service::Store(const transport::Info &info,
@@ -209,7 +208,7 @@ void Service::Store(const transport::Info &info,
 
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+    routing_table_->AddContact(FromProtobuf(request.sender()), info);
   } else if (!serialised_deletion_signature.empty()) {
     (*response->mutable_deletion_signature()).ParseFromString(
         serialised_deletion_signature);
@@ -253,7 +252,7 @@ void Service::Delete(const transport::Info &info,
                                   request.signed_value().SerializeAsString(),
                                   signature.SerializeAsString())) {
     response->set_result(true);
-    routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+    routing_table_->AddContact(FromProtobuf(request.sender()), info);
   }
 }
 
@@ -329,7 +328,7 @@ hashable replacement values.
   }
 
   response->set_result(true);
-  routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+  routing_table_->AddContact(FromProtobuf(request.sender()), info);
 }
 
 void Service::Downlist(const transport::Info &info,
