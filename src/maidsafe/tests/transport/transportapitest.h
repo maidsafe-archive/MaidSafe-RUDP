@@ -45,7 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace transport {
-     
+
 namespace test {
 
 // default local IP address
@@ -189,7 +189,7 @@ class TransportAPITest: public testing::Test {
     }
     ASSERT_EQ(listening_msg_handlers_itr,
               listening_message_handlers_.end());
-    
+
     // compare response
     std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
         sending_message_handlers_.begin());
@@ -241,7 +241,7 @@ TYPED_TEST_CASE_P(TransportAPITest);
 // NOTE: register new test patterns using macro at bottom
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  TransportPtr transport(new TypeParam(asio_service_));
+  TransportPtr transport(new TypeParam(this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 77)));
@@ -257,26 +257,26 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
-  TransportPtr sender(new TypeParam(asio_service_));
-  TransportPtr listener(new TypeParam(asio_service_));
+  TransportPtr sender(new TypeParam(this->asio_service_));
+  TransportPtr listener(new TypeParam(this->asio_service_));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   MessageHandlerPtr msgh_sender(new MessageHandler("Sender"));
   MessageHandlerPtr msgh_listener(new MessageHandler("listener"));
   sender->on_message_received()->connect(
       boost::bind(&MessageHandler::DoOnResponseReceived, msgh_sender, _1, _2,
       _3, _4));
-  sender->on_error()->connect(boost::bind(&MessageHandler::DoOnError, 
+  sender->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
                                           msgh_sender, _1));
   listener->on_message_received()->connect(
       boost::bind(&MessageHandler::DoOnRequestReceived, msgh_listener, _1, _2,
       _3, _4));
-  listener->on_error()->connect(boost::bind(&MessageHandler::DoOnError, 
+  listener->on_error()->connect(boost::bind(&MessageHandler::DoOnError,
                                             msgh_listener, _1));
   std::string request("FirstRequest");
   std::string response("FirstResponse");
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                Timeout(1000));
-  
+
   ASSERT_EQ(size_t(0), msgh_sender->errors().size());
   ASSERT_EQ(size_t(1), msgh_listener->requests_received().size());
   ASSERT_EQ(request, msgh_listener->requests_received().at(0).first);
@@ -286,7 +286,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
   ASSERT_EQ(msgh_listener->responses_sent().at(0),
             msgh_sender->responses_received().at(0).first);
-  
+
   request = "SecondRequest";
   response = "SecondResponse";
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
@@ -308,28 +308,28 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
 
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
-  this->SetupTransport(false, 0);  
-  this->SetupTransport(true, 0);  
+  this->SetupTransport(false, 0);
+  this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
-  this->SetupTransport(false, 0);  
-  this->SetupTransport(true, 0);  
+  this->SetupTransport(false, 0);
+  this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(123));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
   this->SetupTransport(false, 0);
   for (int i = 0; i < 20; ++i)
-    this->SetupTransport(true, 0);  
+    this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManyMultiMessage) {
   this->SetupTransport(false, 0);
   for (int i = 0; i < 20; ++i)
-    this->SetupTransport(true, 0);  
+    this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2033));
 }
 
@@ -337,7 +337,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
   for (int i = 0; i < 15; ++i)
     this->SetupTransport(false, 0);
   for (int i = 0; i < 20; ++i)
-    this->SetupTransport(true, 0);  
+    this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2033));
 }
 
@@ -354,9 +354,9 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
 //  boost::uint8_t num_messages(
 //      static_cast<boost::uint8_t>(boost::RandomUint32() % 100 + 1));
   for (boost::uint8_t i = 0; i < num_sender_transports; ++i)
-    SetupTransport(false, 0);
+    this->SetupTransport(false, 0);
   for (boost::uint8_t i = 0; i < num_listener_transports; ++i)
-    SetupTransport(true, 0);
+    this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(num_messages));
 }
 
