@@ -41,13 +41,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/mem_fun.hpp>
-
 namespace kademlia {
 
 class NodeId;
@@ -76,33 +69,6 @@ class Contact {
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;
 };
-
-
-// Tags
-struct tNodeId {};
-struct tTimeLastSeen {};
-struct tNumOfFailedRPCs {};
-
-typedef boost::multi_index_container<
-  Contact,
-  boost::multi_index::indexed_by<
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<tNodeId>,
-      boost::multi_index::const_mem_fun<
-	Contact,NodeId,&Contact::node_id>
-    >,  
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<tTimeLastSeen>,
-      boost::multi_index::const_mem_fun<
-	Contact,boost::uint64_t,&Contact::last_seen>
-    >,  
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<tNumOfFailedRPCs>,
-      boost::multi_index::const_mem_fun<
-	Contact,boost::uint16_t,&Contact::num_failed_rpcs>      
-    >
-  >
-> ContactsContainer;
 
 }  // namespace kademlia
 

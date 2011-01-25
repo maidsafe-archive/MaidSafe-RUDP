@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/asio/io_service.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/signals2/connection.hpp>
 
 #include <memory>
 #include <string>
@@ -171,6 +172,7 @@ class Node::Impl {
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs> rpcs_;
   bool joined_, refresh_routine_started_, stopping_;
+  boost::signals2::connection routing_table_connection_;
 };
 
 }  // namespace kademlia

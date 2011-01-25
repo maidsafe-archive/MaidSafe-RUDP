@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_KBUCKET_H_
 #define MAIDSAFE_KADEMLIA_KBUCKET_H_
 
+#include <boost/cstdint.hpp>
 #include <list>
 #include <vector>
 #include <string>
@@ -35,8 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/platform_config.h"
 
 namespace maidsafe {
-
-#include "maidsafe/kademlia/contact.h"
 
 namespace kademlia {
 
@@ -78,8 +77,7 @@ class KBucket {
 
  private:
   boost::uint32_t last_accessed_;
-  //std::list<Contact> contacts_;
-  ContactsContainer contacts_;
+//  ContactsContainer contacts_;
   NodeId range_min_, range_max_;
   boost::uint16_t K_;
 };
