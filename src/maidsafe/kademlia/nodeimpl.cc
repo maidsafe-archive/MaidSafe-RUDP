@@ -86,13 +86,19 @@ Node::Impl::Impl(IoServicePtr asio_service,
       rpcs_(new Rpcs(asio_service_, default_securifier)),
       joined_(false),
       refresh_routine_started_(false),
-      stopping_(false) {}
-
+      stopping_(false),
+      routing_table_connection_() {}
 
 Node::Impl::~Impl() {
   if (joined_)
     Leave(NULL);
 }
+
+void Leave(std::vector<Contact> *bootstrap_contacts) {
+  routing_table_connection_.disconnect();
+  routing_table_->GetBootstrapContacts(bootstrap_contacts);
+}
+
 
 //void Node::Impl::JoinFirstNode(const NodeId &node_id,
 //                             const std::string &kad_config_file,
@@ -146,6 +152,8 @@ Node::Impl::~Impl() {
 //
 //  // Set kad_config_path_
 //  routing_table_.reset(new RoutingTable(node_id_, K_));
+//  routing_table_connection_ = routing_table_->on_ping_oldest_contact()->connect(
+//      boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
 //
 //  joined_ = true;
 ////  service_->set_node_joined(true);
@@ -470,12 +478,12 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
                                            const int &result,
                                            Contact replacement_contact,
                                            RankInfoPtr replacement_rank_info) {
-  if(result == 0) {
-    add new contact - or ++ failed count?
-  } else {
-    remove old contact
-      add new contact
-  }
+//  if(result == 0) {
+//    add new contact - or ++ failed count?
+//  } else {
+//    remove old contact
+//      add new contact
+//  }
 
 }
 

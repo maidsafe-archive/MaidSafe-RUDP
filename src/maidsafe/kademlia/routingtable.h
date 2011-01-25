@@ -30,6 +30,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/composite_key.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 
 #include <map>
 #include <memory>
@@ -58,6 +64,7 @@ struct RoutingTableContact {
   bool operator<(const RoutingTableContact &other) const {
     return contact < other.contact;
   }
+  NodeId node_id() const { return contact.node_id(); }
   Contact contact;
   std::string public_key;
   boost::uint16_t num_failed_rpcs;
@@ -65,35 +72,56 @@ struct RoutingTableContact {
   std::shared_ptr<transport::Info> info;
 };
 
+struct TagNodeId {};
+struct TagTimeLastSeen {};
+
+typedef boost::multi_index_container<
+  RoutingTableContact,
+  boost::multi_index::indexed_by<
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<TagNodeId>,
+      BOOST_MULTI_INDEX_CONST_MEM_FUN(RoutingTableContact, NodeId, node_id>
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<TagTimeLastSeen>,
+      BOOST_MULTI_INDEX_MEMBER(RoutingTableContact, bptime::ptime,
+                               &RoutingTableContact::last_seen)
+    >
+  >
+> RoutingTableContactsContainer;
+
 class RoutingTable {
  public:
-  RoutingTable(const NodeId &holder_id, const boost::uint16_t &rt_K);
+  RoutingTable(const NodeId &holder_id, const boost::uint16_t &k);
   ~RoutingTable();
   // Add the given contact to the correct k-bucket; if it already
-  // exists, its status will be updated
-  int AddContact(const Contact &new_contact);
-  // Returns true and the contact if it is stored in one Kbucket
-  // otherwise it returns false
-  bool GetContact(const NodeId &node_id, Contact *contact);
+  // exists, its status will be updated.  If the given k-bucket is full and not
+  // splittable, the signal on_ping_oldest_contact_ will be fired which will
+  // ultimately resolve whether the contact is added or not.
+  void AddContact(const Contact &contact);
+  void GetContact(const NodeId &node_id, Contact *contact);
   // Remove the contact with the specified node ID from the routing table
   void RemoveContact(const NodeId &node_id, const bool &force);
-  // Update the "last accessed" timestamp of the k-bucket which covers
-  // the range containing the specified key in the key/ID space
-  void TouchKBucket(const NodeId &node_id);
-  // Finds a number of known nodes closest to the node/value with the
-  // specified key.
-  void FindCloseNodes(const NodeId &key, int count,
-                      const std::vector<Contact> &exclude_contacts,
-                      std::vector<Contact> *close_nodes);
+  // Finds a number of known nodes closest to the target_id.
+  void GetCloseContacts(const NodeId &target_id,
+                        const size_t &count,
+                        const std::vector<Contact> &exclude_contacts,
+                        std::vector<Contact> *close_contacts);
+  void GetBootstrapContacts(std::vector<Contact> *contacts);
+  int SetPublicKey(const NodeId &node_id, const std::string &new_public_key);
+  int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
+  int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
+  int IncrementFailedRpcCount(const NodeId &node_id);  
+
   // Finds all k-buckets that need refreshing, starting at the k-bucket with
   // the specified index, and returns IDs to be searched for in order to
   // refresh those k-buckets
-  void GetRefreshList(const boost::uint16_t &start_kbucket, const bool &force,
-                      std::vector<NodeId> *ids);
-  // Get all contacts of a specified k_bucket
-  bool GetContacts(const boost::uint16_t &index,
-                   const std::vector<Contact> &exclude_contacts,
-                   std::vector<Contact> *contacts);
+//  void GetRefreshList(const boost::uint16_t &start_kbucket, const bool &force,
+//                      std::vector<NodeId> *ids);
+//  // Get all contacts of a specified k_bucket
+//  bool GetContacts(const boost::uint16_t &index,
+//                   const std::vector<Contact> &exclude_contacts,
+//                   std::vector<Contact> *contacts);
   size_t KbucketSize() const;
   size_t Size() const;
   void Clear();
@@ -101,9 +129,6 @@ class RoutingTable {
   // key (or ID)
   boost::int16_t KBucketIndex(const NodeId &key);
   Contact GetLastSeenContact(const boost::uint16_t &kbucket_index);
-  void GetFurthestContacts(const NodeId &key, const boost::int8_t count,
-                           const std::vector<Contact> &exclude_contacts,
-                           std::vector<Contact> *close_nodes);
 
  private:
 // Calculate the index of the k-bucket which is responsible for the specified
@@ -120,6 +145,8 @@ class RoutingTable {
   // would normally be dropped if it is within the k closest contacts to the
   // holder's ID.
   int ForceKAcceptNewPeer(const Contact &new_contact);
+
+  RoutingTableContactsContainer contacts_;
   std::vector<std::shared_ptr<KBucket>> k_buckets_;
   // Mapping of each k-bucket's maximum address to its index in the vector of
   // k-buckets
@@ -134,7 +161,7 @@ class RoutingTable {
   boost::uint16_t bucket_of_holder_, brother_bucket_of_holder_;
   // Upper limit of address space.
   NodeId address_space_upper_address_;
-  boost::uint16_t K_;
+  const boost::uint16_t k_;
 };
 
 }  // namespace kademlia
