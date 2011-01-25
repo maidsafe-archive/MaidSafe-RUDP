@@ -141,8 +141,7 @@ void MessageHandler::ProcessSerialisedMessage(
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::PingResponse response;
         (*on_ping_request_)(info, request, &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -151,7 +150,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::PingResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_ping_response_)(response);
+        (*on_ping_response_)(info, response);
       break;
     }
     case kFindValueRequest: {
@@ -161,8 +160,7 @@ void MessageHandler::ProcessSerialisedMessage(
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::FindValueResponse response;
         (*on_find_value_request_)(info, request, &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -171,7 +169,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::FindValueResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_find_value_response_)(response);
+        (*on_find_value_response_)(info, response);
       break;
     }
     case kFindNodesRequest: {
@@ -181,8 +179,7 @@ void MessageHandler::ProcessSerialisedMessage(
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::FindNodesResponse response;
         (*on_find_nodes_request_)(info, request, &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -191,7 +188,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::FindNodesResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_find_nodes_response_)(response);
+        (*on_find_nodes_response_)(info, response);
       break;
     }
     case kStoreRequest: {
@@ -201,8 +198,7 @@ void MessageHandler::ProcessSerialisedMessage(
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::StoreResponse response;
         (*on_store_request_)(info, request, &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -211,7 +207,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::StoreResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_store_response_)(response);
+        (*on_store_response_)(info, response);
       break;
     }
     case kDeleteRequest: {
@@ -224,8 +220,7 @@ void MessageHandler::ProcessSerialisedMessage(
         protobuf::DeleteResponse response;
         (*on_delete_request_)(info, request, message, message_signature,
                               &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -234,7 +229,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::DeleteResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_delete_response_)(response);
+        (*on_delete_response_)(info, response);
       break;
     }
     case kUpdateRequest: {
@@ -247,8 +242,7 @@ void MessageHandler::ProcessSerialisedMessage(
         protobuf::UpdateResponse response;
         (*on_update_request_)(info, request, message, message_signature,
                               &response);
-        if (!(*message_response = WrapMessage(response)).empty())
-          *timeout = transport::kDefaultInitialTimeout;
+        *message_response = WrapMessage(response);
       }
       break;
     }
@@ -257,7 +251,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::UpdateResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_update_response_)(response);
+        (*on_update_response_)(info, response);
       break;
     }
     case kDownlistNotification: {

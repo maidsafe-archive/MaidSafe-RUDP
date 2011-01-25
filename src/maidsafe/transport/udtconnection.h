@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <maidsafe/transport/transport.h>
 #include <maidsafe/transport/transport.pb.h>
+#include <memory>
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 
@@ -116,10 +117,10 @@ class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
   SocketId socket_id_;
   Endpoint endpoint_;
   ConnectionType connection_type_;
-  boost::shared_ptr<addrinfo const> peer_;
+  std::shared_ptr<addrinfo const> peer_;
   std::string data_;
-  boost::shared_ptr<boost::asio::deadline_timer> timeout_timer_;
-  boost::shared_ptr<boost::asio::deadline_timer> stall_timer_;
+  std::shared_ptr<boost::asio::deadline_timer> timeout_timer_;
+  std::shared_ptr<boost::asio::deadline_timer> stall_timer_;
 };
 
 }  // namespace transport

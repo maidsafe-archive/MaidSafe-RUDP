@@ -67,32 +67,32 @@ class MessageHandler : public transport::MessageHandler {
  public:
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::PingRequest&, protobuf::PingResponse*)>> PingReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const protobuf::PingResponse&)>>
-      PingRspSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
+      const protobuf::PingResponse&)>> PingRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::FindValueRequest&, protobuf::FindValueResponse*)>>
       FindValueReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::FindNodesRequest&, protobuf::FindNodesResponse*)>>
       FindNodesReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::StoreRequest&, protobuf::StoreResponse*)>>
       StoreReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::StoreResponse&)>> StoreRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::DeleteRequest&, const std::string&, const std::string&,
       protobuf::DeleteResponse*)>> DeleteReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::UpdateRequest&, const std::string&, const std::string&,
       protobuf::UpdateResponse*)>> UpdateReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(
+  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::UpdateResponse&)>> UpdateRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::DownlistNotification&)>>

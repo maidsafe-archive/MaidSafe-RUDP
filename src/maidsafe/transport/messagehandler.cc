@@ -54,21 +54,24 @@ void MessageHandler::OnMessageReceived(const std::string &request,
 
   // Try to parse without decrypting first
   if (wrapper.ParseFromString(request) && wrapper.IsInitialized()) {
-    (*on_info_)(wrapper.msg_type(), info);
-    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
-                                    false, response, timeout);
+    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
+                                    wrapper.message_signature(), info, false,
+                                    response, timeout);
   } else {  // Now try decrypting
     if (!securifier_)
       return;
     std::string decrypted(securifier_->AsymmetricDecrypt(request));
     if (!wrapper.ParseFromString(decrypted))
       return;
-    if (!wrapper.IsInitialized())
-      return;
-    (*on_info_)(wrapper.msg_type(), info);
-    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(), info,
-                                    true, response, timeout);
+    if (wrapper.IsInitialized())
+      return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
+                                      wrapper.message_signature(), info, true,
+                                      response, timeout);
   }
+}
+
+void MessageHandler::OnError(const TransportCondition &transport_condition) {
+  (*on_error_)(transport_condition);
 }
 
 std::string MessageHandler::WrapMessage(

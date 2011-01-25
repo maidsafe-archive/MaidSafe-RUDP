@@ -28,7 +28,6 @@ message FindValueResponse {
   repeated Contact closest_nodes = 2;
   repeated SignedValue signed_values = 3;
   optional Contact alternative_value_holder = 4;
-  optional bytes needs_cache_copy = 5;
 }
 
 message FindNodesRequest {
@@ -76,6 +75,6 @@ message UpdateResponse {
 }
 
 message DownlistNotification {
-  repeated bytes node_ids = 1;
-  required Contact sender = 2;
+  required Contact sender = 1;
+  repeated bytes node_ids = 2;
 }

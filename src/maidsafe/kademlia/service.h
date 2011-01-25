@@ -72,7 +72,8 @@ class Service : public boost::enable_shared_from_this<Service> {
           std::shared_ptr<DataStore> datastore,
           AlternativeStorePtr alternative_store,
           SecurifierPtr securifier);
-  void ConnectToMessageHandler(std::shared_ptr<MessageHandler> message_handler);
+  void ConnectToSignals(TransportPtr transport,
+                        MessageHandlerPtr message_handler);
   void Ping(const transport::Info &info,
             const protobuf::PingRequest &request,
             protobuf::PingResponse *response);

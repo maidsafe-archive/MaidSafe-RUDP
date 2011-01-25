@@ -33,11 +33,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_TRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_TRANSPORT_H_
 
-#include <boost/shared_ptr.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/date_time/posix_time/posix_time_duration.hpp>
+#include <memory>
 #include <string>
 #include <iostream>  // NOLINT
 
@@ -143,11 +143,11 @@ const Timeout kStallTimeout(3000);
 const int kMaxAcceptedConnections(5);
 
 // transport signals
-typedef boost::shared_ptr<bs2::signal<void(const std::string&,
-                                           const Info&,
-                                           std::string*,
-                                           Timeout*)>> OnMessageReceived;
-typedef boost::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
+typedef std::shared_ptr<bs2::signal<void(const std::string&,
+                                         const Info&,
+                                         std::string*,
+                                         Timeout*)>> OnMessageReceived;
+typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
 
 // Base class for all transport types.
 class Transport {
@@ -183,12 +183,12 @@ class Transport {
   OnMessageReceived on_message_received() { return on_message_received_; }
   OnError on_error() { return on_error_; }
  protected:
-  explicit Transport(boost::shared_ptr<boost::asio::io_service> asio_service)
+  explicit Transport(std::shared_ptr<boost::asio::io_service> asio_service)
       : asio_service_(asio_service),
         listening_port_(0),
         on_message_received_(new OnMessageReceived::element_type),
         on_error_(new OnError::element_type) {}
-  boost::shared_ptr<boost::asio::io_service> asio_service_;
+  std::shared_ptr<boost::asio::io_service> asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;
   OnError on_error_;
