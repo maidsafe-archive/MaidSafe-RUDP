@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTUTILS_H_
 #define MAIDSAFE_TRANSPORT_UDTUTILS_H_
 
-#include <boost/shared_ptr.hpp>
 #include <maidsafe/transport/transport.h>
+#include <memory>
 #include "maidsafe/transport/detail.h"
 #include "maidsafe/udt/udt.h"
 
@@ -45,25 +45,25 @@ namespace transport {
 
 namespace udtutils {
 
-boost::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
-                                                    char const *service,
-                                                    addrinfo const &hints,
-                                                    int *result);
-boost::shared_ptr<addrinfo const> Next(
-    boost::shared_ptr<addrinfo const> const &node);
+std::shared_ptr<addrinfo const> SocketGetAddrinfo(char const *node,
+                                                  char const *service,
+                                                  addrinfo const &hints,
+                                                  int *result);
+std::shared_ptr<addrinfo const> Next(
+    std::shared_ptr<addrinfo const> const &node);
 
 TransportCondition GetNewSocket(
     const Endpoint &endpoint,
     bool reuse_address,
     SocketId *socket_id,
-    boost::shared_ptr<addrinfo const> *address_info);
+    std::shared_ptr<addrinfo const> *address_info);
 
 TransportCondition GetNewSocket(bool reuse_address,
                                 SocketId *socket_id,
-                                boost::shared_ptr<addrinfo const> address_info);
+                                std::shared_ptr<addrinfo const> address_info);
 
 TransportCondition Connect(const SocketId &socket_id,
-                           boost::shared_ptr<addrinfo const> peer);
+                           std::shared_ptr<addrinfo const> peer);
 
 TransportCondition SetSyncMode(const SocketId &socket_id, bool synchronous);
 

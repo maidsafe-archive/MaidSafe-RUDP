@@ -91,8 +91,8 @@ class MessageHandler {
       const protobuf::RendezvousRequest&)>> RendezvousReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(
       const protobuf::RendezvousAcknowledgement&)>> RendezvousAckSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(int, const Info&)>>
-      MsgInfoSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>>
+      ErrorSigPtr;
 
   explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : securifier_(securifier),
@@ -107,12 +107,13 @@ class MessageHandler {
           new ForwardRendezvousRspSigPtr::element_type),
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
-      on_info_(new MsgInfoSigPtr::element_type) {}
+      on_error_(new ErrorSigPtr::element_type) {}
   virtual ~MessageHandler() {}
   void OnMessageReceived(const std::string &request,
                          const Info &info,
                          std::string *response,
-                         Timeout *timout);
+                         Timeout *timeout);
+  void OnError(const TransportCondition &transport_condition);
 
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
@@ -151,9 +152,7 @@ class MessageHandler {
   RendezvousAckSigPtr on_rendezvous_acknowledgement() {
     return on_rendezvous_acknowledgement_;
   }
-  MsgInfoSigPtr on_info() {
-    return on_info_;
-  }
+  ErrorSigPtr on_error() { return on_error_; }
 
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
@@ -180,7 +179,7 @@ class MessageHandler {
   ForwardRendezvousRspSigPtr on_forward_rendezvous_response_;
   RendezvousReqSigPtr on_rendezvous_request_;
   RendezvousAckSigPtr on_rendezvous_acknowledgement_;
-  MsgInfoSigPtr on_info_;
+  ErrorSigPtr on_error_;
 };
 
 }  // namespace transport

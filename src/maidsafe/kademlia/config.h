@@ -54,6 +54,7 @@ namespace kademlia {
 
 class NodeId;
 class Contact;
+class MessageHandler;
 
 
 // Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
@@ -79,9 +80,6 @@ typedef boost::function<void(int, std::vector<Contact>)> FindNodesFunctor;
 // node's contact details.
 typedef boost::function<void(int, Contact)> GetContactFunctor;
 
-// Functor for use in many RPCs
-typedef boost::function<void(bool)> RpcResponseFunctor;  // NOLINT
-
 
 typedef NodeId Key;
 typedef boost::asio::ip::address IP;
@@ -90,6 +88,7 @@ typedef boost::uint16_t Port;
 
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
+typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
 typedef std::shared_ptr<Securifier> SecurifierPtr;
 typedef std::shared_ptr<AlternativeStore> AlternativeStorePtr;
 typedef std::shared_ptr<transport::Info> RankInfoPtr;

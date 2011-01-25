@@ -59,11 +59,14 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       node_joined_(false),
       node_contact_() {}
 
-void Service::ConnectToMessageHandler(
-    std::shared_ptr<MessageHandler> message_handler) {
-  // Connect message handler to transport for incoming raw messages
-//  transport_->on_message_received()->connect(boost::bind(
-//      &MessageHandler::OnMessageReceived, message_handler_, _1, _2, _3, _4));
+void Service::ConnectToSignals(TransportPtr transport,
+                               MessageHandlerPtr message_handler) {
+  // Connect message handler to transport for incoming raw messages.  Don't need
+  // to connect to on_error() as service doesn't care if reply succeeds or not.
+  transport->on_message_received()->connect(
+      transport::OnMessageReceived::element_type::slot_type(
+          &MessageHandler::OnMessageReceived, message_handler.get(),
+          _1, _2, _3, _4).track_foreign(message_handler));
   // Connect service to message handler for incoming parsed requests
   message_handler->on_ping_request()->connect(
       MessageHandler::PingReqSigPtr::element_type::slot_type(
