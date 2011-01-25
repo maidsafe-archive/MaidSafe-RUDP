@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/common/securifier.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/nodeid.h"
 #include "maidsafe/kademlia/messagehandler.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
@@ -44,14 +45,15 @@ void Rpcs::Ping(SecurifierPtr securifier,
   Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
   protobuf::PingRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
-  request.set_ping("ping");
+  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
+  request.set_ping(random_data);
   std::string message(connected_objects.get<1>()->WrapMessage(request));
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
-      &Rpcs::PingCallback, this, transport::kSuccess, _1, _2, connected_objects,
-      callback));
+      &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
+      connected_objects, callback));
   connected_objects.get<1>()->on_error()->connect(boost::bind(
-      &Rpcs::PingCallback, this, _1, transport::Info(),
+      &Rpcs::PingCallback, this, "", _1, transport::Info(),
       protobuf::PingResponse(), connected_objects, callback));
   connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
@@ -207,18 +209,19 @@ void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
 }
 
 void Rpcs::PingCallback(
+    const std::string &random_data,
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,
     ConnectedObjects connected_objects,
     PingFunctor callback) {
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition);
-  if (response.IsInitialized() && response.result() &&
-      response.has_echo() && response.echo() == "pong")
-    callback(info, transport::kSuccess);
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.echo() == random_data)
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
   else
-    callback(info, -1);
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
 void Rpcs::FindValueCallback(
@@ -232,11 +235,12 @@ void Rpcs::FindValueCallback(
   Contact alternative_value_holder;
 
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition, values, contacts,
-                    alternative_value_holder);
+    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+                    values, contacts, alternative_value_holder);
 
   if (!response.IsInitialized() || !response.result())
-    return callback(info, -1, values, contacts, alternative_value_holder);
+    return callback(RankInfoPtr(new transport::Info(info)), -1, values,
+                    contacts, alternative_value_holder);
 
   for (int i = 0; i < response.signed_values_size(); ++i)
     values.push_back(response.signed_values(i).value());
@@ -249,8 +253,8 @@ void Rpcs::FindValueCallback(
         FromProtobuf(response.alternative_value_holder());
   }
 
-  callback(info, transport_condition, values, contacts,
-           alternative_value_holder);
+  callback(RankInfoPtr(new transport::Info(info)), transport_condition, values,
+           contacts, alternative_value_holder);
 }
 
 void Rpcs::FindNodesCallback(
@@ -262,15 +266,16 @@ void Rpcs::FindNodesCallback(
   std::vector<Contact> contacts;
 
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition, contacts);
+    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+                    contacts);
 
   if (!response.IsInitialized() || !response.result())
-    return callback(info, -1, contacts);
+    return callback(RankInfoPtr(new transport::Info(info)), -1, contacts);
 
   for (int i = 0; i < response.closest_nodes_size(); ++i)
     contacts.push_back(FromProtobuf(response.closest_nodes(i)));
 
-  callback(info, transport_condition, contacts);
+  callback(RankInfoPtr(new transport::Info(info)), transport_condition, contacts);
 }
 
 void Rpcs::StoreCallback(
@@ -280,11 +285,12 @@ void Rpcs::StoreCallback(
     ConnectedObjects connected_objects,
     StoreFunctor callback) {
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition);
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
   if (response.IsInitialized() && response.result())
-    callback(info, transport::kSuccess);
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
   else
-    callback(info, -1);
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
 void Rpcs::DeleteCallback(
@@ -294,11 +300,12 @@ void Rpcs::DeleteCallback(
     ConnectedObjects connected_objects,
     DeleteFunctor callback) {
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition);
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
   if (response.IsInitialized() && response.result())
-    callback(info, transport::kSuccess);
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
   else
-    callback(info, -1);
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
 void Rpcs::UpdateCallback(
@@ -308,11 +315,12 @@ void Rpcs::UpdateCallback(
     ConnectedObjects connected_objects,
     UpdateFunctor callback) {
   if (transport_condition != transport::kSuccess)
-    return callback(info, transport_condition);
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
   if (response.IsInitialized() && response.result())
-    callback(info, transport::kSuccess);
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
   else
-    callback(info, -1);
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
 Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
@@ -331,7 +339,8 @@ Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
     default:
       break;
   }
-  MessageHandlerPtr message_handler(new MessageHandler(securifier));
+  MessageHandlerPtr message_handler(new MessageHandler(securifier ? securifier :
+                                                       default_securifier_));
   // Connect message handler to transport for incoming raw messages
   bs2::connection on_recv_con = transport->on_message_received()->connect(
       boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),

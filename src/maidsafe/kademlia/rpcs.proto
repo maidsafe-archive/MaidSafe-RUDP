@@ -14,8 +14,7 @@ message PingRequest {
 }
 
 message PingResponse {
-  required bool result = 1;
-  optional bytes echo = 2;
+  required bytes echo = 1;
 }
 
 message FindValueRequest {

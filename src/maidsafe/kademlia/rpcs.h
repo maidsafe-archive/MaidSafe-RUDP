@@ -61,13 +61,13 @@ class UpdateResponse;
 
 class Rpcs {
  public:
-  typedef boost::function<void(const transport::Info&,
-      const int&)> PingFunctor, StoreFunctor, DeleteFunctor, UpdateFunctor;
-  typedef boost::function<void(const transport::Info&, const int&,
+  typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
+      StoreFunctor, DeleteFunctor, UpdateFunctor;
+  typedef boost::function<void(RankInfoPtr, const int&,
       const std::vector<std::string>&, const std::vector<Contact>&,
       const Contact&)> FindValueFunctor;
-  typedef boost::function<void(const transport::Info&,
-      const int&, const std::vector<Contact>&)> FindNodesFunctor;
+  typedef boost::function<void(RankInfoPtr, const int&,
+      const std::vector<Contact>&)> FindNodesFunctor;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
       : contact_(),
@@ -125,7 +125,8 @@ class Rpcs {
                        bs2::connection> ConnectedObjects;
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
-  void PingCallback(const transport::TransportCondition &transport_condition,
+  void PingCallback(const std::string &random_data,
+                    const transport::TransportCondition &transport_condition,
                     const transport::Info &info,
                     const protobuf::PingResponse &response,
                     ConnectedObjects connected_objects,

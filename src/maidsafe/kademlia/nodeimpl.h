@@ -148,6 +148,14 @@ class Node::Impl {
       bool,
       const std::vector<Contact>&,
       std::shared_ptr<FindNodesRpcArgs> find_nodes_rpc_args);
+  void PingOldestContact(const Contact &oldest_contact,
+                         const Contact &replacement_contact,
+                         RankInfoPtr replacement_rank_info);
+  void PingOldestContactCallback(Contact oldest_contact,
+                                 RankInfoPtr oldest_rank_info,
+                                 const int &result,
+                                 Contact replacement_contact,
+                                 RankInfoPtr replacement_rank_info);
 
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;

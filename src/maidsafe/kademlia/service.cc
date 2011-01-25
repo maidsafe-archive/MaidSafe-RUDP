@@ -96,9 +96,9 @@ void Service::ConnectToSignals(TransportPtr transport,
 void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response) {
-  response->set_echo("pong");
-  response->set_result(true);
-  routing_table_->AddContact(FromProtobuf(request.sender()), info);
+  response->set_echo(request.ping());
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::FindValue(const transport::Info &info,
@@ -115,7 +115,7 @@ void Service::FindValue(const transport::Info &info,
   if (alternative_store_ != NULL && alternative_store_->Has(key)) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
-    routing_table_->AddContact(sender, info);
+    routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
   }
 
