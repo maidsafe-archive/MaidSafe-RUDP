@@ -49,6 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/service.h"
 #include "maidsafe/kademlia/nodeimplstructs.h"
+#include "maidsafe/kademlia/utils.h"
 //#include "maidsafe/kademlia/kademlia.pb.h"
 //#include "maidsafe/kademlia/nodeid.h"
 //#include "maidsafe/kademlia/routingtable.h"
@@ -60,69 +61,6 @@ namespace maidsafe {
 namespace kademlia {
 
 // some tools which will be used in the implementation of Node::Impl class
-
-bool CompareContact(const ContactAndTargetKey &first,
-                    const ContactAndTargetKey &second) {
-  NodeId id;
-  if (first.contact.node_id() == id)
-    return true;
-  else if (second.contact.node_id() == id)
-    return false;
-  return NodeId::CloserToTarget(first.contact.node_id(),
-      second.contact.node_id(), first.target_key);
-}
-
-// sort the contact list according the distance to the target key
-void SortContactList(const NodeId &target_key,
-                     std::list<Contact> *contact_list) {
-  if (contact_list->empty()) {
-    return;
-  }
-  std::list<ContactAndTargetKey> temp_list;
-  std::list<Contact>::iterator it;
-  // clone the contacts into a temporary list together with the target key
-  for (it = contact_list->begin(); it != contact_list->end(); ++it) {
-    ContactAndTargetKey new_ck;
-    new_ck.contact = *it;
-    new_ck.target_key = target_key;
-    temp_list.push_back(new_ck);
-  }
-  temp_list.sort(CompareContact);
-  // restore the sorted contacts from the temporary list.
-  contact_list->clear();
-  std::list<ContactAndTargetKey>::iterator it1;
-  for (it1 = temp_list.begin(); it1 != temp_list.end(); ++it1) {
-    contact_list->push_back(it1->contact);
-  }
-}
-
-// sort the contact list according the distance to the target key
-void SortLookupContact(const NodeId &target_key,
-                       std::list<LookupContact> *contact_list) {
-  if (contact_list->empty()) {
-    return;
-  }
-  std::list<ContactAndTargetKey> temp_list;
-  std::list<LookupContact>::iterator it;
-  // clone the contacts into a temporary list together with the target key
-  for (it = contact_list->begin(); it != contact_list->end(); ++it) {
-    ContactAndTargetKey new_ck;
-    new_ck.contact = it->kad_contact;
-    new_ck.target_key = target_key;
-    new_ck.contacted = it->contacted;
-    temp_list.push_back(new_ck);
-  }
-  temp_list.sort(CompareContact);
-  // restore the sorted contacts from the temporary list.
-  contact_list->clear();
-  std::list<ContactAndTargetKey>::iterator it1;
-  for (it1 = temp_list.begin(); it1 != temp_list.end(); ++it1) {
-    struct LookupContact ctc;
-    ctc.kad_contact = it1->contact;
-    ctc.contacted = it1->contacted;
-    contact_list->push_back(ctc);
-  }
-}
 
 Node::Impl::Impl(IoServicePtr asio_service,
                  TransportPtr listening_transport,
@@ -145,7 +83,7 @@ Node::Impl::Impl(IoServicePtr asio_service,
       data_store_(new DataStore(mean_refresh_interval)),
       service_(),
       routing_table_(),
-      rpcs_(new Rpcs(asio_service_)),
+      rpcs_(new Rpcs(asio_service_, default_securifier)),
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false) {}
@@ -518,6 +456,29 @@ Node::Impl::~Impl() {
 //
 //  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
 //}
+void Node::Impl::PingOldestContact(const Contact &oldest_contact,
+                                   const Contact &replacement_contact,
+                                   RankInfoPtr replacement_rank_info) {
+  Rpcs::PingFunctor callback(boost::bind(&Node::Impl::PingOldestContactCallback,
+      this, oldest_contact, _1, _2, replacement_contact,
+      replacement_rank_info));
+  rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kUdt);
+}
+
+void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
+                                           RankInfoPtr oldest_rank_info,
+                                           const int &result,
+                                           Contact replacement_contact,
+                                           RankInfoPtr replacement_rank_info) {
+  if(result == 0) {
+    add new contact - or ++ failed count?
+  } else {
+    remove old contact
+      add new contact
+  }
+
+}
+
 
 }  // namespace kademlia
 

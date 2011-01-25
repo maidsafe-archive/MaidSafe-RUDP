@@ -28,22 +28,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_
 #define MAIDSAFE_KADEMLIA_NODEIMPLSTRUCTS_H_
 
-#include <boost/thread/mutex.hpp>
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/member.hpp>
-
-#include <list>
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
+//#include <boost/thread/mutex.hpp>
+//#include <boost/multi_index_container.hpp>
+//#include <boost/multi_index/composite_key.hpp>
+//#include <boost/multi_index/ordered_index.hpp>
+//#include <boost/multi_index/identity.hpp>
+//#include <boost/multi_index/member.hpp>
+//
+//#include <list>
+//#include <map>
+//#include <set>
+//#include <string>
+//#include <vector>
 
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/rpcs.pb.h"
 
 namespace maidsafe {
 
@@ -52,8 +51,9 @@ namespace kademlia {
 class Signature;
 class SignedValue;
 
-enum RemoteFindMethod { FIND_NODE, FIND_VALUE, BOOTSTRAP };
+enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
 
+/*
 struct ContactAndTargetKey {
   ContactAndTargetKey() : contact(), target_key(), contacted(false) {}
   Contact contact;
@@ -425,7 +425,7 @@ struct FindNodesRpcArgs {
   boost::shared_ptr<FindNodesArgs> rpc_fna;
   int round;
 };
-
+*/
 }  // namespace kademlia
 
 }  // namespace maidsafe

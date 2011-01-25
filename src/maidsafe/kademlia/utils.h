@@ -43,6 +43,16 @@ Contact FromProtobuf(const protobuf::Contact &protobuf_contact);
 
 protobuf::Contact ToProtobuf(const Contact &contact);
 
+//bool CompareContact(const ContactAndTargetKey &first,
+//                    const ContactAndTargetKey &second);
+//
+//// sort the contacts according the distance to the target key
+//void SortContacts(const Key &target_key, std::vector<Contact> *contacts);
+//
+//// sort the contact list according the distance to the target key
+//void SortLookupContact(const Key &target_key,
+//                       std::vector<LookupContact> *lookup_contacts);
+
 }  // namespace kademlia
 
 }  // namespace maidsafe
