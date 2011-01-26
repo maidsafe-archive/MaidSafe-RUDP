@@ -25,12 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
+#include "gtest/gtest.h"
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/lexical_cast.hpp"
+#include "boost/scoped_ptr.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/maidsafe-dht.h"
 

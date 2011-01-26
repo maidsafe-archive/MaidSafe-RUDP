@@ -28,10 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udtconnection.h"
 
-#include <boost/scoped_array.hpp>
-
 #include <algorithm>
 #include <vector>
+
+#include "boost/scoped_array.hpp"
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"

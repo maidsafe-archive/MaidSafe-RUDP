@@ -25,13 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
-#define MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
+#ifndef MAIDSAFE_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
+#define MAIDSAFE_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
 
-#include <boost/thread/mutex.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+#include "boost/thread/mutex.hpp"
 #include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
@@ -83,5 +83,5 @@ class MessageHandler {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TESTS_TRANSPORT_MESSAGEHANDLER_H_
+#endif  // MAIDSAFE_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
 

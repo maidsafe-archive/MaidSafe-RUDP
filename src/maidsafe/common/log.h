@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <windows.h>
 #undef ERROR
 #endif
-#include <glog/logging.h>
+#include "glog/logging.h"
 #else
 #include <iostream>  // NOLINT
 namespace google { inline void InitGoogleLogging(char*) {} }   // NOLINT

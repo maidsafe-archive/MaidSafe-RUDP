@@ -28,11 +28,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_UPNP_MINIUPNPCLIENTIMPL_H_
 #define MAIDSAFE_UPNP_MINIUPNPCLIENTIMPL_H_
 
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
 #include <string>
 #include <list>
 #include <map>
+#include "boost/shared_ptr.hpp"
+#include "boost/thread.hpp"
 #include "maidsafe/upnp/upnpcfg.h"
 #include "maidsafe/libupnp/miniupnpc.h"
 #include "maidsafe/common/call_later_timer.h"

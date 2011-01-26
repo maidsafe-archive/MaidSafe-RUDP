@@ -33,14 +33,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_NODE_API_H_
 #define MAIDSAFE_KADEMLIA_NODE_API_H_
 
-#include <boost/asio/io_service.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/scoped_ptr.hpp>
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "boost/asio/io_service.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/scoped_ptr.hpp"
 
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/common/version.h"

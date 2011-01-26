@@ -26,21 +26,25 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/common/utils.h"
-#include <boost/lexical_cast.hpp>
-#include <boost/scoped_array.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int.hpp>
-#include <boost/random/variate_generator.hpp>
+
 #include <ctype.h>
-#include <maidsafe/cryptopp/integer.h>
-#include <maidsafe/cryptopp/osrng.h>
-#include <maidsafe/cryptopp/base32.h>
-#include <maidsafe/cryptopp/base64.h>
-#include <maidsafe/cryptopp/hex.h>
+
 #include <algorithm>
 #include <limits>
 #include <string>
+
+#include "boost/lexical_cast.hpp"
+#include "boost/scoped_array.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/random/mersenne_twister.hpp"
+#include "boost/random/uniform_int.hpp"
+#include "boost/random/variate_generator.hpp"
+
+#include "maidsafe/cryptopp/integer.h"
+#include "maidsafe/cryptopp/osrng.h"
+#include "maidsafe/cryptopp/base32.h"
+#include "maidsafe/cryptopp/base64.h"
+#include "maidsafe/cryptopp/hex.h"
 #include "maidsafe/common/log.h"
 
 namespace maidsafe {

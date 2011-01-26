@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/thread.hpp>
-#include <gtest/gtest.h>
+#include "boost/thread.hpp"
+#include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/transport/message_handler.h"

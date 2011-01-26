@@ -31,8 +31,8 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_TRANSPORT_GATEWAY_H_
 #define MAIDSAFE_TRANSPORT_GATEWAY_H_
 
-#include <boost/asio.hpp>
 #include <vector>
+#include "boost/asio.hpp"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/transport/network_interface.h"
 

@@ -31,9 +31,9 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_NAT_PMP_NATPMPCLIENT_H_
 #define MAIDSAFE_NAT_PMP_NATPMPCLIENT_H_
 
-#include <boost/asio.hpp>
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
+#include "boost/asio.hpp"
+#include "boost/function.hpp"
+#include "boost/shared_ptr.hpp"
 
 #include "maidsafe/nat-pmp/natpmpclientimpl.h"
 

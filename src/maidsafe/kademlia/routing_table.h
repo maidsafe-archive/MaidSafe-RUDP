@@ -25,22 +25,22 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_
-#define MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_
-
-#include <boost/cstdint.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/mem_fun.hpp>
+#ifndef MAIDSAFE_KADEMLIA_ROUTING_TABLE_H_
+#define MAIDSAFE_KADEMLIA_ROUTING_TABLE_H_
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/multi_index_container.hpp"
+#include "boost/multi_index/composite_key.hpp"
+#include "boost/multi_index/ordered_index.hpp"
+#include "boost/multi_index/identity.hpp"
+#include "boost/multi_index/member.hpp"
+#include "boost/multi_index/mem_fun.hpp"
 
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node_id.h"
@@ -194,4 +194,4 @@ class RoutingTable {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_KADEMLIA_ROUTINGTABLE_H_
+#endif  // MAIDSAFE_KADEMLIA_ROUTING_TABLE_H_

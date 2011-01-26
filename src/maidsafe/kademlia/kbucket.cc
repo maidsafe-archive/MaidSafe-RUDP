@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/kbucket.h"
 
-#include <boost/foreach.hpp>
+#include "boost/foreach.hpp"
 
 namespace maidsafe {
 

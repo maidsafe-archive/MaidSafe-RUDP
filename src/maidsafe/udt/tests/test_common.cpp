@@ -20,10 +20,10 @@
 * ============================================================================
 */
 
-#include <gtest/gtest.h>
-#include <boost/cstdint.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread.hpp>
+#include "gtest/gtest.h"
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time.hpp"
+#include "boost/thread.hpp"
 
 #include "maidsafe/udt/common.h"
 

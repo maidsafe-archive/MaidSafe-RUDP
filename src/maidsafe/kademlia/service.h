@@ -28,13 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_SERVICE_H_
 #define MAIDSAFE_KADEMLIA_SERVICE_H_
 
-#include <boost/cstdint.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/function.hpp>
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "boost/cstdint.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "boost/function.hpp"
 
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"

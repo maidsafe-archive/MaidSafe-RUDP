@@ -28,12 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_RPCS_H_
 #define MAIDSAFE_KADEMLIA_RPCS_H_
 
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/signals2/connection.hpp>
-#include <boost/tuple/tuple.hpp>
-
 #include <string>
 #include <vector>
+
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/signals2/connection.hpp"
+#include "boost/tuple/tuple.hpp"
 
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"

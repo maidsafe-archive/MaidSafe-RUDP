@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
 #include <stdio.h>
+#include "gtest/gtest.h"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/log.h"
 

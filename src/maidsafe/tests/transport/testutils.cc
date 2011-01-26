@@ -25,11 +25,11 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/scoped_array.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <set>
+#include "gtest/gtest.h"
+#include "boost/scoped_array.hpp"
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/utils.h"
 

@@ -27,8 +27,8 @@
 //
 //#include "maidsafe/kademlia/service.h"
 //
-////#include <boost/compressed_pair.hpp>
 ////#include <utility>
+////#include "boost/compressed_pair.hpp"
 //#include "maidsafe/common/alternative_store.h"
 //#include "maidsafe/common/log.h"
 //#include "maidsafe/common/threadpool.h"

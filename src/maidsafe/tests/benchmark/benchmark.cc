@@ -26,13 +26,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <signal.h>
-#include <boost/program_options.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/lexical_cast.hpp>
 #include <iostream>  //  NOLINT
-
+#include "boost/program_options.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/filesystem.hpp"
+#include "boost/shared_ptr.hpp"
+#include "boost/lexical_cast.hpp"
 #include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/node_impl.h"

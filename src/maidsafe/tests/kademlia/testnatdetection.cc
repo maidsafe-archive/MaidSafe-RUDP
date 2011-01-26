@@ -30,9 +30,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // which node 2 uses to test direct-connection status of node 1.
 
 /*
-#include <gtest/gtest.h>
-#include <google/protobuf/descriptor.h>
-#include <boost/filesystem.hpp>
+#include "gtest/gtest.h"
+#include "google/protobuf/descriptor.h"
+#include "boost/filesystem.hpp"
 #include "maidsafe/kademlia/service.h"
 #include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"

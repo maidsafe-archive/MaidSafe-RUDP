@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/lexical_cast.hpp>
 #include "maidsafe/tests/transport/message_handler.h"
+#include "boost/lexical_cast.hpp"
 #include "maidsafe/common/log.h"
 
 namespace maidsafe {

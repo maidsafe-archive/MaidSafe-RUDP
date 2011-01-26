@@ -28,8 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
 #define MAIDSAFE_TESTS_TRANSPORT_TRANSPORTAPITEST_H_
 
-#include <gtest/gtest.h>
-#include <boost/thread.hpp>
+#include "gtest/gtest.h"
+#include "boost/thread.hpp"
 #include <cstdlib>
 #include <list>
 #include <set>

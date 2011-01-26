@@ -28,12 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_MESSAGEHANDLER_H_
 #define MAIDSAFE_KADEMLIA_MESSAGEHANDLER_H_
 
-#include <boost/function.hpp>
-#include <boost/signals2/signal.hpp>
-
 #include <memory>
 #include <string>
-
+#include "boost/function.hpp"
+#include "boost/signals2/signal.hpp"
 #include "maidsafe/transport/message_handler.h"
 
 namespace bs2 = boost::signals2;

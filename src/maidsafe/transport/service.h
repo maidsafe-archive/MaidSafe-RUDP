@@ -28,11 +28,11 @@
 //#ifndef MAIDSAFE_TRANSPORT_SERVICE_H_
 //#define MAIDSAFE_TRANSPORT_SERVICE_H_
 //
-////#include <boost/cstdint.hpp>
-////#include <boost/function.hpp>
-////
 ////#include <string>
 ////#include <vector>
+////
+////#include "boost/cstdint.hpp"
+////#include "boost/function.hpp"
 ////
 ////#include "maidsafe/kademlia/config.h"
 ////#include "maidsafe/protobuf/contact_info.pb.h"
