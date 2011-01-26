@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
-#include "maidsafe/tests/transport/messagehandler.h"
+#include "maidsafe/tests/transport/message_handler.h"
 
 namespace maidsafe {
 

@@ -30,7 +30,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/transport/udtutils.h"
 #include "maidsafe/transport/udtconnection.h"
+#include "maidsafe/udt/udt.h"
+
 
 namespace maidsafe {
 

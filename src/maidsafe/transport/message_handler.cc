@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <boost/lexical_cast.hpp>
-#include "maidsafe/transport/messagehandler.h"
+#include "maidsafe/transport/message_handler.h"
 #include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/common/securifier.h"
 

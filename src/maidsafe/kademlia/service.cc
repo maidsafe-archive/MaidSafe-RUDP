@@ -33,12 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <set>
 
-#include "maidsafe/kademlia/routingtable.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
 #include "maidsafe/kademlia/utils.h"
-#include "maidsafe/kademlia/messagehandler.h"
-#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/kademlia/message_handler.h"
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/securifier.h"
 #include "maidsafe/common/log.h"
 
@@ -100,7 +100,7 @@ void Service::Ping(const transport::Info &info,
   routing_table_->AddContact(FromProtobuf(request.sender()),
                              RankInfoPtr(new transport::Info(info)));
 }
-
+/*
 void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
                         protobuf::FindValueResponse *response) {
@@ -299,7 +299,7 @@ void Service::Update(const transport::Info &info,
                      std::endl;
     return;
   }
-
+  */
 /*******************************************************************************
 This code would check if the current value is hashable, and accept only
 hashable replacement values.
@@ -318,7 +318,7 @@ hashable replacement values.
 //    return;
 //  }
 *******************************************************************************/
-
+/*
   bool new_hashable(SignedValueHashable(request.key(),
                                         request.new_signed_value()));
 
@@ -418,7 +418,7 @@ bool Service::CanStoreSignedValueHashable(
       return false;
   }
   return true;
-}
+}*/
 
 }  // namespace kademlia
 

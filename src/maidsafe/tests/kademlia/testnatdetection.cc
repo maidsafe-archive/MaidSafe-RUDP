@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/descriptor.h>
 #include <boost/filesystem.hpp>
 #include "maidsafe/kademlia/service.h"
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/transport.h"

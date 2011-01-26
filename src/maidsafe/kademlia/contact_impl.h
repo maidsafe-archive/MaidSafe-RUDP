@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <vector>
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/transport/transport.h"
 
 namespace maidsafe {

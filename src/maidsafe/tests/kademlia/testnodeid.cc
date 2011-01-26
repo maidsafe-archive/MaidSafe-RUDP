@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 

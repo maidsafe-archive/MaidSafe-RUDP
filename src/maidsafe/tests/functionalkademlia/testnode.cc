@@ -42,9 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe/common/routingtable.h"
+#include "maidsafe/common/routing_table.h"
 #include "maidsafe/kademlia/node-api.h"
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"

@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/protobuf/kademlia_service_messages.pb.h"
-#include "maidsafe/tests/transport/messagehandler.h"
+#include "maidsafe/tests/transport/message_handler.h"
 #include "maidsafe/tests/transport/udttestshelpers.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/udtconnection.h"

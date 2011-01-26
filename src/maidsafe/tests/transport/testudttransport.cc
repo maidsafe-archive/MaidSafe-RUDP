@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
-#include "maidsafe/tests/transport/messagehandler.h"
+#include "maidsafe/tests/transport/message_handler.h"
 #include "maidsafe/tests/transport/transportapitest.h"
 
 namespace maidsafe {

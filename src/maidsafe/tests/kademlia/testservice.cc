@@ -28,13 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <boost/lexical_cast.hpp>
 
-#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/service.h"
-#include "maidsafe/kademlia/routingtable.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/validationimpl.h"

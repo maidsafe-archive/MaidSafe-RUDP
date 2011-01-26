@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/kademlia/node-api.h"
 #include "maidsafe/kademlia/contact.h"
 
@@ -61,26 +61,31 @@ void Node::Leave(std::vector<Contact> *bootstrap_contacts) {
 
 void Node::Store(const Key &key,
                  const std::string &value,
+                 const std::string &signature,
                  const boost::posix_time::seconds &ttl,
                  SecurifierPtr securifier,
                  StoreFunctor callback) {
-  pimpl_->Store(key, value, ttl, securifier, callback);
+  pimpl_->Store(key, value, signature, ttl, securifier, callback);
 }
 
 void Node::Delete(const Key &key,
                  const std::string &value,
+                 const std::string &signature,
                  SecurifierPtr securifier,
                  DeleteFunctor callback) {
-  pimpl_->Delete(key, value, securifier, callback);
+  pimpl_->Delete(key, value, signature, securifier, callback);
 }
 
 void Node::Update(const Key &key,
                   const std::string &new_value,
+                  const std::string &new_signature,
                   const std::string &old_value,
+                  const std::string &old_signature,
                   SecurifierPtr securifier,
                   const boost::posix_time::seconds &ttl,
                   UpdateFunctor callback) {
-  pimpl_->Update(key, new_value, old_value, securifier, ttl, callback);
+  pimpl_->Update(key, new_value, new_signature, old_value, old_signature,
+                 securifier, ttl, callback);
 }
 
 void Node::FindValue(const Key &key,

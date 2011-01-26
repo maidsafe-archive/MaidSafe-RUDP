@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
-#include "maidsafe/kademlia/routingtable.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/transport/utils.h"
 
 namespace maidsafe {

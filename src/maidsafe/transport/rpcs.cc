@@ -26,8 +26,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*
 #include "maidsafe/kademlia/rpcs.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/messagehandler.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/message_handler.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/transport/transport.h"
 

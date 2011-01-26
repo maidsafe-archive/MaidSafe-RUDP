@@ -28,35 +28,25 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_MAIDSAFE_DHT_H_
 #define MAIDSAFE_MAIDSAFE_DHT_H_
 
-#include "maidsafe/common/version.h"
-#include "maidsafe/common/platform_config.h"
-
-#include <maidsafe/kademlia/contact.h>
-
-
-
-
-
-
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/kademlia/node-api.h>
-
-#include <maidsafe/common/alternativestore.h>
+#include <maidsafe/common/alternative_store.h>
 #include <maidsafe/common/crypto.h>
 #include <maidsafe/common/log.h>
-#include <maidsafe/common/online.h>
-#include <maidsafe/common/routingtable.h>
+#include <maidsafe/common/platform_config.h>
+#include <maidsafe/common/securifier.h>
+#include <maidsafe/common/threadpool.h>
 #include <maidsafe/common/utils.h>
-#include <maidsafe/kademlia/nodeid.h>
-#include <maidsafe/transport/udttransport.h>
+#include <maidsafe/common/version.h>
 
-
-
-
-
+#include <maidsafe/kademlia/node-api.h>
 #include <maidsafe/kademlia/config.h>
+#include <maidsafe/kademlia/contact.h>
+#include <maidsafe/kademlia/node_id.h>
+#include <maidsafe/kademlia/message_handler.h>
+#include <maidsafe/kademlia/kademlia.pb.h>
 
-#include <maidsafe/common/base.pb.h>
-#include <maidsafe/common/validationinterface.h>
+#include <maidsafe/transport/transport.h>
+#include <maidsafe/transport/message_handler.h>
+#include <maidsafe/transport/tcptransport.h>
+#include <maidsafe/transport/udttransport.h>
 
 #endif  // MAIDSAFE_MAIDSAFE_DHT_H_

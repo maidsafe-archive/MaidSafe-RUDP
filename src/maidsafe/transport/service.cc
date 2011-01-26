@@ -29,18 +29,18 @@
 //
 ////#include <boost/compressed_pair.hpp>
 ////#include <utility>
-//#include "maidsafe/common/alternativestore.h"
+//#include "maidsafe/common/alternative_store.h"
 //#include "maidsafe/common/log.h"
 //#include "maidsafe/common/threadpool.h"
-//#include "maidsafe/common/validationinterface.h"
+//#include "maidsafe/common/securifier.h"
 ////#include "maidsafe/kademlia/rpcs.h"
-////#include "maidsafe/kademlia/nodeimpl.h"
+////#include "maidsafe/kademlia/node_impl.h"
 ////#include "maidsafe/kademlia/datastore.h"
 ////#include "maidsafe/common/crypto.h"
 ////#include "maidsafe/common/utils.h"
 ////#include "maidsafe/kademlia/node-api.h"
 ////#include "maidsafe/protobuf/signed_kadvalue.pb.h"
-////#include "maidsafe/kademlia/nodeid.h"
+////#include "maidsafe/kademlia/node_id.h"
 //#include "maidsafe/protobuf/kademlia.pb.h"
 //#include "maidsafe/protobuf/transport_message.pb.h"
 //

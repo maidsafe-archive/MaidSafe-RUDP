@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 
 namespace bptime = boost::posix_time;
 namespace bmi = boost::multi_index;
@@ -124,7 +124,7 @@ class RoutingTable {
   // exists, its status will be updated.  If the given k-bucket is full and not
   // splittable, the signal on_ping_oldest_contact_ will be fired which will
   // ultimately resolve whether the contact is added or not.
-  void AddContact(const Contact &contact);
+  void AddContact(const Contact &contact, RankInfoPtr rank_info);
   void GetContact(const NodeId &node_id, Contact *contact);
   // Remove the contact with the specified node ID from the routing table
   void RemoveContact(const NodeId &node_id, const bool &force);
