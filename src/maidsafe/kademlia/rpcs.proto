@@ -11,6 +11,7 @@ message SignedValue {
 message PingRequest {
   required Contact sender = 1;
   required bytes ping = 2;
+  optional bytes public_key = 3;
 }
 
 message PingResponse {
@@ -20,6 +21,7 @@ message PingResponse {
 message FindValueRequest {
   required Contact sender = 1;
   required bytes key = 2;
+  optional bytes public_key = 3;
 }
 
 message FindValueResponse {
@@ -32,6 +34,7 @@ message FindValueResponse {
 message FindNodesRequest {
   required Contact sender = 1;
   required bytes key = 2;
+  optional bytes public_key = 3;
 }
 
 message FindNodesResponse {
@@ -45,6 +48,7 @@ message StoreRequest {
   required SignedValue signed_value = 3;
   required int32 ttl = 4;
   required bool publish = 5;
+  optional bytes public_key = 6;
 }
 
 message StoreResponse {
@@ -55,6 +59,7 @@ message DeleteRequest {
   required Contact sender = 1;
   required bytes key = 2;
   required SignedValue signed_value = 3;
+  optional bytes public_key = 4;
 }
 
 message DeleteResponse {
@@ -67,6 +72,7 @@ message UpdateRequest {
   required SignedValue new_signed_value = 3;
   required SignedValue old_signed_value = 4;
   required int32 ttl = 5;
+  optional bytes public_key = 6;
 }
 
 message UpdateResponse {

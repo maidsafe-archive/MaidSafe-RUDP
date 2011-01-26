@@ -69,7 +69,9 @@ class Node {
   //
   // default_securifier is responsible for signing, verification, encrypting and
   // decrypting messages and values.  If it is an invalid pointers, a basic
-  // instantiations will be made.
+  // instantiations will be made.  For all other member functions where a
+  // securifer is passed, if it is invalid, this default_securifier will be used
+  // instead.
   //
   // alternative_store can be used to augment / complement the native Kademlia
   // datastore of <key,values>.  If alternative_store is an invalid pointer, no
@@ -112,29 +114,43 @@ class Node {
   // bootstrap_contacts.
   void Leave(std::vector<Contact> *bootstrap_contacts);
 
-  // Store <key,value> for ttl seconds.  Infinite ttl is indicated by
-  // boost::posix_time::pos_infin.  The value is signed using the securifier,
-  // unless it is NULL, in which case the node's default_securifier signs value.
+  // Store <key,value,signature> for ttl seconds.  Infinite ttl is indicated by
+  // boost::posix_time::pos_infin.  If signature is empty, the value is signed
+  // using securifier, unless it is invalid, in which case the node's
+  // default_securifier signs value.  If signature is not empty, it is
+  // validated by securifier or default_securifer.
   void Store(const Key &key,
              const std::string &value,
+             const std::string &signature,
              const boost::posix_time::seconds &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
 
-  // Delete <key,value> from network.  The securifier must sign and encrypt with
-  // the same cryptographic keys as were used when the <key,value> was stored.
+  // Delete <key,value,signature> from network.  If signature is empty, the
+  // value is signed using securifier, unless it is invalid, in which case
+  // the node's default_securifier signs value.  If signature is not empty, it
+  // is validated by securifier or default_securifer.  The securifier must sign
+  // and encrypt with the same cryptographic keys as were used when the
+  // <key,value,signature> was stored.
   void Delete(const Key &key,
               const std::string &value,
+              const std::string &signature,
               SecurifierPtr securifier,
               DeleteFunctor callback);
 
-  // Replace <key,old_value> with <key,new_value> on the network.  The
-  // securifier must sign and encrypt with the same cryptographic keys as were
-  // used when the <key,old_value> was stored.  Infinite ttl is indicated by
+  // Replace <key,old_value,old_signature> with <key,new_value,new_signature>
+  // on the network.  If either signature is empty, the corresponding value is
+  // signed using securifier, unless it is invalid, in which case the node's
+  // default_securifier signs the value.  If a signature is not empty, it is
+  // validated by securifier or default_securifer.  The securifier must sign
+  // and encrypt with the same cryptographic keys as were used when the
+  // <key,old_value,old_signature> was stored.  Infinite ttl is indicated by
   // boost::posix_time::pos_infin.
   void Update(const Key &key,
               const std::string &new_value,
+              const std::string &new_signature,
               const std::string &old_value,
+              const std::string &old_signature,
               SecurifierPtr securifier,
               const boost::posix_time::seconds &ttl,
               UpdateFunctor callback);
@@ -146,9 +162,9 @@ class Node {
   // populated as follows: If any queried peer holds the value(s) in its
   // alternative_store, its details are passed in the callback and no other
   // callback parameters are completed.  If any queried peer holds the value(s)
-  // in its kademlia datastore, the value(s) are passed in the callback and no
-  // other callback parameters are completed.  Otherwise, iff no value exists
-  // under key, the k closest nodes' details are passed in callback.
+  // in its kademlia datastore, the value(s) and signature(s) are passed in the
+  // callback and no other callback parameters are completed.  Otherwise, iff no
+  // value exists under key the k closest nodes' details are passed in callback.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback);
@@ -191,6 +207,7 @@ class Node {
   // Getters
   IoServicePtr asio_service();
   AlternativeStorePtr alternative_store();
+  OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;
   boost::uint16_t k() const;
   boost::uint16_t alpha() const;

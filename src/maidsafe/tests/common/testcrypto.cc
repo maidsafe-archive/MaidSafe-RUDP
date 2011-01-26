@@ -50,8 +50,8 @@ TEST(CryptoTest, BEH_BASE_Obfuscation) {
   EXPECT_TRUE(test_crypto.Obfuscate("A", "B",
               static_cast<crypto::ObfuscationType>(999)).empty());
   const size_t kStringSize(1024);
-  std::string str1 = RandomString(kStringSize);
-  std::string str2 = RandomString(kStringSize);
+  std::string str1 = SRandomString(kStringSize);
+  std::string str2 = SRandomString(kStringSize);
   std::string obfuscated = test_crypto.Obfuscate(str1, str2, XOR);
   EXPECT_EQ(kStringSize, obfuscated.size());
   EXPECT_EQ(obfuscated, test_crypto.Obfuscate(str2, str1, XOR));
@@ -160,7 +160,7 @@ TEST(CryptoTest, BEH_BASE_Hash) {
 
   // Set up temp test dir and files
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(SRandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -287,8 +287,8 @@ testing::AssertionResult ValidateOutputFile(
 std::string CorruptData(const std::string &input) {
   // Replace a single char of input to a different random char.
   std::string output(input);
-  output.at(RandomUint32() % input.size()) +=
-      (RandomUint32() % 254) + 1;
+  output.at(SRandomUint32() % input.size()) +=
+      (SRandomUint32() % 254) + 1;
   return output;
 }
 
@@ -323,7 +323,7 @@ TEST(CryptoTest, BEH_BASE_SymmEncrypt) {
   const std::string kBadUnencrypted(CorruptData(kUnencrypted));
   const std::string kBadEncrypted(CorruptData(kEncrypted));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(SRandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -569,12 +569,12 @@ TEST(CryptoTest, BEH_BASE_AsymEncrypt) {
   const std::string kAnotherPrivateKey(rsakp.private_key());
   ASSERT_NE(kPrivateKey, kAnotherPrivateKey);
   Crypto test_crypto;
-  const std::string kUnencrypted(RandomString(470));
+  const std::string kUnencrypted(SRandomString(470));
   const std::string kBadPublicKey(kPublicKey.substr(0, kPublicKey.size() - 1));
   const std::string kBadPrivateKey(
       kPrivateKey.substr(0, kPrivateKey.size() - 1));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(SRandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -813,12 +813,12 @@ TEST(CryptoTest, BEH_BASE_AsymSign) {
   ASSERT_NE(kPublicKey, kAnotherPublicKey);
   ASSERT_NE(kPrivateKey, kAnotherPrivateKey);
   Crypto test_crypto;
-  const std::string kTestData(RandomString(99999));
+  const std::string kTestData(SRandomString(99999));
   const std::string kBadPublicKey(kPublicKey.substr(0, kPublicKey.size() - 1));
   const std::string kBadPrivateKey(
       kPrivateKey.substr(0, kPrivateKey.size() - 1));
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(SRandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -908,11 +908,11 @@ TEST(CryptoTest, BEH_BASE_Compress) {
   const size_t kTolerance(kTestDataSize * 0.005);
   std::string initial_data(kTestDataSize, 'A');
   initial_data.replace(0, kTestDataSize / 2,
-                       RandomString(kTestDataSize / 2));
+                       SRandomString(kTestDataSize / 2));
   std::random_shuffle(initial_data.begin(), initial_data.end());
   const std::string kTestData(initial_data);
   const fs::path kTestDir(fs::path("temp") / std::string("crypto_test_" +
-      boost::lexical_cast<std::string>(RandomUint32()).substr(0, 8)));
+      boost::lexical_cast<std::string>(SRandomUint32()).substr(0, 8)));
   try {
     ASSERT_TRUE(fs::create_directories(kTestDir));
   }
@@ -1005,7 +1005,7 @@ TEST(CryptoTest, BEH_BASE_Compress) {
 
   // Try to compress and uncompress with invalid operation type
   OperationType invalid_type(static_cast<OperationType>(999));
-  boost::uint16_t level(RandomUint32() % (kMaxCompressionLevel + 1));
+  boost::uint16_t level(SRandomUint32() % (kMaxCompressionLevel + 1));
   EXPECT_TRUE(test_crypto.Compress(kTestData, "", level, invalid_type).empty());
   EXPECT_TRUE(test_crypto.Uncompress(kTestData, "", invalid_type).empty());
 
@@ -1030,10 +1030,10 @@ TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
   RsaKeyPair rsakp;
   EXPECT_TRUE(rsakp.public_key().empty());
   EXPECT_TRUE(rsakp.private_key().empty());
-  std::string public_key = RandomString(100);
+  std::string public_key = SRandomString(100);
   rsakp.set_public_key(public_key);
   EXPECT_EQ(rsakp.public_key(), public_key);
-  std::string private_key = RandomString(100);
+  std::string private_key = SRandomString(100);
   rsakp.set_private_key(private_key);
   EXPECT_EQ(rsakp.private_key(), private_key);
 
@@ -1047,7 +1047,7 @@ TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
   EXPECT_FALSE(private_key.empty());
 
   // Use the first keys to encrypt and decrypt data
-  const std::string kUnencrypted(RandomString(400));
+  const std::string kUnencrypted(SRandomString(400));
   Crypto test_crypto;
   std::string encrypted(test_crypto.AsymEncrypt(kUnencrypted, "", public_key,
                                                 STRING_STRING));

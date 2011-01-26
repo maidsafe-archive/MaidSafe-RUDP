@@ -114,6 +114,7 @@ class Node::Impl {
   bool joined() const;
   IoServicePtr asio_service();
   AlternativeStorePtr alternative_store();
+  OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;
   boost::uint16_t k() const;
   boost::uint16_t alpha() const;
@@ -162,6 +163,7 @@ class Node::Impl {
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
+  OnOnlineStatusChangePtr on_online_status_change_;
   bool client_only_node_;
   const boost::uint16_t k_;
   const boost::uint16_t kAlpha_;

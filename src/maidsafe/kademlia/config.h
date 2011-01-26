@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/function.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
+#include <boost/signals2/signal.hpp>
 
 #include <memory>
 #include <string>
@@ -56,6 +57,10 @@ class NodeId;
 class Contact;
 class MessageHandler;
 
+enum OnlineStatus { kOffline, kOnline, kAttemptingConnect };
+
+typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
+    OnOnlineStatusChangePtr;
 
 // Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
 // return code.
@@ -115,9 +120,6 @@ const double kMinSuccessfulPecentageUpdate = 0.75;
 // The number of failed RPCs tolerated before a contact is removed from the
 // routing table.
 const boost::uint16_t kFailedRpcTolerance = 0;
-
-// Signature used to sign anonymous RPC requests.
-const std::string kAnonymousSignedRequest(2 * kKeySizeBytes, 'f');
 
 }  // namespace kademlia
 

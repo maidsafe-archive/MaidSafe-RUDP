@@ -29,6 +29,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
 #include <ctype.h>
 #include <maidsafe/cryptopp/integer.h>
 #include <maidsafe/cryptopp/osrng.h>
@@ -39,19 +42,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits>
 #include <string>
 #include "maidsafe/common/log.h"
-#include "maidsafe/transport/network_interface.h"
 
 namespace maidsafe {
 
-CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_random_number_generator;
-boost::mutex g_random_number_generator_mutex;
+CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_srandom_number_generator;
+boost::mutex g_srandom_number_generator_mutex;
 
-boost::int32_t RandomInt32() {
+boost::int32_t SRandomInt32() {
   boost::int32_t result(0);
   bool success = false;
   while (!success) {
-    boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
-    CryptoPP::Integer rand_num(g_random_number_generator, 32);
+    boost::mutex::scoped_lock lock(g_srandom_number_generator_mutex);
+    CryptoPP::Integer rand_num(g_srandom_number_generator, 32);
     if (rand_num.IsConvertableToLong()) {
       result = static_cast<boost::int32_t>(
                rand_num.AbsoluteValue().ConvertToLong());
@@ -61,15 +63,26 @@ boost::int32_t RandomInt32() {
   return result;
 }
 
+boost::int32_t RandomInt32() {
+  boost::mt19937 random_number_generator(static_cast<unsigned int>(
+      boost::posix_time::microsec_clock::universal_time().time_of_day().
+      total_microseconds()));
+  boost::uniform_int<> uniform_distribution(0,
+      boost::integer_traits<boost::int32_t>::const_max);
+  boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
+      random_number_generator, uniform_distribution);
+  return uni();
+}
+
+boost::uint32_t SRandomUint32() {
+  return static_cast<boost::uint32_t>(SRandomInt32());
+}
+
 boost::uint32_t RandomUint32() {
   return static_cast<boost::uint32_t>(RandomInt32());
 }
 
-std::string IntToString(const int &value) {
-  return boost::lexical_cast<std::string>(value);
-}
-
-std::string RandomString(const size_t &length) {
+std::string SRandomString(const size_t &length) {
   std::string random_string;
   random_string.reserve(length);
   while (random_string.size() < length) {
@@ -81,8 +94,8 @@ std::string RandomString(const size_t &length) {
 #endif
     boost::scoped_array<byte> random_bytes(new byte[iter_length]);
     {
-      boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
-      g_random_number_generator.GenerateBlock(random_bytes.get(), iter_length);
+      boost::mutex::scoped_lock lock(g_srandom_number_generator_mutex);
+      g_srandom_number_generator.GenerateBlock(random_bytes.get(), iter_length);
     }
     std::string random_substring;
     CryptoPP::StringSink string_sink(random_substring);
@@ -92,19 +105,35 @@ std::string RandomString(const size_t &length) {
   return random_string;
 }
 
-std::string RandomAlphaNumericString(const size_t &length) {
-  std::string random_string(RandomString(length));
-  for (std::string::iterator it = random_string.begin();
-       it != random_string.end(); ++it) {
-    *it = (*it + 128) % 122;
-    if (48 > *it)
-      *it += 48;
-    if ((57 < *it) && (65 > *it))
-      *it += 7;
-    if ((90 < *it) && (97 > *it))
-      *it += 6;
-  }
+std::string RandomString(const size_t &length) {
+  boost::mt19937 random_number_generator(static_cast<unsigned int>(
+      boost::posix_time::microsec_clock::universal_time().time_of_day().
+      total_microseconds()));
+  boost::uniform_int<> uniform_distribution(0, 255);
+  boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
+      random_number_generator, uniform_distribution);
+  std::string random_string(length, 0);
+  std::generate(random_string.begin(), random_string.end(), uni);
   return random_string;
+}
+
+std::string RandomAlphaNumericString(const size_t &length) {
+  static const char alpha_numerics[] =
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  boost::mt19937 random_number_generator(static_cast<unsigned int>(
+      boost::posix_time::microsec_clock::universal_time().time_of_day().
+      total_microseconds()));
+  boost::uniform_int<> uniform_distribution(0, 61);
+  boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
+      random_number_generator, uniform_distribution);
+  std::string random_string(length, 0);
+  for (auto it = random_string.begin(); it != random_string.end(); ++it)
+    *it = alpha_numerics[uni()];
+  return random_string;
+}
+
+std::string IntToString(const int &value) {
+  return boost::lexical_cast<std::string>(value);
 }
 
 std::string EncodeToHex(const std::string &non_hex_input) {
@@ -149,31 +178,8 @@ std::string DecodeFromBase32(const std::string &base32_input) {
   return non_base32_output;
 }
 
-boost::uint32_t GetEpochTime() {
-  boost::posix_time::ptime
-      t(boost::posix_time::microsec_clock::universal_time());
-  return static_cast<boost::uint32_t>((t - kMaidSafeEpoch).total_seconds());
-}
-
-boost::uint64_t GetEpochMilliseconds() {
-  boost::posix_time::ptime
-      t(boost::posix_time::microsec_clock::universal_time());
-  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_milliseconds());
-}
-
-boost::uint64_t GetEpochNanoseconds() {
-  boost::posix_time::ptime
-      t(boost::posix_time::microsec_clock::universal_time());
-  return static_cast<boost::uint64_t>((t - kMaidSafeEpoch).total_nanoseconds());
-}
-
-boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id) {
-  const boost::uint32_t kMaxId = 2147483645;
-  if (id == 0) {
-    return (RandomUint32() % kMaxId) + 1;
-  } else {
-    return (id % kMaxId) + 1;
-  }
+boost::posix_time::time_duration GetDurationSinceEpoch() {
+  return boost::posix_time::microsec_clock::universal_time() - kMaidSafeEpoch;
 }
 
 }  // namespace maidsafe
