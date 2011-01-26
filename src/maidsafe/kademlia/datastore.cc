@@ -87,7 +87,7 @@ void KeyValueTuple::UpdateDeleteStatus(
 DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
     : key_value_index_(),
       refresh_interval_(mean_refresh_interval.total_seconds() +
-                        (RandomInt32() % 30)),
+                        (base::RandomInt32() % 30)),
       shared_mutex_() {}
 
 DataStore::~DataStore() {
@@ -170,7 +170,7 @@ bool DataStore::GetValues(
                                      p.first->key_value_signature.signature));
     ++p.first;
   }
-  return values->empty();
+  return (!values->empty());
 }
 
 bool DataStore::DeleteValue(const std::string &key, const std::string &value) {
@@ -352,7 +352,10 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
                             const bool &hashable) {
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
+  if (old_key_value_signature.key != new_key_value_signature.key)
+    return false; // reject attempt to change key
   UpgradeLock upgrade_lock(shared_mutex_);
+
   auto it = index_by_key_value.find(boost::make_tuple(
       old_key_value_signature.key, old_key_value_signature.value));
   if (it == index_by_key_value.end() ||
