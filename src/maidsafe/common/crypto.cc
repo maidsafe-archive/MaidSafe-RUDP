@@ -498,7 +498,7 @@ void RsaKeyPair::GenerateKeys(const boost::uint16_t &keySize) {
   private_key_.clear();
   public_key_.clear();
   CryptoPP::RandomPool rand_pool;
-  std::string seed = RandomString(keySize);
+  std::string seed = SRandomString(keySize);
   rand_pool.IncorporateEntropy(reinterpret_cast<const byte*>(seed.c_str()),
                                                              seed.size());
 

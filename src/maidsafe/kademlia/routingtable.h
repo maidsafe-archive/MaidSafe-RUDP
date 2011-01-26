@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/nodeid.h"
 
 namespace bptime = boost::posix_time;
+namespace bmi = boost::multi_index;
 
 namespace maidsafe {
 
@@ -58,7 +59,7 @@ class KBucket;
 struct RoutingTableContact {
   RoutingTableContact(const Contact &contact_in)
       : contact(contact_in),
-        public_key(),
+        validated_public_keys(),
         num_failed_rpcs(0),
         last_seen(bptime::microsec_clock::universal_time()) {}
   bool operator<(const RoutingTableContact &other) const {
@@ -66,33 +67,58 @@ struct RoutingTableContact {
   }
   NodeId node_id() const { return contact.node_id(); }
   Contact contact;
-  std::string public_key;
+  std::vector<std::string> validated_public_keys;
   boost::uint16_t num_failed_rpcs;
   bptime::ptime last_seen;
-  std::shared_ptr<transport::Info> info;
+  RankInfoPtr rank_info;
 };
 
-struct TagNodeId {};
-struct TagTimeLastSeen {};
+struct NodeIdTag;
+struct DistanceToThisIdTag;
+struct TimeLastSeenTag;
+struct KBucketTag;
+struct RankInfoTag;
+
+// Struct to allow initialisation of RoutingTableContactsContainer to accept
+// this node's ID as a parameter.
+struct KadCloserToThisId {
+  KadCloserToThisId(const NodeId &id) : this_id(id) {}
+  bool operator()(const RoutingTableContact &x,
+                  const RoutingTableContact &y) const {
+    return NodeId::CloserToTarget(x.node_id(), y.node_id(), this_id);
+  }
+private:
+  NodeId this_id;
+};
 
 typedef boost::multi_index_container<
   RoutingTableContact,
-  boost::multi_index::indexed_by<
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<TagNodeId>,
-      BOOST_MULTI_INDEX_CONST_MEM_FUN(RoutingTableContact, NodeId, node_id>
+  bmi::indexed_by<
+    bmi::ordered_unique<
+      bmi::tag<NodeIdTag>,
+      BOOST_MULTI_INDEX_CONST_MEM_FUN(RoutingTableContact, NodeId, node_id)
     >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<TagTimeLastSeen>,
-      BOOST_MULTI_INDEX_MEMBER(RoutingTableContact, bptime::ptime,
-                               &RoutingTableContact::last_seen)
+    bmi::ordered_unique<
+      bmi::tag<DistanceToThisIdTag>,
+      bmi::identity<RoutingTableContact>,
+      KadCloserToThisId
+    >,
+    bmi::ordered_non_unique<
+      bmi::tag<TimeLastSeenTag>,
+      BOOST_MULTI_INDEX_MEMBER(RoutingTableContact, bptime::ptime, last_seen)
     >
   >
 > RoutingTableContactsContainer;
 
+typedef RoutingTableContactsContainer::index<NodeIdTag>::type ContactsById;
+typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type
+    ContactsByDistanceToThisId;
+typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type
+    ContactsByTimeLastSeen;
+
 class RoutingTable {
  public:
-  RoutingTable(const NodeId &holder_id, const boost::uint16_t &k);
+  RoutingTable(const NodeId &this_id, const boost::uint16_t &k);
   ~RoutingTable();
   // Add the given contact to the correct k-bucket; if it already
   // exists, its status will be updated.  If the given k-bucket is full and not
@@ -146,13 +172,14 @@ class RoutingTable {
   // holder's ID.
   int ForceKAcceptNewPeer(const Contact &new_contact);
 
+  // Holder's node ID
+  const NodeId kThisId_;
+  const boost::uint16_t k_;
   RoutingTableContactsContainer contacts_;
-  std::vector<std::shared_ptr<KBucket>> k_buckets_;
+//  std::vector<std::shared_ptr<KBucket>> k_buckets_;
   // Mapping of each k-bucket's maximum address to its index in the vector of
   // k-buckets
   std::map<NodeId, boost::uint16_t> bucket_upper_address_;
-  // Holder's node ID
-  NodeId holder_id_;
   // Index of k-bucket covering address space which incorporates holder's own
   // node ID.  NB - holder's ID is never actually added to any of its k-buckets.
   // Index of the only k-bucket covering same amount of address space as
@@ -161,7 +188,6 @@ class RoutingTable {
   boost::uint16_t bucket_of_holder_, brother_bucket_of_holder_;
   // Upper limit of address space.
   NodeId address_space_upper_address_;
-  const boost::uint16_t k_;
 };
 
 }  // namespace kademlia

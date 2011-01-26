@@ -137,6 +137,10 @@ AlternativeStorePtr Node::alternative_store() {
   return pimpl_->alternative_store();
 }
 
+OnOnlineStatusChangePtr Node::on_online_status_change() {
+  return pimpl_->on_online_status_change();
+}
+  
 bool Node::client_only_node() const {
   return pimpl_->client_only_node();
 }

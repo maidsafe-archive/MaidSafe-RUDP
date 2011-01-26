@@ -26,30 +26,37 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/kademlia/routingtable.h"
-#include <boost/cstdint.hpp>
 
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/common/utils.h"
-#include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/kbucket.h"
 
 namespace maidsafe {
 
 namespace kademlia {
 
-//RoutingTable::RoutingTable(const NodeId &holder_id, const boost::uint16_t &rt_K)
-//    : k_buckets_(), bucket_upper_address_(), holder_id_(holder_id),
-//      bucket_of_holder_(0), brother_bucket_of_holder_(-1),
-//      address_space_upper_address_(NodeId::kMaxId), K_(rt_K) {
+RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
+    : kThisId_(this_id),
+      k_(k),
+      contacts_(boost::make_tuple(
+          // Index 0 is default constructed
+          ContactsById::ctor_args(),
+          // Index 1 is constructed with KadCloserToThisId()
+          boost::make_tuple(bmi::identity<RoutingTableContact>(),
+                            KadCloserToThisId(kThisId_)),
+          // Index 2 is default constructed
+          ContactsByTimeLastSeen::ctor_args())),
+      bucket_upper_address_(),
+      bucket_of_holder_(0),
+      brother_bucket_of_holder_(-1),
+      address_space_upper_address_(NodeId::kMaxId) {
 //  NodeId min_range;
 //  boost::shared_ptr<KBucket> kbucket(new KBucket(min_range,
 //      address_space_upper_address_, K_));
 //  k_buckets_.push_back(kbucket);
-//  bucket_upper_address_.insert(std::pair<NodeId, boost::uint16_t>
-//      (address_space_upper_address_, 0));
-//}
-//
+  bucket_upper_address_.insert(std::make_pair(address_space_upper_address_, 0));
+}
+
 //RoutingTable::~RoutingTable() {
 //  k_buckets_.clear();
 //  bucket_upper_address_.clear();

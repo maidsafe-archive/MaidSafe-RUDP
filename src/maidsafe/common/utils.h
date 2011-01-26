@@ -34,24 +34,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_COMMON_UTILS_H_
 #define MAIDSAFE_COMMON_UTILS_H_
 
-#include <boost/asio/ip/address.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include "maidsafe/common/platform_config.h"
 #include <string>
-#include <vector>
 
 namespace maidsafe {
 
 // 01 Jan 2000
 const boost::posix_time::ptime kMaidSafeEpoch(
     boost::posix_time::from_iso_string("20000101T000000"));
-
-struct DeviceStruct {
-  DeviceStruct() : ip_address(), device_interface() {}
-  boost::asio::ip::address ip_address;
-  std::string device_interface;
-};
 
 /**
 * @class Stats
@@ -111,23 +102,30 @@ class Stats {
   T sum_;
 };
 
-// Generate a 32bit signed integer
-// Use this function if receiving it in a variable that is int or int32_t
-// or if before assinging to a signed int variable you are doing a modulo op
+// Generate a cryptographically-secure 32bit signed integer
+boost::int32_t SRandomInt32();
+
+// Generate a non-cryptographically-secure 32bit signed integer
 boost::int32_t RandomInt32();
 
-// Generate a 32bit unsigned integer
-// Use this one if receiving it in a variable that is unsigned int or uint32_t
+// Generate a cryptographically-secure 32bit unsigned integer
+boost::uint32_t SRandomUint32();
+
+// Generate a non-cryptographically-secure 32bit unsigned integer
 boost::uint32_t RandomUint32();
+
+// Generate a cryptographically-secure random string.
+std::string SRandomString(const size_t &length);
+
+// Generate a non-cryptographically-secure random string.
+std::string RandomString(const size_t &length);
+
+// Generate a non-cryptographically-secure random string containing only
+// alphanumeric characters.
+std::string RandomAlphaNumericString(const size_t &length);
 
 // Convert from int to string.
 std::string IntToString(const int &value);
-
-// Generate a random string.
-std::string RandomString(const size_t &length);
-
-// Generate a random string containing only alphanumeric characters.
-std::string RandomAlphaNumericString(const size_t &length);
 
 // Encode a string to hex.
 std::string EncodeToHex(const std::string &non_hex_input);
@@ -147,17 +145,8 @@ std::string DecodeFromBase64(const std::string &base64_input);
 // Decode a string from Base32.
 std::string DecodeFromBase32(const std::string &base32_input);
 
-// Return the number of seconds since 1st January 2000.
-boost::uint32_t GetEpochTime();
-
-// Return the number of milliseconds since 1st January 2000.
-boost::uint64_t GetEpochMilliseconds();
-
-// Return the number of nanoseconds since 1st January 2000.
-boost::uint64_t GetEpochNanoseconds();
-
-// Generate a (transaction) id between 1 & 2147483646 inclusive.
-boost::uint32_t GenerateNextTransactionId(const boost::uint32_t &id);
+// Return the duration since kMaidsafeEpoch (1st January 2000).
+boost::posix_time::time_duration GetDurationSinceEpoch();
 
 }  // namespace maidsafe
 

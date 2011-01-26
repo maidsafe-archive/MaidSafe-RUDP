@@ -44,7 +44,7 @@ namespace test {
 void GenerateRandomStrings(const int &string_count,
                            const size_t &string_size) {
   for (int i = 0; i < string_count; ++i)
-    RandomString(string_size);
+    SRandomString(string_size);
 }
 
 TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
@@ -112,8 +112,8 @@ TEST(UtilsTest, BEH_BASE_IntToString) {
 
 TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
   const size_t kStringSize = 4096;
-  std::string test1 = RandomAlphaNumericString(kStringSize);
-  std::string test2 = RandomAlphaNumericString(kStringSize);
+  std::string test1 = SRandomAlphaNumericString(kStringSize);
+  std::string test2 = SRandomAlphaNumericString(kStringSize);
   EXPECT_EQ(kStringSize, test1.size());
   EXPECT_EQ(kStringSize, test2.size());
   EXPECT_NE(test1, test2);
@@ -134,7 +134,7 @@ TEST(UtilsTest, BEH_BASE_HexEncodeDecode) {
   EXPECT_TRUE(DecodeFromHex("").empty());
   EXPECT_TRUE(DecodeFromHex("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = RandomString(100);
+    std::string original = SRandomString(100);
     std::string encoded = EncodeToHex(original);
     EXPECT_EQ(200U, encoded.size());
     std::string decoded = DecodeFromHex(encoded);
@@ -155,7 +155,7 @@ TEST(UtilsTest, BEH_BASE_Base64EncodeDecode) {
   EXPECT_TRUE(DecodeFromBase64("").empty());
   EXPECT_TRUE(DecodeFromBase64("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = RandomString(100);
+    std::string original = SRandomString(100);
     std::string encoded = EncodeToBase64(original);
     EXPECT_EQ(136U, encoded.size()) << "Encoding failed.";
     std::string decoded = DecodeFromBase64(encoded);
@@ -173,7 +173,7 @@ TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
   EXPECT_TRUE(DecodeFromBase32("").empty());
   EXPECT_TRUE(DecodeFromBase32("{").empty());
   for (int i = 0; i < 1000; ++i) {
-    std::string original = RandomString(100);
+    std::string original = SRandomString(100);
     std::string encoded = EncodeToBase32(original);
     EXPECT_EQ(160U, encoded.size()) << "Encoding failed.";
     std::string decoded = DecodeFromBase32(encoded);
@@ -213,8 +213,8 @@ TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
   // look for less than 0.01% duplicates
   const size_t kMaxDuplicates(kCount * 0.0001);
   for (size_t i = 0; i < kCount; ++i) {
-    random_ints.insert(RandomInt32());
-    random_uints.insert(RandomUint32());
+    random_ints.insert(SRandomInt32());
+    random_uints.insert(SRandomUint32());
   }
   EXPECT_GE(kMaxDuplicates, kCount - random_ints.size());
   EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());

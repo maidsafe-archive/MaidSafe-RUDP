@@ -49,7 +49,7 @@ NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
     case kRandomId :
       for (std::string::iterator it = raw_id_.begin(); it != raw_id_.end();
            ++it) {
-        (*it) = RandomUint32();
+        (*it) = SRandomUint32();
       }
       break;
     default :
@@ -120,7 +120,7 @@ NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
       if (max_id_char == 0) {
         raw_id_[pos] = 0;
       } else {
-        raw_id_[pos] = (RandomUint32() % (max_id_char - min_id_char + 1))
+        raw_id_[pos] = (SRandomUint32() % (max_id_char - min_id_char + 1))
                        + min_id_char;
         this_char = raw_id_[pos];
         less_than_upper_limit = (this_char < max_id_char);
@@ -128,11 +128,11 @@ NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
       }
     } else if (!greater_than_lower_limit) {
       min_id_char = min_id[pos];
-      raw_id_[pos] = (RandomUint32() % (256 - min_id_char)) + min_id_char;
+      raw_id_[pos] = (SRandomUint32() % (256 - min_id_char)) + min_id_char;
       this_char = raw_id_[pos];
       greater_than_lower_limit = (this_char > min_id_char);
     } else {
-      raw_id_[pos] = RandomUint32();
+      raw_id_[pos] = SRandomUint32();
     }
   }
 }
