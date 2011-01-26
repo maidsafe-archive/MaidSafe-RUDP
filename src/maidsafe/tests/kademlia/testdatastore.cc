@@ -28,7 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/thread/barrier.hpp>
 #include <boost/lexical_cast.hpp>
+#include<boost/asio/io_service.hpp>
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
@@ -43,11 +45,6 @@ namespace test {
 
 class DataStoreTest: public testing::Test {
  public:
-  bool findValue(std::pair<std::string, std::string> element, 
-                 std::pair<std::string, std::string> value) {
-   return ((element.first == value.first) && (element.second == value.second));  
-  }
-protected:
   DataStoreTest() : test_ds_(), cry_obj_() {
     cry_obj_.set_symm_algorithm(crypto::AES_256);
     cry_obj_.set_hash_algorithm(crypto::SHA_512);
@@ -55,8 +52,24 @@ protected:
 
   virtual void SetUp() {
     test_ds_.reset(new kademlia::DataStore(bptime::seconds(3600)));
+    thread_barrier_.reset(new boost::barrier(5));
+    thread_barrier_1_.reset(new boost::barrier(5));
+  }
+  bool findValue(std::pair<std::string, std::string> element, 
+                 std::pair<std::string, std::string> value) {
+    return ((element.first == value.first) && (element.second == value.second));  
+  }
+  void CheckKey(const std::string &key) {
+    thread_barrier_->wait();
+    ASSERT_FALSE(test_ds_->HasKey(key));
+  }
+  void CheckLoadKeyAppendableAttr(const std::string &key) {
+    thread_barrier_1_->wait();
+    auto appendable_attr = test_ds_->LoadKeyAppendableAttr(key);
+    EXPECT_FALSE(appendable_attr[0].second);
   }
 
+  boost::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   boost::shared_ptr<kademlia::DataStore> test_ds_;
   crypto::Crypto cry_obj_;
   DataStoreTest(const DataStoreTest&);
@@ -187,8 +200,7 @@ TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
 }
 
 TEST_F(DataStoreTest, BEH_KAD_LoadNonExistingData) {
-  std::string key1(cry_obj_.Hash("11222xc", "", crypto::STRING_STRING,
-	                							 false));
+  std::string key1(cry_obj_.Hash("11222xc", "", crypto::STRING_STRING, false));
   std::vector<std::pair<std::string, std::string>> values;
   EXPECT_FALSE(test_ds_->GetValues(key1, &values));
   EXPECT_TRUE(values.empty());
@@ -205,7 +217,126 @@ TEST_F(DataStoreTest, BEH_KAD_LoadEmptyKeyData) {
   attr_key = test_ds_->LoadKeyAppendableAttr("");
   EXPECT_TRUE(attr_key.empty());
 }
-#if 0
+TEST_F(DataStoreTest, BEH_KAD_HasKey) {
+  KeyValueSignature key_value_signature1(base::RandomString(10),
+                                         base::RandomString(10),
+                                         base::RandomString(10));
+  KeyValueSignature key_value_signature2(key_value_signature1.key, 
+                                         base::RandomString(11),
+                                         base::RandomString(11));
+  KeyValueSignature key_value_signature3(base::RandomString(12), 
+                                         key_value_signature2.value,
+                                         base::RandomString(12));
+  bptime::ptime expire_time(bptime::second_clock::local_time());
+  expire_time += bptime::hours(20);
+  bptime::ptime refresh_time = expire_time - bptime::hours(10);
+  KeyValueTuple keyvalue1(key_value_signature1, expire_time, refresh_time,
+                          false);
+  KeyValueTuple keyvalue3(key_value_signature3, expire_time, refresh_time,
+                          false);
+  expire_time += bptime::millisec(10);
+  KeyValueTuple keyvalue2(key_value_signature2, expire_time, refresh_time,
+                          false);
+  keyvalue3.delete_status = kMarkedForDeletion;
+
+  test_ds_->key_value_index_.insert(keyvalue1);
+  test_ds_->key_value_index_.insert(keyvalue2);
+  test_ds_->key_value_index_.insert(keyvalue3);
+  ASSERT_FALSE(test_ds_->HasKey(""));
+  ASSERT_TRUE(test_ds_->HasKey(key_value_signature1.key));
+  ASSERT_FALSE(test_ds_->HasKey(base::RandomString(11)));
+  ASSERT_FALSE(test_ds_->HasKey(key_value_signature3.key));
+
+}
+
+TEST_F(DataStoreTest, BEH_KAD_DeleteValue) {
+  KeyValueSignature key_value_signature1(base::RandomString(10),
+                                         base::RandomString(10),
+                                         base::RandomString(10));
+  KeyValueSignature key_value_signature2(key_value_signature1.key,
+                                         base::RandomString(11),
+                                         base::RandomString(11));
+  KeyValueSignature key_value_signature3(base::RandomString(10),
+                                         key_value_signature2.value,
+                                         base::RandomString(10));
+ 
+  bptime::ptime expire_time(bptime::second_clock::local_time());
+  expire_time += bptime::hours(20);
+  bptime::ptime refresh_time = expire_time - bptime::hours(10); 
+  KeyValueTuple keyvalue1(key_value_signature1, expire_time, refresh_time,
+                          false);
+  KeyValueTuple keyvalue3(key_value_signature3, expire_time, refresh_time,
+                          false);
+  KeyValueTuple keyvalue2(key_value_signature2, expire_time, refresh_time,
+                          false);
+
+  test_ds_->key_value_index_.insert(keyvalue1);
+  test_ds_->key_value_index_.insert(keyvalue2);
+  test_ds_->key_value_index_.insert(keyvalue3);
+  
+  ASSERT_EQ(size_t(3), test_ds_->key_value_index_.size());
+  ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature1.key,
+                                    key_value_signature2.value));
+  ASSERT_EQ(size_t(2), test_ds_->key_value_index_.size());
+  EXPECT_TRUE(test_ds_->HasKey(key_value_signature1.key));
+  EXPECT_TRUE(test_ds_->HasKey(key_value_signature3.key));
+  ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature1.key,
+                                    key_value_signature1.value));
+  ASSERT_EQ(size_t(1), test_ds_->key_value_index_.size());
+  EXPECT_TRUE(test_ds_->HasKey(key_value_signature3.key));
+  EXPECT_FALSE(test_ds_->HasKey(key_value_signature1.key));
+  ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature3.key,
+                                    key_value_signature3.value));
+  ASSERT_EQ(size_t(0), test_ds_->key_value_index_.size());
+  EXPECT_FALSE(test_ds_->HasKey(key_value_signature2.key));
+  EXPECT_FALSE(test_ds_->HasKey(key_value_signature3.key));
+
+}
+TEST_F(DataStoreTest, BEH_KAD_MultipleThread) {
+  boost::shared_ptr<boost::asio::io_service> asio_service(
+      new boost::asio::io_service);
+  boost::shared_ptr<boost::asio::io_service::work> work(
+      new boost::asio::io_service::work(*asio_service));
+  boost::thread_group asio_thread_group;
+  for (int i = 0; i < 10; ++i) {
+    asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
+                                                asio_service));
+  }
+  KeyValueSignature key_value_signature(base::RandomString(10),
+                                        base::RandomString(10),
+                                        base::RandomString(10));
+  std::vector<std::pair<std::string, std::string>> values;
+  
+  asio_service->post(boost::bind(&DataStore::StoreValue, test_ds_,
+                                 key_value_signature, bptime::seconds(1000),
+                                 false));
+  asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
+                                 key_value_signature.key, &values));
+  asio_service->post(boost::bind(&DataStore::MarkForDeletion, test_ds_,
+                                 key_value_signature, base::RandomString(35)));
+  asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
+                                 key_value_signature,
+                                 &(base::RandomString(35))));
+  KeyValueSignature key_value_signature1(base::RandomString(20),
+                                         base::RandomString(20),
+                                         base::RandomString(20));
+  asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
+                                 key_value_signature,
+                                 key_value_signature1,
+                                 bptime::seconds(1000), false));
+  for (int i = 0; i < 5; ++i) {
+    asio_service->post(boost::bind(&DataStoreTest::CheckKey, this,
+                                   key_value_signature.key));
+    asio_service->post(boost::bind(&DataStoreTest::CheckLoadKeyAppendableAttr,
+                                   this, key_value_signature.key));
+  }
+  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
+                                 key_value_signature1.key,
+                                 key_value_signature1.value));
+  work.reset();
+  asio_thread_group.join_all();
+}
+/*
 TEST_F(DataStoreTest, BEH_KAD_UpdateValue) {
   std::string key1 = cry_obj_.Hash("663efsxx33d", "", crypto::STRING_STRING,
       false);
@@ -312,7 +443,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteItem) {
   ASSERT_TRUE(values.empty());
   ASSERT_FALSE(test_ds_->DeleteItem(key1, value1));
 }
-#endif
+*/
 TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
   EXPECT_EQ(size_t(0), test_ds_->key_value_index_.size());
   std::string key = cry_obj_.Hash("abc123vvd32sfdf", "", crypto::STRING_STRING,
@@ -395,7 +526,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValidInvalidData) {
   }
 }
 
-#if 0
+/*
 TEST_F(DataStoreTest, BEH_KAD_RefreshKeyValue) {
   std::string key1 = cry_obj_.Hash("663efsxx33d", "", crypto::STRING_STRING,
       false);
@@ -849,7 +980,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteDelStatusExpiredValues) {
   ASSERT_TRUE(test_ds_->Keys(&keys));
   ASSERT_TRUE(keys.empty());
 }
-#endif 
+*/ 
 TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
   size_t total_values(5);
   for (size_t n = 0; n < total_values; ++n) {
