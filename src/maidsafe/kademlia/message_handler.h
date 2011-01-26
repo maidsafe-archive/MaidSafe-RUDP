@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 
-#include "maidsafe/transport/messagehandler.h"
+#include "maidsafe/transport/message_handler.h"
 
 namespace bs2 = boost::signals2;
 

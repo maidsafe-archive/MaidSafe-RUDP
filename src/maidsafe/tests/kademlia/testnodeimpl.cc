@@ -29,17 +29,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "maidsafe/common/alternativestore.h"
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe/common/validationinterface.h"
+#include "maidsafe/common/securifier.h"
 
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/kademlia/routingtable.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/node_impl.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/utils.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"

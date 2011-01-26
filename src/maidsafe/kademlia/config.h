@@ -119,7 +119,7 @@ const double kMinSuccessfulPecentageUpdate = 0.75;
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // routing table.
-const boost::uint16_t kFailedRpcTolerance = 0;
+const boost::uint16_t kFailedRpcTolerance = 2;
 
 }  // namespace kademlia
 

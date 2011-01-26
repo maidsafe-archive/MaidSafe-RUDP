@@ -86,16 +86,20 @@ class Node::Impl {
   void Leave(std::vector<Contact> *bootstrap_contacts);
   void Store(const Key &key,
              const std::string &value,
+             const std::string &signature,
              const boost::posix_time::seconds &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
   void Delete(const Key &key,
               const std::string &value,
+              const std::string &signature,
               SecurifierPtr securifier,
               DeleteFunctor callback);
   void Update(const Key &key,
               const std::string &new_value,
+              const std::string &new_signature,
               const std::string &old_value,
+              const std::string &old_signature,
               SecurifierPtr securifier,
               const boost::posix_time::seconds &ttl,
               UpdateFunctor callback);

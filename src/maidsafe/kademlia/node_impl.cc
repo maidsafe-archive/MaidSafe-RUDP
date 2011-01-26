@@ -25,9 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/kademlia/nodeimpl.h"
-
-#include <boost/cstdint.hpp>
+#include "maidsafe/kademlia/node_impl.h"
 
 //#include <boost/assert.hpp>
 //#include <boost/bind.hpp>
@@ -40,19 +38,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "maidsafe/common/crypto.h"
 //#include "maidsafe/common/log.h"
 //#include "maidsafe/common/online.h"
-//#include "maidsafe/common/routingtable.h"
+//#include "maidsafe/common/routing_table.h"
 //#include "maidsafe/common/utils.h"
 //#include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/securifier.h"
 #include "maidsafe/kademlia/datastore.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/kademlia/rpcs.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/kademlia/service.h"
-#include "maidsafe/kademlia/nodeimplstructs.h"
+#include "maidsafe/kademlia/node_impl_structs.h"
 #include "maidsafe/kademlia/utils.h"
 //#include "maidsafe/kademlia/kademlia.pb.h"
-//#include "maidsafe/kademlia/nodeid.h"
-//#include "maidsafe/kademlia/routingtable.h"
+//#include "maidsafe/kademlia/node_id.h"
 //#include "maidsafe/transport/transport.h"
 //#include "maidsafe/transport/utils.h"
 
@@ -95,7 +93,7 @@ Node::Impl::~Impl() {
     Leave(NULL);
 }
 
-void Leave(std::vector<Contact> *bootstrap_contacts) {
+void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   routing_table_connection_.disconnect();
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
 }

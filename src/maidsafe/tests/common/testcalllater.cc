@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/thread.hpp>
 #include "maidsafe/common/log.h"
 
-#include "maidsafe/common/calllatertimer.h"
+#include "maidsafe/common/call_later_timer.h"
 
 namespace maidsafe {
 

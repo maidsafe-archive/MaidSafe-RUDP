@@ -68,9 +68,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "maidsafe/transport/udtutils.h"
-#include "maidsafe/udt/udt.h"
-
 namespace maidsafe {
 
 namespace transport {
