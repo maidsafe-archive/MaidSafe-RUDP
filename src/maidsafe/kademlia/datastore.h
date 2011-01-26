@@ -46,6 +46,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace bptime = boost::posix_time;
 
 namespace kademlia {
+
+namespace test {
+  class DataStoreTest_BEH_KAD_HasKey_Test;
+  class DataStoreTest_BEH_KAD_DeleteValue_Test;
+  class DataStoreTest_BEH_KAD_StoreValidData_Test;
+  class DataStoreTest_BEH_KAD_StoreMultipleValuesWithSameKey_Test;
+  class DataStoreTest_BEH_KAD_UpdateValues_Test;
+} // namespace test
 // This class implements physical storage (for data published and fetched via
 // the RPCs) for the Kademlia DHT.
 
@@ -177,6 +185,11 @@ class DataStore {
                    const bptime::seconds &ttl,
                    const bool &hashable);
   bptime::seconds refresh_interval() const;
+  friend class test::DataStoreTest_BEH_KAD_HasKey_Test;
+  friend class test::DataStoreTest_BEH_KAD_DeleteValue_Test;
+  friend class test::DataStoreTest_BEH_KAD_StoreValidData_Test;
+  friend class test::DataStoreTest_BEH_KAD_StoreMultipleValuesWithSameKey_Test;
+  friend class test::DataStoreTest_BEH_KAD_UpdateValues_Test;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
