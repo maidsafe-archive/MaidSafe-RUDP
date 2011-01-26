@@ -25,20 +25,19 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/progress.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <exception>
 #include <list>
 #include <set>
 #include <vector>
+
+#include "gtest/gtest.h"
+#include "boost/asio.hpp"
+#include "boost/bind.hpp"
+#include "boost/function.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time.hpp"
+#include "boost/progress.hpp"
+#include "boost/lexical_cast.hpp"
 
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"

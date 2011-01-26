@@ -28,8 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_UPNP_UPNPCLIENT_H_
 #define MAIDSAFE_UPNP_UPNPCLIENT_H_
 
-#include <boost/shared_ptr.hpp>
 #include <string>
+#include "boost/shared_ptr.hpp"
 // #include "maidsafe/upnp/upnpclientimpl.h"
 #include "maidsafe/upnp/miniupnpclientimpl.h"
 

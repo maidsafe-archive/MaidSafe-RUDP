@@ -25,11 +25,11 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
 #include <algorithm>
 #include <vector>
 #include <typeinfo>
 #include <iostream>
+#include "gtest/gtest.h"
 
 /*
  * This file tests the operations available on compilers used in the project

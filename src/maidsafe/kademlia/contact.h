@@ -34,9 +34,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_CONTACT_H_
 #define MAIDSAFE_KADEMLIA_CONTACT_H_
 
-#include <boost/cstdint.hpp>
-#include <boost/scoped_ptr.hpp>
 #include <vector>
+#include "boost/cstdint.hpp"
+#include "boost/scoped_ptr.hpp"
 #include "maidsafe/transport/transport.h"
 
 namespace maidsafe {

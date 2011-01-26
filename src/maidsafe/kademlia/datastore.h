@@ -28,20 +28,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_DATASTORE_H_
 #define MAIDSAFE_KADEMLIA_DATASTORE_H_
 
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/mem_fun.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/locks.hpp>
 #include <string>
 #include <vector>
 #include <set>
 #include <utility>
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/multi_index_container.hpp"
+#include "boost/multi_index/ordered_index.hpp"
+#include "boost/multi_index/identity.hpp"
+#include "boost/multi_index/member.hpp"
+#include "boost/multi_index/mem_fun.hpp"
+#include "boost/multi_index/composite_key.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
 
 namespace bptime = boost::posix_time;
 

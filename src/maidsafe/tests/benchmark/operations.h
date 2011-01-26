@@ -28,12 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_BENCHMARK_OPERATIONS_H_
 #define MAIDSAFE_TESTS_BENCHMARK_OPERATIONS_H_
 
-#include <boost/function.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/thread/locks.hpp>
 #include <map>
 #include <string>
 #include <vector>
+#include "boost/function.hpp"
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/locks.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 

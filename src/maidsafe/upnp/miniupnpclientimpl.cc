@@ -26,9 +26,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/upnp/miniupnpclientimpl.h"
-#include <boost/bind.hpp>
-#include <boost/assert.hpp>
-#include <boost/lexical_cast.hpp>
+#include "boost/bind.hpp"
+#include "boost/assert.hpp"
+#include "boost/lexical_cast.hpp"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/libupnp/miniwget.h"
 #include "maidsafe/libupnp/miniupnpc.h"

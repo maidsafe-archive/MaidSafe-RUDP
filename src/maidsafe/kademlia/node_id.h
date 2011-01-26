@@ -28,11 +28,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_KADID_H_
 #define MAIDSAFE_KADEMLIA_KADID_H_
 
-#include <boost/cstdint.hpp>
-#include "maidsafe/common/platform_config.h"
-#include "maidsafe/kademlia/config.h"
 #include <string>
 #include <vector>
+#include "boost/cstdint.hpp"
+#include "maidsafe/common/platform_config.h"
+#include "maidsafe/kademlia/config.h"
 
 namespace maidsafe {
 

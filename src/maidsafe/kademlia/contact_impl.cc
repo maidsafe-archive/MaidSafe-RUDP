@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/contact_impl.h"
 #include <algorithm>
-#include <boost/bind.hpp>
+#include "boost/bind.hpp"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/kademlia.pb.h"
 

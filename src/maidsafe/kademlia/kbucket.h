@@ -28,10 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_KBUCKET_H_
 #define MAIDSAFE_KADEMLIA_KBUCKET_H_
 
-#include <boost/cstdint.hpp>
 #include <list>
 #include <vector>
 #include <string>
+#include "boost/cstdint.hpp"
 #include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/common/platform_config.h"
 

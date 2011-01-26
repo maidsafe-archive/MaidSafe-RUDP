@@ -28,9 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_UPNP_UPNPCFG_H_
 #define MAIDSAFE_UPNP_UPNPCFG_H_
 
-#include <boost/function.hpp>
 #include <string>
 #include <map>
+#include "boost/function.hpp"
 
 namespace maidsafe {
 

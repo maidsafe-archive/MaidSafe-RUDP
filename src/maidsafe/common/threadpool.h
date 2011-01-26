@@ -34,13 +34,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_COMMON_THREADPOOL_H_
 #define MAIDSAFE_COMMON_THREADPOOL_H_
 
-#include <boost/asio.hpp>
-#include <boost/concept_check.hpp>
-#include <boost/function.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/thread/thread.hpp>
 #include <queue>
 #include <vector>
+#include "boost/asio.hpp"
+#include "boost/concept_check.hpp"
+#include "boost/function.hpp"
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/thread.hpp"
 
 namespace maidsafe {
 

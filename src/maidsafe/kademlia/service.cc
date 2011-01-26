@@ -29,9 +29,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/service.h"
 
-// #include <boost/compressed_pair.hpp>
 #include <utility>
 #include <set>
+
+// #include "boost/compressed_pair.hpp"
 
 #include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/kademlia/datastore.h"

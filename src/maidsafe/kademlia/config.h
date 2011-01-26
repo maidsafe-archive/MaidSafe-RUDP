@@ -28,15 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_CONFIG_H_
 #define MAIDSAFE_KADEMLIA_CONFIG_H_
 
-#include <boost/cstdint.hpp>
-#include <boost/function.hpp>
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/signals2/signal.hpp>
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "boost/cstdint.hpp"
+#include "boost/function.hpp"
+#include "boost/asio/ip/address.hpp"
+#include "boost/asio/io_service.hpp"
+#include "boost/signals2/signal.hpp"
 
 namespace maidsafe {
 

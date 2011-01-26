@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_COMMON_CRYPTO_H_
 #define MAIDSAFE_COMMON_CRYPTO_H_
 
-#include <boost/cstdint.hpp>
 #include <string>
+#include "boost/cstdint.hpp"
 
 namespace maidsafe {
 

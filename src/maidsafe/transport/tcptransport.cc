@@ -25,12 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <maidsafe/transport/tcptransport.h>
-#include <maidsafe/common/log.h>
+#include "boost/bind.hpp"
+#include "boost/foreach.hpp"
+#include "google/protobuf/descriptor.h"
 
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-#include <google/protobuf/descriptor.h>
+#include "maidsafe/transport/tcptransport.h"
+#include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;

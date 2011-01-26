@@ -31,10 +31,9 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
 #define MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
 
-#include <boost/asio.hpp>
-
 #include <string>
 #include <vector>
+#include "boost/asio.hpp"
 
 namespace maidsafe {
 

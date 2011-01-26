@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/udtutils.h"
-#include <boost/lexical_cast.hpp>
 #include <string>
+#include "boost/lexical_cast.hpp"
 #include "maidsafe/common/log.h"
 
 namespace maidsafe {

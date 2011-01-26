@@ -25,9 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/lexical_cast.hpp>
-#include <boost/thread/mutex.hpp>
-#include <gtest/gtest.h>
+#include "boost/lexical_cast.hpp"
+#include "boost/thread/mutex.hpp"
+#include "gtest/gtest.h"
 
 #include "maidsafe/common/threadpool.h"
 #include "maidsafe/common/utils.h"

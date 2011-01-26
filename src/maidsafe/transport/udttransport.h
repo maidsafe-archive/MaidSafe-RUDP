@@ -57,16 +57,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/detail/atomic_count.hpp>
-#include <maidsafe/transport/transport.h>
-
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "boost/detail/atomic_count.hpp"
+#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 

@@ -27,13 +27,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/node_impl.h"
 
-//#include <boost/assert.hpp>
-//#include <boost/bind.hpp>
-//#include <boost/lexical_cast.hpp>
-//
 //#include <algorithm>
 //#include <vector>
 //#include <set>
+//
+//#include "boost/assert.hpp"
+//#include "boost/bind.hpp"
+//#include "boost/lexical_cast.hpp"
 //
 //#include "maidsafe/common/crypto.h"
 //#include "maidsafe/common/log.h"

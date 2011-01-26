@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTUTILS_H_
 #define MAIDSAFE_TRANSPORT_UDTUTILS_H_
 
-#include <maidsafe/transport/transport.h>
 #include <memory>
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/detail.h"
 #include "maidsafe/udt/udt.h"
 

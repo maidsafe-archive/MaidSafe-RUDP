@@ -26,17 +26,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/common/crypto.h"
-#include <maidsafe/cryptopp/integer.h>
-#include <maidsafe/cryptopp/pwdbased.h>
-#include <maidsafe/cryptopp/sha.h>
-#include <maidsafe/cryptopp/filters.h>
-#include <maidsafe/cryptopp/files.h>
-#include <maidsafe/cryptopp/gzip.h>
-#include <maidsafe/cryptopp/hex.h>
-#include <maidsafe/cryptopp/aes.h>
-#include <maidsafe/cryptopp/modes.h>
-#include <maidsafe/cryptopp/rsa.h>
-#include <maidsafe/cryptopp/osrng.h>
+#include "maidsafe/cryptopp/integer.h"
+#include "maidsafe/cryptopp/pwdbased.h"
+#include "maidsafe/cryptopp/sha.h"
+#include "maidsafe/cryptopp/filters.h"
+#include "maidsafe/cryptopp/files.h"
+#include "maidsafe/cryptopp/gzip.h"
+#include "maidsafe/cryptopp/hex.h"
+#include "maidsafe/cryptopp/aes.h"
+#include "maidsafe/cryptopp/modes.h"
+#include "maidsafe/cryptopp/rsa.h"
+#include "maidsafe/cryptopp/osrng.h"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/log.h"

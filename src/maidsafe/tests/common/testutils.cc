@@ -25,14 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/timer.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/progress.hpp>
-#include <boost/thread.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <set>
+#include "gtest/gtest.h"
+#include "boost/timer.hpp"
+#include "boost/lexical_cast.hpp"
+#include "boost/progress.hpp"
+#include "boost/thread.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"

@@ -28,9 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_DEMO_COMMANDS_H_
 #define MAIDSAFE_TESTS_DEMO_COMMANDS_H_
 
-#include <boost/function.hpp>
 #include <map>
 #include <string>
+#include "boost/function.hpp"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"

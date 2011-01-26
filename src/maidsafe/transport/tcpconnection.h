@@ -28,12 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_TCPCONNECTION_H_
 
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/rawbuffer.h>
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/enable_shared_from_this.hpp>
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/asio/io_service.hpp"
+#include "boost/asio/ip/tcp.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/rawbuffer.h"
 
 namespace maidsafe {
 

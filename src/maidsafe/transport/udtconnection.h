@@ -34,12 +34,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/shared_ptr.hpp>
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/transport.pb.h>
 #include <memory>
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "boost/shared_ptr.hpp"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
 

@@ -27,8 +27,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/config.hpp>
+#include "gtest/gtest.h"
+#include "boost/config.hpp"
 
 #if defined(BOOST_MSVC)
 #pragma warning(disable: 4786)  // identifier truncated in debug info
@@ -37,8 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(disable: 4514)  // unreferenced inline removed
 #endif
 
-#include <boost/bind.hpp>
-#include <boost/ref.hpp>
+#include "boost/bind.hpp"
+#include "boost/ref.hpp"
 
 #if defined(BOOST_MSVC) && (BOOST_MSVC < 1300)
 #pragma warning(push, 3)
@@ -48,7 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
-#include <boost/detail/lightweight_test.hpp>
+#include "boost/detail/lightweight_test.hpp"
 
 #include <iostream>  // NOLINT
 
