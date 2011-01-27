@@ -31,9 +31,9 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_TRANSPORT_GATEWAY_H_
 #define MAIDSAFE_TRANSPORT_GATEWAY_H_
 
-#include <boost/asio.hpp>
 #include <vector>
-#include "maidsafe/maidsafe-dht_config.h"
+#include "boost/asio.hpp"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe/transport/network_interface.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
@@ -42,6 +42,8 @@ struct rt_msghdr;
 #elif defined(MAIDSAFE_LINUX)
 struct nlmsghdr;
 #endif
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -96,5 +98,7 @@ class Gateway {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_GATEWAY_H_

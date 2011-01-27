@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/transport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 // Convert an IP in ASCII format to IPv4 or IPv6 bytes
@@ -54,5 +56,7 @@ boost::uint32_t IpAsciiToNet(const char *buffer);
 std::vector<IP> GetLocalAddresses();
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_UTILS_H_

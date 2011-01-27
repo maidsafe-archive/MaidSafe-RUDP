@@ -28,10 +28,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_DETAIL_H_
 #define MAIDSAFE_TRANSPORT_DETAIL_H_
 
+namespace maidsafe {
+
 namespace transport {
 
 typedef int SocketId;
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_DETAIL_H_

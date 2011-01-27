@@ -57,19 +57,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/detail/atomic_count.hpp>
-#include <maidsafe/transport/transport.h>
-
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "maidsafe/transport/udtutils.h"
-#include "maidsafe/udt/udt.h"
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "boost/detail/atomic_count.hpp"
+#include "maidsafe/transport/transport.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -99,9 +98,8 @@ const int kManagedSocketBufferSize(200);  // bytes
 class UdtTransport : public Transport,
                      public boost::enable_shared_from_this<UdtTransport> {
  public:
-  explicit UdtTransport(
-      boost::shared_ptr<boost::asio::io_service> asio_service);
-  UdtTransport(boost::shared_ptr<boost::asio::io_service> asio_service,
+  explicit UdtTransport(std::shared_ptr<boost::asio::io_service> asio_service);
+  UdtTransport(std::shared_ptr<boost::asio::io_service> asio_service,
                std::vector<Endpoint> nat_detection_endpoints);
   virtual ~UdtTransport();
   static void CleanUp();
@@ -168,7 +166,7 @@ class UdtTransport : public Transport,
   // Managed Endpoint methods
   TransportCondition StartManagedEndpointListener(
       const SocketId &initial_peer_socket_id,
-      boost::shared_ptr<addrinfo const> peer);
+      std::shared_ptr<addrinfo const> peer);
   TransportCondition SetManagedSocketOptions(const SocketId &socket_id);
   SocketId GetNewManagedEndpointSocket(const IP &remote_ip,
                                        const Port &remote_port,
@@ -205,12 +203,14 @@ class UdtTransport : public Transport,
 //  bool stop_managed_endpoints_, managed_endpoints_stopped_;
 //  boost::mutex managed_endpoint_sockets_mutex_;
 //  boost::condition_variable managed_endpoints_cond_var_;
-  boost::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
-//  boost::shared_ptr<boost::thread> check_connections_;
+  std::shared_ptr<addrinfo const> managed_endpoint_listening_addrinfo_;
+//  std::shared_ptr<boost::thread> check_connections_;
 //  boost::thread nat_detection_thread_;
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_UDTTRANSPORT_H_
 

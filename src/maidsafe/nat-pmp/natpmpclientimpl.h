@@ -31,15 +31,17 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_NAT_PMP_NATPMPCLIENTIMPL_H_
 #define MAIDSAFE_NAT_PMP_NATPMPCLIENTIMPL_H_
 
-#include <boost/asio.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/function.hpp>
-
 #include <deque>
 #include <utility>
 #include <vector>
 
+#include "boost/asio.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/function.hpp"
+
 #include "maidsafe/nat-pmp/natpmpprotocol.h"
+
+namespace maidsafe {
 
 namespace natpmp {
 
@@ -220,5 +222,7 @@ class NatPmpClientImpl {
 };
 
 }  // namespace natpmp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_NAT_PMP_NATPMPCLIENTIMPL_H_

@@ -31,8 +31,10 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_NAT_PMP_NATPMPPROTOCOL_H_
 #define MAIDSAFE_NAT_PMP_NATPMPPROTOCOL_H_
 
-#include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include "boost/asio.hpp"
+#include "boost/date_time/posix_time/posix_time.hpp"
+
+namespace maidsafe {
 
 namespace natpmp {
 
@@ -140,5 +142,7 @@ class Protocol {
 };
 
 }  // namespace natpnp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_NAT_PMP_NATPMPPROTOCOL_H_

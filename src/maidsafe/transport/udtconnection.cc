@@ -28,13 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udtconnection.h"
 
-#include <boost/scoped_array.hpp>
-
 #include <algorithm>
 #include <vector>
 
-#include "maidsafe/base/log.h"
+#include "boost/scoped_array.hpp"
+
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -99,7 +101,7 @@ UdtConnection::~UdtConnection() {
 }
 
 void UdtConnection::Init() {
-  peer_ = boost::shared_ptr<addrinfo const>(new addrinfo);
+  peer_ = std::shared_ptr<addrinfo const>(new addrinfo);
   if (udtutils::GetNewSocket(endpoint_, true, &socket_id_, &peer_) != kSuccess)
     socket_id_ = UDT::INVALID_SOCK;
   if (udtutils::SetSyncMode(socket_id_, false) != kSuccess)
@@ -154,8 +156,8 @@ void UdtConnection::SendData(const Timeout &timeout_wait_for_response) {
   }
 
   // Send the message
-  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(socket_id_,
-                                                     UdtStats::kSend));
+  std::shared_ptr<UdtStats> udt_stats(new UdtStats(socket_id_,
+                                                   UdtStats::kSend));
   SetDataContentTimeout(data_size, kDynamicTimeout);
   result = MoveData(true, data_size, &data_.at(0));
   if (result != kSuccess) {
@@ -220,8 +222,8 @@ void UdtConnection::ReceiveData(const Timeout &timeout) {
   }
 
   // Get message
-  boost::shared_ptr<UdtStats> udt_stats(new UdtStats(socket_id_,
-                                                     UdtStats::kReceive));
+  std::shared_ptr<UdtStats> udt_stats(new UdtStats(socket_id_,
+                                                   UdtStats::kReceive));
   if (timeout == kDynamicTimeout)
     SetDataContentTimeout(data_size, kDynamicTimeout);
   data_.clear();
@@ -252,7 +254,7 @@ void UdtConnection::ReceiveData(const Timeout &timeout) {
   Timeout response_timeout(kImmediateTimeout);
   (*transport_->on_message_received_)
       (data_,
-      *boost::static_pointer_cast<Info>(udt_stats),
+      *std::static_pointer_cast<Info>(udt_stats),
       &response,
       &response_timeout);
   if (response.empty())
@@ -324,3 +326,5 @@ TransportCondition UdtConnection::MoveData(bool sending,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

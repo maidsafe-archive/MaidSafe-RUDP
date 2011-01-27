@@ -27,23 +27,24 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/tests/demo/commands.h"
 
-#include <boost/format.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/thread.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <cassert>
 #include <iomanip>
 #include <iostream>  // NOLINT
 #include <string>
 #include <vector>
 
+#include "boost/format.hpp"
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/thread.hpp"
+#include "boost/tokenizer.hpp"
+#include "boost/lexical_cast.hpp"
+
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/kademlia/node-api.h"
 
+namespace maidsafe {
 
 namespace kaddemo {
 
@@ -434,3 +435,5 @@ void Commands::PrintRpcTimings() {
 }
 
 }  // namespace kaddemo
+
+}  // namespace maidsafe

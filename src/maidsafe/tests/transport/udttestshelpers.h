@@ -30,6 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udttransport.h"
 
+namespace maidsafe {
+
 namespace transport {
 
 namespace test {
@@ -39,6 +41,8 @@ bool SocketAlive(const SocketId &socket_id);
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_TRANSPORT_UDTTESTSHELPERS_H_
 

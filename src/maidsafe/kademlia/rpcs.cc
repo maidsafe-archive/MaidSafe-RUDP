@@ -26,269 +26,330 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/kademlia/rpcs.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/messagehandler.h"
+#include "maidsafe/common/securifier.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/message_handler.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
-#include "maidsafe/transport/transport.h"
+#include "maidsafe/kademlia/utils.h"
 #include "maidsafe/transport/udttransport.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
-void Rpcs::Ping(const Contact &contact,
+void Rpcs::Ping(SecurifierPtr securifier,
+                const Contact &peer,
                 PingFunctor callback,
                 TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::PingRequest req;
-  req.set_ping("ping");
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_ping_response()->connect(
-      boost::bind(&Rpcs::PingCallback, this, _1, callback, message_handler,
-                  transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::PingRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
+  request.set_ping(random_data);
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
+      &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::PingCallback, this, "", _1, transport::Info(),
+      protobuf::PingResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::FindValue(const NodeId &key,
-                     const Contact &contact,
+void Rpcs::FindValue(const Key &key,
+                     SecurifierPtr securifier,
+                     const Contact &peer,
                      FindValueFunctor callback,
                      TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::FindValueRequest req;
-  req.set_key(key.String());
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_find_value_response()->connect(boost::bind(
-      &Rpcs::FindValueCallback, this, _1, callback, message_handler,
-      transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::FindValueRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_find_value_response()->connect(boost::bind(
+      &Rpcs::FindValueCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::FindValueCallback, this, _1, transport::Info(),
+      protobuf::FindValueResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::FindNodes(const NodeId &key,
-                     const Contact &contact,
+void Rpcs::FindNodes(const Key &key,
+                     SecurifierPtr securifier,
+                     const Contact &peer,
                      FindNodesFunctor callback,
                      TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::FindNodesRequest req;
-  req.set_key(key.String());
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_find_nodes_response()->connect(
-      boost::bind(&Rpcs::FindNodesCallback, this, _1, callback, message_handler,
-                  transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::FindNodesRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_find_nodes_response()->connect(boost::bind(
+      &Rpcs::FindNodesCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::FindNodesCallback, this, _1, transport::Info(),
+      protobuf::FindNodesResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::Store(const NodeId &key,
-                 const SignedValue &signed_value,
-                 const Signature &signature,
-                 const Contact &contact,
-                 const boost::int32_t &ttl,
-                 const bool &publish,
-                 VoidFunctorOneBool callback,
-                 TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::StoreRequest req;
-  req.set_key(key.String());
-  req.mutable_signed_value()->set_value(signed_value.value);
-  req.mutable_signed_value()->set_signature(signed_value.signature);
-  req.set_ttl(ttl);
-  req.set_publish(publish);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
-  signature_msg->set_signer_id(signature.signer_id);
-  signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_store_response()->connect(boost::bind(
-      &Rpcs::StoreCallback, this, _1, callback, message_handler, transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
-}
-
-void Rpcs::Store(const NodeId &key,
+void Rpcs::Store(const Key &key,
                  const std::string &value,
-                 const Contact &contact,
-                 const boost::int32_t &ttl,
-                 const bool &publish,
-                 VoidFunctorOneBool callback,
+                 const std::string &signature,
+                 const boost::posix_time::seconds &ttl,
+                 bool publish,
+                 SecurifierPtr securifier,
+                 const Contact &peer,
+                 StoreFunctor callback,
                  TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::StoreRequest req;
-  req.set_key(key.String());
-  req.set_value(value);
-  req.set_ttl(ttl);
-  req.set_publish(publish);
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_store_response()->connect(boost::bind(
-      &Rpcs::StoreCallback, this, _1, callback, message_handler, transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::StoreRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+  protobuf::SignedValue *signed_value(request.mutable_signed_value());
+  signed_value->set_value(value);
+  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
+                              signature);
+  request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
+  request.set_publish(publish);
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_store_response()->connect(boost::bind(
+      &Rpcs::StoreCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::StoreCallback, this, _1, transport::Info(),
+      protobuf::StoreResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::Delete(const NodeId &key,
-                  const SignedValue &signed_value,
-                  const Signature &signature,
-                  const Contact &contact,
-                  VoidFunctorOneBool callback,
+void Rpcs::Delete(const Key &key,
+                  const std::string &value,
+                  const std::string &signature,
+                  SecurifierPtr securifier,
+                  const Contact &peer,
+                  DeleteFunctor callback,
                   TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::DeleteRequest req;
-  req.set_key(key.String());
-  req.mutable_signed_value()->set_value(signed_value.value);
-  req.mutable_signed_value()->set_signature(signed_value.signature);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
-  signature_msg->set_signer_id(signature.signer_id);
-  signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_delete_response()->connect(boost::bind(
-      &Rpcs::DeleteCallback, this, _1, callback, message_handler, transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::DeleteRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+  protobuf::SignedValue *signed_value(request.mutable_signed_value());
+  signed_value->set_value(value);
+  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
+                              signature);
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_delete_response()->connect(boost::bind(
+      &Rpcs::DeleteCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::DeleteCallback, this, _1, transport::Info(),
+      protobuf::DeleteResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::Update(const NodeId &key,
-                  const SignedValue &old_signed_value,
-                  const SignedValue &new_signed_value,
-                  const boost::int32_t &ttl,
-                  const Signature &signature,
-                  const Contact &contact,
-                  VoidFunctorOneBool callback,
+void Rpcs::Update(const Key &key,
+                  const std::string &new_value,
+                  const std::string &new_signature,
+                  const std::string &old_value,
+                  const std::string &old_signature,
+                  const boost::posix_time::seconds &ttl,
+                  SecurifierPtr securifier,
+                  const Contact &peer,
+                  UpdateFunctor callback,
                   TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::UpdateRequest req;
-  req.set_key(key.String());
-  req.mutable_new_signed_value()->set_value(new_signed_value.value);
-  req.mutable_new_signed_value()->set_signature(new_signed_value.signature);
-  req.mutable_old_signed_value()->set_value(old_signed_value.value);
-  req.mutable_old_signed_value()->set_signature(old_signed_value.signature);
-  req.set_ttl(ttl);
-  protobuf::Signature *signature_msg(req.mutable_request_signature());
-  signature_msg->set_signer_id(signature.signer_id);
-  signature_msg->set_public_key(signature.public_key);
-  signature_msg->set_signed_public_key(signature.signed_public_key);
-  signature_msg->set_payload_signature(signature.payload_signature);
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  message_handler->on_update_response()->connect(boost::bind(
-      &Rpcs::UpdateCallback, this, _1, callback, message_handler, transport));
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kDefaultInitialTimeout);
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::UpdateRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+  protobuf::SignedValue *signed_value(request.mutable_new_signed_value());
+  signed_value->set_value(new_value);
+  signed_value->set_signature(new_signature.empty() ?
+                              securifier->Sign(new_value) : new_signature);
+  signed_value = request.mutable_old_signed_value();
+  signed_value->set_value(old_value);
+  signed_value->set_signature(old_signature.empty() ?
+                              securifier->Sign(old_value) : old_signature);
+  request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
+  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_update_response()->connect(boost::bind(
+      &Rpcs::UpdateCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::UpdateCallback, this, _1, transport::Info(),
+      protobuf::UpdateResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
-                    const Contact &contact,
+                    SecurifierPtr securifier,
+                    const Contact &peer,
                     TransportType type) {
-  boost::shared_ptr<MessageHandler> message_handler;
-  boost::shared_ptr<transport::Transport> transport = CreateTransport(type);
-  protobuf::DownlistNotification req;
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::DownlistNotification notification;
+  *notification.mutable_sender() = ToProtobuf(contact_);
   for (size_t i = 0; i < node_ids.size(); ++i)
-    req.add_node_ids(node_ids[i].String());
-  (*req.mutable_sender()) = node_contact_.ToProtobuf();
-  std::string msg = message_handler->WrapMessage(req);
-  transport->Send(msg, contact.GetPreferredEndpoint(),
-                  transport::kImmediateTimeout);
+    notification.add_node_ids(node_ids[i].String());
+  std::string message(connected_objects.get<1>()->WrapMessage(notification));
+  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
 }
 
-void Rpcs::PingCallback(const protobuf::PingResponse &response,
-                        PingFunctor callback,
-                        boost::shared_ptr<MessageHandler>,
-                        boost::shared_ptr<transport::Transport>) {
-  callback(response.result(), response.echo());
+void Rpcs::PingCallback(
+    const std::string &random_data,
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::PingResponse &response,
+    ConnectedObjects connected_objects,
+    PingFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.echo() == random_data)
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
-void Rpcs::FindValueCallback(const protobuf::FindValueResponse &response,
-                             FindValueFunctor callback,
-                             boost::shared_ptr<MessageHandler>,
-                             boost::shared_ptr<transport::Transport>) {
-  std::vector<Contact> contacts;
-  for (int i = 0; i < response.closest_nodes_size(); ++i) {
-    Contact contact(response.closest_nodes(i));
-    contacts.push_back(contact);
-  }
-
+void Rpcs::FindValueCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::FindValueResponse &response,
+    ConnectedObjects connected_objects,
+    FindValueFunctor callback) {
   std::vector<std::string> values;
-  for (int i = 0; i < response.values_size(); ++i)
-    values.push_back(response.values(i));
-
-  std::vector<SignedValue> signed_values;
-  for (int i = 0; i < response.signed_values_size(); ++i) {
-    SignedValue signed_value(response.signed_values(i).value(),
-                             response.signed_values(i).signature());
-    signed_values.push_back(signed_value);
-  }
-
-  Contact alternative_value_holder;
-  if (response.has_alternative_value_holder())
-    alternative_value_holder.FromProtobuf(response.alternative_value_holder());
-
-  std::string needs_cache_copy;
-  if (response.has_needs_cache_copy())
-    needs_cache_copy = response.needs_cache_copy();
-
-  callback(response.result(), contacts, values, signed_values,
-           alternative_value_holder, response.has_needs_cache_copy());
-}
-
-void Rpcs::FindNodesCallback(const protobuf::FindNodesResponse &response,
-                             FindNodesFunctor callback,
-                             boost::shared_ptr<MessageHandler>,
-                             boost::shared_ptr<transport::Transport>) {
   std::vector<Contact> contacts;
-  for (int i = 0; i < response.closest_nodes_size(); ++i) {
-    Contact contact(response.closest_nodes(i));
-    contacts.push_back(contact);
+  Contact alternative_value_holder;
+
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+                    values, contacts, alternative_value_holder);
+
+  if (!response.IsInitialized() || !response.result())
+    return callback(RankInfoPtr(new transport::Info(info)), -1, values,
+                    contacts, alternative_value_holder);
+
+  for (int i = 0; i < response.signed_values_size(); ++i)
+    values.push_back(response.signed_values(i).value());
+
+  for (int i = 0; i < response.closest_nodes_size(); ++i)
+    contacts.push_back(FromProtobuf(response.closest_nodes(i)));
+
+  if (response.has_alternative_value_holder()) {
+    alternative_value_holder =
+        FromProtobuf(response.alternative_value_holder());
   }
 
-  callback(response.result(), contacts);
+  callback(RankInfoPtr(new transport::Info(info)), transport_condition, values,
+           contacts, alternative_value_holder);
 }
 
-void Rpcs::StoreCallback(const protobuf::StoreResponse &response,
-                         VoidFunctorOneBool callback,
-                         boost::shared_ptr<MessageHandler>,
-                         boost::shared_ptr<transport::Transport>) {
-  callback(response.result());
+void Rpcs::FindNodesCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::FindNodesResponse &response,
+    ConnectedObjects connected_objects,
+    FindNodesFunctor callback) {
+  std::vector<Contact> contacts;
+
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+                    contacts);
+
+  if (!response.IsInitialized() || !response.result())
+    return callback(RankInfoPtr(new transport::Info(info)), -1, contacts);
+
+  for (int i = 0; i < response.closest_nodes_size(); ++i)
+    contacts.push_back(FromProtobuf(response.closest_nodes(i)));
+
+  callback(RankInfoPtr(new transport::Info(info)), transport_condition, contacts);
 }
 
-void Rpcs::DeleteCallback(const protobuf::DeleteResponse &response,
-                          VoidFunctorOneBool callback,
-                          boost::shared_ptr<MessageHandler>,
-                          boost::shared_ptr<transport::Transport>) {
-  callback(response.result());
+void Rpcs::StoreCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::StoreResponse &response,
+    ConnectedObjects connected_objects,
+    StoreFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.result())
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
-void Rpcs::UpdateCallback(const protobuf::UpdateResponse &response,
-                          VoidFunctorOneBool callback,
-                          boost::shared_ptr<MessageHandler>,
-                          boost::shared_ptr<transport::Transport>) {
-  callback(response.result());
+void Rpcs::DeleteCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::DeleteResponse &response,
+    ConnectedObjects connected_objects,
+    DeleteFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.result())
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
-boost::shared_ptr<transport::Transport> Rpcs::CreateTransport(
-    TransportType type) {
-  boost::shared_ptr<transport::Transport> t;
+void Rpcs::UpdateCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::UpdateResponse &response,
+    ConnectedObjects connected_objects,
+    UpdateFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.result())
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
+}
+
+Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
+                                     SecurifierPtr securifier) {
+  TransportPtr transport;
   switch (type) {
-    case kUdt: t.reset(new transport::UdtTransport(asio_service_)); break;
-    default: break;
-//    case kTcp: t.reset(new transport::TcpTransport(asio_service_)); break;
-//    case kOther: t.reset(new transport::UdtTransport(asio_service_)); break;
+    case kUdt:
+      transport.reset(new transport::UdtTransport(asio_service_));
+      break;
+//    case kTcp:
+//      transport.reset(new transport::TcpTransport(asio_service_));
+//      break;
+//    case kOther:
+//      transport.reset(new transport::UdtTransport(asio_service_));
+//      break;
+    default:
+      break;
   }
-  return t;
+  MessageHandlerPtr message_handler(new MessageHandler(securifier ? securifier :
+                                                       default_securifier_));
+  // Connect message handler to transport for incoming raw messages
+  bs2::connection on_recv_con = transport->on_message_received()->connect(
+      boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
+                  _1, _2, _3, _4));
+  bs2::connection on_err_con = transport->on_error()->connect(
+      boost::bind(&MessageHandler::OnError, message_handler.get(), _1));
+  return boost::make_tuple(transport, message_handler, on_recv_con, on_err_con);
 }
-
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

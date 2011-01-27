@@ -25,15 +25,21 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
-#include <boost/asio/io_service.hpp>
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
+#include "boost/asio/io_service.hpp"
+#include "boost/bind.hpp"
+#include "boost/shared_ptr.hpp"
+#include "boost/thread.hpp"
 
 #include "maidsafe/nat-pmp/natpmpclient.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
+
+namespace maidsafe {
+
+namespace natpmp {
+
+namespace test {
 
 class NATPMPTest : public testing::Test {
  public:
@@ -43,7 +49,7 @@ class NATPMPTest : public testing::Test {
 TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
   boost::asio::io_service ios;
 
-  natpmp::NatPmpClient client(&ios);
+  NatPmpClient client(&ios);
 
   boost::uint16_t tcp_port = 33333;
   boost::uint16_t udp_port = 33333;
@@ -57,12 +63,12 @@ TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
   DLOG(INFO) << "Queueing mapping request for tcp port " << tcp_port << " to "
              << tcp_port << std::endl;
 
-  client.MapPort(natpmp::Protocol::kTcp, 33333, 33333, 3600);
+  client.MapPort(Protocol::kTcp, 33333, 33333, 3600);
 
   DLOG(INFO) << "Queueing mapping request for udp port " << udp_port << " to "
              << udp_port << std::endl;
 
-  client.MapPort(natpmp::Protocol::kUdp, 33333, 33333, 3600);
+  client.MapPort(Protocol::kUdp, 33333, 33333, 3600);
 
   boost::shared_ptr<boost::thread> thread(new boost::thread(
       boost::bind(&boost::asio::io_service::run, &ios)));
@@ -75,3 +81,9 @@ TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
 
   client.Stop();
 }
+
+}  // namespace test
+
+}  // namespace natpmp
+
+}  // namespace maidsafe

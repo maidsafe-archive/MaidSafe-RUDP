@@ -29,75 +29,94 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/service.h"
 
-// #include <boost/compressed_pair.hpp>
 #include <utility>
 #include <set>
 
-#include "maidsafe/kademlia/routingtable.h"
+// #include "boost/compressed_pair.hpp"
+
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/kademlia/datastore.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
-#include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/validationinterface.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/kademlia/utils.h"
+#include "maidsafe/kademlia/message_handler.h"
+#include "maidsafe/common/alternative_store.h"
+#include "maidsafe/common/securifier.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/base/crypto.h"
+#include "maidsafe/common/crypto.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
-Service::Service(boost::shared_ptr<RoutingTable> routing_table,
-                 boost::shared_ptr<DataStore> datastore,
-                 bool using_signatures)
+Service::Service(std::shared_ptr<RoutingTable> routing_table,
+                 std::shared_ptr<DataStore> datastore,
+                 AlternativeStorePtr alternative_store,
+                 SecurifierPtr securifier)
     : routing_table_(routing_table),
       datastore_(datastore),
+      alternative_store_(alternative_store),
+      securifier_(securifier),
       node_joined_(false),
-      using_signatures_(using_signatures),
-      node_contact_(),
-      alternative_store_(),
-      signature_validator_() {
-  // Connect message handler to transport for incoming raw messages
-/*  transport_->on_message_received()->connect(boost::bind(
-      &MessageHandler::OnMessageReceived, message_handler_, _1, _2, _3, _4));
+      node_contact_() {}
+
+void Service::ConnectToSignals(TransportPtr transport,
+                               MessageHandlerPtr message_handler) {
+  // Connect message handler to transport for incoming raw messages.  Don't need
+  // to connect to on_error() as service doesn't care if reply succeeds or not.
+  transport->on_message_received()->connect(
+      transport::OnMessageReceived::element_type::slot_type(
+          &MessageHandler::OnMessageReceived, message_handler.get(),
+          _1, _2, _3, _4).track_foreign(message_handler));
   // Connect service to message handler for incoming parsed requests
-  message_handler_->on_ping_request()->connect(boost::bind(
-      &Service::Ping, this, _1, _2));
-  message_handler_->on_find_value_request()->connect(boost::bind(
-      &Service::FindValue, this, _1, _2));
-  message_handler_->on_find_nodes_request()->connect(boost::bind(
-      &Service::FindNodes, this, _1, _2));
-  message_handler_->on_store_request()->connect(boost::bind(
-      &Service::Store, this, _1, _2));
-  message_handler_->on_delete_request()->connect(boost::bind(
-      &Service::Delete, this, _1, _2));
-  message_handler_->on_update_request()->connect(boost::bind(
-      &Service::Update, this, _1, _2));
-  message_handler_->on_downlist_request()->connect(boost::bind(
-      &Service::Downlist, this, _1, _2)); */
+  message_handler->on_ping_request()->connect(
+      MessageHandler::PingReqSigPtr::element_type::slot_type(
+          &Service::Ping, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_find_value_request()->connect(
+      MessageHandler::FindValueReqSigPtr::element_type::slot_type(
+          &Service::FindValue, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_find_nodes_request()->connect(
+      MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
+          &Service::FindNodes, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_store_request()->connect(
+      MessageHandler::StoreReqSigPtr::element_type::slot_type(
+          &Service::Store, this, _1, _2, _3).track(shared_from_this()));
+  message_handler->on_delete_request()->connect(
+      MessageHandler::DeleteReqSigPtr::element_type::slot_type(
+          &Service::Delete, this, _1, _2, _3, _4, _5).track(
+              shared_from_this()));
+  message_handler->on_update_request()->connect(
+      MessageHandler::UpdateReqSigPtr::element_type::slot_type(
+          &Service::Update, this, _1, _2, _3, _4, _5).track(
+              shared_from_this()));
+  message_handler->on_downlist_notification()->connect(
+      MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
+          &Service::Downlist, this, _1, _2).track(shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response) {
-  response->set_echo("pong");
-  response->set_result(true);
-  routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+  response->set_echo(request.ping());
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
-
+/*
 void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
                         protobuf::FindValueResponse *response) {
   response->set_result(false);
   if (!node_joined_)
     return;
-  Contact sender(request.sender());
+  Contact sender(FromProtobuf(request.sender()));
 
   // Are we the alternative value holder?
   std::string key(request.key());
   std::vector<std::pair<std::string, std::string>> values_str;
   if (alternative_store_ != NULL && alternative_store_->Has(key)) {
-    *(response->mutable_alternative_value_holder()) =
-        node_contact_.ToProtobuf();
+    *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
-    routing_table_->AddContact(sender);  // TODO pass info
+    routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
   }
 
@@ -114,7 +133,7 @@ void Service::FindValue(const transport::Info &info,
         response->add_values(values_str[i].first);
     }
     response->set_result(true);
-    routing_table_->AddContact(sender);  // TODO pass info
+    routing_table_->AddContact(sender, info);
     return;
   }
 
@@ -133,7 +152,7 @@ void Service::FindNodes(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-  Contact sender(request.sender());
+  Contact sender(FromProtobuf(request.sender()));
   std::vector<Contact> closest_contacts, exclude_contacts;
   NodeId key(request.key());
 
@@ -145,7 +164,7 @@ void Service::FindNodes(const transport::Info &info,
   routing_table_->FindCloseNodes(key, -1, exclude_contacts, &closest_contacts);
   bool found_node(false);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
-    (*response->add_closest_nodes()) = closest_contacts[i].ToProtobuf();
+    (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
     if (key == closest_contacts[i].node_id())
       found_node = true;
   }
@@ -153,11 +172,11 @@ void Service::FindNodes(const transport::Info &info,
   if (!found_node) {
     Contact key_node;
     if (routing_table_->GetContact(key, &key_node))
-      (*response->add_closest_nodes()) = key_node.ToProtobuf();
+      (*response->add_closest_nodes()) = ToProtobuf(key_node);
   }
 
   response->set_result(true);
-  routing_table_->AddContact(sender);  // TODO pass info
+  routing_table_->AddContact(sender, info);
 }
 
 void Service::Store(const transport::Info &info,
@@ -167,7 +186,7 @@ void Service::Store(const transport::Info &info,
   bool result(false);
   if (!node_joined_)
     return;
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   std::string serialised_deletion_signature;
 
   if (using_signatures_) {
@@ -176,10 +195,10 @@ void Service::Store(const transport::Info &info,
         signature_validator_ == NULL ||
         !signature_validator_->ValidateSignerId(
             signature.signer_id(), signature.public_key(),
-            signature.signed_public_key()) ||
+            signature.public_key_validation()) ||
         !signature_validator_->ValidateRequest(
-            signature.payload_signature(), signature.public_key(),
-            signature.signed_public_key(), request.key())) {
+            signature.request_signature(), signature.public_key(),
+            signature.public_key_validation(), request.key())) {
       DLOG(WARNING) << "Failed to validate Store request for kademlia value"
                     << std::endl;
       return;
@@ -194,7 +213,7 @@ void Service::Store(const transport::Info &info,
 
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+    routing_table_->AddContact(FromProtobuf(request.sender()), info);
   } else if (!serialised_deletion_signature.empty()) {
     (*response->mutable_deletion_signature()).ParseFromString(
         serialised_deletion_signature);
@@ -205,6 +224,8 @@ void Service::Store(const transport::Info &info,
 
 void Service::Delete(const transport::Info &info,
                      const protobuf::DeleteRequest &request,
+                     const std::string &message,
+                     const std::string &message_signature,
                      protobuf::DeleteResponse *response) {
   response->set_result(false);
   if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)
@@ -214,13 +235,13 @@ void Service::Delete(const transport::Info &info,
   if (!datastore_->HasKey(request.key()))
     return;
 
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.signed_public_key()) ||
-      !signature_validator_->ValidateRequest(signature.payload_signature(),
+                                              signature.public_key_validation()) ||
+      !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.signed_public_key(),
+                                             signature.public_key_validation(),
                                              request.key()))
     return;
 
@@ -237,12 +258,14 @@ void Service::Delete(const transport::Info &info,
   if (datastore_->MarkForDeletion(keyvaluesignature,
                                   signature.SerializeAsString())) {
     response->set_result(true);
-    routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+    routing_table_->AddContact(FromProtobuf(request.sender()), info);
   }
 }
 
 void Service::Update(const transport::Info &info,
                      const protobuf::UpdateRequest &request,
+                     const std::string &message,
+                     const std::string &message_signature,
                      protobuf::UpdateResponse *response) {
   response->set_result(false);
   if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)
@@ -252,13 +275,13 @@ void Service::Update(const transport::Info &info,
   if (!datastore_->HasKey(request.key()))
     return;
 
-  const protobuf::Signature &signature(request.request_signature());
+  const protobuf::MessageSignature &signature(request.request_signature());
   if (!signature_validator_->ValidateSignerId(signature.signer_id(),
                                               signature.public_key(),
-                                              signature.signed_public_key()) ||
-      !signature_validator_->ValidateRequest(signature.payload_signature(),
+                                              signature.public_key_validation()) ||
+      !signature_validator_->ValidateRequest(signature.request_signature(),
                                              signature.public_key(),
-                                             signature.signed_public_key(),
+                                             signature.public_key_validation(),
                                              request.key()))
     return;
 
@@ -279,7 +302,7 @@ void Service::Update(const transport::Info &info,
                      std::endl;
     return;
   }
-
+  */
 /*******************************************************************************
 This code would check if the current value is hashable, and accept only
 hashable replacement values.
@@ -298,7 +321,7 @@ hashable replacement values.
 //    return;
 //  }
 *******************************************************************************/
-
+/*
   bool new_hashable(SignedValueHashable(request.key(),
                                         request.new_signed_value()));
   KeyValueSignatureTuple old_keyvaluesignature(
@@ -315,7 +338,7 @@ hashable replacement values.
   }
 
   response->set_result(true);
-  routing_table_->AddContact(Contact(request.sender()));  // TODO pass info
+  routing_table_->AddContact(FromProtobuf(request.sender()), info);
 }
 
 void Service::Downlist(const transport::Info &info,
@@ -406,6 +429,8 @@ bool Service::CanStoreSignedValueHashable(
       return false;
   }
   return true;
-}
+}*/
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

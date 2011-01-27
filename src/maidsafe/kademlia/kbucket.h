@@ -31,12 +31,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <vector>
 #include <string>
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/maidsafe-dht_config.h"
+#include "boost/cstdint.hpp"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/common/platform_config.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
 class Contact;
+
+enum KBucketExitCode { SUCCEED, FULL, FAIL };
 
 class KBucket {
  public:
@@ -72,11 +77,13 @@ class KBucket {
 
  private:
   boost::uint32_t last_accessed_;
-  std::list<Contact> contacts_;
+//  ContactsContainer contacts_;
   NodeId range_min_, range_max_;
   boost::uint16_t K_;
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_KBUCKET_H_

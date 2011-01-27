@@ -28,9 +28,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_UPNP_UPNPCFG_H_
 #define MAIDSAFE_UPNP_UPNPCFG_H_
 
-#include <boost/function.hpp>
 #include <string>
 #include <map>
+#include "boost/function.hpp"
+
+namespace maidsafe {
 
 namespace upnp {
 
@@ -62,5 +64,7 @@ struct PortMapping {
 };
 
 }  // namespace upnp
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_UPNP_UPNPCFG_H_

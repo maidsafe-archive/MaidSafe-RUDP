@@ -33,376 +33,194 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_NODE_API_H_
 #define MAIDSAFE_KADEMLIA_NODE_API_H_
 
-#include <maidsafe/maidsafe-dht_config.h>
-#include "maidsafe/kademlia/config.h"
-#include <maidsafe/kademlia/nodeid.h>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "boost/asio/io_service.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/scoped_ptr.hpp"
+
+#include "maidsafe/kademlia/config.h"
+#include "maidsafe/common/version.h"
+
 #if MAIDSAFE_DHT_VERSION < 25
-#error This API is not compatible with the installed library.
-#error Please update the maidsafe-dht library.
+#error This API is not compatible with the installed library.\
+  Please update the maidsafe-dht library.
 #endif
 
 
-namespace base {
-class AlternativeStore;
-class SignatureValidator;
-}  // namespace base
-
-
-namespace transport {
-class Transport;
-class UdtTransport;
-}  // namespace transport
+namespace maidsafe {
 
 namespace kademlia {
 
-class Contact;
-class ContactInfo;
-class NodeImpl;
-class Rpcs;
-struct NodeConstructionParameters;
-
-namespace protobuf {
-class SignedValue;
-class Signature;
-}  // namespace protobuf
-
-/**
-* @class Node
-* This class represents a kademlia node providing the API to join the network,
-* find nodes and values, store and delete values, ping nodes, as well as the
-* methods to access the local storage of the node and its routing table  .
-*/
-
+// This class represents a kademlia node providing the API to join the network,
+// find nodes and values, store, delete and update values, as well as the
+// methods to access the local storage of the node and its routing table.
 class Node {
  public:
-  /**
-  * Constructor that takes by default the kaemlia values for k, alpha, beta, and
-  * refresh time.
-  * @param transport a pointer to the transport object in charge of transmitting
-  * data from the node to a specific node
-  * @param type the type of node VAULT or CLIENT (client is read only node)
-  * @param private_key private key for the node, if no digitally signed values
-  * are used, pass an empty string
-  * @param public_key public key for the node, if no digitally signed values
-  * are used, pass an empty string
-  * @param port_forwarded indicate if the port where the Transport object is
-  * listening has been manually forwarded in the router
-  * @param use_upnp indicate if UPnP is going to be used as the first option
-  * for NAT traversal
-  * @param k Maximum number of elements in the node's kbuckets
-  */
-  Node(boost::shared_ptr<transport::Transport> transport,
-        const NodeConstructionParameters &node_parameters);
+
+  // asio_service is a pointer to a boost::asio::io_service instance which
+  // should have at least 1 thread running io_service::run().
+  //
+  // listening_transport is responsible for listening only, not sending.  It
+  // need not be listening before it is passed, it will be started in Join.
+  //
+  // default_securifier is responsible for signing, verification, encrypting and
+  // decrypting messages and values.  If it is an invalid pointers, a basic
+  // instantiations will be made.  For all other member functions where a
+  // securifer is passed, if it is invalid, this default_securifier will be used
+  // instead.
+  //
+  // alternative_store can be used to augment / complement the native Kademlia
+  // datastore of <key,values>.  If alternative_store is an invalid pointer, no
+  // default is instantiated, and all values are held in memory in datastore.
+  // 
+  // client_only_node specifies whether the node should be treated as a client
+  // on the network rather than a full peer.  In client mode, the node does not
+  // accept store requests and is not added to other nodes' routing tables.
+  //
+  // k, alpha and beta are as defined for standard Kademlia, i.e. number of
+  // contacts returned from a Find RPC, parallel level of Find RPCs, and number
+  // of returned Find RPCs required to start a subsequent iteration
+  // respectively.
+  //
+  // mean_refresh_interval indicates the average interval between calls to
+  // refresh values.
+  Node(IoServicePtr asio_service,
+       TransportPtr listening_transport,
+       SecurifierPtr default_securifier,
+       AlternativeStorePtr alternative_store,
+       bool client_only_node,
+       const boost::uint16_t &k,
+       const boost::uint16_t &alpha,
+       const boost::uint16_t &beta,
+       const boost::posix_time::seconds &mean_refresh_interval);
 
   ~Node();
 
-  /**
-  * Join the network using a specific id. This is a non-blocking operation.
-  * @param node_id Id that is going to be used by the node
-  * @param kad_config_file path to the config file where bootstrapping nodes are
-  * stored.
-  * @param callback callback function where result of the operation is notified
-  */
-  void Join(const NodeId &node_id, const std::string &kad_config_file,
-            VoidFunctorOneString callback);
-  /**
-  * Join the network using a random id. This is a non-blocking operation.
-  * @param kad_config_file path to the config file where bootstrapping nodes are
-  * stored.
-  * @param callback callback function where result of the operation is notified
-  */
-  void Join(const std::string &kad_config_file, VoidFunctorOneString callback);
-  /**
-  * Join the first node of the network using a specific id.
-  * This is a non-blocking operation.
-  * @param node_id Id that is going to be used by the node
-  * @param kad_config_file path to the config file where bootstrapping nodes are
-  * stored.
-  * @param ip external ip of the node
-  * @param port external port of the node
-  * @param callback callback function where result of the operation is notified
-  */
-  void JoinFirstNode(const NodeId &node_id, const std::string &kad_config_file,
-                     const IP &ip, const Port &port,
-                     VoidFunctorOneString callback);
-  /**
-  * Join the first node of the network using a random id.
-  * This is a non-blocking operation.
-  * @param kad_config_file path to the config file where bootstrapping nodes are
-  * stored.
-  * @param ip external ip of the node
-  * @param port external port of the node
-  * @param callback callback function where result of the operation is notified
-  */
-  void JoinFirstNode(const std::string &kad_config_file, const IP &ip,
-                     const Port &port, VoidFunctorOneString callback);
-  /**
-  * Leave the kademlia network.  All values stored in the node are erased and
-  * nodes from the routing table are saved as bootstrapping nodes in the
-  * config file
-  */
-  void Leave();
-  /**
-  * Store a value of the form (data; signed data) in the network.  Used if the
-  * network is formed by nodes that have private and public key.
-  * @param key a kademlia::NodeId object that is the key to store the value
-  * @param signed_value signed value to be stored
-  * @param signed_request request to store the value,
-           it is validated before the value is stored
-  * @param ttl time to live of the value in seconds, if ttl = -1, then it has
-  * infinite time to live
-  * @param callback callback function where result of the operation is notified
-  */
-  void StoreValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                  const protobuf::Signature &signed_request,
-                  const boost::int32_t &ttl, VoidFunctorOneString callback);
-  /**
-  * Store a value (a simple string) in the network.  Used if the
-  * network is formed by nodes that do not have private and public key.
-  * @param key a kademlia::NodeId object that is the key to store the value
-  * @param value value to be stored
-  * @param ttl time to live of the value in seconds, if ttl = -1, then it has
-  * infinite time to live
-  * @param callback callback function where result of the operation is notified
-  */
-  void StoreValue(const NodeId &key, const std::string &value,
-                  const boost::int32_t &ttl, VoidFunctorOneString callback);
-  /**
-  * Delete a Value of the network, only in networks with nodes that have public
-  * and private keys a value, that is of the form data; signed data, can be
-  * deleted.  Only the one who signed the value can delete it.
-  * @param key kademlia::NodeId object that is the key under which the value is stored
-  * @param signed_value signed value to be deleted
-  * @param signed_request request to delete the value, it is validated before the
-  * value is deleted
-  * @param callback callback function where result of the operation is notified
-  */
-  void DeleteValue(const NodeId &key, const protobuf::SignedValue &signed_value,
-                   const protobuf::Signature &signed_request,
-                   VoidFunctorOneString callback);
-  /**
-  * Update a Value of the network, only in networks with nodes that have public
-  * and private keys a value, that is of the form <data, signed data>, can be
-  * updated.  Only the one who signed the value can update it.
-  * @param key kademlia::NodeId object that is the key under which the value is stored
-  * @param old_value signed value to be updated
-  * @param new_value signed value to be updated
-  * @param signed_request request to update the value, it is validated before the
-  * value is updated
-  * @param callback callback function where result of the operation is notified
-  */
-  void UpdateValue(const NodeId &key,
-                   const protobuf::SignedValue &old_value,
-                   const protobuf::SignedValue &new_value,
-                   const protobuf::Signature &signed_request,
-                   boost::uint32_t ttl,
-                   VoidFunctorOneString callback);
-  /**
-  * Find a value in the network.  If several values are stored under the same
-  * key, a list with all the values is returned.
-  * If any Node during the iterative lookup has the value in its
-  * AlternativeStore, rather than returning this value, it returns its own
-  * contact details.  If check_alternative_store is true, this node checks its own
-  * AlternativeStore also.
-  * @param key kademlia::NodeId object that is the key under which the value is stored
-  * @param check_alternative_store indicate if the node's alternative store must be
-  * checked
-  * @param callback callback function where result of the operation is notified
-  */
-  void FindValue(const NodeId &key, const bool &check_alternative_store,
-                 VoidFunctorOneString callback);
-  /**
-  * Find the contact details of a node in the network with its id.
-  * @param node_id id of the node. It is a kademlia::NodeId object
-  * @param callback callback function where result of the operation is notified
-  * @param local false if the we want to find the node in the network and true
-  * if we try to find it in the node's routing table
-  */
-  void GetNodeContactDetails(const NodeId &node_id,
-                             VoidFunctorOneString callback, const bool &local);
-  /**
-  * Find the k closest nodes to an id in the network.
-  * @param node_id id to which the nodes closest to it are returned
-  * @param callback callback function where result of the operation is notified
-  */
-  void FindKClosestNodes(const NodeId &node_id, VoidFunctorOneString callback);
-  /**
-  * Find the k closest nodes to a key in the node's routing table.
-  * @param key id to which the nodes closest to it are returned
-  * @param exclude_contacts vector of nodes that must be excluded from the
-  * result
-  * @param close_nodes reference to a vector of Contact where the nodes found
-  * are returned
-  */
-  void GetNodesFromRoutingTable(const NodeId &key,
-                                 const std::vector<Contact> &exclude_contacts,
-                                 std::vector<Contact> *close_nodes);
-  /**
-  * Ping the node with id node_id.  First the node is found in the network, and
-  * then the node is pinged
-  * @param node_id id of the node
-  * @param callback callback function where result of the operation is notified
-  */
-  void Ping(const NodeId &node_id, VoidFunctorOneString callback);
-  /**
-  * Ping a node.
-  * @param remote contact info of the node to be pinged
-  * @param callback callback function where result of the operation is notified
-  */
-  void Ping(const Contact &remote, VoidFunctorOneString callback);
-  /**
-  * Add a node to the routing table and/or to the database routing table.
-  * @param new_contact contact info of the node to be added
-  * @param rtt Round trip time to the node
-  * @param only_db if true, it is only added to the database routing table.
-  */
-  int AddContact(Contact new_contact, const float &rtt, const bool &only_db);
-  /**
-  * Remove a node from the routing table.
-  * @param node_id id of the node
-  */
-  void RemoveContact(const NodeId &node_id);
-  /**
-  * Get a node from the routing table.
-  * @param id id of the node
-  * @param contact reference to a Contact object where the contact info of the
-  * node is returned
-  * @return True if node is found, false otherwise
-  */
-  bool GetContact(const NodeId &id, Contact *contact);
-  /**
-  * Find a value in the local data store of the node.
-  * @param key key used to find the value
-  * @param values vector of references where the values stored under key,
-    if found, are retured
-  * @return True if value is found, false otherwise
-  */
-  bool FindValueLocal(const NodeId &key, std::vector<std::string> *values);
-  /**
-  * Store a value in the local data store of the node.
-  * @param key key under which the value is stored
-  * @param value value to be stored
-  * @param ttl Time to live of the value in seconds, if ttl = -1, then it has
-  * infinite time to live
-  * @return True if value is found, false otherwise
-  */
-  bool StoreValueLocal(const NodeId &key, const std::string &value,
-                       const boost::int32_t &ttl);
-  /**
-  * Refhresh a value in the local data store of the node.  If the value was
-  * already stored, the time to live is not changed, only the refresh time
-  * is updated.
-  * @param key key under which the value is stored
-  * @param value value to be stored
-  * @param ttl Time to live of the value in seconds, if ttl = -1, then it has
-  * infinite time to live
-  * @return True if value is found, false otherwise
-  */
-  bool RefreshValueLocal(const NodeId &key, const std::string &value,
-                         const boost::int32_t &ttl);
-  /**
-  * Get n random nodes from the routing table.
-  * @param count number of nodes to be returned
-  * @param exclude_contacts nodes vector of nodes that cant be included in the
-  * result
-  * @param contacts reference to a vector of Contact where the nodes selected
-  * are returned
-  */
-  void GetRandomContacts(const size_t &count,
-                         const std::vector<Contact> &exclude_contacts,
-                         std::vector<Contact> *contacts);
-  /**
-  * Notifier that is passed to the transport object for the case where the
-  * node's randezvous server goes down.
-  * @param dead_server notification of status of the rendezvous server: True
-  * server is up, False server is down
-  */
-  void HandleDeadRendezvousServer(const bool &dead_server);
-  /**
-  * Check if the local endpoint corresponding to the local ip and port of a node
-  * can be contacted if it is not already marked in the database routing table.
-  * If the status is in the database routing table, it returns that status.
-  * @param id id of the node we are checking
-  * @param ip local ip
-  * @param port local port
-  * @param ext_ip external ip of the node
-  * @return If the node can be contacted through its local endpoint (LOCAL) or
-  * not (REMOTE)
-  */
-  ConnectionType CheckContactLocalAddress(const NodeId &id,
-                                          const IP &ip,
-                                          const Port &port,
-                                          const IP &ext_ip);
-  /**
-  * Updates the database routing table in the entry for the node id passed to be
-  * to be contacted only via the remote endpoint.
-  * @param node_id id of the node
-  * @param ip ip of the node
-  */
-  void UpdatePDRTContactToRemote(const NodeId &node_id,
-                                 const IP &ip);
-  Contact contact_info() const;
-  NodeId node_id() const;
-  IP ip() const;
-  Port port() const;
-  IP local_ip() const;
-  Port local_port() const;
-  IP rendezvous_ip() const;
-  Port rendezvous_port() const;
-  bool is_joined() const;
-  /**
-  * Returns a shared pointer to Rpcs
-  * @return Shared pointer to Rpcs
-  */
-  boost::shared_ptr<Rpcs> rpcs();
-  /**
-  * Get the time of the last time a key/value pair stored in the node was
-  * refreshed
-  * @param key key under which the value is stored
-  * @param value value stored
-  * @return time in seconds from epoch time when the key/value pair was
-  * refreshed.  It key value is not found, then 0 is returned.
-  */
-  boost::uint32_t KeyLastRefreshTime(const NodeId &key,
-                                     const std::string &value);
-  /**
-  * Get the time when a key/value pair stored in the node is going to expire
-  * @param key key under which the value is stored
-  * @param value value stored
-  * @return time in seconds from epoch time when the key/value pair is going to
-  * expire.  It key value is not found, then 0 is returned.  If -1 is returned,
-  * then the value doesn't expire
-  */
-  boost::uint32_t KeyExpireTime(const NodeId &key, const std::string &value);
-  /**
-  * Checks if the node has public and private RSA keys.
-  * @return True if the node has the keys, otherwise False.
-  */
-  bool using_signatures();
-  /**
-  * Get the time to live of a key/value pair stored in the node
-  * @param key key under which the value is stored
-  * @param value value stored
-  * @return time to live in seconds of the key/value. It key value is not found,
-  * then 0 is returned.  If -1 is returned, then the value doesn't expire
-  */
-  boost::int32_t KeyValueTTL(const NodeId &key, const std::string &value) const;
-  /**
-  * If this is set to a non-NULL value, then the AlternativeStore will be used
-  * before Kad's native DataStore.
-  * @param alternative_store reference to a base::AlternativeStore object
-  */
-  void set_alternative_store(base::AlternativeStore *alternative_store);
-  base::AlternativeStore *alternative_store();
-  void set_signature_validator(base::SignatureValidator *validator);
+  // Join the network.  If the listening_transport cannot be started (or is not
+  // already started) on the desired port, the callback indicates failure.
+  // bootstrap_contacts should be directly-connected peers to allow successful
+  // NAT detection.
+  void Join(const NodeId &node_id,
+            const Port &port,
+            const std::vector<Contact> &bootstrap_contacts,
+            JoinFunctor callback);
+
+  // Leave the kademlia network.  All values stored in the node are erased and
+  // all directly-connected nodes from the routing table are passed into
+  // bootstrap_contacts.
+  void Leave(std::vector<Contact> *bootstrap_contacts);
+
+  // Store <key,value,signature> for ttl seconds.  Infinite ttl is indicated by
+  // boost::posix_time::pos_infin.  If signature is empty, the value is signed
+  // using securifier, unless it is invalid, in which case the node's
+  // default_securifier signs value.  If signature is not empty, it is
+  // validated by securifier or default_securifer.
+  void Store(const Key &key,
+             const std::string &value,
+             const std::string &signature,
+             const boost::posix_time::seconds &ttl,
+             SecurifierPtr securifier,
+             StoreFunctor callback);
+
+  // Delete <key,value,signature> from network.  If signature is empty, the
+  // value is signed using securifier, unless it is invalid, in which case
+  // the node's default_securifier signs value.  If signature is not empty, it
+  // is validated by securifier or default_securifer.  The securifier must sign
+  // and encrypt with the same cryptographic keys as were used when the
+  // <key,value,signature> was stored.
+  void Delete(const Key &key,
+              const std::string &value,
+              const std::string &signature,
+              SecurifierPtr securifier,
+              DeleteFunctor callback);
+
+  // Replace <key,old_value,old_signature> with <key,new_value,new_signature>
+  // on the network.  If either signature is empty, the corresponding value is
+  // signed using securifier, unless it is invalid, in which case the node's
+  // default_securifier signs the value.  If a signature is not empty, it is
+  // validated by securifier or default_securifer.  The securifier must sign
+  // and encrypt with the same cryptographic keys as were used when the
+  // <key,old_value,old_signature> was stored.  Infinite ttl is indicated by
+  // boost::posix_time::pos_infin.
+  void Update(const Key &key,
+              const std::string &new_value,
+              const std::string &new_signature,
+              const std::string &old_value,
+              const std::string &old_signature,
+              SecurifierPtr securifier,
+              const boost::posix_time::seconds &ttl,
+              UpdateFunctor callback);
+
+  // Find value(s) on the network.  Unless the method returns failure, the
+  // callback will always have passed to it the contact details of the node
+  // needing a cache copy of the value(s) (i.e. the last node during the search
+  // to not hold the value(s)).  Other than this, the callback parameters are
+  // populated as follows: If any queried peer holds the value(s) in its
+  // alternative_store, its details are passed in the callback and no other
+  // callback parameters are completed.  If any queried peer holds the value(s)
+  // in its kademlia datastore, the value(s) and signature(s) are passed in the
+  // callback and no other callback parameters are completed.  Otherwise, iff no
+  // value exists under key the k closest nodes' details are passed in callback.
+  void FindValue(const Key &key,
+                 SecurifierPtr securifier,
+                 FindValueFunctor callback);
+
+  // Find the k closest nodes to key.
+  void FindNodes(const Key &key, FindNodesFunctor callback);
+
+  // Find the contact details of a node.  If the node is not in this node's
+  // routing table, a FindNode will be executed.
+  void GetContact(const NodeId &node_id, GetContactFunctor callback);
+
+  // Mark contact in routing table as having just been seen (i.e. contacted).
+  void SetLastSeenToNow(const Contact &contact);
+
+  // Mark contact in routing table as having failed to respond correctly to an
+  // RPC request.
+  void IncrementFailedRpcs(const Contact &contact);
+
+  // Update contact in routing table with revised rank info.
+  void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
+
+  // Retrieve rank info from contact in routing table.  No network operation is
+  // executed.
+  RankInfoPtr GetLocalRankInfo(const Contact &contact);
+
+  // Retrieve all contacts from the routing table.  No network operation is
+  // executed.
+  void GetAllContacts(std::vector<Contact> *contacts);
+
+  // Retrieve all directly-connected contacts from the routing table.  No
+  // network operation is executed.
+  void GetBootstrapContacts(std::vector<Contact> *contacts);
+
+  // This node's contact details
+  Contact contact() const;
+
+  // Whether node is currently joined to the network.
+  bool joined() const;
+
+  // Getters
+  IoServicePtr asio_service();
+  AlternativeStorePtr alternative_store();
+  OnOnlineStatusChangePtr on_online_status_change();
+  bool client_only_node() const;
+  boost::uint16_t k() const;
+  boost::uint16_t alpha() const;
+  boost::uint16_t beta() const;
+  boost::uint32_t mean_refresh_interval() const;
 
  private:
-  boost::shared_ptr<NodeImpl> pimpl_;
+  class Impl;
+  boost::scoped_ptr<Impl> pimpl_;
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_NODE_API_H_

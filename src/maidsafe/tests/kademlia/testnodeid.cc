@@ -25,12 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/utils.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/node_impl.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -61,7 +63,7 @@ NodeId IncreaseId(const NodeId &kad_id) {
 }
 
 const std::string ToBinary(const std::string &raw_id)  {
-  std::string hex_encoded(base::EncodeToHex(raw_id));
+  std::string hex_encoded(EncodeToHex(raw_id));
   std::string result;
   for (size_t i = 0; i < hex_encoded.size(); ++i) {
     std::string temp;
@@ -140,7 +142,7 @@ TEST(TestKadId, BEH_KAD_KadIdTypeCtr) {
 TEST(TestKadId, BEH_KAD_StringCtr) {
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
-  std::string rand_str(co.Hash(base::RandomString(200), "",
+  std::string rand_str(co.Hash(RandomString(200), "",
                                crypto::STRING_STRING, false));
   NodeId id(rand_str);
   ASSERT_TRUE(id.String() == rand_str);
@@ -153,7 +155,7 @@ TEST(TestKadId, BEH_KAD_EncodingCtr) {
   for (char c = 0; c < kKeySizeBytes; ++c)
     known_raw.at(static_cast<boost::uint8_t>(c)) = c;
   for (int i = 0; i < 4; ++i) {
-    std::string rand_str(co.Hash(base::RandomString(200), "",
+    std::string rand_str(co.Hash(RandomString(200), "",
                                  crypto::STRING_STRING, false));
     std::string bad_encoded("Bad Encoded"), encoded, known_encoded;
     NodeId::EncodingType type = static_cast<NodeId::EncodingType>(i);
@@ -163,16 +165,16 @@ TEST(TestKadId, BEH_KAD_EncodingCtr) {
         known_encoded = ToBinary(known_raw);
         break;
       case NodeId::kHex :
-        encoded = base::EncodeToHex(rand_str);
-        known_encoded = base::EncodeToHex(known_raw);
+        encoded = EncodeToHex(rand_str);
+        known_encoded = EncodeToHex(known_raw);
         break;
       case NodeId::kBase32 :
-        encoded = base::EncodeToBase32(rand_str);
-        known_encoded = base::EncodeToBase32(known_raw);
+        encoded = EncodeToBase32(rand_str);
+        known_encoded = EncodeToBase32(known_raw);
         break;
       case NodeId::kBase64 :
-        encoded = base::EncodeToBase64(rand_str);
-        known_encoded = base::EncodeToBase64(known_raw);
+        encoded = EncodeToBase64(rand_str);
+        known_encoded = EncodeToBase64(known_raw);
         break;
       default :
         break;
@@ -494,3 +496,5 @@ TEST(TestKadId, BEH_KAD_OperatorEql) {
 }  // namespace test_kadid
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

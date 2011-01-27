@@ -28,15 +28,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_RPCS_H_
 #define MAIDSAFE_KADEMLIA_RPCS_H_
 
-#include <boost/cstdint.hpp>
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
-
 #include <string>
 #include <vector>
 
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/signals2/connection.hpp"
+#include "boost/tuple/tuple.hpp"
+
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/contact.h"
+#include "maidsafe/transport/transport.h"
+
+namespace bs2 = boost::signals2;
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -54,100 +59,113 @@ class DeleteResponse;
 class UpdateResponse;
 }  // namespace protobuf
 
-typedef boost::function<void(bool, std::string)> PingFunctor;
-typedef boost::function<void(bool, const std::vector<Contact>&,
-                             const std::vector<std::string>&,
-                             const std::vector<SignedValue>&,
-                             const Contact&, bool)> FindValueFunctor;
-typedef boost::function<void(bool, const std::vector<Contact>&)>
-        FindNodesFunctor;
-
 class Rpcs {
  public:
-  Rpcs(boost::shared_ptr<boost::asio::io_service> asio_service)
-      : node_contact_(),
-        asio_service_(asio_service) {}
+  typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
+      StoreFunctor, DeleteFunctor, UpdateFunctor;
+  typedef boost::function<void(RankInfoPtr, const int&,
+      const std::vector<std::string>&, const std::vector<Contact>&,
+      const Contact&)> FindValueFunctor;
+  typedef boost::function<void(RankInfoPtr, const int&,
+      const std::vector<Contact>&)> FindNodesFunctor;
+
+  Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
+      : contact_(),
+        asio_service_(asio_service),
+        default_securifier_(default_securifier) {}
   virtual ~Rpcs() {}
-  void Ping(const Contact &contact,
+  void Ping(SecurifierPtr securifier,
+            const Contact &peer,
             PingFunctor callback,
             TransportType type);
-  void FindValue(const NodeId &key,
-                 const Contact &contact,
+  void FindValue(const Key &key,
+                 SecurifierPtr securifier,
+                 const Contact &peer,
                  FindValueFunctor callback,
                  TransportType type);
-  virtual void FindNodes(const NodeId &key,
-                         const Contact &contact,
+  virtual void FindNodes(const Key &key,
+                         SecurifierPtr securifier,
+                         const Contact &peer,
                          FindNodesFunctor callback,
                          TransportType type);
-  void Store(const NodeId &key,
-             const SignedValue &signed_value,
-             const Signature &signature,
-             const Contact &contact,
-             const boost::int32_t &ttl,
-             const bool &publish,
-             VoidFunctorOneBool callback,
-             TransportType type);
-  void Store(const NodeId &key,
+  void Store(const Key &key,
              const std::string &value,
-             const Contact &contact,
-             const boost::int32_t &ttl,
-             const bool &publish,
-             VoidFunctorOneBool callback,
+             const std::string &signature,
+             const boost::posix_time::seconds &ttl,
+             bool publish,
+             SecurifierPtr securifier,
+             const Contact &peer,
+             StoreFunctor callback,
              TransportType type);
-  void Delete(const NodeId &key,
-              const SignedValue &signed_value,
-              const Signature &signature,
-              const Contact &contact,
-              VoidFunctorOneBool callback,
+  void Delete(const Key &key,
+              const std::string &value,
+              const std::string &signature,
+              SecurifierPtr securifier,
+              const Contact &peer,
+              DeleteFunctor callback,
               TransportType type);
-  void Update(const NodeId &key,
-              const SignedValue &new_signed_value,
-              const SignedValue &old_signed_value,
-              const boost::int32_t &ttl,
-              const Signature &signature,
-              const Contact &contact,
-              VoidFunctorOneBool callback,
+  void Update(const Key &key,
+              const std::string &new_value,
+              const std::string &new_signature,
+              const std::string &old_value,
+              const std::string &old_signature,
+              const boost::posix_time::seconds &ttl,
+              SecurifierPtr securifier,
+              const Contact &peer,
+              UpdateFunctor callback,
               TransportType type);
   void Downlist(const std::vector<NodeId> &node_ids,
-                const Contact &contact,
-            TransportType type);
-  void set_node_contact(const Contact &node_contact) {
-    node_contact_ = node_contact;
-  }
+                SecurifierPtr securifier,
+                const Contact &peer,
+                TransportType type);
+  void set_contact(const Contact &contact) { contact_ = contact; }
 
  private:
-  void PingCallback(const protobuf::PingResponse &response,
-                    PingFunctor callback,
-                    boost::shared_ptr<MessageHandler> message_handler,
-                    boost::shared_ptr<transport::Transport> transport);
-  void FindValueCallback(const protobuf::FindValueResponse &response,
-                         FindValueFunctor callback,
-                         boost::shared_ptr<MessageHandler> message_handler,
-                         boost::shared_ptr<transport::Transport> transport);
-  void FindNodesCallback(const protobuf::FindNodesResponse &response,
-                         FindNodesFunctor callback,
-                         boost::shared_ptr<MessageHandler> message_handler,
-                         boost::shared_ptr<transport::Transport> transport);
-  void StoreCallback(const protobuf::StoreResponse &response,
-                     VoidFunctorOneBool callback,
-                     boost::shared_ptr<MessageHandler> message_handler,
-                     boost::shared_ptr<transport::Transport> transport);
-  void DeleteCallback(const protobuf::DeleteResponse &response,
-                      VoidFunctorOneBool callback,
-                      boost::shared_ptr<MessageHandler> message_handler,
-                      boost::shared_ptr<transport::Transport> transport);
-  void UpdateCallback(const protobuf::UpdateResponse &response,
-                      VoidFunctorOneBool callback,
-                      boost::shared_ptr<MessageHandler> message_handler,
-                      boost::shared_ptr<transport::Transport> transport);
-  boost::shared_ptr<transport::Transport> CreateTransport(TransportType type);
-
+  typedef boost::tuple<TransportPtr, MessageHandlerPtr, bs2::connection,
+                       bs2::connection> ConnectedObjects;
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
-  Contact node_contact_;
-  boost::shared_ptr<boost::asio::io_service> asio_service_;
+  void PingCallback(const std::string &random_data,
+                    const transport::TransportCondition &transport_condition,
+                    const transport::Info &info,
+                    const protobuf::PingResponse &response,
+                    ConnectedObjects connected_objects,
+                    PingFunctor callback);
+  void FindValueCallback(
+      const transport::TransportCondition &transport_condition,
+      const transport::Info &info,
+      const protobuf::FindValueResponse &response,
+      ConnectedObjects connected_objects,
+      FindValueFunctor callback);
+  void FindNodesCallback(
+      const transport::TransportCondition &transport_condition,
+      const transport::Info &info,
+      const protobuf::FindNodesResponse &response,
+      ConnectedObjects connected_objects,
+      FindNodesFunctor callback);
+  void StoreCallback(const transport::TransportCondition &transport_condition,
+                     const transport::Info &info,
+                     const protobuf::StoreResponse &response,
+                     ConnectedObjects connected_objects,
+                     StoreFunctor callback);
+  void DeleteCallback(const transport::TransportCondition &transport_condition,
+                      const transport::Info &info,
+                      const protobuf::DeleteResponse &response,
+                      ConnectedObjects connected_objects,
+                      DeleteFunctor callback);
+  void UpdateCallback(const transport::TransportCondition &transport_condition,
+                      const transport::Info &info,
+                      const protobuf::UpdateResponse &response,
+                      ConnectedObjects connected_objects,
+                      UpdateFunctor callback);
+  ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
+  Contact contact_;
+  IoServicePtr asio_service_;
+  SecurifierPtr default_securifier_;
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_RPCS_H_

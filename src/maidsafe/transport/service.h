@@ -28,21 +28,21 @@
 //#ifndef MAIDSAFE_TRANSPORT_SERVICE_H_
 //#define MAIDSAFE_TRANSPORT_SERVICE_H_
 //
-////#include <boost/cstdint.hpp>
-////#include <boost/function.hpp>
-////
 ////#include <string>
 ////#include <vector>
+////
+////#include "boost/cstdint.hpp"
+////#include "boost/function.hpp"
 ////
 ////#include "maidsafe/kademlia/config.h"
 ////#include "maidsafe/protobuf/contact_info.pb.h"
 ////#include "maidsafe/transport/transport.h"
 //
-////namespace base {
+////namespace maidsafe {
+////
 ////class Threadpool;
 ////class SignatureValidator;
 ////class AlternativeStore;
-////}  // namespace base
 ////
 ////namespace transport {
 ////class PingRequest;
@@ -84,7 +84,7 @@
 // public:
 //  Service(boost::shared_ptr<MessageHandler> transport,
 //             boost::shared_ptr<RoutingTable> routing_table,
-//             boost::shared_ptr<base::Threadpool> threadpool,
+//             boost::shared_ptr<Threadpool> threadpool,
 //             boost::shared_ptr<DataStore> datastore,
 //             bool using_signatures);
 //  void Ping(transport::SocketId message_id,
@@ -103,10 +103,10 @@
 //              boost::shared_ptr<transport::UpdateRequest> request);
 //  void set_node_joined(bool joined) { node_joined_ = joined; }
 //  void set_node_info(const ContactInfo &info) { node_info_ = info; }
-//  void set_alternative_store(base::AlternativeStore* alt_store) {
+//  void set_alternative_store(AlternativeStore* alt_store) {
 //    alternative_store_ = alt_store;
 //  }
-//  void set_signature_validator(base::SignatureValidator *sig_validator) {
+//  void set_signature_validator(SignatureValidator *sig_validator) {
 //    signature_validator_ = sig_validator;
 //  }
 // private:
@@ -136,12 +136,12 @@
 //                                   bool *hashable);
 //  boost::shared_ptr<transport::Transport> transport_;
 //  boost::shared_ptr<RoutingTable> routing_table_;
-//  boost::shared_ptr<base::Threadpool> threadpool_;
+//  boost::shared_ptr<Threadpool> threadpool_;
 //  boost::shared_ptr<DataStore> datastore_;
 //  bool node_joined_, using_signatures_;
 //  ContactInfo node_info_;
-//  base::AlternativeStore *alternative_store_;
-//  base::SignatureValidator *signature_validator_;
+//  AlternativeStore *alternative_store_;
+//  SignatureValidator *signature_validator_;
 ////   AddContactFunctor add_contact_;
 ////   GetRandomContactsFunctor get_random_contacts_;
 ////   GetContactFunctor get_contact_;
@@ -152,5 +152,7 @@
 //};
 //
 //}  // namespace transport
+//
+//}  // namespace maidsafe
 //
 //#endif  // MAIDSAFE_TRANSPORT_SERVICE_H_
