@@ -901,7 +901,6 @@ SET(MAIDSAFE_KAD_INSTALL_FILES
       maidsafe/kademlia/config.h
       maidsafe/kademlia/contact.h
       maidsafe/kademlia/node_id.h
-      maidsafe/kademlia/kademlia.pb.h
       maidsafe/kademlia/message_handler.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
       maidsafe/maidsafe-dht.h)

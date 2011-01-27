@@ -14,7 +14,6 @@ copy ..\..\src\maidsafe\kademlia\config.h include\maidsafe\kademlia\config.h
 copy ..\..\src\maidsafe\kademlia\contact.h include\maidsafe\kademlia\contact.h
 copy ..\..\src\maidsafe\kademlia\node_id.h include\maidsafe\kademlia\node_id.h
 copy ..\..\src\maidsafe\kademlia\message_handler.h include\maidsafe\kademlia\message_handler.h
-copy ..\..\src\maidsafe\kademlia\kademlia.pb.h include\maidsafe\kademlia\kademlia.pb.h
 
 copy ..\..\src\maidsafe\maidsafe-dht.h include\maidsafe\maidsafe-dht.h
 
