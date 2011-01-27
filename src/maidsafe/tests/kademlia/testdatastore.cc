@@ -73,6 +73,9 @@ class DataStoreTest: public testing::Test {
     EXPECT_FALSE(appendable_attr[0].second);
   }
 
+  KeyValueIndex& GetKeyValueIndex() { return test_ds_->key_value_index_; }
+
+protected:
   boost::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   boost::shared_ptr<DataStore> test_ds_;
   crypto::Crypto cry_obj_;
@@ -81,7 +84,7 @@ class DataStoreTest: public testing::Test {
 };
 
 TEST_F(DataStoreTest, BEH_KAD_StoreValidData) {
-  EXPECT_EQ(size_t(0), test_ds_->key_value_index_.size());
+  EXPECT_EQ(size_t(0), GetKeyValueIndex().size());
   std::string key1 = cry_obj_.Hash(RandomString(1024), "", 
                                    crypto::STRING_STRING, false);
   std::string key2 = cry_obj_.Hash(RandomString(1024), "",
@@ -101,9 +104,9 @@ TEST_F(DataStoreTest, BEH_KAD_StoreValidData) {
                                    bptime::seconds(3600*24), false));
   EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key2, value2, signature2), 
                                    bptime::seconds(3600*24), false));
-  EXPECT_EQ(size_t(2), test_ds_->key_value_index_.size());
-  EXPECT_EQ(size_t(1), test_ds_->key_value_index_.count(key1));
-  EXPECT_EQ(size_t(1), test_ds_->key_value_index_.count(key2));
+  EXPECT_EQ(size_t(2), GetKeyValueIndex().size());
+  EXPECT_EQ(size_t(1), GetKeyValueIndex().count(key1));
+  EXPECT_EQ(size_t(1), GetKeyValueIndex().count(key2));
   std::vector<std::pair<std::string, std::string>> values;
   EXPECT_TRUE(test_ds_->GetValues(key1, &values));
   EXPECT_EQ(1, values.size());
@@ -243,9 +246,9 @@ TEST_F(DataStoreTest, BEH_KAD_HasKey) {
                           false);
   keyvalue3.delete_status = kMarkedForDeletion;
 
-  test_ds_->key_value_index_.insert(keyvalue1);
-  test_ds_->key_value_index_.insert(keyvalue2);
-  test_ds_->key_value_index_.insert(keyvalue3);
+  GetKeyValueIndex().insert(keyvalue1);
+  GetKeyValueIndex().insert(keyvalue2);
+  GetKeyValueIndex().insert(keyvalue3);
   ASSERT_FALSE(test_ds_->HasKey(""));
   ASSERT_TRUE(test_ds_->HasKey(key_value_signature1.key));
   ASSERT_FALSE(test_ds_->HasKey(RandomString(11)));
@@ -274,24 +277,24 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteValue) {
   KeyValueTuple keyvalue2(key_value_signature2, expire_time, refresh_time,
                           false);
 
-  test_ds_->key_value_index_.insert(keyvalue1);
-  test_ds_->key_value_index_.insert(keyvalue2);
-  test_ds_->key_value_index_.insert(keyvalue3);
+  GetKeyValueIndex().insert(keyvalue1);
+  GetKeyValueIndex().insert(keyvalue2);
+  GetKeyValueIndex().insert(keyvalue3);
   
-  ASSERT_EQ(size_t(3), test_ds_->key_value_index_.size());
+  ASSERT_EQ(size_t(3), GetKeyValueIndex().size());
   ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature1.key,
                                     key_value_signature2.value));
-  ASSERT_EQ(size_t(2), test_ds_->key_value_index_.size());
+  ASSERT_EQ(size_t(2), GetKeyValueIndex().size());
   EXPECT_TRUE(test_ds_->HasKey(key_value_signature1.key));
   EXPECT_TRUE(test_ds_->HasKey(key_value_signature3.key));
   ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature1.key,
                                     key_value_signature1.value));
-  ASSERT_EQ(size_t(1), test_ds_->key_value_index_.size());
+  ASSERT_EQ(size_t(1), GetKeyValueIndex().size());
   EXPECT_TRUE(test_ds_->HasKey(key_value_signature3.key));
   EXPECT_FALSE(test_ds_->HasKey(key_value_signature1.key));
   ASSERT_TRUE(test_ds_->DeleteValue(key_value_signature3.key,
                                     key_value_signature3.value));
-  ASSERT_EQ(size_t(0), test_ds_->key_value_index_.size());
+  ASSERT_EQ(size_t(0), GetKeyValueIndex().size());
   EXPECT_FALSE(test_ds_->HasKey(key_value_signature2.key));
   EXPECT_FALSE(test_ds_->HasKey(key_value_signature3.key));
 
@@ -449,7 +452,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteItem) {
 }
 */
 TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
-  EXPECT_EQ(size_t(0), test_ds_->key_value_index_.size());
+  EXPECT_EQ(size_t(0), GetKeyValueIndex().size());
   std::string key = cry_obj_.Hash("abc123vvd32sfdf", "", crypto::STRING_STRING,
                                   false);
   std::vector<KeyValueSignature> key_value_signatures;
@@ -994,7 +997,7 @@ TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
     EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value, signature), 
                                      bptime::seconds(3600*24), false)); 
   }
-  EXPECT_EQ(total_values, test_ds_->key_value_index_.size());
+  EXPECT_EQ(total_values, GetKeyValueIndex().size());
   std::vector<std::pair<std::string, std::string>> values;
   EXPECT_TRUE(test_ds_->GetValues("key0", &values));
   EXPECT_EQ(size_t(1), values.size());
@@ -1005,7 +1008,7 @@ TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
                                     KeyValueSignature("key0","misbolas0",
                                                       "misbolas0"), 
                                     bptime::seconds(500), true));
-  EXPECT_EQ(total_values, test_ds_->key_value_index_.size());
+  EXPECT_EQ(total_values, GetKeyValueIndex().size());
   values.clear();
   EXPECT_TRUE(test_ds_->GetValues("key0", &values));
   EXPECT_EQ(size_t(1), values.size());
