@@ -645,9 +645,9 @@ class FileInfo:
 
       root_dir = os.path.dirname(fullname)
       while (root_dir != os.path.dirname(root_dir) and
-             not os.path.exists(os.path.join(root_dir, "maidsafe"))):
+             not os.path.exists(os.path.join(root_dir, "src/maidsafe-dht"))):
         root_dir = os.path.dirname(root_dir)
-        if os.path.exists(os.path.join(root_dir, "maidsafe")):
+        if os.path.exists(os.path.join(root_dir, "maidsafe-dht")):
           prefix = os.path.commonprefix([root_dir, project_dir])
           return fullname[len(prefix) + 1:]
       if os.path.exists(os.path.join(project_dir, ".svn")):
