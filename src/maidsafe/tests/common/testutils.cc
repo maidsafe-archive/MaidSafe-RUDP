@@ -112,8 +112,8 @@ TEST(UtilsTest, BEH_BASE_IntToString) {
 
 TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
   const size_t kStringSize = 4096;
-  std::string test1 = SRandomAlphaNumericString(kStringSize);
-  std::string test2 = SRandomAlphaNumericString(kStringSize);
+  std::string test1 = RandomAlphaNumericString(kStringSize);
+  std::string test2 = RandomAlphaNumericString(kStringSize);
   EXPECT_EQ(kStringSize, test1.size());
   EXPECT_EQ(kStringSize, test2.size());
   EXPECT_NE(test1, test2);
@@ -183,9 +183,9 @@ TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
 
 TEST(UtilsTest, BEH_BASE_TimeFunctions) {
   boost::uint64_t s, ms, ns;
-  ms = GetEpochMilliseconds();
-  ns = GetEpochNanoseconds();
-  s = GetEpochTime();
+  ms = GetDurationSinceEpoch().total_milliseconds();
+  ns = GetDurationSinceEpoch().total_nanoseconds();
+  s = GetDurationSinceEpoch().total_seconds();
 
   // Within a second
   EXPECT_NEAR(s*1000, ms, 1000) << "s vs. ms failed.";
@@ -193,17 +193,6 @@ TEST(UtilsTest, BEH_BASE_TimeFunctions) {
   EXPECT_NEAR(s*1000000000, ns, 1000000000) << "s vs. ns failed.";
   // Within quarter of a second
   EXPECT_NEAR(ms*1000000, ns, 250000000) << "ms vs. ns failed.";
-}
-
-TEST(UtilsTest, BEH_BASE_NextTransactionId) {
-  boost::uint32_t id1 = GenerateNextTransactionId(0);
-  boost::uint32_t id2 = GenerateNextTransactionId(0);
-  EXPECT_NE(0U, id1);
-  EXPECT_NE(0U, id2);
-  EXPECT_NE(id1, id2);
-  id1 = 2147483645;
-  id2 = GenerateNextTransactionId(id1);
-  EXPECT_EQ(1U, id2);
 }
 
 TEST(UtilsTest, BEH_BASE_RandomNumberGen) {

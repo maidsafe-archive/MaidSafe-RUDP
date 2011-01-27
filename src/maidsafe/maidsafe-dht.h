@@ -42,7 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/kademlia/message_handler.h"
-#include "maidsafe/kademlia/kademlia.pb.h"
 
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/message_handler.h"

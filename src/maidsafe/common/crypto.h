@@ -40,7 +40,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace CryptoPP {
 class SHA1;
-class SHA224;
 class SHA256;
 class SHA384;
 class SHA512;
@@ -51,7 +50,6 @@ namespace maidsafe {
 namespace crypto {
 
 typedef CryptoPP::SHA1 SHA1;
-typedef CryptoPP::SHA224 SHA224;
 typedef CryptoPP::SHA256 SHA256;
 typedef CryptoPP::SHA384 SHA384;
 typedef CryptoPP::SHA512 SHA512;
@@ -61,25 +59,7 @@ const boost::uint16_t  AES256_IVSize = 16;   // in bytes
 const boost::uint16_t  kMaxCompressionLevel = 9;
 
 /**
-* Types of operation regarding source and destination
-*/
-enum OperationType { STRING_STRING, FILE_STRING, STRING_FILE, FILE_FILE };
-/**
-* Types of symmetric encryption.
-*/
-enum SymmetricEncryptionType { AES_256 };
-
-
-
-
-
-
-
-
-
-
-/**
- * Obfuscate a string with another one performing XOR on each char.  first and
+ * XOR a string with another one performing XOR on each char.  first and
  * second must have identical size.
  * @param first string to be obfuscated.
  * @param second string used to obfuscate the first one.
@@ -106,7 +86,7 @@ std::string SecurePassword(const std::string &password,
  * @return the result of the hash function.
  */
 template <typename HashType>
-std::string HashString(const std::string &input);
+std::string Hash(const std::string &input);
 
 /**
  * Hash function operating on a file.

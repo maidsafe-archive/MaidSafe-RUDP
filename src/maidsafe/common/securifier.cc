@@ -63,23 +63,18 @@ std::vector<std::string> Securifier::parameters() const {
 }
 
 std::string Securifier::Sign(const std::string &value) const {
-  crypto::Crypto co;
-  return co.AsymSign(value, "", kSigningPrivateKey_, crypto::STRING_STRING);
+  return crypto::AsymSign(value, kSigningPrivateKey_);
 }
 
 std::string Securifier::SignWithParameters(const std::string &value) const {
   std::string concatenation(value);
   for (auto it = parameters_.begin(); it != parameters_.end(); ++it)
     concatenation += *it;
-  crypto::Crypto co;
-  return co.AsymSign(concatenation, "", kSigningPrivateKey_,
-                     crypto::STRING_STRING);
+  return crypto::AsymSign(concatenation, kSigningPrivateKey_);
 }
 
 std::string Securifier::AsymmetricEncrypt(const std::string &value) const {
-  crypto::Crypto co;
-  return co.AsymEncrypt(value, "", recipient_public_key_,
-                        crypto::STRING_STRING);
+  return crypto::AsymEncrypt(value, recipient_public_key_);
 }
 
 bool Securifier::Validate(const std::string &value,
@@ -88,9 +83,7 @@ bool Securifier::Validate(const std::string &value,
                           const std::string &public_key,
                           const std::string &public_key_validation,
                           const std::string &kademlia_key) const {
-  crypto::Crypto co;
-  return co.AsymCheckSig(value, value_signature, public_key,
-                         crypto::STRING_STRING);
+  return crypto::AsymCheckSig(value, value_signature, public_key);
 }
 
 bool Securifier::ValidateWithParameters(
@@ -103,16 +96,12 @@ bool Securifier::ValidateWithParameters(
   std::string concatenation(value);
   for (auto it = parameters_.begin(); it != parameters_.end(); ++it)
     concatenation += *it;
-  crypto::Crypto co;
-  return co.AsymCheckSig(concatenation, value_signature, public_key,
-                         crypto::STRING_STRING);
+  return crypto::AsymCheckSig(concatenation, value_signature, public_key);
 }
 
 std::string Securifier::AsymmetricDecrypt(
     const std::string &encrypted_value) const {
-  crypto::Crypto co;
-  return co.AsymDecrypt(encrypted_value, "", kAsymmetricDecryptionPrivateKey_,
-                        crypto::STRING_STRING);
+  return crypto::AsymDecrypt(encrypted_value, kAsymmetricDecryptionPrivateKey_);
 }
 
 }  // namespace maidsafe

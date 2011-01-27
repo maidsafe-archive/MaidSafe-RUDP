@@ -47,11 +47,12 @@ namespace maidsafe {
 namespace crypto {
 
 std::string XOR(const std::string &first, const std::string &second) {
-  if ((first.size() != second.size()) || (first.empty()))
+  size_t common_size(first.size());
+  if ((common_size != second.size()) || (common_size == 0))
     return "";
   std::string result;
-  result.reserve(first.size());
-  for (size_t i = 0; i < result.size(); ++i)
+  result.reserve(common_size);
+  for (size_t i = 0; i < common_size; ++i)
     result.push_back(first.at(i) ^ second.at(i));
   return result;
 }
@@ -75,27 +76,100 @@ std::string SecurePassword(const std::string &password,
   return derived_password;
 }
 
-template <typename HashType>
-std::string HashString(const std::string &input) {
+template <>
+std::string Hash<SHA1>(const std::string &input) {
   std::string result;
-  HashType hash;
-  CryptoPP::StringSource(input, true, new CryptoPP::HashFilter(*hash,
-      new CryptoPP::StringSink(result)));
+  SHA1 hash;
+  CryptoPP::StringSource(input, true,
+      new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
   return result;
 }
 
-template <typename HashType>
-std::string HashFile(const boost::filesystem::path &file_path) {
+template <>
+std::string Hash<SHA256>(const std::string &input) {
   std::string result;
-  HashType hash;
+  SHA256 hash;
+  CryptoPP::StringSource(input, true,
+      new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  return result;
+}
+
+template <>
+std::string Hash<SHA384>(const std::string &input) {
+  std::string result;
+  SHA384 hash;
+  CryptoPP::StringSource(input, true,
+      new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  return result;
+}
+
+template <>
+std::string Hash<SHA512>(const std::string &input) {
+  std::string result;
+  SHA512 hash;
+  CryptoPP::StringSource(input, true,
+      new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  return result;
+}
+
+template <>
+std::string HashFile<SHA1>(const boost::filesystem::path &file_path) {
+  std::string result;
+  SHA1 hash;
   try {
     CryptoPP::FileSource(file_path.string().c_str(), true,
-        new CryptoPP::HashFilter(*hash, new CryptoPP::StringSink(result)));
+        new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
   }
   catch(const CryptoPP::Exception &e) {
     DLOG(ERROR) << e.what() << std::endl;
-  result.clear();
+    result.clear();
   }
+  return result;
+}
+
+template <>
+std::string HashFile<SHA256>(const boost::filesystem::path &file_path) {
+  std::string result;
+  SHA256 hash;
+  try {
+    CryptoPP::FileSource(file_path.string().c_str(), true,
+        new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  }
+  catch(const CryptoPP::Exception &e) {
+    DLOG(ERROR) << e.what() << std::endl;
+    result.clear();
+  }
+  return result;
+}
+
+template <>
+std::string HashFile<SHA384>(const boost::filesystem::path &file_path) {
+  std::string result;
+  SHA384 hash;
+  try {
+    CryptoPP::FileSource(file_path.string().c_str(), true,
+        new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  }
+  catch(const CryptoPP::Exception &e) {
+    DLOG(ERROR) << e.what() << std::endl;
+    result.clear();
+  }
+  return result;
+}
+
+template <>
+std::string HashFile<SHA512>(const boost::filesystem::path &file_path) {
+  std::string result;
+  SHA512 hash;
+  try {
+    CryptoPP::FileSource(file_path.string().c_str(), true,
+        new CryptoPP::HashFilter(hash, new CryptoPP::StringSink(result)));
+  }
+  catch(const CryptoPP::Exception &e) {
+    DLOG(ERROR) << e.what() << std::endl;
+    result.clear();
+  }
+  return result;
 }
 
 std::string SymmEncrypt(const std::string &input,
