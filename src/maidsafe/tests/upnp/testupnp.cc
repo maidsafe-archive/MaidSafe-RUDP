@@ -25,48 +25,54 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/bind.hpp>
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "gtest/gtest.h"
+#include "boost/bind.hpp"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/upnp/upnpclient.h"
 
 // Test depends on external UPnP device, but doesn't fail if none found
 
+namespace maidsafe {
+
+namespace upnp {
+
+namespace test {
+
 class UpnpTest: public testing::Test {
  public:
   UpnpTest() : num_total_mappings(3), num_curr_mappings(0) {}
-  void OnNewMapping(const int &port, const upnp::ProtocolType &protocol);
-  void OnLostMapping(const int &port, const upnp::ProtocolType &protocol);
-  void OnFailedMapping(const int &port, const upnp::ProtocolType &protocol);
+  void OnNewMapping(const int &port, const ProtocolType &protocol);
+  void OnLostMapping(const int &port, const ProtocolType &protocol);
+  void OnFailedMapping(const int &port, const ProtocolType &protocol);
 
   int num_total_mappings;
   int num_curr_mappings;
 };
 
 void UpnpTest::OnNewMapping(const int &port,
-                            const upnp::ProtocolType &protocol) {
+                            const ProtocolType &protocol) {
   num_curr_mappings++;
-  DLOG(INFO) << "New port mapping: " << (protocol == upnp::kUdp ? "UDP" : "TCP")
+  DLOG(INFO) << "New port mapping: " << (protocol == kUdp ? "UDP" : "TCP")
              << " " << port << std::endl;
 }
 
 void UpnpTest::OnLostMapping(const int &port,
-                             const upnp::ProtocolType &protocol) {
+                             const ProtocolType &protocol) {
   num_curr_mappings--;
-  DLOG(INFO) << "Lost port mapping: " << (protocol == upnp::kUdp ? "UD" : "TC")
+  DLOG(INFO) << "Lost port mapping: " << (protocol == kUdp ? "UD" : "TC")
              << "P " << port << std::endl;
 }
 
 void UpnpTest::OnFailedMapping(const int &port,
-                               const upnp::ProtocolType &protocol) {
+                               const ProtocolType &protocol) {
   DLOG(INFO) << "Failed port mapping: "
-             << (protocol == upnp::kUdp ? "UDP" : "TCP") << " " << port
+             << (protocol == kUdp ? "UDP" : "TCP") << " " << port
              << std::endl;
 }
 
 TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
-  upnp::UpnpIgdClient upnp;
+  UpnpIgdClient upnp;
 
   DLOG(INFO) << "Initialising UPnP..." << std::endl;
 
@@ -83,12 +89,11 @@ TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
 
   // boost::this_thread::sleep(boost::posix_time::seconds(2));
 
-  boost::int32_t start_port((base::RandomUint32() % 15000)
-                   + 50000);
+  boost::int32_t start_port((RandomUint32() % 15000) + 50000);
 
   bool all_added = true;
   for (int i = 0; i < num_total_mappings; ++i) {
-    all_added &= upnp.AddPortMapping(start_port + i, upnp::kTcp);
+    all_added &= upnp.AddPortMapping(start_port + i, kTcp);
   }
 
   if (upnp.IsAsync()) {
@@ -107,5 +112,11 @@ TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
     DLOG(INFO) << "Sorry, no port mappings via UPnP possible." << std::endl;
   }
   ASSERT_TRUE(upnp.DeletePortMapping(start_port + num_total_mappings - 1,
-                                     upnp::kTcp));
+                                     kTcp));
 }
+
+}  // namespace test
+
+}  // namespace upnp
+
+}  // namespace maidsafe

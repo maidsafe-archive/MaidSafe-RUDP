@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
+namespace maidsafe {
+
 namespace upnp {
 
 UpnpIgdClient::UpnpIgdClient() : pimpl_(new UpnpIgdClientImpl()) {}
@@ -77,3 +79,5 @@ void UpnpIgdClient::SetFailedMappingCallback(
 }
 
 }  // namespace upnp
+
+}  // namespace maidsafe

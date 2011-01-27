@@ -27,9 +27,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/kademlia/datastore.h"
 #include <exception>
-#include "maidsafe/base/utils.h"
+#include "maidsafe/common/utils.h"
 
 namespace bptime = boost::posix_time;
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -37,13 +39,13 @@ KeyValueTuple::KeyValueTuple(const KeyValueSignature &key_value_signature,
                              const bptime::ptime &expire_time,
                              const bptime::ptime &refresh_time,
                              const bool &hashable,
-                             std::string serialized_delete_request,
+                             const std::string &serialised_delete_request,
                              DeleteStatus delete_status)
     : key_value_signature(key_value_signature),
       expire_time(expire_time),
       refresh_time(refresh_time),
       hashable(hashable),
-      serialized_delete_request(serialized_delete_request),
+      serialised_delete_request(serialised_delete_request),
       delete_status(delete_status) {}
 
 KeyValueTuple::KeyValueTuple(const KeyValueSignature &key_value_signature,
@@ -54,7 +56,7 @@ KeyValueTuple::KeyValueTuple(const KeyValueSignature &key_value_signature,
       expire_time(expire_time),
       refresh_time(refresh_time),
       hashable(hashable),
-      serialized_delete_request(),
+      serialised_delete_request(),
       delete_status(kNotDeleted) {}
 
 const std::string &KeyValueTuple::key() const {
@@ -87,7 +89,7 @@ void KeyValueTuple::UpdateDeleteStatus(
 DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
     : key_value_index_(),
       refresh_interval_(mean_refresh_interval.total_seconds() +
-                        (base::RandomInt32() % 30)),
+                        (RandomInt32() % 30)),
       shared_mutex_() {}
 
 DataStore::~DataStore() {
@@ -166,7 +168,7 @@ bool DataStore::GetValues(
   while (p.first != p.second) {
     if ((p.first->expire_time > now || p.first->expire_time.is_pos_infinity())
         && (p.first->delete_status == kNotDeleted))
-    values->push_back(std::make_pair(p.first->key_value_signature.value, 
+    values->push_back(std::make_pair(p.first->key_value_signature.value,
                                      p.first->key_value_signature.signature));
     ++p.first;
   }
@@ -285,7 +287,7 @@ std::vector<std::pair<std::string, bool>> DataStore::LoadKeyAppendableAttr(
 }
 
 bool DataStore::RefreshKeyValue(const KeyValueSignature &key_value_signature,
-                                std::string *serialized_delete_request) {
+                                std::string *serialised_delete_request) {
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
   UpgradeLock upgrade_lock(shared_mutex_);
@@ -295,8 +297,8 @@ bool DataStore::RefreshKeyValue(const KeyValueSignature &key_value_signature,
     return false;
 
   if ((*it).delete_status != kNotDeleted) {
-    serialized_delete_request->clear();
-    *serialized_delete_request = (*it).serialized_delete_request;
+    serialised_delete_request->clear();
+    *serialised_delete_request = (*it).serialised_delete_request;
     return false;
   }
 
@@ -308,7 +310,7 @@ bool DataStore::RefreshKeyValue(const KeyValueSignature &key_value_signature,
 }
 
 bool DataStore::MarkForDeletion(const KeyValueSignature &key_value_signature,
-                                const std::string &serialized_delete_request) {
+                                const std::string &serialised_delete_request) {
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
   UpgradeLock upgrade_lock(shared_mutex_);
@@ -340,7 +342,7 @@ bool DataStore::MarkAsDeleted(const std::string &key,
   tuple.expire_time = (*it).expire_time;
   tuple.hashable = (*it).hashable;
   tuple.last_refresh_time = (*it).last_refresh_time;
-  tuple.serialized_delete_request = (*it).serialized_delete_request;
+  tuple.serialised_delete_request = (*it).serialised_delete_request;
   tuple.delete_status = kDeleted;
 
   return key_value_index_.replace(it, tuple);
@@ -353,7 +355,7 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
   if (old_key_value_signature.key != new_key_value_signature.key)
-    return false; // reject attempt to change key
+    return false;
   UpgradeLock upgrade_lock(shared_mutex_);
 
   auto it = index_by_key_value.find(boost::make_tuple(
@@ -375,3 +377,5 @@ bptime::seconds DataStore::refresh_interval() const {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

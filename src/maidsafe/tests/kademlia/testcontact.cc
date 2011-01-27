@@ -25,11 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include "maidsafe/base/crypto.h"
+#include "gtest/gtest.h"
+#include "maidsafe/common/crypto.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/transport/utils.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -122,12 +124,12 @@ TEST_F(TestContact, BEH_KAD_ContactPointer) {
       false));
   Contact *contact = new Contact(node_id, ip, port, local_ip,
     local_port);
-  ASSERT_EQ(base::IpAsciiToBytes(ip), contact->ip());
-  ASSERT_EQ(ip, base::IpBytesToAscii(contact->ip()));
+  ASSERT_EQ(IpAsciiToBytes(ip), contact->ip());
+  ASSERT_EQ(ip, IpBytesToAscii(contact->ip()));
   ASSERT_EQ(node_id, contact->node_id().String());
   ASSERT_EQ(port, contact->port());
-  ASSERT_EQ(base::IpAsciiToBytes(local_ip), contact->local_ip());
-  ASSERT_EQ(local_ip, base::IpBytesToAscii(contact->local_ip()));
+  ASSERT_EQ(IpAsciiToBytes(local_ip), contact->local_ip());
+  ASSERT_EQ(local_ip, IpBytesToAscii(contact->local_ip()));
   ASSERT_EQ(local_port, contact->local_port());
   ASSERT_EQ(0, contact->failed_rpc());
   contact->IncreaseFailed_RPC();
@@ -150,10 +152,10 @@ TEST_F(TestContact, BEH_KAD_SerialiseToString) {
   ASSERT_FALSE(contact1.SerialiseToString(&ser_contact1));
   ASSERT_TRUE(contact1.ParseFromString(ser_contact));
   ASSERT_FALSE(contact1.ParseFromString("invaliddata"));
-  ASSERT_EQ(ip, base::IpBytesToAscii(contact1.ip()));
+  ASSERT_EQ(ip, IpBytesToAscii(contact1.ip()));
   ASSERT_EQ(port, contact1.port());
   ASSERT_EQ(node_id, contact1.node_id().String());
-  ASSERT_EQ(local_ip, base::IpBytesToAscii(contact1.local_ip()));
+  ASSERT_EQ(local_ip, IpBytesToAscii(contact1.local_ip()));
   ASSERT_EQ(local_port, contact1.port());
 }
 
@@ -170,7 +172,7 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   ASSERT_EQ(0, ctc1.rendezvous_port());
   ASSERT_EQ("Empty contact.\n", ctc1.DebugString());
 
-  std::string ip(base::IpAsciiToBytes("192.168.1.55"));
+  std::string ip(IpAsciiToBytes("192.168.1.55"));
   boost::uint16_t port(8888);
   std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
     false));
@@ -207,3 +209,5 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
 }  // namespace test_contact
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

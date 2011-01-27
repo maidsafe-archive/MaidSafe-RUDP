@@ -25,24 +25,26 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/lexical_cast.hpp>
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "boost/lexical_cast.hpp"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "maidsafe/base/alternativestore.h"
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
-#include "maidsafe/base/validationinterface.h"
+#include "maidsafe/common/alternative_store.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/common/securifier.h"
 
 #include "maidsafe/kademlia/rpcs.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
-#include "maidsafe/kademlia/nodeimpl.h"
-#include "maidsafe/kademlia/routingtable.h"
+#include "maidsafe/kademlia/node_id.h"
+#include "maidsafe/kademlia/node_impl.h"
+#include "maidsafe/kademlia/routing_table.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/transport/utils.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -70,13 +72,13 @@ void CreateParameters(NodeConstructionParameters *kcp) {
   kcp->refresh_time = kRefreshTime;
 }
 
-class TestAlternativeStore : public base::AlternativeStore {
+class TestAlternativeStore : public AlternativeStore {
  public:
   ~TestAlternativeStore() {}
   bool Has(const std::string&) { return false; }
 };
 
-class TestValidator : public base::SignatureValidator {
+class TestValidator : public SignatureValidator {
  public:
   ~TestValidator() {}
   bool ValidateSignerId(const std::string&, const std::string&,
@@ -89,7 +91,7 @@ class TestNodeImpl : public testing::Test {
  protected:
   static void SetUpTestCase() {
     test_dir_ = std::string("temp/TestNodeImpl") +
-                boost::lexical_cast<std::string>(base::RandomUint32());
+                boost::lexical_cast<std::string>(RandomUint32());
 //    asio_service_.reset(new boost::asio::io_service);
 //    udt_.reset(new transport::UdtTransport(asio_service_));
     std::vector<IP> ips = transport::GetLocalAddresses();
@@ -142,7 +144,7 @@ boost::shared_ptr<boost::asio::io_service> TestNodeImpl::asio_service_;
 /*
 TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
   boost::asio::ip::address local_ip;
-  ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+  ASSERT_TRUE(GetLocalAddress(&local_ip));
   NodeId key1a, key2a, key1b(NodeId::kRandomId), key2b(NodeId::kRandomId),
         target_key(NodeId::kRandomId);
   ContactAndTargetKey catk1, catk2;
@@ -163,8 +165,8 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
   DeleteValueCallback dvc;
   SignedValue signed_value, new_value;
-  SignedRequest signed_request;
-  node_->DeleteValue(NodeId(NodeId::kRandomId), signed_value, signed_request,
+  SignedRequest request_signature;
+  node_->DeleteValue(NodeId(NodeId::kRandomId), signed_value, request_signature,
                      boost::bind(&DeleteValueCallback::CallbackFunc, &dvc, _1));
   while (!dvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -172,7 +174,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
 
   UpdateValueCallback uvc;
   node_->UpdateValue(NodeId(NodeId::kRandomId), signed_value, new_value,
-                     signed_request, 60 * 60 * 24,
+                     request_signature, 60 * 60 * 24,
                      boost::bind(&UpdateValueCallback::CallbackFunc, &uvc, _1));
   while (!uvc.result())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -387,7 +389,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   std::list<Contact> inputs(vcontacts.begin(), vcontacts.end());
   SortContactList(key, &inputs);
   std::list<Contact>::iterator it(inputs.begin()), it2;
-  ASSERT_TRUE(node_->MarkNode(*it, fna, SEARCH_CONTACTED));
+  ASSERT_TRUE(node_->MarkNode(*it, fna, kSearchContacted));
   ASSERT_FALSE(node_->GetAlphas(a, fna, &lcontacts, &calledback));
   ASSERT_EQ(boost::uint16_t(1), fna->round);
   ASSERT_EQ(size_t(a), lcontacts.size());
@@ -396,7 +398,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   }
 
   ++it;
-  ASSERT_TRUE(node_->MarkNode(*it, fna, SEARCH_DOWN));
+  ASSERT_TRUE(node_->MarkNode(*it, fna, kSearchDown));
   ASSERT_FALSE(node_->GetAlphas(a, fna, &lcontacts, &calledback));
   ASSERT_EQ(boost::uint16_t(2), fna->round);
   ASSERT_EQ(size_t(a), lcontacts.size());
@@ -405,7 +407,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   }
 
   Contact not_in_list(NodeId(NodeId::kRandomId), ip, 8000);
-  ASSERT_FALSE(node_->MarkNode(not_in_list, fna, SEARCH_CONTACTED));
+  ASSERT_FALSE(node_->MarkNode(not_in_list, fna, kSearchContacted));
 }
 
 TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
@@ -452,7 +454,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
   ASSERT_EQ(boost::uint16_t(quotient + 1), fna->round);
 
   for (size_t a = 0; a < valphas.size(); ++a) {
-    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, SEARCH_CONTACTED));
+    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, kSearchContacted));
     if (a == valphas.size() - 1)
       ASSERT_TRUE(node_->BetaDone(fna, a + 1));
     else
@@ -461,7 +463,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
   }
 
   for (size_t a = 0; a < valphas.size() - 1; ++a) {
-    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, SEARCH_CONTACTED));
+    ASSERT_TRUE(node_->MarkNode(valphas[a].front(), fna, kSearchContacted));
     ASSERT_TRUE(node_->BetaDone(fna, a));
   }
 }
@@ -511,14 +513,14 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
   std::list<Contact> lcontacts;
   ASSERT_FALSE(misr.GetAlphas(kcp.alpha, fna, &lcontacts, &calledback));
 
-  boost::shared_ptr<FindNodesRpc> rpc(new FindNodesRpc(lcontacts.front(), fna));
+  boost::shared_ptr<FindNodesRpcArgs> rpc(new FindNodesRpcArgs(lcontacts.front(), fna));
   rpc->response->set_result(kRpcResultSuccess);
   misr.IterativeSearchResponse(rpc);
 
   popped.push_back(lcontacts.front());
   lcontacts.pop_front();
   popped.push_back(lcontacts.front());
-  boost::shared_ptr<FindNodesRpc> rpc1(new FindNodesRpc(lcontacts.front(),
+  boost::shared_ptr<FindNodesRpcArgs> rpc1(new FindNodesRpcArgs(lcontacts.front(),
                                                         fna));
   rpc1->response->set_result(kRpcResultSuccess);
   misr.IterativeSearchResponse(rpc1);
@@ -555,7 +557,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //      if (!node_list_.empty()) {
 //        int summat(K/4 + 1);
 //        int size = node_list_.size();
-//        int elements = base::RandomUint32() % summat % size;
+//        int elements = RandomUint32() % summat % size;
 //        for (int n = 0; n < elements; ++n) {
 //          protobuf::Contact *c = resp->add_closest_nodes();
 //          *c = node_list_.front().ToProtobuf();
@@ -568,7 +570,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //  }
 //  void FunctionForThread(google::protobuf::Closure *callback) {
 //    boost::this_thread::sleep(
-//        boost::posix_time::milliseconds(100 * (base::RandomUint32() % 5 + 1)));
+//        boost::posix_time::milliseconds(100 * (RandomUint32() % 5 + 1)));
 //    callback->Run();
 //  }
 //  bool AllAlphasBack(boost::shared_ptr<FindNodesArgs> fna) {
@@ -649,7 +651,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
-//  node_->prouting_table_->Clear();
+//  node_->routing_table_->Clear();
 //  std::string ip("156.148.126.159");
 //  std::vector<Contact> vcontacts;
 //  for (boost::uint16_t n = 0; n < K; ++n) {
@@ -744,7 +746,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
-//  node_->prouting_table_->Clear();
+//  node_->routing_table_->Clear();
 //  std::string ip("156.148.126.159");
 //  std::vector<Contact> vcontacts;
 //  for (boost::uint16_t n = 0; n < K; ++n) {
@@ -816,7 +818,7 @@ class MockRpcs : public Rpcs {
       if (!node_list_.empty()) {
         int summat(K/4 + 1);
         int size = node_list_.size();
-        int elements = base::RandomUint32() % summat % size;
+        int elements = RandomUint32() % summat % size;
         for (int n = 0; n < elements; ++n) {
           response_list.push_back(node_list_.front());
           node_list_.pop_front();
@@ -828,7 +830,7 @@ class MockRpcs : public Rpcs {
   }
   void FunctionForThread(FindNodesFunctor callback,
                          std::vector<Contact> response_list) {
-    boost::uint16_t interval(100 * (base::RandomUint32() % 5 + 1));
+    boost::uint16_t interval(100 * (RandomUint32() % 5 + 1));
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(true, response_list);
   }
@@ -914,7 +916,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
   bool done(false);
   std::list<Contact> lcontacts;
-  node_->prouting_table_->Clear();
+  node_->routing_table_->Clear();
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   transport::Endpoint ep;
@@ -1014,7 +1016,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
 TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
   bool done(false);
   std::list<Contact> lcontacts;
-  node_->prouting_table_->Clear();
+  node_->routing_table_->Clear();
   std::string ip("156.148.126.159");
   std::vector<Contact> vcontacts;
   transport::Endpoint ep;
@@ -1069,3 +1071,5 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
 }  // namespace test_nodeimpl
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

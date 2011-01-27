@@ -26,16 +26,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <signal.h>
-#include <boost/program_options.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/lexical_cast.hpp>
 #include <iostream>  //  NOLINT
-
-#include "maidsafe/base/log.h"
+#include "boost/program_options.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/filesystem.hpp"
+#include "boost/shared_ptr.hpp"
+#include "boost/lexical_cast.hpp"
+#include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/node-api.h"
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/transport/udttransport.h"
 #include "maidsafe/tests/benchmark/operations.h"
 
@@ -49,7 +48,7 @@ class JoinCallback {
  public:
   JoinCallback() : result_arrived_(false), success_(false) {}
   void Callback(const std::string &result) {
-//    base::GeneralResponse msg;
+//    maidsafe::GeneralResponse msg;
 //    if (!msg.ParseFromString(result))
       success_ = false;
 //    else
@@ -81,7 +80,7 @@ void option_dependency(const po::variables_map& vm,
 }
 
 bool kadconfig_empty(const std::string &path) {
-//  base::KadConfig kadconfig;
+//  maidsafe::KadConfig kadconfig;
 //  try {
 //    boost::filesystem::ifstream input(path.c_str(),
 //                                      std::ios::in | std::ios::binary);
@@ -101,9 +100,9 @@ bool kadconfig_empty(const std::string &path) {
 bool write_to_kadconfig(const std::string &path, const std::string &node_id,
     const std::string &ip, const boost::uint16_t &port,
     const std::string &local_ip, const boost::uint16_t &local_port) {
-//  base::KadConfig kadconfig;
+//  maidsafe::KadConfig kadconfig;
 //  try {
-//    base::KadConfig::Contact *ctc = kadconfig.add_contact();
+//    maidsafe::KadConfig::Contact *ctc = kadconfig.add_contact();
 //    ctc->set_ip(ip);
 //    ctc->set_node_id(node_id);
 //    ctc->set_port(port);

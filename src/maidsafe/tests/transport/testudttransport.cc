@@ -25,12 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <boost/thread.hpp>
-#include <gtest/gtest.h>
-#include "maidsafe/base/log.h"
+#include "boost/thread.hpp"
+#include "gtest/gtest.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/udttransport.h"
-#include "maidsafe/tests/transport/messagehandler.h"
+#include "maidsafe/tests/transport/message_handler.h"
 #include "maidsafe/tests/transport/transportapitest.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -85,4 +87,7 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
 INSTANTIATE_TYPED_TEST_CASE_P(UDT, TransportAPITest, UdtTransport);
 
 }  // namespace test
+
 }  // namespace transport
+
+}  // namespace maidsafe

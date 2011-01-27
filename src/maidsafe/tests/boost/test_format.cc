@@ -25,14 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/format.hpp>
-
-#define BOOST_INCLUDE_MAIN
-#include <boost/test/test_tools.hpp>
-
 #include <iostream>  // NOLINT
 #include <iomanip>
+
+#include "gtest/gtest.h"
+#include "boost/format.hpp"
+
+#define BOOST_INCLUDE_MAIN
+#include "boost/test/test_tools.hpp"
 
 
 TEST(boost, BEH_BOOST_formattest1) {

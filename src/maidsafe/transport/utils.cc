@@ -26,21 +26,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/utils.h"
-//#include <boost/date_time/posix_time/posix_time.hpp>
-//#include <boost/lexical_cast.hpp>
-//#include <boost/scoped_array.hpp>
-//#include <boost/thread/mutex.hpp>
+
 //#include <ctype.h>
-//#include <maidsafe/cryptopp/integer.h>
-//#include <maidsafe/cryptopp/osrng.h>
-//#include <maidsafe/cryptopp/base32.h>
-//#include <maidsafe/cryptopp/base64.h>
-//#include <maidsafe/cryptopp/hex.h>
+
 //#include <algorithm>
 //#include <limits>
 //#include <string>
-#include "maidsafe/base/log.h"
+
+//#include "boost/date_time/posix_time/posix_time.hpp"
+//#include "boost/lexical_cast.hpp"
+//#include "boost/scoped_array.hpp"
+//#include "boost/thread/mutex.hpp"
+
+//#include "maidsafe/cryptopp/integer.h"
+//#include "maidsafe/cryptopp/osrng.h"
+//#include "maidsafe/cryptopp/base32.h"
+//#include "maidsafe/cryptopp/base64.h"
+//#include "maidsafe/cryptopp/hex.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/network_interface.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -135,3 +141,5 @@ std::vector<IP> GetLocalAddresses() {
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

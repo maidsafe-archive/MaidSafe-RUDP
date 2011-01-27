@@ -30,6 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
+namespace maidsafe {
+
 namespace transport {
 
 class RawBuffer {
@@ -70,5 +72,7 @@ class RawBuffer {
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_RAWBUFFER_H_

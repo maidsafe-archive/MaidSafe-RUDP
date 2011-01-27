@@ -30,13 +30,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // which node 2 uses to test direct-connection status of node 1.
 
 /*
-#include <gtest/gtest.h>
-#include <google/protobuf/descriptor.h>
-#include <boost/filesystem.hpp>
+#include "gtest/gtest.h"
+#include "google/protobuf/descriptor.h"
+#include "boost/filesystem.hpp"
 #include "maidsafe/kademlia/service.h"
-#include "maidsafe/kademlia/nodeimpl.h"
+#include "maidsafe/kademlia/node_impl.h"
 #include "maidsafe/tests/kademlia/fake_callbacks.h"
-#include "maidsafe/base/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/udttransport.h"
 
@@ -45,6 +45,8 @@ namespace fs = boost::filesystem;
 namespace test_nat_detection {
   static const boost::uint16_t K = 16;
 }  // namespace test_nat_detection
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -104,9 +106,9 @@ class NatDetectionTest: public testing::Test {
     ASSERT_EQ(0, trans_handlers_[0]->Start(0, transports_[0]));
     ASSERT_EQ(0, channel_managerA_.Start());
     boost::asio::ip::address local_ip;
-    ASSERT_TRUE(base::GetLocalAddress(&local_ip));
+    ASSERT_TRUE(GetLocalAddress(&local_ip));
 
-    contactA_ = Contact(base::DecodeFromHex(hex_id), local_ip.to_string(),
+    contactA_ = Contact(DecodeFromHex(hex_id), local_ip.to_string(),
                         trans_handlers_[0]->listening_port(transports_[0]),
                         local_ip.to_string(),
                         trans_handlers_[0]->listening_port(transports_[0]));
@@ -147,7 +149,7 @@ class NatDetectionTest: public testing::Test {
     ASSERT_EQ(0, trans_handlers_[1]->Start(0, transports_[1]));
     ASSERT_EQ(0, channel_managerB_.Start());
 
-    contactB_ = Contact(base::DecodeFromHex(hex_id), local_ip.to_string(),
+    contactB_ = Contact(DecodeFromHex(hex_id), local_ip.to_string(),
                         trans_handlers_[1]->listening_port(transports_[1]),
                         local_ip.to_string(),
                         trans_handlers_[1]->listening_port(transports_[1]));
@@ -186,7 +188,7 @@ class NatDetectionTest: public testing::Test {
                 boost::bind(&NatDetectionTest::HandleDeadRVServer, this, _1)));
     ASSERT_EQ(0, trans_handlers_[2]->Start(0, transports_[2]));
     ASSERT_EQ(0, channel_managerC_.Start());
-    contactC_ = Contact(base::DecodeFromHex(hex_id), local_ip.to_string(),
+    contactC_ = Contact(DecodeFromHex(hex_id), local_ip.to_string(),
                         trans_handlers_[2]->listening_port(transports_[2]),
                         local_ip.to_string(),
                         trans_handlers_[2]->listening_port(transports_[2]));
@@ -672,4 +674,7 @@ TEST_F(NatDetectionTest, BEH_KAD_FullBootstrap) {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
+
 */

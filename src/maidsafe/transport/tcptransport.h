@@ -28,13 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
 #define MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_
 
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/rawbuffer.h>
-#include <maidsafe/transport/tcpconnection.h>
-#include <boost/asio/io_service.hpp>
-#include <boost/thread/thread.hpp>
 #include <map>
 #include <vector>
+#include "boost/asio/io_service.hpp"
+#include "boost/thread/thread.hpp"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/rawbuffer.h"
+#include "maidsafe/transport/tcpconnection.h"
+
+namespace maidsafe {
 
 namespace transport {
 /*
@@ -94,5 +96,7 @@ class TcpTransport : public Transport {
 };
 */
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_TCPTRANSPORT_H_

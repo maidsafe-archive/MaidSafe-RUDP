@@ -25,13 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/detail/lightweight_test.hpp>
-#include <boost/detail/atomic_count.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
 #include <cstddef>
+#include "gtest/gtest.h"
+#include "boost/detail/lightweight_test.hpp"
+#include "boost/detail/atomic_count.hpp"
+#include "boost/make_shared.hpp"
+#include "boost/shared_ptr.hpp"
+#include "boost/weak_ptr.hpp"
 
 class X {
  public:

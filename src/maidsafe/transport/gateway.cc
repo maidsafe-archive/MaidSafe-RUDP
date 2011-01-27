@@ -34,7 +34,6 @@ Created by Julian Cain on 11/3/09.
     && !defined(MAIDSAFE_LINUX)
 #include <net/route.h>
 #include <sys/sysctl.h>
-#include <boost/scoped_ptr.hpp>
 #elif defined(MAIDSAFE_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -52,7 +51,10 @@ Created by Julian Cain on 11/3/09.
 #include <unistd.h>
 #endif
 
-#include <boost/bind.hpp>
+#include "boost/scoped_ptr.hpp"
+#include "boost/bind.hpp"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -356,3 +358,5 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe

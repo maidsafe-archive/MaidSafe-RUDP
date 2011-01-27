@@ -28,14 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
 #define MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
 
-#include <boost/thread/thread.hpp>
 
 #include <list>
 #include <vector>
 #include <string>
-
+#include "boost/thread/thread.hpp"
 #include "maidsafe/kademlia/config.h"
 #include "maidsafe/kademlia/rpcs.pb.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -206,5 +207,7 @@ inline void wait_result(FakeCallback *callback) {
 }
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TESTS_KADEMLIA_FAKE_CALLBACKS_H_

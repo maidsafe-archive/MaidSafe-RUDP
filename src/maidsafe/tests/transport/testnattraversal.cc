@@ -93,11 +93,14 @@ Succeeds                                                           Succeeds
 
 */
 /*
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "maidsafe/transport/udttransport.h"
 
+namespace maidsafe {
+
 namespace transport {
+
 namespace test {
 
 class TestNatTraversal : public testing::Test {
@@ -123,7 +126,7 @@ class TestNatTraversal : public testing::Test {
     Port bootstrap_port = bootstrap_transport_.StartListening("127.0.0.1", 0,
                                                               &result);
     ASSERT_EQ(kSuccess, result);
-    (*base::PublicRoutingTable::GetInstance())
+    (*PublicRoutingTable::GetInstance())
         [boost::lexical_cast<std::string>(bootstrap_port)]->AddContact(
             Contact());
 
@@ -145,5 +148,8 @@ TEST_F(TestNatTraversal, BEH_UDT_DirectlyConnected) {
 }
 
 }  // namespace test
+
 }  // namespace transport
+
+}  // namespace maidsafe
 */

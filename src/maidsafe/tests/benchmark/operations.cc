@@ -27,38 +27,38 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/tests/benchmark/operations.h"
 
-#include <boost/format.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/thread.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <cassert>
 #include <iomanip>
 #include <iostream>  // NOLINT
 #include <string>
 #include <vector>
 
-#include "maidsafe/base/log.h"
+#include "boost/format.hpp"
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
+#include "boost/thread.hpp"
+#include "boost/tokenizer.hpp"
+#include "boost/lexical_cast.hpp"
+
+#include "maidsafe/common/log.h"
 #include "maidsafe/kademlia/contact.h"
-#include "maidsafe/kademlia/nodeid.h"
+#include "maidsafe/kademlia/node_id.h"
 #include "maidsafe/kademlia/node-api.h"
 
+
+namespace maidsafe {
 
 namespace benchmark {
 
 Operations::Operations(boost::shared_ptr<kademlia::Node> node)
     : node_(node), cryobj_(), private_key_(), public_key_(),
-      public_key_signature_() {
+      public_key_validation_() {
   cryobj_.set_symm_algorithm(crypto::AES_256);
   cryobj_.set_hash_algorithm(crypto::SHA_512);
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   public_key_ = kp.public_key();
   private_key_ = kp.private_key();
-  public_key_signature_ = cryobj_.AsymSign(public_key_, "", private_key_,
-                                           crypto::STRING_STRING);
 }
 
 void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
@@ -67,11 +67,11 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
   {
     printf("Finding %d nodes...\n", nodes.size());
 
-    base::Stats<boost::uint64_t> stats;
+    Stats<boost::uint64_t> stats;
     boost::shared_ptr<CallbackData> data(new CallbackData());
     boost::mutex::scoped_lock lock(data->mutex);
     for (size_t i = 0; i < nodes.size(); ++i) {
-      boost::uint64_t t = base::GetEpochMilliseconds();
+      boost::uint64_t t = GetEpochMilliseconds();
       node_->GetNodeContactDetails(
             nodes[i],
             boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
@@ -79,7 +79,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
             false);
       while (static_cast<size_t>(data->returned_count) <= i)
         data->condition.wait(lock);
-      stats.Add(base::GetEpochMilliseconds() - t);
+      stats.Add(GetEpochMilliseconds() - t);
       kademlia::Contact ctc;
 //      ctc.ParseFromString(data->content);
       contacts.push_back(ctc);
@@ -95,18 +95,18 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
     printf("Pinging %d contacts, %d iterations...\n",
            contacts.size(), iterations);
 
-    base::Stats<boost::uint64_t> stats;
+    Stats<boost::uint64_t> stats;
     for (size_t i = 0; i < contacts.size(); ++i) {
-      base::Stats<boost::uint64_t> it_stats;
+      Stats<boost::uint64_t> it_stats;
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        boost::uint64_t t = base::GetEpochMilliseconds();
+        boost::uint64_t t = GetEpochMilliseconds();
         node_->Ping(contacts[i], boost::bind(
             &Operations::PingCallback, this, _1, data));
         while (data->returned_count <= j)
           data->condition.wait(lock);
-        it_stats.Add(base::GetEpochMilliseconds() - t);
+        it_stats.Add(GetEpochMilliseconds() - t);
       }
       stats.Add(it_stats.Mean());
       printf(" Pinged contact %d, %02d/%02d times "
@@ -133,19 +133,19 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
     std::string size, value;
     switch (val) {
       case 0:
-        value = base::RandomString(1 << 4);
+        value = RandomString(1 << 4);
         size = "16 byte";
         break;
       case 1:
-        value = base::RandomString(1 << 10);
+        value = RandomString(1 << 10);
         size = "1 KB";
         break;
       case 2:
-        value = base::RandomString(1 << 17);
+        value = RandomString(1 << 17);
         size = "128 KB";
         break;
       case 3:
-        value = base::RandomString(1 << 20);
+        value = RandomString(1 << 20);
         size = "1 MB";
         break;
     }
@@ -153,9 +153,9 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
            size.c_str(), nodes.size(), iterations);
 
 
-    base::Stats<boost::uint64_t> store_stats;
+    Stats<boost::uint64_t> store_stats;
     for (size_t i = 0; i < nodes.size(); ++i) {
-      base::Stats<boost::uint64_t> it_stats;
+      Stats<boost::uint64_t> it_stats;
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
@@ -163,23 +163,24 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
             GetModId(val * iterations * nodes.size() + i * iterations + j);
         kademlia::NodeId key(nodes[i] ^ mod);
         kademlia::protobuf::SignedValue sig_val;
-        kademlia::protobuf::Signature sig_req;
+        kademlia::protobuf::MessageSignature sig_req;
         if (sign) {
           std::string req_sig, ser_sig_val;
-          req_sig = cryobj_.AsymSign(cryobj_.Hash(public_key_ +
-              public_key_signature_ + key.String(), "",
-              crypto::STRING_STRING, false), "", private_key_,
-              crypto::STRING_STRING);
+
+
+  Validifier signer;
+
+
           sig_val.set_value(value);
 //          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
 //              private_key_, crypto::STRING_STRING));
 //          ser_sig_val = sig_val.SerializeAsString();
 //          sig_req.set_signer_id(node_->node_id().String());
 //          sig_req.set_public_key(public_key_);
-//          sig_req.set_signed_public_key(public_key_signature_);
-//          sig_req.set_signed_request(req_sig);
+//          sig_req.set_public_key_validation(public_key_validation_);
+//          sig_req.set_request_signature(req_sig);
         }
-        boost::uint64_t t = base::GetEpochMilliseconds();
+        boost::uint64_t t = GetEpochMilliseconds();
         if (sign) {
           node_->StoreValue(key, sig_val, sig_req, 86400, boost::bind(
               &Operations::StoreCallback, this, _1, data));
@@ -189,7 +190,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
         }
         while (data->returned_count <= j)
           data->condition.wait(lock);
-        it_stats.Add(base::GetEpochMilliseconds() - t);
+        it_stats.Add(GetEpochMilliseconds() - t);
       }
       store_stats.Add(it_stats.Mean());
       printf(" Stored close to %d, %02d/%02d times "
@@ -209,20 +210,20 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
     printf("Loading %s value from %d closest nodes, %d iterations...\n",
            size.c_str(), nodes.size(), iterations);
 
-    base::Stats<boost::uint64_t> load_stats;
+    Stats<boost::uint64_t> load_stats;
     for (size_t i = 0; i < nodes.size(); ++i) {
-      base::Stats<boost::uint64_t> it_stats;
+      Stats<boost::uint64_t> it_stats;
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
         kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-        boost::uint64_t t = base::GetEpochMilliseconds();
+        boost::uint64_t t = GetEpochMilliseconds();
         node_->FindValue(nodes[i] ^ mod, false, boost::bind(
             &Operations::FindValueCallback, this, _1, data));
         while (data->returned_count <= j)
           data->condition.wait(lock);
-        it_stats.Add(base::GetEpochMilliseconds() - t);
+        it_stats.Add(GetEpochMilliseconds() - t);
       }
       load_stats.Add(it_stats.Mean());
       printf(" Loaded from %d, %02d/%02d times "
@@ -319,3 +320,5 @@ void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {
 }
 
 }  // namespace benchmark
+
+}  // namespace maidsafe

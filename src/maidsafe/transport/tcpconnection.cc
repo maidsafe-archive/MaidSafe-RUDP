@@ -25,25 +25,28 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*
-#include <maidsafe/transport/tcptransport.h>
-#include <maidsafe/transport/tcpconnection.h>
-#include <maidsafe/transport/udtconnection.h>  // for timeout constants
-#include <maidsafe/protobuf/transport_message.pb.h>
-#include <maidsafe/base/log.h>
+#include "maidsafe/transport/tcpconnection.h"
 
-#include <boost/asio/read.hpp>
-#include <boost/asio/write.hpp>
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-#include <google/protobuf/descriptor.h>
+#include "boost/asio/read.hpp"
+#include "boost/asio/write.hpp"
+#include "boost/bind.hpp"
+#include "boost/foreach.hpp"
+#include "google/protobuf/descriptor.h"
 
 #include <algorithm>
 #include <vector>
+
+#include "maidsafe/transport/tcptransport.h"
+#include "maidsafe/transport/udtconnection.h"  // for timeout constants
+#include "maidsafe/protobuf/transport_message.pb.h"
+#include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace pt = boost::posix_time;
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -262,4 +265,6 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 }  // namespace transport
+
+}  // namespace maidsafe
 */

@@ -25,19 +25,21 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/scoped_array.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <set>
-#include "maidsafe/base/log.h"
+#include "gtest/gtest.h"
+#include "boost/scoped_array.hpp"
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/utils.h"
+
+namespace maidsafe {
 
 namespace transport {
 
 namespace test {
 
-TEST(UtilsTest, BEH_BASE_BytesAndAscii) {
+TEST(UtilsTest, BEH_COMMON_BytesAndAscii) {
   std::string good_string_v4("71.111.111.100");
   std::string good_string_v6("2001:db8:85a3::8a2e:370:7334");
   std::string bad_string("Not an IP");
@@ -50,7 +52,7 @@ TEST(UtilsTest, BEH_BASE_BytesAndAscii) {
   EXPECT_TRUE(IpBytesToAscii(bad_string).empty());
 }
 
-TEST(UtilsTest, BEH_BASE_DecimalAndAscii) {
+TEST(UtilsTest, BEH_COMMON_DecimalAndAscii) {
   std::string dotted("121.12.121.1");
   boost::scoped_array<char> ipbuf(new char[32]);
   boost::uint32_t n = IpAsciiToNet(dotted.c_str());
@@ -61,7 +63,7 @@ TEST(UtilsTest, BEH_BASE_DecimalAndAscii) {
   EXPECT_EQ(dotted, reformed);
 }
 
-TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
+TEST(UtilsTest, BEH_COMMON_NetworkInterfaces) {
   std::vector<IP> all_local_ips(GetLocalAddresses());
   EXPECT_FALSE(all_local_ips.empty());
   for (size_t n = 0; n < all_local_ips.size(); ++n)
@@ -71,3 +73,5 @@ TEST(UtilsTest, BEH_BASE_NetworkInterfaces) {
 }  // namespace test
 
 }  // namespace transport
+
+}  // namespace maidsafe

@@ -25,13 +25,15 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <gtest/gtest.h>
-#include <boost/lexical_cast.hpp>
-#include "maidsafe/base/crypto.h"
-#include "maidsafe/base/log.h"
-#include "maidsafe/base/utils.h"
+#include "gtest/gtest.h"
+#include "boost/lexical_cast.hpp"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/kademlia/contact.h"
 #include "maidsafe/kademlia/kbucket.h"
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -196,7 +198,7 @@ TEST_F(TestKbucket, BEH_KAD_DeleteContact) {
     Contact contact(id[i], ip, port, ip, port);
     ASSERT_EQ(SUCCEED, kbucket.AddContact(contact));
   }
-  for (boost::int16_t i = 0; i < kFailedRpc; ++i) {
+  for (boost::int16_t i = 0; i < kFailedRpcTolerance; ++i) {
     ASSERT_EQ(K - 1, kbucket.Size());
     kbucket.RemoveContact(id[2], false);
     Contact contact;
@@ -222,7 +224,7 @@ TEST_F(TestKbucket, BEH_KAD_SetLastAccessed) {
     hex_max_val += "f";
   NodeId max_value(hex_max_val, kademlia::NodeId::kHex);
   KBucket kbucket(min_value, max_value, K);
-  boost::uint32_t time_accessed = base::GetEpochTime();
+  boost::uint32_t time_accessed = GetEpochTime();
   kbucket.set_last_accessed(time_accessed);
   ASSERT_EQ(time_accessed, kbucket.last_accessed());
 }
@@ -363,3 +365,5 @@ TEST_F(TestKbucket, BEH_KAD_GetOldestContact) {
 }  // namespace test_kbucket
 
 }  // namespace kademlia
+
+}  // namespace maidsafe

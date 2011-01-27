@@ -28,22 +28,24 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_KADEMLIA_DATASTORE_H_
 #define MAIDSAFE_KADEMLIA_DATASTORE_H_
 
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/mem_fun.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/locks.hpp>
 #include <string>
 #include <vector>
 #include <set>
 #include <utility>
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/multi_index_container.hpp"
+#include "boost/multi_index/ordered_index.hpp"
+#include "boost/multi_index/identity.hpp"
+#include "boost/multi_index/member.hpp"
+#include "boost/multi_index/mem_fun.hpp"
+#include "boost/multi_index/composite_key.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
 
 namespace bptime = boost::posix_time;
+
+namespace maidsafe {
 
 namespace kademlia {
 
@@ -53,9 +55,7 @@ namespace test {
   class DataStoreTest_BEH_KAD_StoreValidData_Test;
   class DataStoreTest_BEH_KAD_StoreMultipleValuesWithSameKey_Test;
   class DataStoreTest_BEH_KAD_UpdateValues_Test;
-} // namespace test
-// This class implements physical storage (for data published and fetched via
-// the RPCs) for the Kademlia DHT.
+}  // namespace test
 
 enum DeleteStatus {
   kNotDeleted,
@@ -96,7 +96,7 @@ struct KeyValueTuple {
                 const bptime::ptime &expire_time,
                 const bptime::ptime &refresh_time,
                 const bool &hashable,
-                std::string serialized_delete_request,
+                const std::string &serialised_delete_request,
                 DeleteStatus delete_status);
   KeyValueTuple(const KeyValueSignature &key_value_signature,
                 const bptime::ptime &expire_time,
@@ -113,7 +113,7 @@ struct KeyValueTuple {
   KeyValueSignature key_value_signature;
   bptime::ptime expire_time, refresh_time;
   bool hashable;
-  std::string serialized_delete_request;
+  std::string serialised_delete_request;
   DeleteStatus delete_status;
 };
 
@@ -144,6 +144,8 @@ typedef boost::multi_index::multi_index_container<
   >
 > KeyValueIndex;
 
+// This class implements physical storage (for data published and fetched via
+// the RPCs) for the Kademlia DHT.
 class DataStore {
  public:
   explicit DataStore(const bptime::seconds &mean_refresh_interval);
@@ -170,10 +172,10 @@ class DataStore {
       const std::string &key);
 
   bool RefreshKeyValue(const KeyValueSignature &key_value_signature,
-                       std::string *serialized_delete_request);
+                       std::string *serialised_delete_request);
   // If key, value pair does not exist, then it returns false
   bool MarkForDeletion(const KeyValueSignature &key_value_signature,
-                       const std::string &serialized_delete_request);
+                       const std::string &serialised_delete_request);
   
   // If key, value pair does not exist or its status is not kMarkedForDeletion,
   // then it returns false
@@ -202,5 +204,7 @@ class DataStore {
 };
 
 }  // namespace kademlia
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_KADEMLIA_DATASTORE_H_

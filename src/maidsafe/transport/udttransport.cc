@@ -27,15 +27,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/udttransport.h"
 
-#include "maidsafe/base/log.h"
+#include "boost/shared_ptr.hpp"
+
+#include "maidsafe/common/log.h"
+#include "maidsafe/transport/udtutils.h"
 #include "maidsafe/transport/udtconnection.h"
+#include "maidsafe/udt/udt.h"
+
+
+namespace maidsafe {
 
 namespace transport {
 
 NatDetails UdtTransport::nat_details_;
 
 UdtTransport::UdtTransport(
-    boost::shared_ptr<boost::asio::io_service> asio_service)
+    std::shared_ptr<boost::asio::io_service> asio_service)
         : Transport(asio_service),
           listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_socket_id_(UDT::INVALID_SOCK),
@@ -56,7 +63,7 @@ UdtTransport::UdtTransport(
 }
 
 UdtTransport::UdtTransport(
-    boost::shared_ptr<boost::asio::io_service> asio_service,
+    std::shared_ptr<boost::asio::io_service> asio_service,
     std::vector<Endpoint> nat_detection_endpoints)
         : Transport(asio_service),
           listening_socket_id_(UDT::INVALID_SOCK),
@@ -106,7 +113,7 @@ TransportCondition UdtTransport::DoStartListening(
 
   // Get a new socket descriptor
   SocketId listening_socket_id(UDT::INVALID_SOCK);
-  boost::shared_ptr<addrinfo const> address_info;
+  std::shared_ptr<addrinfo const> address_info;
   TransportCondition result = udtutils::GetNewSocket(endpoint,
                                                      true,
                                                      &listening_socket_id,
@@ -216,7 +223,7 @@ void UdtTransport::AcceptConnection(bool managed_endpoint_accept) {
 void UdtTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
-  boost::shared_ptr<UdtConnection> udt_connection(new UdtConnection(
+  std::shared_ptr<UdtConnection> udt_connection(new UdtConnection(
       shared_from_this(), endpoint, UdtConnection::kOutgoing));
   udt_connection->Send(data, timeout);
 }
@@ -234,12 +241,12 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
 //void UdtTransport::DetectNat() {
 //  // Create message
 //  protobuf::NatDetectionRequest nat_detection_request;
-//  std::vector<IP> addresses(base::GetLocalAddresses());
+//  std::vector<IP> addresses(GetLocalAddresses());
 //  for (size_t n = 0; n < addresses.size(); ++n)
 //    nd->add_candidate_ips(addresses.at(n));
 //  nat_detection_request->set_local_port(listening_port_);
 //
-//  boost::shared_ptr<addrinfo const> address_info;
+//  std::shared_ptr<addrinfo const> address_info;
 //  for (std::vector<Endpoint>::iterator it(nat_detection_endpoints_.begin());
 //       it != nat_detection_endpoints_.end(); ++it) {
 //    UdtConnection udt_connection(shared_from_this(), *it,
@@ -400,7 +407,7 @@ void UdtTransport::PerformNatDetection(
   }
 
   std::multimap<std::string, boost::uint16_t> nodes;
-  (*base::PublicRoutingTable::GetInstance())
+  (*PublicRoutingTable::GetInstance())
       [boost::lexical_cast<std::string>(listening_ports_[0])]->
           GetShuffledDirectlyConnectedNodes(&nodes);
   ConnectionNode *cn = tm.mutable_data()->mutable_connection_node();
@@ -496,7 +503,7 @@ TransportCondition UdtTransport::TryRendezvous(const IP &ip, const Port &port,
   if (nat_details_.nat_type == kNotConnected)
     return kError;
   // Get a new socket descriptor
-  boost::shared_ptr<addrinfo const> address_info;
+  std::shared_ptr<addrinfo const> address_info;
   TransportCondition transport_condition(
       udtutils::GetNewSocket(ip, port, true, rendezvous_socket_id,
                              &address_info));
@@ -637,7 +644,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
 
 TransportCondition UdtTransport::StartManagedEndpointListener(
     const SocketId &initial_peer_socket_id,
-    boost::shared_ptr<addrinfo const> peer) {
+    std::shared_ptr<addrinfo const> peer) {
   // Check not already started and set managed_endpoint_listening_port_ to 1 to
   // indicate that startup has begun.
   {
@@ -726,7 +733,7 @@ SocketId UdtTransport::GetNewManagedEndpointSocket(
     const Port &rendezvous_port) {
   // Get a new socket descriptor to send on managed_endpoint_listening_port_
   SocketId initial_peer_socket_id(UDT::INVALID_SOCK);
-  boost::shared_ptr<addrinfo const> peer;
+  std::shared_ptr<addrinfo const> peer;
   if (udtutils::GetNewSocket(remote_ip, remote_port, true,
                              &initial_peer_socket_id, &peer) != kSuccess) {
     DLOG(ERROR) << "GetNewManagedEndpointInitialSocket error: " <<
@@ -808,7 +815,7 @@ void UdtTransport::CheckManagedSockets() {
   managed_endpoints_stopped_ = false;
   boost::scoped_array<char> holder(new char[10]);
   int received_count;
-//  int indicator = base::RandomInt32();
+//  int indicator = RandomInt32();
 //  std::cout << "CheckManagedSockets START  " << indicator << std::endl;
   while (true) {
     if (stop_managed_endpoints_) {
@@ -991,3 +998,5 @@ bool UdtTransport::PendingManagedSocketReplied(
 */
 
 }  // namespace transport
+
+}  // namespace maidsafe

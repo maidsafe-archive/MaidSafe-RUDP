@@ -34,13 +34,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 #define MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/shared_ptr.hpp>
-#include <maidsafe/transport/transport.h>
-#include <maidsafe/transport/transport.pb.h>
+#include <memory>
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/enable_shared_from_this.hpp"
+#include "boost/shared_ptr.hpp"
+#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/transport.pb.h"
 #include "maidsafe/transport/udtutils.h"
 #include "maidsafe/udt/udt.h"
+
+namespace maidsafe {
 
 namespace transport {
 
@@ -114,13 +117,15 @@ class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
   SocketId socket_id_;
   Endpoint endpoint_;
   ConnectionType connection_type_;
-  boost::shared_ptr<addrinfo const> peer_;
+  std::shared_ptr<addrinfo const> peer_;
   std::string data_;
-  boost::shared_ptr<boost::asio::deadline_timer> timeout_timer_;
-  boost::shared_ptr<boost::asio::deadline_timer> stall_timer_;
+  std::shared_ptr<boost::asio::deadline_timer> timeout_timer_;
+  std::shared_ptr<boost::asio::deadline_timer> stall_timer_;
 };
 
 }  // namespace transport
+
+}  // namespace maidsafe
 
 #endif  // MAIDSAFE_TRANSPORT_UDTCONNECTION_H_
 
