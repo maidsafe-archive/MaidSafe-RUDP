@@ -294,7 +294,8 @@ bool DataStore::RefreshKeyValue(const KeyValueSignature &key_value_signature,
   UpgradeLock upgrade_lock(shared_mutex_);
   auto it = index_by_key_value.find(boost::make_tuple(
       key_value_signature.key, key_value_signature.value));
-  if (it == index_by_key_value.end())
+  if ((it == index_by_key_value.end()) ||
+      ((*it).key_value_signature.signature != key_value_signature.signature))
     return false;
 
   if ((*it).delete_status != kNotDeleted) {
@@ -355,8 +356,6 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
                             const bool &hashable) {
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
-  if (old_key_value_signature.key != new_key_value_signature.key)
-    return false;
   UpgradeLock upgrade_lock(shared_mutex_);
   if (new_key_value_signature.value.empty()||
       new_key_value_signature.signature.empty()||

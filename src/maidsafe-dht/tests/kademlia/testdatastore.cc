@@ -69,12 +69,25 @@ class DataStoreTest: public testing::Test {
     auto appendable_attr = test_ds_->LoadKeyAppendableAttr(key);
     EXPECT_FALSE(appendable_attr[0].second);
   }
+  void MakeMultipleEntries() {
+    for(int i = 1; i < 1000; ++i) {
+      bptime::ptime expire_time = bptime::microsec_clock::universal_time();
+      expire_time += bptime::hours(20);
+      if (i == 100)
+        expire_time_value_ = expire_time;
+      bptime::ptime refresh_time = expire_time - bptime::hours(10);
+      test_ds_->key_value_index_.insert(KeyValueTuple(KeyValueSignature(
+          RandomString(i*7), RandomString(i*11),
+          RandomString(i*13)) , expire_time, refresh_time, false));
+    }
+  }
 
   KeyValueIndex& GetKeyValueIndex() { return test_ds_->key_value_index_; }
 
 protected:
   boost::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   boost::shared_ptr<DataStore> test_ds_;
+  bptime::ptime expire_time_value_; // Used to test mutex only
   DataStoreTest(const DataStoreTest&);
   DataStoreTest &operator=(const DataStoreTest&);
 };
@@ -104,8 +117,27 @@ TEST_F(DataStoreTest, BEH_KAD_StoreValidData) {
   EXPECT_EQ(make_pair(value1, signature1), values[0]);
   values.clear();
   EXPECT_TRUE(test_ds_->GetValues(key2, &values));
-  EXPECT_EQ(size_t(1), values.size());
+  ASSERT_EQ(size_t(1), values.size());
   EXPECT_EQ(make_pair(value2, signature2), values[0]);
+}
+
+TEST_F(DataStoreTest, BEH_KAD_StoreExistingData) {
+  std::string value1(crypto::Hash<crypto::SHA512>("bb33"));
+  std::string signature1(crypto::Hash<crypto::SHA512>("bb33444"));
+  std::string key1(crypto::Hash<crypto::SHA512>(value1));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1), 
+																	 bptime::seconds(3600*24), false));
+  std::vector<std::pair<std::string, std::string>> values; 
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  EXPECT_EQ(size_t(1), values.size());
+  EXPECT_EQ(make_pair(value1, signature1), values[0]);
+
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1), 
+																	 bptime::seconds(3600*24), false));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  EXPECT_EQ(size_t(1), values.size());
+  EXPECT_EQ(make_pair(value1, signature1), values[0]);
 }
 
 TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
@@ -283,7 +315,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteValue) {
   EXPECT_FALSE(test_ds_->HasKey(key_value_signature3.key));
 
 }
-TEST_F(DataStoreTest, BEH_KAD_MultipleThread) {
+TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
   boost::shared_ptr<boost::asio::io_service> asio_service(
       new boost::asio::io_service);
   boost::shared_ptr<boost::asio::io_service::work> work(
@@ -296,38 +328,72 @@ TEST_F(DataStoreTest, BEH_KAD_MultipleThread) {
   KeyValueSignature key_value_signature(RandomString(10),
                                         RandomString(10),
                                         RandomString(10));
-  std::vector<std::pair<std::string, std::string>> values;
-
+  std::vector<std::pair<std::string, std::string>> values, values1;
+  this->MakeMultipleEntries();
+  auto p = GetKeyValueIndex().begin();
+  for (int i = 0; i < 30; ++i) {
+  ++p;
+  
+  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
+                                 p->key_value_signature.key,
+                                 p->key_value_signature.value));
+  }
+ 
+  p = GetKeyValueIndex().end();
+  for (int i = 0; i < 30; ++i) {
+  --p;
+  
+  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
+                                 p->key_value_signature.key,
+                                 p->key_value_signature.value));
+  }
+  for (int i = 0; i < 30; ++i) { 
   asio_service->post(boost::bind(&DataStore::StoreValue, test_ds_,
-                                 key_value_signature, bptime::seconds(1000),
-                                 false));
-  asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
-                                 key_value_signature.key, &values));
-  asio_service->post(boost::bind(&DataStore::MarkForDeletion, test_ds_,
-                                 key_value_signature, RandomString(35)));
-  asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
-                                 key_value_signature,
-                                 &(RandomString(35))));
-  KeyValueSignature key_value_signature1(RandomString(20),
-                                         RandomString(20),
-                                         RandomString(20));
-  asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
-                                 key_value_signature,
-                                 key_value_signature1,
+                                 KeyValueSignature(RandomString(i*103),
+                                 RandomString(i*107),
+                                 RandomString(i*111)),
                                  bptime::seconds(1000), false));
+  }
+  asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
+                                 p->key_value_signature.key, &values));
+
+  asio_service->post(boost::bind(&DataStore::MarkForDeletion, test_ds_,
+                                 p->key_value_signature,
+                                 RandomString(35)));
+  ++p;
+  asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
+                                 p->key_value_signature.key, &values1));
+  /*auto s= test_ds_->key_value_index_.get<TagExpireTime>().find(
+      expire_time_value_);
+  --s;
+  //std::cout<<"\nkey value of this iteration\n"<<s->key();
+  //std::cout<<"\nkey value of this iteration\n"<<(++s)->key();
+
+  /*for (int i = 0; i < 23; ++i) {
+  asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
+                                 s->key_value_signature,
+                                 &(base::RandomString(35))));
+  ++s;
+  }*/
+  /*for (int i = 0; i < 29; ++i) {
+  asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
+                                 s->key_value_signature,
+                                 KeyValueSignature(base::RandomString(i*53),
+                                 base::RandomString(i*59),
+                                 base::RandomString(i*61)),
+                                 bptime::seconds(1000), false));
+  ++s;
+  }
   for (int i = 0; i < 5; ++i) {
     asio_service->post(boost::bind(&DataStoreTest::CheckKey, this,
-                                   key_value_signature.key));
+                                   s->key_value_signature.key));
     asio_service->post(boost::bind(&DataStoreTest::CheckLoadKeyAppendableAttr,
-                                   this, key_value_signature.key));
-  }
-  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
-                                 key_value_signature1.key,
-                                 key_value_signature1.value));
+                                   this, s->key_value_signature.key));
+  }*/
   work.reset();
   asio_thread_group.join_all();
 }
-/*
+#if 0
 TEST_F(DataStoreTest, BEH_KAD_UpdateValue) {
   std::string key1 = cry_obj_.Hash("663efsxx33d", "", crypto::STRING_STRING,
       false);
@@ -434,7 +500,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteItem) {
   ASSERT_TRUE(values.empty());
   ASSERT_FALSE(test_ds_->DeleteItem(key1, value1));
 }
-*/
+#endif
 TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
   EXPECT_EQ(size_t(0), GetKeyValueIndex().size());
   std::string key = crypto::Hash<crypto::SHA512>("abc123vvd32sfdf");
@@ -477,11 +543,11 @@ TEST_F(DataStoreTest, BEH_KAD_StoreMultipleKeysWithSameValue) {
   } 
   std::vector<std::pair<std::string, std::string>> values;
   for (int i=0; i<10; i++){
-  EXPECT_TRUE(test_ds_->GetValues(key_value_signatures[i].key, &values));
-  EXPECT_EQ(1, values.size());
-  EXPECT_TRUE((key_value_signatures[i].value == values[0].first) && 
-              (key_value_signatures[i].signature == values[0].second));
-  values.clear(); 	
+    EXPECT_TRUE(test_ds_->GetValues(key_value_signatures[i].key, &values));
+    EXPECT_EQ(1, values.size());
+    EXPECT_TRUE((key_value_signatures[i].value == values[0].first) && 
+                (key_value_signatures[i].signature == values[0].second));
+    values.clear(); 	
   }
 }
 
@@ -514,70 +580,99 @@ TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValidInvalidData) {
   }
 }
 
-/*
 TEST_F(DataStoreTest, BEH_KAD_RefreshKeyValue) {
-  std::string key1 = cry_obj_.Hash("663efsxx33d", "", crypto::STRING_STRING,
-      false);
+  std::string key1 = crypto::Hash<crypto::SHA512>("663efsxx33d");
   std::string value1 = RandomString(500);
-  ASSERT_EQ(boost::uint32_t(0),  test_ds_->LastRefreshTime(key1, value1));
-  ASSERT_EQ(boost::int32_t(0),  test_ds_->ExpireTime(key1, value1));
-  boost::int32_t t_refresh1, t_refresh2, t_expire1, t_expire2;
-  ASSERT_TRUE(test_ds_->StoreItem(key1, value1, 3600*24, false));
-  t_refresh1 = test_ds_->LastRefreshTime(key1, value1);
-  t_expire1 = test_ds_->ExpireTime(key1, value1);
-  ASSERT_NE(0, t_refresh1);
-  ASSERT_NE(0, t_expire1);
-  std::vector<std::string> values;
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &values));
+  std::string signature1 = crypto::Hash<crypto::SHA512>(key1);
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   bptime::seconds(3600*24), false));
+  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+      GetKeyValueIndex().get<TagKeyValue>();
+  
+  auto it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh1 = (*it).refresh_time;
+  bptime::ptime t_expire1 = (*it).expire_time;
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh1);
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire1);
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
   ASSERT_EQ(1, values.size());
-  ASSERT_EQ(value1, values[0]);
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
   boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
   // refreshing the value
   std::string ser_del_request;
-  ASSERT_FALSE(test_ds_->RefreshItem("key1", value1, &ser_del_request));
-  ASSERT_FALSE(test_ds_->RefreshItem(key1, "value1", &ser_del_request));
-  ASSERT_FALSE(test_ds_->RefreshItem("key1", "value1", &ser_del_request));
-  ASSERT_TRUE(test_ds_->RefreshItem(key1, value1, &ser_del_request));
-  t_refresh2 = test_ds_->LastRefreshTime(key1, value1);
-  t_expire2 = test_ds_->ExpireTime(key1, value1);
-  ASSERT_LT(t_refresh1, t_refresh2);
-  ASSERT_EQ(t_expire1, t_expire2);
+  EXPECT_FALSE(test_ds_->RefreshKeyValue(KeyValueSignature ("key1", value1, 
+                                                            signature1),
+                                         &ser_del_request));
+  EXPECT_FALSE(test_ds_->RefreshKeyValue(KeyValueSignature (key1, "value1", 
+                                                            signature1),
+                                         &ser_del_request));
+  EXPECT_FALSE(test_ds_->RefreshKeyValue(KeyValueSignature (key1, value1, 
+                                                            "signature1"),
+                                         &ser_del_request));
+  EXPECT_FALSE(test_ds_->RefreshKeyValue(KeyValueSignature ("key1", "value1", 
+                                                            "signature1"),
+                                         &ser_del_request));
+  EXPECT_TRUE(test_ds_->RefreshKeyValue(KeyValueSignature (key1, value1, 
+                                                           signature1),
+                                         &ser_del_request));
+  index_by_key_value = GetKeyValueIndex().get<TagKeyValue>();
+  it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh2 = (*it).refresh_time;
+  bptime::ptime t_expire2 = (*it).expire_time;
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh2);
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire2);
+  EXPECT_LT(t_refresh1, t_refresh2);
+  EXPECT_EQ(t_expire1, t_expire2);
   values.clear();
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &values));
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
   ASSERT_EQ(1, values.size());
-  ASSERT_EQ(value1, values[0]);
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
 }
 
 TEST_F(DataStoreTest, BEH_KAD_RepublishKeyValue) {
-  std::string key1 = cry_obj_.Hash("663efsxx33d", "", crypto::STRING_STRING,
-      false);
+  std::string key1 = crypto::Hash<crypto::SHA512>("663efsxx33d");
   std::string value1 = RandomString(500);
-  ASSERT_EQ(boost::uint32_t(0),  test_ds_->LastRefreshTime(key1, value1));
-  ASSERT_EQ(boost::int32_t(0),  test_ds_->ExpireTime(key1, value1));
-  ASSERT_EQ(boost::uint32_t(0),  test_ds_->TimeToLive(key1, value1));
-  boost::int32_t t_refresh1, t_refresh2, t_expire1, t_expire2;
-  ASSERT_TRUE(test_ds_->StoreItem(key1, value1, 3600*24, false));
-  t_refresh1 = test_ds_->LastRefreshTime(key1, value1);
-  t_expire1 = test_ds_->ExpireTime(key1, value1);
-  ASSERT_NE(0, t_refresh1);
-  ASSERT_NE(0, t_expire1);
-  std::vector<std::string> values;
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &values));
+  std::string signature1 = crypto::Hash<crypto::SHA512>(key1);
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   bptime::seconds(3600*24), false));
+  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+      GetKeyValueIndex().get<TagKeyValue>();
+  auto it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh1 = (*it).refresh_time;
+  bptime::ptime t_expire1 = (*it).expire_time;
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh1);
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire1);
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
   ASSERT_EQ(1, values.size());
-  ASSERT_EQ(value1, values[0]);
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
   boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
   // republishing the value
-  ASSERT_TRUE(test_ds_->StoreItem(key1, value1, 3600*24, false));
-  t_refresh2 = test_ds_->LastRefreshTime(key1, value1);
-  t_expire2 = test_ds_->ExpireTime(key1, value1);
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   bptime::seconds(3600*24), false));
+  index_by_key_value = GetKeyValueIndex().get<TagKeyValue>();
+  it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh2 = (*it).refresh_time;
+  bptime::ptime t_expire2 = (*it).expire_time;
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh2);
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire2);
   ASSERT_LT(t_refresh1, t_refresh2);
   ASSERT_LT(t_expire1, t_expire2);
   values.clear();
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &values));
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
   ASSERT_EQ(1, values.size());
-  ASSERT_EQ(value1, values[0]);
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
 }
-
+#if 0
 TEST_F(DataStoreTest, FUNC_KAD_GetValuesToRefresh) {
   // data store with refresh time set to 3 seconds for test
   DataStore ds(3);
@@ -791,31 +886,77 @@ TEST_F(DataStoreTest, BEH_KAD_ClearDataStore) {
   test_ds_->Keys(&keys);
   ASSERT_EQ(0, keys.size());
 }
-
+#endif
 TEST_F(DataStoreTest, FUNC_KAD_ExpiredValuesNotReturned) {
   std::string value = RandomString(100);
-  std::string key = cry_obj_.Hash(RandomString(5), "",
-      crypto::STRING_STRING, false);
-  test_ds_->StoreItem(key, value, 3, false);
-  std::vector<std::string> rec_values;
-  ASSERT_TRUE(test_ds_->LoadItem(key, &rec_values));
-  ASSERT_FALSE(rec_values.empty());
-  ASSERT_EQ(value, rec_values[0]);
-
-  rec_values.clear();
+  std::string key = crypto::Hash<crypto::SHA512>(RandomString(5));
+  std::string signature = crypto::Hash<crypto::SHA512>(RandomString(5));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value, signature), 
+									                 bptime::seconds(3), false));   
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key, &values));
+  EXPECT_FALSE(values.empty());
+  EXPECT_EQ(value, values[0].first);
+  EXPECT_EQ(signature, values[0].second);
+  values.clear();
   boost::this_thread::sleep(boost::posix_time::seconds(4));
-  ASSERT_FALSE(test_ds_->LoadItem(key, &rec_values));
-  ASSERT_TRUE(rec_values.empty());
+  EXPECT_FALSE(test_ds_->GetValues(key, &values));
+  EXPECT_TRUE(values.empty());
 
   std::string value2 = RandomString(100);
-  test_ds_->StoreItem(key, value, 3, false);
-  test_ds_->StoreItem(key, value2, 100, false);
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value, signature), 
+									                 bptime::seconds(3), false));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value2, signature), 
+									                 bptime::seconds(100), false));
   boost::this_thread::sleep(boost::posix_time::seconds(4));
-  ASSERT_TRUE(test_ds_->LoadItem(key, &rec_values));
-  ASSERT_EQ(1, rec_values.size());
-  ASSERT_EQ(value2, rec_values[0]);
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues(key, &values));
+  EXPECT_EQ(size_t(1), values.size());
+  EXPECT_EQ(value2, values[0].first);
 }
 
+TEST_F(DataStoreTest, BEH_KAD_AllKeyValueTuplePrivateAttributes) {
+  std::string value(RandomString(50));
+  std::string key(crypto::Hash<crypto::SHA512>(RandomString(5)));
+  std::string signature(RandomString(50));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value, signature), 
+                                   bptime::seconds(100), false));
+  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+      GetKeyValueIndex().get<TagKeyValue>();
+  auto it = index_by_key_value.find(boost::make_tuple(key, value));
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key, &values));
+  EXPECT_EQ(size_t(1), values.size());
+  EXPECT_EQ(value, values[0].first);
+  EXPECT_EQ(signature, values[0].second);
+  
+  bptime::ptime t_refresh1 = (*it).refresh_time;
+  bptime::ptime t_expire1 = (*it).expire_time;
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh1);
+  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire1);
+  EXPECT_FALSE( (*it).expire_time.is_pos_infinity());
+  EXPECT_EQ(kNotDeleted, (*it).delete_status);
+  EXPECT_EQ(false, (*it).hashable);
+  EXPECT_TRUE((*it).serialised_delete_request.empty());
+  values.clear();
+  std::string value2(RandomString(50));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value, signature), 
+                                   bptime::seconds(bptime::pos_infin), false));
+  it = index_by_key_value.find(boost::make_tuple(key, value));
+  EXPECT_TRUE((*it).expire_time.is_pos_infinity());
+
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key, value2, signature), 
+                                   bptime::seconds(bptime::pos_infin), false));
+  EXPECT_TRUE(test_ds_->GetValues(key, &values));
+  ASSERT_EQ(size_t(2), values.size());
+  EXPECT_EQ(value, values[0].first);
+  EXPECT_EQ(value2, values[1].first);
+  EXPECT_EQ(signature, values[0].second);
+  EXPECT_EQ(signature, values[1].second);
+  it = index_by_key_value.find(boost::make_tuple(key, value2));
+  EXPECT_TRUE((*it).expire_time.is_pos_infinity());
+}
+#if 0
 TEST_F(DataStoreTest, BEH_KAD_ItemsWithInfTTL) {
   std::string value(RandomString(50));
   std::string key(cry_obj_.Hash(RandomString(5), "",
@@ -828,44 +969,56 @@ TEST_F(DataStoreTest, BEH_KAD_ItemsWithInfTTL) {
   ASSERT_EQ(-1, test_ds_->TimeToLive(key, value));
   ASSERT_EQ(0, test_ds_->ExpireTime(key, value));
 }
-
+#endif 
 TEST_F(DataStoreTest, BEH_KAD_ChangeDelStatus) {
-  std::string value1(RandomString(50)), value2(RandomString(50)),
-    value3(RandomString(50));
-  std::string key1(cry_obj_.Hash(RandomString(5), "",
-      crypto::STRING_STRING, false));
-  std::string key2(cry_obj_.Hash(RandomString(5), "",
-      crypto::STRING_STRING, false));
-  ASSERT_TRUE(test_ds_->StoreItem(key1, value1, 1000, false));
-  ASSERT_TRUE(test_ds_->StoreItem(key1, value2, 1000, false));
-  ASSERT_TRUE(test_ds_->StoreItem(key2, value3, 1000, false));
-  std::vector<std::string> rec_values;
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &rec_values));
-  ASSERT_EQ(2, rec_values.size());
-  for (size_t i = 0; i < rec_values.size(); ++i)
-    if (rec_values[i] != value1 && rec_values[i] != value2)
+  std::string value1(RandomString(100)), value2(RandomString(50)),
+    value3(RandomString(150));
+  std::string key1(crypto::Hash<crypto::SHA512>(RandomString(5)));
+  std::string key2(crypto::Hash<crypto::SHA512>(RandomString(15)));
+  std::string signature1(crypto::Hash<crypto::SHA512>(RandomString(5)));
+  std::string signature2(crypto::Hash<crypto::SHA512>(RandomString(5)));
+  std::string signature3(crypto::Hash<crypto::SHA512>(RandomString(5)));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   bptime::seconds(1000), false));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value2, signature2),
+                                   bptime::seconds(1000), false));
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key2, value3, signature3),
+                                   bptime::seconds(1000), false));
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  EXPECT_EQ(size_t(2), values.size());
+  for (size_t i = 0; i < values.size(); ++i)
+    if (values[i].first != value1 && values[i].first != value2)
       FAIL();
-
-  rec_values.clear();
-  ASSERT_TRUE(test_ds_->LoadItem(key2, &rec_values));
-  ASSERT_EQ(1, rec_values.size());
-  ASSERT_EQ(value3, rec_values[0]);
-  rec_values.clear();
-  ASSERT_TRUE(test_ds_->MarkForDeletion(key1, value2, "delete request"));
-  ASSERT_TRUE(test_ds_->LoadItem(key1, &rec_values));
-  ASSERT_EQ(1, rec_values.size());
-  ASSERT_EQ(value1, rec_values[0]);
-  rec_values.clear();
-  ASSERT_FALSE(test_ds_->MarkAsDeleted(key2, value3));
-  ASSERT_TRUE(test_ds_->MarkForDeletion(key2, value3, "delete request"));
-  ASSERT_TRUE(test_ds_->MarkAsDeleted(key2, value3));
-  ASSERT_FALSE(test_ds_->LoadItem(key2, &rec_values));
-  ASSERT_TRUE(rec_values.empty());
-
-  ASSERT_FALSE(test_ds_->MarkForDeletion("bad key", value2, "delete request"));
-  ASSERT_FALSE(test_ds_->MarkAsDeleted(key2, "anothervalue"));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues(key2, &values));
+  EXPECT_EQ(size_t(1), values.size());
+  EXPECT_EQ(value3, values[0].first);
+  EXPECT_EQ(signature3, values[0].second);
+  values.clear();
+  EXPECT_TRUE(test_ds_->MarkForDeletion(KeyValueSignature(key1, value2, 
+                                                          signature2),
+                                        "delete request"));
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  ASSERT_EQ(size_t(1), values.size());
+  EXPECT_EQ(value1, values[0].first);
+  values.clear();
+  EXPECT_TRUE(test_ds_->MarkForDeletion(KeyValueSignature(key2, value3, 
+                                                          signature3),
+                                        "delete request"));
+  EXPECT_TRUE(test_ds_->MarkForDeletion(KeyValueSignature(key2, value3, 
+                                                          signature3),
+                                        "delete request"));
+  EXPECT_FALSE(test_ds_->GetValues(key2, &values));
+  EXPECT_TRUE(values.empty());
+  EXPECT_FALSE(test_ds_->MarkForDeletion(KeyValueSignature("bad key", value2, 
+                                                           signature2),
+                                         "delete request"));
+  values.clear();
+  EXPECT_FALSE(test_ds_->GetValues("bad key", &values));
+  EXPECT_TRUE(values.empty());
 }
-
+#if 0
 TEST_F(DataStoreTest, FUNC_KAD_CheckDelStatusValuesToRefresh) {
   // data store with refresh time set to 3 seconds for test
   DataStore ds(3);
@@ -968,7 +1121,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteDelStatusExpiredValues) {
   ASSERT_TRUE(test_ds_->Keys(&keys));
   ASSERT_TRUE(keys.empty());
 }
-*/ 
+#endif 
 TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
   size_t total_values(5);
   for (size_t n = 0; n < total_values; ++n) {
@@ -1005,33 +1158,69 @@ TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
   values.clear();
   EXPECT_TRUE(test_ds_->GetValues("key0", &values));
   EXPECT_EQ(size_t(6), values.size());
-  
-  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "value_2",
+  //new value already existing under the kye 
+  EXPECT_TRUE(test_ds_->UpdateValue(KeyValueSignature("key0", "value_2",
                                                        "signature_2"), 
                                      KeyValueSignature("key0","misbolas0", 
                                                        "misbolas0"),
-                                     bptime::seconds(500), true));
+			                               bptime::seconds(500), true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues("key0", &values));
+  EXPECT_EQ(size_t(5), values.size());
+  //updating with same value  
+  EXPECT_TRUE(test_ds_->UpdateValue(KeyValueSignature("key0", "value_3",
+                                                       "signature_3"), 
+                                     KeyValueSignature("key0","value_3", 
+                                                       "signature_3"),
+			                               bptime::seconds(500), true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues("key0", &values));
+  EXPECT_EQ(size_t(5), values.size());
   //Attempting to change key
   EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "value_3",
                                                        "signature_3"), 
                                      KeyValueSignature("key99","value_99", 
                                                        "signature_99"),
-                                     bptime::seconds(30000), true));
+			                               bptime::seconds(30000), true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues("key0", &values));
+  EXPECT_EQ(size_t(5), values.size());
   EXPECT_TRUE(test_ds_->UpdateValue(KeyValueSignature("key0", "value_4", 
                                                       "signature_4"),
                                     KeyValueSignature("key0","bolotas0", 
                                                       "bolotas0"),
-                                    bptime::seconds(500), true));
-
+			                              bptime::seconds(500), true));
   values.clear();
   EXPECT_TRUE(test_ds_->GetValues("key0", &values));
-  EXPECT_EQ(size_t(6), values.size());
-  size_t i =0;
+  EXPECT_EQ(size_t(5), values.size());
   size_t count =std::count_if(values.begin(), values.end(), 
-                              boost::bind(&DataStoreTest::findValue, 
-                                          this, _1, std::make_pair("bolotas0",
-                                                                   "bolotas0")));
+                              boost::bind(&DataStoreTest::findValue, this, _1, 
+                                          std::make_pair("bolotas0",
+                                                         "bolotas0")));
   EXPECT_EQ(size_t(1), count);
+  // Invalid key/value/signature
+  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "bolotas0",
+                                                       "bolotas0"), 
+                                     KeyValueSignature("key0","", 
+                                                       "signature_99"),
+			                               bptime::seconds(500), true));
+  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "bolotas0",
+                                                        "bolotas0"), 
+                                     KeyValueSignature("key0","value_99", 
+                                                       ""),
+			                               bptime::seconds(500), true));
+  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "bolotas0",
+                                                       "bolotas0"), 
+                                     KeyValueSignature("key0", "", ""),
+			                               bptime::seconds(500), true));
+  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature("key0", "bolotas0",
+                                                       "bolotas0"), 
+                                     KeyValueSignature("","value_99", 
+                                                       "signature_99"),
+			                               bptime::seconds(500), true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues("key0", &values));
+  EXPECT_EQ(size_t(5), values.size());
 }
 
 }  // namespace test
