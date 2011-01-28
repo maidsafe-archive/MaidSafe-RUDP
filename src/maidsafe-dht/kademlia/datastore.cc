@@ -80,7 +80,8 @@ void KeyValueTuple::set_refresh_time(const bptime::ptime &new_refresh_time) {
 
 void KeyValueTuple::UpdateDeleteStatus(
     const DeleteStatus &new_delete_status,
-    const bptime::ptime &new_refresh_time) {
+    const bptime::ptime &new_refresh_time,
+    const std::string &serialised_delete_request) {
   delete_status = new_delete_status;
   refresh_time = new_refresh_time;
 }
@@ -133,7 +134,7 @@ bool DataStore::StoreValue(const KeyValueSignature &key_value_signature,
                            const bptime::seconds &ttl,
                            const bool &hashable) {
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
-      ttl == bptime::seconds(0))
+    key_value_signature.signature.empty() || ttl == bptime::seconds(0))
     return false;
 
   bptime::ptime now(bptime::microsec_clock::universal_time());
@@ -326,7 +327,7 @@ bool DataStore::MarkForDeletion(const KeyValueSignature &key_value_signature,
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   return index_by_key_value.modify(it,
       boost::bind(&KeyValueTuple::UpdateDeleteStatus, _1, kMarkedForDeletion,
-                  now + refresh_interval_));
+                  now + refresh_interval_, serialised_delete_request));
 }
 
 /*
@@ -357,7 +358,10 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
   if (old_key_value_signature.key != new_key_value_signature.key)
     return false;
   UpgradeLock upgrade_lock(shared_mutex_);
-
+  if (new_key_value_signature.value.empty()||
+      new_key_value_signature.signature.empty()||
+      (old_key_value_signature.key != new_key_value_signature.key))
+	  return false;
   auto it = index_by_key_value.find(boost::make_tuple(
       old_key_value_signature.key, old_key_value_signature.value));
   if (it == index_by_key_value.end() ||
@@ -367,9 +371,13 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
 
   bptime::ptime now(bptime::microsec_clock::universal_time());
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  return index_by_key_value.modify(it,
+  //ignoring the return value of modify to return true for cases updating
+  //existing values
+  index_by_key_value.modify(it,
       boost::bind(&KeyValueTuple::UpdateKeyValueSignature, _1,
                   new_key_value_signature, now + refresh_interval_));
+  
+  return true;
 }
 
 bptime::seconds DataStore::refresh_interval() const {

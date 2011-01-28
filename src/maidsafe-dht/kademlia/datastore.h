@@ -103,7 +103,8 @@ struct KeyValueTuple {
       const bptime::ptime &new_refresh_time);
   void set_refresh_time(const bptime::ptime &new_refresh_time);
   void UpdateDeleteStatus(const DeleteStatus &new_delete_status,
-                          const bptime::ptime &new_refresh_time);
+                          const bptime::ptime &new_refresh_time,
+                          const std::string &serialised_delete_request);
   KeyValueSignature key_value_signature;
   bptime::ptime expire_time, refresh_time;
   bool hashable;
