@@ -61,7 +61,7 @@ class KBucket;
 struct RoutingTableContact {
   RoutingTableContact(const Contact &contact_in, const NodeId holder_id)
       : contact(contact_in),
-        validated_public_keys(),
+        public_key(),
         num_failed_rpcs(0),
         distance_to_this_id(contact_in.node_id()^holder_id),
         kbucket_index(0),
@@ -78,14 +78,14 @@ struct RoutingTableContact {
   // unique and sorted, just use the upper_boundary
   NodeId kbucket_index;
   
-  std::vector<std::string> validated_public_keys;
+  std::string public_key;
   boost::uint16_t num_failed_rpcs;
   bptime::ptime last_seen;
   RankInfoPtr rank_info;
 };
 
 struct ChangeKBucketIndex {
-  ChangePublicKey(NodeId new_kbucket_index)
+  ChangeKBucketIndex(NodeId new_kbucket_index)
       : new_kbucket_index(new_kbucket_index) {}
 
   void operator()(RoutingTableContact& contact){
@@ -96,14 +96,14 @@ private:
 };
 
 struct ChangePublicKey {
-  ChangePublicKey(std::vector<std::string> new_public_keys)
-      : new_public_keys(new_public_keys) {}
+  ChangePublicKey(std::string new_public_key)
+      : new_public_key(new_public_key) {}
 
   void operator()(RoutingTableContact& contact){
-    contact.validated_public_keys=new_public_keys;
+    contact.public_key=new_public_key;
   }
 private:
-  std::vector<std::string> new_public_keys;
+  std::string new_public_key;
 };
 
 struct ChangeRankInfo {
@@ -128,7 +128,7 @@ private:
 };
 
 struct ChangeLastSeen {
-  ChangeRankInfo(bptime::ptime new_last_seen):new_last_seen(new_last_seen){}
+  ChangeLastSeen(bptime::ptime new_last_seen):new_last_seen(new_last_seen){}
 
   void operator()(RoutingTableContact& contact){
     contact.last_seen=new_last_seen;
@@ -175,8 +175,9 @@ typedef boost::multi_index_container<
                                NodeId, kbucket_index)
     >,
     bmi::ordered_non_unique<
+      bmi::tag<KBucketLastSeenTag>,
       bmi::composite_key<
-        bmi::tag<KBucketLastSeenTag>,
+        RoutingTableContact,
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
                                 NodeId, kbucket_index),
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
@@ -184,8 +185,9 @@ typedef boost::multi_index_container<
       >
     >,
     bmi::ordered_non_unique<
+      bmi::tag<KBucketDistanceToThisIdTag>,
       bmi::composite_key<
-        bmi::tag<KBucketDistanceToThisIdTag>,
+        RoutingTableContact,
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
                                 NodeId, kbucket_index),
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
@@ -207,7 +209,7 @@ typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type
 
 
 struct KBucketBoundary {
-  kbucket_boundary(NodeId upper_boundary, NodeId lower_boundary)
+  KBucketBoundary(NodeId upper_boundary, NodeId lower_boundary)
       : upper_boundary(upper_boundary) ,
         lower_boundary(lower_boundary) {}
   NodeId upper_boundary;
@@ -245,11 +247,11 @@ typedef boost::multi_index_container<
   bmi::indexed_by<
     bmi::ordered_unique<
       bmi::tag<UpperBoundaryTag>,
-      BOOST_MULTI_INDEX_CONST_MEM_FUN(KBucketBoundary, NodeId, upper_boundary)
+      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, NodeId, upper_boundary)
     >,
     bmi::ordered_unique<
       bmi::tag<LowerBoundaryTag>,
-      BOOST_MULTI_INDEX_CONST_MEM_FUN(KBucketBoundary, NodeId, lower_boundary)
+      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, NodeId, lower_boundary)
     >
   >
 > KBucketBoundariesContainer;
@@ -285,10 +287,10 @@ class RoutingTable {
   void GetBootstrapContacts(std::vector<Contact> *contacts);    
 
   // num of kbuckets in this node
-  size_t KbucketSize() const;
+  boost::uint16_t KbucketSize() const;
   
   // num of contacts in the routing table
-  size_t Size() const;
+  boost::uint16_t Size() const;
   
   void Clear();
   // Calculate the index of the k-bucket which is responsible for the specified
@@ -305,14 +307,14 @@ class RoutingTable {
 //  int KBucketIndex(const std::string &key);
  
   // Bisect the k-bucket in the specified index into two new ones
-  void SplitKbucket(const boost::uint16_t &index);
+  void SplitKbucket(const NodeId &kbucket_index);
   // Forces the brother k-bucket of the holder to accept a new contact which
   // would normally be dropped if it is within the k closest contacts to the
   // holder's ID.
   int ForceKAcceptNewPeer(const Contact &new_contact, const NodeId &target_bucket);
 
   // num of contacts in a specified kbucket
-  size_t KBucketSize(const NodeId &key) const;
+  boost::uint16_t KBucketSize(const NodeId &key) const;
 
   // Holder's node ID
   const NodeId kThisId_;
