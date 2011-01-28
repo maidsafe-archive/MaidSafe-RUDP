@@ -29,7 +29,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/common/crypto.h"
 #include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
+#include "maidsafe-dht/kademlia/kademlia.pb.h"
 #include "maidsafe-dht/kademlia/node_id.h"
+#include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/utils.h"
 
 namespace maidsafe {
@@ -45,155 +47,101 @@ TEST(TestContact, BEH_KAD_GetIpPortNodeId) {
   NodeId node_id(crypto::Hash<crypto::SHA512>("1238425"));
   transport::Endpoint ep(ip, port);
   Contact contact(node_id, ep);
-  ASSERT_EQ(ip, contact.GetPreferredEndpoint().ip.to_string());
-//  ASSERT_EQ(ip, transport::IpBytesToAscii(contact.ip()));
-  ASSERT_EQ(node_id, contact.node_id());
-  ASSERT_EQ(port, contact.GetPreferredEndpoint().port);
-//  ASSERT_EQ(transport::IpAsciiToBytes(local_ip), contact.local_ip());
-//  ASSERT_EQ(local_ip, transport::IpBytesToAscii(contact.local_ip()));
-//  ASSERT_EQ(local_port, contact.local_port());
+  EXPECT_EQ(ip, contact.GetPreferredEndpoint().ip.to_string());
+//  EXPECT_EQ(ip, transport::IpBytesToAscii(contact.ip()));
+  EXPECT_EQ(node_id, contact.node_id());
+  EXPECT_EQ(port, contact.GetPreferredEndpoint().port);
+//  EXPECT_EQ(transport::IpAsciiToBytes(local_ip), contact.local_ip());
+//  EXPECT_EQ(local_ip, transport::IpBytesToAscii(contact.local_ip()));
+//  EXPECT_EQ(local_port, contact.local_port());
 }
-/*
+
 TEST(TestContact, BEH_KAD_OverloadedOperators) {
-  std::string ip("192.168.1.55");
-  std::string local_ip(ip);
-  boost::uint16_t port(8888);
-  boost::uint16_t local_port(port);
-  std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
-      false));
-  Contact contact1(node_id, ip, port, local_ip, local_port);
-  Contact contact2(node_id, ip, port, local_ip, local_port);
-  ASSERT_TRUE(contact1.Equals(contact2));
-  Contact contact3(node_id, ip, 8889);
-  ASSERT_TRUE(contact1.Equals(contact3));
-  Contact contact4(node_id, "192.168.2.54", port, "192.168.2.54", port);
-  ASSERT_TRUE(contact1.Equals(contact4));
-  Contact contact5(cry_obj.Hash("5612348", "", crypto::STRING_STRING,
-      false), ip, port, ip, port);
-  ASSERT_FALSE(contact1.Equals(contact5));
-  Contact contact6(cry_obj.Hash("5612348", "", crypto::STRING_STRING,
-      false), ip, 8889, ip, 8889);
-  ASSERT_FALSE(contact1.Equals(contact6));
-  Contact contact7(node_id, "192.168.2.54", 8889, "192.168.2.54", 8889);
-  ASSERT_TRUE(contact1.Equals(contact7));
+  NodeId node_id(crypto::Hash<crypto::SHA512>("1238425"));
+  transport::Endpoint endpoint("192.168.1.55", 8888);
+  Contact contact1(node_id, endpoint);
+  Contact contact2(node_id, endpoint);
+  EXPECT_EQ(contact1, contact2);
+
+  Contact contact3(node_id, transport::Endpoint("192.168.1.55", 8889));
+  EXPECT_EQ(contact1, contact3);
+
+  std::vector<transport::Endpoint> locals(10,
+      transport::Endpoint("192.168.1.1", 10000));
+  Contact contact4(node_id, transport::Endpoint("192.168.2.155", 8888),
+                   transport::Endpoint("192.168.2.155", 8888), locals);
+  EXPECT_EQ(contact1, contact4);
+
+  Contact contact5(NodeId(crypto::Hash<crypto::SHA512>("5612348")), endpoint);
+  EXPECT_NE(contact1, contact5);
+
+  Contact contact6(NodeId(crypto::Hash<crypto::SHA512>("5612348")),
+                   transport::Endpoint("192.168.1.55", 8889));
+  EXPECT_NE(contact1, contact6);
+
+  Contact contact7(node_id, transport::Endpoint("192.168.2.54", 8889));
+  EXPECT_EQ(contact1, contact7);
+
   contact6 = contact1;
-  ASSERT_TRUE(contact1.Equals(contact6));
+  EXPECT_EQ(contact1, contact6);
+
   Contact contact8(contact1);
-  ASSERT_TRUE(contact1.Equals(contact8));
-  Contact contact9(kClientId, "127.0.0.1", 1234);
-  Contact contact10(kClientId, "127.0.0.2", 1234);
-  ASSERT_FALSE(contact9.Equals(contact10));
+  EXPECT_EQ(contact1, contact8);
+
+  Contact contact9(NodeId(kZeroId), transport::Endpoint("127.0.0.1", 1234));
+  Contact contact10(NodeId(kZeroId), transport::Endpoint("127.0.0.2", 1234));
+  EXPECT_NE(contact9, contact10);
+
   Contact contact11(contact9);
-  ASSERT_TRUE(contact9.Equals(contact11));
+  EXPECT_EQ(contact9, contact11);
+
+  EXPECT_LT(contact9, contact1);
+  EXPECT_GT(contact1, contact9);
+  EXPECT_LE(contact9, contact1);
+  EXPECT_LE(contact1, contact1);
+  EXPECT_GE(contact1, contact9);
+  EXPECT_GE(contact9, contact9);
 }
 
-TEST(TestContact, BEH_KAD_IncreaseGetFailedRPC) {
-  std::string ip("192.168.1.55");
-  std::string local_ip(ip);
-  boost::uint16_t port(8888);
-  boost::uint16_t local_port(port);
-  std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
-    false));
-  Contact contact(node_id, ip, port, local_ip, local_port);
-  ASSERT_EQ(0, static_cast<int>(contact.failed_rpc()));
-  contact.IncreaseFailed_RPC();
-  ASSERT_EQ(1, static_cast<int>(contact.failed_rpc()));
-  contact.IncreaseFailed_RPC();
-  ASSERT_EQ(2, static_cast<int>(contact.failed_rpc()));
-  contact.IncreaseFailed_RPC();
-  ASSERT_EQ(3, static_cast<int>(contact.failed_rpc()));
+TEST(TestContact, BEH_KAD_SetPreferredEndpoint) {
+  FAIL() << "Test needs implementing";
 }
 
-TEST(TestContact, BEH_KAD_ContactPointer) {
-  std::string ip("192.168.1.55");
-  std::string local_ip(ip);
-  boost::uint16_t port(8888);
-  boost::uint16_t local_port(port);
-  std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
-      false));
-  Contact *contact = new Contact(node_id, ip, port, local_ip,
-    local_port);
-  ASSERT_EQ(IpAsciiToBytes(ip), contact->ip());
-  ASSERT_EQ(ip, IpBytesToAscii(contact->ip()));
-  ASSERT_EQ(node_id, contact->node_id().String());
-  ASSERT_EQ(port, contact->port());
-  ASSERT_EQ(IpAsciiToBytes(local_ip), contact->local_ip());
-  ASSERT_EQ(local_ip, IpBytesToAscii(contact->local_ip()));
-  ASSERT_EQ(local_port, contact->local_port());
-  ASSERT_EQ(0, contact->failed_rpc());
-  contact->IncreaseFailed_RPC();
-  ASSERT_EQ(1, contact->failed_rpc());
-  delete contact;
-}
+TEST(TestContact, BEH_KAD_ToFromProtobuf) {
+  transport::Endpoint endpoint("192.168.1.55", 8888);
+  transport::Endpoint rv_endpoint("192.168.2.56", 9999);
+  std::vector<transport::Endpoint> local_endpoints;
+  for (int i = 0; i < 10; ++i) {
+    local_endpoints.push_back(transport::Endpoint("192.168.1." + IntToString(i),
+                                                  10000));
+  }
+  NodeId node_id(crypto::Hash<crypto::SHA512>("1238425"));
+  Contact contact(node_id, endpoint, rv_endpoint, local_endpoints);
 
-TEST(TestContact, BEH_KAD_SerialiseToString) {
-  std::string ip("192.168.1.55");
-  std::string local_ip(ip);
-  boost::uint16_t port(8888);
-  boost::uint16_t local_port(port);
-  std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
-      false));
-  Contact contact(node_id, ip, port, local_ip, local_port);
+  protobuf::Contact proto_contact(ToProtobuf(contact));
+  EXPECT_TRUE(proto_contact.IsInitialized());
+
   std::string ser_contact;
-  ASSERT_TRUE(contact.SerialiseToString(&ser_contact));
-  Contact contact1;
-  std::string ser_contact1;
-  ASSERT_FALSE(contact1.SerialiseToString(&ser_contact1));
-  ASSERT_TRUE(contact1.ParseFromString(ser_contact));
-  ASSERT_FALSE(contact1.ParseFromString("invaliddata"));
-  ASSERT_EQ(ip, IpBytesToAscii(contact1.ip()));
-  ASSERT_EQ(port, contact1.port());
-  ASSERT_EQ(node_id, contact1.node_id().String());
-  ASSERT_EQ(local_ip, IpBytesToAscii(contact1.local_ip()));
-  ASSERT_EQ(local_port, contact1.port());
+  EXPECT_TRUE(proto_contact.SerializeToString(&ser_contact));
+  protobuf::Contact proto_contact1;
+  EXPECT_TRUE(proto_contact1.ParseFromString(ser_contact));
+
+  Contact contact1(FromProtobuf(proto_contact1));
+  EXPECT_EQ(contact.node_id(), contact1.node_id());
+  EXPECT_EQ(contact.endpoint().ip, contact1.endpoint().ip);
+  EXPECT_EQ(contact.endpoint().port, contact1.endpoint().port);
+  EXPECT_EQ(contact.rendezvous_endpoint().ip,
+            contact1.rendezvous_endpoint().ip);
+  EXPECT_EQ(contact.rendezvous_endpoint().port,
+            contact1.rendezvous_endpoint().port);
+  for (int i = 0; i < 10; ++i) {
+    std::vector<transport::Endpoint> &locals(contact.local_endpoints());
+    std::vector<transport::Endpoint> &locals1(contact1.local_endpoints());
+    EXPECT_EQ(locals.at(i).ip, locals1.at(i).ip);
+    EXPECT_EQ(locals.at(i).port, locals1.at(i).port);
+  }
 }
 
-TEST(TestContact, BEH_KAD_Constructors) {
-  // empty contact
-  Contact ctc1;
-  NodeId id1;
-  ASSERT_EQ(id1.String(), ctc1.node_id().String());
-  ASSERT_EQ("", ctc1.ip());
-  ASSERT_EQ("", ctc1.local_ip());
-  ASSERT_EQ("", ctc1.rendezvous_ip());
-  ASSERT_EQ(0, ctc1.port());
-  ASSERT_EQ(0, ctc1.local_port());
-  ASSERT_EQ(0, ctc1.rendezvous_port());
-  ASSERT_EQ("Empty contact.\n", ctc1.DebugString());
-
-  std::string ip(IpAsciiToBytes("192.168.1.55"));
-  boost::uint16_t port(8888);
-  std::string node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING,
-    false));
-  Contact ctc2(node_id, ip, port);
-  NodeId id2(node_id);
-  ASSERT_EQ(id2.String(), ctc2.node_id().String());
-  ASSERT_EQ(ip, ctc2.ip());
-  ASSERT_EQ("", ctc2.local_ip());
-  ASSERT_EQ("", ctc2.rendezvous_ip());
-  ASSERT_EQ(port, ctc2.port());
-  ASSERT_EQ(0, ctc2.local_port());
-  ASSERT_EQ(0, ctc2.rendezvous_port());
-
-  Contact ctc3(node_id, ip, port, ip, port);
-  ASSERT_EQ(id2.String(), ctc3.node_id().String());
-  ASSERT_EQ(ip, ctc3.ip());
-  ASSERT_EQ(ip, ctc3.local_ip());
-  ASSERT_EQ("", ctc3.rendezvous_ip());
-  ASSERT_EQ(port, ctc3.port());
-  ASSERT_EQ(port, ctc3.local_port());
-  ASSERT_EQ(0, ctc3.rendezvous_port());
-
-  Contact ctc4(node_id, ip, port, ip, port, ip, port);
-  ASSERT_EQ(id2.String(), ctc4.node_id().String());
-  ASSERT_EQ(ip, ctc4.ip());
-  ASSERT_EQ(ip, ctc4.local_ip());
-  ASSERT_EQ(ip, ctc4.rendezvous_ip());
-  ASSERT_EQ(port, ctc4.port());
-  ASSERT_EQ(port, ctc4.local_port());
-  ASSERT_EQ(port, ctc4.rendezvous_port());
-}
-*/
 TEST(TestContact, BEH_KAD_ContactWithinClosest) {
   std::vector<Contact> contacts;
   transport::Endpoint endpoint;

@@ -80,12 +80,28 @@ Contact& Contact::operator=(const Contact &other) {
   return *this;
 }
 
+bool Contact::operator==(const Contact &other) const {
+  return *pimpl_ == *other.pimpl_;
+}
+
+bool Contact::operator!=(const Contact &other) const {
+  return *pimpl_ != *other.pimpl_;
+}
+
 bool Contact::operator<(const Contact &other) const {
   return *pimpl_ < *other.pimpl_;
 }
 
-bool Contact::operator==(const Contact &other) const {
-  return *pimpl_ == *other.pimpl_;
+bool Contact::operator>(const Contact &other) const {
+  return *pimpl_ > *other.pimpl_;
+}
+
+bool Contact::operator<=(const Contact &other) const {
+  return *pimpl_ <= *other.pimpl_;
+}
+
+bool Contact::operator>=(const Contact &other) const {
+  return *pimpl_ >= *other.pimpl_;
 }
 
 bool CloserToTarget(const Contact &contact1,

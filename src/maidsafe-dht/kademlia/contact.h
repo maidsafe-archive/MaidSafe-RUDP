@@ -62,9 +62,13 @@ class Contact {
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
   Contact& operator=(const Contact &other);
-  bool operator<(const Contact &other) const;
   // Equality is based on node id or (IP and port) if dummy
   bool operator==(const Contact &other) const;
+  bool operator!=(const Contact &other) const;
+  bool operator<(const Contact &other) const;
+  bool operator>(const Contact &other) const;
+  bool operator<=(const Contact &other) const;
+  bool operator>=(const Contact &other) const;
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;
