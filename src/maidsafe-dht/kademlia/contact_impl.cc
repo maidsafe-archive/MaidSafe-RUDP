@@ -114,7 +114,7 @@ bool Contact::Impl::operator<(const Contact::Impl &other) const {
 
 bool Contact::Impl::operator==(const Contact::Impl &other) const {
   if (node_id_ == other.node_id_)
-    return (node_id_.String() != kClientId) ||
+    return (node_id_.String() != kZeroId) ||
            (endpoint_.ip == other.endpoint_.ip);
   else
     return false;

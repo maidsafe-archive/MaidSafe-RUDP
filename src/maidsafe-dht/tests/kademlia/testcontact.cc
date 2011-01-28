@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "maidsafe-dht/common/crypto.h"
+#include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/transport/utils.h"
@@ -37,35 +38,23 @@ namespace kademlia {
 
 namespace test_contact {
 
-class TestContact : public testing::Test {
- public:
-  TestContact() : cry_obj() {}
- protected:
-  void SetUp() {
-    cry_obj.set_symm_algorithm(crypto::AES_256);
-    cry_obj.set_hash_algorithm(crypto::SHA_512);
-  }
-  crypto::Crypto cry_obj;
-};
-
-TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
+TEST(TestContact, BEH_KAD_GetIpPortNodeId) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888), local_port(port);
-  NodeId node_id(cry_obj.Hash("1238425", "", crypto::STRING_STRING, false));
+  NodeId node_id(crypto::Hash<crypto::SHA512>("1238425"));
   transport::Endpoint ep(ip, port);
-  Contact contact(node_id.String(), ep);
+  Contact contact(node_id, ep);
   ASSERT_EQ(ip, contact.GetPreferredEndpoint().ip.to_string());
 //  ASSERT_EQ(ip, transport::IpBytesToAscii(contact.ip()));
-  ASSERT_TRUE(node_id == contact.node_id());
+  ASSERT_EQ(node_id, contact.node_id());
   ASSERT_EQ(port, contact.GetPreferredEndpoint().port);
 //  ASSERT_EQ(transport::IpAsciiToBytes(local_ip), contact.local_ip());
 //  ASSERT_EQ(local_ip, transport::IpBytesToAscii(contact.local_ip()));
 //  ASSERT_EQ(local_port, contact.local_port());
 }
-
 /*
-TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
+TEST(TestContact, BEH_KAD_OverloadedOperators) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888);
@@ -98,7 +87,7 @@ TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
   ASSERT_TRUE(contact9.Equals(contact11));
 }
 
-TEST_F(TestContact, BEH_KAD_IncreaseGetFailedRPC) {
+TEST(TestContact, BEH_KAD_IncreaseGetFailedRPC) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888);
@@ -115,7 +104,7 @@ TEST_F(TestContact, BEH_KAD_IncreaseGetFailedRPC) {
   ASSERT_EQ(3, static_cast<int>(contact.failed_rpc()));
 }
 
-TEST_F(TestContact, BEH_KAD_ContactPointer) {
+TEST(TestContact, BEH_KAD_ContactPointer) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888);
@@ -137,7 +126,7 @@ TEST_F(TestContact, BEH_KAD_ContactPointer) {
   delete contact;
 }
 
-TEST_F(TestContact, BEH_KAD_SerialiseToString) {
+TEST(TestContact, BEH_KAD_SerialiseToString) {
   std::string ip("192.168.1.55");
   std::string local_ip(ip);
   boost::uint16_t port(8888);
@@ -159,7 +148,7 @@ TEST_F(TestContact, BEH_KAD_SerialiseToString) {
   ASSERT_EQ(local_port, contact1.port());
 }
 
-TEST_F(TestContact, BEH_KAD_Constructors) {
+TEST(TestContact, BEH_KAD_Constructors) {
   // empty contact
   Contact ctc1;
   NodeId id1;
@@ -204,8 +193,42 @@ TEST_F(TestContact, BEH_KAD_Constructors) {
   ASSERT_EQ(port, ctc4.local_port());
   ASSERT_EQ(port, ctc4.rendezvous_port());
 }
-
 */
+TEST(TestContact, BEH_KAD_ContactWithinClosest) {
+  std::vector<Contact> contacts;
+  transport::Endpoint endpoint;
+  contacts.push_back(Contact(NodeId(
+      DecodeFromHex(std::string(2 * kKeySizeBytes, '1'))), endpoint));
+  contacts.push_back(Contact(NodeId(
+      DecodeFromHex(std::string(2 * kKeySizeBytes, '7'))), endpoint));
+
+  Contact close(NodeId(DecodeFromHex(std::string(2 * kKeySizeBytes, '3'))),
+                endpoint);
+  Contact not_close(NodeId(DecodeFromHex(std::string(2 * kKeySizeBytes, 'f'))),
+                    endpoint);
+
+  EXPECT_TRUE(ContactWithinClosest(close, contacts, NodeId(kZeroId)));
+  EXPECT_FALSE(ContactWithinClosest(not_close, contacts, NodeId(kZeroId)));
+}
+
+TEST(TestContact, BEH_KAD_RemoveContact) {
+  std::vector<Contact> contacts;
+  transport::Endpoint ep;
+  contacts.push_back(Contact(NodeId(crypto::Hash<crypto::SHA512>("aaa")), ep));
+  contacts.push_back(Contact(NodeId(crypto::Hash<crypto::SHA512>("bbb")), ep));
+  contacts.push_back(Contact(NodeId(crypto::Hash<crypto::SHA512>("ccc")), ep));
+  contacts.push_back(Contact(NodeId(crypto::Hash<crypto::SHA512>("bbb")), ep));
+
+  EXPECT_EQ(4U, contacts.size());
+  EXPECT_FALSE(RemoveContact(NodeId(crypto::Hash<crypto::SHA512>("ddd")),
+                             &contacts));
+  EXPECT_EQ(4U, contacts.size());
+  EXPECT_TRUE(RemoveContact(NodeId(crypto::Hash<crypto::SHA512>("bbb")),
+                            &contacts));
+  EXPECT_EQ(2U, contacts.size());
+}
+
+
 }  // namespace test_contact
 
 }  // namespace kademlia
