@@ -65,7 +65,17 @@ Contact::Impl::Impl(const NodeId &node_id,
       endpoint_(endpoint),
       rendezvous_endpoint_(rendezvous_endpoint),
       local_endpoints_(local_endpoints),
-      prefer_local_(false) {}
+      prefer_local_(false) {
+  if (local_endpoints_.size() > 1) {
+    Port port(local_endpoints_.at(0).port);
+    for (size_t i = 1; i < local_endpoints_.size(); ++i) {
+      if (local_endpoints_.at(i).port != port) {
+        local_endpoints_.clear();
+        return;
+      }
+    }
+  }
+}
 
 bool Contact::Impl::SetPreferredEndpoint(const transport::IP &ip) {
   prefer_local_ = false;
@@ -108,16 +118,32 @@ Contact::Impl& Contact::Impl::operator=(const Contact::Impl &other) {
   return *this;
 }
 
-bool Contact::Impl::operator<(const Contact::Impl &other) const {
-  return node_id_ < other.node_id_;
-}
-
 bool Contact::Impl::operator==(const Contact::Impl &other) const {
   if (node_id_ == other.node_id_)
     return (node_id_.String() != kZeroId) ||
            (endpoint_.ip == other.endpoint_.ip);
   else
     return false;
+}
+
+bool Contact::Impl::operator!=(const Contact::Impl &other) const {
+  return !(*this == other);
+}
+
+bool Contact::Impl::operator<(const Contact::Impl &other) const {
+  return node_id_ < other.node_id_;
+}
+
+bool Contact::Impl::operator>(const Contact::Impl &other) const {
+  return node_id_ > other.node_id_;
+}
+
+bool Contact::Impl::operator<=(const Contact::Impl &other) const {
+  return (node_id_ < other.node_id_ || (*this == other));
+}
+
+bool Contact::Impl::operator>=(const Contact::Impl &other) const {
+  return (node_id_ > other.node_id_ || (*this == other));
 }
 
 }  // namespace kademlia

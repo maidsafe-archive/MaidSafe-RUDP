@@ -64,8 +64,12 @@ class Contact::Impl {
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint GetPreferredEndpoint() const;
   Impl& operator=(const Impl &other);
-  bool operator<(const Impl &other) const;
   bool operator==(const Impl &other) const;
+  bool operator!=(const Impl &other) const;
+  bool operator<(const Impl &other) const;
+  bool operator>(const Impl &other) const;
+  bool operator<=(const Impl &other) const;
+  bool operator>=(const Impl &other) const;
  private:
   bool IpMatchesEndpoint(const transport::IP &ip,
                          const transport::Endpoint &endpoint);
