@@ -49,10 +49,7 @@ namespace test {
 
 class DataStoreTest: public testing::Test {
  public:
-  DataStoreTest() : test_ds_(), cry_obj_() {
-    cry_obj_.set_symm_algorithm(crypto::AES_256);
-    cry_obj_.set_hash_algorithm(crypto::SHA_512);
-  }
+  DataStoreTest() : test_ds_() {}
 
   virtual void SetUp() {
     test_ds_.reset(new kademlia::DataStore(bptime::seconds(3600)));
@@ -78,28 +75,22 @@ class DataStoreTest: public testing::Test {
 protected:
   boost::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   boost::shared_ptr<DataStore> test_ds_;
-  crypto::Crypto cry_obj_;
   DataStoreTest(const DataStoreTest&);
   DataStoreTest &operator=(const DataStoreTest&);
 };
 
 TEST_F(DataStoreTest, BEH_KAD_StoreValidData) {
   EXPECT_EQ(size_t(0), GetKeyValueIndex().size());
-  std::string key1 = cry_obj_.Hash(RandomString(1024), "", 
-                                   crypto::STRING_STRING, false);
-  std::string key2 = cry_obj_.Hash(RandomString(1024), "",
-                                   crypto::STRING_STRING, false);
-  std::string value1 = cry_obj_.Hash(RandomString(1024), "",
-                                     crypto::STRING_STRING, false);
+  std::string key1 = crypto::Hash<crypto::SHA512>(RandomString(1024));
+  std::string key2 = crypto::Hash<crypto::SHA512>(RandomString(1024));
+  std::string value1 = crypto::Hash<crypto::SHA512>(RandomString(1024));
   std::string value2;
   value2.reserve(5 * 1024 * 1024);  // big value 5MB
   std::string random_substring(RandomString(1024));
   for (int i = 0; i < 5 * 1024; ++i)
     value2 += random_substring;
-  std::string signature1 = cry_obj_.Hash(RandomString(1024), "", 
-                                         crypto::STRING_STRING, false);
-  std::string signature2 = cry_obj_.Hash(RandomString(1024), "",
-                                         crypto::STRING_STRING, false);
+  std::string signature1 = crypto::Hash<crypto::SHA512>(RandomString(1024));
+  std::string signature2 = crypto::Hash<crypto::SHA512>(RandomString(1024));
   EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1), 
                                    bptime::seconds(3600*24), false));
   EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key2, value2, signature2), 
@@ -118,11 +109,9 @@ TEST_F(DataStoreTest, BEH_KAD_StoreValidData) {
 }
 
 TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
-  std::string value1(cry_obj_.Hash("bb33", "", crypto::STRING_STRING, false));
-  std::string signature1(cry_obj_.Hash("bb33", "", crypto::STRING_STRING, 
-                                       false));
-  std::string key1(cry_obj_.Hash("xxe22", value1, crypto::STRING_STRING,
-                                 false));
+  std::string value1(crypto::Hash<crypto::SHA512>("bb33"));
+  std::string signature1(crypto::Hash<crypto::SHA512>(value1));
+  std::string key1(crypto::Hash<crypto::SHA512>(value1));
   // invalid key
   EXPECT_FALSE(test_ds_->StoreValue(KeyValueSignature("", value1, signature1), 
                                     bptime::seconds(3600*24), false));
@@ -142,11 +131,9 @@ TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
 
 TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
   // one value under a key
-  std::string value1(cry_obj_.Hash("oybbggjhhtytyerterter", "",
-                                   crypto::STRING_STRING, false));
-  std::string key1(cry_obj_.Hash(value1, "", crypto::STRING_STRING, false));
-  std::string signature1(cry_obj_.Hash(key1, "", crypto::STRING_STRING,
-                                       false));
+  std::string value1(crypto::Hash<crypto::SHA512>("oybbggjhhtytyerterter"));
+  std::string key1(crypto::Hash<crypto::SHA512>(value1));
+  std::string signature1(crypto::Hash<crypto::SHA512>(key1));
   EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1), 
                                    bptime::seconds(3600*24), true));
   std::vector<std::pair<std::string, std::string>> values;
@@ -154,18 +141,15 @@ TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
   EXPECT_EQ(size_t(1), values.size());
   EXPECT_EQ(make_pair(value1, signature1), values[0]);
   // multiple values under a key
-  std::string key2 = cry_obj_.Hash("erraaaaa4334223", "", crypto::STRING_STRING,
-                                   false);
-  std::string signature2 = cry_obj_.Hash(key2, "", crypto::STRING_STRING,
-                                         false);
+  std::string key2 = crypto::Hash<crypto::SHA512>("erraaaaa4334223");
+  std::string signature2 = crypto::Hash<crypto::SHA512>(key2);
   std::string value2_1;
   value2_1.reserve(3 * 1024 * 1024);  // big value 3MB
   std::string random_substring(RandomString(1024));
   for (int i = 0; i < 3 * 1024; ++i)
     value2_1 += random_substring;
   std::string value2_2 = RandomString(5);  // small value
-  std::string value2_3 = cry_obj_.Hash("vvvx12xxxzzzz3322", "",
-                                       crypto::STRING_STRING, false);
+  std::string value2_3 = crypto::Hash<crypto::SHA512>("vvvx12xxxzzzz3322");
   
   EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key2, value2_1, signature2),
                                    bptime::seconds(3600*24), false));
@@ -207,7 +191,7 @@ TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
 }
 
 TEST_F(DataStoreTest, BEH_KAD_LoadNonExistingData) {
-  std::string key1(cry_obj_.Hash("11222xc", "", crypto::STRING_STRING, false));
+  std::string key1(crypto::Hash<crypto::SHA512>("11222xc"));
   std::vector<std::pair<std::string, std::string>> values;
   EXPECT_FALSE(test_ds_->GetValues(key1, &values));
   EXPECT_TRUE(values.empty());
@@ -453,8 +437,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteItem) {
 */
 TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
   EXPECT_EQ(size_t(0), GetKeyValueIndex().size());
-  std::string key = cry_obj_.Hash("abc123vvd32sfdf", "", crypto::STRING_STRING,
-                                  false);
+  std::string key = crypto::Hash<crypto::SHA512>("abc123vvd32sfdf");
   std::vector<KeyValueSignature> key_value_signatures;
   std::string random_string;
   random_string.reserve(1024);  //  1KB
@@ -478,10 +461,8 @@ TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
 }
 
 TEST_F(DataStoreTest, BEH_KAD_StoreMultipleKeysWithSameValue) {
-  std::string value = cry_obj_.Hash(RandomString(1024), "",
-                                    crypto::STRING_STRING, false);
-  std::string signature = cry_obj_.Hash(RandomString(1024), "", 
-                                        crypto::STRING_STRING, false);
+  std::string value = crypto::Hash<crypto::SHA512>(RandomString(1024));
+  std::string signature = crypto::Hash<crypto::SHA512>(RandomString(1024));
   std::vector<KeyValueSignature> key_value_signatures;
   std::string random_key;
   for (unsigned int j = 0; j < 10; j++) {  
