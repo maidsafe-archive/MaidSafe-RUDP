@@ -25,12 +25,6 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
-
 #ifndef MAIDSAFE_DHT_KADEMLIA_CONTACT_H_
 #define MAIDSAFE_DHT_KADEMLIA_CONTACT_H_
 
@@ -45,30 +39,80 @@ namespace kademlia {
 
 class NodeId;
 
+/** Object containing a Node's Kademlia ID and details of its endpoint(s).
+ *  @class Contact */
 class Contact {
  public:
+
+  /** Default constructor. */
   Contact();
+
+  /** Copy constructor. */
   Contact(const Contact &other);
+
+  /** Constructor.
+   *  @param node_id The contact's Kademlia ID.
+   *  @param endpoint The contact's external endpoint. */
   Contact(const NodeId &node_id, const transport::Endpoint &endpoint);
+
+  /** Constructor.
+   *  @param node_id The contact's Kademlia ID.
+   *  @param endpoint The contact's external endpoint.
+   *  @param rendezvous_endpoint The contact's rendezous endpoint.
+   *  @param local_endpoints The contact's local endpoints.  They must all have
+   *  the same port, or local_endpoints_ will be set to an empty vector. */
   Contact(const NodeId &node_id,
           const transport::Endpoint &endpoint,
           const transport::Endpoint &rendezvous_endpoint,
           std::vector<transport::Endpoint> &local_endpoints);
+
+  /** Destructor. */
   ~Contact();
+
+  /** Getter.
+   *  @return The contact's Kademlia ID. */
   NodeId node_id() const;
+
+  /** Getter.
+   *  @return The contact's external endpoint. */
   transport::Endpoint endpoint() const;
+
+  /** Getter.
+   *  @return The contact's rendezous endpoint. */
   transport::Endpoint rendezvous_endpoint() const;
+
+  /** Getter.
+   *  @return The contact's local endpoints. */
   std::vector<transport::Endpoint> local_endpoints() const;
+
+  /** Setter to mark which of the contact's endpoints should be preferred.
+   *  @param ip IP of preferred endpoint.
+   *  @return Success of operation. */
   bool SetPreferredEndpoint(const transport::IP &ip);
+
+  /** Getter.
+   *  @return The contact's preferred endpoint. */
   transport::Endpoint GetPreferredEndpoint() const;
+
+  /** Assignment operator. */
   Contact& operator=(const Contact &other);
-  // Equality is based on node id or (IP and port) if dummy
+
+  //@{
+  /** Equality and inequality operators.
+   *  Equality is based on node ID or (IP and port) if dummy */
   bool operator==(const Contact &other) const;
   bool operator!=(const Contact &other) const;
+  //@}
+
+  //@{
+  /** Comparison operators.
+   *  Comparisons are based on node ID (lexicographical comparison) */
   bool operator<(const Contact &other) const;
   bool operator>(const Contact &other) const;
   bool operator<=(const Contact &other) const;
   bool operator>=(const Contact &other) const;
+  //@}
+
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;
