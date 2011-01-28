@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/signals2/signal.hpp"
+
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/composite_key.hpp"
 #include "boost/multi_index/ordered_index.hpp"
@@ -141,6 +143,7 @@ struct TimeLastSeenTag;
 struct KBucketTag;
 struct RankInfoTag;
 struct KBucketLastSeenTag;
+struct KBucketDistanceToThisIdTag;
 
 // Struct to allow initialisation of RoutingTableContactsContainer to accept
 // this node's ID as a parameter.
@@ -179,7 +182,16 @@ typedef boost::multi_index_container<
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
                                 bptime::ptime, last_seen)
       >
-    >,    
+    >,
+    bmi::ordered_non_unique<
+      bmi::composite_key<
+        bmi::tag<KBucketDistanceToThisIdTag>,
+        BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
+                                NodeId, kbucket_index),
+        BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
+                                NodeId, distance_to_this_id)
+      >
+    >,     
     bmi::ordered_non_unique<
       bmi::tag<TimeLastSeenTag>,
       BOOST_MULTI_INDEX_MEMBER(RoutingTableContact, bptime::ptime, last_seen)
@@ -242,6 +254,10 @@ typedef boost::multi_index_container<
   >
 > KBucketBoundariesContainer;
 
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact &,
+                         const Contact &, RankInfoPtr)>>
+    PingOldestContactStatusPtr;
+
 class RoutingTable {
  public:
   RoutingTable(const NodeId &this_id, const boost::uint16_t &k);
@@ -264,7 +280,9 @@ class RoutingTable {
   int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
   
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
-  int IncrementFailedRpcCount(const NodeId &node_id);  
+  int IncrementFailedRpcCount(const NodeId &node_id);
+
+  void GetBootstrapContacts(std::vector<Contact> *contacts);    
 
   // num of kbuckets in this node
   size_t KbucketSize() const;
@@ -279,6 +297,8 @@ class RoutingTable {
   
   Contact GetLastSeenContact(const NodeId &kbucket_index);
 
+  PingOldestContactStatusPtr PingOldestContactStatus();
+
  private:
 // Calculate the index of the k-bucket which is responsible for the specified
 // key (or ID)
@@ -289,7 +309,7 @@ class RoutingTable {
   // Forces the brother k-bucket of the holder to accept a new contact which
   // would normally be dropped if it is within the k closest contacts to the
   // holder's ID.
-  int ForceKAcceptNewPeer(const Contact &new_contact);
+  int ForceKAcceptNewPeer(const Contact &new_contact, const NodeId &target_bucket);
 
   // num of contacts in a specified kbucket
   size_t KBucketSize(const NodeId &key) const;
@@ -297,15 +317,13 @@ class RoutingTable {
   // Holder's node ID
   const NodeId kThisId_;
 
+  // k closest to the holder
+  const boost::uint16_t K_;  
+
   RoutingTableContactsContainer contacts_;
   KBucketBoundariesContainer kbucket_boundries_;
 
-  // Index of k-bucket covering address space which incorporates holder's own
-  // node ID.  NB - holder's ID is never actually added to any of its k-buckets.
-  // Index of the only k-bucket covering same amount of address space as
-  // bucket_of_holder_ above.  This is the only bucket eligible to be considered
-  // for the ForceK function.
-  boost::uint16_t bucket_of_holder_, brother_bucket_of_holder_;
+  PingOldestContactStatusPtr ping_oldest_contact_status_;
 };
 
 }  // namespace kademlia
