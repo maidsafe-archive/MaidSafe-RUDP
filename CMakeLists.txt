@@ -212,9 +212,9 @@ SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Boost_LIBRARY_DIRS})
 ###################################################################################################
 # Protocol Buffers library search                                                                 #
 ###################################################################################################
-FILE(GLOB PROTO_FILES_COMMON RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.proto")
-FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.proto")
-FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.proto")
+FILE(GLOB PROTO_FILES_COMMON RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.proto")
+FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.proto")
+FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.proto")
 SET(PROTO_FILES "${PROTO_FILES_COMMON};${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
 SET(PROTOBUF_REQUIRED FALSE)
 INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
@@ -326,53 +326,53 @@ ENDIF()
 # Set up all files as GLOBs                                                                       #
 ###################################################################################################
 ####    CODE    ####
-FILE(GLOB SOURCE_FILES_MAIDSAFE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/*.cc")
-FILE(GLOB HEADER_FILES_MAIDSAFE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/*.h")
+FILE(GLOB SOURCE_FILES_MAIDSAFE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/*.cc")
+FILE(GLOB HEADER_FILES_MAIDSAFE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/*.h")
 SET(ALL_FILES_MAIDSAFE_DIR ${SOURCE_FILES_MAIDSAFE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-SOURCE_GROUP("maidsafe Source Files" FILES ${SOURCE_FILES_MAIDSAFE_DIR})
-SOURCE_GROUP("maidsafe Header Files" FILES ${HEADER_FILES_MAIDSAFE_DIR})
+SOURCE_GROUP("maidsafe-dht Source Files" FILES ${SOURCE_FILES_MAIDSAFE_DIR})
+SOURCE_GROUP("maidsafe-dht Header Files" FILES ${HEADER_FILES_MAIDSAFE_DIR})
 
-FILE(GLOB SOURCE_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.cc")
-FILE(GLOB HEADER_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.h")
+FILE(GLOB SOURCE_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.cc")
+FILE(GLOB HEADER_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.h")
 SET(ALL_FILES_COMMON_DIR ${SOURCE_FILES_COMMON_DIR} ${HEADER_FILES_COMMON_DIR})
 SOURCE_GROUP("common Source Files" FILES ${SOURCE_FILES_COMMON_DIR})
 SOURCE_GROUP("common Header Files" FILES ${HEADER_FILES_COMMON_DIR})
 
-FILE(GLOB SOURCE_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.cc")
-FILE(GLOB HEADER_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.h")
+FILE(GLOB SOURCE_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.cc")
+FILE(GLOB HEADER_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.h")
 SET(ALL_FILES_KADEMLIA_DIR ${SOURCE_FILES_KADEMLIA_DIR} ${HEADER_FILES_KADEMLIA_DIR})
 SET(STYLE_KADEMLIA ${ALL_FILES_KADEMLIA_DIR})
 SOURCE_GROUP("kademlia Source Files" FILES ${SOURCE_FILES_KADEMLIA_DIR})
 SOURCE_GROUP("kademlia Header Files" FILES ${HEADER_FILES_KADEMLIA_DIR})
 
 LIST(APPEND ALL_FILES_LIBUPNP_DIR
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/igd_desc_parse.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/minixml.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/minisoap.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/miniwget.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/upnpcommands.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/upnpreplyparse.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/upnperrors.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/miniupnpc.c
-       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/libupnp/minissdpc.c)
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/igd_desc_parse.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/minixml.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/minisoap.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/miniwget.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/upnpcommands.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/upnpreplyparse.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/upnperrors.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/miniupnpc.c
+       ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/libupnp/minissdpc.c)
 SOURCE_GROUP("libupnp Source Files" FILES ${ALL_FILES_LIBUPNP_DIR})
 
-FILE(GLOB SOURCE_FILES_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/nat-pmp/*.cc")
-FILE(GLOB HEADER_FILES_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/nat-pmp/*.h")
+FILE(GLOB SOURCE_FILES_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/nat-pmp/*.cc")
+FILE(GLOB HEADER_FILES_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/nat-pmp/*.h")
 SET(ALL_FILES_NATPMP_DIR ${SOURCE_FILES_NATPMP_DIR} ${HEADER_FILES_NATPMP_DIR})
 SOURCE_GROUP("nat-pnp Source Files" FILES ${SOURCE_FILES_NATPMP_DIR})
 SOURCE_GROUP("nat-pnp Header Files" FILES ${HEADER_FILES_NATPMP_DIR})
 
-FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.cc")
-FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.h")
+FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.cc")
+FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.h")
 SET(ALL_FILES_TRANSPORT_DIR ${SOURCE_FILES_TRANSPORT_DIR} ${HEADER_FILES_TRANSPORT_DIR})
 SOURCE_GROUP("transport Source Files" FILES ${SOURCE_FILES_TRANSPORT_DIR})
 SOURCE_GROUP("transport Header Files" FILES ${HEADER_FILES_TRANSPORT_DIR})
 
-FILE(GLOB SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/*.cc")
-FILE(GLOB HEADER_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/*.h")
-LIST(REMOVE_ITEM SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/upnpclientimpl.cc")
-LIST(REMOVE_ITEM HEADER_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/upnp/upnpclientimpl.h")
+FILE(GLOB SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/upnp/*.cc")
+FILE(GLOB HEADER_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/upnp/*.h")
+LIST(REMOVE_ITEM SOURCE_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/upnp/upnpclientimpl.cc")
+LIST(REMOVE_ITEM HEADER_FILES_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/upnp/upnpclientimpl.h")
 SET(ALL_FILES_UPNP_DIR ${SOURCE_FILES_UPNP_DIR} ${HEADER_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Source Files" FILES ${SOURCE_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
@@ -386,47 +386,47 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_COMMON_DIR}
                              ${ALL_FILES_MAIDSAFE_DIR})
 
 ####    TESTS    ####
-FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.cc"
-                              "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/*.h")
-FILE(GLOB ALL_FILES_TEST_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/common/*.cc"
-                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/common/*.h")
-FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/benchmark/*.cc"
-                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/benchmark/*.h")
-FILE(GLOB ALL_FILES_TEST_BOOST_DIR  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/boost/*.cc")
-FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/demo/*.cc"
-                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/demo/*.h")
-FILE(GLOB ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/*.cc"
-                                                "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/*.h")
-LIST(REMOVE_ITEM ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/testnodefunctional.cc")
-FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/*.cc"
-                                      "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/*.h")
-FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/*.cc"
-                                    "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/*.h")
-FILE(GLOB ALL_FILES_TEST_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*.cc"
-                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/*.h")
-FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.cc"
-                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/upnp/*.h")
+FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/*.cc"
+                              "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/*.h")
+FILE(GLOB ALL_FILES_TEST_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/*.cc"
+                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/*.h")
+FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/benchmark/*.cc"
+                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/benchmark/*.h")
+FILE(GLOB ALL_FILES_TEST_BOOST_DIR  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/*.cc")
+FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/demo/*.cc"
+                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/demo/*.h")
+FILE(GLOB ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functionalkademlia/*.cc"
+                                                "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functionalkademlia/*.h")
+LIST(REMOVE_ITEM ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functionalkademlia/testnodefunctional.cc")
+FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/*.cc"
+                                      "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/*.h")
+FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/*.cc"
+                                    "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/*.h")
+FILE(GLOB ALL_FILES_TEST_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/*.cc"
+                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/*.h")
+FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/upnp/*.cc"
+                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/upnp/*.h")
 IF(Mysqlpp_FOUND)
-  FILE(GLOB ALL_FILES_NETWORK_TEST_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/distributed_network/*.cc"
-                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/distributed_network/*.h")
+  FILE(GLOB ALL_FILES_NETWORK_TEST_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/distributed_network/*.cc"
+                                       "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/distributed_network/*.h")
 ENDIF()
 
 ###################################################################################################
 # Traverse subdirs for imported 3rd party libs                                                    #
 ###################################################################################################
-ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/udt ${CMAKE_BINARY_DIR}/udt)
-ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/cryptopp ${CMAKE_BINARY_DIR}/cryptopp)
+ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/udt ${CMAKE_BINARY_DIR}/udt)
+ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/cryptopp ${CMAKE_BINARY_DIR}/cryptopp)
 
 ###################################################################################################
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
-ADD_EXECUTABLE(TESTcommon EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_COMMON_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTcommon ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_COMMON_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTkademlia EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTnatpmp EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTupnp EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTboost EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/log.cc")
+ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/log.cc")
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
 #ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(kaddemo_static EXCLUDE_FROM_ALL ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -595,17 +595,17 @@ IF(MSVC)
   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/EHsc /MT")
 
   # warning 4503 disabled due to excessive generation through use of Boost multi_index
-  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/node.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/routing_table.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testcontact.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/functionalkademlia/testnode.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/nat-pmp/testnatpmp.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/transport/testtransport.cc
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/routing_table.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testcontact.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functionalkademlia/testnode.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/testnatpmp.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/testtransport.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warning 4996 disabled due to generation through use of Boost Signals2
-  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/udttransport.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/udtconnection.cc
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udttransport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udtconnection.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4996")
 
   # CMake defaults to passing stack size in LINKER_FLAGS of 10MB.  Set this to windows default of 1MB
@@ -643,17 +643,17 @@ ENDIF()
 
 IF(UNIX)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/protobuf/ -isystem -W -Wall -Wextra -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/protobuf/ -isystem -W -Wall -Wextra -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg -fprofile-arcs -ftest-coverage")
-  FILE(GLOB PROTO_SOURCE_FILES_COMMON "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/*.pb.cc")
-  FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/kademlia/*.pb.cc")
-  FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/transport/*.pb.cc")
+  FILE(GLOB PROTO_SOURCE_FILES_COMMON "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.pb.cc")
+  FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.pb.cc")
+  FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_COMMON};${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/crypto.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/common/utils.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/crypto.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/utils.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   IF(APPLE)
     ADD_DEFINITIONS(-DMAIDSAFE_APPLE -DBSD)
@@ -667,7 +667,7 @@ IF(UNIX)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pedantic -pedantic-errors -std=c++0x -Weffc++")
   ENDIF()
 #  SET_PROPERTY(TARGET TESTkademlia PROPERTY COMPILE_FLAGS "-w")
-  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe/tests/kademlia/testnodeimpl.cc" PROPERTY COMPILE_FLAGS "-w")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testnodeimpl.cc" PROPERTY COMPILE_FLAGS "-w")
 ELSEIF(WIN32 AND NOT MSVC)
   ADD_DEFINITIONS(-D__MINGW__ -DWIN32_LEAN_AND_MEAN -D_GLIBCXX_USE_WCHAR_T -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0501)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNDEBUG -DWIN32_LEAN_AND_MEAN -D__MINGW__  -D_GLIBCXX_USE_WCHAR_T -DUNICODE -D_UNICODE -DWIN32 -D_WIN32_WINNT=0x0501")
@@ -888,28 +888,27 @@ MESSAGE("=======================================================================
 MESSAGE("")
 
 SET(MAIDSAFE_COMMON_INSTALL_FILES
-      maidsafe/common/alternative_store.h
-      maidsafe/common/crypto.h
-      maidsafe/common/log.h
-      maidsafe/common/platform_config.h
-      maidsafe/common/securifier.h
-      maidsafe/common/threadpool.h
-      maidsafe/common/utils.h
-      maidsafe/common/version.h)
+      maidsafe-dht/common/alternative_store.h
+      maidsafe-dht/common/crypto.h
+      maidsafe-dht/common/log.h
+      maidsafe-dht/common/platform_config.h
+      maidsafe-dht/common/securifier.h
+      maidsafe-dht/common/threadpool.h
+      maidsafe-dht/common/utils.h
+      maidsafe-dht/common/version.h)
 SET(MAIDSAFE_KAD_INSTALL_FILES
-      maidsafe/kademlia/node-api.h
-      maidsafe/kademlia/config.h
-      maidsafe/kademlia/contact.h
-      maidsafe/kademlia/node_id.h
-      maidsafe/kademlia/kademlia.pb.h
-      maidsafe/kademlia/message_handler.h)
+      maidsafe-dht/kademlia/node-api.h
+      maidsafe-dht/kademlia/config.h
+      maidsafe-dht/kademlia/contact.h
+      maidsafe-dht/kademlia/node_id.h
+      maidsafe-dht/kademlia/message_handler.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
-      maidsafe/maidsafe-dht.h)
+      maidsafe-dht/maidsafe-dht.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
-      maidsafe/transport/transport.h
-      maidsafe/transport/message_handler.h
-      maidsafe/transport/tcptransport.h
-      maidsafe/transport/udttransport.h)
+      maidsafe-dht/transport/transport.h
+      maidsafe-dht/transport/message_handler.h
+      maidsafe-dht/transport/tcptransport.h
+      maidsafe-dht/transport/udttransport.h)
 # Check the script /build/Win_MSVC/extract_includes.bat matches this list
 FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)
 STRING(REPLACE "\\" "/" EXTRACT_INCLUDE_BAT "${EXTRACT_INCLUDE_BAT}")
@@ -957,10 +956,10 @@ ELSE()
           )
 ENDIF()
 
-INSTALL(FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} DESTINATION include/maidsafe/common)
-INSTALL(FILES ${ABS_MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe/kademlia)
-INSTALL(FILES ${ABS_MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe)
-INSTALL(FILES ${ABS_MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe/transport)
+INSTALL(FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} DESTINATION include/maidsafe-dht/common)
+INSTALL(FILES ${ABS_MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe-dht/kademlia)
+INSTALL(FILES ${ABS_MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe-dht)
+INSTALL(FILES ${ABS_MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe-dht/transport)
 
 IF(CMAKE_BUILD_TYPE MATCHES "Release")
   SET(CPACK_PACKAGE_VERSION_MAJOR "0")
@@ -971,7 +970,7 @@ IF(CMAKE_BUILD_TYPE MATCHES "Release")
   SET(CPACK_PACKAGE_CONTACT "dev@maidsafe.net")
   SET(CPACK_PACKAGE_VENDOR "maidsafe.net")
   SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of Kademlia DHT")
-  SET(CPACK_PACKAGE_INSTALL_DIRECTORY "maidsafe")
+  SET(CPACK_PACKAGE_INSTALL_DIRECTORY "maidsafe-dht")
   SET(CPACK_RESOURCE_FILE_README "${${PROJECT_NAME}_ROOT}/docs/readme.txt")
   IF(UNIX)
     SET(CPACK_SET_DESTDIR on)
