@@ -70,6 +70,20 @@ class Contact {
   boost::scoped_ptr<Impl> pimpl_;
 };
 
+// Retuns true if contact1 is closer to target than contact2.
+bool CloserToTarget(const Contact &contact1,
+                    const Contact &contact2,
+                    const NodeId &target);
+
+// Returns true if contact is closer to target than any one of closest_contacts.
+bool ContactWithinClosest(const Contact &contact,
+                          const std::vector<Contact> &closest_contacts,
+                          const NodeId &target);
+
+// Erases all contacts from vector which have the given node_id and returns true
+// if any were erased.
+bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts);
+
 }  // namespace kademlia
 
 }  // namespace maidsafe

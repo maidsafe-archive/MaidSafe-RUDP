@@ -39,13 +39,13 @@ namespace transport {
 namespace test {
 
 TEST(UdtTransportTest, BEH_MAID_Transport) {
-  boost::shared_ptr<boost::asio::io_service> asio_service1(
+  std::shared_ptr<boost::asio::io_service> asio_service1(
       new boost::asio::io_service);
-  boost::shared_ptr<boost::asio::io_service> asio_service2(
+  std::shared_ptr<boost::asio::io_service> asio_service2(
       new boost::asio::io_service);
-  boost::shared_ptr<boost::asio::io_service::work>
+  std::shared_ptr<boost::asio::io_service::work>
       work1(new boost::asio::io_service::work(*asio_service1));
-  boost::shared_ptr<boost::asio::io_service::work>
+  std::shared_ptr<boost::asio::io_service::work>
       work2(new boost::asio::io_service::work(*asio_service2));
   boost::thread_group threads1, threads2;
   threads1.create_thread(boost::bind(&boost::asio::io_service::run,
@@ -58,7 +58,7 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
                                     asio_service2));
   threads2.create_thread(boost::bind(&boost::asio::io_service::run,
                                     asio_service2));
-  boost::shared_ptr<UdtTransport> transport1(new UdtTransport(asio_service1));
+  std::shared_ptr<UdtTransport> transport1(new UdtTransport(asio_service1));
   MessageHandler message_handler1("message_handler1");
   MessageHandler message_handler2("message_handler2");
   transport1->on_message_received()->connect(boost::bind(
@@ -68,7 +68,7 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
   Endpoint listening_endpoint("127.0.0.1", 9000);
   EXPECT_EQ(kSuccess, transport1->StartListening(listening_endpoint));
   for (int i = 0; i < 200; ++i) {
-    boost::shared_ptr<UdtTransport> transport2(new UdtTransport(asio_service2));
+    std::shared_ptr<UdtTransport> transport2(new UdtTransport(asio_service2));
     transport2->on_message_received()->connect(boost::bind(
         &MessageHandler::DoOnResponseReceived, &message_handler2, _1, _2, _3,
         _4));

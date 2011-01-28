@@ -44,7 +44,6 @@ namespace kademlia {
 const boost::uint16_t kKeySizeBits = 8 * kKeySizeBytes;
 
 const std::string kZeroId(kKeySizeBytes, 0);
-const std::string kClientId(kZeroId);
 
 size_t BitToByteCount(const size_t &bit_count);
 

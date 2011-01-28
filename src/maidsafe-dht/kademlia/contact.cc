@@ -88,6 +88,31 @@ bool Contact::operator==(const Contact &other) const {
   return *pimpl_ == *other.pimpl_;
 }
 
+bool CloserToTarget(const Contact &contact1,
+                    const Contact &contact2,
+                    const NodeId &target) {
+  return (NodeId::CloserToTarget(contact1.node_id(), contact2.node_id(),
+          target));
+}
+
+bool ContactWithinClosest(const Contact &contact,
+                          const std::vector<Contact> &closest_contacts,
+                          const NodeId &target) {
+  return std::find_if(closest_contacts.rbegin(), closest_contacts.rend(),
+                      boost::bind(&CloserToTarget, contact, _1, target)) !=
+         closest_contacts.rend();
+}
+
+bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
+  if (!contacts)
+    return false;
+  size_t size_before(contacts->size());
+  Contact target(node_id, transport::Endpoint());
+  contacts->erase(std::remove(contacts->begin(), contacts->end(), target),
+                  contacts->end());
+  return contacts->size() != size_before;
+}
+
 }  // namespace kademlia
 
 }  // namespace maidsafe
