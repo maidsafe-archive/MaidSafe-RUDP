@@ -38,35 +38,32 @@ using transport::Endpoint;
 namespace kademlia {
 
 bool IsValid(const Endpoint &endpoint) {
-  return !(endpoint.ip == transport::IP() && endpoint.port == 0);
+  return !(endpoint.ip == transport::IP() || endpoint.port == 0);
+}
+
+bool HasId(const Contact &contact, const NodeId &node_id) {
+  return contact.node_id() == node_id;
 }
 
 Contact FromProtobuf(const protobuf::Contact &pb_contact) {
   if (!pb_contact.IsInitialized())
     return Contact();
 
-  NodeId node_id(pb_contact.node_id());
-  if (!node_id.IsValid())
-    return Contact();
-
-  Endpoint endpoint(pb_contact.endpoint().ip(), pb_contact.endpoint().port());
-  if (!IsValid(endpoint))
-    return Contact();
-
   std::vector<Endpoint> local_endpoints;
-  for (int i = 0; i < pb_contact.local_ips_size(); ++i) {
-    Endpoint local_endpoint(pb_contact.local_ips(i), pb_contact.local_port());
-    if (IsValid(local_endpoint))
-      local_endpoints.push_back(local_endpoint);
-  }
+  for (int i = 0; i < pb_contact.local_ips_size(); ++i)
+    local_endpoints.push_back(
+        Endpoint(pb_contact.local_ips(i), pb_contact.local_port()));
 
-  Endpoint rendezvous_endpoint;
-  if (pb_contact.has_rendezvous()) {
-    rendezvous_endpoint = Endpoint(pb_contact.rendezvous().ip(),
-                                   pb_contact.rendezvous().port());
-  }
-
-  return Contact(node_id, endpoint, rendezvous_endpoint, local_endpoints);
+  return Contact(
+      NodeId(pb_contact.node_id()),
+      Endpoint(pb_contact.endpoint().ip(), pb_contact.endpoint().port()),
+      local_endpoints,
+      pb_contact.has_rendezvous() ? 
+          Endpoint(pb_contact.rendezvous().ip(),
+                   pb_contact.rendezvous().port()) :
+          Endpoint(),
+      pb_contact.has_tcp443() ? pb_contact.tcp443() : false,
+      pb_contact.has_tcp80() ? pb_contact.tcp80() : false);
 }
 
 protobuf::Contact ToProtobuf(const Contact &contact) {
@@ -92,7 +89,16 @@ protobuf::Contact ToProtobuf(const Contact &contact) {
     pb_contact.set_local_port((*it).port);
   }
 
+  if (IsValid(contact.tcp443endpoint()))
+    pb_contact.set_tcp443(true);
+  if (IsValid(contact.tcp80endpoint()))
+    pb_contact.set_tcp80(true);
+
   return pb_contact;
+}
+
+bool IsListeningOnTCP(const Contact &contact) {
+  return IsValid(contact.tcp443endpoint()) || IsValid(contact.tcp80endpoint());
 }
 
 //bool CompareContact(const ContactAndTargetKey &first,

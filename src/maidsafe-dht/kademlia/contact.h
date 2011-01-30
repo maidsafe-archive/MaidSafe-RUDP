@@ -50,21 +50,25 @@ class Contact {
   /** Copy constructor. */
   Contact(const Contact &other);
 
-  /** Constructor.
-   *  @param node_id The contact's Kademlia ID.
-   *  @param endpoint The contact's external endpoint. */
-  Contact(const NodeId &node_id, const transport::Endpoint &endpoint);
-
-  /** Constructor.
+  /** Constructor.  To create a valid Contact, in all cases the node ID and
+   *  endpoint must be valid, and there must be at least one valid local
+   *  endpoint.  Furthermore, for a direct-connected node, there must be no
+   *  rendezvous endpoint, but either of tcp443 or tcp80 may be true.  For a
+   *  non-direct-connected node, both of tcp443 and tcp80 must be false, but it
+   *  may have a rendezvous endpoint set.  A contact is deemed to direct-
+   *  connected if the endpoint equals the first local endpoint.
    *  @param node_id The contact's Kademlia ID.
    *  @param endpoint The contact's external endpoint.
-   *  @param rendezvous_endpoint The contact's rendezous endpoint.
    *  @param local_endpoints The contact's local endpoints.  They must all have
-   *  the same port, or local_endpoints_ will be set to an empty vector. */
+   *  the same port, or local_endpoints_ will be set to an empty vector.
+   *  @param tcp443 Whether the contact is listening on TCP port 443 or not.
+   *  @param tcp443 Whether the contact is listening on TCP port 80 or not. */
   Contact(const NodeId &node_id,
           const transport::Endpoint &endpoint,
+          std::vector<transport::Endpoint> &local_endpoints,
           const transport::Endpoint &rendezvous_endpoint,
-          std::vector<transport::Endpoint> &local_endpoints);
+          bool tcp443,
+          bool tcp80);
 
   /** Destructor. */
   ~Contact();
@@ -78,12 +82,20 @@ class Contact {
   transport::Endpoint endpoint() const;
 
   /** Getter.
+   *  @return The contact's local endpoints. */
+  std::vector<transport::Endpoint> local_endpoints() const;
+
+  /** Getter.
    *  @return The contact's rendezous endpoint. */
   transport::Endpoint rendezvous_endpoint() const;
 
   /** Getter.
-   *  @return The contact's local endpoints. */
-  std::vector<transport::Endpoint> local_endpoints() const;
+   *  @return The contact's external endpoint which is on TCP port 443. */
+  transport::Endpoint tcp443endpoint() const;
+
+  /** Getter.
+   *  @return The contact's external endpoint which is on TCP port 80. */
+  transport::Endpoint tcp80endpoint() const;
 
   /** Setter to mark which of the contact's endpoints should be preferred.
    *  @param ip IP of preferred endpoint.
@@ -92,7 +104,11 @@ class Contact {
 
   /** Getter.
    *  @return The contact's preferred endpoint. */
-  transport::Endpoint GetPreferredEndpoint() const;
+  transport::Endpoint PreferredEndpoint() const;
+
+  /** Indicate whether the contact is directly-connected or not.
+   *  @return True if directly-connected, else false. */
+  bool IsDirectlyConnected() const;
 
   /** Assignment operator. */
   Contact& operator=(const Contact &other);
@@ -118,18 +134,19 @@ class Contact {
   boost::scoped_ptr<Impl> pimpl_;
 };
 
-// Retuns true if contact1 is closer to target than contact2.
+/** Returns true if contact1 is closer to target than contact2. */
 bool CloserToTarget(const Contact &contact1,
                     const Contact &contact2,
                     const NodeId &target);
 
-// Returns true if contact is closer to target than any one of closest_contacts.
+/** Returns true if contact is closer to target than any one of
+ *  closest_contacts. */
 bool ContactWithinClosest(const Contact &contact,
                           const std::vector<Contact> &closest_contacts,
                           const NodeId &target);
 
-// Erases all contacts from vector which have the given node_id and returns true
-// if any were erased.
+/** Erases all contacts from vector which have the given node_id and returns
+ *  true if any were erased. */
 bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts);
 
 }  // namespace kademlia
