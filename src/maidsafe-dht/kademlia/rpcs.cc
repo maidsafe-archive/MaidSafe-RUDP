@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/udttransport.h"
 
+// TODO(Fraser#5#): 2011-01-30 - Handle sending to port-restricted peers.
 namespace maidsafe {
 
 namespace kademlia {
@@ -55,7 +56,7 @@ void Rpcs::Ping(SecurifierPtr securifier,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::PingCallback, this, "", _1, transport::Info(),
       protobuf::PingResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -76,7 +77,7 @@ void Rpcs::FindValue(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::FindValueCallback, this, _1, transport::Info(),
       protobuf::FindValueResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -97,7 +98,7 @@ void Rpcs::FindNodes(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::FindNodesCallback, this, _1, transport::Info(),
       protobuf::FindNodesResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -128,7 +129,7 @@ void Rpcs::Store(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::StoreCallback, this, _1, transport::Info(),
       protobuf::StoreResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -155,7 +156,7 @@ void Rpcs::Delete(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, _1, transport::Info(),
       protobuf::DeleteResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -190,7 +191,7 @@ void Rpcs::Update(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::UpdateCallback, this, _1, transport::Info(),
       protobuf::UpdateResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
@@ -204,7 +205,7 @@ void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
   for (size_t i = 0; i < node_ids.size(); ++i)
     notification.add_node_ids(node_ids[i].String());
   std::string message(connected_objects.get<1>()->WrapMessage(notification));
-  connected_objects.get<0>()->Send(message, peer.GetPreferredEndpoint(),
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
 
