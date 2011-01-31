@@ -76,9 +76,9 @@ class DataStoreTest: public testing::Test {
       bptime::ptime expire_time = bptime::microsec_clock::universal_time();
       expire_time += bptime::hours(20);
       bptime::ptime refresh_time = expire_time - bptime::hours(10);
-      KeyValueSignature key_value_signature(SRandomString(i*7),
-                                            SRandomString(i*11),
-                                            SRandomString(i*13));
+      KeyValueSignature key_value_signature(RandomString(i*7),
+                                            RandomString(i*11),
+                                            RandomString(i*13));
       test_ds_->key_value_index_.insert(KeyValueTuple(key_value_signature,
                                                       expire_time,
                                                       refresh_time, false));
@@ -337,9 +337,9 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
     asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
                                                 asio_service));
   }
-  KeyValueSignature key_value_signature(SRandomString(10),
-                                        SRandomString(10),
-                                        SRandomString(10));
+  KeyValueSignature key_value_signature(RandomString(10),
+                                        RandomString(10),
+                                        RandomString(10));
   std::vector<std::pair<std::string, std::string>> values, values1;
   this->MakeMultipleEntries();
   
@@ -348,7 +348,7 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
     asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
                                    key_front->first,
                                    key_front->second));
-  ++key_front;
+    ++key_front;
   }
  
   auto k = key_value_from_end_.end();
@@ -359,16 +359,16 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
   }
   for (int i = 0; i < kIterartorSize; ++i) { 
     asio_service->post(boost::bind(&DataStore::StoreValue, test_ds_,
-                                   KeyValueSignature(SRandomString(i*103),
-                                   SRandomString(i*107),
-                                   SRandomString(i*111)),
+                                   KeyValueSignature(RandomString(i*103),
+                                   RandomString(i*107),
+                                   RandomString(i*111)),
                                    bptime::seconds(1000), false));
   }
   asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
                                  k->first, &values));
   asio_service->post(boost::bind(&DataStore::MarkForDeletion, test_ds_,
                                  KeyValueSignature(k->first, k->second,
-                                 SRandomString(35)), SRandomString(35)));
+                                 RandomString(35)), RandomString(35)));
   ++k;
   asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
                                  k->first, &values1));
@@ -376,15 +376,15 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
 
   for (int i = 0; i < kIterartorSize; ++i) {
     asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
-                                   (*s), &(SRandomString(35))));
-  ++s;
+                                   (*s), &(RandomString(35))));
+    ++s;
   }
   for (int i = 0; i < kIterartorSize; ++i) {
     ++s;
     asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
                                    (*s),
-                                   KeyValueSignature(SRandomString(i*53),
-                                   SRandomString(i*59), SRandomString(i*61)),
+                                   KeyValueSignature(RandomString(i*53),
+                                   RandomString(i*59), RandomString(i*61)),
                                    bptime::seconds(1000), false));
   }
   for (int i = 0; i < kThreadBarrierSize; ++i) {
