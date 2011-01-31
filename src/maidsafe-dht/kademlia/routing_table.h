@@ -61,21 +61,23 @@ class KBucket;
 struct RoutingTableContact {
   RoutingTableContact(const Contact &contact_in,
                       const NodeId holder_id,
-                      const RankInfoPtr rank_info)
+                      const RankInfoPtr rank_info,
+                      boost::uint16_t distance_to_this_id )
       : contact(contact_in),
         public_key(),
         num_failed_rpcs(0),
-        distance_to_this_id(contact_in.node_id().DistanceTo(holder_id)),
+        distance_to_this_id(distance_to_this_id),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
         rank_info(rank_info) {}
 
   RoutingTableContact(const Contact &contact_in,
-                      const NodeId holder_id)
+                      const NodeId holder_id,
+                      boost::uint16_t distance_to_this_id )
       : contact(contact_in),
         public_key(),
         num_failed_rpcs(0),
-        distance_to_this_id(contact_in.node_id().DistanceTo(holder_id)),
+        distance_to_this_id(distance_to_this_id),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
         rank_info() {}
@@ -403,12 +405,34 @@ class RoutingTable {
    *  @param[in] target_bucket The kbucket shall in responsible of the new
    *  contact
    *  @return Error Code, 0 for succeed, 1 for fail */
-  int ForceKAcceptNewPeer(const Contact &new_contact, const boost::uint16_t &target_bucket);
+  int ForceKAcceptNewPeer(const Contact &new_contact,
+                          const boost::uint16_t &target_bucket,
+                          const RankInfoPtr rank_info);
 
   /** Get the number of contacts in a specified kbucket
    *  @param[in] key The index of the target k-bucket. 
    *  @return Num of contacts in the specified kbucket */
   boost::uint16_t KBucketSize(const boost::uint16_t &key);
+
+  /**
+  * XOR KBucket distance between two kademlia IDs.
+  * Measured by the number of common heading bits.
+  * The less the value is, the further the distance (the wider range) is.
+  * @param rhs NodeId to which this is XOR
+  * @return the number of samed bits from the begining
+  */
+  const boost::uint16_t KDistanceTo(const NodeId &rhs) const;
+
+  /**
+  * XOR KBucket distance between two kademlia IDs.
+  * Measured by the number of common heading bits.
+  * The less the value is, the further the distance (the wider range) is.
+  * @param rhs NodeId to which this is XOR
+  * @param ths NodeId from which this is XOR
+  * @return the number of samed bits from the begining
+  */
+  const boost::uint16_t KDistanceTo(const NodeId &rhs,
+                                    const NodeId &ths) const;
 
   /** Holder's Kademlia ID */
   const NodeId kThisId_;

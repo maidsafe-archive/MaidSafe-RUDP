@@ -74,8 +74,8 @@ void RoutingTable::AddContact(const Contact& new_contact, RankInfoPtr rank_info)
         AddContact(new_contact, rank_info);
       } else {
         // try to apply ForceK, otherwise fire the signal
-        if (ForceKAcceptNewPeer(new_contact,target_kbucket_index)!=0)
-        {
+        if (ForceKAcceptNewPeer(new_contact,
+            target_kbucket_index, rank_info)!=0) {
           // ForceK Failed
           // find the oldest contact in the bucket
           Contact oldest_contact=GetLastSeenContact(target_kbucket_index);
@@ -86,7 +86,9 @@ void RoutingTable::AddContact(const Contact& new_contact, RankInfoPtr rank_info)
       }
     } else {
       // bucket not full, insert the contact into routing table
-      RoutingTableContact new_routing_table_contact(new_contact , kThisId_,rank_info);
+      boost::uint16_t distance_to_this=KDistanceTo(new_contact.node_id());
+      RoutingTableContact new_routing_table_contact(new_contact ,
+                                     kThisId_,rank_info,distance_to_this);
       new_routing_table_contact.kbucket_index=target_kbucket_index;
       key_indx.insert(new_routing_table_contact);
     }
@@ -107,7 +109,7 @@ boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
 
   KBucketBoundariesContainer::index<UpperBoundaryTag>::type& key_indx
       = kbucket_boundries_.get<UpperBoundaryTag>();
-  boost::uint16_t distance_to_this_id = key.DistanceTo(kThisId_);
+  boost::uint16_t distance_to_this_id = KDistanceTo(key);
   KBucketBoundariesContainer::index<UpperBoundaryTag>::type::iterator it
       = key_indx.lower_bound(distance_to_this_id);
 
@@ -221,8 +223,6 @@ boost::uint16_t RoutingTable::KBucketSize(const boost::uint16_t &key) {
 }
 
 boost::uint16_t RoutingTable::Size() const {
-//   RoutingTableContactsContainer::index<NodeIdTag>::type key_indx
-//       = contacts_.get<NodeIdTag>();
   return contacts_.size();
 }
 
@@ -329,7 +329,8 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
       // if not in the exclusion list, add the contact into the candidates
       // container
       if (!in_exclusion_list) {
-        RoutingTableContact new_contact((*ic0).contact,target_id);
+        RoutingTableContact new_contact((*ic0).contact,
+            target_id,KDistanceTo((*ic0).node_id(),target_id));
         candidate_contacts.insert(new_contact);
       }
       ++ic0;
@@ -354,7 +355,8 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
 }
 
 int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
-                                      const boost::uint16_t &target_bucket) {
+                                      const boost::uint16_t &target_bucket,
+                                      const RankInfoPtr rank_info) {
   // find the bucket that shall contain the holder
   boost::uint16_t bucket_of_holder=KBucketIndex(kThisId_);
 
@@ -393,12 +395,12 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
 
   // check if the new contact is among the top v closest
   bool among_top_v(false);
-  RoutingTableContact new_local_contact(new_contact,kThisId_);
+  boost::uint16_t distance_to_target=KDistanceTo(new_contact.node_id());
   KBucketDistanceQuery it_begin=pit.first;
   KBucketDistanceQuery it_end=pit.second;
 
   while ((v>0)&&(!among_top_v)) {
-    if ((*it_begin).distance_to_this_id > new_local_contact.distance_to_this_id)
+    if ((*it_begin).distance_to_this_id > distance_to_target)
       among_top_v=true;
     it_begin++;
     v--;
@@ -417,6 +419,8 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
   RoutingTableContactsContainer::index<NodeIdTag>::type::iterator it_furthest
       = key_node_indx.find((*it_end).node_id());
   key_node_indx.erase(it_furthest);
+  RoutingTableContact new_local_contact(new_contact,kThisId_,
+                                        rank_info,distance_to_target);
   contacts_.insert(new_local_contact);
   return 0;
 }
@@ -438,6 +442,31 @@ void RoutingTable::Clear() {
   kbucket_boundries_.clear();
   KBucketBoundary first_boundary(kKeySizeBytes*8,0);
   kbucket_boundries_.insert(first_boundary);
+}
+
+const boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
+  boost::uint16_t distance=0;
+  std::string this_id_binary=kThisId_.ToStringEncoded(NodeId::kBinary);
+  std::string rhs_id_binary=rhs.ToStringEncoded(NodeId::kBinary);
+  std::string::const_iterator this_it = this_id_binary.begin();
+  std::string::const_iterator rhs_it = rhs_id_binary.begin();
+ for (; ((this_it != this_id_binary.end())&&(*this_it == *rhs_it));
+      ++this_it, ++rhs_it)
+    ++distance;
+  return distance;
+}
+
+const boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs,
+                                                const NodeId &ths) const {
+  boost::uint16_t distance=0;
+  std::string this_id_binary=ths.ToStringEncoded(NodeId::kBinary);
+  std::string rhs_id_binary=rhs.ToStringEncoded(NodeId::kBinary);
+  std::string::const_iterator this_it = this_id_binary.begin();
+  std::string::const_iterator rhs_it = rhs_id_binary.begin();
+ for (; ((this_it != this_id_binary.end())&&(*this_it == *rhs_it));
+      ++this_it, ++rhs_it)
+    ++distance;
+  return distance;
 }
 
 }  // namespace kademlia
