@@ -260,18 +260,6 @@ const NodeId NodeId::operator ^ (const NodeId &rhs) const {
   return result;
 }
 
-const boost::uint16_t NodeId::DistanceTo(const NodeId &rhs) const {
-  boost::uint16_t distance=0;
-  std::string this_id_binary=EncodeToBinary();
-  std::string rhs_id_binary=rhs.EncodeToBinary();
-  std::string::const_iterator this_it = this_id_binary.begin();
-  std::string::const_iterator rhs_it = rhs_id_binary.begin();
- for (; ((this_it != this_id_binary.end())&&(*this_it == *rhs_it));
-      ++this_it, ++rhs_it)
-    ++distance;
-  return distance;
-}
-
 }  // namespace kademlia
 
 }  // namespace maidsafe
