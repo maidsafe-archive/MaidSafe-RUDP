@@ -73,7 +73,7 @@ IF(NOT ${CMAKE_C_COMPILER_WORKS})
   MESSAGE(FATAL_ERROR ${ERROR_MESSAGE})
 ENDIF()
 
-IF((CMAKE_BUILD_TYPE_DIR MATCHES "Release") OR (${KDEV}))
+IF((CMAKE_BUILD_TYPE_DIR MATCHES "Release") OR (DEFINED ${KDEV}))
   SET(PROJECT_NAME maidsafe_dht)
 ELSE()
   SET(PROJECT_NAME maidsafe_dht_${CMAKE_BUILD_TYPE_DIR})
@@ -162,8 +162,7 @@ ELSE()
   SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${${PROJECT_NAME}_BINARY_DIR}/bin CACHE PATH "Static library target dir.")
 ENDIF()
 
-
-IF(NOT ${KDEV})
+IF(NOT DEFINED ${KDEV})
   SET(CMAKE_DEBUG_POSTFIX _d)
   SET(CMAKE_RELWITHDEBINFO_POSTFIX _rwdi)
   SET(CMAKE_MINSIZEREL_POSTFIX _msr)
@@ -481,6 +480,7 @@ IF(NOT MSVC)
                             MINSIZEREL_OUTPUT_NAME distributed_net_clients${CMAKE_MINSIZEREL_POSTFIX})
   ENDIF()
 ENDIF()
+
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
