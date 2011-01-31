@@ -35,13 +35,18 @@ namespace transport { struct Endpoint; }
 namespace kademlia {
 
 class Contact;
+class NodeId;
 namespace protobuf { class Contact; }
 
 bool IsValid(const transport::Endpoint &endpoint);
 
+bool HasId(const Contact &contact, const NodeId &node_id);
+
 Contact FromProtobuf(const protobuf::Contact &protobuf_contact);
 
 protobuf::Contact ToProtobuf(const Contact &contact);
+
+bool IsListeningOnTCP(const Contact &contact);
 
 //bool CompareContact(const ContactAndTargetKey &first,
 //                    const ContactAndTargetKey &second);
