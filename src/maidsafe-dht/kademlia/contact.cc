@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/contact_impl.h"
 #include "maidsafe-dht/kademlia/node_id.h"
+#include "maidsafe-dht/kademlia/utils.h"
 
 namespace maidsafe {
 
@@ -38,15 +39,13 @@ Contact::Contact() : pimpl_(new Contact::Impl) {}
 Contact::Contact(const Contact &other) : pimpl_(new Contact::Impl(other)) {}
 
 Contact::Contact(const NodeId &node_id,
-                 const transport::Endpoint &endpoint)
-    : pimpl_(new Contact::Impl(node_id, endpoint)) {}
-
-Contact::Contact(const NodeId &node_id,
                  const transport::Endpoint &endpoint,
+                 std::vector<transport::Endpoint> &local_endpoints,
                  const transport::Endpoint &rendezvous_endpoint,
-                 std::vector<transport::Endpoint> &local_endpoints)
-    : pimpl_(new Contact::Impl(node_id, endpoint, rendezvous_endpoint,
-                               local_endpoints)) {}
+                 bool tcp443,
+                 bool tcp80)
+    : pimpl_(new Contact::Impl(node_id, endpoint, local_endpoints,
+                               rendezvous_endpoint, tcp443, tcp80)) {}
 
 Contact::~Contact() {}
 
@@ -58,20 +57,32 @@ transport::Endpoint Contact::endpoint() const {
   return pimpl_->endpoint();
 }
 
+std::vector<transport::Endpoint> Contact::local_endpoints() const {
+  return pimpl_->local_endpoints();
+}
+
 transport::Endpoint Contact::rendezvous_endpoint() const {
   return pimpl_->rendezvous_endpoint();
 }
 
-std::vector<transport::Endpoint> Contact::local_endpoints() const {
-  return pimpl_->local_endpoints();
+transport::Endpoint Contact::tcp443endpoint() const {
+  return pimpl_->tcp443endpoint();
+}
+
+transport::Endpoint Contact::tcp80endpoint() const {
+  return pimpl_->tcp80endpoint();
 }
 
 bool Contact::SetPreferredEndpoint(const transport::IP &ip) {
   return pimpl_->SetPreferredEndpoint(ip);
 }
 
-transport::Endpoint Contact::GetPreferredEndpoint() const {
-  return pimpl_->GetPreferredEndpoint();
+transport::Endpoint Contact::PreferredEndpoint() const {
+  return pimpl_->PreferredEndpoint();
+}
+
+bool Contact::IsDirectlyConnected() const {
+  return pimpl_->IsDirectlyConnected();
 }
 
 Contact& Contact::operator=(const Contact &other) {
@@ -80,12 +91,28 @@ Contact& Contact::operator=(const Contact &other) {
   return *this;
 }
 
+bool Contact::operator==(const Contact &other) const {
+  return *pimpl_ == *other.pimpl_;
+}
+
+bool Contact::operator!=(const Contact &other) const {
+  return *pimpl_ != *other.pimpl_;
+}
+
 bool Contact::operator<(const Contact &other) const {
   return *pimpl_ < *other.pimpl_;
 }
 
-bool Contact::operator==(const Contact &other) const {
-  return *pimpl_ == *other.pimpl_;
+bool Contact::operator>(const Contact &other) const {
+  return *pimpl_ > *other.pimpl_;
+}
+
+bool Contact::operator<=(const Contact &other) const {
+  return *pimpl_ <= *other.pimpl_;
+}
+
+bool Contact::operator>=(const Contact &other) const {
+  return *pimpl_ >= *other.pimpl_;
 }
 
 bool CloserToTarget(const Contact &contact1,
@@ -107,8 +134,8 @@ bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
   if (!contacts)
     return false;
   size_t size_before(contacts->size());
-  Contact target(node_id, transport::Endpoint());
-  contacts->erase(std::remove(contacts->begin(), contacts->end(), target),
+  contacts->erase(std::remove_if(contacts->begin(), contacts->end(),
+                                 boost::bind(&HasId, _1, node_id)),
                   contacts->end());
   return contacts->size() != size_before;
 }

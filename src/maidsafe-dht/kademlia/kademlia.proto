@@ -8,6 +8,8 @@ message Contact {
   repeated bytes local_ips = 3;
   optional int32 local_port = 4;
   optional transport.protobuf.Endpoint rendezvous = 5;
+  optional bool tcp443 = 6;
+  optional bool tcp80 = 7;
 }
 
 message KadConfig {

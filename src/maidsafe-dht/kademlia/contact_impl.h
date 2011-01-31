@@ -48,31 +48,42 @@ class Contact::Impl {
  public:
   Impl();
   explicit Impl(const Contact &other);
-  Impl(const NodeId &node_id, const transport::Endpoint &endpoint);
   Impl(const NodeId &node_id,
        const transport::Endpoint &endpoint,
+       std::vector<transport::Endpoint> &local_endpoints,
        const transport::Endpoint &rendezvous_endpoint,
-       std::vector<transport::Endpoint> &local_endpoints);
+       bool tcp443,
+       bool tcp80);
   NodeId node_id() const { return node_id_; }
   transport::Endpoint endpoint() const { return endpoint_; }
-  transport::Endpoint rendezvous_endpoint() const {
-    return rendezvous_endpoint_;
-  }
   std::vector<transport::Endpoint> local_endpoints() const {
     return local_endpoints_;
   }
+  transport::Endpoint rendezvous_endpoint() const {
+    return rendezvous_endpoint_;
+  }
+  transport::Endpoint tcp443endpoint() const;
+  transport::Endpoint tcp80endpoint() const;
   bool SetPreferredEndpoint(const transport::IP &ip);
-  transport::Endpoint GetPreferredEndpoint() const;
+  transport::Endpoint PreferredEndpoint() const;
+  bool IsDirectlyConnected() const;
   Impl& operator=(const Impl &other);
-  bool operator<(const Impl &other) const;
   bool operator==(const Impl &other) const;
+  bool operator!=(const Impl &other) const;
+  bool operator<(const Impl &other) const;
+  bool operator>(const Impl &other) const;
+  bool operator<=(const Impl &other) const;
+  bool operator>=(const Impl &other) const;
  private:
+  void Init();
+  void Clear();
+  bool MoveLocalEndpointToFirst(const transport::IP &ip);
   bool IpMatchesEndpoint(const transport::IP &ip,
                          const transport::Endpoint &endpoint);
   NodeId node_id_;
   transport::Endpoint endpoint_, rendezvous_endpoint_;
   std::vector<transport::Endpoint> local_endpoints_;
-  bool prefer_local_;
+  bool tcp443_, tcp80_, prefer_local_;
 };
 
 }  // namespace kademlia
