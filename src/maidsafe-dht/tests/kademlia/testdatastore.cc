@@ -46,15 +46,17 @@ namespace maidsafe {
 namespace kademlia {
 
 namespace test {
-
+  typedef std::vector<std::pair<std::string, std::string>> KeyValuePair;
+  const boost::uint16_t kIterartorSize = 23;
+  const boost::uint16_t kThreadBarrierSize = 5;
 class DataStoreTest: public testing::Test {
  public:
   DataStoreTest() : test_ds_() {}
 
   virtual void SetUp() {
     test_ds_.reset(new kademlia::DataStore(bptime::seconds(3600)));
-    thread_barrier_.reset(new boost::barrier(5));
-    thread_barrier_1_.reset(new boost::barrier(5));
+    thread_barrier_.reset(new boost::barrier(kThreadBarrierSize));
+    thread_barrier_1_.reset(new boost::barrier(kThreadBarrierSize));
   }
   bool findValue(std::pair<std::string, std::string> element, 
                  std::pair<std::string, std::string> value) {
@@ -62,7 +64,7 @@ class DataStoreTest: public testing::Test {
   }
   void CheckKey(const std::string &key) {
     thread_barrier_->wait();
-    ASSERT_FALSE(test_ds_->HasKey(key));
+    EXPECT_TRUE(test_ds_->HasKey(key));
   }
   void CheckLoadKeyAppendableAttr(const std::string &key) {
     thread_barrier_1_->wait();
@@ -70,15 +72,24 @@ class DataStoreTest: public testing::Test {
     EXPECT_FALSE(appendable_attr[0].second);
   }
   void MakeMultipleEntries() {
-    for(int i = 1; i < 1000; ++i) {
+    for(int i = 1; i < 1001; ++i) {
       bptime::ptime expire_time = bptime::microsec_clock::universal_time();
       expire_time += bptime::hours(20);
-      if (i == 100)
-        expire_time_value_ = expire_time;
       bptime::ptime refresh_time = expire_time - bptime::hours(10);
-      test_ds_->key_value_index_.insert(KeyValueTuple(KeyValueSignature(
-          RandomString(i*7), RandomString(i*11),
-          RandomString(i*13)) , expire_time, refresh_time, false));
+      KeyValueSignature key_value_signature(SRandomString(i*7),
+                                            SRandomString(i*11),
+                                            SRandomString(i*13));
+      test_ds_->key_value_index_.insert(KeyValueTuple(key_value_signature,
+                                                      expire_time,
+                                                      refresh_time, false));
+      if(i > 0 && i < 47) // kIterartorSize * 2
+        key_value_from_front_.push_back(make_pair(key_value_signature.key,
+                                                  key_value_signature.value));
+      if(i > 500 && i < 570) // kIterartorSize * 3
+        key_value_from_mid_.push_back(key_value_signature);
+      if(i > 942 && i < 990) // kIterartorSize * 2
+        key_value_from_end_.push_back(make_pair(key_value_signature.key,
+                                                key_value_signature.value));
     }
   }
 
@@ -87,7 +98,8 @@ class DataStoreTest: public testing::Test {
 protected:
   boost::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   boost::shared_ptr<DataStore> test_ds_;
-  bptime::ptime expire_time_value_; // Used to test mutex only
+  KeyValuePair key_value_from_front_, key_value_from_end_;
+  std::vector<KeyValueSignature> key_value_from_mid_;
   DataStoreTest(const DataStoreTest&);
   DataStoreTest &operator=(const DataStoreTest&);
 };
@@ -325,73 +337,69 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
     asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
                                                 asio_service));
   }
-  KeyValueSignature key_value_signature(RandomString(10),
-                                        RandomString(10),
-                                        RandomString(10));
+  KeyValueSignature key_value_signature(SRandomString(10),
+                                        SRandomString(10),
+                                        SRandomString(10));
   std::vector<std::pair<std::string, std::string>> values, values1;
   this->MakeMultipleEntries();
-  auto p = GetKeyValueIndex().begin();
-  for (int i = 0; i < 30; ++i) {
-  ++p;
   
-  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
-                                 p->key_value_signature.key,
-                                 p->key_value_signature.value));
+  auto key_front =  key_value_from_front_.begin();
+  for (int i = 0; i < kIterartorSize; ++i) {
+    asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
+                                   key_front->first,
+                                   key_front->second));
+  ++key_front;
   }
  
-  p = GetKeyValueIndex().end();
-  for (int i = 0; i < 30; ++i) {
-  --p;
-  
-  asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
-                                 p->key_value_signature.key,
-                                 p->key_value_signature.value));
+  auto k = key_value_from_end_.end();
+  for (int i = 0; i < kIterartorSize; ++i) {
+    --k;
+    asio_service->post(boost::bind(&DataStore::DeleteValue, test_ds_,
+                                   k->first, k->second));
   }
-  for (int i = 0; i < 30; ++i) { 
-  asio_service->post(boost::bind(&DataStore::StoreValue, test_ds_,
-                                 KeyValueSignature(RandomString(i*103),
-                                 RandomString(i*107),
-                                 RandomString(i*111)),
-                                 bptime::seconds(1000), false));
+  for (int i = 0; i < kIterartorSize; ++i) { 
+    asio_service->post(boost::bind(&DataStore::StoreValue, test_ds_,
+                                   KeyValueSignature(SRandomString(i*103),
+                                   SRandomString(i*107),
+                                   SRandomString(i*111)),
+                                   bptime::seconds(1000), false));
   }
   asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
-                                 p->key_value_signature.key, &values));
-
+                                 k->first, &values));
   asio_service->post(boost::bind(&DataStore::MarkForDeletion, test_ds_,
-                                 p->key_value_signature,
-                                 RandomString(35)));
-  ++p;
+                                 KeyValueSignature(k->first, k->second,
+                                 SRandomString(35)), SRandomString(35)));
+  ++k;
   asio_service->post(boost::bind(&DataStore::GetValues, test_ds_,
-                                 p->key_value_signature.key, &values1));
-  /*auto s= test_ds_->key_value_index_.get<TagExpireTime>().find(
-      expire_time_value_);
-  --s;
-  //std::cout<<"\nkey value of this iteration\n"<<s->key();
-  //std::cout<<"\nkey value of this iteration\n"<<(++s)->key();
+                                 k->first, &values1));
+  auto s = key_value_from_mid_.begin();
 
-  /*for (int i = 0; i < 23; ++i) {
-  asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
-                                 s->key_value_signature,
-                                 &(base::RandomString(35))));
-  ++s;
-  }*/
-  /*for (int i = 0; i < 29; ++i) {
-  asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
-                                 s->key_value_signature,
-                                 KeyValueSignature(base::RandomString(i*53),
-                                 base::RandomString(i*59),
-                                 base::RandomString(i*61)),
-                                 bptime::seconds(1000), false));
+  for (int i = 0; i < kIterartorSize; ++i) {
+    asio_service->post(boost::bind(&DataStore::RefreshKeyValue, test_ds_,
+                                   (*s), &(SRandomString(35))));
   ++s;
   }
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < kIterartorSize; ++i) {
+    ++s;
+    asio_service->post(boost::bind(&DataStore::UpdateValue, test_ds_,
+                                   (*s),
+                                   KeyValueSignature(SRandomString(i*53),
+                                   SRandomString(i*59), SRandomString(i*61)),
+                                   bptime::seconds(1000), false));
+  }
+  for (int i = 0; i < kThreadBarrierSize; ++i) {
     asio_service->post(boost::bind(&DataStoreTest::CheckKey, this,
-                                   s->key_value_signature.key));
+                                   key_front->first));
     asio_service->post(boost::bind(&DataStoreTest::CheckLoadKeyAppendableAttr,
-                                   this, s->key_value_signature.key));
-  }*/
+                                   this, (*s).key));
+    ++key_front;
+    ++s;
+  }
   work.reset();
   asio_thread_group.join_all();
+  key_value_from_front_.clear();
+  key_value_from_mid_.clear();
+  key_value_from_end_.clear();
 }
 #if 0
 TEST_F(DataStoreTest, BEH_KAD_UpdateValue) {
