@@ -44,6 +44,12 @@ namespace test {
 void GenerateRandomStrings(const int &string_count,
                            const size_t &string_size) {
   for (int i = 0; i < string_count; ++i)
+    RandomString(string_size);
+}
+
+void GenerateSRandomStrings(const int &string_count,
+                           const size_t &string_size) {
+  for (int i = 0; i < string_count; ++i)
     SRandomString(string_size);
 }
 
@@ -58,6 +64,46 @@ TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
   }
   for (int i = 0; i < thread_count; ++i) {
     test_threads.at(i)->join();
+  }
+}
+
+TEST(UtilsTest, FUNC_BASE_SRandomStringMultiThread) {
+  int thread_count(20);
+  int string_count(1000);
+  size_t string_size(4096);
+  std::vector< boost::shared_ptr<boost::thread> > test_threads;
+  for (int i = 0; i < thread_count; ++i) {
+    test_threads.push_back(boost::shared_ptr<boost::thread>(new boost::thread(
+        &test::GenerateSRandomStrings, string_count, string_size)));
+  }
+  for (int i = 0; i < thread_count; ++i) {
+    test_threads.at(i)->join();
+  }
+}
+
+TEST(UtilsTest, FUNC_BASE_RandomStringGenerator) {
+  std::set<std::string>random_strings;
+  const size_t kCount(100);
+  const size_t kMaxDuplicates(1);
+  for (size_t j = 10; j< 100; ++j) {
+    for (size_t i = 0; i < kCount; ++i) {
+      random_strings.insert(RandomString(j));
+    }
+    EXPECT_GE(kMaxDuplicates, kCount - random_strings.size());
+    random_strings.clear();
+  }
+}
+
+TEST(UtilsTest, FUNC_BASE_SRandomStringGenerator) {
+  std::set<std::string>random_strings;
+  const size_t kCount(100);
+  const size_t kMaxDuplicates(1);
+  for (size_t j = 10; j< 100; ++j) {
+    for (size_t i = 0; i < kCount; ++i) {
+      random_strings.insert(SRandomString(j));
+    }
+    EXPECT_GE(kMaxDuplicates, kCount - random_strings.size());
+    random_strings.clear();
   }
 }
 
@@ -195,7 +241,7 @@ TEST(UtilsTest, BEH_BASE_TimeFunctions) {
   EXPECT_NEAR(ms*1000000, ns, 250000000) << "ms vs. ns failed.";
 }
 
-TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
+TEST(UtilsTest, BEH_BASE_SRandomNumberGen) {
   std::set<boost::int32_t>random_ints;
   std::set<boost::uint32_t>random_uints;
   const size_t kCount(10000);
@@ -209,6 +255,19 @@ TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
   EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());
 }
 
+TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
+  std::set<boost::int32_t>random_ints;
+  std::set<boost::uint32_t>random_uints;
+  const size_t kCount(10000);
+  // look for less than 0.01% duplicates
+  const size_t kMaxDuplicates(kCount * 0.0001);
+  for (size_t i = 0; i < kCount; ++i) {
+    random_ints.insert(RandomInt32());
+    random_uints.insert(RandomUint32());
+  }
+  EXPECT_GE(kMaxDuplicates, kCount - random_ints.size());
+  EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());
+}
 }  // namespace test
 
 }  // namespace maidsafe
