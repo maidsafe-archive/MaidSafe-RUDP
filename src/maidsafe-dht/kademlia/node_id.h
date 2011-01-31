@@ -155,6 +155,15 @@ class NodeId {
   * @return a NodeId object that is equal to this XOR rhs
   */
   const NodeId operator ^ (const NodeId &rhs) const;
+
+  /**
+  * XOR distance between two kademlia IDs.  Measured by the number of samed bits
+  * from the begining.
+  * The less the value is, the further the distance is
+  * @param rhs NodeId to which this is XOR
+  * @return the number of samed bits from the begining
+  */
+  const boost::uint16_t DistanceTo(const NodeId &rhs) const;
  private:
   std::string EncodeToBinary() const;
   void DecodeFromBinary(const std::string &binary_id);

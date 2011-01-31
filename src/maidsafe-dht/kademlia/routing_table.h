@@ -59,13 +59,36 @@ namespace kademlia {
 class KBucket;
 
 struct RoutingTableContact {
-  RoutingTableContact(const Contact &contact_in, const NodeId holder_id)
+  RoutingTableContact(const Contact &contact_in,
+                      const NodeId holder_id,
+                      const RankInfoPtr rank_info)
       : contact(contact_in),
         public_key(),
         num_failed_rpcs(0),
-        distance_to_this_id(contact_in.node_id()^holder_id),
+        distance_to_this_id(contact_in.node_id().DistanceTo(holder_id)),
         kbucket_index(0),
-        last_seen(bptime::microsec_clock::universal_time()) {}
+        last_seen(bptime::microsec_clock::universal_time()),
+        rank_info(rank_info) {}
+
+  RoutingTableContact(const Contact &contact_in,
+                      const NodeId holder_id)
+      : contact(contact_in),
+        public_key(),
+        num_failed_rpcs(0),
+        distance_to_this_id(contact_in.node_id().DistanceTo(holder_id)),
+        kbucket_index(0),
+        last_seen(bptime::microsec_clock::universal_time()),
+        rank_info() {}
+
+  /** Copy constructor. */
+  RoutingTableContact(const RoutingTableContact &other)
+      : contact(other.contact),
+        public_key(other.public_key),
+        num_failed_rpcs(other.num_failed_rpcs),
+        distance_to_this_id(other.distance_to_this_id),
+        kbucket_index(other.kbucket_index),
+        last_seen(other.last_seen),
+        rank_info(other.rank_info) {}
         
   bool operator<(const RoutingTableContact &other) const {
     return contact < other.contact;
@@ -73,26 +96,38 @@ struct RoutingTableContact {
   
   NodeId node_id() const { return contact.node_id(); }
   Contact contact;
-  NodeId distance_to_this_id;
-  
-  // unique and sorted, just use the upper_boundary
-  NodeId kbucket_index;
-  
   std::string public_key;
   boost::uint16_t num_failed_rpcs;
+  boost::uint16_t distance_to_this_id;
+  
+  // the index of the kbucket which in responsible of the contact
+  // unique and sorted, just use the upper_boundary
+  boost::uint16_t kbucket_index;
+  
   bptime::ptime last_seen;
   RankInfoPtr rank_info;
 };
 
+struct ChangeContact {
+  ChangeContact(Contact contact)
+      : contact(contact) {}
+
+  void operator()(RoutingTableContact& rt_contact){
+    rt_contact.contact=contact;
+  }
+private:
+  Contact contact;
+};
+
 struct ChangeKBucketIndex {
-  ChangeKBucketIndex(NodeId new_kbucket_index)
+  ChangeKBucketIndex(boost::uint16_t new_kbucket_index)
       : new_kbucket_index(new_kbucket_index) {}
 
   void operator()(RoutingTableContact& contact){
     contact.kbucket_index=new_kbucket_index;
   }
 private:
-  NodeId new_kbucket_index;
+  boost::uint16_t new_kbucket_index;
 };
 
 struct ChangePublicKey {
@@ -167,19 +202,19 @@ typedef boost::multi_index_container<
     bmi::ordered_non_unique<
       bmi::tag<DistanceToThisIdTag>,
       BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                               NodeId, distance_to_this_id)
+                               boost::uint16_t, distance_to_this_id)
     >,
     bmi::ordered_non_unique<
       bmi::tag<KBucketTag>,
       BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                               NodeId, kbucket_index)
+                               boost::uint16_t, kbucket_index)
     >,
     bmi::ordered_non_unique<
       bmi::tag<KBucketLastSeenTag>,
       bmi::composite_key<
         RoutingTableContact,
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                                NodeId, kbucket_index),
+                                boost::uint16_t, kbucket_index),
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
                                 bptime::ptime, last_seen)
       >
@@ -189,9 +224,9 @@ typedef boost::multi_index_container<
       bmi::composite_key<
         RoutingTableContact,
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                                NodeId, kbucket_index),
+                                boost::uint16_t, kbucket_index),
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                                NodeId, distance_to_this_id)
+                                boost::uint16_t, distance_to_this_id)
       >
     >,     
     bmi::ordered_non_unique<
@@ -209,33 +244,33 @@ typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type
 
 
 struct KBucketBoundary {
-  KBucketBoundary(NodeId upper_boundary, NodeId lower_boundary)
+  KBucketBoundary(boost::uint16_t upper_boundary, boost::uint16_t lower_boundary)
       : upper_boundary(upper_boundary) ,
         lower_boundary(lower_boundary) {}
-  NodeId upper_boundary;
-  NodeId lower_boundary;
+  boost::uint16_t upper_boundary;
+  boost::uint16_t lower_boundary;
 };
 
 struct ChangeUpperBoundary {
-  ChangeUpperBoundary(NodeId new_upper_boundary)
+  ChangeUpperBoundary(boost::uint16_t new_upper_boundary)
       : new_upper_boundary(new_upper_boundary) {}
 
   void operator()(KBucketBoundary& kbucket_boundary){
     kbucket_boundary.upper_boundary=new_upper_boundary;
   }
 private:
-  NodeId new_upper_boundary;
+  boost::uint16_t new_upper_boundary;
 };
 
 struct ChangeLowerBoundary {
-  ChangeLowerBoundary(NodeId new_lower_boundary)
+  ChangeLowerBoundary(boost::uint16_t new_lower_boundary)
       : new_lower_boundary(new_lower_boundary) {}
 
   void operator()(KBucketBoundary& kbucket_boundary){
     kbucket_boundary.lower_boundary=new_lower_boundary;
   }
 private:
-  NodeId new_lower_boundary;
+  boost::uint16_t new_lower_boundary;
 };
 
 // Tags
@@ -247,11 +282,11 @@ typedef boost::multi_index_container<
   bmi::indexed_by<
     bmi::ordered_unique<
       bmi::tag<UpperBoundaryTag>,
-      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, NodeId, upper_boundary)
+      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, boost::uint16_t, upper_boundary)
     >,
     bmi::ordered_unique<
       bmi::tag<LowerBoundaryTag>,
-      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, NodeId, lower_boundary)
+      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, boost::uint16_t, lower_boundary)
     >
   >
 > KBucketBoundariesContainer;
@@ -260,71 +295,134 @@ typedef std::shared_ptr<boost::signals2::signal<void(const Contact &,
                          const Contact &, RankInfoPtr)>>
     PingOldestContactStatusPtr;
 
+/** Object containing a node's Kademlia Routing Table and all its contacts.
+ *  @class RoutingTable */    
 class RoutingTable {
  public:
+  /** Constructor.  To create a routing table, in all cases the node ID and
+   *  k closest contacts parameter must be provided.
+   *  @param this_id The routing table holder's Kademlia ID.
+   *  @param k k closest contacts. */
   RoutingTable(const NodeId &this_id, const boost::uint16_t &k);
+
+  /** Dstructor. */
   ~RoutingTable();
-  // Add the given contact to the correct k-bucket; if it already
-  // exists, its status will be updated.  If the given k-bucket is full and not
-  // splittable, the signal on_ping_oldest_contact_ will be fired which will
-  // ultimately resolve whether the contact is added or not.
+  
+  /** Add the given contact to the correct k-bucket; if it already
+   *  exists, its status will be updated.  If the given k-bucket is full and not
+   *  splittable, the signal on_ping_oldest_contact_ will be fired which will
+   *  ultimately resolve whether the contact is added or not. 
+   *  @param contact The new contact needs to be added.
+   *  @param rank_info the contact's rank_info. */
   void AddContact(const Contact &contact, RankInfoPtr rank_info);
+
+  /** Get the info of the contact based on the input Kademlia ID
+   *  @param[in] node_id The input Kademlia ID.
+   *  @param[out] contact the return contact. */
   void GetContact(const NodeId &node_id, Contact *contact);
-  // Remove the contact with the specified node ID from the routing table
+  
+  /** Remove the contact with the specified node ID from the routing table
+   *  @param node_id The input Kademlia ID.
+   *  @param force Bool switch of ForceK. */
   void RemoveContact(const NodeId &node_id, const bool &force);
+  
+  /** Finds a number of known nodes closest to the target node in the current
+   *  routing table.
+   *  @param[in] target_id The Kademlia ID of the target node.
+   *  @param[in] count Number of closest nodes looking for.
+   *  @param[in] exclude_contacts List of contacts that shall be excluded.
+   *  @param[out] close_contacts Result of the find closest contacts. */
   // Finds a number of known nodes closest to the target_id.
   void GetCloseContacts(const NodeId &target_id,
                         const size_t &count,
-                        const std::vector<Contact> &exclude_contacts,
+                        std::vector<Contact> &exclude_contacts,
                         std::vector<Contact> *close_contacts);
 
+  /** Set one node's publickey
+   *  @param node_id The Kademlia ID of the target node.
+   *  @param new_public_key The new poblickey to be set to. */
   int SetPublicKey(const NodeId &node_id, const std::string &new_public_key);
+  
+  /** Update one node's rankinfo
+   *  @param node_id The Kademlia ID of the target node.
+   *  @param rank_info The new rankinfo to be set to. */
   int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
   
+  /** Set one node's preferred endpoint
+   *  @param node_id The Kademlia ID of the target node.
+   *  @param ip The new preferred endpoint to be set to. */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
+
+  /** Increase one node's failedRPC counter by one
+   *  @param node_id The Kademlia ID of the target node.
+   *  @return The value of the contact's latest num of failed RPC,
+   *          will be -1 when failed */
   int IncrementFailedRpcCount(const NodeId &node_id);
 
-  void GetBootstrapContacts(std::vector<Contact> *contacts);    
+  /** Get the routing table holder's direct-connected nodes.
+   *  for a direct-connected node, there must be no rendezvous endpoint,
+   *  but either of tcp443 or tcp80 may be true.
+   *  @param[out] contacts The result of all directly connected contacts. */
+  void GetBootstrapContacts(std::vector<Contact> *contacts);
 
-  // num of kbuckets in this node
+  /** Getter.
+   *  @return Num of kbuckets in the routing table. */
   boost::uint16_t KbucketSize() const;
   
-  // num of contacts in the routing table
+  /** Getter.
+   *  @return Num of contacts in the routing table. */
   boost::uint16_t Size() const;
   
+  /** Empty the routing table */
   void Clear();
-  // Calculate the index of the k-bucket which is responsible for the specified
-  // key (or ID)
-  NodeId KBucketIndex(const NodeId &key);
   
-  Contact GetLastSeenContact(const NodeId &kbucket_index);
+  /** Return the contact which is the lastseen on in the target kbucket.
+   *  @param[in] kbucket_index The index of the kbucket.
+   *  @return The last seend contact in the kbucket. */
+  Contact GetLastSeenContact(const boost::uint16_t &kbucket_index);
 
+  /** Getter.
+   *  @return The singal handler. */
   PingOldestContactStatusPtr PingOldestContactStatus();
 
  private:
-// Calculate the index of the k-bucket which is responsible for the specified
-// key (or ID)
-//  int KBucketIndex(const std::string &key);
+  /** Calculate the index of the k-bucket which is responsible for the specified
+   *  key (or ID).
+   *  @param[in] key The Kademlia ID of the target node.
+   *  @return The index of the k-bucket which is in responsible. */
+  boost::uint16_t KBucketIndex(const NodeId &key);
  
-  // Bisect the k-bucket in the specified index into two new ones
-  void SplitKbucket(const NodeId &kbucket_index);
-  // Forces the brother k-bucket of the holder to accept a new contact which
-  // would normally be dropped if it is within the k closest contacts to the
-  // holder's ID.
-  int ForceKAcceptNewPeer(const Contact &new_contact, const NodeId &target_bucket);
+  /** Bisect the k-bucket having the specified index into two new ones
+   *  @param[in] key The index of the target k-bucket. */
+  void SplitKbucket(const boost::uint16_t &kbucket_index);
+  
+  /** Forces the brother k-bucket of the holder to accept a new contact which
+   *  would normally be dropped if it is within the k closest contacts to the
+   *  holder's ID.
+   *  @param[in] new_contact The new contact needs to be added.
+   *  @param[in] target_bucket The kbucket shall in responsible of the new
+   *  contact
+   *  @return Error Code, 0 for succeed, 1 for fail */
+  int ForceKAcceptNewPeer(const Contact &new_contact, const boost::uint16_t &target_bucket);
 
-  // num of contacts in a specified kbucket
-  boost::uint16_t KBucketSize(const NodeId &key) const;
+  /** Get the number of contacts in a specified kbucket
+   *  @param[in] key The index of the target k-bucket. 
+   *  @return Num of contacts in the specified kbucket */
+  boost::uint16_t KBucketSize(const boost::uint16_t &key);
 
-  // Holder's node ID
+  /** Holder's Kademlia ID */
   const NodeId kThisId_;
 
-  // k closest to the holder
+  /** k closest to the holder */
   const boost::uint16_t K_;  
 
+  /** Multi_index container of all contacts */
   RoutingTableContactsContainer contacts_;
+
+  /** Multi_index container of boundary pairs for all KBucket */
   KBucketBoundariesContainer kbucket_boundries_;
 
+  /** Singal handler */
   PingOldestContactStatusPtr ping_oldest_contact_status_;
 };
 
