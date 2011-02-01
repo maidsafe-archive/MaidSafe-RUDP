@@ -277,56 +277,6 @@ TEST(TestKadId, BEH_KAD_CtrBetweenIds) {
   }
 }
 
-TEST(TestKadId, BEH_KAD_SplitRange) {
-  NodeId min, max1, min1, max(NodeId::kMaxId);
-  NodeId::SplitRange(min, max, &max1, &min1);
-  std::string exp_min(kKeySizeBits, '0');
-  exp_min[0] = '1';
-  std::string exp_max(kKeySizeBits, '1');
-  exp_max[0] = '0';
-  EXPECT_EQ(exp_min, min1.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max1.ToStringEncoded(NodeId::kBinary));
-
-  NodeId min2, max2;
-  exp_min[0] = '0';
-  exp_min[1] = '1';
-  exp_max[1] = '0';
-  NodeId::SplitRange(min, max1, &max2, &min2);
-  EXPECT_EQ(exp_min, min2.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max2.ToStringEncoded(NodeId::kBinary));
-
-  NodeId min3, max3;
-  exp_min[0] = '1';
-  exp_max[0] = '1';
-  NodeId::SplitRange(min1, max, &max3, &min3);
-  EXPECT_EQ(exp_min, min3.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max3.ToStringEncoded(NodeId::kBinary));
-
-  NodeId min4, max4;
-  exp_min[1] = '0';
-  exp_min[2] = '1';
-  exp_max[1] = '0';
-  exp_max[2] = '0';
-  NodeId::SplitRange(min1, max3, &max4, &min4);
-  EXPECT_EQ(exp_min, min4.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max4.ToStringEncoded(NodeId::kBinary));
-
-  NodeId min5, max5;
-  exp_min[0] = '0';
-  exp_max[0] = '0';
-  NodeId::SplitRange(min, max2, &max5, &min5);
-  EXPECT_EQ(exp_min, min5.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max5.ToStringEncoded(NodeId::kBinary));
-
-  NodeId min6, max6;
-  exp_min[2] = '0';
-  exp_min[3] = '1';
-  exp_max[3] = '0';
-  NodeId::SplitRange(min, max5, &max6, &min6);
-  EXPECT_EQ(exp_min, min6.ToStringEncoded(NodeId::kBinary));
-  EXPECT_EQ(exp_max, max6.ToStringEncoded(NodeId::kBinary));
-}
-
 TEST(TestKadId, BEH_KAD_InsertKadContact) {
   std::vector<Contact> contacts;
   transport::Endpoint ep("IP", 10000);
