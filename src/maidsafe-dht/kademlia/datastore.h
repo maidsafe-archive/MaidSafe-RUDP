@@ -99,6 +99,7 @@ struct KeyValueTuple {
   const std::string &value() const;
   void UpdateKeyValueSignature(
       const KeyValueSignature &new_key_value_signature,
+      const bptime::ptime &new_expire_time,
       const bptime::ptime &new_refresh_time);
   void set_refresh_time(const bptime::ptime &new_refresh_time);
   void UpdateDeleteStatus(const DeleteStatus &new_delete_status,
