@@ -362,12 +362,13 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
     return false;
   auto it = index_by_key_value.find(boost::make_tuple(
       old_key_value_signature.key, old_key_value_signature.value));
+  bptime::ptime now = bptime::microsec_clock::universal_time();
   if (it == index_by_key_value.end() ||
+      (*it).expire_time < now ||
       (*it).delete_status == kMarkedForDeletion ||
       (*it).delete_status == kDeleted)
     return false;
 
-  bptime::ptime now(bptime::microsec_clock::universal_time());
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   // ignoring the return value of modify to return true for cases updating
   // existing values
