@@ -75,7 +75,7 @@ class Node::Impl {
        const boost::uint16_t &k,
        const boost::uint16_t &alpha,
        const boost::uint16_t &beta,
-       const boost::posix_time::seconds &mean_refresh_interval);
+       const boost::posix_time::time_duration &mean_refresh_interval);
   // virtual destructor to allow tests to use a derived Impl and befriend it
   // rather than polluting this with friend tests.
   virtual ~Impl();
@@ -87,7 +87,7 @@ class Node::Impl {
   void Store(const Key &key,
              const std::string &value,
              const std::string &signature,
-             const boost::posix_time::seconds &ttl,
+             const boost::posix_time::time_duration &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
   void Delete(const Key &key,
@@ -101,7 +101,7 @@ class Node::Impl {
               const std::string &old_value,
               const std::string &old_signature,
               SecurifierPtr securifier,
-              const boost::posix_time::seconds &ttl,
+              const boost::posix_time::time_duration &ttl,
               UpdateFunctor callback);
   void FindValue(const Key &key,
                  SecurifierPtr securifier,

@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #endif
 
 namespace bs2 = boost::signals2;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -55,7 +56,7 @@ namespace transport {
 typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 typedef boost::int32_t DataSize;
-typedef boost::posix_time::milliseconds Timeout;
+typedef bptime::time_duration Timeout;
 
 enum TransportCondition {
   kSuccess = 0,
@@ -128,17 +129,17 @@ struct Info {
 // In bytes
 const DataSize kMaxTransportMessageSize = 67108864;
 // Default timeout for RPCs
-const Timeout kDefaultInitialTimeout(10000);
+const Timeout kDefaultInitialTimeout(bptime::seconds(10));
 // Used to indicate timeout should be calculated by transport
-const Timeout kDynamicTimeout(-1);
+const Timeout kDynamicTimeout(bptime::seconds(-1));
 // Indicates timeout to expire immediately
-const Timeout kImmediateTimeout(0);
+const Timeout kImmediateTimeout(bptime::seconds(0));
 // Minimum timeout if being calculated dynamically
-const Timeout kMinTimeout(500);
+const Timeout kMinTimeout(bptime::milliseconds(500));
 // Factor of message size used to calculate timeout dynamically
 const float kTimeoutFactor(0.01);
 // Maximum period of inactivity on a send or receive before timeout triggered
-const Timeout kStallTimeout(3000);
+const Timeout kStallTimeout(bptime::seconds(3));
 // Maximum number of accepted incoming connections
 const int kMaxAcceptedConnections(5);
 
