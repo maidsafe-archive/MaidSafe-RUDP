@@ -69,8 +69,10 @@ const std::string &KeyValueTuple::value() const {
 
 void KeyValueTuple::UpdateKeyValueSignature(
     const KeyValueSignature &new_key_value_signature,
+    const bptime::ptime &new_expire_time,
     const bptime::ptime &new_refresh_time) {
   key_value_signature = new_key_value_signature;
+  expire_time = new_expire_time;
   refresh_time = new_refresh_time;
 }
 
@@ -145,9 +147,7 @@ bool DataStore::StoreValue(const KeyValueSignature &key_value_signature,
 
   if (!p.second) {
     if ((p.first->delete_status == kNotDeleted) ||
-        (tuple.expire_time.is_pos_infinity()) ||  // why we need to compare tuple ttl
-        (p.first->expire_time < tuple.expire_time &&
-        !p.first->expire_time.is_pos_infinity())) {
+        (p.first->expire_time < tuple.expire_time)) {
       key_value_index_.replace(p.first, tuple);
     } else {
       return false;
@@ -369,11 +369,11 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
 
   bptime::ptime now(bptime::microsec_clock::universal_time());
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  //ignoring the return value of modify to return true for cases updating
-  //existing values
+  // ignoring the return value of modify to return true for cases updating
+  // existing values
   index_by_key_value.modify(it,
       boost::bind(&KeyValueTuple::UpdateKeyValueSignature, _1,
-                  new_key_value_signature, now + refresh_interval_));
+                  new_key_value_signature, now + ttl, now + refresh_interval_));
   
   return true;
 }
