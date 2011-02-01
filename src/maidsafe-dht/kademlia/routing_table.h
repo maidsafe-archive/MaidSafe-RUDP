@@ -62,22 +62,26 @@ struct RoutingTableContact {
   RoutingTableContact(const Contact &contact_in,
                       const NodeId holder_id,
                       const RankInfoPtr rank_info,
-                      boost::uint16_t distance_to_this_id )
+                      boost::uint16_t common_heading_bits )
       : contact(contact_in),
+        node_id(contact_in.node_id()),
         public_key(),
         num_failed_rpcs(0),
-        distance_to_this_id(distance_to_this_id),
+        distance_to_this_id(holder_id^contact_in.node_id()),
+        common_heading_bits(common_heading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
         rank_info(rank_info) {}
 
   RoutingTableContact(const Contact &contact_in,
                       const NodeId holder_id,
-                      boost::uint16_t distance_to_this_id )
+                      boost::uint16_t common_heading_bits )
       : contact(contact_in),
+        node_id(contact_in.node_id()),
         public_key(),
         num_failed_rpcs(0),
-        distance_to_this_id(distance_to_this_id),
+        distance_to_this_id(holder_id^contact_in.node_id()),
+        common_heading_bits(common_heading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
         rank_info() {}
@@ -85,9 +89,11 @@ struct RoutingTableContact {
   /** Copy constructor. */
   RoutingTableContact(const RoutingTableContact &other)
       : contact(other.contact),
+        node_id(other.node_id),
         public_key(other.public_key),
         num_failed_rpcs(other.num_failed_rpcs),
         distance_to_this_id(other.distance_to_this_id),
+        common_heading_bits(other.common_heading_bits),
         kbucket_index(other.kbucket_index),
         last_seen(other.last_seen),
         rank_info(other.rank_info) {}
@@ -96,11 +102,12 @@ struct RoutingTableContact {
     return contact < other.contact;
   }
   
-  NodeId node_id() const { return contact.node_id(); }
   Contact contact;
+  NodeId node_id;
   std::string public_key;
   boost::uint16_t num_failed_rpcs;
-  boost::uint16_t distance_to_this_id;
+  NodeId distance_to_this_id;
+  boost::uint16_t common_heading_bits; 
   
   // the index of the kbucket which in responsible of the contact
   // unique and sorted, just use the upper_boundary
@@ -188,7 +195,7 @@ struct KadCloserToThisId {
   explicit KadCloserToThisId(const NodeId &id) : this_id(id) {}
   bool operator()(const RoutingTableContact &x,
                   const RoutingTableContact &y) const {
-    return NodeId::CloserToTarget(x.node_id(), y.node_id(), this_id);
+    return NodeId::CloserToTarget(x.node_id, y.node_id, this_id);
   }
  private:
   NodeId this_id;
@@ -199,12 +206,12 @@ typedef boost::multi_index_container<
   bmi::indexed_by<
     bmi::ordered_unique<
       bmi::tag<NodeIdTag>,
-      BOOST_MULTI_INDEX_CONST_MEM_FUN(RoutingTableContact, NodeId, node_id)
+      BOOST_MULTI_INDEX_MEMBER(RoutingTableContact, NodeId, node_id)
     >,
     bmi::ordered_non_unique<
       bmi::tag<DistanceToThisIdTag>,
       BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                               boost::uint16_t, distance_to_this_id)
+                               NodeId, distance_to_this_id)
     >,
     bmi::ordered_non_unique<
       bmi::tag<KBucketTag>,
@@ -228,7 +235,7 @@ typedef boost::multi_index_container<
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
                                 boost::uint16_t, kbucket_index),
         BOOST_MULTI_INDEX_MEMBER(RoutingTableContact ,
-                                boost::uint16_t, distance_to_this_id)
+                                NodeId, distance_to_this_id)
       >
     >,     
     bmi::ordered_non_unique<
