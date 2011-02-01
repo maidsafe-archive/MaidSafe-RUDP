@@ -131,10 +131,10 @@ bool DataStore::HasKey(const std::string &key) {
 }
 
 bool DataStore::StoreValue(const KeyValueSignature &key_value_signature,
-                           const bptime::seconds &ttl,
+                           const bptime::time_duration &ttl,
                            const bool &hashable) {
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
-    key_value_signature.signature.empty() || ttl == bptime::seconds(0))
+      key_value_signature.signature.empty() || ttl == bptime::seconds(0))
     return false;
 
   bptime::ptime now(bptime::microsec_clock::universal_time());
@@ -167,10 +167,9 @@ bool DataStore::GetValues(
 
   bptime::ptime now = bptime::microsec_clock::universal_time();
   while (p.first != p.second) {
-    if ((p.first->expire_time > now || p.first->expire_time.is_pos_infinity())
-        && (p.first->delete_status == kNotDeleted))
-    values->push_back(std::make_pair(p.first->key_value_signature.value,
-                                     p.first->key_value_signature.signature));
+    if ((p.first->expire_time > now) && (p.first->delete_status == kNotDeleted))
+      values->push_back(std::make_pair(p.first->key_value_signature.value,
+                                       p.first->key_value_signature.signature));
     ++p.first;
   }
   return (!values->empty());
@@ -352,7 +351,7 @@ bool DataStore::MarkAsDeleted(const std::string &key,
 
 bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
                             const KeyValueSignature &new_key_value_signature,
-                            const bptime::seconds &ttl,
+                            const bptime::time_duration &ttl,
                             const bool &hashable) {
   KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
       key_value_index_.get<TagKeyValue>();
@@ -360,7 +359,7 @@ bool DataStore::UpdateValue(const KeyValueSignature &old_key_value_signature,
   if (new_key_value_signature.value.empty()||
       new_key_value_signature.signature.empty()||
       (old_key_value_signature.key != new_key_value_signature.key))
-	  return false;
+    return false;
   auto it = index_by_key_value.find(boost::make_tuple(
       old_key_value_signature.key, old_key_value_signature.value));
   if (it == index_by_key_value.end() ||

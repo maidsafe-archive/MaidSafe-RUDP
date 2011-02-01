@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/udtconnection.h"
 #include "maidsafe-dht/udt/udt.h"
 
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -47,7 +48,7 @@ UdtTransport::UdtTransport(
           listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_port_(0),
-          timer_(*asio_service, boost::posix_time::milliseconds(10)),
+          timer_(*asio_service, bptime::milliseconds(10)),
           accepted_connection_count_(0),
           nat_detection_endpoints_(),
 //          managed_endpoint_sockets_(),
@@ -69,7 +70,7 @@ UdtTransport::UdtTransport(
           listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_socket_id_(UDT::INVALID_SOCK),
           managed_endpoint_listening_port_(0),
-          timer_(*asio_service, boost::posix_time::milliseconds(10)),
+          timer_(*asio_service, bptime::milliseconds(10)),
           accepted_connection_count_(0),
           nat_detection_endpoints_(nat_detection_endpoints),
 //          managed_endpoint_sockets_(),
@@ -189,7 +190,7 @@ void UdtTransport::AcceptConnection(bool managed_endpoint_accept) {
   sockaddr_storage clientaddr;
   int addrlen = sizeof(clientaddr);
   if (accepted_connection_count_ >= kMaxAcceptedConnections) {
-    timer_.expires_at(timer_.expires_at() + boost::posix_time::milliseconds(10));
+    timer_.expires_at(timer_.expires_at() + bptime::milliseconds(10));
     timer_.async_wait(boost::bind(&UdtTransport::AcceptConnection, this,
                                   managed_endpoint_accept));
   }
@@ -214,7 +215,7 @@ void UdtTransport::AcceptConnection(bool managed_endpoint_accept) {
   } else if (!managed_endpoint_accept && listening_port_ == 0) {
     UDT::close(listening_socket_id_);
   } else {
-    timer_.expires_at(timer_.expires_at() + boost::posix_time::milliseconds(10));
+    timer_.expires_at(timer_.expires_at() + bptime::milliseconds(10));
     timer_.async_wait(boost::bind(&UdtTransport::AcceptConnection, this,
                                   managed_endpoint_accept));
   }
@@ -539,7 +540,7 @@ void UdtTransport::StopManagedEndpoints() {
     stop_managed_endpoints_ = true;
     managed_endpoints_cond_var_.notify_all();
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
-        boost::posix_time::milliseconds(110),
+        bptime::milliseconds(110),
         boost::bind(&std::vector<SocketId>::empty,
                     boost::ref(managed_endpoint_sockets_)));
     if (!success)
@@ -551,7 +552,7 @@ void UdtTransport::StopManagedEndpoints() {
   if (check_connections_.get() != NULL) {
     try {
       bool success =
-          check_connections_->timed_join(boost::posix_time::milliseconds(1010));
+          check_connections_->timed_join(bptime::milliseconds(1010));
       if (!success)
         DLOG(WARNING) << "StopManagedConxns timed_join timeout." << std::endl;
     }
@@ -615,7 +616,7 @@ ManagedEndpointId UdtTransport::AddManagedEndpoint(
     udt_connection.SendData(UdtConnection::kKeepAlive,
                             kAddManagedEndpointTimeout);
     bool success = managed_endpoints_cond_var_.timed_wait(lock,
-        boost::posix_time::milliseconds(kAddManagedEndpointTimeout + 100),
+        bptime::milliseconds(kAddManagedEndpointTimeout + 100),
         boost::bind(&UdtTransport::PendingManagedSocketReplied, this,
                     initial_peer_socket_id));
     UDT::close(initial_peer_socket_id);
@@ -767,7 +768,7 @@ SocketId UdtTransport::GetNewManagedEndpointSocket(
           return kListenError;
       }
     } else if (listening_port == Port(-1)) {  // Startup is already in progress
-      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+      boost::this_thread::sleep(bptime::milliseconds(10));
     }
   }
 
@@ -855,7 +856,7 @@ void UdtTransport::CheckManagedSockets() {
     }
     lock.lock();
     managed_endpoints_cond_var_.timed_wait(lock,
-        boost::posix_time::milliseconds(1000));
+        bptime::milliseconds(1000));
   }
 //  std::cout << "  CheckManagedSockets STOP " << indicator << std::endl;
 }

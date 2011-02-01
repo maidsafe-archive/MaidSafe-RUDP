@@ -118,8 +118,9 @@ void UdtConnection::SetDataSizeTimeout(const Timeout &timeout) {
 void UdtConnection::SetDataContentTimeout(const DataSize &data_size,
                                           const Timeout &timeout) {
   if (timeout == kDynamicTimeout)
-    timeout_timer_->expires_from_now(std::max(
-        static_cast<Timeout>(data_size * kTimeoutFactor), kMinTimeout));
+    timeout_timer_->expires_from_now(bptime::milliseconds(std::max(
+        static_cast<boost::int64_t>(data_size * kTimeoutFactor),
+        kMinTimeout.total_milliseconds())));
   else
     timeout_timer_->expires_from_now(timeout);
 }

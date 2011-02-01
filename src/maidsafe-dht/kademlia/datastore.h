@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 #include <vector>
-#include <set>
 #include <utility>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/multi_index_container.hpp"
@@ -69,21 +68,21 @@ struct KeyValueSignature {
   std::string signature;
 };
 
-struct RefreshValue {
-  RefreshValue(const KeyValueSignature &key_value_signature,
-               const bptime::seconds &ttl)
-      : key_value_signature(key_value_signature),
-        ttl(ttl),
-        delete_status(kNotDeleted) {}
-  RefreshValue(const KeyValueSignature &key_value_signature,
-               const DeleteStatus &delete_status)
-      : key_value_signature(key_value_signature),
-        ttl(0),
-        delete_status(delete_status) {}
-  KeyValueSignature key_value_signature;
-  bptime::seconds ttl;
-  DeleteStatus delete_status;
-};
+//  struct RefreshValue {
+//    RefreshValue(const KeyValueSignature &key_value_signature,
+//                 const bptime::seconds &ttl)
+//        : key_value_signature(key_value_signature),
+//          ttl(ttl),
+//          delete_status(kNotDeleted) {}
+//    RefreshValue(const KeyValueSignature &key_value_signature,
+//                 const DeleteStatus &delete_status)
+//        : key_value_signature(key_value_signature),
+//          ttl(0),
+//          delete_status(delete_status) {}
+//    KeyValueSignature key_value_signature;
+//    bptime::seconds ttl;
+//    DeleteStatus delete_status;
+//  };
 
 struct KeyValueTuple {
   KeyValueTuple(const KeyValueSignature &key_value_signature,
@@ -148,7 +147,7 @@ class DataStore {
   bool HasKey(const std::string &key);
   // Infinite ttl is indicated by bptime::pos_infin.
   bool StoreValue(const KeyValueSignature &key_value_signature,
-                  const bptime::seconds &ttl,
+                  const bptime::time_duration &ttl,
                   const bool &hashable);
   bool GetValues(const std::string &key,
                  std::vector<std::pair<std::string, std::string>> *values);
@@ -179,7 +178,7 @@ class DataStore {
   // Infinite ttl is indicated by bptime::pos_infin.
   bool UpdateValue(const KeyValueSignature &old_key_value_signature,
                    const KeyValueSignature &new_key_value_signature,
-                   const bptime::seconds &ttl,
+                   const bptime::time_duration &ttl,
                    const bool &hashable);
   bptime::seconds refresh_interval() const;
   friend class test::DataStoreTest;

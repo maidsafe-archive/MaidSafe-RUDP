@@ -91,7 +91,7 @@ class TestNatTraversal_BEH_UDT_DirectlyConnected_Test;
 
 typedef int SocketId;
 
-const Timeout kAddManagedEndpointTimeout(10000);
+const Timeout kAddManagedEndpointTimeout(bptime::seconds(10));
 const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
