@@ -1236,6 +1236,90 @@ TEST_F(DataStoreTest, BEH_KAD_UpdateValues) {
   EXPECT_EQ(size_t(5), values.size());
 }
 
+TEST_F(DataStoreTest, FUNC_KAD_UpdateWithTTL) {
+  std::string value1 = RandomString(100);
+  std::string key1 = crypto::Hash<crypto::SHA512>(RandomString(5));
+  std::string signature1 = crypto::Hash<crypto::SHA512>(RandomString(5));
+  bptime::time_duration ttl1(bptime::seconds(50));
+  bptime::ptime now1(bptime::microsec_clock::universal_time());
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   ttl1, false));
+  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+      GetKeyValueIndex().get<TagKeyValue>();
+  auto it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh1 = (*it).refresh_time;
+  bptime::ptime t_expire1 = (*it).expire_time;
+  EXPECT_LT(now1, t_refresh1);
+  EXPECT_LE(now1 + ttl1 , t_expire1);
+  
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  EXPECT_FALSE(values.empty());
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
+  values.clear();
+  //update with greater ttl
+  bptime::ptime now2(bptime::microsec_clock::universal_time());
+  bptime::time_duration ttl2(bptime::seconds(500));
+  EXPECT_TRUE(test_ds_->UpdateValue(KeyValueSignature(key1, value1, signature1),
+                                    KeyValueSignature(key1, value1, signature1),
+                                    ttl2, true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  ASSERT_EQ(1, values.size());
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
+  it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  
+  bptime::ptime t_refresh2 = (*it).refresh_time;
+  bptime::ptime t_expire2 = (*it).expire_time;
+  EXPECT_LT(now2, t_refresh2);
+  EXPECT_LE(now2 + ttl2 , t_expire2);
+  EXPECT_LT(t_expire1 , t_expire2);
+  
+  EXPECT_FALSE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   bptime::seconds(100), false));
+  //update with lesser ttl
+  bptime::ptime now3(bptime::microsec_clock::universal_time());
+  bptime::time_duration ttl3(bptime::seconds(1));
+  EXPECT_TRUE(test_ds_->UpdateValue(KeyValueSignature(key1, value1, signature1),
+                                    KeyValueSignature(key1, value1, signature1),
+                                    ttl3, true));
+  values.clear();
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  ASSERT_EQ(1, values.size());
+  EXPECT_EQ(value1, values[0].first);
+  EXPECT_EQ(signature1, values[0].second);
+  it = index_by_key_value.find(boost::make_tuple(key1, value1));
+  ASSERT_FALSE(it == index_by_key_value.end());
+  bptime::ptime t_refresh3 = (*it).refresh_time;
+  bptime::ptime t_expire3 = (*it).expire_time;
+  EXPECT_LT(now3, t_refresh3);
+  EXPECT_LE(now3 + ttl3 , t_expire3);
+  EXPECT_GT(t_expire2 , t_expire3);
+  
+
+  boost::this_thread::sleep(boost::posix_time::seconds(2));
+  values.clear();
+  EXPECT_FALSE(test_ds_->GetValues(key1, &values));
+  //update expired entry 
+  
+  bptime::ptime now4(bptime::microsec_clock::universal_time());
+  bptime::time_duration ttl4(bptime::seconds(3000));
+  EXPECT_FALSE(test_ds_->UpdateValue(KeyValueSignature(key1, value1, signature1),
+                                    KeyValueSignature(key1, value1, signature1),
+                                    ttl4, true));
+  values.clear();
+  EXPECT_FALSE(test_ds_->GetValues(key1, &values));
+  // store expired entry
+  EXPECT_TRUE(test_ds_->StoreValue(KeyValueSignature(key1, value1, signature1),
+                                   ttl4, false));
+  EXPECT_TRUE(test_ds_->GetValues(key1, &values));
+  
+}
+
 }  // namespace test
 
 }  // namespace kademlia
