@@ -28,12 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCPTRANSPORT_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCPTRANSPORT_H_
 
+#include <memory>
 #include <set>
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rawbuffer.h"
 #include "maidsafe-dht/transport/tcpconnection.h"
 
 namespace maidsafe {
@@ -42,7 +42,7 @@ namespace transport {
 
 class TcpTransport : public Transport {
  public:
-  TcpTransport(boost::shared_ptr<boost::asio::io_service> asio_service);
+  explicit TcpTransport(std::shared_ptr<boost::asio::io_service> asio_service);
   ~TcpTransport();
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual void StopListening();
@@ -53,8 +53,8 @@ class TcpTransport : public Transport {
   TcpTransport(const TcpTransport&);
   TcpTransport& operator=(const TcpTransport&);
   friend class TcpConnection;
-  typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
-  typedef boost::shared_ptr<TcpConnection> ConnectionPtr;
+  typedef std::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
+  typedef std::shared_ptr<TcpConnection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
   void HandleAccept(ConnectionPtr connection,
                     const boost::system::error_code &ec);
