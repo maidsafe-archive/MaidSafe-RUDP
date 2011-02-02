@@ -245,10 +245,12 @@ typedef boost::multi_index_container<
   >
 > RoutingTableContactsContainer;
 
-typedef RoutingTableContactsContainer::index<NodeIdTag>::type ContactsById;
-typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type
+typedef RoutingTableContactsContainer::index<NodeIdTag>::type& ContactsById;
+typedef RoutingTableContactsContainer::index<KBucketTag>::type&
+    ContactsByKBucketIndex;
+typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type&
     ContactsByDistanceToThisId;
-typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type
+typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type&
     ContactsByTimeLastSeen;
 
 
@@ -299,6 +301,9 @@ typedef boost::multi_index_container<
     >
   >
 > KBucketBoundariesContainer;
+
+typedef KBucketBoundariesContainer::index<UpperBoundaryTag>::type&
+    KBucketBoundariesByUpperBoundary;
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact &,
                          const Contact &, RankInfoPtr)>>
@@ -428,7 +433,7 @@ class RoutingTable {
   * @param rhs NodeId to which this is XOR
   * @return the number of samed bits from the begining
   */
-  const boost::uint16_t KDistanceTo(const NodeId &rhs) const;
+  boost::uint16_t KDistanceTo(const NodeId &rhs);
 
   /**
   * XOR KBucket distance between two kademlia IDs.
@@ -438,8 +443,8 @@ class RoutingTable {
   * @param ths NodeId from which this is XOR
   * @return the number of samed bits from the begining
   */
-  const boost::uint16_t KDistanceTo(const NodeId &rhs,
-                                    const NodeId &ths) const;
+  boost::uint16_t KDistanceTo(const NodeId &rhs,
+                              const NodeId &ths);
 
   /** Holder's Kademlia ID */
   const NodeId kThisId_;
