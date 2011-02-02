@@ -28,10 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 
+#include <memory>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
@@ -40,7 +40,7 @@ namespace transport {
 
 class TcpTransport;
 
-class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
+class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
  public:
   TcpConnection(TcpTransport *tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);
@@ -55,10 +55,10 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   TcpConnection &operator=(const TcpConnection&);
   void StartTimeout(const Timeout &timeout);
 
-  void HandleTimeout(boost::system::error_code const& ec);
-  void HandleSize(boost::system::error_code const& ec);
-  void HandleRead(boost::system::error_code const& ec);
-  void HandleConnect(boost::system::error_code const& ec);
+  void HandleTimeout(const boost::system::error_code& ec);
+  void HandleSize(const boost::system::error_code& ec);
+  void HandleRead(const boost::system::error_code& ec);
+  void HandleConnect(const boost::system::error_code& ec);
   void HandleWrite(const boost::system::error_code &ec);
 
   void DispatchMessage();
@@ -67,7 +67,7 @@ class TcpConnection : public boost::enable_shared_from_this<TcpConnection> {
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
-  std::vector<char> size_buffer_, data_buffer_;
+  std::vector<unsigned char> size_buffer_, data_buffer_;
   Timeout timeout_for_response_;
 };
 

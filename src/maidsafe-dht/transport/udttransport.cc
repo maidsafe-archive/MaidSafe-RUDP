@@ -27,8 +27,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/udttransport.h"
 
-#include "boost/shared_ptr.hpp"
-
 #include "maidsafe-dht/common/log.h"
 #include "maidsafe-dht/transport/udtutils.h"
 #include "maidsafe-dht/transport/udtconnection.h"
@@ -169,7 +167,7 @@ TransportCondition UdtTransport::DoStartListening(
   }
 
   // Start accepting new incoming connections
-  asio_service_->post(boost::bind(&UdtTransport::AcceptConnection, this,
+  asio_service_->post(std::bind(&UdtTransport::AcceptConnection, this,
                                   false));
 
   if (managed_endpoint_listener) {
@@ -202,10 +200,10 @@ void UdtTransport::AcceptConnection(bool managed_endpoint_accept) {
       reinterpret_cast<sockaddr*>(&clientaddr), &addrlen);
   if (receiver_socket_id != UDT::INVALID_SOCK) {
     udtutils::SetSyncMode(receiver_socket_id, false);
-    boost::shared_ptr<UdtConnection> udt_connection(new UdtConnection(
+    std::shared_ptr<UdtConnection> udt_connection(new UdtConnection(
         shared_from_this(), receiver_socket_id, UdtConnection::kAccepted));
     ++accepted_connection_count_;
-    asio_service_->post(boost::bind(&UdtConnection::ReceiveData, udt_connection,
+    asio_service_->post(std::bind(&UdtConnection::ReceiveData, udt_connection,
                                     kStallTimeout));
   } else {
     if (UDT::getlasterror().getErrorCode() != UDT::ERRORINFO::EASYNCRCV) {
@@ -219,8 +217,8 @@ void UdtTransport::AcceptConnection(bool managed_endpoint_accept) {
     UDT::close(listening_socket_id_);
   } else {
     timer_.expires_at(timer_.expires_at() + bptime::milliseconds(10));
-    timer_.async_wait(boost::bind(&UdtTransport::AcceptConnection, this,
-                                  managed_endpoint_accept));
+    timer_.async_wait(std::bind(&UdtTransport::AcceptConnection, this,
+                                managed_endpoint_accept));
   }
 }
 

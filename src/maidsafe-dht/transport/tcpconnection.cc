@@ -27,24 +27,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/tcpconnection.h"
 
-#include "boost/asio/read.hpp"
-#include "boost/asio/write.hpp"
-#include "boost/bind.hpp"
-#include "boost/foreach.hpp"
-#include "google/protobuf/descriptor.h"
-
 #include <algorithm>
+#include <functional> 
 #include <vector>
 
+#include "boost/asio/read.hpp"
+#include "boost/asio/write.hpp"
+
 #include "maidsafe-dht/transport/tcptransport.h"
-#include "maidsafe-dht/transport/udtconnection.h"  // for timeout constants
-#include "maidsafe-dht/protobuf/transport_message.pb.h"
+#include "maidsafe-dht/transport/tcpconnection.h"
 #include "maidsafe-dht/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
-namespace pt = boost::posix_time;
+namespace bptime = boost::posix_time;
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
@@ -58,7 +56,9 @@ TcpConnection::TcpConnection(TcpTransport *tcp_transport,
     remote_endpoint_(remote),
     size_buffer_(sizeof(DataSize)),
     data_buffer_(),
-    timeout_for_response_(kDefaultInitialTimeout) {}
+    timeout_for_response_(kDefaultInitialTimeout) {
+  static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+}
 
 TcpConnection::~TcpConnection() {}
 
@@ -74,26 +74,26 @@ ip::tcp::socket &TcpConnection::Socket() {
 
 void TcpConnection::StartTimeout(const Timeout &timeout) {
   timer_.expires_from_now(timeout);
-  timer_.async_wait(boost::bind(&TcpConnection::HandleTimeout,
-                                shared_from_this(), _1));
+  timer_.async_wait(std::bind(&TcpConnection::HandleTimeout,
+                                shared_from_this(), arg::_1));
 }
 
 void TcpConnection::StartReceiving() {
   // Start by receiving the message size.
   // socket_.async_receive(...);
   asio::async_read(socket_, asio::buffer(size_buffer_, size_buffer_.size()),
-                   boost::bind(&TcpConnection::HandleSize,
-                               shared_from_this(), _1));
+                   std::bind(&TcpConnection::HandleSize, shared_from_this(),
+                             arg::_1));
   StartTimeout(timeout_for_response_);
 }
 
-void TcpConnection::HandleTimeout(boost::system::error_code const& ec) {
+void TcpConnection::HandleTimeout(const bs::error_code &ec) {
   if (ec)
     return;
   socket_.close();
 }
 
-void TcpConnection::HandleSize(boost::system::error_code const& ec) {
+void TcpConnection::HandleSize(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
     (*transport_->on_error_)(kReceiveTimeout);
@@ -105,15 +105,16 @@ void TcpConnection::HandleSize(boost::system::error_code const& ec) {
     return Close();
   }
 
-  DataSize size = *reinterpret_cast<DataSize*>(&size_buffer_);
+  DataSize size = (((((size_buffer_.at(0) << 8) | size_buffer_.at(1)) << 8) |
+                    size_buffer_.at(2)) << 8) | size_buffer_.at(3);
   data_buffer_.resize(size);
 
   asio::async_read(socket_, asio::buffer(data_buffer_, size),
-                   boost::bind(&TcpConnection::HandleRead,
-                               shared_from_this(), _1));
+                   std::bind(&TcpConnection::HandleRead, shared_from_this(),
+                             arg::_1));
 }
 
-void TcpConnection::HandleRead(boost::system::error_code const& ec) {
+void TcpConnection::HandleRead(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
     (*transport_->on_error_)(kReceiveTimeout);
@@ -157,8 +158,8 @@ void TcpConnection::Send(const std::string &data,
     return;
   }
 
-  size_buffer_.assign(reinterpret_cast<char*>(&msg_size),
-                      reinterpret_cast<char*>(&msg_size) + sizeof(DataSize));
+  for (int i = 0; i != 4; ++i)
+    size_buffer_.at(i) = msg_size >> (8 * (3 - i));
   data_buffer_.assign(data.begin(), data.end());
 
   // TODO(Fraser#5#): 2011-01-18 - Check timeout logic
@@ -166,21 +167,22 @@ void TcpConnection::Send(const std::string &data,
   if (is_response) {
     assert(socket_.is_open());
 //    timeout_for_response_ = kImmediateTimeout;
-    Timeout tm_out(std::max(static_cast<Timeout>(msg_size * kTimeoutFactor),
-                            kMinTimeout));
+    Timeout tm_out(bptime::milliseconds(std::max(
+        static_cast<boost::int64_t>(msg_size * kTimeoutFactor),
+        kMinTimeout.total_milliseconds())));
     StartTimeout(tm_out);
     std::vector<boost::asio::const_buffer> asio_buffer;
     asio_buffer.push_back(boost::asio::buffer(size_buffer_));
     asio_buffer.push_back(boost::asio::buffer(data_buffer_));
     asio::async_write(socket_, asio_buffer,
-                      boost::bind(&TcpConnection::HandleWrite,
-                                  shared_from_this(), _1));
+                      std::bind(&TcpConnection::HandleWrite, shared_from_this(),
+                                arg::_1));
   } else {
     assert(!socket_.is_open());
     StartTimeout(kDefaultInitialTimeout);
     socket_.async_connect(remote_endpoint_,
-                          boost::bind(&TcpConnection::HandleConnect,
-                                      shared_from_this(), _1));
+                          std::bind(&TcpConnection::HandleConnect,
+                                    shared_from_this(), arg::_1));
   }
 }
 
@@ -196,16 +198,17 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
     return Close();
   }
 
-  Timeout tm_out(std::max(
-      static_cast<Timeout>(data_buffer_.size() * kTimeoutFactor), kMinTimeout));
+  Timeout tm_out(bptime::milliseconds(std::max(
+      static_cast<boost::int64_t>(data_buffer_.size() * kTimeoutFactor),
+      kMinTimeout.total_milliseconds())));
   StartTimeout(tm_out);
 
   std::vector<boost::asio::const_buffer> asio_buffer;
   asio_buffer.push_back(boost::asio::buffer(size_buffer_));
   asio_buffer.push_back(boost::asio::buffer(data_buffer_));
   asio::async_write(socket_, asio_buffer,
-                    boost::bind(&TcpConnection::HandleWrite,
-                                shared_from_this(), _1));
+                    std::bind(&TcpConnection::HandleWrite, shared_from_this(),
+                              arg::_1));
 }
 
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
