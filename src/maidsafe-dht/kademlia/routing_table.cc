@@ -110,7 +110,6 @@ PingOldestContactStatusPtr RoutingTable::PingOldestContactStatus() {
 boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
 //   if (key > NodeId::kMaxId)
 //     return -1;
-
   KBucketBoundariesByUpperBoundary key_indx
       = kbucket_boundries_.get<UpperBoundaryTag>();
   boost::uint16_t common_heading_bits = KDistanceTo(key);
@@ -188,7 +187,7 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   return num_failed_rpcs;
 }
 
-boost::uint16_t RoutingTable::KbucketSize() const {
+boost::uint16_t RoutingTable::KBucketSize() const {
   return kbucket_boundries_.size();
 }
 
@@ -202,15 +201,7 @@ boost::uint16_t RoutingTable::KBucketSize(const boost::uint16_t &key) {
   std::pair< KBucketQuery, KBucketQuery > pit
       = contacts_.get<KBucketTag>()
           .equal_range( (*it).upper_boundary );
-
-  boost::uint16_t kbucket_size(0);
-  auto it_begin=pit.first;
-  auto it_end=pit.second;
-  while (it_begin!=it_end) {
-    ++kbucket_size;
-    ++it_begin;
-  }
-  return kbucket_size;
+  return distance(pit.first,pit.second);
 }
 
 boost::uint16_t RoutingTable::Size() const {
@@ -238,13 +229,11 @@ void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
   // insert one new element into the kbucket boundaries container
   // and modify the corresponding old one
   // each time the split means:
-  //    split a bucket (upper,lower) into (upper,lower+2) and (lower+1,lower)
+  //    split a bucket (upper,lower) into (upper,lower+1) and (lower,lower)
   boost::uint16_t split_position =(*it).lower_boundary+1;
-  //    ((*it).lower_boundary+(*it).upper_boundary)/2;
-  boost::uint16_t old_lower_boundary=split_position+1;
-  boost::uint16_t new_lower_boundary=(*it).lower_boundary;
-  key_indx.modify(it,ChangeLowerBoundary(old_lower_boundary));
-  KBucketBoundary new_kbucket_boundary(split_position,new_lower_boundary);
+  boost::uint16_t lower_boundary=(*it).lower_boundary;
+  key_indx.modify(it,ChangeLowerBoundary(split_position));
+  KBucketBoundary new_kbucket_boundary(lower_boundary,lower_boundary);
   key_indx.insert(new_kbucket_boundary);
 
   // modify all related contacts's kbucket index tag in the contact container
@@ -258,9 +247,9 @@ void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
   KBucketQuery it_begin=pit.first;
   KBucketQuery it_end=pit.second;
   while (it_begin!=it_end) {
-    if ((*it_begin).common_heading_bits <= split_position) {
+    if ((*it_begin).common_heading_bits <= lower_boundary) {
       auto it = key_node_indx.find((*it_begin).node_id);
-      key_node_indx.modify(it,ChangeKBucketIndex(split_position));
+      key_node_indx.modify(it,ChangeKBucketIndex(lower_boundary));
     }  
     ++it_begin;
   }
@@ -310,22 +299,19 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
       = bmi::get<KBucketTag>(contacts_).equal_range((*it_begin).upper_boundary);
     while (ic0!=ic1) {
       // check if the candidate in the exclusion list
-      auto it=exclude_contacts.begin();
-      bool in_exclusion_list=false;
-      while ((!in_exclusion_list)&&(it!=exclude_contacts.end())) {
-        if ((*it).node_id()==((*ic0).node_id))
-          in_exclusion_list=true;
-        ++it;
-      }
+      auto it=std::find(exclude_contacts.begin(),
+                        exclude_contacts.end(),
+                        (*ic0).contact);
       // if not in the exclusion list, add the contact into the candidates
       // container
-      if (!in_exclusion_list) {
+      if (it==exclude_contacts.end()) {
         RoutingTableContact new_contact((*ic0).contact,
-            target_id,KDistanceTo((*ic0).node_id,target_id));
+            target_id,0);
         candidate_contacts.insert(new_contact);
       }
       ++ic0;
     }
+    ++it_begin;
   }
 
   // populate the result with the count defined top contacts
@@ -339,7 +325,30 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
     ++counter;
     ++it;
   }
+  return ;
+}
 
+void RoutingTable::GetCloseContacts(const boost::uint32_t &count,
+             std::vector<Contact> &exclude_contacts,
+             std::vector<Contact> *close_contacts) {
+  // populate the result with the count defined top contacts
+  // indexed by the distance
+  ContactsByDistanceToThisId key_dist_indx
+    = contacts_.get<DistanceToThisIdTag>();
+  boost::uint32_t counter(0);
+  auto it=key_dist_indx.begin();
+  while ((counter<count)&&(it!=key_dist_indx.end())) {
+    // check if the candidate in the exclusion list
+    auto it_exclude=std::find(exclude_contacts.begin(),
+                      exclude_contacts.end(),
+                      (*it).contact);
+    // if not in the exclusion list, add the contact into the result
+    if (it_exclude==exclude_contacts.end()) {
+      close_contacts->push_back((*it).contact);
+      ++counter;
+    }
+    ++it;
+  }
   return ;
 }
 
@@ -419,6 +428,16 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
       contacts->push_back((*it).contact);
     ++it;
   }
+//   using namespace boost::lambda;
+//   std::for_each( key_indx.begin(),key_indx.end(),
+//     if_then(bind(&Contact::IsDirectlyConnected,
+//               bind(&RoutingTableContact::contact,boost::lambda::_1))
+//             ,
+//             bind((void (std::vector<Contact>::*)(const Contact&))
+//               &std::vector<Contact>::push_back,contacts,
+//               bind(&RoutingTableContact::contact,boost::lambda::_1))
+//             )
+//    );
 }
 
 void RoutingTable::Clear() {
@@ -428,22 +447,9 @@ void RoutingTable::Clear() {
   kbucket_boundries_.insert(first_boundary);
 }
 
-boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) {
+boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const{
   boost::uint16_t distance=0;
   std::string this_id_binary=kThisId_.ToStringEncoded(NodeId::kBinary);
-  std::string rhs_id_binary=rhs.ToStringEncoded(NodeId::kBinary);
-  std::string::const_iterator this_it = this_id_binary.begin();
-  std::string::const_iterator rhs_it = rhs_id_binary.begin();
- for (; ((this_it != this_id_binary.end())&&(*this_it == *rhs_it));
-      ++this_it, ++rhs_it)
-    ++distance;
-  return distance;
-}
-
-boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs,
-                                                const NodeId &ths) {
-  boost::uint16_t distance=0;
-  std::string this_id_binary=ths.ToStringEncoded(NodeId::kBinary);
   std::string rhs_id_binary=rhs.ToStringEncoded(NodeId::kBinary);
   std::string::const_iterator this_it = this_id_binary.begin();
   std::string::const_iterator rhs_it = rhs_id_binary.begin();
