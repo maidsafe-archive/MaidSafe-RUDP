@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/transport/utils.h"
 
+#include <bitset>
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -42,7 +44,7 @@ namespace kademlia {
 namespace test_routing_table {
 
 static const boost::uint16_t K = 16;
-
+/*
 bool TestInRange(const NodeId &key_id, const NodeId &min_range,
                  const NodeId &max_range) {
   if (min_range > key_id) {
@@ -55,34 +57,236 @@ bool TestInRange(const NodeId &key_id, const NodeId &min_range,
   }
   return static_cast<bool>(min_range <= key_id && key_id <= max_range);
 }
-
+*/
 
 class TestRoutingTable : public testing::Test {
  public:
-  TestRoutingTable() : cry_obj() {}
+  TestRoutingTable(){
+  }
+
+  std::string GenerateRandomId(const NodeId& holder, const int pos) {
+    std::string holder_id=holder.ToStringEncoded(NodeId::kBinary);
+    NodeId new_node(NodeId::kRandomId);
+    std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
+    std::bitset<kKeySizeBits> binary_bitset(new_id);
+    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
+    for (int i = (kKeySizeBytes*8)-1; i >= pos ; i--)
+      binary_bitset[i] = holder_id_binary_bitset[i];
+    binary_bitset[pos].flip();
+    //std::cout<< binary_bitset.to_string() <<std::endl;
+    return binary_bitset.to_string();
+  }
+
  protected:
   void SetUp() {
-    cry_obj.set_symm_algorithm(crypto::AES_256);
-    cry_obj.set_hash_algorithm(crypto::SHA_512);
   }
-    crypto::Crypto cry_obj;
+
+  Contact ComposeContact(NodeId& node_id, boost::uint16_t port) {
+    std::string ip("127.0.0.1");
+    std::vector<transport::Endpoint> local_endpoints;
+    transport::Endpoint ext_ep(ip, port);
+    local_endpoints.push_back(ext_ep);
+    Contact contact(node_id, ext_ep,local_endpoints,ext_ep,false,false);
+    return contact;
+  }
+
+  RankInfoPtr rank_info_;
 };
 
-TEST_F(TestRoutingTable, BEH_KAD_AddContact) {
-//   std::string enc_id = EncodeToHex(RandomString(512));
+TEST_F(TestRoutingTable, BEH_KAD_Constructor) {
+  // Initialize a routing table
   NodeId holder_id(NodeId::kRandomId);
-  RoutingTable routingtable(holder_id, test_routing_table::K);
-  std::string ip("127.0.0.1");
-  boost::uint16_t port = 5001;
-  for (int  i = 1; i <= test_routing_table::K; ++i) {
-    transport::Endpoint ep(ip, port++);
-    NodeId contact_id(NodeId::kRandomId);
-    Contact contact(contact_id.String(), ep);
-    Contact empty;
-    if (!routingtable.GetContact(contact_id, &empty)) {
-      EXPECT_EQ(0, routingtable.AddContact(contact));
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+  ASSERT_TRUE(routingtable_.Size()==0);
+  ASSERT_TRUE(routingtable_.KBucketSize()==1);
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Clear) {
+  // Initialize a routing table
+  NodeId holder_id(NodeId::kRandomId);
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+
+  // create a contact and add it into the routing table
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact=ComposeContact(contact_id,5001);
+  routingtable_.AddContact(contact,rank_info_);
+  ASSERT_TRUE(routingtable_.Size()==1);
+
+  // Try to clear the routing table
+  routingtable_.Clear();
+  ASSERT_TRUE(routingtable_.Size()==0);
+  ASSERT_TRUE(routingtable_.KBucketSize()==1);
+
+  // Try to add the contact again
+  routingtable_.AddContact(contact,rank_info_);
+  ASSERT_TRUE(routingtable_.Size()==1);
+  ASSERT_TRUE(routingtable_.KBucketSize()==1);
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Get_Contact) {
+  // Initialize a routing table
+  NodeId holder_id(NodeId::kRandomId);
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+  
+  // create a contact and add it into the routing table
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact=ComposeContact(contact_id,5001);
+  routingtable_.AddContact(contact,rank_info_);
+
+  // Try to get an exist contact
+  Contact result;
+  routingtable_.GetContact(contact_id,&result);
+  ASSERT_TRUE(contact_id==result.node_id());
+
+  // Try to get a non-exist contact
+  Contact result_non;
+  NodeId contact_id_non(NodeId::kRandomId);
+  routingtable_.GetContact(contact_id_non,&result_non);
+  ASSERT_TRUE(result_non==Contact());
+
+  // Try to overload with an exist contact
+  routingtable_.GetContact(contact_id,&result_non);
+  ASSERT_FALSE(result_non==Contact());
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
+  int i(0);
+  // Initialize a routing table
+  NodeId holder_id(NodeId::kRandomId);
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+
+  {
+    // try to add the holder itself into the routing table
+    Contact contact=ComposeContact(holder_id,5000);
+    routingtable_.AddContact(contact,rank_info_);
+    EXPECT_EQ(0,routingtable_.Size());
+    EXPECT_EQ(1,routingtable_.KBucketSize());
+    EXPECT_EQ(0,routingtable_.KBucketSize(0));
+  }  
+
+  {
+    // create a list contacts having 3 common heading bits with the holder
+    // and add them into the routing table
+    for (;i<K;++i) {
+      EXPECT_EQ(i,routingtable_.Size());
+      EXPECT_EQ(1,routingtable_.KBucketSize());
+      NodeId contact_id(GenerateRandomId(holder_id,508),NodeId::kBinary);
+      Contact contact=ComposeContact(contact_id,5000+i);
+      routingtable_.AddContact(contact,rank_info_);
     }
+    
+    EXPECT_EQ(K,routingtable_.KBucketSize(0));
   }
+
+  {
+    // create a contact having 1 common heading bits with the holder
+    // and add it into the routing table
+    NodeId contact_id(GenerateRandomId(holder_id,510),NodeId::kBinary);
+    Contact contact=ComposeContact(contact_id,5000+i);
+    routingtable_.AddContact(contact,rank_info_);
+    ++i;
+    EXPECT_EQ(i,routingtable_.Size());
+    // all 16 contacts having 3 common heading bits sit in the kbucket
+    // covering 2-512
+    EXPECT_EQ(3,routingtable_.KBucketSize());
+
+    EXPECT_EQ(0,routingtable_.KBucketSize(0));
+    EXPECT_EQ(1,routingtable_.KBucketSize(1));
+    EXPECT_EQ(K,routingtable_.KBucketSize(2));
+  }
+
+  {
+    // create a contact having 4 common heading bits with the holder
+    // and add it into the routing table
+    NodeId contact_id(GenerateRandomId(holder_id,507),NodeId::kBinary);
+    Contact contact=ComposeContact(contact_id,5000+i);
+    routingtable_.AddContact(contact,rank_info_);
+    ++i;
+    EXPECT_EQ(i,routingtable_.Size());
+    // all 16 contacts having 3 common heading bits sit in the kbucket
+    // covering 3-3 now
+    // an additonal kbucket covering 2-2 is now created
+    EXPECT_EQ(5,routingtable_.KBucketSize());
+    
+    EXPECT_EQ(0,routingtable_.KBucketSize(0));
+    EXPECT_EQ(1,routingtable_.KBucketSize(1));
+    EXPECT_EQ(0,routingtable_.KBucketSize(2));
+    EXPECT_EQ(K,routingtable_.KBucketSize(3));
+    EXPECT_EQ(1,routingtable_.KBucketSize(4));
+  }
+
+  {
+    // create a contact having 3 common heading bits with the holder
+    // and add it into the routing table
+    // this contact shall be now attempting to add into the brother buckets
+    // it shall be added (replace a previous one) if close enough or be rejected
+    bool replaced(false);
+    bool not_replaced(false);
+    int times_of_try(0);
+    while (((!not_replaced)||(!replaced))&&(times_of_try<60000)) {
+      NodeId contact_id(GenerateRandomId(holder_id,508),NodeId::kBinary);
+      Contact contact=ComposeContact(contact_id,5000+i+times_of_try);
+      routingtable_.AddContact(contact,rank_info_);
+      EXPECT_EQ(i,routingtable_.Size());
+      EXPECT_EQ(5,routingtable_.KBucketSize());
+      
+      Contact result;
+      routingtable_.GetContact(contact_id,&result);
+      // Make sure both replace and reject situation covered in ForceK sim test
+      if (result!=Contact()) {
+        replaced=true;
+      } else {
+        not_replaced=true;
+      }
+      ++times_of_try;
+    }
+    // To prevent deadlock
+    ASSERT_TRUE(times_of_try<60000);
+  }  
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Performance_8000_Full_Fill) {
+  // Initialize a routing table
+  NodeId holder_id(NodeId::kRandomId);
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+  // the last four common bits will not split kbucket
+  for (int common_head=0;common_head<500;++common_head) {
+    for (int num_contact=0;num_contact<K;++num_contact) {
+      NodeId contact_id(GenerateRandomId(holder_id,511-common_head),
+                        NodeId::kBinary);
+      Contact contact=ComposeContact(contact_id,5000);
+      // make sure the new contact not already existed in the routing table
+      Contact result;
+      routingtable_.GetContact(contact_id,&result);
+      if (result!=Contact()) {
+        --num_contact;
+      } else {
+        routingtable_.AddContact(contact,rank_info_);
+      }
+    }
+    EXPECT_EQ((common_head+1)*K,routingtable_.Size());
+    EXPECT_EQ(common_head+1,routingtable_.KBucketSize());
+  }
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Performance_8000_Random_Fill) {
+  // Initialize a routing table
+  NodeId holder_id(NodeId::kRandomId);
+  RoutingTable routingtable_(holder_id, test_routing_table::K);
+  // the last four common bits will not split kbucket
+    for (int num_contact=0;num_contact<8000;++num_contact) {
+      NodeId contact_id(NodeId::kRandomId);
+      Contact contact=ComposeContact(contact_id,5000);
+      routingtable_.AddContact(contact,rank_info_);
+
+      boost::uint32_t contacts_in_table(0);
+      for (int i=0;i<routingtable_.KBucketSize();++i) {
+        boost::uint32_t contacts_in_bucket=routingtable_.KBucketSize(i);
+        ASSERT_TRUE(contacts_in_bucket<=16);
+        contacts_in_table=contacts_in_table+contacts_in_bucket;
+      }
+      EXPECT_EQ(contacts_in_table,routingtable_.Size());
+    }
 }
 
 /*

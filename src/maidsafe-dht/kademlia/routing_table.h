@@ -47,6 +47,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 
+#include "boost/lambda/lambda.hpp"
+#include "boost/lambda/bind.hpp"
+#include "boost/lambda/if.hpp"
+
+
 namespace bptime = boost::posix_time;
 namespace bmi = boost::multi_index;
 
@@ -253,7 +258,13 @@ typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type&
 typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type&
     ContactsByTimeLastSeen;
 
-
+/** The original idea of this struct is to allow one kbucket to cover user
+ *  defined number of common heading bits (such as one kbucket cover 2 bits).
+ *  However, according to the original Kademlia paper, one kbucket shall cover
+ *  only one bit. So this struct can be removed.
+ *  Keeping this struct provides a potential flexibility of kbucket
+ *  coverage.
+ *  @struct KBucketBoundary */
 struct KBucketBoundary {
   KBucketBoundary(boost::uint16_t upper_boundary, boost::uint16_t lower_boundary)
       : upper_boundary(upper_boundary) ,
@@ -315,8 +326,8 @@ class RoutingTable {
  public:
   /** Constructor.  To create a routing table, in all cases the node ID and
    *  k closest contacts parameter must be provided.
-   *  @param this_id The routing table holder's Kademlia ID.
-   *  @param k k closest contacts. */
+   *  @param[in] this_id The routing table holder's Kademlia ID.
+   *  @param[in] k k closest contacts. */
   RoutingTable(const NodeId &this_id, const boost::uint16_t &k);
 
   /** Dstructor. */
@@ -326,8 +337,8 @@ class RoutingTable {
    *  exists, its status will be updated.  If the given k-bucket is full and not
    *  splittable, the signal on_ping_oldest_contact_ will be fired which will
    *  ultimately resolve whether the contact is added or not. 
-   *  @param contact The new contact needs to be added.
-   *  @param rank_info the contact's rank_info. */
+   *  @param[in] contact The new contact needs to be added.
+   *  @param[in] rank_info the contact's rank_info. */
   void AddContact(const Contact &contact, RankInfoPtr rank_info);
 
   /** Get the info of the contact based on the input Kademlia ID
@@ -336,8 +347,8 @@ class RoutingTable {
   void GetContact(const NodeId &node_id, Contact *contact);
   
   /** Remove the contact with the specified node ID from the routing table
-   *  @param node_id The input Kademlia ID.
-   *  @param force Bool switch of ForceK. */
+   *  @param[in] node_id The input Kademlia ID.
+   *  @param[in] force Bool switch of ForceK. */
   void RemoveContact(const NodeId &node_id, const bool &force);
   
   /** Finds a number of known nodes closest to the target node in the current
@@ -346,29 +357,37 @@ class RoutingTable {
    *  @param[in] count Number of closest nodes looking for.
    *  @param[in] exclude_contacts List of contacts that shall be excluded.
    *  @param[out] close_contacts Result of the find closest contacts. */
-  // Finds a number of known nodes closest to the target_id.
   void GetCloseContacts(const NodeId &target_id,
                         const size_t &count,
                         std::vector<Contact> &exclude_contacts,
                         std::vector<Contact> *close_contacts);
 
+  /** Finds a number of known nodes closest to the holder node in the current
+   *  routing table.
+   *  @param[in] count Number of closest nodes looking for.
+   *  @param[in] exclude_contacts List of contacts that shall be excluded.
+   *  @param[out] close_contacts Result of the find closest contacts. */
+  void GetCloseContacts(const size_t &count,
+                        std::vector<Contact> &exclude_contacts,
+                        std::vector<Contact> *close_contacts);                        
+
   /** Set one node's publickey
-   *  @param node_id The Kademlia ID of the target node.
-   *  @param new_public_key The new poblickey to be set to. */
+   *  @param[in] node_id The Kademlia ID of the target node.
+   *  @param[in] new_public_key The new poblickey to be set to. */
   int SetPublicKey(const NodeId &node_id, const std::string &new_public_key);
   
   /** Update one node's rankinfo
-   *  @param node_id The Kademlia ID of the target node.
-   *  @param rank_info The new rankinfo to be set to. */
+   *  @param[in] node_id The Kademlia ID of the target node.
+   *  @param[in] rank_info The new rankinfo to be set to. */
   int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
   
   /** Set one node's preferred endpoint
-   *  @param node_id The Kademlia ID of the target node.
-   *  @param ip The new preferred endpoint to be set to. */
+   *  @param[in] node_id The Kademlia ID of the target node.
+   *  @param[in] ip The new preferred endpoint to be set to. */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
 
   /** Increase one node's failedRPC counter by one
-   *  @param node_id The Kademlia ID of the target node.
+   *  @param[in] node_id The Kademlia ID of the target node.
    *  @return The value of the contact's latest num of failed RPC,
    *          will be -1 when failed */
   int IncrementFailedRpcCount(const NodeId &node_id);
@@ -381,7 +400,7 @@ class RoutingTable {
 
   /** Getter.
    *  @return Num of kbuckets in the routing table. */
-  boost::uint16_t KbucketSize() const;
+  boost::uint16_t KBucketSize() const;
   
   /** Getter.
    *  @return Num of contacts in the routing table. */
@@ -398,6 +417,11 @@ class RoutingTable {
   /** Getter.
    *  @return The singal handler. */
   PingOldestContactStatusPtr PingOldestContactStatus();
+
+  /** Get the number of contacts in a specified kbucket
+   *  @param[in] key The index of the target k-bucket.
+   *  @return Num of contacts in the specified kbucket */
+  boost::uint16_t KBucketSize(const boost::uint16_t &key);  
 
  private:
   /** Calculate the index of the k-bucket which is responsible for the specified
@@ -421,30 +445,14 @@ class RoutingTable {
                           const boost::uint16_t &target_bucket,
                           const RankInfoPtr rank_info);
 
-  /** Get the number of contacts in a specified kbucket
-   *  @param[in] key The index of the target k-bucket. 
-   *  @return Num of contacts in the specified kbucket */
-  boost::uint16_t KBucketSize(const boost::uint16_t &key);
-
   /**
   * XOR KBucket distance between two kademlia IDs.
   * Measured by the number of common heading bits.
   * The less the value is, the further the distance (the wider range) is.
-  * @param rhs NodeId to which this is XOR
+  * @param[in] rhs NodeId to which this is XOR
   * @return the number of samed bits from the begining
   */
-  boost::uint16_t KDistanceTo(const NodeId &rhs);
-
-  /**
-  * XOR KBucket distance between two kademlia IDs.
-  * Measured by the number of common heading bits.
-  * The less the value is, the further the distance (the wider range) is.
-  * @param rhs NodeId to which this is XOR
-  * @param ths NodeId from which this is XOR
-  * @return the number of samed bits from the begining
-  */
-  boost::uint16_t KDistanceTo(const NodeId &rhs,
-                              const NodeId &ths);
+  boost::uint16_t KDistanceTo(const NodeId &rhs) const;
 
   /** Holder's Kademlia ID */
   const NodeId kThisId_;
