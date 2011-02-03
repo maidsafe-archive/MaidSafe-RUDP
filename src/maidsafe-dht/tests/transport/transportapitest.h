@@ -54,6 +54,7 @@ namespace test {
 
 // default local IP address
 const IP kIP(boost::asio::ip::address::from_string("127.0.0.1"));
+const boost::uint16_t kThreadGroupSize = 8;
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef boost::shared_ptr<Transport> TransportPtr;
@@ -67,39 +68,79 @@ class TransportAPITest: public testing::Test {
   TransportAPITest()
       : asio_service_(new boost::asio::io_service),
         work_(new boost::asio::io_service::work(*asio_service_)),
+        asio_service_1_(new boost::asio::io_service),
+        work_1_(new boost::asio::io_service::work(*asio_service_1_)),
+        asio_service_2_(new boost::asio::io_service),
+        work_2_(new boost::asio::io_service::work(*asio_service_2_)),
+        asio_service_3_(new boost::asio::io_service),
+        work_3_(new boost::asio::io_service::work(*asio_service_3_)),
+        count_(0),
         listening_transports_(),
         listening_message_handlers_(),
         sending_transports_(),
         sending_message_handlers_(),
-        thread_group_() {
-    for (int i = 0; i < 2; ++i)
+        thread_group_(),
+        thread_group_1_(),
+        thread_group_2_(),
+        thread_group_3_(){
+    for (int i = 0; i < kThreadGroupSize; ++i)
       thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            asio_service_));
+                                              asio_service_));
+    for (int i = 0; i < kThreadGroupSize; ++i)
+      thread_group_1_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            asio_service_1_));
+    for (int i = 0; i < kThreadGroupSize; ++i)
+      thread_group_2_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            asio_service_2_));
+    for (int i = 0; i < kThreadGroupSize; ++i)
+      thread_group_3_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            asio_service_3_));
+    // count_ = 0;
   }
   ~TransportAPITest() {
     work_.reset();
+    work_1_.reset();
+    work_2_.reset();
+    work_3_.reset();
+    asio_service_->stop();
+    asio_service_1_->stop();
+    asio_service_2_->stop();
+    asio_service_3_->stop();
     thread_group_.join_all();
+    thread_group_1_.join_all();
+    thread_group_2_.join_all();
+    thread_group_3_.join_all();
   }
  protected:
   // Create a transport and an io_service listening on the given or random port
   // (if zero) if listen == true.  If not, only a transport is created, and the
   // test member asio_service_ is used.
   void SetupTransport(bool listen, Port lport) {
+   
     if (listen) {
-      TransportPtr transport(new T(asio_service_));
+      TransportPtr transport1;
+      if (count_ < 8)
+        transport1 = TransportPtr(new T(asio_service_));
+      else
+        transport1 = TransportPtr(new T(asio_service_3_));
+         
       if (lport != Port(0)) {
         EXPECT_EQ(kSuccess,
-                  transport->StartListening(Endpoint(kIP, lport)));
+                  transport1->StartListening(Endpoint(kIP, lport)));
       } else {
-        while (kSuccess != transport->StartListening(Endpoint(kIP,
+        while (kSuccess != transport1->StartListening(Endpoint(kIP,
                            (RandomUint32() % 60536) + 5000)));
       } // do check for fail listening port
-      listening_transports_.push_back(transport);
+      listening_transports_.push_back(transport1);
     } else {
-      TransportPtr transport(new T(asio_service_));
-      sending_transports_.push_back(transport);
+      TransportPtr transport1;
+      if (count_ < 8)
+        transport1 = TransportPtr(new T(asio_service_));
+      else
+        transport1 = TransportPtr(new T(asio_service_3_));
+      sending_transports_.push_back(transport1);
     }
-  }
+ }
   void RunTransportTest(const int &num_messages) {
     Endpoint endpoint;
     endpoint.ip = kIP;
@@ -126,33 +167,72 @@ class TransportAPITest: public testing::Test {
       listening_message_handlers_.push_back(msg_h);
       ++listening_transports_itr;
     }
+    boost::uint16_t thread_size(0);
     sending_transports_itr = sending_transports_.begin();
     while (sending_transports_itr != sending_transports_.end()) {
       listening_transports_itr = listening_transports_.begin();
       while (listening_transports_itr != listening_transports_.end()) {
         for (int i = 0 ; i < num_messages; ++i) {
-          asio_service_->post(boost::bind(
+          if (thread_size > kThreadGroupSize) {
+            // std::cout<<"\nthread_size::"<<thread_size<<std::endl;
+            asio_service_2_->post(boost::bind(
               &transport::test::TransportAPITest<T>::SendMessage, this,
               *sending_transports_itr, *listening_transports_itr));
+          }
+          else {
+            asio_service_1_->post(boost::bind(
+              &transport::test::TransportAPITest<T>::SendMessage, this,
+              *sending_transports_itr, *listening_transports_itr));
+          }
+          thread_size++;
         }
         ++listening_transports_itr;
       }
       ++sending_transports_itr;
     }
+    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    work_.reset();
+    work_1_.reset();
+    work_2_.reset();
+    work_3_.reset();
+    asio_service_->stop();
+    asio_service_1_->stop();
+    asio_service_2_->stop();
+    asio_service_3_->stop();
+    thread_group_.join_all();
+    thread_group_1_.join_all();
+    thread_group_2_.join_all();
+    thread_group_3_.join_all();
     CheckMessages();
-    std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
-        sending_message_handlers_.begin());
-    while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
+    if (listening_message_handlers_.size() == 1) {
+      std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
+          sending_message_handlers_.begin());
+      while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
       ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
                  num_messages);
       ++sending_msg_handlers_itr;
+      }
     }
-    FAIL() << "RunTransportTest() not implemented.";
+    else {
+      std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
+          sending_message_handlers_.begin());
+      while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
+        ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
+          listening_message_handlers_.size());
+        ++sending_msg_handlers_itr;
+      }
+    }
+    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    for (auto itr = listening_transports_.begin();
+        itr < listening_transports_.end(); ++itr)
+      (*itr)->StopListening();
+    for (auto itr = sending_transports_.begin();
+        itr < sending_transports_.end(); ++itr)
+      (*itr)->StopListening();
+
   }
-  // To send request to listener
   void SendMessage(TransportPtr sender_pt, TransportPtr listener_pt) {
-    // std::string request = base::RandomString(10); need to change
-    std::string request("Request");
+    std::string request(RandomString(11));
     sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
                     bptime::seconds(1));
     (request_messages_).push_back(request);
@@ -164,7 +244,7 @@ class TransportAPITest: public testing::Test {
 
   void CheckMessages() {
     bool found(false);
-    // Compare request
+    // Compare Request
     std::vector<MessageHandlerPtr>::iterator listening_msg_handlers_itr(
         listening_message_handlers_.begin());
     while (listening_msg_handlers_itr != listening_message_handlers_.end()) {
@@ -190,7 +270,7 @@ class TransportAPITest: public testing::Test {
     ASSERT_EQ(listening_msg_handlers_itr,
               listening_message_handlers_.end());
     
-    // compare response
+    // Compare Response
     std::vector<MessageHandlerPtr>::iterator sending_msg_handlers_itr(
         sending_message_handlers_.begin());
     listening_msg_handlers_itr = listening_message_handlers_.begin();
@@ -226,14 +306,18 @@ class TransportAPITest: public testing::Test {
     }
  }
 
-  IoServicePtr asio_service_;
-  WorkPtr work_;
+  IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
+  WorkPtr work_, work_1_, work_2_, work_3_;
   std::vector<TransportPtr> listening_transports_;
   std::vector<MessageHandlerPtr> listening_message_handlers_;
   std::vector<TransportPtr> sending_transports_;
   std::vector<MessageHandlerPtr> sending_message_handlers_;
   boost::thread_group thread_group_;
+  boost::thread_group thread_group_1_;
+  boost::thread_group thread_group_2_;
+  boost::thread_group thread_group_3_;
   std::vector<std::string> request_messages_;
+  boost::uint16_t count_;
 };
 
 TYPED_TEST_CASE_P(TransportAPITest);
@@ -254,7 +338,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123)));
   EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
@@ -263,83 +347,82 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   MessageHandlerPtr msgh_sender(new MessageHandler("Sender"));
   MessageHandlerPtr msgh_listener(new MessageHandler("listener"));
-  boost::signals2::connection con1 = sender->on_message_received()->connect(
+  sender->on_message_received()->connect(
       boost::bind(&MessageHandler::DoOnResponseReceived, msgh_sender, _1, _2,
       _3, _4));
-  boost::signals2::connection con2 = sender->on_error()->connect(
+  sender->on_error()->connect(
       boost::bind(&MessageHandler::DoOnError, msgh_sender, _1));
-  boost::signals2::connection con3 = listener->on_message_received()->connect(
+  listener->on_message_received()->connect(
       boost::bind(&MessageHandler::DoOnRequestReceived, msgh_listener, _1, _2,
       _3, _4));
-  boost::signals2::connection con4 = listener->on_error()->connect(
+  listener->on_error()->connect(
       boost::bind(&MessageHandler::DoOnError, msgh_listener, _1));
-  std::string request("FirstRequest");
+  
+  std::string request(RandomString(23));
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                bptime::seconds(1));
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  boost::uint16_t timeout = 100;
+  while(msgh_sender->responses_received().size() == 0 && timeout < 1100) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    timeout +=100;
+  }
+  EXPECT_GE(boost::uint16_t(1000), timeout);
   ASSERT_EQ(size_t(0), msgh_sender->errors().size());
   ASSERT_EQ(size_t(1), msgh_listener->requests_received().size());
   ASSERT_EQ(request, msgh_listener->requests_received().at(0).first);
-//  listener->Send(response, Endpoint(kIP, sender->listening_port()),
-//                 bptime::seconds(1));
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(size_t(1), msgh_listener->responses_sent().size());
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
   ASSERT_EQ(msgh_listener->responses_sent().at(0),
             msgh_sender->responses_received().at(0).first);
-  
-  request = "SecondRequest";
+
+  // Timeout scenario
+  request = RandomString(29);
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
-               bptime::milliseconds(1));
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+               bptime::milliseconds(2));
+  timeout = 100;
+  while(msgh_listener->requests_received().size() < 2 && timeout < 2000) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    timeout +=100;
+  }
   ASSERT_EQ(size_t(1), msgh_sender->errors().size());
   ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
   ASSERT_EQ(request, msgh_listener->requests_received().at(1).first);
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-//  listener->Send(response, Endpoint(kIP, sender->listening_port()),
-//                 bptime::seconds(1));
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(size_t(2), msgh_listener->responses_sent().size());
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
-
-  sender->Send(request, Endpoint(kIP, 10000), bptime::seconds(1));
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(size_t(1), msgh_sender->errors().size());
-  ASSERT_EQ(kReceiveTimeout, msgh_sender->errors().at(0));
-  ASSERT_EQ(size_t(2), msgh_listener->requests_received().size());
-  con1.disconnect();
-  con2.disconnect();
-  con3.disconnect();
-  con4.disconnect();
   listener->StopListening();
-                                    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
   this->SetupTransport(false, 0);  
-  this->SetupTransport(true, 0);  
+  this->SetupTransport(true, 0); 
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
   this->SetupTransport(false, 0);  
   this->SetupTransport(true, 0);  
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(123));
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
   this->SetupTransport(false, 0);
-  for (int i = 0; i < 20; ++i)
+  count_ = 0;
+  for (int i = 0; i < 16; ++i) {
     this->SetupTransport(true, 0);  
+    count_++;
+  }
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
+      
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManyMultiMessage) {
   this->SetupTransport(false, 0);
-  for (int i = 0; i < 20; ++i)
+  for (int i = 0; i < 10; ++i)
     this->SetupTransport(true, 0);  
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2033));
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
@@ -363,7 +446,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
     SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(num_messages));
 }
-
 REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
                            BEH_TRANS_StartStopListening,
                            BEH_TRANS_Send,
