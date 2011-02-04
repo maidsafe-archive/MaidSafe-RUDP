@@ -70,7 +70,7 @@ class TestRoutingTable : public testing::Test {
     std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
     std::bitset<kKeySizeBits> binary_bitset(new_id);
     std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    for (int i = (kKeySizeBytes * 8)-1; i >= pos; --i)
+    for (int i = (kKeySizeBytes * 8) - 1; i >= pos; --i)
       binary_bitset[i] = holder_id_binary_bitset[i];
     binary_bitset[pos].flip();
       // std::cout<< binary_bitset.to_string() <<std::endl;
@@ -108,7 +108,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Clear) {
 
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
-  Contact contact = ComposeContact(contact_id,5001);
+  Contact contact = ComposeContact(contact_id, 5001);
   routing_table.AddContact(contact, rank_info_);
   ASSERT_EQ(size_t(1), routing_table.Size());
 
@@ -127,7 +127,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Contact) {
   // Initialize a routing table
   NodeId holder_id(NodeId::kRandomId);
   RoutingTable routing_table(holder_id, test_routing_table::K);
-  
+
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
@@ -162,8 +162,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
     EXPECT_EQ(size_t(1), routing_table.KBucketSize());
     EXPECT_EQ(size_t(0), routing_table.KBucketSize(0));
   }
-boost::uint16_t i(0);
-
+  boost::uint16_t i(0);
   {
     // create a list contacts having 3 common heading bits with the holder
     // and add them into the routing table
@@ -184,13 +183,14 @@ boost::uint16_t i(0);
     Contact contact = ComposeContact(contact_id, 5000 + i);
     routing_table.AddContact(contact, rank_info_);
     ++i;
-    EXPECT_EQ(i,routing_table.Size());
+    EXPECT_EQ(i, routing_table.Size());
+
     // all 16 contacts having 3 common heading bits sit in the kbucket
     // covering 2-512
     EXPECT_EQ(size_t(3), routing_table.KBucketSize());
     EXPECT_EQ(size_t(0), routing_table.KBucketSize(0));
     EXPECT_EQ(size_t(1), routing_table.KBucketSize(1));
-    EXPECT_EQ(size_t(K), routing_table.KBucketSize(2));
+    EXPECT_EQ(K, routing_table.KBucketSize(2));
   }
 
   {
@@ -226,7 +226,7 @@ boost::uint16_t i(0);
       routing_table.AddContact(contact, rank_info_);
       EXPECT_EQ(i, routing_table.Size());
       EXPECT_EQ(size_t(5), routing_table.KBucketSize());
-      
+
       Contact result;
       routing_table.GetContact(contact_id, &result);
       // Make sure both replace and reject situation covered in ForceK sim test
@@ -239,7 +239,7 @@ boost::uint16_t i(0);
     }
     // To prevent deadlock
     ASSERT_GT(60000, times_of_try);   // 60000 > times_of_try
-  }  
+  }
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Performance_8000_Full_Fill) {
@@ -270,6 +270,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Performance_8000_Random_Fill) {
   // Initialize a routing table
   NodeId holder_id(NodeId::kRandomId);
   RoutingTable routing_table(holder_id, test_routing_table::K);
+
   for (int num_contact = 0; num_contact < 8000; ++num_contact) {
     NodeId contact_id(NodeId::kRandomId);
     Contact contact = ComposeContact(contact_id, 5000);
@@ -513,6 +514,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
         target_routingtable.insert(new_contact);
       }
     }
+
     for (int common_head = 0; common_head < 16; ++common_head) {
       for (int num_contact = 0; num_contact<2; ++num_contact) {
         NodeId contact_id(GenerateRandomId(holder_id, 511-common_head),
