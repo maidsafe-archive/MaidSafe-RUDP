@@ -353,6 +353,8 @@ class RoutingTable {
   
   /** Finds a number of known nodes closest to the target node in the current
    *  routing table.
+   *  NOTE: unless for special purpose, the target shall be considered to be
+   *  always put into the exclude_contacts list
    *  @param[in] target_id The Kademlia ID of the target node.
    *  @param[in] count Number of closest nodes looking for.
    *  @param[in] exclude_contacts List of contacts that shall be excluded.

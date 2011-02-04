@@ -223,9 +223,10 @@ void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
       = kbucket_boundries_.get<UpperBoundaryTag>();
   auto it = key_indx.lower_bound(kbucket_index);
 
-  // if the bucket is already too small, it shall not be divided
-  if (((*it).upper_boundary-(*it).lower_boundary)<5)
-    return;
+  // no need to check this as a kbucket will never be split until its full
+//   if (((*it).upper_boundary-(*it).lower_boundary)<5)
+//     return;
+
   // insert one new element into the kbucket boundaries container
   // and modify the corresponding old one
   // each time the split means:
@@ -264,8 +265,10 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
 
   // the search will begin from a bucket having the similiar k-distance as the
   // target node to the current holder
-  // then recursively extend the range if neighbouring bucket's contact still
-  // could among the count defined closest nodes
+  // then extend the range follows the rule:
+  //      all kbuckets contains more commoning heading bits shall be considered
+  //      if the total still smaller than the count, then recursively add
+  //      kbuckets containing less heading bits till reach the count cap
   boost::uint16_t start_kbucket_index=KBucketIndex(target_id);
 
   KBucketBoundariesByUpperBoundary key_indx
@@ -275,19 +278,20 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
   ++it_end;
   boost::uint32_t potential_size=KBucketSize(start_kbucket_index);
   boost::uint32_t target_size=count+exclude_contacts.size();
-  // extend the search range
-  while (potential_size < target_size) {
+  // extend the search range step 1: add all kbuckets containing more
+  // common heading bits
+  while (it_end!=key_indx.end()) {
+    potential_size=potential_size+KBucketSize((*it_end).upper_boundary);
+    ++it_end;
+  }
+  // extend the search range step 2:recursively add kbuckets containing
+  // less common heading bits till reach the count cap
+  while ((potential_size < target_size)&&(it_begin!=key_indx.begin())) {
     if (it_begin!=key_indx.begin()) {
       --it_begin;
       potential_size=potential_size+KBucketSize((*it_begin).upper_boundary);
     }
-    if (it_end!=key_indx.end()) {
-      ++it_end;
-      potential_size=potential_size+KBucketSize((*it_end).upper_boundary);
-    }
   }
-  if (it_end!=key_indx.end())
-    ++it_end;
 
   // once we have the search range, put all contacts in the range buckets into
   // a candidate container, using target_id to re-calculate the distance
@@ -320,7 +324,7 @@ void RoutingTable::GetCloseContacts(const NodeId &target_id,
     = candidate_contacts.get<DistanceToThisIdTag>();
   boost::uint32_t counter(0);
   auto it=key_dist_indx.begin();
-  while (counter<count) {
+  while ((counter<count)&&(it!=key_dist_indx.end())) {
     close_contacts->push_back((*it).contact);
     ++counter;
     ++it;
