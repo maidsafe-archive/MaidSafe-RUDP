@@ -32,10 +32,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "boost/cstdint.hpp"
-#include "boost/function.hpp"
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/io_service.hpp"
+#include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/function.hpp"
 #include "boost/signals2/signal.hpp"
 
 namespace maidsafe {
@@ -100,26 +101,23 @@ typedef std::shared_ptr<transport::Info> RankInfoPtr;
 
 
 // The size of DHT keys and node IDs in bytes.
-const boost::uint16_t kKeySizeBytes = 64;
+const boost::uint16_t kKeySizeBytes(64);
 
-// The frequency (in seconds) of the <key,value> republish routine.
-const boost::uint32_t kRepublishFrequency = 43200;  // 12 hours
-
-// The duration (in seconds) after which a given <key,value> is deleted locally.
-const boost::uint32_t kKeyValueLifespan = kRepublishFrequency + 7200;
+// The mean time between refreshes
+const boost::posix_time::seconds kMeanRefreshInterval(1800);
 
 // The ratio of k successful individual kad store RPCs to yield overall success.
-const double kMinSuccessfulPecentageStore = 0.75;
+const double kMinSuccessfulPecentageStore(0.75);
 
 // The ratio of k successful individual kad delete RPCs to yield overall success
-const double kMinSuccessfulPecentageDelete = 0.75;
+const double kMinSuccessfulPecentageDelete(0.75);
 
 // The ratio of k successful individual kad update RPCs to yield overall success
-const double kMinSuccessfulPecentageUpdate = 0.75;
+const double kMinSuccessfulPecentageUpdate(0.75);
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // routing table.
-const boost::uint16_t kFailedRpcTolerance = 2;
+const boost::uint16_t kFailedRpcTolerance(2);
 
 }  // namespace kademlia
 
