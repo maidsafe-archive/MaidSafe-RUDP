@@ -106,7 +106,8 @@ void Rpcs::Store(const Key &key,
                  const std::string &value,
                  const std::string &signature,
                  const boost::posix_time::seconds &ttl,
-                 bool publish,
+                 const std::string &serialised_store_request,
+                 const std::string &serialised_store_request_signature,
                  SecurifierPtr securifier,
                  const Contact &peer,
                  StoreFunctor callback,
@@ -120,7 +121,12 @@ void Rpcs::Store(const Key &key,
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
-  request.set_publish(publish);
+  if (!serialised_store_request.empty() &&
+      !serialised_store_request_signature.empty()) {
+    request.set_serialised_store_request(serialised_store_request);
+    request.set_serialised_store_request_signature(
+        serialised_store_request_signature);
+  }
   std::string message(connected_objects.get<1>()->WrapMessage(request));
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_store_response()->connect(boost::bind(
@@ -136,6 +142,8 @@ void Rpcs::Store(const Key &key,
 void Rpcs::Delete(const Key &key,
                   const std::string &value,
                   const std::string &signature,
+                  const std::string &serialised_delete_request,
+                  const std::string &serialised_delete_request_signature,
                   SecurifierPtr securifier,
                   const Contact &peer,
                   DeleteFunctor callback,
@@ -148,6 +156,12 @@ void Rpcs::Delete(const Key &key,
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
+  if (!serialised_delete_request.empty() &&
+      !serialised_delete_request_signature.empty()) {
+    request.set_serialised_delete_request(serialised_delete_request);
+    request.set_serialised_delete_request_signature(
+        serialised_delete_request_signature);
+  }
   std::string message(connected_objects.get<1>()->WrapMessage(request));
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_delete_response()->connect(boost::bind(
@@ -156,41 +170,6 @@ void Rpcs::Delete(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, _1, transport::Info(),
       protobuf::DeleteResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
-}
-
-void Rpcs::Update(const Key &key,
-                  const std::string &new_value,
-                  const std::string &new_signature,
-                  const std::string &old_value,
-                  const std::string &old_signature,
-                  const boost::posix_time::seconds &ttl,
-                  SecurifierPtr securifier,
-                  const Contact &peer,
-                  UpdateFunctor callback,
-                  TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
-  protobuf::UpdateRequest request;
-  *request.mutable_sender() = ToProtobuf(contact_);
-  request.set_key(key.String());
-  protobuf::SignedValue *signed_value(request.mutable_new_signed_value());
-  signed_value->set_value(new_value);
-  signed_value->set_signature(new_signature.empty() ?
-                              securifier->Sign(new_value) : new_signature);
-  signed_value = request.mutable_old_signed_value();
-  signed_value->set_value(old_value);
-  signed_value->set_signature(old_signature.empty() ?
-                              securifier->Sign(old_value) : old_signature);
-  request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
-  // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_update_response()->connect(boost::bind(
-      &Rpcs::UpdateCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
-      &Rpcs::UpdateCallback, this, _1, transport::Info(),
-      protobuf::UpdateResponse(), connected_objects, callback));
   connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
@@ -301,21 +280,6 @@ void Rpcs::DeleteCallback(
     const protobuf::DeleteResponse &response,
     ConnectedObjects connected_objects,
     DeleteFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.result())
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
-}
-
-void Rpcs::UpdateCallback(
-    const transport::TransportCondition &transport_condition,
-    const transport::Info &info,
-    const protobuf::UpdateResponse &response,
-    ConnectedObjects connected_objects,
-    UpdateFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
                     transport_condition);
