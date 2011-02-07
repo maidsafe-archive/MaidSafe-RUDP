@@ -25,11 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/kademlia/routing_table.h"
-
 #include "maidsafe-dht/common/log.h"
-
 #include "maidsafe-dht/common/utils.h"
+#include "maidsafe-dht/kademlia/routing_table.h"
 
 namespace maidsafe {
 
@@ -41,12 +39,14 @@ RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
       contacts_(),
       kbucket_boundries_(),
       ping_oldest_contact_status_
-          (new PingOldestContactStatusPtr::element_type) {
-  KBucketBoundary first_boundary(kKeySizeBytes * 8, 0);
+          (new PingOldestContactStatusPtr::element_type),
+      shared_mutex_() {
+  KBucketBoundary first_boundary(kKeySizeBits, 0);
   kbucket_boundries_.insert(first_boundary);
 }
 
 RoutingTable::~RoutingTable() {
+  UniqueLock unique_lock(shared_mutex_);
   contacts_.clear();
   kbucket_boundries_.clear();
 }
@@ -59,7 +59,7 @@ void RoutingTable::AddContact(const Contact& new_contact,
   // return directly
   if (node_id == kThisId_)
     return;
-
+  UpgradeLock upgrade_lock(shared_mutex_);
   // Check if the contact is already in the routing table
   // if so, set it's last seen to now (will bring it to the top)
   ContactsById key_indx = contacts_.get<NodeIdTag>();
@@ -73,9 +73,10 @@ void RoutingTable::AddContact(const Contact& new_contact,
     if (k_bucket_size == k_) {
       // try to split the bucket if the new contact appear to be in the same
       // bucket as the holder
-      // KBucketIndex(kThisId_) shall always return kKeySizeBytes*8
-      if (target_kbucket_index == (kKeySizeBytes * 8)) {
+      // KBucketIndex(kThisId_) shall always return kKeySizeBits
+      if (target_kbucket_index == kKeySizeBits) {
         SplitKbucket(target_kbucket_index);
+        upgrade_lock.unlock(); 
         AddContact(new_contact, rank_info);
       } else {
         // try to apply ForceK, otherwise fire the signal
@@ -92,34 +93,26 @@ void RoutingTable::AddContact(const Contact& new_contact,
     } else {
       // bucket not full, insert the contact into routing table
       boost::uint16_t common_heading_bits = KDistanceTo(new_contact.node_id());
+      UpgradeToUniqueLock unique_lock(upgrade_lock);
       RoutingTableContact new_routing_table_contact(
           new_contact, kThisId_, rank_info, common_heading_bits);
       new_routing_table_contact.kbucket_index = target_kbucket_index;
       contacts_.insert(new_routing_table_contact);
     }
   } else {
+    UpgradeToUniqueLock unique_lock(upgrade_lock);
     contacts_.modify(it_node,
                      ChangeLastSeen(bptime::microsec_clock::universal_time()));
   }
 // Succeed
 }
 
-PingOldestContactStatusPtr RoutingTable::PingOldestContactStatus() {
+PingOldestContactStatusPtr RoutingTable::GetPingOldestContactSingalHandler() {
   return this->ping_oldest_contact_status_;
 }
 
-boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
-//   if (key > NodeId::kMaxId)
-//     return -1;
-  KBucketBoundariesByUpperBoundary key_indx
-      = kbucket_boundries_.get<UpperBoundaryTag>();
-  boost::uint16_t common_heading_bits = KDistanceTo(key);
-  auto it = key_indx.lower_bound(common_heading_bits);
-
-  return (*it).upper_boundary;
-}
-
 void RoutingTable::GetContact(const NodeId &target_id, Contact *contact) {
+  SharedLock shared_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(target_id);
   if (it != key_indx.end()) {
@@ -129,11 +122,13 @@ void RoutingTable::GetContact(const NodeId &target_id, Contact *contact) {
 }
 
 void RoutingTable::RemoveContact(const NodeId &node_id, const bool &force) {
+  UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it != key_indx.end()) {
     RoutingTableContact current_element((*it));
     ++current_element.num_failed_rpcs;
+    UpgradeToUniqueLock unique_lock(upgrade_lock);
     key_indx.erase(it);
     if (current_element.num_failed_rpcs <= kFailedRpcTolerance && !force) {
       // make sure SetLastSeenToNow will do thing expected
@@ -145,117 +140,63 @@ void RoutingTable::RemoveContact(const NodeId &node_id, const bool &force) {
 
 int RoutingTable::SetPublicKey(const NodeId &node_id,
                                const std::string &new_public_key) {
+  UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end())
-    return 1;
+    return -1;
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
   key_indx.modify(it, ChangePublicKey(new_public_key));
   return 0;
 }
 
 int RoutingTable::UpdateRankInfo(const NodeId &node_id,
                                  RankInfoPtr new_rank_info) {
+  UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end())
-    return 1;
+    return -1;
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
   key_indx.modify(it, ChangeRankInfo(new_rank_info));
   return 0;
 }
 
 int RoutingTable::SetPreferredEndpoint(const NodeId &node_id,
                                        const IP &ip) {
+  UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-
   // return if can't find the contact having the nodeID
   if (it == key_indx.end())
-    return 1;
-
+    return -1;
   Contact new_local_contact((*it).contact);
   new_local_contact.SetPreferredEndpoint(ip);
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
   key_indx.modify(it, ChangeContact(new_local_contact));
   return 0;
 }
 
 int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
+  UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end())
     return -1;
   boost::uint16_t num_failed_rpcs = (*it).num_failed_rpcs;
   ++num_failed_rpcs;
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
   key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs));
   return num_failed_rpcs;
-}
-
-boost::uint16_t RoutingTable::KBucketSize() const {
-  return kbucket_boundries_.size();
-}
-
-boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
-  KBucketBoundariesByUpperBoundary key_indx
-      = kbucket_boundries_.get<UpperBoundaryTag>();
-  auto it = key_indx.lower_bound(key);
-  auto pit = contacts_.get<KBucketTag>().equal_range((*it).upper_boundary);
-  return distance(pit.first, pit.second);
-}
-
-boost::uint16_t RoutingTable::Size() const {
-  return contacts_.size();
-}
-
-Contact RoutingTable::GetLastSeenContact(const boost::uint16_t &kbucket_index) {
-  auto pit = contacts_.get<KBucketLastSeenTag>().equal_range(boost::make_tuple(
-      kbucket_index));
-  return (*pit.first).contact;
-}
-
-// Bisect the k-bucket in the specified index into two new ones
-void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
-  KBucketBoundariesByUpperBoundary key_indx
-      = kbucket_boundries_.get<UpperBoundaryTag>();
-  auto it = key_indx.lower_bound(kbucket_index);
-
-  // no need to check this as a kbucket will never be split until its full
-//   if (((*it).upper_boundary-(*it).lower_boundary)<5)
-//     return;
-
-  // insert one new element into the kbucket boundaries container
-  // and modify the corresponding old one
-  // each time the split means:
-  //    split a bucket (upper,lower) into (upper,lower+1) and (lower,lower)
-  boost::uint16_t split_position = (*it).lower_boundary + 1;
-  boost::uint16_t lower_boundary = (*it).lower_boundary;
-  key_indx.modify(it, ChangeLowerBoundary(split_position));
-  KBucketBoundary new_kbucket_boundary(lower_boundary, lower_boundary);
-  key_indx.insert(new_kbucket_boundary);
-
-  // modify all related contacts's kbucket index tag in the contact container
-  typedef RoutingTableContactsContainer::index<
-      KBucketTag>::type::iterator KBucketQuery;
-  auto pit = contacts_.get<KBucketTag>().equal_range((*it).upper_boundary);
-
-  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
-  KBucketQuery it_begin = pit.first;
-  KBucketQuery it_end = pit.second;
-  while (it_begin != it_end) {
-    if ((*it_begin).common_heading_bits <= lower_boundary) {
-      auto it = key_node_indx.find((*it_begin).node_id);
-      key_node_indx.modify(it, ChangeKBucketIndex(lower_boundary));
-    }
-    ++it_begin;
-  }
 }
 
 void RoutingTable::GetCloseContactsForTargetId(
     const NodeId &target_id, const boost::uint32_t &count,
     const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
-  if (target_id.String().size() != kademlia::kKeySizeBytes ||
-      close_contacts == NULL)
+  if (target_id.String().size() != kKeySizeBytes || close_contacts == NULL)
     return;
-
+  SharedLock shared_lock(shared_mutex_);
   // the search will begin from a bucket having the similiar k-distance as the
   // target node to the current holder
   // then extend the range follows the rule:
@@ -329,6 +270,7 @@ void RoutingTable::GetCloseContactsForTargetId(
 void RoutingTable::GetCloseContacts(
     const boost::uint32_t &count, const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
+  SharedLock shared_lock(shared_mutex_);
   // populate the result with the count defined top contacts
   // indexed by the distance
   ContactsByDistanceToThisId key_dist_indx
@@ -350,75 +292,8 @@ void RoutingTable::GetCloseContacts(
   return;
 }
 
-int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
-                                      const boost::uint16_t &target_bucket,
-                                      const RankInfoPtr &rank_info) {
-  // find the bucket that shall contain the holder
-  // KBucketIndex(kThisId_) shall always return kKeySizeBytes*8
-  boost::uint16_t bucket_of_holder = kKeySizeBytes * 8;
-
-  // Calculate how many k closest neighbours belong to the brother bucket of
-  // the peer
-  int v = k_ - KBucketSizeForKey(bucket_of_holder);
-  if (v == 0) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v == 0)" << std::endl;
-    return 1;
-  }
-  // find the brother bucket
-  KBucketBoundariesByUpperBoundary key_indx
-      = kbucket_boundries_.get<UpperBoundaryTag>();
-  auto it = key_indx.find(bucket_of_holder);
-  --it;
-  if (it == kbucket_boundries_.end()) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (no brother bucket)" <<
-      std::endl;
-    return 1;
-  }
-  boost::uint16_t brother_bucket_of_holder = (*it).upper_boundary;
-
-  if (brother_bucket_of_holder != target_bucket) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
-        << std::endl;
-    return 1;
-  }
-
-  // sort the brother bucket based on contacts' distance to the holder
-  typedef RoutingTableContactsContainer::index<
-      KBucketDistanceToThisIdTag>::type::iterator KBucketDistanceQuery;
-  auto pit = contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
-      boost::make_tuple(brother_bucket_of_holder));
-
-  // check if the new contact is among the top v closest
-  NodeId distance_to_target = kThisId_ ^ new_contact.node_id();
-  // pit.second shall point to the furthest contact (need one step forward)
-  // as the list will sorted from least to highest
-  // while the least value of XOR distance means the nearest
-  KBucketDistanceQuery it_end = pit.second;
-  --it_end;
-  // the result from the equal range will always points one step hehind
-  NodeId furthest_distance = (*it_end).distance_to_this_id;
-  NodeId furthest_node = (*it_end).node_id;
-
-  if (furthest_distance <= distance_to_target) {
-    // new peer isn't among the k closest neighbours
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - "
-                    "new peer isn't among the k closest" << std::endl;
-    return 1;
-  }
-  // new peer is among the k closest neighbours
-  // drop the peer which is the furthest
-  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
-  auto it_furthest = key_node_indx.find(furthest_node);
-  contacts_.erase(it_furthest);
-  RoutingTableContact new_local_contact(new_contact, kThisId_,
-                                        rank_info,
-                                        KDistanceTo(new_contact.node_id()));
-  new_local_contact.kbucket_index = brother_bucket_of_holder;
-  contacts_.insert(new_local_contact);
-  return 0;
-}
-
 void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
+  SharedLock shared_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.begin();
   while (it != key_indx.end()) {
@@ -439,13 +314,146 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
 }
 
 void RoutingTable::Clear() {
+  UniqueLock unique_lock(shared_mutex_);
   contacts_.clear();
   kbucket_boundries_.clear();
-  KBucketBoundary first_boundary(kKeySizeBytes * 8, 0);
+  KBucketBoundary first_boundary(kKeySizeBits, 0);
   kbucket_boundries_.insert(first_boundary);
 }
 
-boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const  {
+boost::uint16_t RoutingTable::Size() const {
+  return contacts_.size();
+}
+
+Contact RoutingTable::GetLastSeenContact(const boost::uint16_t &kbucket_index) {
+  auto pit = contacts_.get<KBucketLastSeenTag>().equal_range(boost::make_tuple(
+      kbucket_index));
+  return (*pit.first).contact;
+}
+
+boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
+//   if (key > NodeId::kMaxId)
+//     return -1;
+  KBucketBoundariesByUpperBoundary key_indx
+      = kbucket_boundries_.get<UpperBoundaryTag>();
+  boost::uint16_t common_heading_bits = KDistanceTo(key);
+  auto it = key_indx.lower_bound(common_heading_bits);
+  return (*it).upper_boundary;
+}
+
+boost::uint16_t RoutingTable::KBucketSize() const {
+  return kbucket_boundries_.size();
+}
+
+boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
+  KBucketBoundariesByUpperBoundary key_indx
+      = kbucket_boundries_.get<UpperBoundaryTag>();
+  auto it = key_indx.lower_bound(key);
+  auto pit = contacts_.get<KBucketTag>().equal_range((*it).upper_boundary);
+  return distance(pit.first, pit.second);
+}
+
+// Bisect the k-bucket in the specified index into two new ones
+void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
+  KBucketBoundariesByUpperBoundary key_indx
+      = kbucket_boundries_.get<UpperBoundaryTag>();
+  auto it = key_indx.lower_bound(kbucket_index);
+
+  // no need to check this as a kbucket will never be split until its full
+//   if (((*it).upper_boundary-(*it).lower_boundary)<5)
+//     return;
+
+  // insert one new element into the kbucket boundaries container
+  // and modify the corresponding old one
+  // each time the split means:
+  //    split a bucket (upper,lower) into (upper,lower+1) and (lower,lower)
+  boost::uint16_t split_position = (*it).lower_boundary + 1;
+  boost::uint16_t lower_boundary = (*it).lower_boundary;
+  key_indx.modify(it, ChangeLowerBoundary(split_position));
+  KBucketBoundary new_kbucket_boundary(lower_boundary, lower_boundary);
+  key_indx.insert(new_kbucket_boundary);
+
+  // modify all related contacts's kbucket index tag in the contact container
+  auto pit = contacts_.get<KBucketTag>().equal_range((*it).upper_boundary);
+  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
+  auto it_begin = pit.first;
+  auto it_end = pit.second;
+  while (it_begin != it_end) {
+    if ((*it_begin).common_heading_bits <= lower_boundary) {
+      auto it = key_node_indx.find((*it_begin).node_id);
+      key_node_indx.modify(it, ChangeKBucketIndex(lower_boundary));
+    }
+    ++it_begin;
+  }
+}
+
+int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
+                                      const boost::uint16_t &target_bucket,
+                                      const RankInfoPtr &rank_info) {
+  // find the bucket that shall contain the holder
+  // KBucketIndex(kThisId_) shall always return kKeySizeBits
+  boost::uint16_t bucket_of_holder = kKeySizeBits;
+
+  // Calculate how many k closest neighbours belong to the brother bucket of
+  // the peer
+  int v = k_ - KBucketSizeForKey(bucket_of_holder);
+  if (v == 0) {
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v == 0)" << std::endl;
+    return -2;
+  }
+  // find the brother bucket
+  KBucketBoundariesByUpperBoundary key_indx
+      = kbucket_boundries_.get<UpperBoundaryTag>();
+  auto it = key_indx.find(bucket_of_holder);
+  --it;
+  if (it == kbucket_boundries_.end()) {
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (no brother bucket)" <<
+      std::endl;
+    return -1;
+  }
+  boost::uint16_t brother_bucket_of_holder = (*it).upper_boundary;
+
+  if (brother_bucket_of_holder != target_bucket) {
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
+        << std::endl;
+    return -3;
+  }
+
+  // sort the brother bucket based on contacts' distance to the holder
+  auto pit = contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
+      boost::make_tuple(brother_bucket_of_holder));
+
+  // check if the new contact is among the top v closest
+  NodeId distance_to_target = kThisId_ ^ new_contact.node_id();
+  // pit.second shall point to the furthest contact (need one step forward)
+  // as the list will sorted from least to highest
+  // while the least value of XOR distance means the nearest
+  auto it_end = pit.second;
+  --it_end;
+  // the result from the equal range will always points one step hehind
+  NodeId furthest_distance = (*it_end).distance_to_this_id;
+  NodeId furthest_node = (*it_end).node_id;
+
+  if (furthest_distance <= distance_to_target) {
+    // new peer isn't among the k closest neighbours
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - "
+                    "new peer isn't among the k closest" << std::endl;
+    return -4;
+  }
+  // new peer is among the k closest neighbours
+  // drop the peer which is the furthest
+  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
+  auto it_furthest = key_node_indx.find(furthest_node);
+  contacts_.erase(it_furthest);
+  RoutingTableContact new_local_contact(new_contact, kThisId_,
+                                        rank_info,
+                                        KDistanceTo(new_contact.node_id()));
+  new_local_contact.kbucket_index = brother_bucket_of_holder;
+  contacts_.insert(new_local_contact);
+  return 0;
+}
+
+boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
   boost::uint16_t distance = 0;
   std::string this_id_binary = kThisId_.ToStringEncoded(NodeId::kBinary);
   std::string rhs_id_binary = rhs.ToStringEncoded(NodeId::kBinary);
