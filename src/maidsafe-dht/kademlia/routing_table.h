@@ -367,9 +367,9 @@ class RoutingTable {
    *  @param[in] exclude_contacts List of contacts that shall be excluded.
    *  @param[out] close_contacts Result of the find closest contacts. */
   void GetCloseContactsForTargetId(const NodeId &target_id,
-                        const size_t &count,
-                        const std::vector<Contact> &exclude_contacts,
-                        std::vector<Contact> *close_contacts);
+                                   const size_t &count,
+                                   const std::vector<Contact> &exclude_contacts,
+                                   std::vector<Contact> *close_contacts);
 
   /** Finds a number of known nodes closest to the holder node in the current
    *  routing table.
@@ -416,10 +416,10 @@ class RoutingTable {
    *  @param[in] kbucket_index The index of the kbucket.
    *  @return The last seend contact in the kbucket. */
   Contact GetLastSeenContact(const boost::uint16_t &kbucket_index);    
-  /** Calculate the index of the k-bucket which is responsible for the specified
-  *  key (or ID).
-  *  @param[in] key The Kademlia ID of the target node.
-  *  @return The index of the k-bucket which is in responsible. */
+  /** Calculate the index of the k-bucket which is responsible for
+   *  the specified key (or ID).
+   *  @param[in] key The Kademlia ID of the target node.
+   *  @return The index of the k-bucket which is in responsible. */
   boost::uint16_t KBucketIndex(const NodeId &key);
   /** Getter.
    *  @return Num of kbuckets in the routing table. */
