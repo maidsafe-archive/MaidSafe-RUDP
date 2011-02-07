@@ -59,12 +59,8 @@ class StoreRequest;
 class StoreResponse;
 class DeleteRequest;
 class DeleteResponse;
-class UpdateRequest;
-class UpdateResponse;
 class DownlistNotification;
 }  // namespace protobuf
-
-namespace test_service { class ServicesTest_BEH_KAD_UpdateValue_Test; }
 
 class Service : public boost::enable_shared_from_this<Service> {
  public:
@@ -85,24 +81,20 @@ class Service : public boost::enable_shared_from_this<Service> {
                  protobuf::FindNodesResponse *response);
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
+             const std::string &message,
+             const std::string &message_signature,
              protobuf::StoreResponse *response);
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
               protobuf::DeleteResponse *response);
-  void Update(const transport::Info &info,
-              const protobuf::UpdateRequest &request,
-              const std::string &message,
-              const std::string &message_signature,
-              protobuf::UpdateResponse *response);
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
   void set_node_joined(bool joined) { node_joined_ = joined; }
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
  private:
-  friend class test_service::ServicesTest_BEH_KAD_UpdateValue_Test;
   Service(const Service&);
   Service& operator=(const Service&);
   bool StoreValueLocal(const std::string &key,
