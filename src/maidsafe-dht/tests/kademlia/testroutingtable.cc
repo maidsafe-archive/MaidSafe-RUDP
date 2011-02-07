@@ -160,7 +160,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
     routing_table.AddContact(contact, rank_info_);
     EXPECT_EQ(size_t(0), routing_table.Size());
     EXPECT_EQ(size_t(1), routing_table.KBucketSize());
-    EXPECT_EQ(size_t(0), routing_table.KBucketSize(0));
+    EXPECT_EQ(size_t(0), routing_table.KBucketSizeForKey(0));
   }
   boost::uint16_t i(0);
   {
@@ -173,7 +173,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
       Contact contact = ComposeContact(contact_id, (5000 + i));
       routing_table.AddContact(contact, rank_info_);
     }
-    EXPECT_EQ(K, routing_table.KBucketSize(0));
+    EXPECT_EQ(K, routing_table.KBucketSizeForKey(0));
   }
 
   {
@@ -188,9 +188,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
     // all 16 contacts having 3 common heading bits sit in the kbucket
     // covering 2-512
     EXPECT_EQ(size_t(3), routing_table.KBucketSize());
-    EXPECT_EQ(size_t(0), routing_table.KBucketSize(0));
-    EXPECT_EQ(size_t(1), routing_table.KBucketSize(1));
-    EXPECT_EQ(K, routing_table.KBucketSize(2));
+    EXPECT_EQ(size_t(0), routing_table.KBucketSizeForKey(0));
+    EXPECT_EQ(size_t(1), routing_table.KBucketSizeForKey(1));
+    EXPECT_EQ(K, routing_table.KBucketSizeForKey(2));
   }
 
   {
@@ -205,11 +205,11 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
     // covering 3-3 now
     // an additonal kbucket covering 2-2 is now created
     EXPECT_EQ(size_t(5), routing_table.KBucketSize());
-    EXPECT_EQ(size_t(0), routing_table.KBucketSize(0));
-    EXPECT_EQ(size_t(1), routing_table.KBucketSize(1));
-    EXPECT_EQ(size_t(0), routing_table.KBucketSize(2));
-    EXPECT_EQ(K, routing_table.KBucketSize(3));
-    EXPECT_EQ(size_t(1), routing_table.KBucketSize(4));
+    EXPECT_EQ(size_t(0), routing_table.KBucketSizeForKey(0));
+    EXPECT_EQ(size_t(1), routing_table.KBucketSizeForKey(1));
+    EXPECT_EQ(size_t(0), routing_table.KBucketSizeForKey(2));
+    EXPECT_EQ(K, routing_table.KBucketSizeForKey(3));
+    EXPECT_EQ(size_t(1), routing_table.KBucketSizeForKey(4));
   }
 
   {
@@ -278,7 +278,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Performance_8000_Random_Fill) {
 
     boost::uint32_t contacts_in_table(0);
     for (int i = 0; i < routing_table.KBucketSize(); ++i) {
-      boost::uint32_t contacts_in_bucket = routing_table.KBucketSize(i);
+      boost::uint32_t contacts_in_bucket = routing_table.KBucketSizeForKey(i);
       ASSERT_GE(boost::uint32_t(16), contacts_in_bucket);
       contacts_in_table += contacts_in_bucket;
     }
@@ -295,7 +295,8 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts) {
     // try to get close contacts from an empty routing table
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(size_t(1), exclude_contacts, &close_contacts);
+    routing_table.GetCloseContacts(size_t(1), exclude_contacts,
+                                   &close_contacts);
     EXPECT_EQ(size_t(0), close_contacts.size());
   }
 
@@ -310,7 +311,8 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts) {
     
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(size_t(16), exclude_contacts, &close_contacts);
+    routing_table.GetCloseContacts(size_t(16), exclude_contacts,
+                                   &close_contacts);
     EXPECT_EQ(size_t(8), close_contacts.size());
   }
   routing_table.Clear();
@@ -334,7 +336,8 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts) {
 
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(size_t(16), exclude_contacts, &close_contacts);
+    routing_table.GetCloseContacts(size_t(16), exclude_contacts,
+                                   &close_contacts);
     EXPECT_EQ(size_t(16), close_contacts.size());
     ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                               close_contacts.end(),
@@ -397,8 +400,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
     // try to get close contacts from an empty routing table
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(target_id, size_t(1), exclude_contacts,
-                                   &close_contacts);
+    routing_table.GetCloseContactsForTargetId(target_id, size_t(1),
+                                              exclude_contacts,
+                                              &close_contacts);
     EXPECT_EQ(size_t(0), close_contacts.size());
   }
 
@@ -413,8 +417,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
 
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(target_id, size_t(16), exclude_contacts,
-                                   &close_contacts);
+    routing_table.GetCloseContactsForTargetId(target_id, size_t(16),
+                                              exclude_contacts,
+                                              &close_contacts);
     EXPECT_EQ(size_t(8), close_contacts.size());
   }
   routing_table.Clear();
@@ -438,8 +443,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
 
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
-    routing_table.GetCloseContacts(target_id, size_t(16), exclude_contacts,
-                                   &close_contacts);
+    routing_table.GetCloseContactsForTargetId(target_id, size_t(16),
+                                              exclude_contacts,
+                                              &close_contacts);
     EXPECT_EQ(size_t(16), close_contacts.size());
     ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                               close_contacts.end(),
@@ -475,8 +481,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
     exclude_contacts.push_back(contact_exclude);
-    routing_table.GetCloseContacts(target_id, size_t(16), exclude_contacts,
-                                   &close_contacts);
+    routing_table.GetCloseContactsForTargetId(target_id, size_t(16),
+                                              exclude_contacts,
+                                              &close_contacts);
     EXPECT_EQ(size_t(16), close_contacts.size());
     ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                               close_contacts.end(),
@@ -541,8 +548,9 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
     // make sure the target_id in the exclude_contacts list
     exclude_contacts.push_back(ComposeContact(target_id, 5000));
 
-    routing_table.GetCloseContacts(target_id, 37, exclude_contacts,
-                                   &close_contacts);
+    routing_table.GetCloseContactsForTargetId(target_id, 37,
+                                              exclude_contacts,
+                                              &close_contacts);
     EXPECT_EQ(size_t(37),close_contacts.size());
 
     ContactsByDistanceToThisId key_dist_indx
@@ -553,7 +561,8 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
       ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                                 close_contacts.end(),
                                                 (*it).contact));
-      //std::cout<<(*it).contact.node_id().ToStringEncoded(NodeId::kBinary)<<std::endl;
+      // std::cout<<(*it).contact.node_id().ToStringEncoded(NodeId::kBinary)
+      // <<std::endl;
       ++counter;
       ++it;
     }
