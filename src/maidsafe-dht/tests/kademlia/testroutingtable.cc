@@ -561,6 +561,30 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Close_Contacts_To_Target) {
   routing_table_.Clear();
 }
 
+TEST_F(TestRoutingTable, BEH_KAD_Remove_contacts) {
+  NodeId node_id(NodeId::kRandomId);
+  RoutingTable routing_table(node_id, test::K);
+  for (int i = 0; i < 11; ++i) {
+    Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 5553);
+    routing_table.AddContact(contact, rank_info_);
+  }
+  EXPECT_EQ(size_t(11), routing_table.Size());
+  
+  auto it = routing_table.contacts_.begin();
+  ++it;
+  Contact  contact((*it).contact);
+  routing_table.RemoveContact(contact.node_id(), false);
+  EXPECT_EQ(size_t(11), routing_table.Size());
+  routing_table.RemoveContact(contact.node_id(), true);
+  EXPECT_EQ(size_t(10), routing_table.Size());
+  it = routing_table.contacts_.end();
+  --it;
+  ContactsById key_indx = routing_table.contacts_.get<NodeIdTag>();
+  key_indx.modify(it, ChangeNumFailedRpc(4));
+  contact = (*it).contact;
+  routing_table.RemoveContact(contact.node_id(), true);
+  EXPECT_EQ(size_t(9), routing_table.Size());
+}
 /*
 TEST_F(TestRoutingTable, FUNC_KAD_PartFilltable) {
   NodeId holder_id(NodeId::kRandomId);
