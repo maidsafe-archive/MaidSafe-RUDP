@@ -139,12 +139,13 @@ bool DataStore::StoreValue(
     return p.second;
   }
 
-  // The key and value exists - allow original signer to modify it.
+  // The key and value exists - check the value signature is the same as before.
+  if ((*itr_pair.first).key_value_signature.signature !=
+      key_value_signature.signature)
+    return false;
+
+  // Allow original signer to modify it.
   if (!is_refresh) {
-    // Check the value signature is the same as before.
-    if ((*itr_pair.first).key_value_signature.signature !=
-        key_value_signature.signature)
-      return false;
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     return index_by_key.modify(itr_pair.first,
         boost::bind(&KeyValueTuple::UpdateStatus, _1, now + ttl,
