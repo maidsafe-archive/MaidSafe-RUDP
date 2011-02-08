@@ -164,11 +164,12 @@ class DataStore {
   // If the key and value doesn't already exist, the method returns true.
   // If the key and value already exists and is marked as deleted, the method
   // resets the value's refresh time only and returns true.
+  // If the key and value already exists, is not marked as deleted, confirm time
+  // has not expired and is_refresh is true, the method doesn't modify anything
+  // and returns false.
   // If the key and value already exists, is not marked as deleted, and
-  // is_refresh is true, the method doesn't modify anything and returns false.
-  // If the key and value already exists, is not marked as deleted, and
-  // is_refresh is false, the method sets deleted to false, resets the confirm
-  // time and returns true.
+  // is_refresh is false or confirm time has expired, the method sets deleted to
+  // true, resets the confirm time and returns true.
   bool DeleteValue(const KeyValueSignature &key_value_signature,
                    const RequestAndSignature &delete_request_and_signature,
                    bool is_refresh);

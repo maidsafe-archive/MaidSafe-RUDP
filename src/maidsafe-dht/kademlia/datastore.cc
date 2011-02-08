@@ -177,26 +177,33 @@ bool DataStore::DeleteValue(
   if (it == index_by_key_value.end())
     return true;
 
+  // Check the value signature is the same as before (assumes that check on
+  // signature of request and signature of value using public_key has
+  // already been done).
+  if ((*it).key_value_signature.signature != key_value_signature.signature)
+    return false;
+
   bptime::ptime now(bptime::microsec_clock::universal_time());
-  // If the value is already marked as deleted, reset the refresh time.
-  if ((*it).deleted) {
+  // If the value is already marked as deleted, allow refresh to reset the
+  // refresh time.
+  if (is_refresh && (*it).deleted) {
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     return index_by_key_value.modify(it,
         boost::bind(&KeyValueTuple::set_refresh_time, _1,
                     now + refresh_interval_));
   }
 
-  // If value isn't marked as deleted, only allow original signer to modify it.
-  // Check the value signature is the same as before (assumes that check on
-  // signature of request and signature of value using public_key has
-  // already been done).
-  if ((*it).key_value_signature.signature != key_value_signature.signature)
+  // Allow original signer to modify it or if value isn't marked as deleted, but
+  // confirm time has expired, also allow refreshes to modify it.
+  if (!is_refresh || ((*it).confirm_time < now)) {
+    UpgradeToUniqueLock unique_lock(upgrade_lock);
+    return index_by_key_value.modify(it,
+        boost::bind(&KeyValueTuple::UpdateStatus, _1, (*it).expire_time,
+                    now + refresh_interval_, now + kPendingConfirmDuration,
+                    delete_request_and_signature, true));
+  } else {
     return false;
-  UpgradeToUniqueLock unique_lock(upgrade_lock);
-  return index_by_key_value.modify(it,
-      boost::bind(&KeyValueTuple::UpdateStatus, _1, (*it).expire_time,
-                  now + refresh_interval_, now + kPendingConfirmDuration,
-                  delete_request_and_signature, true));
+  }
 }
 
 bool DataStore::GetValues(
