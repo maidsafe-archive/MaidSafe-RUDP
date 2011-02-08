@@ -66,14 +66,18 @@ class DataStoreTest: public testing::Test {
         crypto_keys_() {}
   KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
                         const size_t &value_size,
-                        const bptime::time_duration &ttl) {
-    std::string key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    std::string value;
-    value.reserve(value_size);
-    std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-    while (value.size() < value_size)
-      value += temp;
-    value = value.substr(0, value_size);
+                        const bptime::time_duration &ttl,
+                        std::string key,
+                        std::string value) {
+    if (key.empty())
+      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
+    if (value.empty()) {
+      value.reserve(value_size);
+      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
+      while (value.size() < value_size)
+        value += temp;
+      value = value.substr(0, value_size);
+    }
     std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     bptime::ptime now = bptime::microsec_clock::universal_time();
     bptime::ptime expire_time = now + ttl;
@@ -137,20 +141,24 @@ class DataStoreTest: public testing::Test {
 
 TEST_F(DataStoreTest, BEH_KAD_StoreUnderEmptyKey) {
   EXPECT_EQ(0U, key_value_index_->size());
-  for (int i = 0; i != 2; ++i) {
+  for (int i = 0; i != 3; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(1024);
   }
   bptime::time_duration ttl(bptime::pos_infin);
-  KeyValueTuple kvt1 = MakeKVT(crypto_keys_.at(0), 1024, ttl);
-  KeyValueTuple kvt2 = MakeKVT(crypto_keys_.at(1), 5 * 1024 * 1024, ttl);
+  KeyValueTuple kvt1 = MakeKVT(crypto_keys_.at(0), 1024, ttl, "", "");
+  KeyValueTuple kvt2 = MakeKVT(crypto_keys_.at(1), 5242880, ttl, "", "");
+  KeyValueTuple kvt3 = MakeKVT(crypto_keys_.at(2), 1024, ttl, "", "");
   EXPECT_TRUE(data_store_->StoreValue(kvt1.key_value_signature, ttl,
       kvt1.request_and_signature, crypto_keys_.at(0).public_key(), false));
   EXPECT_TRUE(data_store_->StoreValue(kvt2.key_value_signature, ttl,
       kvt2.request_and_signature, crypto_keys_.at(1).public_key(), false));
-  EXPECT_EQ(2U, key_value_index_->size());
+  EXPECT_TRUE(data_store_->StoreValue(kvt3.key_value_signature, ttl,
+      kvt2.request_and_signature, crypto_keys_.at(2).public_key(), true));
+  EXPECT_EQ(3U, key_value_index_->size());
   EXPECT_EQ(1U, key_value_index_->count(kvt1.key()));
   EXPECT_EQ(1U, key_value_index_->count(kvt2.key()));
+  EXPECT_EQ(1U, key_value_index_->count(kvt3.key()));
   KeyValuePairGroup values;
   EXPECT_TRUE(data_store_->GetValues(kvt1.key(), &values));
   EXPECT_EQ(1U, values.size());
@@ -160,39 +168,328 @@ TEST_F(DataStoreTest, BEH_KAD_StoreUnderEmptyKey) {
   ASSERT_EQ(1U, values.size());
   EXPECT_EQ(make_pair(kvt2.value(), kvt2.key_value_signature.signature),
             values.front());
-}
-
-TEST_F(DataStoreTest, BEH_KAD_RefreshStoreUnderEmptyKey) {
-  crypto::RsaKeyPair crypto_keys;
-  crypto_keys.GenerateKeys(1024);
-  bptime::time_duration ttl(bptime::pos_infin);
-  KeyValueTuple kvt = MakeKVT(crypto_keys, 1024, ttl);
-  EXPECT_TRUE(data_store_->StoreValue(kvt.key_value_signature, ttl,
-      kvt.request_and_signature, crypto_keys.public_key(), true));
-
-  KeyValuePairGroup values;
-  EXPECT_TRUE(data_store_->GetValues(kvt.key(), &values));
-  EXPECT_EQ(1U, values.size());
-  EXPECT_EQ(make_pair(kvt.value(), kvt.key_value_signature.signature),
+  EXPECT_TRUE(data_store_->GetValues(kvt3.key(), &values));
+  ASSERT_EQ(1U, values.size());
+  EXPECT_EQ(make_pair(kvt3.value(), kvt3.key_value_signature.signature),
             values.front());
 }
 
-TEST_F(DataStoreTest, BEH_KAD_StoreUnderExistingKey) {
+TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
+  crypto::RsaKeyPair crypto_keys;
+  crypto_keys.GenerateKeys(1024);
+  bptime::time_duration ttl(bptime::pos_infin), bad_ttl(bptime::hours(0));
+  KeyValueTuple kvt = MakeKVT(crypto_keys, 1024, ttl, "", "");
+
+  // Invalid time to live
+  EXPECT_FALSE(data_store_->StoreValue(kvt.key_value_signature, bad_ttl,
+      kvt.request_and_signature, crypto_keys.public_key(), false));
+  EXPECT_TRUE(key_value_index_->empty());
+  KeyValuePairGroup values;
+  values.push_back(std::make_pair("a", "b"));
+  EXPECT_FALSE(data_store_->GetValues(kvt.key(), &values));
+  EXPECT_TRUE(values.empty());
+
+  // Invalid key
+  kvt.key_value_signature.key.clear();
+  EXPECT_FALSE(data_store_->StoreValue(kvt.key_value_signature, ttl,
+      kvt.request_and_signature, crypto_keys.public_key(), false));
+  EXPECT_TRUE(key_value_index_->empty());
+  values.push_back(std::make_pair("a", "b"));
+  EXPECT_FALSE(data_store_->GetValues(kvt.key(), &values));
+  EXPECT_TRUE(values.empty());
 }
 
-TEST_F(DataStoreTest, BEH_KAD_RefreshStoreUnderExistingKey) {
+TEST_F(DataStoreTest, BEH_KAD_StoreUnderExistingKey) {
+  for (int i = 0; i != 2; ++i) {
+    crypto_keys_.push_back(crypto::RsaKeyPair());
+    crypto_keys_.at(i).GenerateKeys(1024);
+  }
+  bptime::time_duration ttl(bptime::pos_infin);
+  KeyValueTuple kvt1 = MakeKVT(crypto_keys_.at(0), 1024, ttl, "", "");
+  std::string common_key = kvt1.key_value_signature.key;
+  KeyValueTuple kvt2 = MakeKVT(crypto_keys_.at(0), 1024, ttl, common_key, "");
+  KeyValueTuple kvt3 = MakeKVT(crypto_keys_.at(0), 1024, ttl, common_key, "");
+  KeyValueTuple kvt4 = MakeKVT(crypto_keys_.at(1), 1024, ttl, common_key, "");
+  KeyValueTuple kvt5 = MakeKVT(crypto_keys_.at(1), 1024, ttl, common_key, "");
+
+  // Initial key,value.
+  EXPECT_TRUE(data_store_->StoreValue(kvt1.key_value_signature, ttl,
+      kvt1.request_and_signature, crypto_keys_.at(0).public_key(), false));
+  // Same key, different value, same signing private key, publish-type store.
+  EXPECT_TRUE(data_store_->StoreValue(kvt2.key_value_signature, ttl,
+      kvt2.request_and_signature, crypto_keys_.at(0).public_key(), false));
+  // Same key, different value, same signing private key, refresh-type store.
+  EXPECT_TRUE(data_store_->StoreValue(kvt3.key_value_signature, ttl,
+      kvt3.request_and_signature, crypto_keys_.at(0).public_key(), true));
+  // Same key, different value, different signing private key, publish-type
+  // store.
+  EXPECT_FALSE(data_store_->StoreValue(kvt4.key_value_signature, ttl,
+      kvt4.request_and_signature, crypto_keys_.at(1).public_key(), false));
+  // Same key, different value, different signing private key, refresh-type
+  // store.
+  EXPECT_FALSE(data_store_->StoreValue(kvt5.key_value_signature, ttl,
+      kvt5.request_and_signature, crypto_keys_.at(1).public_key(), true));
+
+  EXPECT_EQ(3U, key_value_index_->size());
+  EXPECT_EQ(3U, key_value_index_->count(common_key));
+  KeyValuePairGroup values;
+  EXPECT_TRUE(data_store_->GetValues(common_key, &values));
+  ASSERT_EQ(3U, values.size());
+
+  EXPECT_EQ(make_pair(kvt1.value(), kvt1.key_value_signature.signature),
+            values.at(0));
+  EXPECT_NE(make_pair(kvt1.value(), kvt1.key_value_signature.signature),
+            values.at(1));
+  EXPECT_NE(make_pair(kvt1.value(), kvt1.key_value_signature.signature),
+            values.at(2));
+
+  EXPECT_NE(make_pair(kvt2.value(), kvt2.key_value_signature.signature),
+            values.at(0));
+  EXPECT_EQ(make_pair(kvt2.value(), kvt2.key_value_signature.signature),
+            values.at(1));
+  EXPECT_NE(make_pair(kvt2.value(), kvt2.key_value_signature.signature),
+            values.at(2));
+
+  EXPECT_NE(make_pair(kvt3.value(), kvt3.key_value_signature.signature),
+            values.at(0));
+  EXPECT_NE(make_pair(kvt3.value(), kvt3.key_value_signature.signature),
+            values.at(1));
+  EXPECT_EQ(make_pair(kvt3.value(), kvt3.key_value_signature.signature),
+            values.at(2));
+
+  EXPECT_NE(make_pair(kvt4.value(), kvt4.key_value_signature.signature),
+            values.at(0));
+  EXPECT_NE(make_pair(kvt4.value(), kvt4.key_value_signature.signature),
+            values.at(1));
+  EXPECT_NE(make_pair(kvt4.value(), kvt4.key_value_signature.signature),
+            values.at(2));
+
+  EXPECT_NE(make_pair(kvt5.value(), kvt5.key_value_signature.signature),
+            values.at(0));
+  EXPECT_NE(make_pair(kvt5.value(), kvt5.key_value_signature.signature),
+            values.at(1));
+  EXPECT_NE(make_pair(kvt5.value(), kvt5.key_value_signature.signature),
+            values.at(2));
 }
 
 TEST_F(DataStoreTest, BEH_KAD_StoreExistingKeyValue) {
+  for (int i = 0; i != 2; ++i) {
+    crypto_keys_.push_back(crypto::RsaKeyPair());
+    crypto_keys_.at(i).GenerateKeys(1024);
+  }
+  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
+  KeyValueTuple old_kvt = MakeKVT(crypto_keys_.at(0), 1024, old_ttl, "", "");
+  std::string common_key = old_kvt.key_value_signature.key;
+  std::string common_value = old_kvt.key_value_signature.value;
+  // Use different signing key
+  KeyValueTuple new_bad_refresh_kvt =
+      MakeKVT(crypto_keys_.at(1), 1024, new_ttl, common_key, common_value);
+  // Use different signing key
+  KeyValueTuple new_bad_store_kvt =
+      MakeKVT(crypto_keys_.at(1), 1024, new_ttl, common_key, common_value);
+  // Use original signing key
+  KeyValueTuple new_good_refresh_kvt =
+      MakeKVT(crypto_keys_.at(0), 1024, new_ttl, common_key, common_value);
+  // Use original signing key
+  KeyValueTuple new_good_store_kvt =
+      MakeKVT(crypto_keys_.at(0), 1024, new_ttl, common_key, common_value);
+
+  // Initial key,value.
+  EXPECT_TRUE(data_store_->StoreValue(old_kvt.key_value_signature, old_ttl,
+      old_kvt.request_and_signature, crypto_keys_.at(0).public_key(), false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  std::string old_signature =
+      (*key_value_index_->begin()).key_value_signature.signature;
+  std::string old_request =
+      (*key_value_index_->begin()).request_and_signature.first;
+  std::string old_request_signature =
+      (*key_value_index_->begin()).request_and_signature.second;
+  bptime::ptime old_expire_time = (*key_value_index_->begin()).expire_time;
+  bptime::ptime old_refresh_time = (*key_value_index_->begin()).refresh_time;
+  bptime::ptime old_confirm_time = (*key_value_index_->begin()).confirm_time;
+
+  // Same key, same value, different signing private key, refresh-type store.
+  EXPECT_FALSE(data_store_->StoreValue(new_bad_refresh_kvt.key_value_signature,
+      new_ttl, new_bad_refresh_kvt.request_and_signature,
+      crypto_keys_.at(1).public_key(), true));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_EQ(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_FALSE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, different signing private key, publish-type store.
+  EXPECT_FALSE(data_store_->StoreValue(new_bad_store_kvt.key_value_signature,
+      new_ttl, new_bad_store_kvt.request_and_signature,
+      crypto_keys_.at(1).public_key(), false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_EQ(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_FALSE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, same signing private key, refresh-type store.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  EXPECT_TRUE(data_store_->StoreValue(new_good_refresh_kvt.key_value_signature,
+      new_ttl, new_good_refresh_kvt.request_and_signature,
+      crypto_keys_.at(0).public_key(), true));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  bptime::ptime new_refresh_time = (*key_value_index_->begin()).refresh_time;
+  EXPECT_LT(old_refresh_time, new_refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_FALSE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, same signing private key, publish-type store.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  EXPECT_TRUE(data_store_->StoreValue(new_good_store_kvt.key_value_signature,
+      new_ttl, new_good_store_kvt.request_and_signature,
+      crypto_keys_.at(0).public_key(), false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_NE(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_NE(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(new_good_store_kvt.request_and_signature.first,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(new_good_store_kvt.request_and_signature.second,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_GT(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_LT(new_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_LT(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_FALSE((*key_value_index_->begin()).deleted);
 }
 
-TEST_F(DataStoreTest, BEH_KAD_RefreshStoreExistingKeyValue) {
+TEST_F(DataStoreTest, BEH_KAD_StoreExistingDeletedKeyValue) {
+  for (int i = 0; i != 2; ++i) {
+    crypto_keys_.push_back(crypto::RsaKeyPair());
+    crypto_keys_.at(i).GenerateKeys(1024);
+  }
+  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
+  KeyValueTuple old_kvt = MakeKVT(crypto_keys_.at(0), 1024, old_ttl, "", "");
+  std::string common_key = old_kvt.key_value_signature.key;
+  std::string common_value = old_kvt.key_value_signature.value;
+  // Use different signing key
+  KeyValueTuple new_bad_refresh_kvt =
+      MakeKVT(crypto_keys_.at(1), 1024, new_ttl, common_key, common_value);
+  // Use different signing key
+  KeyValueTuple new_bad_store_kvt =
+      MakeKVT(crypto_keys_.at(1), 1024, new_ttl, common_key, common_value);
+  // Use original signing key
+  KeyValueTuple new_good_refresh_kvt =
+      MakeKVT(crypto_keys_.at(0), 1024, new_ttl, common_key, common_value);
+  // Use original signing key
+  KeyValueTuple new_good_store_kvt =
+      MakeKVT(crypto_keys_.at(0), 1024, new_ttl, common_key, common_value);
+
+  // Initial key,value - mark as deleted.
+  EXPECT_TRUE(data_store_->StoreValue(old_kvt.key_value_signature, old_ttl,
+      old_kvt.request_and_signature, crypto_keys_.at(0).public_key(), false));
+  EXPECT_TRUE(data_store_->DeleteValue(old_kvt.key_value_signature,
+              old_kvt.request_and_signature, false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  std::string old_signature =
+      (*key_value_index_->begin()).key_value_signature.signature;
+  std::string old_request =
+      (*key_value_index_->begin()).request_and_signature.first;
+  std::string old_request_signature =
+      (*key_value_index_->begin()).request_and_signature.second;
+  bptime::ptime old_expire_time = (*key_value_index_->begin()).expire_time;
+  bptime::ptime old_refresh_time = (*key_value_index_->begin()).refresh_time;
+  bptime::ptime old_confirm_time = (*key_value_index_->begin()).confirm_time;
+
+  // Same key, same value, different signing private key, refresh-type store.
+  EXPECT_FALSE(data_store_->StoreValue(new_bad_refresh_kvt.key_value_signature,
+      new_ttl, new_bad_refresh_kvt.request_and_signature,
+      crypto_keys_.at(1).public_key(), true));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_EQ(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_TRUE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, different signing private key, publish-type store.
+  EXPECT_FALSE(data_store_->StoreValue(new_bad_store_kvt.key_value_signature,
+      new_ttl, new_bad_store_kvt.request_and_signature,
+      crypto_keys_.at(1).public_key(), false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_EQ(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_TRUE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, same signing private key, refresh-type store.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  EXPECT_FALSE(data_store_->StoreValue(new_good_refresh_kvt.key_value_signature,
+      new_ttl, new_good_refresh_kvt.request_and_signature,
+      crypto_keys_.at(0).public_key(), true));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_EQ(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_EQ(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_EQ(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_TRUE((*key_value_index_->begin()).deleted);
+
+  // Same key, same value, same signing private key, publish-type store.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  EXPECT_TRUE(data_store_->StoreValue(new_good_store_kvt.key_value_signature,
+      new_ttl, new_good_store_kvt.request_and_signature,
+      crypto_keys_.at(0).public_key(), false));
+  ASSERT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(old_signature,
+            (*key_value_index_->begin()).key_value_signature.signature);
+  EXPECT_NE(old_request,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_NE(old_request_signature,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_EQ(new_good_store_kvt.request_and_signature.first,
+            (*key_value_index_->begin()).request_and_signature.first);
+  EXPECT_EQ(new_good_store_kvt.request_and_signature.second,
+            (*key_value_index_->begin()).request_and_signature.second);
+  EXPECT_GT(old_expire_time, (*key_value_index_->begin()).expire_time);
+  EXPECT_LT(old_refresh_time, (*key_value_index_->begin()).refresh_time);
+  EXPECT_LT(old_confirm_time, (*key_value_index_->begin()).confirm_time);
+  EXPECT_FALSE((*key_value_index_->begin()).deleted);
 }
 
 TEST_F(DataStoreTest, BEH_KAD_DeleteUnderEmptyKey) {
-}
-
-TEST_F(DataStoreTest, BEH_KAD_RefreshDeleteUnderEmptyKey) {
 }
 
 TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
@@ -203,26 +500,6 @@ TEST_F(DataStoreTest, BEH_KAD_RefreshDeleteExistingKeyValue) {
 
 
 /*
-TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
-  std::string value1(crypto::Hash<crypto::SHA512>("bb33"));
-  std::string signature1(crypto::Hash<crypto::SHA512>(value1));
-  std::string key1(crypto::Hash<crypto::SHA512>(value1));
-  // invalid key
-  EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature("", value1, signature1),
-                                    bptime::seconds(3600*24), false));
-  // invalid value
-  EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature(key1, "", signature1),
-                                    bptime::seconds(3600*24), false));
-  // invalid signature
-  EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature(key1, value1, ""),
-                                    bptime::seconds(3600*24), false));
-  // invalid key,value & signature
-  EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature("", "", ""),
-                                    bptime::seconds(3600*24), false));
-  // invalid time to live
-  EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature(key1, value1, signature1),
-                                    bptime::seconds(0), false));
-}
 
 TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
   // one value under a key
