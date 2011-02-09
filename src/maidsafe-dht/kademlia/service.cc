@@ -80,14 +80,10 @@ void Service::ConnectToSignals(TransportPtr transport,
           &Service::FindNodes, this, _1, _2, _3).track(shared_from_this()));
   message_handler->on_store_request()->connect(
       MessageHandler::StoreReqSigPtr::element_type::slot_type(
-          &Service::Store, this, _1, _2, _3).track(shared_from_this()));
+          &Service::Store, this, _1, _2, _3, _4, _5).track(shared_from_this()));
   message_handler->on_delete_request()->connect(
       MessageHandler::DeleteReqSigPtr::element_type::slot_type(
           &Service::Delete, this, _1, _2, _3, _4, _5).track(
-              shared_from_this()));
-  message_handler->on_update_request()->connect(
-      MessageHandler::UpdateReqSigPtr::element_type::slot_type(
-          &Service::Update, this, _1, _2, _3, _4, _5).track(
               shared_from_this()));
   message_handler->on_downlist_notification()->connect(
       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
