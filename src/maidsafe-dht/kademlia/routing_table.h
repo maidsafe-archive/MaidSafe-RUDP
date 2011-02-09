@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/multi_index/identity.hpp"
 #include "boost/multi_index/member.hpp"
 #include "boost/multi_index/mem_fun.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
 
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/node_id.h"
@@ -60,7 +62,13 @@ namespace transport {
 
 namespace kademlia {
 
+namespace test {
+  class TestRoutingTable;
+  class TestRoutingTable_BEH_KAD_Remove_contacts_Test;
+} // namespace test
+
 class KBucket;
+
 
 struct RoutingTableContact {
   RoutingTableContact(const Contact &contact,
@@ -323,8 +331,7 @@ typedef KBucketBoundariesContainer::index<UpperBoundaryTag>::type&
     KBucketBoundariesByUpperBoundary;
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
-                        const Contact&, RankInfoPtr)>>
-    PingOldestContactStatusPtr;
+    const Contact&, RankInfoPtr)>> PingOldestContactStatusPtr;
 
 /** Object containing a node's Kademlia Routing Table and all its contacts.
  *  @class RoutingTable */    
@@ -352,7 +359,7 @@ class RoutingTable {
   void GetContact(const NodeId &node_id, Contact *contact);
   /** Remove the contact with the specified node ID from the routing table
    *  @param[in] node_id The input Kademlia ID.
-   *  @param[in] force Bool switch of ForceK. */
+   *  @param[in] force Bool switch of ForcedFailedRPCTolerance. */
   void RemoveContact(const NodeId &node_id, const bool &force);
   /** Finds a number of known nodes closest to the target node in the current
    *  routing table.
@@ -398,62 +405,75 @@ class RoutingTable {
    *  @param[out] contacts The result of all directly connected contacts. */
   void GetBootstrapContacts(std::vector<Contact> *contacts);
   /** Getter.
-   *  @return Num of kbuckets in the routing table. */
-  boost::uint16_t KBucketSize() const;
-  /** Getter.
    *  @return Num of contacts in the routing table. */
   boost::uint16_t Size() const;
   /** Empty the routing table */
   void Clear();
+  /** Getter.
+   *  @return The singal handler. */
+  PingOldestContactStatusPtr GetPingOldestContactSingalHandler();
+
+  friend class test::TestRoutingTable;
+  friend class test::TestRoutingTable_BEH_KAD_Remove_contacts_Test;
+ private:
   /** Return the contact which is the lastseen on in the target kbucket.
    *  @param[in] kbucket_index The index of the kbucket.
    *  @return The last seend contact in the kbucket. */
-  Contact GetLastSeenContact(const boost::uint16_t &kbucket_index);
+  Contact GetLastSeenContact(const boost::uint16_t &kbucket_index);    
+  /** Calculate the index of the k-bucket which is responsible for
+   *  the specified key (or ID).
+   *  @param[in] key The Kademlia ID of the target node.
+   *  @return The index of the k-bucket which is in responsible. */
+  boost::uint16_t KBucketIndex(const NodeId &key);
   /** Getter.
-   *  @return The singal handler. */
-  PingOldestContactStatusPtr PingOldestContactStatus();
+   *  @return Num of kbuckets in the routing table. */
+  boost::uint16_t KBucketSize() const;
   /** Get the number of contacts in a specified kbucket
    *  @param[in] key The index of the target k-bucket.
    *  @return Num of contacts in the specified kbucket */
-  boost::uint16_t KBucketSizeForKey(const boost::uint16_t &key);
-  private:
-    /** Calculate the index of the k-bucket which is responsible for
-    *  the specified
-    *  key (or ID).
-    *  @param[in] key The Kademlia ID of the target node.
-    *  @return The index of the k-bucket which is in responsible. */
-    boost::uint16_t KBucketIndex(const NodeId &key);
-    /** Bisect the k-bucket having the specified index into two new ones
-    *  @param[in] key The index of the target k-bucket. */
-    void SplitKbucket(const boost::uint16_t &kbucket_index);
-    /** Forces the brother k-bucket of the holder to accept a new contact which
-     *  would normally be dropped if it is within the k closest contacts to the
-    *  holder's ID.
-    *  @param[in] new_contact The new contact needs to be added.
-    *  @param[in] target_bucket The kbucket shall in responsible of the new
-    *  contact
-    *  @return Error Code, 0 for succeed, 1 for fail */
-    int ForceKAcceptNewPeer(const Contact &new_contact,
-                            const boost::uint16_t &target_bucket,
-                            const RankInfoPtr &rank_info);
-    /**
-    * XOR KBucket distance between two kademlia IDs.
-    * Measured by the number of common heading bits.
-    * The less the value is, the further the distance (the wider range) is.
-    * @param[in] rhs NodeId to which this is XOR
-    * @return the number of samed bits from the begining
-    */
-    boost::uint16_t KDistanceTo(const NodeId &rhs) const;
-    /** Holder's Kademlia ID */
-    const NodeId kThisId_;
-    /** k closest to the holder */
-    const boost::uint16_t k_;
-    /** Multi_index container of all contacts */
-    RoutingTableContactsContainer contacts_;
-    /** Multi_index container of boundary pairs for all KBucket */
-    KBucketBoundariesContainer kbucket_boundries_;
-    /** Singal handler */
-    PingOldestContactStatusPtr ping_oldest_contact_status_;
+  boost::uint16_t KBucketSizeForKey(const boost::uint16_t &key);  
+  /** Bisect the k-bucket having the specified index into two new ones
+  *  @param[in] key The index of the target k-bucket. */
+  void SplitKbucket(const boost::uint16_t &kbucket_index);
+  /** Forces the brother k-bucket of the holder to accept a new contact which
+    *  would normally be dropped if it is within the k closest contacts to the
+  *  holder's ID.
+  *  @param[in] new_contact The new contact needs to be added.
+  *  @param[in] target_bucket The kbucket shall in responsible of the new
+  *  contact
+  *  @return Error Code:  0   for succeed,
+  *                       -1  for No brother bucket
+  *                       -2  for v==0
+  *                       -3  for Not in Brother Bucket
+  *                       -4  for New peer isn't among the k closest */
+  int ForceKAcceptNewPeer(const Contact &new_contact,
+                          const boost::uint16_t &target_bucket,
+                          const RankInfoPtr &rank_info);
+  /**
+  * XOR KBucket distance between two kademlia IDs.
+  * Measured by the number of common heading bits.
+  * The less the value is, the further the distance (the wider range) is.
+  * @param[in] rhs NodeId to which this is XOR
+  * @return the number of samed bits from the begining
+  */
+  boost::uint16_t KDistanceTo(const NodeId &rhs) const;
+  /** Holder's Kademlia ID */
+  const NodeId kThisId_;
+  /** k closest to the holder */
+  const boost::uint16_t k_;
+  /** Multi_index container of all contacts */
+  RoutingTableContactsContainer contacts_;
+  /** Multi_index container of boundary pairs for all KBucket */
+  KBucketBoundariesContainer kbucket_boundries_;
+  /** Singal handler */
+  PingOldestContactStatusPtr ping_oldest_contact_status_;
+  /** Thread safe mutex lock */
+  boost::shared_mutex shared_mutex_;   
+  typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+  typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+  typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+  typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
+      UpgradeToUniqueLock;
 };
 
 }  // namespace kademlia
