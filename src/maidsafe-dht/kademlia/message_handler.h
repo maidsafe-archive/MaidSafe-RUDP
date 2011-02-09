@@ -78,8 +78,8 @@ class MessageHandler : public transport::MessageHandler {
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::StoreRequest&, protobuf::StoreResponse*)>>
-      StoreReqSigPtr;
+      const protobuf::StoreRequest&, const std::string&, const std::string&,
+      protobuf::StoreResponse*)>> StoreReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::StoreResponse&)>> StoreRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
@@ -87,11 +87,6 @@ class MessageHandler : public transport::MessageHandler {
       protobuf::DeleteResponse*)>> DeleteReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::UpdateRequest&, const std::string&, const std::string&,
-      protobuf::UpdateResponse*)>> UpdateReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::UpdateResponse&)>> UpdateRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
       const protobuf::DownlistNotification&)>>
       DownlistNtfSigPtr;
@@ -108,8 +103,6 @@ class MessageHandler : public transport::MessageHandler {
       on_store_response_(new StoreRspSigPtr::element_type),
       on_delete_request_(new DeleteReqSigPtr::element_type),
       on_delete_response_(new DeleteRspSigPtr::element_type),
-      on_update_request_(new UpdateReqSigPtr::element_type),
-      on_update_response_(new UpdateRspSigPtr::element_type),
       on_downlist_notification_(new DownlistNtfSigPtr::element_type) {}
   virtual ~MessageHandler() {}
 
@@ -123,8 +116,6 @@ class MessageHandler : public transport::MessageHandler {
   std::string WrapMessage(const protobuf::StoreResponse &msg);
   std::string WrapMessage(const protobuf::DeleteRequest &msg);
   std::string WrapMessage(const protobuf::DeleteResponse &msg);
-  std::string WrapMessage(const protobuf::UpdateRequest &msg);
-  std::string WrapMessage(const protobuf::UpdateResponse &msg);
   std::string WrapMessage(const protobuf::DownlistNotification &msg);
 
   PingReqSigPtr on_ping_request() { return on_ping_request_; }
@@ -141,8 +132,6 @@ class MessageHandler : public transport::MessageHandler {
   StoreRspSigPtr on_store_response() { return on_store_response_; }
   DeleteReqSigPtr on_delete_request() { return on_delete_request_; }
   DeleteRspSigPtr on_delete_response() { return on_delete_response_; }
-  UpdateReqSigPtr on_update_request() { return on_update_request_; }
-  UpdateRspSigPtr on_update_response() { return on_update_response_; }
   DownlistNtfSigPtr on_downlist_notification() {
     return on_downlist_notification_;
   }
@@ -167,8 +156,6 @@ class MessageHandler : public transport::MessageHandler {
   StoreRspSigPtr on_store_response_;
   DeleteReqSigPtr on_delete_request_;
   DeleteRspSigPtr on_delete_response_;
-  UpdateReqSigPtr on_update_request_;
-  UpdateRspSigPtr on_update_response_;
   DownlistNtfSigPtr on_downlist_notification_;
 };
 
