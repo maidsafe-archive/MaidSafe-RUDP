@@ -62,66 +62,125 @@ class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
+/** Object handling service requests on a node.
+ *  Contains tables of the routing contacts and <value,sig,key> tuples
+ *  @class Service */
 class Service : public boost::enable_shared_from_this<Service> {
  public:
+  /** Constructor.  To create a Service, in all cases the routing_table and
+   * data_store must be provided.
+   *  @param routing_table The routing table contains all contacts.
+   *  @param data_store The data_store table contains <value,sig,key> tuples.
+   *  @param alternative_store Alternative store.
+   *  @param securifier Securifier for <value,sig,key> validation. */
   Service(std::shared_ptr<RoutingTable> routing_table,
-          std::shared_ptr<DataStore> datastore,
+          std::shared_ptr<DataStore> data_store,
           AlternativeStorePtr alternative_store,
           SecurifierPtr securifier);
+  /** Constructor.  To create a Service, in all cases the routing_table and
+   * data_store must be provided.
+   *  @param routing_table The routing table contains all contacts.
+   *  @param data_store The data_store table contains <value,sig,key> tuples.
+   *  @param alternative_store Alternative store.
+   *  @param securifier Securifier for <value,sig,key> validation.
+   *  @param[in] k k closest contacts.*/
   Service(std::shared_ptr<RoutingTable> routing_table,
-          std::shared_ptr<DataStore> datastore,
+          std::shared_ptr<DataStore> data_store,
           AlternativeStorePtr alternative_store,
           SecurifierPtr securifier,
           const boost::uint16_t &k);
+
+  /** Dstructor. */
+  ~Service();
+
+  /** Connect to Signals.
+   *  @param transport The Transportor to link.
+   *  @param message_handler The Message Handler to link. */
   void ConnectToSignals(TransportPtr transport,
                         MessageHandlerPtr message_handler);
+  /** Handle Ping request.
+   *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response To response. */
   void Ping(const transport::Info &info,
             const protobuf::PingRequest &request,
             protobuf::PingResponse *response);
+  /** Handle FindValue request.
+   *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response To response. */            
   void FindValue(const transport::Info &info,
                  const protobuf::FindValueRequest &request,
                  protobuf::FindValueResponse *response);
+  /** Handle FindNodes request.
+   *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response To response. */                 
   void FindNodes(const transport::Info &info,
                  const protobuf::FindNodesRequest &request,
                  protobuf::FindNodesResponse *response);
+  /** Handle Store request.
+   *  It can be a publish request or just a refresh request
+   *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[in] message The message to store.
+   *  @param[in] message_signature The signature of the message to store.
+   *  @param[out] response To response. */                 
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
              const std::string &message,
              const std::string &message_signature,
              protobuf::StoreResponse *response);
+  /** Handle Delete request.
+   *  It can be a publish request or just a refresh request
+   *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[in] message The message to delete.
+   *  @param[in] message_signature The signature of the message to delete.
+   *  @param[out] response To response. */              
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
               protobuf::DeleteResponse *response);
+  /** Handle Downlist request.
+   *  Try to ping the contacts in the downlist and then remove those no-response
+   *  contacts from the routing table
+   *  @param info The rank info.
+   *  @param request The request. */
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
+  /** Set the status to be joined or not joined
+   *  @param joined The bool switch. */
   void set_node_joined(bool joined) { node_joined_ = joined; }
+  /** Set the node contact
+   *  @param contact The node contact. */
   void set_node_contact(const Contact &contact) { node_contact_ = contact; }
+  /** Set the securifier
+   *  @param securifier The securifier. */
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
  private:
+  /** Copy Constructor.
+   *  @param Service The object to be copied. */   
   Service(const Service&);
-  Service& operator=(const Service&);
-  bool StoreValueLocal(const std::string &key,
-                       const std::string &value,
-                       const boost::int32_t &ttl,
-                       bool publish,
-                       std::string *serialised_deletion_signature);
-  bool StoreValueLocal(const std::string &key,
-                       const protobuf::SignedValue &signed_value,
-                       const boost::int32_t &ttl,
-                       bool publish,
-                       std::string *serialised_deletion_signature);
-  bool SignedValueHashable(const std::string &key,
-                           const protobuf::SignedValue &signed_value);
-  bool CanStoreSignedValueHashable(const std::string &key,
-                                   const protobuf::SignedValue &signed_value,
-                                   bool *hashable);
+  /** Assignment overload */
+  Service& operator = (const Service&);
+  /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
+  /** data store */
   std::shared_ptr<DataStore> datastore_;
+  /** alternative store */
   AlternativeStorePtr alternative_store_;
+  /** securifier */
   SecurifierPtr securifier_;
+  /** bool switch of joined status */
   bool node_joined_;
+  /** node contact */
   Contact node_contact_;
     /** k closest to the target */
   const boost::uint16_t k_;
