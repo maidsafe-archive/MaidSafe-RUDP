@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/common/crypto.h"
 #include "maidsafe-dht/common/log.h"
+#include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/kbucket.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
@@ -65,6 +66,7 @@ class TestRoutingTable : public testing::Test {
     : rank_info_(),
       holder_id_(NodeId::kRandomId),
       routing_table_(holder_id_, test::k) {
+    contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
 
   std::string GenerateRandomId(const NodeId& holder, const int& pos) {
@@ -101,9 +103,22 @@ class TestRoutingTable : public testing::Test {
     return routing_table_.KBucketSizeForKey(key);
   }
 
+  RoutingTableContactsContainer GetContainer() {
+    return routing_table_.contacts_;
+  }
+
+  void FillContactToRoutingTable() {
+    for (int i = 0; i < 19; ++i) {
+      Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 6111);
+      (i == 13) ? routing_table_.AddContact(contact_, rank_info_) :
+          routing_table_.AddContact(contact, rank_info_);
+    }
+    EXPECT_EQ(size_t(19), routing_table_.Size());
+  }
   RankInfoPtr rank_info_;
   NodeId holder_id_;
   RoutingTable routing_table_;
+  Contact contact_;
 };
 
 TEST_F(TestRoutingTable, BEH_KAD_Constructor) {
@@ -584,6 +599,60 @@ TEST_F(TestRoutingTable, BEH_KAD_Remove_contacts) {
   contact = (*it).contact;
   routing_table.RemoveContact(contact.node_id(), false);
   EXPECT_EQ(size_t(9), routing_table.Size());
+}
+TEST_F(TestRoutingTable, BEH_KAD_SetPublicKey) {
+  this->FillContactToRoutingTable();
+  std::string new_public_key(RandomString(113));
+  EXPECT_EQ(-1, routing_table_.SetPublicKey(NodeId(NodeId::kRandomId),
+                                            new_public_key));
+  EXPECT_NE(new_public_key , (*(GetContainer().get<NodeIdTag>().find(
+      contact_.node_id()))).public_key);
+  ASSERT_EQ(0, routing_table_.SetPublicKey(contact_.node_id(),
+                                           new_public_key));
+  ASSERT_EQ(new_public_key , (*(GetContainer().get<NodeIdTag>().find(
+      contact_.node_id()))).public_key);
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_UpdateRankInfo) {
+  this->FillContactToRoutingTable();
+  RankInfoPtr new_rank_info(new(transport::Info));
+  new_rank_info->rtt = 13313;
+  EXPECT_EQ(-1, routing_table_.UpdateRankInfo(NodeId(NodeId::kRandomId),
+                                              new_rank_info));
+  ASSERT_EQ(0, routing_table_.UpdateRankInfo(contact_.node_id(),
+                                             new_rank_info));
+  ASSERT_EQ(new_rank_info->rtt, (*(GetContainer().get<NodeIdTag>().find(
+      contact_.node_id()))).rank_info->rtt);
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_SetPreferredEndpoint) {
+  this->FillContactToRoutingTable();
+  IP ip = IP::from_string("127.0.0.1");
+  EXPECT_EQ(-1, routing_table_.SetPreferredEndpoint(NodeId(NodeId::kRandomId),
+                                                    ip));
+  ASSERT_EQ(0, routing_table_.SetPreferredEndpoint(contact_.node_id(), ip));
+  ASSERT_EQ(ip, (*(GetContainer().get<NodeIdTag>().find(
+    contact_.node_id()))).contact.PreferredEndpoint().ip);
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_IncrementFailedRpcCount) {
+  this->FillContactToRoutingTable();
+  EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(
+      NodeId(NodeId::kRandomId)));
+  EXPECT_EQ(boost::uint16_t(0), (*(GetContainer().get<NodeIdTag>().find(
+     contact_.node_id()))).num_failed_rpcs);
+  ASSERT_EQ((*(GetContainer().get<NodeIdTag>().find(
+      contact_.node_id()))).num_failed_rpcs,
+      routing_table_.IncrementFailedRpcCount(contact_.node_id()));
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_GetBootstrapContacts) {
+  this->FillContactToRoutingTable();
+  std::vector<Contact> contacts;
+  routing_table_.GetBootstrapContacts(&contacts);
+  EXPECT_EQ(size_t(19), contacts.size());
+  EXPECT_EQ(contact_.node_id(),
+            (std::find(contacts.begin(), contacts.end(), contact_))->node_id());
 }
 /*
 TEST_F(TestRoutingTable, FUNC_KAD_PartFilltable) {
