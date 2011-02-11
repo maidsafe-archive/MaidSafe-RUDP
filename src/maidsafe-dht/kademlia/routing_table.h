@@ -119,7 +119,6 @@ struct RoutingTableContact {
   NodeId distance_to_this_id;
   boost::uint16_t common_heading_bits;
   // the index of the kbucket which in responsible of the contact
-  // unique and sorted, just use the upper_boundary
   boost::uint16_t kbucket_index;
   bptime::ptime last_seen;
   RankInfoPtr rank_info;
@@ -269,67 +268,6 @@ typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type&
 typedef RoutingTableContactsContainer::index<TimeLastSeenTag>::type&
     ContactsByTimeLastSeen;
 
-/** The original idea of this struct is to allow one kbucket to cover user
- *  defined number of common heading bits (such as one kbucket cover 2 bits).
- *  However, according to the original Kademlia paper, one kbucket shall cover
- *  only one bit. So this struct can be removed.
- *  Keeping this struct provides a potential flexibility of kbucket
- *  coverage.
- *  @struct KBucketBoundary */
-struct KBucketBoundary {
-  KBucketBoundary(boost::uint16_t upper_boundary,
-                  boost::uint16_t lower_boundary)
-      : upper_boundary(upper_boundary),
-        lower_boundary(lower_boundary) {}
-  boost::uint16_t upper_boundary;
-  boost::uint16_t lower_boundary;
-};
-
-struct ChangeUpperBoundary {
-  explicit ChangeUpperBoundary(boost::uint16_t new_upper_boundary)
-      : new_upper_boundary(new_upper_boundary) {}
-
-  // Anju: use nolint to satisfy multi-indexing
-  void operator()(KBucketBoundary &kbucket_boundary) {  // NOLINT
-    kbucket_boundary.upper_boundary = new_upper_boundary;
-  }
-  private:
-    boost::uint16_t new_upper_boundary;
-};
-
-struct ChangeLowerBoundary {
-  explicit ChangeLowerBoundary(boost::uint16_t new_lower_boundary)
-      : new_lower_boundary(new_lower_boundary) {}
-
-  // Anju: use nolint to satisfy multi-indexing
-  void operator()(KBucketBoundary &kbucket_boundary) {  // NOLINT
-    kbucket_boundary.lower_boundary = new_lower_boundary;
-  }
-  private:
-    boost::uint16_t new_lower_boundary;
-};
-
-// Tags
-struct UpperBoundaryTag;
-struct LowerBoundaryTag;
-
-typedef boost::multi_index_container<
-  KBucketBoundary,
-  bmi::indexed_by<
-    bmi::ordered_unique<
-      bmi::tag<UpperBoundaryTag>,
-      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, boost::uint16_t, upper_boundary)
-    >,
-    bmi::ordered_unique<
-      bmi::tag<LowerBoundaryTag>,
-      BOOST_MULTI_INDEX_MEMBER(KBucketBoundary, boost::uint16_t, lower_boundary)
-    >
-  >
-> KBucketBoundariesContainer;
-
-typedef KBucketBoundariesContainer::index<UpperBoundaryTag>::type&
-    KBucketBoundariesByUpperBoundary;
-
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
     const Contact&, RankInfoPtr)>> PingOldestContactStatusPtr;
 
@@ -425,6 +363,11 @@ class RoutingTable {
    *  @param[in] key The Kademlia ID of the target node.
    *  @return The index of the k-bucket which is in responsible. */
   boost::uint16_t KBucketIndex(const NodeId &key);
+  /** Calculate the index of the k-bucket which is responsible for
+   *  the specified common_heading_bits.
+   *  @param[in] common_heading_bits The common_heading_bits the target node.
+   *  @return The index of the k-bucket which is in responsible. */
+  boost::uint16_t KBucketIndex(const boost::uint16_t &common_heading_bits);  
   /** Getter.
    *  @return Num of kbuckets in the routing table. */
   boost::uint16_t KBucketSize() const;
@@ -432,9 +375,8 @@ class RoutingTable {
    *  @param[in] key The index of the target k-bucket.
    *  @return Num of contacts in the specified kbucket */
   boost::uint16_t KBucketSizeForKey(const boost::uint16_t &key);  
-  /** Bisect the k-bucket having the specified index into two new ones
-  *  @param[in] key The index of the target k-bucket. */
-  void SplitKbucket(const boost::uint16_t &kbucket_index);
+  /** Bisect the k-bucket into two new ones */
+  void SplitKbucket();
   /** Forces the brother k-bucket of the holder to accept a new contact which
     *  would normally be dropped if it is within the k closest contacts to the
   *  holder's ID.
@@ -463,12 +405,13 @@ class RoutingTable {
   const boost::uint16_t k_;
   /** Multi_index container of all contacts */
   RoutingTableContactsContainer contacts_;
-  /** Multi_index container of boundary pairs for all KBucket */
-  KBucketBoundariesContainer kbucket_boundries_;
   /** Singal handler */
   PingOldestContactStatusPtr ping_oldest_contact_status_;
   /** Thread safe mutex lock */
-  boost::shared_mutex shared_mutex_;   
+  boost::shared_mutex shared_mutex_;
+  /** The index to the bucket that the holder shall sit in
+   *  It shall always be the value that 1 greater than the brother bucket*/
+  boost::uint16_t bucket_of_holder_;
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
