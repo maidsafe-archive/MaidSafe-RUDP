@@ -62,6 +62,9 @@ class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
+typedef std::shared_ptr<boost::signals2::signal<void(
+    const Contact&)>> PingDownListContactsPtr;
+
 /** Object handling service requests on a node.
  *  Contains tables of the routing contacts and <value,sig,key> tuples
  *  @class Service */
@@ -155,6 +158,9 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param request The request. */
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
+  /** Getter.
+   *  @return The singal handler. */
+  PingDownListContactsPtr GetPingOldestContactSingalHandler();
   /** Set the status to be joined or not joined
    *  @param joined The bool switch. */
   void set_node_joined(bool joined) { node_joined_ = joined; }
@@ -184,6 +190,8 @@ class Service : public boost::enable_shared_from_this<Service> {
   Contact node_contact_;
     /** k closest to the target */
   const boost::uint16_t k_;
+  /** Singal handler */
+  PingDownListContactsPtr ping_down_list_contacts_;
 };
 
 }  // namespace kademlia
