@@ -59,7 +59,8 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       securifier_(securifier),
       node_joined_(false),
       node_contact_(),
-      k_(k) {}
+      k_(k),
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
 
 Service::Service(std::shared_ptr<RoutingTable> routing_table,
                  std::shared_ptr<DataStore> data_store,
@@ -71,7 +72,8 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       securifier_(securifier),
       node_joined_(false),
       node_contact_(),
-      k_(size_t(16)) {}
+      k_(size_t(16)),
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
 
 void Service::ConnectToSignals(TransportPtr transport,
                                MessageHandlerPtr message_handler) {
@@ -292,19 +294,25 @@ void Service::Downlist(const transport::Info &info,
     return;
   // A sophisticated attacker possibly sent a random downlist. We only verify
   // the offline status of the nodes in our routing table.
-  std::set<Contact> contacts;
   for (int i = 0; i < request.node_ids_size(); ++i) {
     NodeId id(request.node_ids(i));
     if (id.IsValid()) {
       Contact contact;
       routing_table_->GetContact(id, &contact);
+  // We can have a vector of contacts in the signal's signature and only fire
+  // it once, (and hence the node_impl has to iterate and ping each).
+  // Or we just fire the signal once per ID.
+  // As the normal case will be only one node per Downlist RPC, so option 2 is
+  // adapted by far.
       if (contact != Contact() )
-        contacts.insert(contact);
+        (*ping_down_list_contacts_)(contact);
     }
   }
-  // TODO async ping all contacts in set and remove from RT if no answer
 }
 
+PingDownListContactsPtr  Service::GetPingOldestContactSingalHandler() {
+  return this->ping_down_list_contacts_;
+}
 
 }  // namespace kademlia
 
