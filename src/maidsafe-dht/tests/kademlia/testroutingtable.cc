@@ -170,6 +170,42 @@ TEST_F(TestRoutingTable, BEH_KAD_Get_Contact) {
 
   routing_table_.Clear();
 }
+TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_For_Random_Common_heading_bits) {
+  // Compose contact with random common_heading_bits
+  for (int i = 0; i < 16; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, 511 - (RandomUint32() % 511)),
+                                    NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5111 + i);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+
+  NodeId node_id(GenerateRandomId(holder_id_, 511 - 9), NodeId::kBinary);
+  Contact contact = ComposeContact(node_id, 5113);
+  routing_table_.AddContact(contact, rank_info_);
+  boost::uint16_t num_of_contacts(0);
+  for (int i = 0; i < GetKBucketSize(); ++i) {
+    boost::uint16_t contacts_in_bucket = GetKBucketSizeForKey(i);
+    EXPECT_GE(size_t(16), contacts_in_bucket);
+    num_of_contacts += contacts_in_bucket;
+  }
+  EXPECT_EQ(num_of_contacts, routing_table_.Size());
+  EXPECT_LT(size_t(1), GetKBucketSize());
+}
+
+TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_For_higher_Common_heading_bits) {
+  // Compose contact with random common_heading_bits
+  for (int i = 0; i < 16; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, i), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5111 + i);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+
+  NodeId node_id(GenerateRandomId(holder_id_, 9), NodeId::kBinary);
+  Contact contact = ComposeContact(node_id, 5113);
+  routing_table_.AddContact(contact, rank_info_);
+  EXPECT_EQ(size_t(17), routing_table_.Size());
+  EXPECT_EQ(size_t(498), GetKBucketSize());
+}
 
 TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
   {
@@ -195,6 +231,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
   }
 
   {
+    // Test Split Bucket
     // create a contact having 1 common heading bits with the holder
     // and add it into the routing table
     NodeId contact_id(GenerateRandomId(holder_id_, 510), NodeId::kBinary);
@@ -212,6 +249,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
   }
 
   {
+    // Test Split Bucket Advanced
     // create a contact having 4 common heading bits with the holder
     // and add it into the routing table
     NodeId contact_id(GenerateRandomId(holder_id_, 507), NodeId::kBinary);
@@ -231,6 +269,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
   }
 
   {
+    // Test ForcedK, reject and accept will be tested
     // create a contact having 3 common heading bits with the holder
     // and add it into the routing table
     // this contact shall be now attempting to add into the brother buckets
