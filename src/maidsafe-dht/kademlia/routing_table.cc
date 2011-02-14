@@ -304,6 +304,7 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
 void RoutingTable::Clear() {
   UniqueLock unique_lock(shared_mutex_);
   contacts_.clear();
+  bucket_of_holder_=0;
 }
 
 boost::uint16_t RoutingTable::Size() const {
@@ -400,8 +401,8 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
   // Calculate how many k closest neighbours belong to the brother bucket of
   // the peer
   int v = k_ - KBucketSizeForKey(bucket_of_holder_);
-  if (v == 0) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v == 0)" << std::endl;
+  if (v <= 0) {
+    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v <= 0)" << std::endl;
     return -2;
   }
 
