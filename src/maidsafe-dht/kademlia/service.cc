@@ -75,6 +75,9 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       k_(size_t(16)),
       ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
 
+Service::~Service() {
+}
+
 void Service::ConnectToSignals(TransportPtr transport,
                                MessageHandlerPtr message_handler) {
   // Connect message handler to transport for incoming raw messages.  Don't need
@@ -168,24 +171,33 @@ void Service::FindNodes(const transport::Info &info,
   if (!key.IsValid())
     return;  
   Contact sender(FromProtobuf(request.sender()));
-  std::vector<Contact> closest_contacts, exclude_contacts;
-  exclude_contacts.push_back(sender);
-  routing_table_->GetCloseContactsForTargetId(key,
-      k_, exclude_contacts, &closest_contacts);
-      
-//  bool found_node(false);
-  for (size_t i = 0; i < closest_contacts.size(); ++i) {
-    (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
-//     if (key == closest_contacts[i].node_id())
-//       found_node = true;
-  }
 
-//   if (!found_node) {
-//     Contact key_node;
-//     routing_table_->GetContact(key, &key_node);
-//     if ( key_node != Contact() )
-//       (*response->add_closest_nodes()) = ToProtobuf(key_node);
-//   }
+  // try to serch wheter the requested node sits in the local routing table
+  Contact candidate;
+  routing_table_->GetContact(key, &candidate);
+  if (candidate != Contact()) {
+    // if find the node, then the closest_nodes shall contain only the target
+    (*response->add_closest_nodes()) = ToProtobuf(candidate);
+  } else {
+    std::vector<Contact> closest_contacts, exclude_contacts;
+    exclude_contacts.push_back(sender);
+    routing_table_->GetCloseContactsForTargetId(key,
+        k_, exclude_contacts, &closest_contacts);
+
+  //  bool found_node(false);
+    for (size_t i = 0; i < closest_contacts.size(); ++i) {
+      (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
+  //     if (key == closest_contacts[i].node_id())
+  //       found_node = true;
+    }
+
+  //   if (!found_node) {
+  //     Contact key_node;
+  //     routing_table_->GetContact(key, &key_node);
+  //     if ( key_node != Contact() )
+  //       (*response->add_closest_nodes()) = ToProtobuf(key_node);
+  //   }
+  }
   response->set_result(true);
   routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
 }
