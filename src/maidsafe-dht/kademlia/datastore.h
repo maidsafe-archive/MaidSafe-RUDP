@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 #include <vector>
-#include <set>
 #include <utility>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/multi_index_container.hpp"
@@ -51,12 +50,6 @@ namespace kademlia {
 
 namespace test { class DataStoreTest; }
 
-enum DeleteStatus {
-  kNotDeleted,
-  kMarkedForDeletion,
-  kDeleted
-};
-
 struct KeyValueSignature {
   KeyValueSignature(const std::string &key,
                     const std::string &value,
@@ -69,51 +62,33 @@ struct KeyValueSignature {
   std::string signature;
 };
 
-struct RefreshValue {
-  RefreshValue(const KeyValueSignature &key_value_signature,
-               const bptime::seconds &ttl)
-      : key_value_signature(key_value_signature),
-        ttl(ttl),
-        delete_status(kNotDeleted) {}
-  RefreshValue(const KeyValueSignature &key_value_signature,
-               const DeleteStatus &delete_status)
-      : key_value_signature(key_value_signature),
-        ttl(0),
-        delete_status(delete_status) {}
-  KeyValueSignature key_value_signature;
-  bptime::seconds ttl;
-  DeleteStatus delete_status;
-};
+typedef std::pair<std::string, std::string> RequestAndSignature;
 
 struct KeyValueTuple {
   KeyValueTuple(const KeyValueSignature &key_value_signature,
                 const bptime::ptime &expire_time,
                 const bptime::ptime &refresh_time,
-                const bool &hashable,
-                const std::string &serialised_delete_request,
-                DeleteStatus delete_status);
-  KeyValueTuple(const KeyValueSignature &key_value_signature,
-                const bptime::ptime &expire_time,
-                const bptime::ptime &refresh_time,
-                const bool &hashable);
+                const RequestAndSignature &request_and_signature,
+                bool deleted);
   const std::string &key() const;
   const std::string &value() const;
-  void UpdateKeyValueSignature(
-      const KeyValueSignature &new_key_value_signature,
-      const bptime::ptime &new_refresh_time);
   void set_refresh_time(const bptime::ptime &new_refresh_time);
-  void UpdateDeleteStatus(const DeleteStatus &new_delete_status,
-                          const bptime::ptime &new_refresh_time);
+  void UpdateStatus(const bptime::ptime &new_expire_time,
+                    const bptime::ptime &new_refresh_time,
+                    const bptime::ptime &new_confirm_time,
+                    const RequestAndSignature &new_request_and_signature,
+                    bool new_deleted);
   KeyValueSignature key_value_signature;
-  bptime::ptime expire_time, refresh_time;
-  bool hashable;
-  std::string serialised_delete_request;
-  DeleteStatus delete_status;
+  bptime::ptime expire_time, refresh_time, confirm_time;
+  RequestAndSignature request_and_signature;
+  bool deleted;
 };
 
 struct TagKey {};
 struct TagKeyValue {};
 struct TagExpireTime {};
+struct TagRefreshTime {};
+struct TagConfirmTime {};
 
 typedef boost::multi_index::multi_index_container<
   KeyValueTuple,
@@ -134,52 +109,80 @@ typedef boost::multi_index::multi_index_container<
     boost::multi_index::ordered_non_unique<
       boost::multi_index::tag<TagExpireTime>,
       BOOST_MULTI_INDEX_MEMBER(KeyValueTuple, bptime::ptime, expire_time)
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<TagRefreshTime>,
+      BOOST_MULTI_INDEX_MEMBER(KeyValueTuple, bptime::ptime, refresh_time)
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<TagConfirmTime>,
+      BOOST_MULTI_INDEX_MEMBER(KeyValueTuple, bptime::ptime, confirm_time)
     >
   >
 > KeyValueIndex;
 
+// The time during which an amendment is marked as not confirmed.
+const bptime::hours kPendingConfirmDuration(2);
+
+
 // This class implements physical storage (for data published and fetched via
 // the RPCs) for the Kademlia DHT.
+// Generally, when a key,value entry is modified, the confirm time for that
+// entry is set, and while the confirm time > now, further modifications
+// to that key,value can only be made by the holder(s) of the private key used
+// to sign the original store request.
 class DataStore {
  public:
   explicit DataStore(const bptime::seconds &mean_refresh_interval);
-  ~DataStore();
+  // Returns whether the key exists in the datastore or not.  This returns true
+  // even if the value(s) are marked as deleted.
   bool HasKey(const std::string &key);
-  // Infinite ttl is indicated by bptime::pos_infin.
+  // Stores the key, value, signature and marks the expire time as ttl from
+  // time of insertion.  Infinite ttl is indicated by bptime::pos_infin.
+  // If the key doesn't already exist, the k,v,s is added and the method returns
+  // true.
+  // If the key already exists, but the value doesn't, the k,v,s is added iff
+  // the signer of this attempt is the same as that of the previously stored
+  // value(s) under that key.  Method returns true if the value was added.
+  // If the key and value already exists, is not marked as deleted, and
+  // is_refresh is true, the method resets the value's refresh time only (ttl is
+  // ignored) and returns true.
+  // If the key and value already exists, is not marked as deleted, and
+  // is_refresh is false, the method resets the value's refresh time and ttl and
+  // returns true.
+  // If the key and value already exists, is marked as deleted, and is_refresh
+  // is true, the method doesn't modify anything and returns false.
+  // If the key and value already exists, is marked as deleted, and is_refresh
+  // is false, the method sets deleted to false, resets the confirm time and
+  // returns true.
   bool StoreValue(const KeyValueSignature &key_value_signature,
-                  const bptime::seconds &ttl,
-                  const bool &hashable);
+                  const bptime::time_duration &ttl,
+                  const RequestAndSignature &store_request_and_signature,
+                  const std::string &public_key,
+                  bool is_refresh);
+  // Marks the key, value, signature as deleted.
+  // If the key and value doesn't already exist, the method returns true.
+  // If the key and value already exists and is marked as deleted, the method
+  // resets the value's refresh time only and returns true.
+  // If the key and value already exists, is not marked as deleted, confirm time
+  // has not expired and is_refresh is true, the method doesn't modify anything
+  // and returns false.
+  // If the key and value already exists, is not marked as deleted, and
+  // is_refresh is false or confirm time has expired, the method sets deleted to
+  // true, resets the confirm time and returns true.
+  bool DeleteValue(const KeyValueSignature &key_value_signature,
+                   const RequestAndSignature &delete_request_and_signature,
+                   bool is_refresh);
+  // If any values exist under key and are not marked as deleted, they are added
+  // along with the signatures to the vector of pairs and the method returns
+  // true.
   bool GetValues(const std::string &key,
                  std::vector<std::pair<std::string, std::string>> *values);
-  bool DeleteValue(const std::string &key, const std::string &value);
-
-  // These functions are commented only to make sure whether required or not
-  /* bool DeleteKey(const std::string &key);
-  void DeleteExpiredValues();
-  boost::uint32_t LastRefreshTime(const std::string &key,
-                                  const std::string &value);
-  boost::uint32_t ExpireTime(const std::string &key, const std::string &value);
-  std::vector<RefreshValue> ValuesToRefresh();
-  boost::int32_t TimeToLive(const std::string &key, const std::string &value);
-  void Clear(); */
-  std::vector<std::pair<std::string, bool>> LoadKeyAppendableAttr(
-      const std::string &key);
-
-  bool RefreshKeyValue(const KeyValueSignature &key_value_signature,
-                       std::string *serialised_delete_request);
-  // If key, value pair does not exist, then it returns false
-  bool MarkForDeletion(const KeyValueSignature &key_value_signature,
-                       const std::string &serialised_delete_request);
-
-  // If key, value pair does not exist or its status is not kMarkedForDeletion,
-  // then it returns false
-  // bool MarkAsDeleted(const std::string &key, const std::string &value);
-
-  // Infinite ttl is indicated by bptime::pos_infin.
-  bool UpdateValue(const KeyValueSignature &old_key_value_signature,
-                   const KeyValueSignature &new_key_value_signature,
-                   const bptime::seconds &ttl,
-                   const bool &hashable);
+  // Refreshes datastore.  Values which have expired confirm times and which are
+  // marked as deleted are removed from the datastore.  Values with expired
+  // expire times are marked as deleted.  All values with expired refresh times
+  // (whether marked as deleted or not) are returned.
+  void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
   bptime::seconds refresh_interval() const;
   friend class test::DataStoreTest;
  private:
@@ -188,7 +191,7 @@ class DataStore {
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
   typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
       UpgradeToUniqueLock;
-  KeyValueIndex key_value_index_;
+  std::shared_ptr<KeyValueIndex> key_value_index_;
   const bptime::seconds refresh_interval_;
   boost::shared_mutex shared_mutex_;
 };

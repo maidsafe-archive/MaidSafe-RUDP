@@ -50,7 +50,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_srandom_number_generator;
+boost::mt19937 g_random_number_generator(static_cast<unsigned int>(
+      boost::posix_time::microsec_clock::universal_time().time_of_day().
+      total_microseconds()));
 boost::mutex g_srandom_number_generator_mutex;
+boost::mutex g_random_number_generator_mutex;
 
 boost::int32_t SRandomInt32() {
   boost::int32_t result(0);
@@ -68,13 +72,11 @@ boost::int32_t SRandomInt32() {
 }
 
 boost::int32_t RandomInt32() {
-  boost::mt19937 random_number_generator(static_cast<unsigned int>(
-      boost::posix_time::microsec_clock::universal_time().time_of_day().
-      total_microseconds()));
   boost::uniform_int<> uniform_distribution(0,
       boost::integer_traits<boost::int32_t>::const_max);
+  boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
   boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
-      random_number_generator, uniform_distribution);
+      g_random_number_generator, uniform_distribution);
   return uni();
 }
 
@@ -110,29 +112,29 @@ std::string SRandomString(const size_t &length) {
 }
 
 std::string RandomString(const size_t &length) {
-  boost::mt19937 random_number_generator(static_cast<unsigned int>(
-      boost::posix_time::microsec_clock::universal_time().time_of_day().
-      total_microseconds()));
   boost::uniform_int<> uniform_distribution(0, 255);
-  boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
-      random_number_generator, uniform_distribution);
   std::string random_string(length, 0);
-  std::generate(random_string.begin(), random_string.end(), uni);
+  {
+    boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
+    boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
+        g_random_number_generator, uniform_distribution);
+    std::generate(random_string.begin(), random_string.end(), uni);
+  } 
   return random_string;
 }
 
 std::string RandomAlphaNumericString(const size_t &length) {
   static const char alpha_numerics[] =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  boost::mt19937 random_number_generator(static_cast<unsigned int>(
-      boost::posix_time::microsec_clock::universal_time().time_of_day().
-      total_microseconds()));
   boost::uniform_int<> uniform_distribution(0, 61);
-  boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
-      random_number_generator, uniform_distribution);
   std::string random_string(length, 0);
-  for (auto it = random_string.begin(); it != random_string.end(); ++it)
-    *it = alpha_numerics[uni()];
+  {
+    boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
+    boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
+        g_random_number_generator, uniform_distribution);
+    for (auto it = random_string.begin(); it != random_string.end(); ++it)
+      *it = alpha_numerics[uni()];
+  }
   return random_string;
 }
 

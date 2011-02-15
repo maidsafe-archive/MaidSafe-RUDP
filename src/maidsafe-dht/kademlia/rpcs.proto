@@ -47,8 +47,9 @@ message StoreRequest {
   required bytes key = 2;
   required SignedValue signed_value = 3;
   required int32 ttl = 4;
-  required bool publish = 5;
-  optional bytes public_key = 6;
+  optional bytes public_key = 5;
+  optional bytes serialised_store_request = 6;
+  optional bytes serialised_store_request_signature = 7;
 }
 
 message StoreResponse {
@@ -60,22 +61,11 @@ message DeleteRequest {
   required bytes key = 2;
   required SignedValue signed_value = 3;
   optional bytes public_key = 4;
+  optional bytes serialised_delete_request = 5;
+  optional bytes serialised_delete_request_signature = 6;
 }
 
 message DeleteResponse {
-  required bool result = 1;
-}
-
-message UpdateRequest {
-  required Contact sender = 1;
-  required bytes key = 2;
-  required SignedValue new_signed_value = 3;
-  required SignedValue old_signed_value = 4;
-  required int32 ttl = 5;
-  optional bytes public_key = 6;
-}
-
-message UpdateResponse {
   required bool result = 1;
 }
 
