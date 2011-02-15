@@ -76,7 +76,7 @@ void RoutingTable::AddContact(const Contact& new_contact,
       // KBucketIndex(kThisId_) shall always return kKeySizeBits
       if (target_kbucket_index == kKeySizeBits) {
         SplitKbucket(target_kbucket_index);
-        upgrade_lock.unlock(); 
+        upgrade_lock.unlock();
         AddContact(new_contact, rank_info);
       } else {
         // try to apply ForceK, otherwise fire the signal
@@ -360,8 +360,8 @@ void RoutingTable::SplitKbucket(const boost::uint16_t &kbucket_index) {
   auto it = key_indx.lower_bound(kbucket_index);
 
   // no need to check this as a kbucket will never be split until its full
-//   if (((*it).upper_boundary-(*it).lower_boundary)<5)
-//     return;
+  //   if (((*it).upper_boundary-(*it).lower_boundary)<5)
+  //     return;
 
   // insert one new element into the kbucket boundaries container
   // and modify the corresponding old one
@@ -402,15 +402,20 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
     return -2;
   }
   // find the brother bucket
+  // This code will never hit
+
   KBucketBoundariesByUpperBoundary key_indx
       = kbucket_boundries_.get<UpperBoundaryTag>();
   auto it = key_indx.find(bucket_of_holder);
   --it;
+  // This code will never hit
+  /*
   if (it == kbucket_boundries_.end()) {
     DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (no brother bucket)" <<
       std::endl;
     return -1;
   }
+  */
   boost::uint16_t brother_bucket_of_holder = (*it).upper_boundary;
 
   if (brother_bucket_of_holder != target_bucket) {
