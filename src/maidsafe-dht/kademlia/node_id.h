@@ -102,19 +102,6 @@ class NodeId {
   NodeId(const NodeId &id1, const NodeId &id2);
 
   /**
-  * Splits a range [min_id, max_id] to [min_id, max_id1] and [min_id1, max_id]
-  * it is assumed that min_id = 2 ^ n or 0 and max_id = 2 ^ m - 1 and 
-  * min_id < max_id.
-  * min_id1 = ((max_id + min_id) / 2) + 1 and max_id1 = (max_id + min_id) / 2.
-  * @param min_id lower limit of original interval.
-  * @param max_id upper limit of original interval.
-  * @param min_id1 lower limit of new higher interval.
-  * @param max_id upper limit of new lower interval.
-  */
-  static void SplitRange(const NodeId &min_id, const NodeId &max_id,
-                         NodeId *max_id1, NodeId *min_id1);
-
-  /**
   * Checks if id1 is closer in XOR distance to target_id than id2.
   * @param id1 NodeId object.
   * @param id2 NodeId object.

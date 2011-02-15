@@ -44,8 +44,6 @@ enum MessageType {
   kStoreResponse,
   kDeleteRequest,
   kDeleteResponse,
-  kUpdateRequest,
-  kUpdateResponse,
   kDownlistNotification
 };
 
@@ -102,16 +100,6 @@ std::string MessageHandler::WrapMessage(const protobuf::DeleteRequest &msg) {
 
 std::string MessageHandler::WrapMessage(const protobuf::DeleteResponse &msg) {
   return MakeSerialisedWrapperMessage(kDeleteResponse, msg.SerializeAsString(),
-                                      kAsymmetricEncrypt);
-}
-
-std::string MessageHandler::WrapMessage(const protobuf::UpdateRequest &msg) {
-  return MakeSerialisedWrapperMessage(kUpdateRequest, msg.SerializeAsString(),
-                                      kSign | kAsymmetricEncrypt);
-}
-
-std::string MessageHandler::WrapMessage(const protobuf::UpdateResponse &msg) {
-  return MakeSerialisedWrapperMessage(kUpdateResponse, msg.SerializeAsString(),
                                       kAsymmetricEncrypt);
 }
 
@@ -192,12 +180,15 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRequest: {
-      if (!asymmetrical_encrypted)
+      if (!asymmetrical_encrypted || message_signature.empty())
         return;
       protobuf::StoreRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
+        std::string message =
+           boost::lexical_cast<std::string>(message_type) + payload;
         protobuf::StoreResponse response;
-        (*on_store_request_)(info, request, &response);
+        (*on_store_request_)(info, request, message, message_signature,
+                             &response);
         *message_response = WrapMessage(response);
       }
       break;
@@ -230,28 +221,6 @@ void MessageHandler::ProcessSerialisedMessage(
       protobuf::DeleteResponse response;
       if (response.ParseFromString(payload) && response.IsInitialized())
         (*on_delete_response_)(info, response);
-      break;
-    }
-    case kUpdateRequest: {
-      if (!asymmetrical_encrypted || message_signature.empty())
-        return;
-      protobuf::UpdateRequest request;
-      if (request.ParseFromString(payload) && request.IsInitialized()) {
-        std::string message =
-           boost::lexical_cast<std::string>(message_type) + payload;
-        protobuf::UpdateResponse response;
-        (*on_update_request_)(info, request, message, message_signature,
-                              &response);
-        *message_response = WrapMessage(response);
-      }
-      break;
-    }
-    case kUpdateResponse: {
-      if (!asymmetrical_encrypted)
-        return;
-      protobuf::UpdateResponse response;
-      if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_update_response_)(info, response);
       break;
     }
     case kDownlistNotification: {
