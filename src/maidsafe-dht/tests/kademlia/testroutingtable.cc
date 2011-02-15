@@ -68,6 +68,9 @@ class TestRoutingTable : public testing::Test {
       routing_table_(holder_id_, test::k) {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
+  ~TestRoutingTable() {
+    routing_table_.Clear();
+  }
 
   std::string GenerateRandomId(const NodeId& holder, const int& pos) {
     std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
@@ -107,6 +110,30 @@ class TestRoutingTable : public testing::Test {
     return routing_table_.contacts_;
   }
 
+  void CallToPrivateFunctions() {
+    for (int i = 0; i < 16; ++i) {
+      NodeId node_id(GenerateRandomId(holder_id_, 510), NodeId::kBinary);
+      Contact contact = ComposeContact(node_id, 5431);
+      routing_table_.AddContact(contact, rank_info_);
+      EXPECT_EQ(boost::uint16_t(512), routing_table_.KBucketIndex(
+          contact.node_id()));
+    }
+    {
+      NodeId node_id(GenerateRandomId(holder_id_, 511), NodeId::kBinary);
+      Contact contact = ComposeContact(node_id, 4321);
+      routing_table_.AddContact(contact, rank_info_);
+      Contact contact1 = routing_table_.GetLastSeenContact(0);
+      EXPECT_EQ(contact1.node_id(), contact.node_id());
+      EXPECT_EQ(size_t(2), routing_table_.KBucketSize());
+      EXPECT_EQ(size_t(1), routing_table_.KBucketSizeForKey(0));
+    }
+    NodeId node_id(GenerateRandomId(holder_id_, 1), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 4323);
+    routing_table_.AddContact(contact, rank_info_);
+    boost::uint16_t distance = routing_table_.KDistanceTo(node_id);
+    EXPECT_EQ(boost::uint16_t(510), distance);
+  }
+
   void FillContactToRoutingTable() {
     for (int i = 0; i < 19; ++i) {
       Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 6111);
@@ -121,6 +148,11 @@ class TestRoutingTable : public testing::Test {
   Contact contact_;
 };
 
+TEST_F(TestRoutingTable, BEH_KAD_CallToPrivateFunctions) {
+  // Test Private member functions (GetLastSeenContact)
+  // (kBucketIndex) (KBucketSize) (KbucketSizeForKey) (KDistanceTo)
+  this->CallToPrivateFunctions();
+}
 TEST_F(TestRoutingTable, BEH_KAD_Constructor) {
   ASSERT_EQ(size_t(0), routing_table_.Size());
   ASSERT_EQ(size_t(1), GetKBucketSize());
@@ -205,6 +237,69 @@ TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_For_higher_Common_heading_bits) {
   routing_table_.AddContact(contact, rank_info_);
   EXPECT_EQ(size_t(17), routing_table_.Size());
   EXPECT_EQ(size_t(498), GetKBucketSize());
+}
+TEST_F(TestRoutingTable, BEH_KAD_ForceKAcceptNewPeer) {
+  for (int i = 0; i < 16; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, 510), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5333);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+  for (int i = 0; i < 16; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, 511), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5333);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+  {
+    EXPECT_EQ(size_t(2), GetKBucketSize());
+    EXPECT_EQ(size_t(32), routing_table_.Size());
+    NodeId node_id(GenerateRandomId(holder_id_, 511), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5678);
+    RankInfoPtr rank_info;
+    boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(contact, 0,
+                                                                     rank_info);
+    EXPECT_EQ(boost::int16_t(-2), force_result);
+  }
+  // When new contact not exist in brother_bucket
+
+  for (int i = 0; i < 14; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, 509), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5333);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+  {
+    EXPECT_EQ(size_t(3), GetKBucketSize());
+    EXPECT_EQ(size_t(46), routing_table_.Size());
+    NodeId node_id(GenerateRandomId(holder_id_, 511), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5678);
+    RankInfoPtr rank_info;
+    boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(contact, 0,
+                                                                     rank_info);
+    EXPECT_EQ(boost::int16_t(-3), force_result);
+  }
+  boost::uint16_t retry(0);
+  while (retry < 10000) {
+    NodeId node_id(GenerateRandomId(holder_id_, 510), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5678);
+    RankInfoPtr rank_info;
+    auto pit =
+        routing_table_.contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
+        boost::make_tuple(1));
+    auto it_end = pit.second;
+    --it_end;
+    NodeId furthest_distance = (*it_end).distance_to_this_id;
+    NodeId distance_to_node = routing_table_.kThisId_ ^ node_id;
+    if (distance_to_node >= furthest_distance) {
+      boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(
+          contact, 1, rank_info);
+      EXPECT_EQ(boost::int16_t(-4), force_result);
+    } else {
+       boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(
+          contact, 1, rank_info);
+       EXPECT_EQ(boost::int16_t(0), force_result);
+    }
+    ++retry;
+  }
+  routing_table_.Clear();
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_Add_Contact_Function) {
