@@ -92,7 +92,8 @@ class Rpcs {
              const std::string &value,
              const std::string &signature,
              const boost::posix_time::seconds &ttl,
-             bool publish,
+             const std::string &serialised_store_request,
+             const std::string &serialised_store_request_signature,
              SecurifierPtr securifier,
              const Contact &peer,
              StoreFunctor callback,
@@ -100,19 +101,11 @@ class Rpcs {
   void Delete(const Key &key,
               const std::string &value,
               const std::string &signature,
+              const std::string &serialised_delete_request,
+              const std::string &serialised_delete_request_signature,
               SecurifierPtr securifier,
               const Contact &peer,
               DeleteFunctor callback,
-              TransportType type);
-  void Update(const Key &key,
-              const std::string &new_value,
-              const std::string &new_signature,
-              const std::string &old_value,
-              const std::string &old_signature,
-              const boost::posix_time::seconds &ttl,
-              SecurifierPtr securifier,
-              const Contact &peer,
-              UpdateFunctor callback,
               TransportType type);
   void Downlist(const std::vector<NodeId> &node_ids,
                 SecurifierPtr securifier,
@@ -153,11 +146,6 @@ class Rpcs {
                       const protobuf::DeleteResponse &response,
                       ConnectedObjects connected_objects,
                       DeleteFunctor callback);
-  void UpdateCallback(const transport::TransportCondition &transport_condition,
-                      const transport::Info &info,
-                      const protobuf::UpdateResponse &response,
-                      ConnectedObjects connected_objects,
-                      UpdateFunctor callback);
   ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
   Contact contact_;
   IoServicePtr asio_service_;

@@ -41,7 +41,7 @@ Node::Node(IoServicePtr asio_service,
            const boost::uint16_t &k,
            const boost::uint16_t &alpha,
            const boost::uint16_t &beta,
-           const boost::posix_time::seconds &mean_refresh_interval)
+           const boost::posix_time::time_duration &mean_refresh_interval)
     : pimpl_(new Impl(asio_service, listening_transport, default_securifier,
                       alternative_store, client_only_node, k, alpha, beta,
                       mean_refresh_interval)) {}
@@ -62,7 +62,7 @@ void Node::Leave(std::vector<Contact> *bootstrap_contacts) {
 void Node::Store(const Key &key,
                  const std::string &value,
                  const std::string &signature,
-                 const boost::posix_time::seconds &ttl,
+                 const boost::posix_time::time_duration &ttl,
                  SecurifierPtr securifier,
                  StoreFunctor callback) {
   pimpl_->Store(key, value, signature, ttl, securifier, callback);
@@ -82,7 +82,7 @@ void Node::Update(const Key &key,
                   const std::string &old_value,
                   const std::string &old_signature,
                   SecurifierPtr securifier,
-                  const boost::posix_time::seconds &ttl,
+                  const boost::posix_time::time_duration &ttl,
                   UpdateFunctor callback) {
   pimpl_->Update(key, new_value, new_signature, old_value, old_signature,
                  securifier, ttl, callback);

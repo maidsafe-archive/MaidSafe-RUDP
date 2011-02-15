@@ -158,32 +158,6 @@ void NodeId::DecodeFromBinary(const std::string &binary_id) {
   }
 }
 
-void NodeId::SplitRange(const NodeId &min_id, const NodeId &max_id,
-                       NodeId *max_id1, NodeId *min_id1) {
-  if (max_id1 == NULL || min_id1 == NULL)
-    return;
-  if (!min_id.IsValid() || !max_id.IsValid() ||
-      !max_id1->IsValid() || !min_id1->IsValid() || min_id >= max_id) {
-    NodeId fail_id;
-    fail_id.raw_id_.clear();
-    *max_id1 = fail_id;
-    *min_id1 = fail_id;
-  }
-  size_t first_diff_bit(0);
-  for (; first_diff_bit < kKeySizeBytes; ++first_diff_bit) {
-    if (min_id.raw_id_[first_diff_bit] != max_id.raw_id_[first_diff_bit])
-     break;
-  }
-  std::string max1_raw_id(max_id.raw_id_), min1_raw_id(min_id.raw_id_);
-  unsigned char max1_diff_char(max1_raw_id[first_diff_bit]);
-  unsigned char min1_diff_char(min1_raw_id[first_diff_bit]);
-  max1_raw_id[first_diff_bit] = (max1_diff_char + min1_diff_char) >> 1;
-  max1_diff_char = max1_raw_id[first_diff_bit];
-  min1_raw_id[first_diff_bit] = max1_diff_char + 1;
-  *max_id1 = NodeId(max1_raw_id);
-  *min_id1 = NodeId(min1_raw_id);
-}
-
 bool NodeId::CloserToTarget(const NodeId &id1, const NodeId &id2,
                            const NodeId &target_id) {
   if (!id1.IsValid() || !id2.IsValid() || !target_id.IsValid())
@@ -209,11 +183,16 @@ const std::string NodeId::ToStringEncoded(
   if (!IsValid())
     return "";
   switch (encoding_type) {
-    case kBinary : return EncodeToBinary();
-    case kHex : return EncodeToHex(raw_id_);
-    case kBase32 : return EncodeToBase32(raw_id_);
-    case kBase64 : return EncodeToBase64(raw_id_);
-    default : return raw_id_;
+    case kBinary:
+      return EncodeToBinary();
+    case kHex:
+      return EncodeToHex(raw_id_);
+    case kBase32:
+      return EncodeToBase32(raw_id_);
+    case kBase64:
+      return EncodeToBase64(raw_id_);
+    default:
+      return raw_id_;
   }
 }
 

@@ -96,7 +96,7 @@ class Node {
        const boost::uint16_t &k,
        const boost::uint16_t &alpha,
        const boost::uint16_t &beta,
-       const boost::posix_time::seconds &mean_refresh_interval);
+       const boost::posix_time::time_duration &mean_refresh_interval);
 
   ~Node();
 
@@ -114,7 +114,7 @@ class Node {
   // bootstrap_contacts.
   void Leave(std::vector<Contact> *bootstrap_contacts);
 
-  // Store <key,value,signature> for ttl seconds.  Infinite ttl is indicated by
+  // Store <key,value,signature> for ttl.  Infinite ttl is indicated by
   // boost::posix_time::pos_infin.  If signature is empty, the value is signed
   // using securifier, unless it is invalid, in which case the node's
   // default_securifier signs value.  If signature is not empty, it is
@@ -122,7 +122,7 @@ class Node {
   void Store(const Key &key,
              const std::string &value,
              const std::string &signature,
-             const boost::posix_time::seconds &ttl,
+             const boost::posix_time::time_duration &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
 
@@ -152,7 +152,7 @@ class Node {
               const std::string &old_value,
               const std::string &old_signature,
               SecurifierPtr securifier,
-              const boost::posix_time::seconds &ttl,
+              const boost::posix_time::time_duration &ttl,
               UpdateFunctor callback);
 
   // Find value(s) on the network.  Unless the method returns failure, the
