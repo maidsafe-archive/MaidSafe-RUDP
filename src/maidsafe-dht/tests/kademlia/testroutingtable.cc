@@ -84,8 +84,6 @@ class TestRoutingTable : public testing::Test {
         repeat = true;
       }
     } while (repeat);
-    // add the new gnerated ID into the record pool
-    generated_ids_.push_back(new_node_string);
     return new_node_string;
   }
 
