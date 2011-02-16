@@ -45,7 +45,7 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t k = 20;
+static const boost::uint16_t k = 16;
 
 class TestRoutingTable : public testing::Test {
  public:
@@ -61,15 +61,32 @@ class TestRoutingTable : public testing::Test {
 
   std::string GenerateRandomId(const NodeId& holder, const int& pos) {
     std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    NodeId new_node(NodeId::kRandomId);
-    std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> binary_bitset(new_id);
     std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    for (int i = kKeySizeBits - 1; i >= pos; --i)
-      binary_bitset[i] = holder_id_binary_bitset[i];
-    binary_bitset[pos].flip();
-      // std::cout<< binary_bitset.to_string() <<std::endl;
-    return binary_bitset.to_string();
+    NodeId new_node;
+    std::string new_node_string;
+    bool repeat(true);
+    // generate a random ID and make sure it has not been geneated previously
+    do {
+      new_node = NodeId(NodeId::kRandomId);
+      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
+      std::bitset<kKeySizeBits> binary_bitset(new_id);
+      for (int i = kKeySizeBits - 1; i >= pos; --i)
+        binary_bitset[i] = holder_id_binary_bitset[i];
+      binary_bitset[pos].flip();
+      new_node_string = binary_bitset.to_string();
+      new_node = NodeId(new_node_string, NodeId::kBinary);
+      // make sure the new contact not already existed in the routing table
+      Contact result;
+      routing_table_.GetContact(new_node, &result);
+      if (result == Contact()) {
+        repeat = false;
+      } else {
+        repeat = true;
+      }
+    } while (repeat);
+    // add the new gnerated ID into the record pool
+    generated_ids_.push_back(new_node_string);
+    return new_node_string;
   }
 
  protected:
