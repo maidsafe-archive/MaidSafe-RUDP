@@ -77,6 +77,12 @@ std::string Securifier::AsymmetricEncrypt(const std::string &value) const {
   return crypto::AsymEncrypt(value, recipient_public_key_);
 }
 
+void Securifier::GetPublicKeyAndValidation(
+    const std::string &public_key_id,
+    GetPublicKeyAndValidationCallback callback) {
+  callback("", "");
+}
+
 bool Securifier::Validate(const std::string &value,
                           const std::string &sender_id,
                           const std::string &value_signature,
