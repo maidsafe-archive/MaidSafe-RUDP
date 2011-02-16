@@ -239,11 +239,26 @@ TEST_F(TestRoutingTable, BEH_KAD_AddContactForHigherCommonLeadingBits) {
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_ForceKAcceptNewPeer) {
+  for (int i = 0; i < k - 1; ++i) {
+    NodeId node_id(GenerateRandomId(holder_id_, 507), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5333);
+    routing_table_.AddContact(contact, rank_info_);
+  }
+  {
+    RankInfoPtr rank_info;
+    NodeId node_id(GenerateRandomId(holder_id_, 507), NodeId::kBinary);
+    Contact contact = ComposeContact(node_id, 5337);
+    boost::int16_t result = routing_table_.ForceKAcceptNewPeer(contact, 0,
+                                                               rank_info);
+    EXPECT_EQ(boost::int16_t(-1), result);
+    routing_table_.Clear();
+  }
   for (int i = 0; i < 16; ++i) {
     NodeId node_id(GenerateRandomId(holder_id_, 510), NodeId::kBinary);
     Contact contact = ComposeContact(node_id, 5333);
     routing_table_.AddContact(contact, rank_info_);
   }
+
   for (int i = 0; i < 16; ++i) {
     NodeId node_id(GenerateRandomId(holder_id_, 511), NodeId::kBinary);
     Contact contact = ComposeContact(node_id, 5333);
