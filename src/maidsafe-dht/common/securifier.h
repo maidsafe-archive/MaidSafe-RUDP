@@ -25,97 +25,83 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
-
 #ifndef MAIDSAFE_DHT_COMMON_SECURIFIER_H_
 #define MAIDSAFE_DHT_COMMON_SECURIFIER_H_
 
 #include <string>
 #include <vector>
+#include "boost/function.hpp"
 
 namespace maidsafe {
 
-/**
- * Base class used to cryptographically secure and validate values and messages.
- */
+typedef boost::function<void(const std::string&, const std::string)>
+    GetPublicKeyAndValidationCallback;
+
+/** Base class used to cryptographically secure and validate values and
+ *  messages. */
 class Securifier {
  public:
 
-  /**
-   * Constructor.
-   * @param id ID of Securifier.
-   * @param signing_private_key Private key used to sign the data.
-   * @param asymmetric_decryption_private_key Public key used to asymmetrically
-   * decrypt the data.
-   */
+  /** Constructor.
+   *  @param[in] id ID of Securifier.
+   *  @param[in] signing_private_key Private key used to sign the data.
+   *  @param[in] asymmetric_decryption_private_key Public key used to
+   *             asymmetrically decrypt the data. */
   Securifier(const std::string &id,
              const std::string &signing_private_key,
              const std::string &asymmetric_decryption_private_key);
 
-  /**
-   * Destructor.
-   */
+  /** Destructor. */
   virtual ~Securifier();
 
-  /**
-   * Setter.
-   * @param recipient_public_key Public key used to asymmetrically encrypt data.
-   */
+  /** Setter.
+   *  @param[in] recipient_public_key Public key used to asymmetrically encrypt
+   *             data. */
   void set_recipient_public_key(const std::string &recipient_public_key);
 
-  /**
-   * Adds data which can be subsequently used in the signing or encrypting.
-   * @param parameters data to be used during signing or encrypting.  It is
-   * appended to class member parameters_.
-   */
+  /** Adds data which can be subsequently used in the signing or encrypting.
+   *  @param[in] parameters data to be used during signing or encrypting.  It is
+   *             appended to class member parameters_. */
   void AddParameters(const std::vector<std::string> &parameters);
 
-  /**
-   * Clears parameters_ variable.
-   */
+  /** Clears parameters_ variable. */
   void ClearParameters();
 
-  /**
-   * @return class member parameters_.
-   */
+  /** @return class member parameters_. */
   std::vector<std::string> parameters() const;
 
-  /**
-   * Signs the value using kSigningPrivateKey_.
-   * @param value value to be signed.
-   * @return signature.
-   */
+  /** Signs the value using kSigningPrivateKey_.
+   *  @param[in] value value to be signed.
+   *  @return signature. */
   virtual std::string Sign(const std::string &value) const;
 
-  /**
-   * Signs the value using kSigningPrivateKey_, but may incorporate data from
-   * parameters_ in the signing process.
-   * @param value value to be signed.
-   * @return signature.
-   */
+  /** Signs the value using kSigningPrivateKey_, but may incorporate data from
+   *  parameters_ in the signing process.
+   *  @param[in] value value to be signed.
+   *  @return signature. */
   virtual std::string SignWithParameters(const std::string &value) const;
 
-  /**
-   * Asymmetrically encrypts the value using recipient_public_key_.
-   * @param value value to be encrypted.
-   * @return encrypted value.
-   */
+  /** Asymmetrically encrypts the value using recipient_public_key_.
+   *  @param[in] value value to be encrypted.
+   *  @return encrypted value. */
   virtual std::string AsymmetricEncrypt(const std::string &value) const;
 
-  /**
-   * Validates the signature of the value.
-   * @param value value which has been signed.
-   * @param sender_id ID of the message sender's Securifier.
-   * @param value_signature signature of value to be validated with public_key.
-   * @param public_key used to validate signature of the value.
-   * @param public_key_validation object to allow validation of public_key.
-   * @param kademlia_key kademlia key under which to store/delete/update.
-   * @return true if all tested data is valid, else false.
-   */
+  /** Retrieve the public key and the public key validation certificate.
+   *  Results are passed in GetPublicKeyAndValidationCallback.
+   *  @param[in] public_key_id ID of public key. */
+  virtual void GetPublicKeyAndValidation(
+      const std::string &public_key_id,
+      GetPublicKeyAndValidationCallback callback);
+
+  /** Validates the signature of the value.
+   *  @param[in] value value which has been signed.
+   *  @param[in] sender_id ID of the message sender's Securifier.
+   *  @param[in] value_signature signature of value to be validated with
+   *             public_key.
+   *  @param[in] public_key used to validate signature of the value.
+   *  @param[in] public_key_validation object to allow validation of public_key.
+   *  @param[in] kademlia_key kademlia key under which to store/delete/update.
+   *  @return true if all tested data is valid, else false. */
   virtual bool Validate(const std::string &value,
                         const std::string &sender_id,
                         const std::string &value_signature,
@@ -123,17 +109,16 @@ class Securifier {
                         const std::string &public_key_validation,
                         const std::string &kademlia_key) const;
 
-  /**
-   * Validates the signature of the value, but may incorporate data from
-   * parameters_ in the validation process.
-   * @param value value which has been signed.
-   * @param sender_id ID of the message sender's Securifier.
-   * @param value_signature signature of value to be validated with public_key.
-   * @param public_key used to validate signature of the value.
-   * @param public_key_validation object to allow validation of public_key.
-   * @param kademlia_key kademlia key under which to store/delete/update.
-   * @return true if all tested data is valid, else false.
-   */
+  /** Validates the signature of the value, but may incorporate data from
+   *  parameters_ in the validation process.
+   *  @param[in] value value which has been signed.
+   *  @param[in] sender_id ID of the message sender's Securifier.
+   *  @param[in] value_signature signature of value to be validated with
+   *             public_key.
+   *  @param[in] public_key used to validate signature of the value.
+   *  @param[in] public_key_validation object to allow validation of public_key.
+   *  @param[in] kademlia_key kademlia key under which to store/delete/update.
+   *  @return true if all tested data is valid, else false. */
   virtual bool ValidateWithParameters(const std::string &value,
                                       const std::string &sender_id,
                                       const std::string &value_signature,
@@ -141,11 +126,9 @@ class Securifier {
                                       const std::string &public_key_validation,
                                       const std::string &kademlia_key) const;
 
-  /**
-   * Asymmetrically decrypts the value using kAsymmetricDecryptionPrivateKey_.
-   * @param encrypted_value value encrypted with recipient's public_key.
-   * @return decrypted value.
-   */
+  /** Asymmetrically decrypts the value using kAsymmetricDecryptionPrivateKey_.
+   *  @param[in] encrypted_value value encrypted with recipient's public_key.
+   *  @return decrypted value. */
   virtual std::string AsymmetricDecrypt(
       const std::string &encrypted_value) const;
 
