@@ -111,7 +111,7 @@ class TestRoutingTable : public testing::Test {
                      NodeId::kBinary);
       Contact contact = ComposeContact(node_id, 5431);
       routing_table_.AddContact(contact, rank_info_);
-      EXPECT_EQ(kKeySizeBits, routing_table_.KBucketIndex(contact.node_id()));
+      EXPECT_EQ(0U, routing_table_.KBucketIndex(contact.node_id()));
     }
     {
       NodeId node_id(GenerateRandomId(holder_id_, kKeySizeBits - 1),
@@ -706,7 +706,8 @@ TEST_F(TestRoutingTable, BEH_KAD_GetCloseContacts) {
   Clear();
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_RemoveContacts) {
+/* This test is mergered into IncrementFailedRpcCount test
+TEST_F(TestRoutingTable, BEH_KAD_Remove_Contact) {
 //  NodeId node_id(NodeId::kRandomId);
 //  RoutingTable routing_table(node_id, test::k);
 //  for (int i = 0; i < 11; ++i) {
@@ -731,6 +732,7 @@ TEST_F(TestRoutingTable, BEH_KAD_RemoveContacts) {
 //  EXPECT_EQ(9U, routing_table.Size());
   FAIL();
 }
+*/
 
 TEST_F(TestRoutingTable, BEH_KAD_SetPublicKey) {
   this->FillContactToRoutingTable();
@@ -776,6 +778,22 @@ TEST_F(TestRoutingTable, BEH_KAD_IncrementFailedRpcCount) {
   ASSERT_EQ((*(GetContainer().get<NodeIdTag>().find(
       contact_.node_id()))).num_failed_rpcs,
       routing_table_.IncrementFailedRpcCount(contact_.node_id()));
+  {
+    // keep increasing one contact's failed RPC counter
+    // till it gets removed
+    size_t ori_size = GetSize();
+    boost::uint16_t times_of_try = 0;
+    do {
+      ++times_of_try;
+    } while ((routing_table_.IncrementFailedRpcCount(contact_.node_id()) != -1)
+              && (times_of_try <= (kFailedRpcTolerance + 5)));
+    // prevent deadlock
+    if (times_of_try == (kFailedRpcTolerance + 5)) {
+      FAIL();
+    } else {
+      ASSERT_EQ(ori_size-1, GetSize());
+    }
+  }
 }
 
 TEST_F(TestRoutingTable, BEH_KAD_GetBootstrapContacts) {
