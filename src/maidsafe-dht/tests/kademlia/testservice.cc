@@ -101,18 +101,35 @@ class ServicesTest: public testing::Test {
   virtual void SetUp() {
   }
 
-  std::string GenerateRandomId(const NodeId& holder, const int& pos) {
+  NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
     std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    NodeId new_node(NodeId::kRandomId);
-    std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> binary_bitset(new_id);
     std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    for (int i = kKeySizeBits - 1; i >= pos; --i)
-      binary_bitset[i] = holder_id_binary_bitset[i];
-    binary_bitset[pos].flip();
-      // std::cout<< binary_bitset.to_string() <<std::endl;
-    return binary_bitset.to_string();
-  }  
+    NodeId new_node;
+    std::string new_node_string;
+    bool repeat(true);
+    boost::uint16_t times_of_try(0);
+    // generate a random ID and make sure it has not been geneated previously
+    do {
+      new_node = NodeId(NodeId::kRandomId);
+      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
+      std::bitset<kKeySizeBits> binary_bitset(new_id);
+      for (int i = kKeySizeBits - 1; i >= pos; --i)
+        binary_bitset[i] = holder_id_binary_bitset[i];
+      binary_bitset[pos].flip();
+      new_node_string = binary_bitset.to_string();
+      new_node = NodeId(new_node_string, NodeId::kBinary);
+      // make sure the new contact not already existed in the routing table
+      Contact result;
+      routing_table_->GetContact(new_node, &result);
+      if (result == Contact())
+        repeat = false;
+      ++times_of_try;
+    } while (repeat && (times_of_try < 1000));
+    // prevent deadlock, throw out an error message in case of deadlock
+    if (times_of_try == 1000)
+      EXPECT_LT(1000, times_of_try);
+    return new_node;
+  }
 
   virtual void TearDown() {}
 
@@ -180,11 +197,9 @@ class ServicesTest: public testing::Test {
 
 TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
 
-  NodeId target_id(GenerateRandomId(node_id_, 503),
-                   NodeId::kBinary);
+  NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target=ComposeContact(target_id, 5001);
-  NodeId sender_id(GenerateRandomId(node_id_, 502),
-                   NodeId::kBinary);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender=ComposeContact(sender_id, 5001);
   routing_table_->Clear();
   {
@@ -208,14 +223,14 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
   }
   routing_table_->Clear();
   {
-    // try to find the target from an 8 filled routing table
+    // try to find the target from an k/2 filled routing table
     // (not containing the target)
-    for (int num_contact = 0; num_contact < 8; ++num_contact) {
+    for (int num_contact = 0; num_contact < (test::k / 2); ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
       routing_table_->AddContact(contact, rank_info_);
     }
-    EXPECT_EQ(size_t(8), routing_table_->Size());
+    EXPECT_EQ(test::k / 2, routing_table_->Size());
 
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
@@ -226,8 +241,8 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(8, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(9, routing_table_->Size());
+    ASSERT_EQ(test::k / 2, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(test::k / 2 + 1, routing_table_->Size());
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
@@ -235,91 +250,19 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
   }
   routing_table_->Clear();
   {
-    // try to find the target from a 32 filled routing table
+    // try to find the target from a 2*k filled routing table
     // (not containing the target)
     for (int num_contact = 0; num_contact < test::k; ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 500),
-                        NodeId::kBinary);
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
       routing_table_->AddContact(contact, rank_info_);
     }
     for (int num_contact = 0; num_contact < test::k; ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 501),
-                        NodeId::kBinary);
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
       Contact contact = ComposeContact(contact_id, 5000);
       routing_table_->AddContact(contact, rank_info_);
     }    
-    EXPECT_EQ(size_t(32), routing_table_->Size());
-
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_);
-    service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
-    protobuf::FindNodesResponse find_nodes_rsp;
-    service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
-    ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(16, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(33, routing_table_->Size());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
-  }
-  routing_table_->Clear();
-  {
-    // try to find the target from a 32 filled routing table
-    // (containing the target)
-    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 500),
-                        NodeId::kBinary);
-      Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
-    }
-    for (int num_contact = 0; num_contact < (test::k-1); ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 501),
-                        NodeId::kBinary);
-      Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
-    }
-    routing_table_->AddContact(target, rank_info_);
-    EXPECT_EQ(size_t(32), routing_table_->Size());
-
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_);
-    service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
-    protobuf::FindNodesResponse find_nodes_rsp;
-    service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
-    ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(1, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(33, routing_table_->Size());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
-  }
-  routing_table_->Clear();
-  {
-    // try to find the target from a 33 filled routing table
-    // (containing the sender, but not containing the target)
-    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 500),
-                        NodeId::kBinary);
-      Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
-    }
-    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
-      NodeId contact_id(GenerateRandomId(node_id_, 501),
-                        NodeId::kBinary);
-      Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
-    }
-    routing_table_->AddContact(sender, rank_info_);
-    EXPECT_EQ(size_t(33), routing_table_->Size());
+    EXPECT_EQ(2 * test::k, routing_table_->Size());
 
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
@@ -331,7 +274,73 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(33, routing_table_->Size());
+    ASSERT_EQ(2 * test::k + 1, routing_table_->Size());
+    // the sender must be pushed into the routing table
+    Contact pushed_in;
+    routing_table_->GetContact(sender_id, &pushed_in);
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
+  routing_table_->Clear();
+  {
+    // try to find the target from a 2*k filled routing table
+    // (containing the target)
+    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
+      Contact contact = ComposeContact(contact_id, 5000);
+      routing_table_->AddContact(contact, rank_info_);
+    }
+    for (int num_contact = 0; num_contact < (test::k-1); ++num_contact) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
+      Contact contact = ComposeContact(contact_id, 5000);
+      routing_table_->AddContact(contact, rank_info_);
+    }
+    routing_table_->AddContact(target, rank_info_);
+    EXPECT_EQ(2 * test::k, routing_table_->Size());
+
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_);
+    service.set_node_joined(true);
+    protobuf::FindNodesRequest find_nodes_req;
+    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    find_nodes_req.set_key(target_id.String());
+    protobuf::FindNodesResponse find_nodes_rsp;
+    service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
+    ASSERT_EQ(1, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(2 * test::k + 1, routing_table_->Size());
+    // the sender must be pushed into the routing table
+    Contact pushed_in;
+    routing_table_->GetContact(sender_id, &pushed_in);
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
+  routing_table_->Clear();
+  {
+    // try to find the target from a 2*k+1 filled routing table
+    // (containing the sender, but not containing the target)
+    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
+      Contact contact = ComposeContact(contact_id, 5000);
+      routing_table_->AddContact(contact, rank_info_);
+    }
+    for (int num_contact = 0; num_contact < test::k; ++num_contact) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
+      Contact contact = ComposeContact(contact_id, 5000);
+      routing_table_->AddContact(contact, rank_info_);
+    }
+    routing_table_->AddContact(sender, rank_info_);
+    EXPECT_EQ(2 * test::k + 1, routing_table_->Size());
+
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_);
+    service.set_node_joined(true);
+    protobuf::FindNodesRequest find_nodes_req;
+    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    find_nodes_req.set_key(target_id.String());
+    protobuf::FindNodesResponse find_nodes_rsp;
+    service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
+    ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(2 * test::k + 1, routing_table_->Size());
   }
   routing_table_->Clear();
 }
