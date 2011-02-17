@@ -761,122 +761,244 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 }
 
+TEST_F(DataStoreTest, BEH_KAD_HasKey) {
+  crypto::RsaKeyPair crypto_keys;
+  crypto_keys.GenerateKeys(1024);
+  bptime::time_duration ttl(bptime::pos_infin);
+  KeyValueTuple kvt1 = MakeKVT(crypto_keys, 1024, ttl, "", "");
+  std::string common_key = kvt1.key_value_signature.key;
+  KeyValueTuple kvt2 = MakeKVT(crypto_keys, 1024, ttl, common_key, "");
 
-/*
+  EXPECT_FALSE(data_store_->HasKey(common_key));
 
-TEST_F(DataStoreTest, BEH_KAD_LoadExistingData) {
-  // one value under a key
-  std::string value1(crypto::Hash<crypto::SHA512>("oybbggjhhtytyerterter"));
-  std::string key1(crypto::Hash<crypto::SHA512>(value1));
-  std::string signature1(crypto::Hash<crypto::SHA512>(key1));
-  EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(key1, value1, signature1),
-                                   bptime::seconds(3600*24), true));
-  KeyValuePairGroup values;
-  EXPECT_TRUE(data_store_->GetValues(key1, &values));
-  EXPECT_EQ(size_t(1), values.size());
-  EXPECT_EQ(make_pair(value1, signature1), values[0]);
-  // multiple values under a key
-  std::string key2 = crypto::Hash<crypto::SHA512>("erraaaaa4334223");
-  std::string signature2 = crypto::Hash<crypto::SHA512>(key2);
-  std::string value2_1;
-  value2_1.reserve(3 * 1024 * 1024);  // big value 3MB
-  std::string random_substring(RandomString(1024));
-  for (int i = 0; i < 3 * 1024; ++i)
-    value2_1 += random_substring;
-  std::string value2_2 = RandomString(5);  // small value
-  std::string value2_3 = crypto::Hash<crypto::SHA512>("vvvx12xxxzzzz3322");
+  // Initial key,value.
+  EXPECT_TRUE(data_store_->StoreValue(kvt1.key_value_signature, ttl,
+      kvt1.request_and_signature, crypto_keys.public_key(), false));
+  EXPECT_TRUE(data_store_->HasKey(common_key));
 
-  EXPECT_TRUE(data_store_->StoreValue(
-      KeyValueSignature(key2, value2_1, signature2), bptime::seconds(3600*24),
-      false));
-  EXPECT_TRUE(data_store_->StoreValue(
-      KeyValueSignature(key2, value2_2, signature2), bptime::seconds(3600*24),
-      false));
-  EXPECT_TRUE(data_store_->StoreValue(
-      KeyValueSignature(key2, value2_3, signature2), bptime::seconds(3600*24),
-      false));
-  values.clear();
-  EXPECT_TRUE(data_store_->GetValues(key2, &values));
-  EXPECT_EQ(size_t(3), values.size());
-  int value_num = 0;
-  for (size_t i = 0; i < values.size(); i++) {
-    if ((values[i].first == value2_1) && (values[i].second == signature2))
-      value_num++;
-    else if ((values[i].first == value2_2) && (values[i].second == signature2))
-      value_num++;
-    else if ((values[i].first == value2_3) && (values[i].second == signature2))
-      value_num++;
+  // Same key, different value.
+  EXPECT_TRUE(data_store_->StoreValue(kvt2.key_value_signature, ttl,
+      kvt2.request_and_signature, crypto_keys.public_key(), false));
+  EXPECT_TRUE(data_store_->HasKey(common_key));
+
+  // Delete initial key,value
+  EXPECT_TRUE(data_store_->DeleteValue(kvt1.key_value_signature,
+              kvt1.request_and_signature, false));
+  EXPECT_TRUE(data_store_->HasKey(common_key));
+
+  // Delete subsequent key,value
+  EXPECT_TRUE(data_store_->DeleteValue(kvt2.key_value_signature,
+              kvt2.request_and_signature, false));
+  EXPECT_TRUE(data_store_->HasKey(common_key));
+
+  // Create unique key,values (no repeated keys)
+  const size_t kTotalEntries(100);
+  // Use std::set of keys to ensure uniqueness of keys
+  std::set<std::string> keys;
+  keys.insert(common_key);
+  bool unique(false);
+  for (size_t i = 0; i != kTotalEntries; ++i) {
+    KeyValueTuple kvt = MakeKVT(crypto_keys, 1024, ttl, "", "");
+    auto it = keys.insert(kvt.key_value_signature.key);
+    unique = it.second;
+    while (!unique) {
+      kvt = MakeKVT(crypto_keys, 1024, ttl, "", "");
+      it = keys.insert(kvt.key_value_signature.key);
+      unique = it.second;
+    }
+
+    EXPECT_FALSE(data_store_->HasKey(kvt.key_value_signature.key));
+
+    EXPECT_TRUE(data_store_->StoreValue(kvt.key_value_signature, ttl,
+                kvt.request_and_signature, crypto_keys.public_key(), false));
+    EXPECT_TRUE(data_store_->HasKey(kvt.key_value_signature.key));
+
+    EXPECT_TRUE(data_store_->DeleteValue(kvt.key_value_signature,
+                                         kvt.request_and_signature, false));
+    EXPECT_TRUE(data_store_->HasKey(kvt.key_value_signature.key));
   }
-  EXPECT_EQ(size_t(3), value_num);
-  std::vector<std::pair<std::string, bool>> attr_key1, attr_key2;
-  attr_key1 = data_store_->LoadKeyAppendableAttr(key1);
-  EXPECT_EQ(1, attr_key1.size());
-  EXPECT_EQ(value1, attr_key1[0].first);
-  EXPECT_TRUE(attr_key1[0].second);
 
-  attr_key2 = data_store_->LoadKeyAppendableAttr(key2);
-  value_num = 0;
-  for (size_t i = 0; i < attr_key2.size(); i++) {
-    if (attr_key2[i].first == value2_1)
-      value_num++;
-    else if (attr_key2[i].first == value2_2)
-      value_num++;
-    else if (attr_key2[i].first == value2_3)
-      value_num++;
-    EXPECT_FALSE(attr_key2[i].second);
-  }
-  EXPECT_EQ(size_t(3), value_num);
+  EXPECT_FALSE(data_store_->HasKey(""));
+
+  EXPECT_TRUE(data_store_->HasKey(common_key));
+  // Erase the first key,value
+  auto itr_pair = key_value_index_->get<TagKey>().equal_range(common_key);
+  key_value_index_->get<TagKey>().erase(itr_pair.first++);
+  EXPECT_TRUE(data_store_->HasKey(common_key));
+
+  // Erase the subsequent key,value
+  key_value_index_->get<TagKey>().erase(itr_pair.first);
+  EXPECT_FALSE(data_store_->HasKey(common_key));
 }
 
-TEST_F(DataStoreTest, BEH_KAD_LoadNonExistingData) {
-  std::string key1(crypto::Hash<crypto::SHA512>("11222xc"));
-  KeyValuePairGroup values;
-  EXPECT_FALSE(data_store_->GetValues(key1, &values));
-  EXPECT_TRUE(values.empty());
-  std::vector<std::pair<std::string, bool>> attr_key;
-  attr_key = data_store_->LoadKeyAppendableAttr(key1);
-  EXPECT_TRUE(attr_key.empty());
-}
+TEST_F(DataStoreTest, BEH_KAD_GetValues) {
+  crypto::RsaKeyPair crypto_keys;
+  crypto_keys.GenerateKeys(1024);
+  bptime::time_duration ttl(bptime::pos_infin);
+  std::vector<KeyValueTuple> kvts;
+  const size_t kTotalEntries(100), kRepeatedValues(13);
+  kvts.reserve(kTotalEntries + kRepeatedValues);
+  // Create first key
+  kvts.push_back(MakeKVT(crypto_keys, 1024, ttl, "", ""));
+  std::string common_key = kvts.at(0).key_value_signature.key;
 
-TEST_F(DataStoreTest, BEH_KAD_LoadEmptyKeyData) {
-  KeyValuePairGroup values;
+  // Test on empty data_store
+  std::vector<std::pair<std::string, std::string>> values;
+  values.push_back(std::make_pair("a", "b"));
+  EXPECT_FALSE(data_store_->GetValues(common_key, NULL));
   EXPECT_FALSE(data_store_->GetValues("", &values));
   EXPECT_TRUE(values.empty());
-  std::vector<std::pair<std::string, bool>> attr_key;
-  attr_key = data_store_->LoadKeyAppendableAttr("");
-  EXPECT_TRUE(attr_key.empty());
+  values.push_back(std::make_pair("a", "b"));
+  EXPECT_FALSE(data_store_->GetValues(common_key, &values));
+  EXPECT_TRUE(values.empty());
+  values.push_back(std::make_pair("a", "b"));
+
+  // Store first key and create and store other values under same key
+  EXPECT_TRUE(data_store_->StoreValue(kvts.at(0).key_value_signature, ttl,
+      kvts.at(0).request_and_signature, crypto_keys.public_key(), false));
+  std::string value = kvts.at(0).key_value_signature.value;
+  for (size_t i = 1; i != kRepeatedValues; ++i) {
+    value += "a";
+    kvts.push_back(MakeKVT(crypto_keys, 0, ttl, common_key, value));
+    EXPECT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature, ttl,
+        kvts.at(i).request_and_signature, crypto_keys.public_key(), false));
+  }
+
+  // Create unique key,values (no repeated keys)
+  // Use std::set of keys to ensure uniqueness of keys
+  std::set<std::string> keys;
+  keys.insert(common_key);
+  bool unique(false);
+  for (size_t i = 0; i != kTotalEntries; ++i) {
+    KeyValueTuple kvt = MakeKVT(crypto_keys, 1024, ttl, "", "");
+    auto it = keys.insert(kvt.key_value_signature.key);
+    unique = it.second;
+    while (!unique) {
+      kvt = MakeKVT(crypto_keys, 1024, ttl, "", "");
+      it = keys.insert(kvt.key_value_signature.key);
+      unique = it.second;
+    }
+    EXPECT_TRUE(data_store_->StoreValue(kvt.key_value_signature, ttl,
+        kvt.request_and_signature, crypto_keys.public_key(), false));
+    kvts.push_back(kvt);
+  }
+
+  // Retrieve values for first key
+  EXPECT_TRUE(data_store_->GetValues(common_key, &values));
+  ASSERT_EQ(kRepeatedValues, values.size());
+  for (size_t i = 0; i != kRepeatedValues; ++i) {
+    EXPECT_EQ(kvts.at(i).key_value_signature.value, values.at(i).first);
+    EXPECT_EQ(kvts.at(i).key_value_signature.signature, values.at(i).second);
+  }
+
+  // Retrieve values for all other keys
+  for (size_t i = kRepeatedValues; i != kvts.size(); ++i) {
+    EXPECT_TRUE(data_store_->GetValues(kvts.at(i).key_value_signature.key,
+                                       &values));
+    ASSERT_EQ(1U, values.size());
+    EXPECT_EQ(kvts.at(i).key_value_signature.value, values.at(0).first);
+    EXPECT_EQ(kvts.at(i).key_value_signature.signature, values.at(0).second);
+  }
+
+  // Delete initial key,values
+  for (size_t i = 0; i != kRepeatedValues - 1; ++i) {
+    EXPECT_TRUE(data_store_->DeleteValue(kvts.at(i).key_value_signature,
+                kvts.at(i).request_and_signature, false));
+    EXPECT_TRUE(data_store_->GetValues(common_key, &values));
+    ASSERT_EQ(kRepeatedValues - i - 1, values.size());
+    for (size_t j = 0; j != kRepeatedValues - i - 1; ++j) {
+      EXPECT_EQ(kvts.at(i + j + 1).key_value_signature.value,
+                values.at(j).first);
+      EXPECT_EQ(kvts.at(i + j + 1).key_value_signature.signature,
+                values.at(j).second);
+    }
+  }
+  EXPECT_TRUE(data_store_->DeleteValue(
+              kvts.at(kRepeatedValues - 1).key_value_signature,
+              kvts.at(kRepeatedValues - 1).request_and_signature, false));
+  EXPECT_FALSE(data_store_->GetValues(common_key, &values));
+  EXPECT_TRUE(values.empty());
+
+  // Delete other key,value pairs
+  for (size_t i = kRepeatedValues; i != kvts.size(); ++i) {
+    values.push_back(std::make_pair("a", "b"));
+    EXPECT_TRUE(data_store_->DeleteValue(kvts.at(i).key_value_signature,
+                kvts.at(i).request_and_signature, false));
+    EXPECT_FALSE(data_store_->GetValues(kvts.at(i).key_value_signature.key,
+                                        &values));
+    EXPECT_TRUE(values.empty());
+  }
+}
+/*
+TEST_F(DataStoreTest, BEH_KAD_Refresh) {
+  crypto::RsaKeyPair crypto_keys;
+  crypto_keys.GenerateKeys(1024);
+  bptime::time_duration one_second(bptime::seconds(1));
+  bptime::time_duration two_seconds(bptime::seconds(2));
+  std::vector<KeyValueTuple> kvts, returned_kvts;
+  const size_t kTotalEntries(100), kRepeatedValues(13);
+  kvts.reserve(kTotalEntries + kRepeatedValues);
+  // Create first key
+  kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
+  std::string common_key = kvts.at(0).key_value_signature.key;
+
+  // Test on empty data_store
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1, one_second, "", ""));
+  data_store_->Refresh(NULL);
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_TRUE(returned_kvts.empty());
+  kvts.push_back(MakeKVT(crypto_keys, 1024, one_second, "", ""));
+
+  // Store first key and create and store other values under same key
+  EXPECT_TRUE(data_store_->StoreValue(kvts.at(0).key_value_signature,
+      two_seconds, kvts.at(0).request_and_signature, crypto_keys.public_key(),
+      false));
+  std::string value = kvts.at(0).key_value_signature.value;
+  for (size_t i = 1; i != kRepeatedValues; ++i) {
+    value += "a";
+    kvts.push_back(MakeKVT(crypto_keys, 0, ((i % 2) ? one_second : two_seconds),
+                           common_key, value));
+    EXPECT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature,
+        ((i % 2) ? one_second : two_seconds), kvts.at(i).request_and_signature,
+        crypto_keys.public_key(), false));
+  }
+
+  // Create unique key,values (no repeated keys)
+  // Use std::set of keys to ensure uniqueness of keys
+  std::set<std::string> keys;
+  keys.insert(common_key);
+  bool unique(false);
+  for (size_t i = 0; i != kTotalEntries; ++i) {
+    KeyValueTuple kvt = MakeKVT(crypto_keys, 1024,
+                                ((i % 2) ? one_second : two_seconds), "", "");
+    auto it = keys.insert(kvt.key_value_signature.key);
+    unique = it.second;
+    while (!unique) {
+      kvt = MakeKVT(crypto_keys, 1024, ((i % 2) ? one_second : two_seconds), "",
+                    "");
+      it = keys.insert(kvt.key_value_signature.key);
+      unique = it.second;
+    }
+    EXPECT_TRUE(data_store_->StoreValue(kvt.key_value_signature,
+        ((i % 2) ? one_second : two_seconds), kvt.request_and_signature,
+        crypto_keys.public_key(), false));
+    kvts.push_back(kvt);
+  }
+
+  // Call Refresh and check no values are erased or marked as deleted
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_TRUE(returned_kvts.empty());
+  kvts.push_back(MakeKVT(crypto_keys, 1024, one_second, "", ""));
+  std::vector<std::pair<std::string, std::string>> values;
+  EXPECT_TRUE(data_store_->GetValues(common_key, &values));
+  EXPECT_EQ(kRepeatedValues, values.size());
+  for (size_t i = kRepeatedValues; i != kvts.size(); ++i) {
+    EXPECT_TRUE(data_store_->GetValues(kvts.at(i).key_value_signature.key,
+                                       &values));
+    EXPECT_EQ(1U, values.size());
+  }
 }
 
-TEST_F(DataStoreTest, BEH_KAD_HasKey) {
-  KeyValueSignature key_value_signature1(RandomString(10),
-                                         RandomString(10),
-                                         RandomString(10));
-  KeyValueSignature key_value_signature2(key_value_signature1.key,
-                                         RandomString(11),
-                                         RandomString(11));
-  KeyValueSignature key_value_signature3(RandomString(12),
-                                         key_value_signature2.value,
-                                         RandomString(12));
-  bptime::ptime expire_time(bptime::second_clock::local_time());
-  expire_time += bptime::hours(20);
-  bptime::ptime refresh_time = expire_time - bptime::hours(10);
-  KeyValueTuple keyvalue1(key_value_signature1, expire_time, refresh_time,
-                          false);
-  KeyValueTuple keyvalue3(key_value_signature3, expire_time, refresh_time,
-                          false);
-  expire_time += bptime::millisec(10);
-  KeyValueTuple keyvalue2(key_value_signature2, expire_time, refresh_time,
-                          false);
-  keyvalue3.delete_status = kMarkedForDeletion;
-
-  key_value_index_->insert(keyvalue1);
-  key_value_index_->insert(keyvalue2);
-  key_value_index_->insert(keyvalue3);
-  ASSERT_FALSE(data_store_->HasKey(""));
-  ASSERT_TRUE(data_store_->HasKey(key_value_signature1.key));
-  ASSERT_FALSE(data_store_->HasKey(RandomString(11)));
-  ASSERT_FALSE(data_store_->HasKey(key_value_signature3.key));
-}
 
 TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
   boost::shared_ptr<boost::asio::io_service> asio_service(
@@ -951,168 +1073,6 @@ TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
   key_value_from_front_.clear();
   key_value_from_mid_.clear();
   key_value_from_end_.clear();
-}
-
-TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValuesWithSameKey) {
-  EXPECT_EQ(size_t(0), key_value_index_->size());
-  std::string key = crypto::Hash<crypto::SHA512>("abc123vvd32sfdf");
-  std::vector<KeyValueSignature> key_value_signatures;
-  std::string random_string;
-  random_string.reserve(1024);  //  1KB
-  for (int j = 0; j < 10; ++j) {
-    std::string random_substring(RandomString(1024));
-    for (int i = 0; i < 1024; ++i)
-      random_string += random_substring;
-    key_value_signatures.push_back(KeyValueSignature(key, random_string,
-                                                     random_string));
-    EXPECT_TRUE(data_store_->StoreValue(key_value_signatures[j],
-                                     bptime::seconds(3600*24), false));
-    random_string.clear();
-  }
-  KeyValuePairGroup values;
-  EXPECT_TRUE(data_store_->GetValues(key, &values));
-  EXPECT_EQ(size_t(10), values.size());
-  for (size_t j = 0; j < values.size(); j++) {
-    EXPECT_TRUE((key_value_signatures[j].value == values[j].first) &&
-                (key_value_signatures[j].signature == values[j].second));
-  }
-}
-
-TEST_F(DataStoreTest, BEH_KAD_StoreMultipleKeysWithSameValue) {
-  std::string value = crypto::Hash<crypto::SHA512>(RandomString(1024));
-  std::string signature = crypto::Hash<crypto::SHA512>(RandomString(1024));
-  std::vector<KeyValueSignature> key_value_signatures;
-  std::string random_key;
-  for (unsigned int j = 0; j < 10; j++) {
-    std::string random_substring(RandomString(1024));
-  for (int i = 0; i < 1024; ++i)
-    random_key += random_substring;
-  key_value_signatures.push_back(KeyValueSignature(random_key, value,
-                                 signature));
-  EXPECT_TRUE(data_store_->StoreValue(key_value_signatures[j],
-                                   bptime::seconds(3600*24), false));
-  random_key.clear();
-  }
-  KeyValuePairGroup values;
-  for (int i = 0; i < 10; ++i) {
-    EXPECT_TRUE(data_store_->GetValues(key_value_signatures[i].key, &values));
-    EXPECT_EQ(1, values.size());
-    EXPECT_TRUE((key_value_signatures[i].value == values[0].first) &&
-                (key_value_signatures[i].signature == values[0].second));
-  values.clear();
-  }
-}
-
-TEST_F(DataStoreTest, BEH_KAD_StoreMultipleValidInvalidData) {
-  std::string random_string;
-  std::vector<KeyValueSignature> key_value_signatures;
-  for (int j = 0; j < 10; j++) {
-    std::string random_substring(RandomString(1024));
-    for (int i = 0; i < 1024; ++i)
-      random_string += random_substring;
-    if (j%2) {
-      key_value_signatures.push_back(KeyValueSignature(random_string,
-                                  random_string, random_string));
-      EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(random_string,
-                                       random_string, random_string),
-                                       bptime::seconds(3600*24), false));
-    } else {
-      EXPECT_FALSE(data_store_->StoreValue(KeyValueSignature("", "", ""),
-                                        bptime::seconds(3600*24), false));
-    }
-    random_string.clear();
-  }
-  KeyValuePairGroup values;
-  for (auto it = key_value_signatures.begin(); it != key_value_signatures.end();
-       ++it) {
-    EXPECT_TRUE(data_store_->GetValues((*it).key, &values));
-    EXPECT_EQ(1, values.size());
-    EXPECT_TRUE(((*it).value == values[0].first) &&
-                ((*it).signature == values[0].second));
-    values.clear();
-  }
-}
-
-TEST_F(DataStoreTest, BEH_KAD_RefreshKeyValue) {
-  std::string key1 = crypto::Hash<crypto::SHA512>("663efsxx33d");
-  std::string value1 = RandomString(500);
-  std::string signature1 = crypto::Hash<crypto::SHA512>(key1);
-  EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(key1, value1, signature1),
-                                   bptime::seconds(3600*24), false));
-  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
-      key_value_index_->get<TagKeyValue>();
-
-  auto it = index_by_key_value.find(boost::make_tuple(key1, value1));
-  ASSERT_FALSE(it == index_by_key_value.end());
-  bptime::ptime t_refresh1 = (*it).refresh_time;
-  bptime::ptime t_expire1 = (*it).expire_time;
-  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh1);
-  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire1);
-  KeyValuePairGroup values;
-  EXPECT_TRUE(data_store_->GetValues(key1, &values));
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ(value1, values[0].first);
-  EXPECT_EQ(signature1, values[0].second);
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
-  // refreshing the value
-  std::string ser_del_request;
-  EXPECT_FALSE(data_store_->RefreshKeyValue(KeyValueSignature("key1", value1,
-                                                           signature1),
-                                         &ser_del_request));
-  EXPECT_FALSE(data_store_->RefreshKeyValue(KeyValueSignature(key1, "value1",
-                                                           signature1),
-                                         &ser_del_request));
-  EXPECT_FALSE(data_store_->RefreshKeyValue(KeyValueSignature(key1, value1,
-                                                           "signature1"),
-                                         &ser_del_request));
-  EXPECT_FALSE(data_store_->RefreshKeyValue(KeyValueSignature("key1", "value1",
-                                                           "signature1"),
-                                         &ser_del_request));
-  EXPECT_TRUE(data_store_->RefreshKeyValue(KeyValueSignature(key1, value1,
-                                                          signature1),
-                                         &ser_del_request));
-  index_by_key_value = key_value_index_->get<TagKeyValue>();
-  it = index_by_key_value.find(boost::make_tuple(key1, value1));
-  ASSERT_FALSE(it == index_by_key_value.end());
-  bptime::ptime t_refresh2 = (*it).refresh_time;
-  bptime::ptime t_expire2 = (*it).expire_time;
-  EXPECT_LT(bptime::microsec_clock::universal_time(), t_refresh2);
-  EXPECT_LT(bptime::microsec_clock::universal_time(), t_expire2);
-  EXPECT_LT(t_refresh1, t_refresh2);
-  EXPECT_EQ(t_expire1, t_expire2);
-  values.clear();
-  EXPECT_TRUE(data_store_->GetValues(key1, &values));
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ(value1, values[0].first);
-  EXPECT_EQ(signature1, values[0].second);
-}
-
-TEST_F(DataStoreTest, FUNC_KAD_ExpiredValuesNotReturned) {
-  std::string value = RandomString(100);
-  std::string key = crypto::Hash<crypto::SHA512>(RandomString(5));
-  std::string signature = crypto::Hash<crypto::SHA512>(RandomString(5));
-  EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(key, value, signature),
-                                   bptime::seconds(3), false));
-  KeyValuePairGroup values;
-  EXPECT_TRUE(data_store_->GetValues(key, &values));
-  EXPECT_FALSE(values.empty());
-  EXPECT_EQ(value, values[0].first);
-  EXPECT_EQ(signature, values[0].second);
-  values.clear();
-  boost::this_thread::sleep(boost::posix_time::seconds(4));
-  EXPECT_FALSE(data_store_->GetValues(key, &values));
-  EXPECT_TRUE(values.empty());
-
-  std::string value2 = RandomString(100);
-  EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(key, value, signature),
-                                   bptime::seconds(3), false));
-  EXPECT_TRUE(data_store_->StoreValue(KeyValueSignature(key, value2, signature),
-                                   bptime::seconds(100), false));
-  boost::this_thread::sleep(boost::posix_time::seconds(4));
-  values.clear();
-  EXPECT_TRUE(data_store_->GetValues(key, &values));
-  EXPECT_EQ(size_t(1), values.size());
-  EXPECT_EQ(value2, values[0].first);
 }
 */
 }  // namespace test
