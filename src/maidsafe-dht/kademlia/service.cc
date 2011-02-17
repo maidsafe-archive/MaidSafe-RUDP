@@ -34,7 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
-#include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
@@ -204,17 +203,11 @@ void Service::Store(const transport::Info &info,
     return;
   if (message_signature.empty() ||
       message.empty() ||
-      securifier_ == NULL ||
-      // the validate shall based on message/signature anyway
-      // or shall be different under publish/refresh situation ?
-      !securifier_->Validate(
-          message, request.sender().node_id(), message_signature,
-          request.public_key(), "", request.key() )) {
-    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
-                  << std::endl;
+      securifier_ == NULL) {
+    DLOG(WARNING) << "Input Error" << std::endl;
     return;
   }
-  //  tell if the request is an original store or just a refresh 
+  //  tell if the request is an original store or just a refresh
   bool is_refresh = request.has_serialised_store_request() &&
                     request.has_serialised_store_request_signature();
   KeyValueSignature key_value_signature(request.key(), message,
@@ -224,12 +217,34 @@ void Service::Store(const transport::Info &info,
     key_value_signature.signature = 
         request.serialised_store_request_signature();
   }
+  GetPublicKeyAndValidationCallback cb = boost::bind(
+      &Service::StoreCallback, this, key_value_signature, request, info,
+      is_refresh, response, _1, _2);
+  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);
+}
+
+void Service::StoreCallback (const KeyValueSignature key_value_signature,
+                             const protobuf::StoreRequest request,
+                             const transport::Info info,
+                             const bool is_refresh,
+                             protobuf::StoreResponse *response,
+                             const std::string public_key,
+                             const std::string public_key_validation) {
+  if  ( !securifier_->Validate(
+          key_value_signature.value, request.sender().node_id(),
+          key_value_signature.signature, request.public_key_id(), public_key,
+          public_key_validation, request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << std::endl;
+    return;
+  }
   RequestAndSignature request_signature(request.signed_value().value(),
-                                        request.signed_value().signature());
+                                        request.signed_value().signature());  
+  bool result(false);
   result = datastore_->StoreValue(key_value_signature,
                                   boost::posix_time::seconds(request.ttl()),
                                   request_signature,
-                                  request.public_key(),
+                                  public_key,
                                   is_refresh);
   if (result) {
     response->set_result(true);
@@ -237,7 +252,7 @@ void Service::Store(const transport::Info &info,
                                RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }
+  }  
 }
 
 void Service::Delete(const transport::Info &info,
@@ -248,22 +263,9 @@ void Service::Delete(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_ || securifier_ == NULL)
     return;
-
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
     return;
-
-  // the validate shall based on message/signature anyway
-  // or shall be different under publish/refresh situation ?
-  if (!securifier_->Validate(
-          message, request.sender().node_id(), message_signature,
-          request.public_key(), "", request.key() ))
-    return;
-
-  // Only the signer of the value can delete it.  
-  if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-    return;
-
   //  tell if the request is a publish or just a refresh
   bool is_refresh = request.has_serialised_delete_request() &&
                     request.has_serialised_delete_request_signature();
@@ -274,13 +276,43 @@ void Service::Delete(const transport::Info &info,
     key_value_signature.signature =
         request.serialised_delete_request_signature();
   }
+  GetPublicKeyAndValidationCallback cb = boost::bind(
+      &Service::DeleteCallback, this, key_value_signature, request, info,
+      is_refresh, response, _1, _2);
+  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);  
+}
+
+void Service::DeleteCallback (const KeyValueSignature key_value_signature,
+                              const protobuf::DeleteRequest request,
+                              const transport::Info info,
+                              const bool is_refresh,
+                              protobuf::DeleteResponse *response,
+                              const std::string public_key,
+                              const std::string public_key_validation) {
+  if  ( !securifier_->Validate(
+          key_value_signature.value, request.sender().node_id(),
+          key_value_signature.signature, request.public_key_id(), public_key,
+          public_key_validation, request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << std::endl;
+    return;
+  }
+  // Only the signer of the value can delete it.
+  // this shall be validated by the secuifier->validate
+//   if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
+//     return;
+  
   RequestAndSignature request_signature(request.signed_value().value(),
                                         request.signed_value().signature());
-  if (datastore_->DeleteValue(key_value_signature,
-                              request_signature, is_refresh)) {
+  bool result(false);
+  result = datastore_->DeleteValue(key_value_signature,
+                              request_signature, is_refresh);
+  if (result) {
     response->set_result(true);
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
+  } else {
+    DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
   }
 }
 
