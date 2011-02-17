@@ -86,10 +86,14 @@ void Securifier::GetPublicKeyAndValidation(
 bool Securifier::Validate(const std::string &value,
                           const std::string &sender_id,
                           const std::string &value_signature,
+                          const std::string &public_key_id,
                           const std::string &public_key,
                           const std::string &public_key_validation,
                           const std::string &kademlia_key) const {
-  return crypto::AsymCheckSig(value, value_signature, public_key);
+  if (!public_key.empty())
+    return crypto::AsymCheckSig(value, value_signature, public_key);
+  else
+    return true;
 }
 
 bool Securifier::ValidateWithParameters(
