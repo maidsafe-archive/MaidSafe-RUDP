@@ -68,13 +68,17 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
       // try to split the bucket if the new contact appears to be in the same
       // bucket as the holder
       if (target_kbucket_index == bucket_of_holder_) {
+        // Split and AddContact has its own mutex_lock
+        upgrade_lock.unlock();        
         SplitKbucket();
-        upgrade_lock.unlock(); 
         AddContact(contact, rank_info);
       } else {
+        // ForceK has its own mutex_lock
+        upgrade_lock.unlock();
         // try to apply ForceK, otherwise fire the signal
         if (ForceKAcceptNewPeer(contact, target_kbucket_index,
                                 rank_info) != 0) {
+          upgrade_lock.lock();
           // ForceK failed.  Find the oldest contact in the bucket
           Contact oldest_contact = GetLastSeenContact(target_kbucket_index);
           // fire a signal here to notify
@@ -83,11 +87,11 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
       }
     } else {
       // bucket not full, insert the contact into routing table
-      UpgradeToUniqueLock unique_lock(upgrade_lock);
       RoutingTableContact new_routing_table_contact(contact, kThisId_,
                                                     rank_info,
                                                     common_leading_bits);
       new_routing_table_contact.kbucket_index = target_kbucket_index;
+      UpgradeToUniqueLock unique_lock(upgrade_lock);      
       contacts_.insert(new_routing_table_contact);
     }
   } else {
@@ -315,6 +319,7 @@ boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
 
 // Bisect the k-bucket in the specified index into two new ones
 void RoutingTable::SplitKbucket() {
+  UpgradeLock upgrade_lock(shared_mutex_);
   // each time the split means:
   //    split the bucket of holder, contacts having common leading bits
   //    (bucket_of_holder_, 512) into (bucket_of_holder_+1,512) and
@@ -334,6 +339,7 @@ void RoutingTable::SplitKbucket() {
     ++it_begin;
   }
   ContactsById key_node_indx = contacts_.get<NodeIdTag>();
+  UpgradeToUniqueLock unique_lock(upgrade_lock);   
   for (auto it=contacts_need_change.begin();
        it != contacts_need_change.end(); ++it) {
     auto it_contact = key_node_indx.find(*it);
@@ -345,6 +351,7 @@ void RoutingTable::SplitKbucket() {
 int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
                                       const boost::uint16_t &target_bucket,
                                       const RankInfoPtr &rank_info) {
+  UpgradeLock upgrade_lock(shared_mutex_);  
   boost::uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
 //   This situation will never be hit
 //   if (brother_bucket_of_holder < 0) {
@@ -389,6 +396,7 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
   // drop the peer which is the furthest
   ContactsById key_node_indx = contacts_.get<NodeIdTag>();
   auto it_furthest = key_node_indx.find(furthest_node);
+  UpgradeToUniqueLock unique_lock(upgrade_lock);   
   contacts_.erase(it_furthest);
   RoutingTableContact new_local_contact(new_contact, kThisId_,
                                         rank_info,
