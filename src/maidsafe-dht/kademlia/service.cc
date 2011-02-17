@@ -171,38 +171,22 @@ void Service::FindNodes(const transport::Info &info,
   if (!key.IsValid())
     return;  
   Contact sender(FromProtobuf(request.sender()));
-
-  // try to serch wheter the requested node sits in the local routing table
-  Contact candidate;
-  routing_table_->GetContact(key, &candidate);
-  if (candidate != Contact()) {
-    // if find the node, then the closest_nodes shall contain only the target
-    (*response->add_closest_nodes()) = ToProtobuf(candidate);
-  } else {
-    std::vector<Contact> closest_contacts, exclude_contacts;
-    exclude_contacts.push_back(sender);
-    routing_table_->GetCloseContactsForTargetId(key,
-        k_, exclude_contacts, &closest_contacts);
-
-  //  bool found_node(false);
-    for (size_t i = 0; i < closest_contacts.size(); ++i) {
-      (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
-  //     if (key == closest_contacts[i].node_id())
-  //       found_node = true;
-    }
-
-  //   if (!found_node) {
-  //     Contact key_node;
-  //     routing_table_->GetContact(key, &key_node);
-  //     if ( key_node != Contact() )
-  //       (*response->add_closest_nodes()) = ToProtobuf(key_node);
-  //   }
+  std::vector<Contact> closest_contacts, exclude_contacts;
+  exclude_contacts.push_back(sender);
+  // the repsonse will always be the k-closest contacts
+  // if the target is contained in the routing table, then it shall be one of
+  // the k-closest. Then the send will interate the result, if find the target
+  // then stop the search.
+  routing_table_->GetCloseContactsForTargetId(key,
+      k_, exclude_contacts, &closest_contacts);
+  for (size_t i = 0; i < closest_contacts.size(); ++i) {
+    (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
   }
   response->set_result(true);
   routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
 }
 
-//  Here are two situations need to be handle:
+//  Here are two situations need to be handled:
 //        Original Store (publish) and Refresh
 //  If the request is a refresh, the 6 and 7 fields in the StoreRequest message
 //  will be populated. If the 6 and 7 fields are not populated, then the request
