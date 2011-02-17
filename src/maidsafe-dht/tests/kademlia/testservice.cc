@@ -306,8 +306,16 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(1, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * test::k + 1, routing_table_->Size());
+    // the target must be contained in the response's closest_nodes
+    bool target_exist(false);
+    for (int i=0; i < find_nodes_rsp.closest_nodes_size(); ++i) {
+      Contact current(FromProtobuf(find_nodes_rsp.closest_nodes(i)));
+      if (current.node_id() == target_id)
+        target_exist = true;
+    }
+    ASSERT_EQ(true, target_exist);
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
