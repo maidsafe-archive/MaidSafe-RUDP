@@ -929,38 +929,40 @@ TEST_F(DataStoreTest, BEH_KAD_GetValues) {
     EXPECT_TRUE(values.empty());
   }
 }
-/*
+
 TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(1024);
-  bptime::time_duration one_second(bptime::seconds(1));
   bptime::time_duration two_seconds(bptime::seconds(2));
+  bptime::time_duration four_seconds(bptime::seconds(4));
   std::vector<KeyValueTuple> kvts, returned_kvts;
-  const size_t kTotalEntries(100), kRepeatedValues(13);
+  const size_t kTotalEntries(100), kRepeatedValues(16);
+  // kRepeatedValues must be a multiple of 2 for the test to succeed.
+  ASSERT_EQ(0, kRepeatedValues % 2);
   kvts.reserve(kTotalEntries + kRepeatedValues);
   // Create first key
-  kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
+  kvts.push_back(MakeKVT(crypto_keys, 1024, four_seconds, "", ""));
   std::string common_key = kvts.at(0).key_value_signature.key;
 
   // Test on empty data_store
-  returned_kvts.push_back(MakeKVT(crypto_keys, 1, one_second, "", ""));
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1, two_seconds, "", ""));
   data_store_->Refresh(NULL);
   data_store_->Refresh(&returned_kvts);
   EXPECT_TRUE(returned_kvts.empty());
-  kvts.push_back(MakeKVT(crypto_keys, 1024, one_second, "", ""));
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
 
   // Store first key and create and store other values under same key
   EXPECT_TRUE(data_store_->StoreValue(kvts.at(0).key_value_signature,
-      two_seconds, kvts.at(0).request_and_signature, crypto_keys.public_key(),
+      four_seconds, kvts.at(0).request_and_signature, crypto_keys.public_key(),
       false));
   std::string value = kvts.at(0).key_value_signature.value;
   for (size_t i = 1; i != kRepeatedValues; ++i) {
     value += "a";
-    kvts.push_back(MakeKVT(crypto_keys, 0, ((i % 2) ? one_second : two_seconds),
-                           common_key, value));
+    kvts.push_back(MakeKVT(crypto_keys, 0,
+                   ((i % 2) ? two_seconds : four_seconds), common_key, value));
     EXPECT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature,
-        ((i % 2) ? one_second : two_seconds), kvts.at(i).request_and_signature,
-        crypto_keys.public_key(), false));
+        ((i % 2) ? two_seconds : four_seconds),
+        kvts.at(i).request_and_signature, crypto_keys.public_key(), false));
   }
 
   // Create unique key,values (no repeated keys)
@@ -970,17 +972,17 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   bool unique(false);
   for (size_t i = 0; i != kTotalEntries; ++i) {
     KeyValueTuple kvt = MakeKVT(crypto_keys, 1024,
-                                ((i % 2) ? one_second : two_seconds), "", "");
+                                ((i % 2) ? two_seconds : four_seconds), "", "");
     auto it = keys.insert(kvt.key_value_signature.key);
     unique = it.second;
     while (!unique) {
-      kvt = MakeKVT(crypto_keys, 1024, ((i % 2) ? one_second : two_seconds), "",
-                    "");
+      kvt = MakeKVT(crypto_keys, 1024, ((i % 2) ? two_seconds : four_seconds),
+                    "", "");
       it = keys.insert(kvt.key_value_signature.key);
       unique = it.second;
     }
     EXPECT_TRUE(data_store_->StoreValue(kvt.key_value_signature,
-        ((i % 2) ? one_second : two_seconds), kvt.request_and_signature,
+        ((i % 2) ? two_seconds : four_seconds), kvt.request_and_signature,
         crypto_keys.public_key(), false));
     kvts.push_back(kvt);
   }
@@ -988,7 +990,7 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   // Call Refresh and check no values are erased or marked as deleted
   data_store_->Refresh(&returned_kvts);
   EXPECT_TRUE(returned_kvts.empty());
-  kvts.push_back(MakeKVT(crypto_keys, 1024, one_second, "", ""));
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
   std::vector<std::pair<std::string, std::string>> values;
   EXPECT_TRUE(data_store_->GetValues(common_key, &values));
   EXPECT_EQ(kRepeatedValues, values.size());
@@ -997,9 +999,67 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
                                        &values));
     EXPECT_EQ(1U, values.size());
   }
+
+  // Sleep for 2 seconds then Refresh again
+  boost::this_thread::sleep(two_seconds);
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_TRUE(returned_kvts.empty());
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
+  EXPECT_TRUE(data_store_->GetValues(common_key, &values));
+  EXPECT_EQ(kRepeatedValues / 2, values.size());
+  for (size_t i = 0; i < kvts.size() - kRepeatedValues; i += 2) {
+    EXPECT_TRUE(data_store_->GetValues(
+        kvts.at(i + kRepeatedValues).key_value_signature.key, &values));
+    EXPECT_EQ(1U, values.size());
+  }
+  for (size_t i = 1; i < kvts.size() - kRepeatedValues; i += 2) {
+    EXPECT_FALSE(data_store_->GetValues(
+        kvts.at(i + kRepeatedValues).key_value_signature.key, &values));
+    EXPECT_TRUE(values.empty());
+  }
+  EXPECT_EQ(kTotalEntries + kRepeatedValues, key_value_index_->size());
+
+  // Sleep for 2 seconds then Refresh again
+  boost::this_thread::sleep(two_seconds);
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_TRUE(returned_kvts.empty());
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
+  EXPECT_FALSE(data_store_->GetValues(common_key, &values));
+  EXPECT_TRUE(values.empty());
+  for (size_t i = 0; i != kvts.size() - kRepeatedValues; ++i) {
+    EXPECT_FALSE(data_store_->GetValues(
+        kvts.at(i + kRepeatedValues).key_value_signature.key, &values));
+    EXPECT_TRUE(values.empty());
+  }
+  EXPECT_EQ(kTotalEntries + kRepeatedValues, key_value_index_->size());
+
+  // Modify refresh times to allow Refresh to populate vector
+  bptime::ptime now(bptime::microsec_clock::universal_time());
+  auto it = key_value_index_->begin();
+  for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
+    key_value_index_->modify(it,
+           boost::bind(&KeyValueTuple::UpdateStatus, _1,
+                       (*it).expire_time, now, now + kPendingConfirmDuration,
+                       (*it).request_and_signature, (*it).deleted));
+  }
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_EQ((kTotalEntries + kRepeatedValues) / 2, returned_kvts.size());
+  EXPECT_EQ(kTotalEntries + kRepeatedValues, key_value_index_->size());
+
+  // Modify confirm times to allow Refresh to erase elements
+  it = key_value_index_->begin();
+  for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
+    key_value_index_->modify(it,
+           boost::bind(&KeyValueTuple::UpdateStatus, _1,
+                       (*it).expire_time, now + data_store_->refresh_interval(),
+                       now, (*it).request_and_signature, (*it).deleted));
+  }
+  data_store_->Refresh(&returned_kvts);
+  EXPECT_TRUE(returned_kvts.empty());
+  EXPECT_EQ((kTotalEntries + kRepeatedValues) / 2, key_value_index_->size());
 }
 
-
+/*
 TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
   boost::shared_ptr<boost::asio::io_service> asio_service(
       new boost::asio::io_service);
