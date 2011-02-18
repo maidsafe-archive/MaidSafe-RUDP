@@ -61,9 +61,10 @@ namespace transport { struct Info; }
 namespace kademlia {
 
 namespace test {
-class TestRoutingTable;
-class TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
-class TestRoutingTable_BEH_KAD_ForceKAcceptNewPeer_Test;
+  class TestRoutingTable;
+  class TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
+  class TestRoutingTable_BEH_KAD_ForceKAcceptNewPeer_Test;
+  class ServicesTest;
 }  // namespace test
 
 class KBucket;
@@ -326,6 +327,7 @@ class RoutingTable {
   friend class test::TestRoutingTable;
   friend class test::TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
   friend class test::TestRoutingTable_BEH_KAD_ForceKAcceptNewPeer_Test;
+  friend class test::ServicesTest;
  private:
   /** Finds a number of known nodes closest to the holder node in the current
    *  routing table.

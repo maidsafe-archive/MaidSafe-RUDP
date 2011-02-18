@@ -126,7 +126,7 @@ void Service::FindValue(const transport::Info &info,
   // Are we the alternative value holder?
   std::string key(request.key());
   std::vector<std::pair<std::string, std::string>> values_str;
-  if (alternative_store_ != NULL && alternative_store_->Has(key)) {
+  if ((alternative_store_ != NULL) && (alternative_store_->Has(key))) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
@@ -176,8 +176,8 @@ void Service::FindNodes(const transport::Info &info,
   // if the target is contained in the routing table, then it shall be one of
   // the k-closest. Then the send will interate the result, if find the target
   // then stop the search.
-  routing_table_->GetCloseContactsForTargetId(key,
-      k_, exclude_contacts, &closest_contacts);
+  routing_table_->GetCloseContacts(key, k_, exclude_contacts,
+                                   &closest_contacts);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
   }
