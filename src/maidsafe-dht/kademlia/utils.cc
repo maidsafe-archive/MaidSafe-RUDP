@@ -83,7 +83,7 @@ protobuf::Contact ToProtobuf(const Contact &contact) {
     mutable_endpoint->set_port(contact.rendezvous_endpoint().port);
   }
 
-  std::vector<transport::Endpoint> &local_endpoints(contact.local_endpoints());
+  std::vector<transport::Endpoint> local_endpoints(contact.local_endpoints());
   for (auto it = local_endpoints.begin(); it != local_endpoints.end(); ++it) {
     pb_contact.add_local_ips((*it).ip.to_string(ec));
     pb_contact.set_local_port((*it).port);
