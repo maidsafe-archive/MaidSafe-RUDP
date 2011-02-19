@@ -52,52 +52,53 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   // If the contact has the same ID as the holder, return directly
   if (node_id == kThisId_)
     return;
-  UpgradeLock upgrade_lock(shared_mutex_);
+
   // Check if the contact is already in the routing table; if so, set its last
   // seen time to now (will bring it to the top)
+  std::shared_ptr<UpgradeLock> upgrade_lock(new UpgradeLock(shared_mutex_));
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it_node = key_indx.find(node_id);
-
-  if (it_node == key_indx.end()) {
-    boost::uint16_t common_leading_bits = KDistanceTo(contact.node_id());
-    boost::uint16_t target_kbucket_index = KBucketIndex(common_leading_bits);
-    boost::uint16_t k_bucket_size = KBucketSizeForKey(target_kbucket_index);
-
-    // if the corresponding bucket is full
-    if (k_bucket_size == k_) {
-      // try to split the bucket if the new contact appears to be in the same
-      // bucket as the holder
-      if (target_kbucket_index == bucket_of_holder_) {
-        // Split and AddContact has its own mutex_lock
-        upgrade_lock.unlock();        
-        SplitKbucket();
-        AddContact(contact, rank_info);
-      } else {
-        // ForceK has its own mutex_lock
-        upgrade_lock.unlock();
-        // try to apply ForceK, otherwise fire the signal
-        if (ForceKAcceptNewPeer(contact, target_kbucket_index,
-                                rank_info) != 0) {
-          upgrade_lock.lock();
-          // ForceK failed.  Find the oldest contact in the bucket
-          Contact oldest_contact = GetLastSeenContact(target_kbucket_index);
-          // fire a signal here to notify
-          (*ping_oldest_contact_)(oldest_contact, contact, rank_info);
-        }
-      }
-    } else {
-      // bucket not full, insert the contact into routing table
-      RoutingTableContact new_routing_table_contact(contact, kThisId_,
-                                                    rank_info,
-                                                    common_leading_bits);
-      new_routing_table_contact.kbucket_index = target_kbucket_index;
-      UpgradeToUniqueLock unique_lock(upgrade_lock);      
-      contacts_.insert(new_routing_table_contact);
-    }
-  } else {
-    UpgradeToUniqueLock unique_lock(upgrade_lock);
+  if (it_node != key_indx.end()) {
+    UpgradeToUniqueLock unique_lock(*upgrade_lock);
     contacts_.modify(it_node,
                      ChangeLastSeen(bptime::microsec_clock::universal_time()));
+  } else {
+    InsertContact(contact, rank_info, upgrade_lock);
+  }
+}
+
+void RoutingTable::InsertContact(const Contact &contact,
+                                 RankInfoPtr rank_info,
+                                 std::shared_ptr<UpgradeLock> upgrade_lock) {
+  boost::uint16_t common_leading_bits = KDistanceTo(contact.node_id());
+  boost::uint16_t target_kbucket_index = KBucketIndex(common_leading_bits);
+  boost::uint16_t k_bucket_size = KBucketSizeForKey(target_kbucket_index);
+
+  // if the corresponding bucket is full
+  if (k_bucket_size == k_) {
+    // try to split the bucket if the new contact appears to be in the same
+    // bucket as the holder
+    if (target_kbucket_index == bucket_of_holder_) {
+      SplitKbucket(upgrade_lock);
+      InsertContact(contact, rank_info, upgrade_lock);
+    } else {
+      // try to apply ForceK, otherwise fire the signal
+      if (ForceKAcceptNewPeer(contact, target_kbucket_index,
+                              rank_info, upgrade_lock) != 0) {
+        // ForceK failed.  Find the oldest contact in the bucket
+        Contact oldest_contact = GetLastSeenContact(target_kbucket_index);
+        // fire a signal here to notify
+        (*ping_oldest_contact_)(oldest_contact, contact, rank_info);
+      }
+    }
+  } else {
+    // bucket not full, insert the contact into routing table
+    RoutingTableContact new_routing_table_contact(contact, kThisId_,
+                                                  rank_info,
+                                                  common_leading_bits);
+    new_routing_table_contact.kbucket_index = target_kbucket_index;
+    UpgradeToUniqueLock unique_lock(*upgrade_lock);
+    contacts_.insert(new_routing_table_contact);
   }
 }
 
@@ -317,9 +318,7 @@ boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
   return -1;
 }
 
-// Bisect the k-bucket in the specified index into two new ones
-void RoutingTable::SplitKbucket() {
-  UpgradeLock upgrade_lock(shared_mutex_);
+void RoutingTable::SplitKbucket(std::shared_ptr<UpgradeLock> upgrade_lock) {
   // each time the split means:
   //    split the bucket of holder, contacts having common leading bits
   //    (bucket_of_holder_, 512) into (bucket_of_holder_+1,512) and
@@ -339,8 +338,8 @@ void RoutingTable::SplitKbucket() {
     ++it_begin;
   }
   ContactsById key_node_indx = contacts_.get<NodeIdTag>();
-  UpgradeToUniqueLock unique_lock(upgrade_lock);   
-  for (auto it=contacts_need_change.begin();
+  UpgradeToUniqueLock unique_lock(*upgrade_lock);
+  for (auto it = contacts_need_change.begin();
        it != contacts_need_change.end(); ++it) {
     auto it_contact = key_node_indx.find(*it);
     key_node_indx.modify(it_contact, ChangeKBucketIndex(bucket_of_holder_+1));
@@ -348,17 +347,12 @@ void RoutingTable::SplitKbucket() {
   ++bucket_of_holder_;
 }
 
-int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
-                                      const boost::uint16_t &target_bucket,
-                                      const RankInfoPtr &rank_info) {
-  UpgradeLock upgrade_lock(shared_mutex_);  
+int RoutingTable::ForceKAcceptNewPeer(
+    const Contact &new_contact,
+    const boost::uint16_t &target_bucket,
+    RankInfoPtr rank_info,
+    std::shared_ptr<UpgradeLock> upgrade_lock) {
   boost::uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
-//   This situation will never be hit
-//   if (brother_bucket_of_holder < 0) {
-//     DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (no brother bucket)" <<
-//       std::endl;
-//     return -1;
-//   }
   if (brother_bucket_of_holder != target_bucket) {
     DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
         << std::endl;
@@ -396,7 +390,7 @@ int RoutingTable::ForceKAcceptNewPeer(const Contact &new_contact,
   // drop the peer which is the furthest
   ContactsById key_node_indx = contacts_.get<NodeIdTag>();
   auto it_furthest = key_node_indx.find(furthest_node);
-  UpgradeToUniqueLock unique_lock(upgrade_lock);   
+  UpgradeToUniqueLock unique_lock(*upgrade_lock);
   contacts_.erase(it_furthest);
   RoutingTableContact new_local_contact(new_contact, kThisId_,
                                         rank_info,
@@ -418,14 +412,15 @@ boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
   return distance;
 }
 
-size_t RoutingTable::Size() const {
+size_t RoutingTable::Size() {
+  SharedLock shared_lock(shared_mutex_);
   return contacts_.size();
 }
 
 void RoutingTable::Clear() {
   UniqueLock unique_lock(shared_mutex_);
   contacts_.clear();
-  bucket_of_holder_=0;
+  bucket_of_holder_ = 0;
 }
 
 }  // namespace kademlia
