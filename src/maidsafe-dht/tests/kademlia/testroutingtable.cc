@@ -34,7 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/common/log.h"
 #include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/kbucket.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/transport/utils.h"
