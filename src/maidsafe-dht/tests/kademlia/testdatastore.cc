@@ -25,9 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+#include "boost/tr1/functional.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/thread/thread.hpp"
 #include "boost/thread/barrier.hpp"
@@ -56,13 +59,8 @@ const boost::uint16_t kThreadBarrierSize = 5;
 class DataStoreTest: public testing::Test {
  public:
   DataStoreTest()
-      : thread_barrier_(new boost::barrier(kThreadBarrierSize)),
-        thread_barrier_1_(new boost::barrier(kThreadBarrierSize)),
-        data_store_(new kademlia::DataStore(bptime::seconds(3600))),
+      : data_store_(new kademlia::DataStore(bptime::seconds(3600))),
         key_value_index_(data_store_->key_value_index_),
-        key_value_from_front_(),
-        key_value_from_end_(),
-        key_value_from_mid_(),
         crypto_keys_() {}
   KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
                         const size_t &value_size,
@@ -92,47 +90,10 @@ class DataStoreTest: public testing::Test {
                  std::pair<std::string, std::string> value) {
     return ((element.first == value.first) && (element.second == value.second));
   }
-  void CheckKey(const std::string &key) {
-    thread_barrier_->wait();
-    EXPECT_TRUE(data_store_->HasKey(key));
-  }
-  void MakeMultipleEntries() {
-    for (int h = 0; h != 5; ++h) {
-      crypto_keys_.push_back(crypto::RsaKeyPair());
-      crypto_keys_.at(h).GenerateKeys(1024);
-    }
-    for (int i = 1; i < 1001; ++i) {
-      bptime::ptime expire_time = bptime::microsec_clock::universal_time();
-      expire_time += bptime::hours(20);
-      bptime::ptime refresh_time = expire_time - bptime::hours(10);
-      std::string key(RandomString(i * 7));
-      std::string value(RandomString(i * 11));
-      int crypto_key_index = RandomUint32() % crypto_keys_.size();
-      std::string signature(crypto::AsymSign(value,
-          crypto_keys_.at(crypto_key_index).private_key()));
-      KeyValueSignature key_value_signature(key, value, signature);
-      std::string request(RandomString(i * 3));
-      std::string req_signature(crypto::AsymSign(request,
-          crypto_keys_.at(crypto_key_index).private_key()));
-      RequestAndSignature req_and_sig(make_pair(request, req_signature));
-      data_store_->key_value_index_->insert(
-          KeyValueTuple(key_value_signature, expire_time, refresh_time,
-                        req_and_sig, false));
-      if (i > 0 && i < 47)  // kIteratorSize * 2
-        key_value_from_front_.push_back(make_pair(key, value));
-      if (i > 500 && i < 570)  // kIteratorSize * 3
-        key_value_from_mid_.push_back(key_value_signature);
-      if (i > 942 && i < 990)  // kIteratorSize * 2
-        key_value_from_end_.push_back(make_pair(key, value));
-    }
-  }
 
  protected:
-  std::shared_ptr<boost::barrier> thread_barrier_, thread_barrier_1_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<KeyValueIndex> key_value_index_;
-  KeyValuePairGroup key_value_from_front_, key_value_from_end_;
-  std::vector<KeyValueSignature> key_value_from_mid_;
   std::vector<crypto::RsaKeyPair> crypto_keys_;
  private:
   DataStoreTest(const DataStoreTest&);
@@ -1059,82 +1020,150 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   EXPECT_EQ((kTotalEntries + kRepeatedValues) / 2, key_value_index_->size());
 }
 
-/*
-TEST_F(DataStoreTest, BEH_KAD_MutexTestWithMultipleThread) {
+TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
+  const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
+  const size_t kValuesPerEntry(4);
+
   boost::shared_ptr<boost::asio::io_service> asio_service(
       new boost::asio::io_service);
-  boost::shared_ptr<boost::asio::io_service::work> work(
-      new boost::asio::io_service::work(*asio_service));
+
+  for (int i = 0; i != kSigners; ++i) {
+    crypto_keys_.push_back(crypto::RsaKeyPair());
+    crypto_keys_.at(i).GenerateKeys(1024);
+  }
+
+  // Prepare values for storing and deleting
+  bptime::time_duration ttl(bptime::pos_infin);
+  std::vector<std::pair<KeyValueTuple, std::string>> stored_kvts;
+  std::vector<KeyValueTuple> stored_then_deleted_kvts;
+  stored_kvts.reserve(kSigners * kEntriesPerSigner * kValuesPerEntry);
+  stored_then_deleted_kvts.reserve(
+      kSigners * kEntriesPerSigner * kValuesPerEntry * 0.2);
+  // Use std::set of keys to ensure uniqueness of keys
+  std::set<std::string> keys;
+  bool unique(false);
+
+  for (size_t signer = 0; signer != kSigners; ++signer) {
+    const crypto::RsaKeyPair &crypto_keys(crypto_keys_.at(signer));
+
+    for (size_t entry = 0; entry != kEntriesPerSigner; ++entry) {
+      boost::uint32_t rand_num(RandomUint32());
+      KeyValueTuple kvt =
+          MakeKVT(crypto_keys, ((rand_num % 500) + 500), ttl, "", "");
+      // Ensure key is unique
+      auto it = keys.insert(kvt.key_value_signature.key);
+      unique = it.second;
+      while (!unique) {
+        kvt = MakeKVT(crypto_keys, ((rand_num % 500) + 500), ttl, "", "");
+        it = keys.insert(kvt.key_value_signature.key);
+        unique = it.second;
+      }
+      // Store some now to allow later deletion
+      if ((rand_num % kValuesPerEntry) == 0) {
+        data_store_->StoreValue(kvt.key_value_signature, ttl,
+            kvt.request_and_signature, crypto_keys.public_key(), false);
+        stored_then_deleted_kvts.push_back(kvt);
+      } else {
+        stored_kvts.push_back(std::make_pair(kvt, crypto_keys.public_key()));
+      }
+
+      std::string common_key = kvt.key_value_signature.key;
+      std::string value = kvt.key_value_signature.value;
+
+      for (size_t i = 1; i != kValuesPerEntry; ++i) {
+        value += "a";
+        kvt = MakeKVT(crypto_keys, ((rand_num % 500) + 500), ttl, common_key,
+                      value);
+        // Store some now to allow later deletion
+        if ((rand_num % kValuesPerEntry) == i) {
+          data_store_->StoreValue(kvt.key_value_signature, ttl,
+              kvt.request_and_signature, crypto_keys.public_key(), false);
+          stored_then_deleted_kvts.push_back(kvt);
+        } else {
+          stored_kvts.push_back(std::make_pair(kvt, crypto_keys.public_key()));
+        }
+      }
+    }
+  }
+  EXPECT_EQ(stored_then_deleted_kvts.size(), key_value_index_->size());
+
+  // Create and enqueue test calls
+  size_t returned_size(stored_then_deleted_kvts.size() + stored_kvts.size());
+  std::vector<std::vector<std::pair<std::string, std::string>>> returned_values(  // NOLINT (Fraser)
+      returned_size, std::vector<std::pair<std::string, std::string>>());  // NOLINT (Fraser)
+  std::vector<std::tr1::function<bool()>> functors;
+  functors.reserve(3 * returned_size);
+  auto returned_itr = returned_values.begin();
+  for (auto it = stored_then_deleted_kvts.begin();
+       it != stored_then_deleted_kvts.end(); ++it, ++returned_itr) {
+    functors.push_back(std::tr1::bind(&DataStore::DeleteValue, data_store_,
+        (*it).key_value_signature, (*it).request_and_signature, false));
+    functors.push_back(std::tr1::bind(&DataStore::HasKey, data_store_,
+                       (*it).key_value_signature.key));
+    functors.push_back(std::tr1::bind(&DataStore::GetValues, data_store_,
+                       (*it).key_value_signature.key, &(*returned_itr)));
+  }
+  for (auto it = stored_kvts.begin(); it != stored_kvts.end();
+       ++it, ++returned_itr) {
+    const KeyValueTuple &kvt = (*it).first;
+    const std::string &public_key = (*it).second;
+    functors.push_back(std::tr1::bind(
+        &DataStore::StoreValue, data_store_, kvt.key_value_signature, ttl,
+        kvt.request_and_signature, public_key, false));
+    functors.push_back(std::tr1::bind(&DataStore::HasKey, data_store_,
+                                      kvt.key_value_signature.key));
+    functors.push_back(std::tr1::bind(&DataStore::GetValues, data_store_,
+                                      kvt.key_value_signature.key,
+                                      &(*returned_itr)));
+  }
+  std::random_shuffle(functors.begin(), functors.end());
+
+  std::vector<std::vector<KeyValueTuple>> returned_kvts(
+      (functors.size() / kValuesPerEntry) + 1, std::vector<KeyValueTuple>());
+  int count(0);
+  for (auto it = functors.begin(); it != functors.end(); ++it, ++count) {
+    asio_service->post(*it);
+    if ((count % kValuesPerEntry) == 0) {
+      asio_service->post(std::tr1::bind(&DataStore::Refresh, data_store_,
+          &returned_kvts.at(count / kValuesPerEntry)));
+    }
+  }
+
+  // Run threads
   boost::thread_group asio_thread_group;
-  for (int i = 0; i < 10; ++i) {
+  for (size_t i = 0; i != kThreadCount; ++i) {
     asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
                                                 asio_service));
   }
-  KeyValueSignature key_value_signature(RandomString(10),
-                                        RandomString(10),
-                                        RandomString(10));
-  KeyValuePairGroup values, values1;
-  this->MakeMultipleEntries();
-
-  auto key_front =  key_value_from_front_.begin();
-  for (int i = 0; i < kIteratorSize; ++i) {
-    asio_service->post(boost::bind(&DataStore::DeleteValue, data_store_,
-                                   key_front->first,
-                                   key_front->second));
-    ++key_front;
-  }
-
-  auto k = key_value_from_end_.end();
-  for (int i = 0; i < kIteratorSize; ++i) {
-    --k;
-    asio_service->post(boost::bind(&DataStore::DeleteValue, data_store_,
-                                   k->first, k->second));
-  }
-  for (int i = 0; i < kIteratorSize; ++i) {
-    asio_service->post(boost::bind(&DataStore::StoreValue, data_store_,
-                                   KeyValueSignature(RandomString(i*103),
-                                   RandomString(i*107),
-                                   RandomString(i*111)),
-                                   bptime::seconds(1000), false));
-  }
-  asio_service->post(boost::bind(&DataStore::GetValues, data_store_,
-                                 k->first, &values));
-  asio_service->post(boost::bind(&DataStore::MarkForDeletion, data_store_,
-                                 KeyValueSignature(k->first, k->second,
-                                 RandomString(35)), RandomString(35)));
-  ++k;
-  asio_service->post(boost::bind(&DataStore::GetValues, data_store_,
-                                 k->first, &values1));
-  auto s = key_value_from_mid_.begin();
-
-  for (int i = 0; i < kIteratorSize; ++i) {
-    asio_service->post(boost::bind(&DataStore::RefreshKeyValue, data_store_,
-                                   (*s), &(RandomString(35))));
-    ++s;
-  }
-  for (int i = 0; i < kIteratorSize; ++i) {
-    ++s;
-    asio_service->post(boost::bind(&DataStore::UpdateValue, data_store_,
-                                   (*s),
-                                   KeyValueSignature(RandomString(i*53),
-                                   RandomString(i*59), RandomString(i*61)),
-                                   bptime::seconds(1000), false));
-  }
-  for (int i = 0; i < kThreadBarrierSize; ++i) {
-    asio_service->post(boost::bind(&DataStoreTest::CheckKey, this,
-                                   key_front->first));
-    asio_service->post(boost::bind(&DataStoreTest::CheckLoadKeyAppendableAttr,
-                                   this, (*s).key));
-    ++key_front;
-    ++s;
-  }
-  work.reset();
   asio_thread_group.join_all();
-  key_value_from_front_.clear();
-  key_value_from_mid_.clear();
-  key_value_from_end_.clear();
+
+  // Check results
+  for (auto it = stored_then_deleted_kvts.begin();
+       it != stored_then_deleted_kvts.end(); ++it) {
+    const std::string &key = (*it).key_value_signature.key;
+    EXPECT_TRUE(data_store_->HasKey(key));
+    returned_values.front().push_back(std::make_pair("a", "b"));
+    EXPECT_TRUE(data_store_->GetValues(key, &returned_values.front()));
+    EXPECT_EQ(kValuesPerEntry - 1, returned_values.front().size());
+  }
+  for (auto it = stored_kvts.begin(); it != stored_kvts.end(); ++it) {
+    const std::string &key = (*it).first.key_value_signature.key;
+    EXPECT_TRUE(data_store_->HasKey(key));
+    returned_values.front().clear();
+    EXPECT_TRUE(data_store_->GetValues(key, &returned_values.front()));
+    bool found(false);
+    for (auto itr = returned_values.front().begin();
+         itr != returned_values.front().end(); ++itr) {
+      found = ((*it).first.key_value_signature.value == (*itr).first);
+      if (found) {
+        EXPECT_EQ((*it).first.key_value_signature.signature, (*itr).second);
+        break;
+      }
+    }
+    EXPECT_TRUE(found);
+  }
 }
-*/
+
 }  // namespace test
 
 }  // namespace kademlia
