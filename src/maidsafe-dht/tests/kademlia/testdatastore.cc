@@ -1096,23 +1096,23 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   auto returned_itr = returned_values.begin();
   for (auto it = stored_then_deleted_kvts.begin();
        it != stored_then_deleted_kvts.end(); ++it, ++returned_itr) {
-    functors.push_back(std::tr1::bind(&DataStore::DeleteValue, data_store_,
+    functors.push_back(std::bind(&DataStore::DeleteValue, data_store_,
         (*it).key_value_signature, (*it).request_and_signature, false));
-    functors.push_back(std::tr1::bind(&DataStore::HasKey, data_store_,
+    functors.push_back(std::bind(&DataStore::HasKey, data_store_,
                        (*it).key_value_signature.key));
-    functors.push_back(std::tr1::bind(&DataStore::GetValues, data_store_,
+    functors.push_back(std::bind(&DataStore::GetValues, data_store_,
                        (*it).key_value_signature.key, &(*returned_itr)));
   }
   for (auto it = stored_kvts.begin(); it != stored_kvts.end();
        ++it, ++returned_itr) {
     const KeyValueTuple &kvt = (*it).first;
     const std::string &public_key = (*it).second;
-    functors.push_back(std::tr1::bind(
+    functors.push_back(std::bind(
         &DataStore::StoreValue, data_store_, kvt.key_value_signature, ttl,
         kvt.request_and_signature, public_key, false));
-    functors.push_back(std::tr1::bind(&DataStore::HasKey, data_store_,
+    functors.push_back(std::bind(&DataStore::HasKey, data_store_,
                                       kvt.key_value_signature.key));
-    functors.push_back(std::tr1::bind(&DataStore::GetValues, data_store_,
+    functors.push_back(std::bind(&DataStore::GetValues, data_store_,
                                       kvt.key_value_signature.key,
                                       &(*returned_itr)));
   }
@@ -1124,7 +1124,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   for (auto it = functors.begin(); it != functors.end(); ++it, ++count) {
     asio_service->post(*it);
     if ((count % kValuesPerEntry) == 0) {
-      asio_service->post(std::tr1::bind(&DataStore::Refresh, data_store_,
+      asio_service->post(std::bind(&DataStore::Refresh, data_store_,
           &returned_kvts.at(count / kValuesPerEntry)));
     }
   }
