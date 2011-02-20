@@ -103,9 +103,9 @@ namespace transport {
 
 namespace test {
 
-class TestNatTraversal : public testing::Test {
+class NatTraversalTest : public testing::Test {
  public:
-  TestNatTraversal()
+  NatTraversalTest()
       : joining_transport_(),
         bootstrap_transport_(),
         rendezvous_transport1_(),
@@ -138,7 +138,7 @@ class TestNatTraversal : public testing::Test {
   UdtTransport rendezvous_transport1_, rendezvous_transport2_;
 };
 
-TEST_F(TestNatTraversal, BEH_UDT_DirectlyConnected) {
+TEST_F(NatTraversalTest, BEH_UDT_DirectlyConnected) {
   UdtTransport udt_transport;
   udt_transport.DoNatDetection();
   EXPECT_EQ(kNotConnected, udt_transport.nat_details_.nat_type);

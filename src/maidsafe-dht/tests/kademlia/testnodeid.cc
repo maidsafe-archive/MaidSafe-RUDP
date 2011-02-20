@@ -77,7 +77,7 @@ const std::string ToBinary(const std::string &raw_id)  {
   return result;
 }
 
-TEST(TestNodeId, BEH_KAD_BitToByteCount) {
+TEST(NodeIdTest, BEH_KAD_BitToByteCount) {
   for (size_t i = 0; i < kKeySizeBytes; ++i) {
     ASSERT_EQ(i, BitToByteCount(8 * i));
     for (size_t j = 1; j < 8; ++j) {
@@ -86,7 +86,7 @@ TEST(TestNodeId, BEH_KAD_BitToByteCount) {
   }
 }
 
-TEST(TestNodeId, BEH_KAD_DefaultCtr) {
+TEST(NodeIdTest, BEH_KAD_DefaultCtr) {
   NodeId node_id;
   ASSERT_EQ(kKeySizeBytes, node_id.String().size());
   for (size_t i = 0; i < node_id.String().size(); ++i)
@@ -97,7 +97,7 @@ TEST(TestNodeId, BEH_KAD_DefaultCtr) {
   ASSERT_EQ(bin_id, node_id.ToStringEncoded(NodeId::kBinary));
 }
 
-TEST(TestNodeId, BEH_KAD_CopyCtr) {
+TEST(NodeIdTest, BEH_KAD_CopyCtr) {
   NodeId kadid1(NodeId::kRandomId);
   NodeId kadid2(kadid1);
   ASSERT_TRUE(kadid1 == kadid2);
@@ -110,7 +110,7 @@ TEST(TestNodeId, BEH_KAD_CopyCtr) {
   ASSERT_EQ(kadid1.String(), kadid2.String());
 }
 
-TEST(TestNodeId, BEH_KAD_KadIdTypeCtr) {
+TEST(NodeIdTest, BEH_KAD_KadIdTypeCtr) {
   std::string min_id = kZeroId;
   ASSERT_EQ(kKeySizeBytes, min_id.size());
   for (int i = 0; i < kKeySizeBytes; ++i)
@@ -126,7 +126,7 @@ TEST(TestNodeId, BEH_KAD_KadIdTypeCtr) {
   ASSERT_NE(rand_id.String(), NodeId(NodeId::kRandomId).String());
 }
 
-TEST(TestNodeId, BEH_KAD_StringCtr) {
+TEST(NodeIdTest, BEH_KAD_StringCtr) {
   std::string rand_str(RandomString(kKeySizeBytes));
   NodeId id1(rand_str);
   ASSERT_TRUE(id1.String() == rand_str);
@@ -136,7 +136,7 @@ TEST(TestNodeId, BEH_KAD_StringCtr) {
   ASSERT_TRUE(id3.String().empty());
 }
 
-TEST(TestNodeId, BEH_KAD_EncodingCtr) {
+TEST(NodeIdTest, BEH_KAD_EncodingCtr) {
   std::string known_raw(kKeySizeBytes, 0);
   for (char c = 0; c < kKeySizeBytes; ++c)
     known_raw.at(static_cast<boost::uint8_t>(c)) = c;
@@ -205,7 +205,7 @@ TEST(TestNodeId, BEH_KAD_EncodingCtr) {
   }
 }
 
-TEST(TestNodeId, BEH_KAD_CtrPower) {
+TEST(NodeIdTest, BEH_KAD_CtrPower) {
   NodeId node_id(-2);
   ASSERT_FALSE(node_id.IsValid());
   node_id = NodeId(kKeySizeBits + 1);
@@ -220,7 +220,7 @@ TEST(TestNodeId, BEH_KAD_CtrPower) {
   }
 }
 
-TEST(TestNodeId, BEH_KAD_CtrBetweenIds) {
+TEST(NodeIdTest, BEH_KAD_CtrBetweenIds) {
   NodeId id1(NodeId::kRandomId), id2(NodeId::kRandomId);
   NodeId bad_id(-2);
   NodeId id(id1, bad_id);
@@ -262,7 +262,7 @@ TEST(TestNodeId, BEH_KAD_CtrBetweenIds) {
   }
 }
 
-TEST(TestNodeId, BEH_KAD_InsertKadContact) {
+TEST(NodeIdTest, BEH_KAD_InsertKadContact) {
   std::vector<Contact> contacts;
   transport::Endpoint ep("IP", 10000);
   for (char c = '9'; c >= '0'; --c)
@@ -292,7 +292,7 @@ TEST(TestNodeId, BEH_KAD_InsertKadContact) {
   ASSERT_TRUE(contacts.at(10).node_id() == contacts_before.at(0).node_id());
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorEqual) {
+TEST(NodeIdTest, BEH_KAD_OperatorEqual) {
   NodeId kadid1(NodeId::kRandomId);
   std::string id(kadid1.String());
   NodeId kadid2(id);
@@ -310,7 +310,7 @@ TEST(TestNodeId, BEH_KAD_OperatorEqual) {
       kadid3.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorDifferent) {
+TEST(NodeIdTest, BEH_KAD_OperatorDifferent) {
   NodeId kadid1(NodeId::kRandomId);
   std::string id(kadid1.String());
   NodeId kadid2(id);
@@ -327,7 +327,7 @@ TEST(TestNodeId, BEH_KAD_OperatorDifferent) {
       kadid3.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorGreaterThan) {
+TEST(NodeIdTest, BEH_KAD_OperatorGreaterThan) {
   NodeId kadid1(NodeId::kRandomId);
   while (kadid1 == NodeId(NodeId::kMaxId))
     kadid1 = NodeId(NodeId::kRandomId);
@@ -344,7 +344,7 @@ TEST(TestNodeId, BEH_KAD_OperatorGreaterThan) {
       kadid3.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorLessThan) {
+TEST(NodeIdTest, BEH_KAD_OperatorLessThan) {
   NodeId kadid1(NodeId::kRandomId);
   while (kadid1 == NodeId(NodeId::kMaxId))
     kadid1 = NodeId(NodeId::kRandomId);
@@ -361,7 +361,7 @@ TEST(TestNodeId, BEH_KAD_OperatorLessThan) {
       kadid1.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorGreaterEqual) {
+TEST(NodeIdTest, BEH_KAD_OperatorGreaterEqual) {
   NodeId kadid1(NodeId::kRandomId);
   while (kadid1 == NodeId(NodeId::kMaxId))
     kadid1 = NodeId(NodeId::kRandomId);
@@ -375,7 +375,7 @@ TEST(TestNodeId, BEH_KAD_OperatorGreaterEqual) {
       kadid1.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorLessEqual) {
+TEST(NodeIdTest, BEH_KAD_OperatorLessEqual) {
   NodeId kadid1(NodeId::kRandomId);
   while (kadid1 == NodeId(NodeId::kMaxId))
     kadid1 = NodeId(NodeId::kRandomId);
@@ -389,7 +389,7 @@ TEST(TestNodeId, BEH_KAD_OperatorLessEqual) {
       kadid3.ToStringEncoded(NodeId::kBinary) << std::endl;
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorXOR) {
+TEST(NodeIdTest, BEH_KAD_OperatorXOR) {
   NodeId kadid1(NodeId::kRandomId), kadid2(NodeId::kRandomId);
   NodeId kadid3(kadid1 ^ kadid2);
   std::string binid1(kadid1.ToStringEncoded(NodeId::kBinary));
@@ -418,7 +418,7 @@ TEST(TestNodeId, BEH_KAD_OperatorXOR) {
     ASSERT_EQ('\0', zero[i]);
 }
 
-TEST(TestNodeId, BEH_KAD_OperatorEql) {
+TEST(NodeIdTest, BEH_KAD_OperatorEql) {
   NodeId kadid1(NodeId::kRandomId), kadid2;
   kadid2 = kadid1;
   ASSERT_TRUE(kadid1 == kadid2);

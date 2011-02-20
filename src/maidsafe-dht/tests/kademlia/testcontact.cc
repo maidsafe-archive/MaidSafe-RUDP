@@ -40,9 +40,9 @@ namespace kademlia {
 
 namespace test {
 
-class TestContact : public testing::Test {
+class ContactTest : public testing::Test {
  public:
-  TestContact()
+  ContactTest()
       : kNodeId_(NodeId::kRandomId),
         kIp_(IP::from_string("192.168.1.55")),
         kRvIp_(IP::from_string("192.168.1.56")),
@@ -70,7 +70,7 @@ class TestContact : public testing::Test {
     direct_connected_contact_ = Contact(kNodeId_, kEndpoint_,
         direct_connected_locals_, transport::Endpoint(), false, true);
   }
-  ~TestContact() {}
+  ~ContactTest() {}
  protected:
   const NodeId kNodeId_;
   const IP kIp_, kRvIp_, kLocalIp1_, kLocalIp2_;
@@ -140,7 +140,7 @@ testing::AssertionResult ContactDetails(const Contact &contact,
   return testing::AssertionSuccess();
 }
 
-TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
+TEST_F(ContactTest, BEH_KAD_GetIpPortNodeId) {
   const Port kLocalPort2(4444);
   std::vector<transport::Endpoint> bad_locals;
   bad_locals.push_back(transport::Endpoint(kLocalIp1_, kLocalPort_));
@@ -182,7 +182,7 @@ TEST_F(TestContact, BEH_KAD_GetIpPortNodeId) {
   EXPECT_FALSE(bad_locals_contact.IsDirectlyConnected());
 }
 
-TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
+TEST_F(ContactTest, BEH_KAD_OverloadedOperators) {
   std::vector<transport::Endpoint> locals1(1,
       transport::Endpoint("192.168.1.56", 8889));
   std::vector<transport::Endpoint> locals2(1,
@@ -241,7 +241,7 @@ TEST_F(TestContact, BEH_KAD_OverloadedOperators) {
   EXPECT_GE(contact9, contact9);
 }
 
-TEST_F(TestContact, BEH_KAD_SetPreferredEndpoint) {
+TEST_F(ContactTest, BEH_KAD_SetPreferredEndpoint) {
   // Before being set
   Contact contact(contact_), rv_contact(rv_contact_);
   transport::Endpoint preferred_endpoint(contact.PreferredEndpoint());
@@ -328,7 +328,7 @@ TEST_F(TestContact, BEH_KAD_SetPreferredEndpoint) {
   EXPECT_EQ(kRvPort_, preferred_endpoint.port);
 }
 
-TEST_F(TestContact, BEH_KAD_ToFromProtobuf) {
+TEST_F(ContactTest, BEH_KAD_ToFromProtobuf) {
   protobuf::Contact proto_contact(ToProtobuf(contact_));
   EXPECT_TRUE(proto_contact.IsInitialized());
   protobuf::Contact rv_proto_contact(ToProtobuf(rv_contact_));
@@ -368,7 +368,7 @@ TEST_F(TestContact, BEH_KAD_ToFromProtobuf) {
       IP(), 0, IP(), 0, IP(), 0));
 }
 
-TEST_F(TestContact, BEH_KAD_ContactWithinClosest) {
+TEST_F(ContactTest, BEH_KAD_ContactWithinClosest) {
   std::vector<Contact> contacts;
   std::vector<transport::Endpoint> locals(1, kEndpoint_);
   contacts.push_back(Contact(NodeId(
@@ -387,7 +387,7 @@ TEST_F(TestContact, BEH_KAD_ContactWithinClosest) {
   EXPECT_FALSE(ContactWithinClosest(not_close, contacts, NodeId(kZeroId)));
 }
 
-TEST_F(TestContact, BEH_KAD_RemoveContact) {
+TEST_F(ContactTest, BEH_KAD_RemoveContact) {
   std::vector<Contact> contacts;
   std::vector<transport::Endpoint> locals(1, kEndpoint_);
   contacts.push_back(Contact(NodeId(crypto::Hash<crypto::SHA512>("aaa")),
