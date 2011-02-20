@@ -47,9 +47,9 @@ namespace test {
 
 static const boost::uint16_t k = 16;
 
-class TestRoutingTable : public testing::Test {
+class RoutingTableTest : public testing::Test {
  public:
-  TestRoutingTable()
+  RoutingTableTest()
     : rank_info_(),
       holder_id_(NodeId::kRandomId),
       routing_table_(holder_id_, test::k) {
@@ -157,18 +157,18 @@ class TestRoutingTable : public testing::Test {
   Contact contact_;
 };
 
-TEST_F(TestRoutingTable, BEH_KAD_CallToPrivateFunctions) {
+TEST_F(RoutingTableTest, BEH_KAD_CallToPrivateFunctions) {
   // Test Private member functions (GetLastSeenContact)
   // (kBucketIndex) (KBucketCount) (KbucketSizeForKey) (KDistanceTo)
   this->CallToPrivateFunctions();
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_Constructor) {
+TEST_F(RoutingTableTest, BEH_KAD_Constructor) {
   ASSERT_EQ(0U, GetSize());
   ASSERT_EQ(1U, GetKBucketCount());
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_Clear) {
+TEST_F(RoutingTableTest, BEH_KAD_Clear) {
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
@@ -186,7 +186,7 @@ TEST_F(TestRoutingTable, BEH_KAD_Clear) {
   ASSERT_EQ(1U, GetKBucketCount());
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_GetContact) {
+TEST_F(RoutingTableTest, BEH_KAD_GetContact) {
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
@@ -208,7 +208,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetContact) {
   ASSERT_NE(non_exist_result, Contact());
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_AddContactForRandomCommonLeadingBits) {
+TEST_F(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   // Compose contact with random common_leading_bits
   for (int i = 0; i < test::k; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_,
@@ -230,7 +230,7 @@ TEST_F(TestRoutingTable, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   EXPECT_LT(1U, GetKBucketCount());
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_AddContactForHigherCommonLeadingBits) {
+TEST_F(RoutingTableTest, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   // GenerateUniqueRandomId will flip the bit specified by the position
   // so the i=0 one will be the different to the holderId
   for (int i = 0; i < test::k; ++i) {
@@ -249,7 +249,7 @@ TEST_F(TestRoutingTable, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   EXPECT_EQ(expected_kbucket_count, GetKBucketCount());
 }
 
-TEST_F(TestRoutingTable, FUNC_KAD_ForceKAcceptNewPeer) {
+TEST_F(RoutingTableTest, FUNC_KAD_ForceKAcceptNewPeer) {
   // As this test is not multi-threaded, for convenience we can safely use an
   // upgrade lock on a shared mutex which isn't the routing table's member mutex
   boost::shared_mutex shared_mutex;
@@ -333,7 +333,7 @@ TEST_F(TestRoutingTable, FUNC_KAD_ForceKAcceptNewPeer) {
   }
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_AddContact) {
+TEST_F(RoutingTableTest, BEH_KAD_AddContact) {
   {
     // try to add the holder itself into the routing table
     Contact contact = ComposeContact(holder_id_, 5000);
@@ -425,7 +425,7 @@ TEST_F(TestRoutingTable, BEH_KAD_AddContact) {
   }
 }
 
-TEST_F(TestRoutingTable, FUNC_KAD_AddContactPerformanceMaxFullFill) {
+TEST_F(RoutingTableTest, FUNC_KAD_AddContactPerformanceMaxFullFill) {
   // the last four common bits will not split kbucket
   for (int common_head = 0; common_head < 500; ++common_head) {
     for (int num_contact = 0; num_contact < k; ++num_contact) {
@@ -438,7 +438,7 @@ TEST_F(TestRoutingTable, FUNC_KAD_AddContactPerformanceMaxFullFill) {
   }
 }
 
-TEST_F(TestRoutingTable, FUNC_KAD_AddContactPerformance8000RandomFill) {
+TEST_F(RoutingTableTest, FUNC_KAD_AddContactPerformance8000RandomFill) {
   for (int num_contact = 0; num_contact < 8000; ++num_contact) {
     NodeId contact_id(NodeId::kRandomId);
     Contact contact = ComposeContact(contact_id, 5000);
@@ -454,7 +454,7 @@ TEST_F(TestRoutingTable, FUNC_KAD_AddContactPerformance8000RandomFill) {
   }
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_GetContactsClosestToOwnId) {
+TEST_F(RoutingTableTest, BEH_KAD_GetContactsClosestToOwnId) {
   {
     // try to get close contacts from an empty routing table
     std::vector<Contact> close_contacts;
@@ -545,7 +545,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetContactsClosestToOwnId) {
   }
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_GetCloseContacts) {
+TEST_F(RoutingTableTest, BEH_KAD_GetCloseContacts) {
   NodeId target_id = GenerateUniqueRandomId(holder_id_, 500);
   {
     // try to get close contacts from an empty routing table
@@ -693,7 +693,7 @@ TEST_F(TestRoutingTable, BEH_KAD_GetCloseContacts) {
   }
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_SetPublicKey) {
+TEST_F(RoutingTableTest, BEH_KAD_SetPublicKey) {
   this->FillContactToRoutingTable();
   std::string new_public_key(RandomString(113));
   EXPECT_EQ(-1, routing_table_.SetPublicKey(NodeId(NodeId::kRandomId),
@@ -706,7 +706,7 @@ TEST_F(TestRoutingTable, BEH_KAD_SetPublicKey) {
       contact_.node_id()))).public_key);
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_UpdateRankInfo) {
+TEST_F(RoutingTableTest, BEH_KAD_UpdateRankInfo) {
   this->FillContactToRoutingTable();
   RankInfoPtr new_rank_info(new(transport::Info));
   new_rank_info->rtt = 13313;
@@ -718,7 +718,7 @@ TEST_F(TestRoutingTable, BEH_KAD_UpdateRankInfo) {
       contact_.node_id()))).rank_info->rtt);
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_SetPreferredEndpoint) {
+TEST_F(RoutingTableTest, BEH_KAD_SetPreferredEndpoint) {
   this->FillContactToRoutingTable();
   IP ip = IP::from_string("127.0.0.1");
   EXPECT_EQ(-1, routing_table_.SetPreferredEndpoint(NodeId(NodeId::kRandomId),
@@ -728,7 +728,7 @@ TEST_F(TestRoutingTable, BEH_KAD_SetPreferredEndpoint) {
     contact_.node_id()))).contact.PreferredEndpoint().ip);
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_IncrementFailedRpcCount) {
+TEST_F(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
   this->FillContactToRoutingTable();
   EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(
       NodeId(NodeId::kRandomId)));
@@ -755,7 +755,7 @@ TEST_F(TestRoutingTable, BEH_KAD_IncrementFailedRpcCount) {
   }
 }
 
-TEST_F(TestRoutingTable, BEH_KAD_GetBootstrapContacts) {
+TEST_F(RoutingTableTest, BEH_KAD_GetBootstrapContacts) {
   this->FillContactToRoutingTable();
   std::vector<Contact> contacts;
   routing_table_.GetBootstrapContacts(&contacts);

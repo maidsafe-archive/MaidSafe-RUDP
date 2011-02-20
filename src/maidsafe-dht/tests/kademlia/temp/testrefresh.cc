@@ -46,15 +46,15 @@ namespace kademlia {
 namespace refresh_test {
 
 /*
-class TestRefresh : public testing::Test {
+class RefreshTest : public testing::Test {
  public:
-  TestRefresh() : transports_(), ch_managers_(), nodes_(), datadirs_(),
+  RefreshTest() : transports_(), ch_managers_(), nodes_(), datadirs_(),
                   test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
                   testNetworkSize_(10), transport_ports_() {
     test_dir_ += boost::lexical_cast<std::string>(RandomUint32());
   }
 
-  ~TestRefresh() { transport::UdtTransport::CleanUp(); }
+  ~RefreshTest() { transport::UdtTransport::CleanUp(); }
 
   void SetUp() {
     try {
@@ -168,7 +168,7 @@ class TestRefresh : public testing::Test {
 //  std::vector<rpcprotocol::Port> transport_ports_;
 };
 
-TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
+TEST_F(RefreshTest, FUNC_KAD_RefreshValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
@@ -209,7 +209,7 @@ TEST_F(TestRefresh, FUNC_KAD_RefreshValue) {
   }
 }
 
-TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
+TEST_F(RefreshTest, FUNC_KAD_NewNodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
@@ -296,16 +296,16 @@ TEST_F(TestRefresh, FUNC_KAD_NewNodeinKClosest) {
   chm->Stop();
 }
 
-class TestRefreshSignedValues : public testing::Test {
+class RefreshSignedValuesTest : public testing::Test {
  protected:
-  TestRefreshSignedValues()
+  RefreshSignedValuesTest()
       : transports_(), ch_managers_(), nodes_(), datadirs_(), keys_(),
         test_dir_("temp/TestNodes_"), testK_(4), testRefresh_(10),
         testNetworkSize_(10), validators_(), transport_ports_() {
     test_dir_ += boost::lexical_cast<std::string>(RandomUint32());
   }
 
-  ~TestRefreshSignedValues() {
+  ~RefreshSignedValuesTest() {
     transport::UdtTransport::CleanUp();
   }
 
@@ -433,7 +433,7 @@ class TestRefreshSignedValues : public testing::Test {
   std::vector<transport::Port> transport_ports_;
 };
 
-TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
+TEST_F(RefreshSignedValuesTest, FUNC_KAD_RefreshSignedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
@@ -483,7 +483,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_RefreshSignedValue) {
   }
 }
 
-TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
+TEST_F(RefreshSignedValuesTest, FUNC_KAD_NewRSANodeinKClosest) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);
@@ -591,7 +591,7 @@ TEST_F(TestRefreshSignedValues, FUNC_KAD_NewRSANodeinKClosest) {
   chm->Stop();
 }
 
-TEST_F(TestRefreshSignedValues, FUNC_KAD_InformOfDeletedValue) {
+TEST_F(RefreshSignedValuesTest, FUNC_KAD_InformOfDeletedValue) {
   // Storing a Value
   crypto::Crypto co;
   co.set_hash_algorithm(crypto::SHA_512);

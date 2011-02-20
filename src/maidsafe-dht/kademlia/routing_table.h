@@ -61,9 +61,9 @@ namespace transport { struct Info; }
 namespace kademlia {
 
 namespace test {
-class TestRoutingTable;
-class TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
-class TestRoutingTable_FUNC_KAD_ForceKAcceptNewPeer_Test;
+class RoutingTableTest;
+class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
+class RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
 }  // namespace test
 
 class KBucket;
@@ -324,9 +324,9 @@ class RoutingTable {
    *  @return The ping_oldest_contact_ signal. */
   PingOldestContactPtr ping_oldest_contact();
 
-  friend class test::TestRoutingTable;
-  friend class test::TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
-  friend class test::TestRoutingTable_FUNC_KAD_ForceKAcceptNewPeer_Test;
+  friend class test::RoutingTableTest;
+  friend class test::RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
+  friend class test::RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
 
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
