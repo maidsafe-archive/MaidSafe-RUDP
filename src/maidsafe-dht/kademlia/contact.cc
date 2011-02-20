@@ -40,7 +40,7 @@ Contact::Contact(const Contact &other) : pimpl_(new Contact::Impl(other)) {}
 
 Contact::Contact(const NodeId &node_id,
                  const transport::Endpoint &endpoint,
-                 std::vector<transport::Endpoint> &local_endpoints,
+                 const std::vector<transport::Endpoint> &local_endpoints,
                  const transport::Endpoint &rendezvous_endpoint,
                  bool tcp443,
                  bool tcp80)
@@ -118,8 +118,7 @@ bool Contact::operator>=(const Contact &other) const {
 bool CloserToTarget(const Contact &contact1,
                     const Contact &contact2,
                     const NodeId &target) {
-  return (NodeId::CloserToTarget(contact1.node_id(), contact2.node_id(),
-          target));
+  return NodeId::CloserToTarget(contact1.node_id(), contact2.node_id(), target);
 }
 
 bool ContactWithinClosest(const Contact &contact,
