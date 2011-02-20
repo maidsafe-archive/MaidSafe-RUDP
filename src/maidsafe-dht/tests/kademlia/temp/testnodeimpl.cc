@@ -87,10 +87,10 @@ class TestValidator : public SignatureValidator {
                        const std::string&, const std::string&) { return true; }
 };
 
-class TestNodeImpl : public testing::Test {
+class NodeImplTest : public testing::Test {
  protected:
   static void SetUpTestCase() {
-    test_dir_ = std::string("temp/TestNodeImpl") +
+    test_dir_ = std::string("temp/NodeImplTest") +
                 boost::lexical_cast<std::string>(RandomUint32());
 //    asio_service_.reset(new boost::asio::io_service);
 //    udt_.reset(new transport::UdtTransport(asio_service_));
@@ -134,15 +134,15 @@ class TestNodeImpl : public testing::Test {
   static boost::shared_ptr<boost::asio::io_service> asio_service_;
 };
 
-std::string TestNodeImpl::test_dir_;
-boost::int16_t TestNodeImpl::transport_id_ = 0;
-boost::shared_ptr<transport::UdtTransport> TestNodeImpl::udt_;
-boost::shared_ptr<NodeImpl> TestNodeImpl::node_;
-GeneralKadCallback TestNodeImpl::cb_;
-boost::shared_ptr<boost::asio::io_service> TestNodeImpl::asio_service_;
+std::string NodeImplTest::test_dir_;
+boost::int16_t NodeImplTest::transport_id_ = 0;
+boost::shared_ptr<transport::UdtTransport> NodeImplTest::udt_;
+boost::shared_ptr<NodeImpl> NodeImplTest::node_;
+GeneralKadCallback NodeImplTest::cb_;
+boost::shared_ptr<boost::asio::io_service> NodeImplTest::asio_service_;
 
 /*
-TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
+TEST_F(NodeImplTest, BEH_NodeImpl_ContactFunctions) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(GetLocalAddress(&local_ip));
   NodeId key1a, key2a, key1b(NodeId::kRandomId), key2b(NodeId::kRandomId),
@@ -162,7 +162,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_ContactFunctions) {
   SortLookupContact(target_key, &contact_list);
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
+TEST_F(NodeImplTest, BEH_NodeImpl_Uninitialised_Values) {
   DeleteValueCallback dvc;
   SignedValue signed_value, new_value;
   SignedRequest request_signature;
@@ -181,7 +181,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_Uninitialised_Values) {
   ASSERT_FALSE(uvc.result());
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_ExecuteRPCs) {
+TEST_F(NodeImplTest, BEH_NodeImpl_ExecuteRPCs) {
   node_->is_joined_ = false;
   SignedValue old_value, new_value;
   SignedRequest sig_req;
@@ -278,7 +278,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_ExecuteRPCs) {
   ASSERT_FALSE(dvc.result());
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
+TEST_F(NodeImplTest, BEH_NodeImpl_NotJoined) {
   node_->is_joined_ = false;
   node_->RefreshRoutine();
 
@@ -295,7 +295,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_NotJoined) {
 }
 */
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
+TEST_F(NodeImplTest, BEH_NodeImpl_AddContactsToContainer) {
   bool done(false);
   std::vector<Contact> contacts;
   std::list<Contact> lcontacts;
@@ -321,7 +321,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_AddContactsToContainer) {
 }
 
 /*
-TEST_F(TestNodeImpl, BEH_NodeImpl_GetAlphas) {
+TEST_F(NodeImplTest, BEH_NodeImpl_GetAlphas) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -363,7 +363,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_GetAlphas) {
   ASSERT_EQ(boost::uint16_t(quotient + 1), fna->round);
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
+TEST_F(NodeImplTest, BEH_NodeImpl_MarkNode) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -410,7 +410,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_MarkNode) {
   ASSERT_FALSE(node_->MarkNode(not_in_list, fna, kSearchContacted));
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_BetaDone) {
+TEST_F(NodeImplTest, BEH_NodeImpl_BetaDone) {
   bool done(false), calledback(false);
   std::list<Contact> lcontacts;
   NodeId key(NodeId::kRandomId);
@@ -484,7 +484,7 @@ class MockIterativeSearchResponse : public NodeImpl {
   }
 };
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
+TEST_F(NodeImplTest, BEH_NodeImpl_IterativeSearchResponse) {
   bool done(false), calledback(false);
   NodeId key(NodeId::kRandomId);
   boost::shared_ptr<FindNodesArgs> fna(
@@ -603,7 +603,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //  std::list<Contact> node_list_, backup_node_list_;
 //};
 //
-//TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
+//TEST_F(NodeImplTest, BEH_NodeImpl_IterativeSearchHappy) {
 //  bool done(false);
 //  NodeId key(NodeId::kRandomId);
 //  std::list<Contact> lcontacts;
@@ -648,7 +648,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //  node_->rpcs_ = old_rpcs;
 //}
 //
-//TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
+//TEST_F(NodeImplTest, BEH_NodeImpl_FindNodesHappy) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
 //  node_->routing_table_->Clear();
@@ -743,7 +743,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchResponse) {
 //  node_->rpcs_ = old_rpcs;
 //}
 //
-//TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
+//TEST_F(NodeImplTest, BEH_NodeImpl_FindNodesContactsInReponse) {
 //  bool done(false);
 //  std::list<Contact> lcontacts;
 //  node_->routing_table_->Clear();
@@ -864,7 +864,7 @@ class MockRpcs : public Rpcs {
   std::list<Contact> node_list_, backup_node_list_;
 };
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
+TEST_F(NodeImplTest, BEH_NodeImpl_IterativeSearchHappy) {
   bool done(false);
   NodeId key(NodeId::kRandomId);
   std::list<Contact> lcontacts;
@@ -913,7 +913,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_IterativeSearchHappy) {
   node_->rpcs_ = old_rpcs;
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
+TEST_F(NodeImplTest, BEH_NodeImpl_FindNodesHappy) {
   bool done(false);
   std::list<Contact> lcontacts;
   node_->routing_table_->Clear();
@@ -1013,7 +1013,7 @@ TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesHappy) {
   node_->rpcs_ = old_rpcs;
 }
 
-TEST_F(TestNodeImpl, BEH_NodeImpl_FindNodesContactsInReponse) {
+TEST_F(NodeImplTest, BEH_NodeImpl_FindNodesContactsInReponse) {
   bool done(false);
   std::list<Contact> lcontacts;
   node_->routing_table_->Clear();
