@@ -107,7 +107,10 @@ void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
   if (!contacts || contacts->empty())
     return;
   std::sort(contacts->begin(), contacts->end(),
-            boost::bind(&CloserToTarget, _1, _2, target_key));
+      boost::bind(static_cast<bool(*)(const Contact&,
+                                      const Contact&,
+                                      const NodeId&)>(&CloserToTarget),
+                  _1, _2, target_key));
 }
 
 //void SortLookupContact(const Key &target_key,
