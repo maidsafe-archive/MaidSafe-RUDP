@@ -176,7 +176,7 @@ IF(NOT DEFINED ${KDEV})
   ENDIF()
 ENDIF()
 # Create CTestCustom.cmake to avoid inclusion of coverage results from third-party code
-FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"udt/\" \"upnp/\")\n\n")
+FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \".pb.\" \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"thirdpartylibs/\" \"udt/\" \"upnp/\")\n\n")
 
 ###################################################################################################
 # Set default directories to be searched for included files and libs                              #
@@ -420,7 +420,7 @@ ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/cryptopp ${CMAKE_BIN
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
 ADD_EXECUTABLE(TESTcommon ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_COMMON_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTkademlia EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONALKADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})

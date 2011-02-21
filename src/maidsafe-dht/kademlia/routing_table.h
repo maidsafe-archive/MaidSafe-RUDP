@@ -61,9 +61,9 @@ namespace transport { struct Info; }
 namespace kademlia {
 
 namespace test {
-  class TestRoutingTable;
-  class TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
-  class TestRoutingTable_BEH_KAD_ForceKAcceptNewPeer_Test;
+  class RoutingTableTest;
+  class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
+  class RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   class ServicesTest;
 }  // namespace test
 
@@ -179,6 +179,7 @@ struct ChangeLastSeen {
   // Anju: use nolint to satisfy multi-indexing
   void operator()(RoutingTableContact &routing_table_contact) {  // NOLINT
     routing_table_contact.last_seen = new_last_seen;
+    routing_table_contact.num_failed_rpcs = 0;
   }
   bptime::ptime new_last_seen;
 };
@@ -308,12 +309,12 @@ class RoutingTable {
    *  @return Error code, 0 for success, -1 for failure */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
   /** Increase one node's failedRPC counter by one.  If the count exceeds the
-      value of kFailedRpcTolerance, the contact is removed from the routing
-      table.
+   *  value of kFailedRpcTolerance, the contact is removed from the routing
+   *  table.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @return The value of the contact's current failed RPC count.  If the
-      contact has been removed, the value will be kFailedRpcTolerance + 1.  If
-      operation fails, the value will be -1. */
+   *  contact has been removed, the value will be kFailedRpcTolerance + 1.  If
+   *  operation fails, the value will be -1. */
   int IncrementFailedRpcCount(const NodeId &node_id);
   /** Get the routing table holder's direct-connected nodes.
    *  For a direct-connected node, there must be no rendezvous endpoint,
@@ -324,11 +325,17 @@ class RoutingTable {
    *  @return The ping_oldest_contact_ signal. */
   PingOldestContactPtr ping_oldest_contact();
 
-  friend class test::TestRoutingTable;
-  friend class test::TestRoutingTable_BEH_KAD_GetContactsClosestToOwnId_Test;
-  friend class test::TestRoutingTable_BEH_KAD_ForceKAcceptNewPeer_Test;
+  friend class test::RoutingTableTest;
+  friend class test::RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
+  friend class test::RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   friend class test::ServicesTest;
+
  private:
+  typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+  typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+  typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+  typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
+      UpgradeToUniqueLock;
   /** Finds a number of known nodes closest to the holder node in the current
    *  routing table.
    *  @param[in] count Number of closest nodes looking for.
@@ -350,41 +357,49 @@ class RoutingTable {
    *  the specified common_heading_bits.
    *  @param[in] common_heading_bits The common_heading_bits the target node.
    *  @return The index of the k-bucket which is in responsible. */
-  boost::uint16_t KBucketIndex(const boost::uint16_t &common_heading_bits);  
+  boost::uint16_t KBucketIndex(const boost::uint16_t &common_heading_bits);
   /** Getter.
    *  @return Num of kbuckets in the routing table. */
   boost::uint16_t KBucketCount() const;
   /** Get the number of contacts in a specified kbucket
    *  @param[in] key The index of the target k-bucket.
    *  @return Num of contacts in the specified kbucket */
-  boost::uint16_t KBucketSizeForKey(const boost::uint16_t &key);  
-  /** Bisect the k-bucket into two new ones */
-  void SplitKbucket();
+  boost::uint16_t KBucketSizeForKey(const boost::uint16_t &key);
+  /** Insert a contact into the routing table.
+   *  @param[in] contact The new contact which needs to be added
+   *  @param[in] rank_info The contact's rank_info
+   *  @param[in] upgrade_lock An UpgradeLock held on shared_mutex_ */
+  void InsertContact(const Contact &contact,
+                     RankInfoPtr rank_info,
+                     std::shared_ptr<UpgradeLock> upgrade_lock);
+  /** Bisect the k-bucket into two new ones.
+   *  @param[in] upgrade_lock An UpgradeLock held on shared_mutex_ */
+  void SplitKbucket(std::shared_ptr<UpgradeLock> upgrade_lock);
   /** Forces the brother k-bucket of the holder to accept a new contact which
-    *  would normally be dropped if it is within the k closest contacts to the
-  *  holder's ID.
-  *  @param[in] new_contact The new contact needs to be added.
-  *  @param[in] target_bucket The kbucket shall in responsible of the new
-  *  contact
-  *  @return Error Code:  0   for succeed,
-  *                       -1  for No brother bucket
-  *                       -2  for v==0
-  *                       -3  for Not in Brother Bucket
-  *                       -4  for New peer isn't among the k closest */
+   *  would normally be dropped if it is within the k closest contacts to the
+   *  holder's ID.
+   *  @param[in] new_contact The new contact needs to be added.
+   *  @param[in] target_bucket The kbucket shall in responsible of the new
+   *  contact
+   *  @param[in] upgrade_lock An UpgradeLock held on shared_mutex_
+   *  @return Error Code:  0   for succeed,
+   *                       -1  for No brother bucket
+   *                       -2  for v==0
+   *                       -3  for Not in Brother Bucket
+   *                       -4  for New peer isn't among the k closest */
   int ForceKAcceptNewPeer(const Contact &new_contact,
                           const boost::uint16_t &target_bucket,
-                          const RankInfoPtr &rank_info);
-  /**
-  * XOR KBucket distance between two kademlia IDs.
-  * Measured by the number of common leading bits.
-  * The less the value is, the further the distance (the wider range) is.
-  * @param[in] rhs NodeId to which this is XOR
-  * @return the number of samed bits from the begining
-  */
+                          RankInfoPtr rank_info,
+                          std::shared_ptr<UpgradeLock> upgrade_lock);
+  /** XOR KBucket distance between two kademlia IDs.
+   *  Measured by the number of common leading bits.
+   *  The less the value is, the further the distance (the wider range) is.
+   *  @param[in] rhs NodeId to which this is XOR
+   *  @return the number of common bits from the beginning */
   boost::uint16_t KDistanceTo(const NodeId &rhs) const;
   /** Getter.
    *  @return Num of contacts in the routing table. */
-  size_t Size() const;
+  size_t Size();
   /** Empty the routing table */
   void Clear();
 
@@ -404,13 +419,8 @@ class RoutingTable {
   /** Thread safe mutex lock */
   boost::shared_mutex shared_mutex_;
   /** The index to the bucket that the holder shall sit in
-   *  It shall always be the value that 1 greater than the brother bucket*/
+   *  It shall always be the value that 1 greater than the brother bucket */
   boost::uint16_t bucket_of_holder_;
-  typedef boost::shared_lock<boost::shared_mutex> SharedLock;
-  typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
-  typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
-  typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
-      UpgradeToUniqueLock;
 };
 
 }  // namespace kademlia

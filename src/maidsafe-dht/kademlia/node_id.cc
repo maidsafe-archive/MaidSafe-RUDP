@@ -57,7 +57,10 @@ NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
   }
 }
 
-NodeId::NodeId(const std::string &id) : raw_id_(id) {}
+NodeId::NodeId(const std::string &id) : raw_id_(id) {
+  if (!IsValid())
+    raw_id_.clear();
+}
 
 NodeId::NodeId(const std::string &id, const EncodingType &encoding_type)
     : raw_id_() {
