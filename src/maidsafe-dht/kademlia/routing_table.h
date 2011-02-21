@@ -62,8 +62,9 @@ namespace kademlia {
 
 namespace test {
   class RoutingTableTest;
+  class RoutingTableSingleKTest;
   class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
-  class RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
+  class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   class ServicesTest;
 }  // namespace test
 
@@ -326,8 +327,9 @@ class RoutingTable {
   PingOldestContactPtr ping_oldest_contact();
 
   friend class test::RoutingTableTest;
+  friend class test::RoutingTableSingleKTest;
   friend class test::RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
-  friend class test::RoutingTableTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
+  friend class test::RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   friend class test::ServicesTest;
 
  private:
