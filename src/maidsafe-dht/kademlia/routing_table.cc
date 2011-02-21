@@ -62,6 +62,7 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     contacts_.modify(it_node,
                      ChangeLastSeen(bptime::microsec_clock::universal_time()));
+    contacts_.modify(it_node, ChangeNumFailedRpc(0));
   } else {
     InsertContact(contact, rank_info, upgrade_lock);
   }

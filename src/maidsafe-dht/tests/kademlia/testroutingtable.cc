@@ -342,6 +342,23 @@ TEST_F(RoutingTableTest, BEH_KAD_AddContact) {
     EXPECT_EQ(1U, GetKBucketCount());
     EXPECT_EQ(0U, GetKBucketSizeForKey(0));
   }
+  {
+    // Test update NumFailedRpc and LastSeen when new contact already exists
+    NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    routing_table_.IncrementFailedRpcCount(contact_id);
+    bptime::ptime old_last_seen = (*(GetContainer().get<NodeIdTag>().find(
+        contact_.node_id()))).last_seen;
+    ASSERT_EQ(1U, (*(GetContainer().get<NodeIdTag>().find(
+        contact_id))).num_failed_rpcs);
+    routing_table_.AddContact(contact, rank_info_);
+    ASSERT_EQ(0U, (*(GetContainer().get<NodeIdTag>().find(
+        contact_id))).num_failed_rpcs);
+    ASSERT_NE(old_last_seen, (*(GetContainer().get<NodeIdTag>().find(
+        contact_id))).last_seen);
+  }
+  Clear();
   boost::uint16_t i(0);
   {
     // create a list contacts having 3 common leading bits with the holder
