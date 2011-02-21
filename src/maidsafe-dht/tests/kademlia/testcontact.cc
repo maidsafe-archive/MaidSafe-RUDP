@@ -368,7 +368,7 @@ TEST_F(ContactTest, BEH_KAD_ToFromProtobuf) {
       IP(), 0, IP(), 0, IP(), 0));
 }
 
-TEST_F(ContactTest, BEH_KAD_ContactWithinClosest) {
+TEST_F(ContactTest, BEH_KAD_NodeWithinClosest) {
   std::vector<Contact> contacts;
   std::vector<transport::Endpoint> locals(1, kEndpoint_);
   contacts.push_back(Contact(NodeId(
@@ -378,13 +378,11 @@ TEST_F(ContactTest, BEH_KAD_ContactWithinClosest) {
       DecodeFromHex(std::string(2 * kKeySizeBytes, '7'))), kEndpoint_, locals,
       transport::Endpoint(), false, false));
 
-  Contact close(NodeId(DecodeFromHex(std::string(2 * kKeySizeBytes, '3'))),
-                kEndpoint_, locals, transport::Endpoint(), false, false);
-  Contact not_close(NodeId(DecodeFromHex(std::string(2 * kKeySizeBytes, 'f'))),
-                    kEndpoint_, locals, transport::Endpoint(), false, false);
+  NodeId close_node(DecodeFromHex(std::string(2 * kKeySizeBytes, '3')));
+  NodeId not_close_node(DecodeFromHex(std::string(2 * kKeySizeBytes, 'f')));
 
-  EXPECT_TRUE(ContactWithinClosest(close, contacts, NodeId(kZeroId)));
-  EXPECT_FALSE(ContactWithinClosest(not_close, contacts, NodeId(kZeroId)));
+  EXPECT_TRUE(NodeWithinClosest(close_node, contacts, NodeId(kZeroId)));
+  EXPECT_FALSE(NodeWithinClosest(not_close_node, contacts, NodeId(kZeroId)));
 }
 
 TEST_F(ContactTest, BEH_KAD_RemoveContact) {
