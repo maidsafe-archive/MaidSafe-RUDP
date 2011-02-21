@@ -531,7 +531,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     protobuf::FindValueResponse find_value_rsp;
     find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
     find_value_req.set_key(target_key);
-    std::shared_ptr<AlternativeStoreFalse>
+    AlternativeStoreFalsePtr
         alternative_store_false_ptr(new AlternativeStoreFalse());
     Service service(routing_table_, data_store_,
                     alternative_store_false_ptr, securifier_);
@@ -561,7 +561,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     protobuf::FindValueResponse find_value_rsp;
     find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
     find_value_req.set_key(target_key);
-    std::shared_ptr<AlternativeStoreTrue>
+    AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
     Service service(routing_table_, data_store_,
                     alternative_store_true_ptr, securifier_);                    
