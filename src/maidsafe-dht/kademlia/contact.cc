@@ -115,18 +115,26 @@ bool Contact::operator>=(const Contact &other) const {
   return *pimpl_ >= *other.pimpl_;
 }
 
+bool CloserToTarget(const NodeId &node_id,
+                    const Contact &contact,
+                    const NodeId &target) {
+  return NodeId::CloserToTarget(node_id, contact.node_id(), target);
+}
+
 bool CloserToTarget(const Contact &contact1,
                     const Contact &contact2,
                     const NodeId &target) {
   return NodeId::CloserToTarget(contact1.node_id(), contact2.node_id(), target);
 }
 
-bool ContactWithinClosest(const Contact &contact,
-                          const std::vector<Contact> &closest_contacts,
-                          const NodeId &target) {
+bool NodeWithinClosest(const NodeId &node_id,
+                       const std::vector<Contact> &closest_contacts,
+                       const NodeId &target) {
   return std::find_if(closest_contacts.rbegin(), closest_contacts.rend(),
-                      boost::bind(&CloserToTarget, contact, _1, target)) !=
-         closest_contacts.rend();
+      boost::bind(static_cast<bool(*)(const NodeId&,
+                                      const Contact&,
+                                      const NodeId&)>(&CloserToTarget),
+                  node_id, _1, target)) != closest_contacts.rend();
 }
 
 bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
