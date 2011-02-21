@@ -80,15 +80,15 @@ class MessageHandler {
   MessageHandler& operator=(const MessageHandler&);
 };
 
-class TestNodes : public testing::Test {
+class NodesTest : public testing::Test {
  public:
-  TestNodes() : nodes_(), ch_managers_(), transports_(), transport_ports_(),
+  NodesTest() : nodes_(), ch_managers_(), transports_(), transport_ports_(),
                  msg_handlers_(), datastore_dir_(2), test_dir_() {}
-  virtual ~TestNodes() {}
+  virtual ~NodesTest() {}
  protected:
   void SetUp() {
     transports_.clear();
-    test_dir_ = std::string("temp/TestNodes") +
+    test_dir_ = std::string("temp/NodesTest") +
                 boost::lexical_cast<std::string>(RandomUint32());
     try {
       if (boost::filesystem::exists(test_dir_))
@@ -157,7 +157,7 @@ class TestNodes : public testing::Test {
   std::string test_dir_;
 };
 
-TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
+TEST_F(NodesTest, BEH_KAD_TestLastSeenNotReply) {
   if (test_add_node::K <= 2) {
     SUCCEED();
     return;
@@ -248,7 +248,7 @@ TEST_F(TestNodes, BEH_KAD_TestLastSeenNotReply) {
   ASSERT_FALSE(nodes_[0].is_joined());
 }
 
-TEST_F(TestNodes, FUNC_KAD_TestLastSeenReplies) {
+TEST_F(NodesTest, FUNC_KAD_TestLastSeenReplies) {
   if (test_add_node::K <= 2) {
     SUCCEED();
     return;

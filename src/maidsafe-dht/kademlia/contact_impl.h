@@ -50,7 +50,7 @@ class Contact::Impl {
   explicit Impl(const Contact &other);
   Impl(const NodeId &node_id,
        const transport::Endpoint &endpoint,
-       std::vector<transport::Endpoint> &local_endpoints,
+       const std::vector<transport::Endpoint> &local_endpoints,
        const transport::Endpoint &rendezvous_endpoint,
        bool tcp443,
        bool tcp80);

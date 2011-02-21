@@ -65,7 +65,7 @@ class Contact {
    *  @param tcp443 Whether the contact is listening on TCP port 80 or not. */
   Contact(const NodeId &node_id,
           const transport::Endpoint &endpoint,
-          std::vector<transport::Endpoint> &local_endpoints,
+          const std::vector<transport::Endpoint> &local_endpoints,
           const transport::Endpoint &rendezvous_endpoint,
           bool tcp443,
           bool tcp80);
