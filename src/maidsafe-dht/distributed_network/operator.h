@@ -233,4 +233,4 @@ class Operator {
 
 }  // namespace net_client
 
-#endif  // MAIDSAFE_DISTRIBUTED_NETWORK_OPERATOR_H_
+#endif  // MAIDSAFE_DHT_DISTRIBUTED_NETWORK_OPERATOR_H_

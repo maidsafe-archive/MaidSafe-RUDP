@@ -119,7 +119,7 @@ std::string RandomString(const size_t &length) {
     boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
         g_random_number_generator, uniform_distribution);
     std::generate(random_string.begin(), random_string.end(), uni);
-  } 
+  }
   return random_string;
 }
 
