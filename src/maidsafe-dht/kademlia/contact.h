@@ -113,21 +113,21 @@ class Contact {
   /** Assignment operator. */
   Contact& operator=(const Contact &other);
 
-  //@{
+  // @{
   /** Equality and inequality operators.
    *  Equality is based on node ID or (IP and port) if dummy */
   bool operator==(const Contact &other) const;
   bool operator!=(const Contact &other) const;
-  //@}
+  // @}
 
-  //@{
+  // @{
   /** Comparison operators.
    *  Comparisons are based on node ID (lexicographical comparison) */
   bool operator<(const Contact &other) const;
   bool operator>(const Contact &other) const;
   bool operator<=(const Contact &other) const;
   bool operator>=(const Contact &other) const;
-  //@}
+  // @}
 
  private:
   class Impl;

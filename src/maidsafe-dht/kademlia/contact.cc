@@ -131,7 +131,7 @@ bool NodeWithinClosest(const NodeId &node_id,
                        const std::vector<Contact> &closest_contacts,
                        const NodeId &target) {
   return std::find_if(closest_contacts.rbegin(), closest_contacts.rend(),
-      boost::bind(static_cast<bool(*)(const NodeId&,
+      boost::bind(static_cast<bool(*)(const NodeId&,  // NOLINT
                                       const Contact&,
                                       const NodeId&)>(&CloserToTarget),
                   node_id, _1, target)) != closest_contacts.rend();

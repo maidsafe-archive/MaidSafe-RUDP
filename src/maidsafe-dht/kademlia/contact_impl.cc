@@ -106,7 +106,7 @@ void Contact::Impl::Clear() {
 }
 
 transport::Endpoint Contact::Impl::tcp443endpoint() const {
-  return tcp443_ ? transport::Endpoint(endpoint_.ip, 443) : 
+  return tcp443_ ? transport::Endpoint(endpoint_.ip, 443) :
                    transport::Endpoint();
 }
 
@@ -151,7 +151,7 @@ transport::Endpoint Contact::Impl::PreferredEndpoint() const {
 }
 
 bool Contact::Impl::IsDirectlyConnected() const {
-  return (tcp443_ || tcp80_ || 
+  return (tcp443_ || tcp80_ ||
              (!prefer_local_ && !local_endpoints_.empty() &&
               local_endpoints_.front().ip == endpoint_.ip));
 }
