@@ -189,7 +189,7 @@ class ServicesTest: public testing::Test {
     transport::Endpoint end_point(ip, port);
     local_endpoints.push_back(end_point);
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false);
+                    false, "", "", "");
     return contact;
   }
 

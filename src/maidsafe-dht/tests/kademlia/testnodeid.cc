@@ -267,14 +267,16 @@ TEST(NodeIdTest, BEH_KAD_InsertKadContact) {
   transport::Endpoint ep("IP", 10000);
   for (char c = '9'; c >= '0'; --c)
     contacts.push_back(Contact(NodeId(std::string(64, c)), ep,
-                       std::vector<transport::Endpoint>(), ep, false, false));
+                       std::vector<transport::Endpoint>(), ep, false, false,
+                       "", "", ""));
   ASSERT_EQ(size_t(10), contacts.size());
   // Copy the vector.
   std::vector<Contact> contacts_before(contacts);
   std::string key(64, 'b');
   NodeId kad_key(key);
   Contact new_contact(NodeId(std::string(64, 'a')), ep,
-                      std::vector<transport::Endpoint>(), ep, false, false);
+                      std::vector<transport::Endpoint>(), ep, false, false,
+                      "", "", "");
   contacts.push_back(new_contact);
   SortContacts(kad_key, &contacts);
   ASSERT_EQ(size_t(11), contacts.size());
