@@ -51,7 +51,7 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
                  std::shared_ptr<DataStore> data_store,
                  AlternativeStorePtr alternative_store,
                  SecurifierPtr securifier,
-                 const boost::uint16_t &k )
+                 const boost::uint16_t &k)
     : routing_table_(routing_table),
       datastore_(data_store),
       alternative_store_(alternative_store),
@@ -71,7 +71,7 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       securifier_(securifier),
       node_joined_(false),
       node_contact_(),
-      k_(size_t(16)),
+      k_(16U),
       ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
 
 Service::~Service() {
@@ -98,9 +98,16 @@ void Service::ConnectToSignals(TransportPtr transport,
   message_handler->on_store_request()->connect(
       MessageHandler::StoreReqSigPtr::element_type::slot_type(
           &Service::Store, this, _1, _2, _3, _4, _5).track(shared_from_this()));
+  message_handler->on_store_refresh_request()->connect(
+      MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
+          &Service::StoreRefresh, this, _1, _2, _3).track(shared_from_this()));
   message_handler->on_delete_request()->connect(
       MessageHandler::DeleteReqSigPtr::element_type::slot_type(
           &Service::Delete, this, _1, _2, _3, _4, _5).track(
+              shared_from_this()));
+  message_handler->on_delete_refresh_request()->connect(
+      MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
+          &Service::DeleteRefresh, this, _1, _2, _3).track(
               shared_from_this()));
   message_handler->on_downlist_notification()->connect(
       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
@@ -185,25 +192,17 @@ void Service::FindNodes(const transport::Info &info,
   routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
 }
 
-//  Here are two situations need to be handled:
-//        Original Store (publish) and Refresh
-//  If the request is a refresh, the 6 and 7 fields in the StoreRequest message
-//  will be populated. If the 6 and 7 fields are not populated, then the request
-//  is an original store (publish)
-//  In case of an original store, message and message_signature hold the value
-//  In case of refresh, 6 and 7 fields in the StoreRequest hold the value
 void Service::Store(const transport::Info &info,
                     const protobuf::StoreRequest &request,
                     const std::string &message,
                     const std::string &message_signature,
                     protobuf::StoreResponse *response) {
   response->set_result(false);
-  bool result(false);
+
   if (!node_joined_)
     return;
-  if (message_signature.empty() ||
-      message.empty() ||
-      securifier_ == NULL) {
+
+  if (message_signature.empty() || message.empty() || !securifier_) {
     DLOG(WARNING) << "Input Error" << std::endl;
     return;
   }
@@ -223,6 +222,16 @@ void Service::Store(const transport::Info &info,
   securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);
 }
 
+void Service::StoreRefresh(const transport::Info &info,
+                           const protobuf::StoreRefreshRequest &request,
+                           protobuf::StoreRefreshResponse *response) {
+  response->set_result(false);
+
+  if (!node_joined_)
+    return;
+
+}
+
 void Service::StoreCallback (const KeyValueSignature key_value_signature,
                              const protobuf::StoreRequest request,
                              const transport::Info info,
@@ -230,7 +239,7 @@ void Service::StoreCallback (const KeyValueSignature key_value_signature,
                              protobuf::StoreResponse *response,
                              const std::string public_key,
                              const std::string public_key_validation) {
-  if  ( !securifier_->Validate(
+  if (!securifier_->Validate(
           key_value_signature.value, request.sender().node_id(),
           key_value_signature.signature, request.public_key_id(), public_key,
           public_key_validation, request.key() ) ) {
@@ -280,6 +289,11 @@ void Service::Delete(const transport::Info &info,
       &Service::DeleteCallback, this, key_value_signature, request, info,
       is_refresh, response, _1, _2);
   securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);  
+}
+
+void Service::DeleteRefresh(const transport::Info &info,
+                            const protobuf::DeleteRefreshRequest &request,
+                            protobuf::DeleteRefreshResponse *response) {
 }
 
 void Service::DeleteCallback (const KeyValueSignature key_value_signature,

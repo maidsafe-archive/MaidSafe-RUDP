@@ -127,31 +127,45 @@ class Service : public boost::enable_shared_from_this<Service> {
                  const protobuf::FindNodesRequest &request,
                  protobuf::FindNodesResponse *response);
   /** Handle Store request.
-   *  It can be a publish request or just a refresh request
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to store.
    *  @param[in] message_signature The signature of the message to store.
-   *  @param[out] response To response. */                 
+   *  @param[out] response The response. */                 
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
              const std::string &message,
              const std::string &message_signature,
              protobuf::StoreResponse *response);
-  /** Handle Delete request.
-   *  It can be a publish request or just a refresh request
+  /** Handle StoreRefresh request.
    *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response The response. */                 
+  void StoreRefresh(const transport::Info &info,
+                    const protobuf::StoreRefreshRequest &request,
+                    protobuf::StoreRefreshResponse *response);
+  /** Handle Delete request.
+   *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to delete.
    *  @param[in] message_signature The signature of the message to delete.
-   *  @param[out] response To response. */              
+   *  @param[out] response The response. */                 
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
-              protobuf::DeleteResponse *response);
+              protobuf::DeleteResponse *response);  /** Handle Store request.
+  /** Handle DeleteRefresh request.
+   *  The request sender will be added into the routing table.
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response The response. */                 
+  void DeleteRefresh(const transport::Info &info,
+                     const protobuf::DeleteRefreshRequest &request,
+                     protobuf::DeleteRefreshResponse *response);
   /** Handle Downlist request.
    *  Try to ping the contacts in the downlist and then remove those no-response
    *  contacts from the routing table
@@ -160,7 +174,7 @@ class Service : public boost::enable_shared_from_this<Service> {
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
   /** Getter.
-   *  @return The singal handler. */
+   *  @return The signal handler. */
   PingDownListContactsPtr GetPingOldestContactSingalHandler();
   /** Set the status to be joined or not joined
    *  @param joined The bool switch. */
