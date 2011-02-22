@@ -55,7 +55,7 @@ bool IsListeningOnTCP(const Contact &contact);
 void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts);
 
 //// sort the contact list according the distance to the target key
-//void SortLookupContact(const Key &target_key,
+// void SortLookupContact(const Key &target_key,
 //                       std::vector<LookupContact> *lookup_contacts);
 
 }  // namespace kademlia

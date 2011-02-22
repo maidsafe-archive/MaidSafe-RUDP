@@ -60,7 +60,7 @@ Contact FromProtobuf(const protobuf::Contact &pb_contact) {
       NodeId(pb_contact.node_id()),
       Endpoint(pb_contact.endpoint().ip(), pb_contact.endpoint().port()),
       local_endpoints,
-      pb_contact.has_rendezvous() ? 
+      pb_contact.has_rendezvous() ?
           Endpoint(pb_contact.rendezvous().ip(),
                    pb_contact.rendezvous().port()) :
           Endpoint(),
@@ -107,13 +107,13 @@ void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
   if (!contacts || contacts->empty())
     return;
   std::sort(contacts->begin(), contacts->end(),
-      boost::bind(static_cast<bool(*)(const Contact&,
+      boost::bind(static_cast<bool(*)(const Contact&,  // NOLINT
                                       const Contact&,
                                       const NodeId&)>(&CloserToTarget),
                   _1, _2, target_key));
 }
 
-//void SortLookupContact(const Key &target_key,
+// void SortLookupContact(const Key &target_key,
 //                       std::vector<LookupContact> *lookup_contacts) {
 //  if (contact_list->empty()) {
 //    return;
@@ -138,7 +138,7 @@ void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
 //    ctc.contacted = it1->contacted;
 //    contact_list->push_back(ctc);
 //  }
-//}
+// }
 
 }  // namespace kademlia
 
