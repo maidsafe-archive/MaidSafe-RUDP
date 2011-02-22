@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
-#define MAIDSAFE_DHT_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
+#ifndef MAIDSAFE_DHT_TESTS_KADEMLIA_TEMP_FAKE_CALLBACKS_H_
+#define MAIDSAFE_DHT_TESTS_KADEMLIA_TEMP_FAKE_CALLBACKS_H_
 
 
 #include <list>
@@ -118,7 +118,7 @@ class FindCallback : public FakeCallback {
   std::vector<protobuf::SignedValue> signed_values_;
 };
 
-//class GetNodeContactDetailsCallback : public FakeCallback {
+// class GetNodeContactDetailsCallback : public FakeCallback {
 // public:
 //  GetNodeContactDetailsCallback() : result_msg(), contact_() {
 //  }
@@ -139,7 +139,7 @@ class FindCallback : public FakeCallback {
 // private:
 //  protobuf::FindNodeResult result_msg;
 //  std::string contact_;
-//};
+// };
 
 class GeneralKadCallback : public FakeCallback {
  public:
@@ -210,4 +210,4 @@ inline void wait_result(FakeCallback *callback) {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TESTS_KADEMLIA_FAKE_CALLBACKS_H_
+#endif  // MAIDSAFE_DHT_TESTS_KADEMLIA_TEMP_FAKE_CALLBACKS_H_

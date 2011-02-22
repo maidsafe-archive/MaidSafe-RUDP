@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <vector>
 #include <typeinfo>
-#include <iostream>
+// #include <iostream>
 #include "gtest/gtest.h"
 
 /*
@@ -51,7 +51,7 @@ TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
 TEST(cplusplus, BEH_BASE_auto) {
   auto x = 7;
   ASSERT_EQ(x, 7);
-  ASSERT_EQ(typeid(int), typeid(7));
+  ASSERT_STREQ(typeid(int).name(), typeid(7).name());  // NOLINT
   std::vector<int> v;
   v.push_back(50);
   v.push_back(-10);
@@ -63,7 +63,7 @@ TEST(cplusplus, BEH_BASE_auto) {
   p.push_back(21);
   p.push_back(-29);
   for (auto it = v.begin(); it != v.end(); ++it)
-   *it = *it+1;
+    *it = *it+1;
   ASSERT_EQ(v, p);
 }
 /* gcc 4.5
@@ -109,8 +109,7 @@ TEST(cplusplus, BEH_BASE_lambda) {
 
 // gcc 4.6
 TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
-
-// 	int my_array[5] = {1, 2, 3, 4, 5};
+//   int my_array[5] = {1, 2, 3, 4, 5};
 //   for (int &x: my_array) {
 //     x *= 2;
 //    }
@@ -118,13 +117,11 @@ TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
 }
 
 TEST(DISABLE_cplusplus, BEH_BASE_localAndUnamedTemplteArgs) {
-
 // template< typename First, typename Second, int third>
 // class SomeType;
 //
 // template< typename Second>
 // using TypedefName = SomeType<OtherType, Second, 5>;
-
 }
 
 
