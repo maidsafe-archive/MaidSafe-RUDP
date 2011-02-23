@@ -81,8 +81,9 @@ class Contact::Impl {
   bool IpMatchesEndpoint(const transport::IP &ip,
                          const transport::Endpoint &endpoint);
   NodeId node_id_;
+  transport::Endpoint endpoint_;
   std::vector<transport::Endpoint> local_endpoints_;
-  transport::Endpoint endpoint_, rendezvous_endpoint_;
+  transport::Endpoint rendezvous_endpoint_;
   bool tcp443_, tcp80_, prefer_local_;
 };
 
