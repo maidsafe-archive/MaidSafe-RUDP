@@ -193,7 +193,7 @@ void Rpcs::PingCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     PingFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
@@ -208,7 +208,7 @@ void Rpcs::FindValueCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindValueResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     FindValueFunctor callback) {
   std::vector<std::string> values;
   std::vector<Contact> contacts;
@@ -241,7 +241,7 @@ void Rpcs::FindNodesCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindNodesResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     FindNodesFunctor callback) {
   std::vector<Contact> contacts;
 
@@ -263,7 +263,7 @@ void Rpcs::StoreCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     StoreFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
@@ -278,7 +278,7 @@ void Rpcs::DeleteCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     DeleteFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
