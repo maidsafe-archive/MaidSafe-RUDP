@@ -29,4 +29,3 @@ Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
 Please note the src/udt directory is a (nearly clean) CVS copy of the official udt
 project and typing CVS update in src/udt will bring this directory up to date at any time.
 
-
