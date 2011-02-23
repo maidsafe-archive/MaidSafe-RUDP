@@ -899,7 +899,6 @@ MESSAGE("")
 SET(MAIDSAFE_BASE_INSTALL_FILES
       maidsafe/base/alternativestore.h
       maidsafe/base/crypto.h
-      maidsafe/base/generalmessages.pb.h
       maidsafe/base/log.h
       maidsafe/base/online.h
       maidsafe/base/routingtable.h
@@ -907,11 +906,8 @@ SET(MAIDSAFE_BASE_INSTALL_FILES
       maidsafe/base/validationinterface.h)
 SET(MAIDSAFE_KAD_INSTALL_FILES
       maidsafe/kademlia/contact.h
-      maidsafe/kademlia/contactinfo.pb.h
       maidsafe/kademlia/nodeid.h
-      maidsafe/kademlia/node-api.h
-      maidsafe/kademlia/rpcmessages.pb.h
-      maidsafe/kademlia/signedvalue.pb.h)
+      maidsafe/kademlia/node-api.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
       maidsafe/maidsafe-dht.h
       maidsafe/maidsafe-dht_config.h)
