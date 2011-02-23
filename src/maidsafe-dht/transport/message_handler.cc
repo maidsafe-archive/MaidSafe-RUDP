@@ -52,7 +52,7 @@ void MessageHandler::OnMessageReceived(const std::string &request,
                                        Timeout *timeout) {
   if (request.empty())
     return;
-  SecurityType security_type = request.front();
+  SecurityType security_type = request.at(0);
   if (security_type && !securifier_)
     return;
 
