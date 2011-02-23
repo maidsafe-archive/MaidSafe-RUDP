@@ -221,6 +221,19 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContact) {
   ASSERT_NE(non_exist_result, Contact());
 }
 
+TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
+  // Note: this test case might need to be modified once the signal slot
+  // is connected (i.e. there is handler to set the Validated tag automaticaly)
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact = ComposeContact(contact_id, 5001);
+  routing_table_.AddContact(contact, rank_info_);
+  ASSERT_EQ(false, (*(GetContainer().get<NodeIdTag>().find(
+      contact_id))).validated);
+  routing_table_.SetValidated(contact_id, true);
+  ASSERT_EQ(true, (*(GetContainer().get<NodeIdTag>().find(
+      contact_id))).validated);  
+}
+
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   // Compose contact with random common_leading_bits
   for (int i = 0; i < k_; ++i) {
