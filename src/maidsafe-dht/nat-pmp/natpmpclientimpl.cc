@@ -125,7 +125,7 @@ void NatPmpClientImpl::SetMapPortSuccessCallback(
   nat_pmp_map_port_success_cb_ = map_port_success_cb;
 }
 
-void NatPmpClientImpl::SendMappingRequest(boost::uint16_t protocol,
+void NatPmpClientImpl::SendMappingRequest(boost::uint32_t protocol,
                                           boost::uint16_t private_port,
                                           boost::uint16_t public_port,
                                           boost::uint32_t lifetime) {
@@ -133,7 +133,7 @@ void NatPmpClientImpl::SendMappingRequest(boost::uint16_t protocol,
       this, protocol, private_port, public_port, lifetime));
 }
 
-void NatPmpClientImpl::DoSendMappingRequest(boost::uint16_t protocol,
+void NatPmpClientImpl::DoSendMappingRequest(boost::uint32_t protocol,
                                             boost::uint16_t private_port,
                                             boost::uint16_t public_port,
                                             boost::uint32_t lifetime) {
