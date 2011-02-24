@@ -4,7 +4,7 @@ if (%1)==() (call :set_default_rootpath) else (set rootpath=%1)
 echo Checking files - each "." represents a single file.
 dir %rootpath%\src\*.cc /s /b >%temp%\filelist.txt
 dir %rootpath%\src\*.h /s /b >>%temp%\filelist.txt
-findstr /i /v "src\maidsafe\boost src\maidsafe\cryptopp src\maidsafe\libupnp src\maidsafe\protobuf src\maidsafe\udt .pb." %temp%\filelist.txt > %temp%\filelist2.txt
+findstr /i /v "src\maidsafe-dht\boost src\maidsafe-dht\cryptopp src\maidsafe-dht\libupnp src\maidsafe-dht\protobuf src\maidsafe-dht\udt .pb." %temp%\filelist.txt > %temp%\filelist2.txt
 echo Setup>%temp%\code_style_errors.txt
 set count=0
 for /f %%g in (%temp%\filelist2.txt) do (
