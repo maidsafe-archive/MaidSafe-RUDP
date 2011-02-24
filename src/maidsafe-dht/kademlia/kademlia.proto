@@ -10,6 +10,9 @@ message Contact {
   optional transport.protobuf.Endpoint rendezvous = 5;
   optional bool tcp443 = 6;
   optional bool tcp80 = 7;
+  optional bytes public_key_id = 8;
+  optional bytes public_key = 9;
+  optional bytes other_info = 10;
 }
 
 message KadConfig {

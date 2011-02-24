@@ -55,20 +55,28 @@ class Contact {
    *  endpoint.  Furthermore, for a direct-connected node, there must be no
    *  rendezvous endpoint, but either of tcp443 or tcp80 may be true.  For a
    *  non-direct-connected node, both of tcp443 and tcp80 must be false, but it
-   *  may have a rendezvous endpoint set.  A contact is deemed to direct-
+   *  may have a rendezvous endpoint set.  A contact is deemed to be direct-
    *  connected if the endpoint equals the first local endpoint.
-   *  @param node_id The contact's Kademlia ID.
-   *  @param endpoint The contact's external endpoint.
-   *  @param local_endpoints The contact's local endpoints.  They must all have
-   *  the same port, or local_endpoints_ will be set to an empty vector.
-   *  @param tcp443 Whether the contact is listening on TCP port 443 or not.
-   *  @param tcp443 Whether the contact is listening on TCP port 80 or not. */
+   *  @param[in] node_id The contact's Kademlia ID.
+   *  @param[in] endpoint The contact's external endpoint.
+   *  @param[in] local_endpoints The contact's local endpoints.  They must all
+   *             have the same port, or local_endpoints_ will be set empty.
+   *  @param[in] tcp443 Whether the contact is listening on TCP port 443 or not.
+   *  @param[in] tcp443 Whether the contact is listening on TCP port 80 or not.
+   *  @param[in] public_key_id ID of the public key which should be used to
+   *             encrypt messages for this contact.
+   *  @param[in] public_key Public key which should be used to encrypt messages
+   *             for this contact.
+   *  @param[in] other_info Any extra information to be held. */
   Contact(const NodeId &node_id,
           const transport::Endpoint &endpoint,
-          std::vector<transport::Endpoint> &local_endpoints,
+          const std::vector<transport::Endpoint> &local_endpoints,
           const transport::Endpoint &rendezvous_endpoint,
           bool tcp443,
-          bool tcp80);
+          bool tcp80,
+          const std::string &public_key_id,
+          const std::string &public_key,
+          const std::string &other_info);
 
   /** Destructor. */
   ~Contact();
@@ -97,6 +105,20 @@ class Contact {
    *  @return The contact's external endpoint which is on TCP port 80. */
   transport::Endpoint tcp80endpoint() const;
 
+  /** Getter.
+   *  @return ID of the public key which should be used to encrypt messages for
+   *          this contact. */
+  std::string public_key_id() const;
+
+  /** Getter.
+   *  @return Public key which should be used to encrypt messages for this
+   *          contact. */
+  std::string public_key() const;
+
+  /** Getter.
+   *  @return Any extra information held for this contact. */
+  std::string other_info() const;
+
   /** Setter to mark which of the contact's endpoints should be preferred.
    *  @param ip IP of preferred endpoint.
    *  @return Success of operation. */
@@ -113,37 +135,41 @@ class Contact {
   /** Assignment operator. */
   Contact& operator=(const Contact &other);
 
-  //@{
+  // @{
   /** Equality and inequality operators.
    *  Equality is based on node ID or (IP and port) if dummy */
   bool operator==(const Contact &other) const;
   bool operator!=(const Contact &other) const;
-  //@}
+  // @}
 
-  //@{
+  // @{
   /** Comparison operators.
    *  Comparisons are based on node ID (lexicographical comparison) */
   bool operator<(const Contact &other) const;
   bool operator>(const Contact &other) const;
   bool operator<=(const Contact &other) const;
   bool operator>=(const Contact &other) const;
-  //@}
+  // @}
 
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;
 };
 
+/** Returns true if node_id is closer to target than contact. */
+bool CloserToTarget(const NodeId &node_id,
+                    const Contact &contact,
+                    const NodeId &target);
+
 /** Returns true if contact1 is closer to target than contact2. */
 bool CloserToTarget(const Contact &contact1,
                     const Contact &contact2,
                     const NodeId &target);
 
-/** Returns true if contact is closer to target than any one of
- *  closest_contacts. */
-bool ContactWithinClosest(const Contact &contact,
-                          const std::vector<Contact> &closest_contacts,
-                          const NodeId &target);
+/** Returns true if node_id is closer to target than any of closest_contacts. */
+bool NodeWithinClosest(const NodeId &node_id,
+                       const std::vector<Contact> &closest_contacts,
+                       const NodeId &target);
 
 /** Erases all contacts from vector which have the given node_id and returns
  *  true if any were erased. */

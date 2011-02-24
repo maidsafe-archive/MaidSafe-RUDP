@@ -62,10 +62,10 @@ class TestValidator : public SignatureValidator {
 static const boost::uint16_t K = 16;
 
 /*
-class TestNodeFunctions : public testing::Test {
+class NodeFunctionsTest : public testing::Test {
  protected:
   static void SetUpTestCase() {
-    test_dir_ = std::string("temp/TestNodeFunctions") +
+    test_dir_ = std::string("temp/NodeFunctionsTest") +
                 boost::lexical_cast<std::string>(RandomUint32());
 
     udt_.reset(new transport::UdtTransport);
@@ -114,20 +114,20 @@ class TestNodeFunctions : public testing::Test {
   static GeneralKadCallback cb_;
 };
 
-std::string TestNodeFunctions::test_dir_;
-boost::shared_ptr<transport::UdtTransport> TestNodeFunctions::udt_;
-boost::shared_ptr<rpcprotocol::ChannelManager> TestNodeFunctions::manager_;
-boost::shared_ptr<Node> TestNodeFunctions::node_;
-GeneralKadCallback TestNodeFunctions::cb_;
+std::string NodeFunctionsTest::test_dir_;
+boost::shared_ptr<transport::UdtTransport> NodeFunctionsTest::udt_;
+boost::shared_ptr<rpcprotocol::ChannelManager> NodeFunctionsTest::manager_;
+boost::shared_ptr<Node> NodeFunctionsTest::node_;
+GeneralKadCallback NodeFunctionsTest::cb_;
 
-TEST_F(TestNodeFunctions, BEH_NODE_GetNodesFromRoutingTable) {
+TEST_F(NodeFunctionsTest, BEH_NODE_GetNodesFromRoutingTable) {
   NodeId key(NodeId::kRandomId);
   std::vector<Contact> exclude_contacts, close_nodes;
   node_->GetNodesFromRoutingTable(key, exclude_contacts, &close_nodes);
   ASSERT_TRUE(close_nodes.empty());
 }
 
-TEST_F(TestNodeFunctions, BEH_NODE_AddGetRemoveContact) {
+TEST_F(NodeFunctionsTest, BEH_NODE_AddGetRemoveContact) {
   boost::asio::ip::address local_ip;
   ASSERT_TRUE(GetLocalAddress(&local_ip));
   NodeId key(NodeId::kRandomId);
@@ -144,7 +144,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_AddGetRemoveContact) {
   ASSERT_FALSE(c.Equals(n));
 }
 
-TEST_F(TestNodeFunctions, BEH_NODE_StoreRefreshTTLValueLocal) {
+TEST_F(NodeFunctionsTest, BEH_NODE_StoreRefreshTTLValueLocal) {
   NodeId key(NodeId::kRandomId);
   std::string value(RandomString(200));
   boost::uint32_t ttl(3600);
@@ -162,7 +162,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_StoreRefreshTTLValueLocal) {
   ASSERT_EQ(value, values.at(0));
 }
 
-TEST_F(TestNodeFunctions, BEH_NODE_CheckContactLocalAddress) {
+TEST_F(NodeFunctionsTest, BEH_NODE_CheckContactLocalAddress) {
   NodeId key(NodeId::kRandomId);
   Contact c(key, "127.0.0.1", 5000, "127.0.0.1", 0), n, o;
   if (!node_->GetContact(key, &n))
@@ -177,7 +177,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_CheckContactLocalAddress) {
 //  ASSERT_EQ(local_ip.to_string(), IpBytesToAscii(o.ip()));
 }
 
-TEST_F(TestNodeFunctions, BEH_NODE_RpcsKeysAlternativeStoreValidator) {
+TEST_F(NodeFunctionsTest, BEH_NODE_RpcsKeysAlternativeStoreValidator) {
   boost::shared_ptr<Rpcs> rpcs = node_->rpcs();
   ASSERT_FALSE(NULL == rpcs);
   ASSERT_TRUE(node_->using_signatures());
@@ -192,7 +192,7 @@ TEST_F(TestNodeFunctions, BEH_NODE_RpcsKeysAlternativeStoreValidator) {
   node_->set_signature_validator(&tv);
 }
 
-TEST_F(TestNodeFunctions, BEH_NODE_NodeInfo) {
+TEST_F(NodeFunctionsTest, BEH_NODE_NodeInfo) {
   ContactInfo ci = node_->contact_info();
   NodeId kid = node_->node_id();
   std::string ip = node_->ip();

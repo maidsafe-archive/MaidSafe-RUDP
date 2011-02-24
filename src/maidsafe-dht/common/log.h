@@ -35,8 +35,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #include <windows.h>
 #undef ERROR
+#pragma warning(push)
+#pragma warning(disable:4244)
 #endif
 #include "glog/logging.h"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 #else
 #include <iostream>  // NOLINT
 namespace google { inline void InitGoogleLogging(char*) {} }   // NOLINT

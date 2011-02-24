@@ -85,8 +85,8 @@ struct NatDetails {
 };
 
 namespace test {
-class TestNatTraversal;
-class TestNatTraversal_BEH_UDT_DirectlyConnected_Test;
+class NatTraversalTest;
+class NatTraversalTest_BEH_UDT_DirectlyConnected_Test;
 }  // namespace test
 
 typedef int SocketId;
@@ -142,8 +142,8 @@ class UdtTransport : public Transport,
       const boost::uint16_t &retry_frequency);
   bool RemoveManagedEndpoint(const ManagedEndpointId &managed_endpoint_id);*/
   friend class UdtConnection;
-  friend class test::TestNatTraversal;
-  friend class test::TestNatTraversal_BEH_UDT_DirectlyConnected_Test;
+  friend class test::NatTraversalTest;
+  friend class test::NatTraversalTest_BEH_UDT_DirectlyConnected_Test;
 
 
 

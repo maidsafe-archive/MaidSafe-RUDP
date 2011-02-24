@@ -56,14 +56,14 @@ struct FindNodesRpcArgs;
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
-bool CompareContact(const ContactAndTargetKey &first,
-                    const ContactAndTargetKey &second);
+//  bool CompareContact(const ContactAndTargetKey &first,
+//                      const ContactAndTargetKey &second);
 
-void SortContactGroup(const NodeId &target_key,
-                      std::vector<Contact> *contact_group);
+//  void SortContactGroup(const NodeId &target_key,
+//                        std::vector<Contact> *contact_group);
 
-void SortLookupContact(const NodeId &target_key,
-                       std::vector<LookupContact> *contact_group);
+//  void SortLookupContact(const NodeId &target_key,
+//                         std::vector<LookupContact> *contact_group);
 
 class Node::Impl {
  public:

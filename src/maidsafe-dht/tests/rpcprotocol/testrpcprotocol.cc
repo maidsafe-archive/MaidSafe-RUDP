@@ -654,7 +654,7 @@ void SendPingsThread(
   for (size_t n = 0; n < p_clients->size(); ++n) {
     Controller controller;
     controller.set_timeout(5000);
-    Channel out_channel(p_clients->at(n), "127.0.0.1", server_port,"", 0);
+    Channel out_channel(p_clients->at(n), "127.0.0.1", server_port, "", 0);
     tests::PingTest::Stub stubservice(&out_channel);
     tests::TestPingRequest req;
     tests::TestPingResponse resp;
@@ -773,20 +773,23 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsOneServer) {
   op_clients->resize(test_rpcprotocol::clients);
   mirror_clients->resize(test_rpcprotocol::clients);
   for (size_t n = 0; n < test_rpcprotocol::clients; ++n) {
-    ping_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    ping_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     ping_clients->at(n)->Start();
-    op_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    op_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     op_clients->at(n)->Start();
-    mirror_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    mirror_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     mirror_clients->at(n)->Start();
   }
 
   boost::thread th_pings(&SendPingsThread, this->server_port_, ping_clients,
                          &res_pings);
-  boost::thread th_ops(&SendOpsThread, this->server_port_, op_clients, &res_ops);
-  boost::thread th_mirrors(&SendMirrorsThread, this->server_port_, mirror_clients,
-                           &res_mirrors);
-
+  boost::thread th_ops(&SendOpsThread, this->server_port_,
+                       op_clients, &res_ops);
+  boost::thread th_mirrors(&SendMirrorsThread, this->server_port_,
+                           mirror_clients, &res_mirrors);
   th_pings.join();
   th_ops.join();
   th_mirrors.join();
@@ -808,7 +811,7 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsOneServer) {
 }
 
 TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
-  //******************************** Server A ****************************
+  // ******************************** Server A ****************************
   PingTestService serviceA1;
   TestOpService serviceA2;
   MirrorTestService serviceA3;
@@ -825,7 +828,7 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   this->server_channel_manager_->RegisterChannel(
       serviceA3.GetDescriptor()->name(), &service_channelA3);
 
-  //******************************** Server B ********************************
+  // ******************************** Server B ********************************
   boost::shared_ptr<transport::UdtTransport> Bserver_transport;
   boost::shared_ptr<ChannelManager> Bserver_chann_manager;
   Bserver_transport.reset(new transport::UdtTransport);
@@ -851,7 +854,7 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   Bserver_chann_manager->RegisterChannel(serviceB3.GetDescriptor()->name(),
                                          &service_channelB3);
 
- //******************************* Server C **********************************
+  // ******************************* Server C **********************************
   boost::shared_ptr<transport::UdtTransport> Cserver_transport;
   boost::shared_ptr<ChannelManager> Cserver_chann_manager;
   Cserver_transport.reset(new transport::UdtTransport);
@@ -877,7 +880,7 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   Cserver_chann_manager->RegisterChannel(serviceC3.GetDescriptor()->name(),
                                          &service_channelC3);
 
-  //******************************** Clients A ********************************
+  // ******************************** Clients A ********************************
   boost::shared_ptr<std::vector<ChannelManagerPtr> >
       Aping_clients(new std::vector<ChannelManagerPtr>);
   boost::shared_ptr< std::vector<ChannelManagerPtr> >
@@ -893,15 +896,18 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   Aop_clients->resize(test_rpcprotocol::clients);
   Amirror_clients->resize(test_rpcprotocol::clients);
   for (size_t n = 0; n < test_rpcprotocol::clients; ++n) {
-    Aping_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Aping_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Aping_clients->at(n)->Start();
-    Aop_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Aop_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Aop_clients->at(n)->Start();
-    Amirror_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Amirror_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Amirror_clients->at(n)->Start();
   }
 
-  //******************************** Clients B ********************************
+  // ******************************** Clients B ********************************
   boost::shared_ptr< std::vector<ChannelManagerPtr> >
       Bping_clients(new std::vector<ChannelManagerPtr>);
   boost::shared_ptr< std::vector<ChannelManagerPtr> >
@@ -917,15 +923,18 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   Bop_clients->resize(test_rpcprotocol::clients);
   Bmirror_clients->resize(test_rpcprotocol::clients);
   for (size_t n = 0; n < test_rpcprotocol::clients; ++n) {
-    Bping_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Bping_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Bping_clients->at(n)->Start();
-    Bop_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Bop_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Bop_clients->at(n)->Start();
-    Bmirror_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Bmirror_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Bmirror_clients->at(n)->Start();
   }
 
-  //******************************* Clients C *********************************
+  // ******************************* Clients C *********************************
   boost::shared_ptr< std::vector<ChannelManagerPtr> >
       Cping_clients(new std::vector<ChannelManagerPtr>);
   boost::shared_ptr<std::vector<ChannelManagerPtr> >
@@ -941,15 +950,18 @@ TYPED_TEST(RpcProtocolTest, FUNC_RPC_ThreadedClientsManyServers) {
   Cop_clients->resize(test_rpcprotocol::clients);
   Cmirror_clients->resize(test_rpcprotocol::clients);
   for (size_t n = 0; n < test_rpcprotocol::clients; ++n) {
-    Cping_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Cping_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Cping_clients->at(n)->Start();
-    Cop_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Cop_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Cop_clients->at(n)->Start();
-    Cmirror_clients->at(n).reset(new ChannelManager(boost::shared_ptr<transport::Transport>()));
+    Cmirror_clients->at(n).reset(
+        new ChannelManager(boost::shared_ptr<transport::Transport>()));
     Cmirror_clients->at(n)->Start();
   }
 
-  //******************************** Start threads ****************************
+  // ******************************** Start threads ****************************
   boost::thread th_pingsA(&SendPingsThread, this->server_port_, Aping_clients,
                           &Ares_pings);
   boost::thread th_opsA(&SendOpsThread, Bserver_port, Aop_clients, &Ares_ops);

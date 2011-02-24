@@ -25,6 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <algorithm>
+#include "boost/bind.hpp"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/kademlia.pb.h"
@@ -58,12 +60,15 @@ Contact FromProtobuf(const protobuf::Contact &pb_contact) {
       NodeId(pb_contact.node_id()),
       Endpoint(pb_contact.endpoint().ip(), pb_contact.endpoint().port()),
       local_endpoints,
-      pb_contact.has_rendezvous() ? 
+      pb_contact.has_rendezvous() ?
           Endpoint(pb_contact.rendezvous().ip(),
                    pb_contact.rendezvous().port()) :
           Endpoint(),
       pb_contact.has_tcp443() ? pb_contact.tcp443() : false,
-      pb_contact.has_tcp80() ? pb_contact.tcp80() : false);
+      pb_contact.has_tcp80() ? pb_contact.tcp80() : false,
+      pb_contact.has_public_key_id() ? pb_contact.public_key_id() : "",
+      pb_contact.has_public_key() ? pb_contact.public_key() : "",
+      pb_contact.has_other_info() ? pb_contact.other_info() : "");
 }
 
 protobuf::Contact ToProtobuf(const Contact &contact) {
@@ -83,7 +88,7 @@ protobuf::Contact ToProtobuf(const Contact &contact) {
     mutable_endpoint->set_port(contact.rendezvous_endpoint().port);
   }
 
-  std::vector<transport::Endpoint> &local_endpoints(contact.local_endpoints());
+  std::vector<transport::Endpoint> local_endpoints(contact.local_endpoints());
   for (auto it = local_endpoints.begin(); it != local_endpoints.end(); ++it) {
     pb_contact.add_local_ips((*it).ip.to_string(ec));
     pb_contact.set_local_port((*it).port);
@@ -94,6 +99,9 @@ protobuf::Contact ToProtobuf(const Contact &contact) {
   if (IsValid(contact.tcp80endpoint()))
     pb_contact.set_tcp80(true);
 
+  pb_contact.set_public_key_id(contact.public_key_id());
+  pb_contact.set_public_key(contact.public_key());
+  pb_contact.set_other_info(contact.other_info());
   return pb_contact;
 }
 
@@ -101,40 +109,17 @@ bool IsListeningOnTCP(const Contact &contact) {
   return IsValid(contact.tcp443endpoint()) || IsValid(contact.tcp80endpoint());
 }
 
-//bool CompareContact(const ContactAndTargetKey &first,
-//                    const ContactAndTargetKey &second) {
-//  NodeId id;
-//  if (first.contact.node_id() == id)
-//    return true;
-//  else if (second.contact.node_id() == id)
-//    return false;
-//  return NodeId::CloserToTarget(first.contact.node_id(),
-//      second.contact.node_id(), first.target_key);
-//}
-//
-//SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
-//  if (contact_list->empty())
-//    return;
-//
-//  std::list<ContactAndTargetKey> temp_list;
-//  std::list<Contact>::iterator it;
-//  // clone the contacts into a temporary list together with the target key
-//  for (it = contact_list->begin(); it != contact_list->end(); ++it) {
-//    ContactAndTargetKey new_ck;
-//    new_ck.contact = *it;
-//    new_ck.target_key = target_key;
-//    temp_list.push_back(new_ck);
-//  }
-//  temp_list.sort(CompareContact);
-//  // restore the sorted contacts from the temporary list.
-//  contact_list->clear();
-//  std::list<ContactAndTargetKey>::iterator it1;
-//  for (it1 = temp_list.begin(); it1 != temp_list.end(); ++it1) {
-//    contact_list->push_back(it1->contact);
-//  }
-//}
-//
-//void SortLookupContact(const Key &target_key,
+void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
+  if (!contacts || contacts->empty())
+    return;
+  std::sort(contacts->begin(), contacts->end(),
+      boost::bind(static_cast<bool(*)(const Contact&,  // NOLINT
+                                      const Contact&,
+                                      const NodeId&)>(&CloserToTarget),
+                  _1, _2, target_key));
+}
+
+// void SortLookupContact(const Key &target_key,
 //                       std::vector<LookupContact> *lookup_contacts) {
 //  if (contact_list->empty()) {
 //    return;
@@ -159,7 +144,7 @@ bool IsListeningOnTCP(const Contact &contact) {
 //    ctc.contacted = it1->contacted;
 //    contact_list->push_back(ctc);
 //  }
-//}
+// }
 
 }  // namespace kademlia
 

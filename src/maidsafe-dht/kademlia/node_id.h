@@ -142,6 +142,7 @@ class NodeId {
   * @return a NodeId object that is equal to this XOR rhs
   */
   const NodeId operator ^ (const NodeId &rhs) const;
+
  private:
   std::string EncodeToBinary() const;
   void DecodeFromBinary(const std::string &binary_id);

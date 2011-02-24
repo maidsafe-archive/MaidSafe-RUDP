@@ -181,8 +181,8 @@ TransportCondition UdtTransport::DoStartListening(
   }
 
   // Do NAT detection if needed
-//                                                  if (!nat_detection_endpoints_.empty())
-//                                                    asio_service_->post(boost::bind(&UdtTransport::DetectNat, this));
+//  if (!nat_detection_endpoints_.empty())
+//    asio_service_->post(boost::bind(&UdtTransport::DetectNat, this));
 
   return kSuccess;
 }
@@ -240,7 +240,7 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
                                         const Timeout &timeout) {
 }
 
-//void UdtTransport::DetectNat() {
+// void UdtTransport::DetectNat() {
 //  // Create message
 //  protobuf::NatDetectionRequest nat_detection_request;
 //  std::vector<IP> addresses(GetLocalAddresses());
@@ -301,7 +301,7 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
 //        continue;
 //      if (nat_info.nat_type() != kFullCone ||
 //          nat_info.nat_type() != kDirectlyConnected) {
-//        DLOG(ERROR) << "something's very very wrong. Not awesome." << std::endl;
+//        DLOG(ERROR) << "something's very wrong. Not awesome." << std::endl;
 //        continue;
 //      } else {
 //        nat_details_.nat_type = static_cast<NatType>(nat_info.nat_type());
@@ -333,13 +333,15 @@ void UdtTransport::SendToPortRestricted(const std::string &data,
 //      nat_details_.nat_type = kPortRestricted;
 //      nat_details_.external_ip = nat_info.ip();
 //      nat_details_.external_port = nat_info.port();
-//      nat_details_.rendezvous_ip = nat_detection_endpoints_.at(b).rendezvous_ip;
-//      nat_details_.rendezvous_port = nat_detection_endpoints_.at(b).rendezvous_port;
+//      nat_details_.rendezvous_ip =
+//          nat_detection_endpoints_.at(b).rendezvous_ip;
+//      nat_details_.rendezvous_port =
+//          nat_detection_endpoints_.at(b).rendezvous_port;
 //    }
 //  }
 //  if (nat_details_.nat_type == kFullCone ||
 //      nat_details_.nat_type == kPortRestricted) {}  // Setup pinging routine
-//}
+// }
 
 
 
