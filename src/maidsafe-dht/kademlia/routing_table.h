@@ -61,11 +61,11 @@ namespace transport { struct Info; }
 namespace kademlia {
 
 namespace test {
-  class RoutingTableTest;
-  class RoutingTableSingleKTest;
-  class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
-  class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
-  class ServicesTest;
+class RoutingTableTest;
+class RoutingTableSingleKTest;
+class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
+class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
+class ServicesTest;
 }  // namespace test
 
 class KBucket;
