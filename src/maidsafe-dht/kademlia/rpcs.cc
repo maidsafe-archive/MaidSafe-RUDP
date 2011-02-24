@@ -48,7 +48,8 @@ void Rpcs::Ping(SecurifierPtr securifier,
   *request.mutable_sender() = ToProtobuf(contact_);
   std::string random_data(RandomString(50 + (RandomUint32() % 50)));
   request.set_ping(random_data);
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
       &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
@@ -69,7 +70,8 @@ void Rpcs::FindValue(const Key &key,
   protobuf::FindValueRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_find_value_response()->connect(boost::bind(
       &Rpcs::FindValueCallback, this, transport::kSuccess, _1, _2,
@@ -90,7 +92,8 @@ void Rpcs::FindNodes(const Key &key,
   protobuf::FindNodesRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_find_nodes_response()->connect(boost::bind(
       &Rpcs::FindNodesCallback, this, transport::kSuccess, _1, _2,
@@ -106,8 +109,6 @@ void Rpcs::Store(const Key &key,
                  const std::string &value,
                  const std::string &signature,
                  const boost::posix_time::seconds &ttl,
-                 const std::string &serialised_store_request,
-                 const std::string &serialised_store_request_signature,
                  SecurifierPtr securifier,
                  const Contact &peer,
                  StoreFunctor callback,
@@ -121,13 +122,9 @@ void Rpcs::Store(const Key &key,
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
-  if (!serialised_store_request.empty() &&
-      !serialised_store_request_signature.empty()) {
-    request.set_serialised_store_request(serialised_store_request);
-    request.set_serialised_store_request_signature(
-        serialised_store_request_signature);
-  }
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  request.set_signing_public_key_id(securifier->kSigningKeyId());
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_store_response()->connect(boost::bind(
       &Rpcs::StoreCallback, this, transport::kSuccess, _1, _2,
@@ -139,11 +136,34 @@ void Rpcs::Store(const Key &key,
                                    transport::kDefaultInitialTimeout);
 }
 
+void Rpcs::StoreRefresh(const std::string &serialised_store_request,
+                        const std::string &serialised_store_request_signature,
+                        SecurifierPtr securifier,
+                        const Contact &peer,
+                        StoreRefreshFunctor callback,
+                        TransportType type) {
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::StoreRefreshRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_serialised_store_request(serialised_store_request);
+  request.set_serialised_store_request_signature(
+      serialised_store_request_signature);
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_store_refresh_response()->connect(boost::bind(
+      &Rpcs::StoreRefreshCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::StoreRefreshCallback, this, _1, transport::Info(),
+      protobuf::StoreRefreshResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
+}
+
 void Rpcs::Delete(const Key &key,
                   const std::string &value,
                   const std::string &signature,
-                  const std::string &serialised_delete_request,
-                  const std::string &serialised_delete_request_signature,
                   SecurifierPtr securifier,
                   const Contact &peer,
                   DeleteFunctor callback,
@@ -156,13 +176,9 @@ void Rpcs::Delete(const Key &key,
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
-  if (!serialised_delete_request.empty() &&
-      !serialised_delete_request_signature.empty()) {
-    request.set_serialised_delete_request(serialised_delete_request);
-    request.set_serialised_delete_request_signature(
-        serialised_delete_request_signature);
-  }
-  std::string message(connected_objects.get<1>()->WrapMessage(request));
+  request.set_signing_public_key_id(securifier->kSigningKeyId());
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_delete_response()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, transport::kSuccess, _1, _2,
@@ -170,6 +186,31 @@ void Rpcs::Delete(const Key &key,
   connected_objects.get<1>()->on_error()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, _1, transport::Info(),
       protobuf::DeleteResponse(), connected_objects, callback));
+  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
+                                   transport::kDefaultInitialTimeout);
+}
+
+void Rpcs::DeleteRefresh(const std::string &serialised_delete_request,
+                         const std::string &serialised_delete_request_signature,
+                         SecurifierPtr securifier,
+                         const Contact &peer,
+                         DeleteRefreshFunctor callback,
+                         TransportType type) {
+  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  protobuf::DeleteRefreshRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_serialised_delete_request(serialised_delete_request);
+  request.set_serialised_delete_request_signature(
+      serialised_delete_request_signature);
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+  // Connect callback to message handler for incoming parsed response or error
+  connected_objects.get<1>()->on_delete_refresh_response()->connect(boost::bind(
+      &Rpcs::DeleteRefreshCallback, this, transport::kSuccess, _1, _2,
+      connected_objects, callback));
+  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      &Rpcs::DeleteRefreshCallback, this, _1, transport::Info(),
+      protobuf::DeleteRefreshResponse(), connected_objects, callback));
   connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
@@ -183,7 +224,8 @@ void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
   *notification.mutable_sender() = ToProtobuf(contact_);
   for (size_t i = 0; i < node_ids.size(); ++i)
     notification.add_node_ids(node_ids[i].String());
-  std::string message(connected_objects.get<1>()->WrapMessage(notification));
+  std::string message =
+      connected_objects.get<1>()->WrapMessage(notification, peer.public_key());
   connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
                                    transport::kDefaultInitialTimeout);
 }
@@ -274,12 +316,42 @@ void Rpcs::StoreCallback(
     callback(RankInfoPtr(new transport::Info(info)), -1);
 }
 
+void Rpcs::StoreRefreshCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::StoreRefreshResponse &response,
+    ConnectedObjects connected_objects,
+    StoreRefreshFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.result())
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
+}
+
 void Rpcs::DeleteCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteResponse &response,
     ConnectedObjects /*connected_objects*/,
     DeleteFunctor callback) {
+  if (transport_condition != transport::kSuccess)
+    return callback(RankInfoPtr(new transport::Info(info)),
+                    transport_condition);
+  if (response.IsInitialized() && response.result())
+    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+  else
+    callback(RankInfoPtr(new transport::Info(info)), -1);
+}
+
+void Rpcs::DeleteRefreshCallback(
+    const transport::TransportCondition &transport_condition,
+    const transport::Info &info,
+    const protobuf::DeleteRefreshResponse &response,
+    ConnectedObjects connected_objects,
+    DeleteRefreshFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
                     transport_condition);

@@ -96,7 +96,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     transport::Endpoint end_point(ip, port);
     local_endpoints.push_back(end_point);
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false);
+                    false, "", "", "");
     return contact;
   }
 
@@ -219,6 +219,19 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContact) {
   // Try to overload with an exist contact
   routing_table_.GetContact(contact_id, &non_exist_result);
   ASSERT_NE(non_exist_result, Contact());
+}
+
+TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
+  // Note: this test case might need to be modified once the signal slot
+  // is connected (i.e. there is handler to set the Validated tag automaticaly)
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact = ComposeContact(contact_id, 5001);
+  routing_table_.AddContact(contact, rank_info_);
+  ASSERT_EQ(false, (*(GetContainer().get<NodeIdTag>().find(
+      contact_id))).validated);
+  routing_table_.SetValidated(contact_id, true);
+  ASSERT_EQ(true, (*(GetContainer().get<NodeIdTag>().find(
+      contact_id))).validated);  
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {

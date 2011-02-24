@@ -38,6 +38,7 @@ RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
       k_(k),
       contacts_(),
       ping_oldest_contact_(new PingOldestContactPtr::element_type),
+      validate_contact_(new ValidateContactPtr::element_type),
       shared_mutex_(),
       bucket_of_holder_(0) {}
 
@@ -60,6 +61,7 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   auto it_node = key_indx.find(node_id);
   if (it_node != key_indx.end()) {
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
+    // will update the num_failed_rpcs to 0 as well
     contacts_.modify(it_node,
                      ChangeLastSeen(bptime::microsec_clock::universal_time()));
   } else {
@@ -99,6 +101,7 @@ void RoutingTable::InsertContact(const Contact &contact,
     new_routing_table_contact.kbucket_index = target_kbucket_index;
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     contacts_.insert(new_routing_table_contact);
+    (*validate_contact_)(contact);
   }
 }
 
@@ -251,6 +254,19 @@ int RoutingTable::SetPreferredEndpoint(const NodeId &node_id,
   return 0;
 }
 
+int RoutingTable::SetValidated(const NodeId &node_id,
+                               bool validated) {
+  UpgradeLock upgrade_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.find(node_id);
+  // return if can't find the contact having the nodeID
+  if (it == key_indx.end())
+    return -1;
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
+  key_indx.modify(it, ChangeValidated(validated));
+  return 0;
+}
+
 int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
@@ -279,6 +295,10 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
 
 PingOldestContactPtr RoutingTable::ping_oldest_contact() {
   return ping_oldest_contact_;
+}
+
+ValidateContactPtr RoutingTable::validate_contact() {
+  return validate_contact_;
 }
 
 Contact RoutingTable::GetLastSeenContact(const boost::uint16_t &kbucket_index) {
@@ -397,6 +417,7 @@ int RoutingTable::ForceKAcceptNewPeer(
                                         KDistanceTo(new_contact.node_id()));
   new_local_contact.kbucket_index = brother_bucket_of_holder;
   contacts_.insert(new_local_contact);
+  (*validate_contact_)(new_contact);
   return 0;
 }
 
