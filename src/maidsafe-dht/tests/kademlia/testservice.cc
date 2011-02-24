@@ -317,30 +317,27 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   crypto_key.GenerateKeys(1024);
   bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
   KeyValueTuple signedvalue = MakeKVT(crypto_key, 1024, old_ttl, "", "");
-
-  Contact node_contact = ComposeContact(node_id_, 5000);
 //   std::string hex_key;
 //   for (int i = 0; i < 128; ++i)
 //     hex_key += "a";
 //   std::string key = DecodeFromHex(hex_key);
+
+  protobuf::StoreRequest store_request;
+  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  store_request.set_key(signedvalue.key_value_signature.key);
+  store_request.mutable_signed_value()
+      ->set_signature(signedvalue.key_value_signature.signature);
+  store_request.mutable_signed_value()->set_value(signedvalue.value());
+  store_request.set_ttl(3600*24);
 
   {
     // Try to store with empty message and mesaage_sig
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new Securifier(
     sender.public_key_id(), sender.public_key(), sender.other_info()));
-    // Store Request with empty data_store_
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
-
-    protobuf::StoreRequest store_request;
-    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    store_request.set_key(signedvalue.key_value_signature.key);
-    store_request.mutable_signed_value()
-        ->set_signature(signedvalue.key_value_signature.signature);
-    store_request.mutable_signed_value()->set_value(signedvalue.value());
-    store_request.set_ttl(3600*24);
 
     std::string message;
     std::string message_sig;
@@ -352,26 +349,17 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     ASSERT_EQ(0U, GetRoutingTableSize());
   }
   Clear();
+
+  std::string message = store_request.SerializeAsString();
+  std::string message_sig = sender.node_id().String();
   {
     // Try to store an in-valid tuple
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
     sender.public_key_id(), sender.public_key(), sender.other_info()));
-    // Store Request with empty data_store_
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
-
-    protobuf::StoreRequest store_request;
-    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    store_request.set_key(signedvalue.key_value_signature.key);
-    store_request.mutable_signed_value()
-        ->set_signature(signedvalue.key_value_signature.signature);
-    store_request.mutable_signed_value()->set_value(signedvalue.value());
-    store_request.set_ttl(3600*24);
-
-    std::string message = store_request.SerializeAsString();
-    std::string message_sig = sender.node_id().String();
 
     protobuf::StoreResponse store_response;
     service.Store(info_, store_request, message, message_sig, &store_response);
@@ -385,23 +373,12 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // into empty datastore, but the routingtable already contains the sender
     routing_table_->AddContact(sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
+    
     SecurifierPtr securifier_local(new Securifier(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    // Store Request with empty data_store_
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
-
-    protobuf::StoreRequest store_request;
-    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    store_request.set_key(signedvalue.key_value_signature.key);
-    store_request.mutable_signed_value()
-        ->set_signature(signedvalue.key_value_signature.signature);
-    store_request.mutable_signed_value()->set_value(signedvalue.value());
-    store_request.set_ttl(3600*24);
-
-    std::string message = store_request.SerializeAsString();
-    std::string message_sig = sender.node_id().String();
 
     protobuf::StoreResponse store_response;
     service.Store(info_, store_request, message, message_sig, &store_response);
@@ -416,27 +393,128 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
         old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
         false));
     ASSERT_EQ(1U, GetDataStoreSize());
+    
     SecurifierPtr securifier_local(new Securifier(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    // Store Request with empty data_store_
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
 
-    protobuf::StoreRequest store_request;
-    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    store_request.set_key(signedvalue.key_value_signature.key);
-    store_request.mutable_signed_value()
-        ->set_signature(signedvalue.key_value_signature.signature);
-    store_request.mutable_signed_value()->set_value(signedvalue.value());
-    store_request.set_ttl(3600*24);
-
-    std::string message = store_request.SerializeAsString();
-    std::string message_sig = sender.node_id().String();
-
+    message = signedvalue.key_value_signature.value;
+    message_sig = signedvalue.key_value_signature.signature;
+    
     protobuf::StoreResponse store_response;
     service.Store(info_, store_request, message, message_sig, &store_response);
-    EXPECT_FALSE(store_response.result());
+    EXPECT_TRUE(store_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    // the sender must be pushed into the routing table
+    Contact pushed_in;
+    routing_table_->GetContact(sender_id, &pushed_in);
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
+}
+
+TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
+  NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
+  Contact target = ComposeContact(target_id, 5001);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact sender = ComposeContact(sender_id, 5001);
+  NodeId ori_sender_id = GenerateUniqueRandomId(node_id_, 501);
+  Contact ori_sender = ComposeContactWithKey(sender_id, 5001);  
+
+  crypto::RsaKeyPair crypto_key;
+  crypto_key.GenerateKeys(1024);
+  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
+  KeyValueTuple signedvalue = MakeKVT(crypto_key, 1024, old_ttl, "", "");
+
+  protobuf::StoreRequest ori_store_request;
+  ori_store_request.mutable_sender()->CopyFrom(ToProtobuf(ori_sender));
+  ori_store_request.set_key(signedvalue.key_value_signature.key);
+  ori_store_request.mutable_signed_value()
+      ->set_signature(signedvalue.key_value_signature.signature);
+  ori_store_request.mutable_signed_value()->set_value(signedvalue.value());
+  ori_store_request.set_ttl(3600*24);
+
+  protobuf::StoreRefreshRequest store_refresh_request;
+  store_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+
+  {
+    // Try to storerefresh with empty message and mesaage_sig
+    // into empty datastore and empty routingtable
+    std::string empty_string;
+    store_refresh_request.set_serialised_store_request(empty_string);
+    store_refresh_request.set_serialised_store_request_signature(empty_string);
+    
+    SecurifierPtr securifier_local(new Securifier(
+    sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRefreshResponse store_refresh_response;
+    service.StoreRefresh(info_, store_refresh_request, &store_refresh_response);
+    EXPECT_FALSE(store_refresh_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  store_refresh_request.set_serialised_store_request(
+      ori_store_request.SerializeAsString());
+  store_refresh_request.set_serialised_store_request_signature(
+      ori_sender.other_info());  
+  {
+    // Try to storefresh an in-valid tuple
+    // into empty datastore and empty routingtable
+    SecurifierPtr securifier_local(new SecurifierValidateFalse(
+    sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRefreshResponse store_fresh_response;
+    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    EXPECT_FALSE(store_fresh_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to storerefresh a validated tuple into empty datastore,
+    // but the routingtable already contains the sender
+    routing_table_->AddContact(sender, rank_info_);
+    ASSERT_EQ(1U, GetRoutingTableSize());
+
+    SecurifierPtr securifier_local(new Securifier(
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRefreshResponse store_fresh_response;
+    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    EXPECT_TRUE(store_fresh_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to storerefresh a validated tuple into the datastore already
+    // containing it
+    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature,
+        old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
+        false));
+    ASSERT_EQ(1U, GetDataStoreSize());
+    
+    SecurifierPtr securifier_local(new Securifier(
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRefreshResponse store_fresh_response;
+    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    EXPECT_TRUE(store_fresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     // the sender must be pushed into the routing table
@@ -451,16 +529,16 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContact(sender_id, 5001);
-  Clear();
+  
+  protobuf::FindNodesRequest find_nodes_req;
+  find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  find_nodes_req.set_key(target_id.String());
   {
     // try to find a node from an empty routing table
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
 
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
@@ -481,9 +559,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
+
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
@@ -505,9 +581,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
+
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
@@ -530,9 +604,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
+
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
@@ -563,9 +635,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
-    protobuf::FindNodesRequest find_nodes_req;
-    find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_nodes_req.set_key(target_id.String());
+
     protobuf::FindNodesResponse find_nodes_rsp;
     service.FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
@@ -580,16 +650,18 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContact(sender_id, 5001);
+
+  protobuf::FindValueRequest find_value_req;
+  find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  find_value_req.set_key(target_id.String());
   {
     // Search in empty routing table and datastore
     // no alternative_store_
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_id.String());
     Service service(routing_table_, data_store_,
                 alternative_store_, securifier_);
     service.set_node_joined(true);
+
+    protobuf::FindValueResponse find_value_rsp;
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
@@ -607,13 +679,12 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k, 501);
     routing_table_->AddContact(target, rank_info_);
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_id.String());
+
     Service service(routing_table_, data_store_,
                 alternative_store_, securifier_);
     service.set_node_joined(true);
+
+    protobuf::FindValueResponse find_value_rsp;    
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(test::k, find_value_rsp.closest_nodes_size());
@@ -638,13 +709,12 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // no alternative_store_
     PopulateDataStore(test::k);
     ASSERT_EQ(test::k, GetDataStoreSize());
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_id.String());
+
     Service service(routing_table_, data_store_,
                 alternative_store_, securifier_);
     service.set_node_joined(true);
+
+    protobuf::FindValueResponse find_value_rsp;    
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
@@ -671,13 +741,13 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     EXPECT_TRUE(data_store_->StoreValue(target_kvt.key_value_signature, old_ttl,
         target_kvt.request_and_signature, crypto_key.public_key(), false));
     ASSERT_EQ(test::k + 1, GetDataStoreSize());
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_key);
+    
     Service service(routing_table_, data_store_,
                 alternative_store_, securifier_);
     service.set_node_joined(true);
+    
+    find_value_req.set_key(target_key);
+    protobuf::FindValueResponse find_value_rsp;    
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(target_value, (*find_value_rsp.mutable_signed_values(0)).value());
@@ -695,15 +765,15 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // with alternative_store_ (not containing the target)
     PopulateDataStore(test::k);
     ASSERT_EQ(test::k, GetDataStoreSize());
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_key);
+
     AlternativeStoreFalsePtr
         alternative_store_false_ptr(new AlternativeStoreFalse());
     Service service(routing_table_, data_store_,
                     alternative_store_false_ptr, securifier_);
     service.set_node_joined(true);
+
+    find_value_req.set_key(target_key);
+    protobuf::FindValueResponse find_value_rsp;    
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.mutable_signed_values()->size());
@@ -725,16 +795,16 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // with alternative_store_ (containing the target)
     PopulateDataStore(test::k);
     ASSERT_EQ(test::k, GetDataStoreSize());
-    protobuf::FindValueRequest find_value_req;
-    protobuf::FindValueResponse find_value_rsp;
-    find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    find_value_req.set_key(target_key);
+
     AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
     Service service(routing_table_, data_store_,
                     alternative_store_true_ptr, securifier_);
     service.set_node_joined(true);
     service.set_node_contact(node_contact);
+
+    find_value_req.set_key(target_key);
+    protobuf::FindValueResponse find_value_rsp;    
     service.FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.mutable_signed_values()->size());
@@ -786,123 +856,8 @@ TEST_F(ServicesTest, BEH_KAD_ServicesPing) {
   EXPECT_TRUE(routingtable_->GetContact(kademlia::NodeId(contact_.node_id()),
                                         &contactback));
 }
-
-
-
-TEST_F(ServicesTest, BEH_KAD_ServicesStore) {
-  // Store value1
-  rpcprotocol::Controller controller;
-  StoreRequest store_request;
-  std::string hex_key;
-  for (int i = 0; i < 128; ++i)
-    hex_key += "a";
-  std::string value1("Val1"), value2("Val2"), value3("Val10");
-  std::string public_key, private_key, public_key_validation, request_signature;
-  std::string key = DecodeFromHex(hex_key);
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &public_key_validation,
-                      &request_signature);
-  store_request.set_key(key);
-  store_request.set_value(value1);
-  SignedRequest *sig_req = store_request.mutable_request_signature();
-  sig_req->set_signer_id("id1");
-  sig_req->set_public_key(public_key);
-  sig_req->set_public_key_validation(public_key_validation);
-  sig_req->set_request_signature(request_signature);
-  store_request.set_publish(true);
-  store_request.set_ttl(3600*24);
-  ContactInfo *sender_info = store_request.mutable_sender_info();
-  *sender_info = contact_;
-  StoreResponse store_response;
-  Callback cb_obj;
-  google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done1);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE(store_response.result());
-
-  store_request.clear_value();
-
-  SignedValue *svalue = store_request.mutable_sig_value();
-  svalue->set_value(value1);
-  svalue->set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_sig_value1(svalue->SerializeAsString());
-
-  google::protobuf::Closure *done4 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done4);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_TRUE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  std::vector<std::string> values;
-  ASSERT_TRUE(datastore_->LoadItem(key, &values));
-  EXPECT_EQ(ser_sig_value1, values[0]);
-  Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kademlia::NodeId(contact_.node_id()),
-      &contactback));
-
-  // Store value2
-  // Allow thread to sleep so that second value has a different last published
-  // time to first value.
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
-  svalue->Clear();
-  svalue->set_value(value2);
-  svalue->set_value_signature(crypto_.AsymSign(value2, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_sig_value2(svalue->SerializeAsString());
-  store_response.Clear();
-  google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done2);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_TRUE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key, &values));
-  EXPECT_EQ(ser_sig_value1, values[0]);
-  EXPECT_EQ(ser_sig_value2, values[1]);
-
-  // Store value3
-  // Allow thread to sleep for same reason as above.
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
-  svalue->Clear();
-  svalue->set_value(value3);
-  svalue->set_value_signature(crypto_.AsymSign(value3, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_sig_value3(svalue->SerializeAsString());
-  store_response.Clear();
-  google::protobuf::Closure *done3 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done3);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_TRUE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key, &values));
-  ASSERT_EQ(3, values.size());
-  int valuesfound = 0;
-  for (unsigned int i = 0; i < values.size(); i++) {
-    if (ser_sig_value1 == values[i]) {
-      valuesfound++;
-      break;
-    }
-  }
-  for (unsigned int i = 0; i < values.size(); i++) {
-    if (ser_sig_value2 == values[i]) {
-      valuesfound++;
-      break;
-    }
-  }
-  for (unsigned int i = 0; i < values.size(); i++) {
-    if (ser_sig_value3 == values[i]) {
-      valuesfound++;
-      break;
-    }
-  }
-  ASSERT_EQ(3, valuesfound);
-}
-
+*/
+/*
 TEST_F(ServicesTest, BEH_KAD_InvalidStoreValue) {
   std::string value("value4"), value1("value5");
   std::string key = crypto_.Hash(value, "", crypto::STRING_STRING, false);
@@ -1140,163 +1095,6 @@ TEST_F(ServicesTest, FUNC_KAD_ServicesDownlist) {
       EXPECT_TRUE(routingtable_->GetContact(contacts[i].node_id(),
                   &testcontact));
   }
-}
-
-TEST_F(ServicesTest, BEH_KAD_ServicesFindValAltStore) {
-  DummyAltStore dummy_alt_store;
-  service_->set_alternative_store(&dummy_alt_store);
-  // Search in empty alt store, routing table and datastore
-  rpcprotocol::Controller controller;
-  FindRequest find_value_request;
-  std::string hex_key(128, 'a'), public_key, private_key;
-  CreateRSAKeys(&public_key, &private_key);
-  std::string key = DecodeFromHex(hex_key);
-  find_value_request.set_key(key);
-  *(find_value_request.mutable_sender_info()) = contact_;
-  find_value_request.set_is_boostrap(false);
-  FindResponse find_value_response;
-  Callback cb_obj;
-  google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->FindValue(&controller, &find_value_request, &find_value_response,
-                      done1);
-  EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_TRUE(find_value_response.result());
-  EXPECT_EQ(0, find_value_response.closest_nodes_size());
-  EXPECT_EQ(0, find_value_response.values_size());
-  EXPECT_FALSE(find_value_response.has_requester_ext_addr());
-  EXPECT_EQ(node_id_.String(), find_value_response.node_id());
-  Contact contactback;
-  EXPECT_TRUE(routingtable_->GetContact(kademlia::NodeId(contact_.node_id()),
-      &contactback));
-  // Populate routing table & datastore & search for non-existant key.  Ensure k
-  // contacts have IDs close to key being searched for.
-  std::vector<std::string> ids;
-  for (int i = 0; i < 50; ++i) {
-    std::string character = "1";
-    std::string hex_id = "";
-    if (i < test_service::K)
-      character = "a";
-    for (int j = 0; j < 126; ++j)
-      hex_id += character;
-    hex_id += boost::lexical_cast<std::string>(i+10);
-    std::string id = DecodeFromHex(hex_id);
-    if (i < test_service::K)
-      ids.push_back(id);
-    std::string ip = "127.0.0.6";
-    boost::uint16_t port = 9000+i;
-    Contact ctct;
-    ASSERT_FALSE(routingtable_->GetContact(node_id_, &ctct));
-    Contact contact(id, ip, port + i, ip, port + i);
-    EXPECT_GE(routingtable_->AddContact(contact), 0);
-  }
-  EXPECT_GE(routingtable_->Size(), static_cast<size_t>(2*test_service::K));
-  std::string wrong_hex_key(128, 'b');
-  std::string wrong_key = DecodeFromHex(wrong_hex_key);
-  EXPECT_TRUE(datastore_->StoreItem(wrong_key, "X", 24*3600, false));
-  google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  find_value_response.Clear();
-  service_->FindValue(&controller, &find_value_request, &find_value_response,
-                      done2);
-  EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_TRUE(find_value_response.result());
-  EXPECT_EQ(test_service::K, find_value_response.closest_nodes_size());
-
-  std::vector<std::string>::iterator itr;
-  for (int i = 0; i < test_service::K; ++i) {
-    Contact contact;
-    contact.ParseFromString(find_value_response.closest_nodes(i));
-    for (itr = ids.begin(); itr < ids.end(); ++itr) {
-      if (*itr == contact.node_id().String()) {
-        ids.erase(itr);
-        break;
-      }
-    }
-  }
-  EXPECT_EQ(static_cast<unsigned int>(0), ids.size());
-  EXPECT_EQ(0, find_value_response.values_size());
-  EXPECT_EQ(0, find_value_response.signed_values_size());
-  EXPECT_FALSE(find_value_response.has_alternative_value_holder());
-  EXPECT_FALSE(find_value_response.has_needs_cache_copy());
-  EXPECT_FALSE(find_value_response.has_requester_ext_addr());
-  EXPECT_EQ(node_id_.String(), find_value_response.node_id());
-
-  // Populate datastore & search for existing key
-  std::vector<std::string> values;
-  for (int i = 0; i < 100; ++i) {
-    values.push_back("Value"+boost::lexical_cast<std::string>(i));
-    SignedValue sig_value;
-    sig_value.set_value(values[i]);
-    sig_value.set_value_signature(crypto_.AsymSign(values[i], "", private_key,
-        crypto::STRING_STRING));
-    std::string ser_sig_value = sig_value.SerializeAsString();
-    EXPECT_TRUE(datastore_->StoreItem(key, ser_sig_value, 24*3600, false));
-  }
-  google::protobuf::Closure *done3 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  find_value_response.Clear();
-  service_->FindValue(&controller, &find_value_request, &find_value_response,
-      done3);
-  EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_TRUE(find_value_response.result());
-  EXPECT_EQ(0, find_value_response.closest_nodes_size());
-  EXPECT_EQ(0, find_value_response.values_size());
-  ASSERT_EQ(100, find_value_response.signed_values_size());
-  for (int i = 0; i < 100; ++i) {
-    bool found = false;
-    for (int j = 0; j < 100; ++j) {
-      if (values[i] == find_value_response.signed_values(j).value()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found)
-      FAIL() << "value " << values[i] << " not in response";
-  }
-  EXPECT_FALSE(find_value_response.has_alternative_value_holder());
-  EXPECT_FALSE(find_value_response.has_needs_cache_copy());
-  EXPECT_FALSE(find_value_response.has_requester_ext_addr());
-  EXPECT_EQ(node_id_.String(), find_value_response.node_id());
-
-  // Populate alt store & search for existing key
-  dummy_alt_store.Store(key);
-  EXPECT_TRUE(dummy_alt_store.Has(key));
-  dummy_alt_store.Store(wrong_key);
-  EXPECT_TRUE(dummy_alt_store.Has(wrong_key));
-  google::protobuf::Closure *done4 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  find_value_response.Clear();
-  service_->FindValue(&controller, &find_value_request, &find_value_response,
-      done4);
-
-  EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_TRUE(find_value_response.result());
-  EXPECT_EQ(0, find_value_response.closest_nodes_size());
-  EXPECT_EQ(0, find_value_response.values_size());
-  EXPECT_TRUE(find_value_response.has_alternative_value_holder());
-  EXPECT_EQ(node_id_.String(),
-      find_value_response.alternative_value_holder().node_id());
-  EXPECT_FALSE(find_value_response.has_needs_cache_copy());
-  EXPECT_FALSE(find_value_response.has_requester_ext_addr());
-  EXPECT_EQ(node_id_.String(), find_value_response.node_id());
-
-  find_value_request.set_key(wrong_key);
-  google::protobuf::Closure *done5 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  find_value_response.Clear();
-  service_->FindValue(&controller, &find_value_request, &find_value_response,
-      done5);
-  EXPECT_TRUE(find_value_response.IsInitialized());
-  EXPECT_TRUE(find_value_response.result());
-  EXPECT_EQ(0, find_value_response.closest_nodes_size());
-  EXPECT_EQ(0, find_value_response.values_size());
-  EXPECT_TRUE(find_value_response.has_alternative_value_holder());
-  EXPECT_EQ(node_id_.String(),
-      find_value_response.alternative_value_holder().node_id());
-  EXPECT_FALSE(find_value_response.has_needs_cache_copy());
-  EXPECT_FALSE(find_value_response.has_requester_ext_addr());
-  EXPECT_EQ(node_id_.String(), find_value_response.node_id());
 }
 
 TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {

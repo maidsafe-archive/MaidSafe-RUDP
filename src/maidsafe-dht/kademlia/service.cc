@@ -202,7 +202,7 @@ void Service::Store(const transport::Info &info,
     return;
 
   if (message_signature.empty() || message.empty() || !securifier_) {
-    DLOG(WARNING) << "Input Error" << std::endl;
+    DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
   KeyValueSignature key_value_signature(request.key(), message,
@@ -219,10 +219,16 @@ void Service::StoreRefresh(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-  KeyValueSignature key_value_signature(
-      request.sender().node_id(),
-      request.serialised_store_request(),
-      request.serialised_store_request_signature());
+  if (request.serialised_store_request().empty() ||
+      request.serialised_store_request_signature().empty() || !securifier_){
+    DLOG(WARNING) << "StoreFresh Input Error" << std::endl;
+    return;
+  }
+  protobuf::StoreRequest ori_store_request;  
+  ori_store_request.ParseFromString(request.serialised_store_request());  
+  KeyValueSignature key_value_signature(ori_store_request.key(),
+      ori_store_request.mutable_signed_value()->value(),
+      ori_store_request.mutable_signed_value()->signature());
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::StoreRefreshCallback, this, key_value_signature, request, info,
       response, _1, _2);
@@ -290,11 +296,13 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
       request_signature, public_key, is_refresh);
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to refresh(Store) kademlia value" << std::endl;
   }
+  // no matter the refresh succeed or not, the send shall always be add into
+  // the routing table  
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::Delete(const transport::Info &info,
@@ -359,11 +367,13 @@ void Service::DeleteCallback(KeyValueSignature key_value_signature,
                               request_signature, is_refresh);
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
   }
+  // no matter the refresh succeed or not, the send shall always be add into
+  // the routing table
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
@@ -397,11 +407,13 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                    request_signature, is_refresh);
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
   }
+  // no matter the refresh succeed or not, the send shall always be add into
+  // the routing table
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::Downlist(const transport::Info &info,
