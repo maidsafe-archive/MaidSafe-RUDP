@@ -84,7 +84,8 @@ struct RoutingTableContact {
         common_leading_bits(common_leading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
-        rank_info(rank_info) {}
+        rank_info(rank_info),
+        validated(false) {}
   RoutingTableContact(const Contact &contact,
                       const NodeId &holder_id,
                       boost::uint16_t common_leading_bits)
@@ -96,7 +97,8 @@ struct RoutingTableContact {
         common_leading_bits(common_leading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
-        rank_info() {}
+        rank_info(),
+        validated(false) {}
   RoutingTableContact(const RoutingTableContact &other)
       : contact(other.contact),
         node_id(other.node_id),
@@ -106,7 +108,8 @@ struct RoutingTableContact {
         common_leading_bits(other.common_leading_bits),
         kbucket_index(other.kbucket_index),
         last_seen(other.last_seen),
-        rank_info(other.rank_info) {}
+        rank_info(other.rank_info),
+        validated(other.validated) {}
   bool DirectConnected() const {
     return contact.IsDirectlyConnected();
   }
@@ -123,6 +126,7 @@ struct RoutingTableContact {
   boost::uint16_t kbucket_index;
   bptime::ptime last_seen;
   RankInfoPtr rank_info;
+  bool validated;
 };
 
 struct ChangeContact {
@@ -183,6 +187,16 @@ struct ChangeLastSeen {
     routing_table_contact.num_failed_rpcs = 0;
   }
   bptime::ptime new_last_seen;
+};
+
+struct ChangeValidated {
+  explicit ChangeValidated(bool new_validated)
+      : new_validated(new_validated) {}
+  // Anju: use nolint to satisfy multi-indexing
+  void operator()(RoutingTableContact &routing_table_contact) {  // NOLINT
+    routing_table_contact.validated = new_validated;
+  }
+  bool new_validated;
 };
 
 struct NodeIdTag;
@@ -259,6 +273,8 @@ typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type&
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
     const Contact&, RankInfoPtr)>> PingOldestContactPtr;
+typedef std::shared_ptr<boost::signals2::signal<
+    void(const Contact&)>> ValidateContactPtr;
 
 /** Object containing a node's Kademlia Routing Table and all its contacts.
  *  @class RoutingTable */    
@@ -309,6 +325,11 @@ class RoutingTable {
    *  @param[in] ip The new preferred endpoint. 
    *  @return Error code, 0 for success, -1 for failure */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
+  /** Set one node's validation status.
+   *  @param[in] node_id The Kademlia ID of the target node.
+   *  @param[in] validated The validation status.
+   *  @return Error code, 0 for success, -1 for failure */
+  int SetValidated(const NodeId &node_id, bool validated);
   /** Increase one node's failedRPC counter by one.  If the count exceeds the
    *  value of kFailedRpcTolerance, the contact is removed from the routing
    *  table.
@@ -325,6 +346,9 @@ class RoutingTable {
   /** Getter.
    *  @return The ping_oldest_contact_ signal. */
   PingOldestContactPtr ping_oldest_contact();
+  /** Getter.
+   *  @return The validate_contact_ signal. */
+  ValidateContactPtr validate_contact();
 
   friend class test::RoutingTableTest;
   friend class test::RoutingTableSingleKTest;
@@ -418,6 +442,14 @@ class RoutingTable {
    *  IncrementFailedRpcCount for the old contact.  If this removes the old
    *  contact, the slot should then call AddContact for the new contact. */
   PingOldestContactPtr ping_oldest_contact_;
+  /** Signal to be fired when adding a new contact. The contact will be added
+   *  into the routing table directly, but having the Validated tag to be false.
+   *  The new added contact will be passed as signal signature. Slot should
+   *  validate the contact (looking for its public_key and public_key_sig in
+   *  KAD network, then to validate), then set the corresponding Validated tag
+   *  in the routing table or to remove the contact from the routing table, if
+   *  validation failed. */
+  ValidateContactPtr validate_contact_;
   /** Thread safe mutex lock */
   boost::shared_mutex shared_mutex_;
   /** The index to the bucket that the holder shall sit in

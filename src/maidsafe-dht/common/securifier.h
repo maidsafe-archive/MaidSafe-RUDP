@@ -42,22 +42,37 @@ typedef boost::function<void(const std::string&, const std::string)>
 class Securifier {
  public:
 
-  /** Constructor.
-   *  @param[in] id ID of Securifier.
+  /** Constructor where keys for signing and decrypting are different.
+   *  @param[in] signing_public_key_id ID of public key of pair used to sign the
+   *             data.
+   *  @param[in] signing_public_key Public key of pair used to sign the data.
    *  @param[in] signing_private_key Private key used to sign the data.
-   *  @param[in] asymmetric_decryption_private_key Public key used to
+   *  @param[in] asymmetric_decryption_public_key_id ID of public key of pair
+   *             used to asymmetrically decrypt the data.
+   *  @param[in] asymmetric_decryption_public_key Public key of pair used to
+   *             asymmetrically decrypt the data.
+   *  @param[in] asymmetric_decryption_private_key Private key used to
    *             asymmetrically decrypt the data. */
-  Securifier(const std::string &id,
+  Securifier(const std::string &signing_public_key_id,
+             const std::string &signing_public_key,
              const std::string &signing_private_key,
+             const std::string &asymmetric_decryption_public_key_id,
+             const std::string &asymmetric_decryption_public_key,
              const std::string &asymmetric_decryption_private_key);
+
+  /** Constructor where keys for signing and decrypting are the same.
+   *  @param[in] public_key_id ID of public key of pair used to sign and
+   *             asymmetrically decrypt the data.
+   *  @param[in] public_key Public key of pair used to sign and
+   *             asymmetrically decrypt the data.
+   *  @param[in] private_key Private key used to sign and asymmetrically decrypt
+   *             the data. */
+  Securifier(const std::string &public_key_id,
+             const std::string &public_key,
+             const std::string &private_key);
 
   /** Destructor. */
   virtual ~Securifier();
-
-  /** Setter.
-   *  @param[in] recipient_public_key Public key used to asymmetrically encrypt
-   *             data. */
-  void set_recipient_public_key(const std::string &recipient_public_key);
 
   /** Adds data which can be subsequently used in the signing or encrypting.
    *  @param[in] parameters data to be used during signing or encrypting.  It is
@@ -83,8 +98,12 @@ class Securifier {
 
   /** Asymmetrically encrypts the value using recipient_public_key_.
    *  @param[in] value value to be encrypted.
+   *  @param[in] recipient_public_key Public key used to asymmetrically encrypt
+   *             data.
    *  @return encrypted value. */
-  virtual std::string AsymmetricEncrypt(const std::string &value) const;
+  virtual std::string AsymmetricEncrypt(
+      const std::string &value,
+      const std::string &recipient_public_key) const;
 
   /** Retrieve the public key and the public key validation certificate.
    *  Results are passed in GetPublicKeyAndValidationCallback.
@@ -95,15 +114,15 @@ class Securifier {
 
   /** Validates the signature of the value.
    *  @param[in] value value which has been signed.
-   *  @param[in] sender_id ID of the message sender's Securifier.
    *  @param[in] value_signature signature of value to be validated with
    *             public_key.
+   *  @param[in] public_key_id ID of public key used to validate signature of
+   *             the value.
    *  @param[in] public_key used to validate signature of the value.
    *  @param[in] public_key_validation object to allow validation of public_key.
    *  @param[in] kademlia_key kademlia key under which to store/delete/update.
    *  @return true if all tested data is valid, else false. */
   virtual bool Validate(const std::string &value,
-                        const std::string &sender_id,
                         const std::string &value_signature,
                         const std::string &public_key_id,
                         const std::string &public_key,
@@ -113,16 +132,17 @@ class Securifier {
   /** Validates the signature of the value, but may incorporate data from
    *  parameters_ in the validation process.
    *  @param[in] value value which has been signed.
-   *  @param[in] sender_id ID of the message sender's Securifier.
    *  @param[in] value_signature signature of value to be validated with
    *             public_key.
+   *  @param[in] public_key_id ID of public key used to validate signature of
+   *             the value.
    *  @param[in] public_key used to validate signature of the value.
    *  @param[in] public_key_validation object to allow validation of public_key.
    *  @param[in] kademlia_key kademlia key under which to store/delete/update.
    *  @return true if all tested data is valid, else false. */
   virtual bool ValidateWithParameters(const std::string &value,
-                                      const std::string &sender_id,
                                       const std::string &value_signature,
+                                      const std::string &public_key_id,
                                       const std::string &public_key,
                                       const std::string &public_key_validation,
                                       const std::string &kademlia_key) const;
@@ -133,9 +153,21 @@ class Securifier {
   virtual std::string AsymmetricDecrypt(
       const std::string &encrypted_value) const;
 
+  //@{
+  /** Getters for cryptographic keys. */
+  std::string kSigningKeyId() const;
+  std::string kSigningPublicKey() const;
+  std::string kSigningPrivateKey() const;
+  std::string kAsymmetricDecryptionKeyId() const;
+  std::string kAsymmetricDecryptionPublicKey() const;
+  std::string kAsymmetricDecryptionPrivateKey() const;
+  //@}
+
  protected:
-  const std::string kId_, kSigningPrivateKey_, kAsymmetricDecryptionPrivateKey_;
-  std::string recipient_public_key_;
+  const std::string kSigningKeyId_, kSigningPublicKey_, kSigningPrivateKey_;
+  const std::string kAsymmetricDecryptionKeyId_;
+  const std::string kAsymmetricDecryptionPublicKey_;
+  const std::string kAsymmetricDecryptionPrivateKey_;
   std::vector<std::string> parameters_;
 };
 

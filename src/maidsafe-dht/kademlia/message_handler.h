@@ -51,8 +51,12 @@ class FindNodesRequest;
 class FindNodesResponse;
 class StoreRequest;
 class StoreResponse;
+class StoreRefreshRequest;
+class StoreRefreshResponse;
 class DeleteRequest;
 class DeleteResponse;
+class DeleteRefreshRequest;
+class DeleteRefreshResponse;
 class UpdateRequest;
 class UpdateResponse;
 class DownlistNotification;
@@ -63,33 +67,77 @@ const int kMaxMessageType(transport::kMaxMessageType + 1000);
 
 class MessageHandler : public transport::MessageHandler {
  public:
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::PingRequest&, protobuf::PingResponse*)>> PingReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::PingResponse&)>> PingRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::FindValueRequest&, protobuf::FindValueResponse*)>>
-      FindValueReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::FindNodesRequest&, protobuf::FindNodesResponse*)>>
-      FindNodesReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::StoreRequest&, const std::string&, const std::string&,
-      protobuf::StoreResponse*)>> StoreReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::StoreResponse&)>> StoreRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::DeleteRequest&, const std::string&, const std::string&,
-      protobuf::DeleteResponse*)>> DeleteReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const transport::Info&,
-      const protobuf::DownlistNotification&)>>
-      DownlistNtfSigPtr;
+
+   typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::PingRequest&,
+           protobuf::PingResponse*,
+           transport::Timeout*)>> PingReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::PingResponse&)>> PingRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::FindValueRequest&,
+           protobuf::FindValueResponse*,
+           transport::Timeout*)>> FindValueReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::FindNodesRequest&,
+           protobuf::FindNodesResponse*,
+           transport::Timeout*)>> FindNodesReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::StoreRequest&,
+           const std::string&,
+           const std::string&,
+           protobuf::StoreResponse*,
+           transport::Timeout*)>> StoreReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::StoreResponse&)>> StoreRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::StoreRefreshRequest&,
+           protobuf::StoreRefreshResponse*,
+           transport::Timeout*)>> StoreRefreshReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::StoreRefreshResponse&)>> StoreRefreshRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::DeleteRequest&,
+           const std::string&,
+           const std::string&,
+           protobuf::DeleteResponse*,
+           transport::Timeout*)>> DeleteReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::DeleteRefreshRequest&,
+           protobuf::DeleteRefreshResponse*,
+           transport::Timeout*)>> DeleteRefreshReqSigPtr;
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::DeleteRefreshResponse&)>> DeleteRefreshRspSigPtr;
+
+  typedef std::shared_ptr<bs2::signal<
+      void(const transport::Info&,
+           const protobuf::DownlistNotification&)>> DownlistNtfSigPtr;
 
   explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : transport::MessageHandler(securifier),
@@ -101,22 +149,31 @@ class MessageHandler : public transport::MessageHandler {
       on_find_nodes_response_(new FindNodesRspSigPtr::element_type),
       on_store_request_(new StoreReqSigPtr::element_type),
       on_store_response_(new StoreRspSigPtr::element_type),
+      on_store_refresh_request_(new StoreRefreshReqSigPtr::element_type),
+      on_store_refresh_response_(new StoreRefreshRspSigPtr::element_type),
       on_delete_request_(new DeleteReqSigPtr::element_type),
       on_delete_response_(new DeleteRspSigPtr::element_type),
+      on_delete_refresh_request_(new DeleteRefreshReqSigPtr::element_type),
+      on_delete_refresh_response_(new DeleteRefreshRspSigPtr::element_type),
       on_downlist_notification_(new DownlistNtfSigPtr::element_type) {}
   virtual ~MessageHandler() {}
 
-  std::string WrapMessage(const protobuf::PingRequest &msg);
-  std::string WrapMessage(const protobuf::PingResponse &msg);
-  std::string WrapMessage(const protobuf::FindValueRequest &msg);
-  std::string WrapMessage(const protobuf::FindValueResponse &msg);
-  std::string WrapMessage(const protobuf::FindNodesRequest &msg);
-  std::string WrapMessage(const protobuf::FindNodesResponse &msg);
-  std::string WrapMessage(const protobuf::StoreRequest &msg);
-  std::string WrapMessage(const protobuf::StoreResponse &msg);
-  std::string WrapMessage(const protobuf::DeleteRequest &msg);
-  std::string WrapMessage(const protobuf::DeleteResponse &msg);
-  std::string WrapMessage(const protobuf::DownlistNotification &msg);
+  std::string WrapMessage(const protobuf::PingRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::FindValueRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::FindNodesRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::StoreRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::StoreRefreshRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::DeleteRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::DeleteRefreshRequest &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::DownlistNotification &msg,
+                          const std::string &recipient_public_key);
 
   PingReqSigPtr on_ping_request() { return on_ping_request_; }
   PingRspSigPtr on_ping_response() { return on_ping_response_; }
@@ -130,22 +187,50 @@ class MessageHandler : public transport::MessageHandler {
   }
   StoreReqSigPtr on_store_request() { return on_store_request_; }
   StoreRspSigPtr on_store_response() { return on_store_response_; }
+  StoreRefreshReqSigPtr on_store_refresh_request() {
+    return on_store_refresh_request_;
+  }
+  StoreRefreshRspSigPtr on_store_refresh_response() {
+    return on_store_refresh_response_;
+  }
   DeleteReqSigPtr on_delete_request() { return on_delete_request_; }
   DeleteRspSigPtr on_delete_response() { return on_delete_response_; }
+  DeleteRefreshReqSigPtr on_delete_refresh_request() {
+    return on_delete_refresh_request_;
+  }
+  DeleteRefreshRspSigPtr on_delete_refresh_response() {
+    return on_delete_refresh_response_;
+  }
   DownlistNtfSigPtr on_downlist_notification() {
     return on_downlist_notification_;
   }
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const SecurityType &security_type,
                                         const std::string &message_signature,
                                         const transport::Info &info,
-                                        bool asymmetrical_encrypted,
                                         std::string *message_response,
                                         transport::Timeout *timeout);
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
+
+  std::string WrapMessage(const protobuf::PingResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::FindValueResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::FindNodesResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::StoreResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::StoreRefreshResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::DeleteResponse &msg,
+                          const std::string &recipient_public_key);
+  std::string WrapMessage(const protobuf::DeleteRefreshResponse &msg,
+                          const std::string &recipient_public_key);
+
   PingReqSigPtr on_ping_request_;
   PingRspSigPtr on_ping_response_;
   FindValueReqSigPtr on_find_value_request_;
@@ -154,8 +239,12 @@ class MessageHandler : public transport::MessageHandler {
   FindNodesRspSigPtr on_find_nodes_response_;
   StoreReqSigPtr on_store_request_;
   StoreRspSigPtr on_store_response_;
+  StoreRefreshReqSigPtr on_store_refresh_request_;
+  StoreRefreshRspSigPtr on_store_refresh_response_;
   DeleteReqSigPtr on_delete_request_;
   DeleteRspSigPtr on_delete_response_;
+  DeleteRefreshReqSigPtr on_delete_refresh_request_;
+  DeleteRefreshRspSigPtr on_delete_refresh_response_;
   DownlistNtfSigPtr on_downlist_notification_;
 };
 

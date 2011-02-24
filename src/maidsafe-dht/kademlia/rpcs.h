@@ -55,14 +55,16 @@ class PingResponse;
 class FindValueResponse;
 class FindNodesResponse;
 class StoreResponse;
+class StoreRefreshResponse;
 class DeleteResponse;
+class DeleteRefreshResponse;
 class UpdateResponse;
 }  // namespace protobuf
 
 class Rpcs {
  public:
   typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
-      StoreFunctor, DeleteFunctor, UpdateFunctor;
+      StoreFunctor, StoreRefreshFunctor, DeleteFunctor, DeleteRefreshFunctor;
   typedef boost::function<void(RankInfoPtr, const int&,
       const std::vector<std::string>&, const std::vector<Contact>&,
       const Contact&)> FindValueFunctor;
@@ -92,21 +94,29 @@ class Rpcs {
              const std::string &value,
              const std::string &signature,
              const boost::posix_time::seconds &ttl,
-             const std::string &serialised_store_request,
-             const std::string &serialised_store_request_signature,
              SecurifierPtr securifier,
              const Contact &peer,
              StoreFunctor callback,
              TransportType type);
+  void StoreRefresh(const std::string &serialised_store_request,
+                    const std::string &serialised_store_request_signature,
+                    SecurifierPtr securifier,
+                    const Contact &peer,
+                    StoreFunctor callback,
+                    TransportType type);
   void Delete(const Key &key,
               const std::string &value,
               const std::string &signature,
-              const std::string &serialised_delete_request,
-              const std::string &serialised_delete_request_signature,
               SecurifierPtr securifier,
               const Contact &peer,
               DeleteFunctor callback,
               TransportType type);
+  void DeleteRefresh(const std::string &serialised_delete_request,
+                     const std::string &serialised_delete_request_signature,
+                     SecurifierPtr securifier,
+                     const Contact &peer,
+                     DeleteFunctor callback,
+                     TransportType type);
   void Downlist(const std::vector<NodeId> &node_ids,
                 SecurifierPtr securifier,
                 const Contact &peer,
@@ -141,11 +151,23 @@ class Rpcs {
                      const protobuf::StoreResponse &response,
                      ConnectedObjects connected_objects,
                      StoreFunctor callback);
+  void StoreRefreshCallback(
+      const transport::TransportCondition &transport_condition,
+      const transport::Info &info,
+      const protobuf::StoreRefreshResponse &response,
+      ConnectedObjects connected_objects,
+      StoreRefreshFunctor callback);
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
                       const protobuf::DeleteResponse &response,
                       ConnectedObjects connected_objects,
                       DeleteFunctor callback);
+  void DeleteRefreshCallback(
+      const transport::TransportCondition &transport_condition,
+      const transport::Info &info,
+      const protobuf::DeleteRefreshResponse &response,
+      ConnectedObjects connected_objects,
+      DeleteRefreshFunctor callback);
   ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
   Contact contact_;
   IoServicePtr asio_service_;
