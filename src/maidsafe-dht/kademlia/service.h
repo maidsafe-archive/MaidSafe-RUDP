@@ -63,7 +63,7 @@ class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
-typedef std::shared_ptr<boost::signals2::signal<void(
+typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
     const Contact&)>> PingDownListContactsPtr;
 
 /** Object handling service requests on a node.
@@ -184,13 +184,13 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] public_key_id public key id
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
-  void StoreCallback (const KeyValueSignature key_value_signature,
-                      const protobuf::StoreRequest request,
-                      const transport::Info info,
-                      const bool is_refresh,
-                      protobuf::StoreResponse *response,
-                      const std::string public_key,
-                      const std::string public_key_validation);
+  void StoreCallback(const KeyValueSignature key_value_signature,
+                     const protobuf::StoreRequest request,
+                     const transport::Info info,
+                     const bool is_refresh,
+                     protobuf::StoreResponse *response,
+                     const std::string public_key,
+                     const std::string public_key_validation);
   /** Delete Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
@@ -198,13 +198,13 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] public_key_id public key id
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
-  void DeleteCallback (const KeyValueSignature key_value_signature,
-                       const protobuf::DeleteRequest request,
-                       const transport::Info info,
-                       const bool is_refresh,
-                       protobuf::DeleteResponse *response,
-                       const std::string public_key,
-                       const std::string public_key_validation);
+  void DeleteCallback(const KeyValueSignature key_value_signature,
+                      const protobuf::DeleteRequest request,
+                      const transport::Info info,
+                      const bool is_refresh,
+                      protobuf::DeleteResponse *response,
+                      const std::string public_key,
+                      const std::string public_key_validation);
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */

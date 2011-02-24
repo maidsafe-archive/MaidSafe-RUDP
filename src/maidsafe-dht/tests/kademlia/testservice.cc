@@ -175,7 +175,7 @@ class ServicesTest: public testing::Test {
                          RequestAndSignature(request, req_sig), false);
   }
 
-  void Clear () {
+  void Clear() {
     routing_table_->Clear();
     data_store_->key_value_index_->clear();
   }
@@ -193,30 +193,30 @@ class ServicesTest: public testing::Test {
     return contact;
   }
 
-  void PopulateDataStore (boost::uint16_t count) {
+  void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
-    for (int i=0; i < count; ++i) {
+    for (int i = 0; i < count; ++i) {
       crypto::RsaKeyPair crypto_key;
       crypto_key.GenerateKeys(1024);
       KeyValueTuple cur_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
       EXPECT_TRUE(data_store_->StoreValue(cur_kvt.key_value_signature, old_ttl,
           cur_kvt.request_and_signature, crypto_key.public_key(), false));
     }
-  }   
+  }
 
-  void PopulateRoutingTable (boost::uint16_t count) {
+  void PopulateRoutingTable(boost::uint16_t count) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
       routing_table_->AddContact(contact, rank_info_);
     }
-  } 
-  void PopulateRoutingTable (boost::uint16_t count, boost::uint16_t pos) {
+  }
+  void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);
       routing_table_->AddContact(contact, rank_info_);
-    }    
+    }
   }
 
   size_t GetRoutingTableSize() const {
@@ -225,7 +225,7 @@ class ServicesTest: public testing::Test {
 
   size_t GetDataStoreSize() const {
     return data_store_->key_value_index_->size();
-  }  
+  }
 
   Contact contact_;
   kademlia::NodeId node_id_;
@@ -280,16 +280,16 @@ class ServicesTest: public testing::Test {
 
 TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
-  Contact target=ComposeContact(target_id, 5001);
+  Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender=ComposeContact(sender_id, 5001);
+  Contact sender = ComposeContact(sender_id, 5001);
   Clear();
   {
     // try to find a node from an empty routing table
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_);
     service.set_node_joined(true);
-    
+
     protobuf::FindNodesRequest find_nodes_req;
     find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
     find_nodes_req.set_key(target_id.String());
@@ -307,7 +307,7 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
   {
     // try to find the target from an k/2 filled routing table
     // (not containing the target)
-    PopulateRoutingTable (test::k / 2);
+    PopulateRoutingTable(test::k / 2);
     EXPECT_EQ(test::k / 2, GetRoutingTableSize());
 
     Service service(routing_table_, data_store_,
@@ -355,7 +355,7 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
     // try to find the target from a 2*k filled routing table
     // (containing the target)
     PopulateRoutingTable(test::k, 500);
-    PopulateRoutingTable(test::k - 1, 501);    
+    PopulateRoutingTable(test::k - 1, 501);
     routing_table_->AddContact(target, rank_info_);
     EXPECT_EQ(2 * test::k, GetRoutingTableSize());
 
@@ -372,7 +372,7 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
     ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
     // the target must be contained in the response's closest_nodes
     bool target_exist(false);
-    for (int i=0; i < find_nodes_rsp.closest_nodes_size(); ++i) {
+    for (int i = 0; i < find_nodes_rsp.closest_nodes_size(); ++i) {
       Contact current(FromProtobuf(find_nodes_rsp.closest_nodes(i)));
       if (current.node_id() == target_id)
         target_exist = true;
@@ -409,9 +409,9 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
 
 TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
-  Contact target=ComposeContact(target_id, 5001);
+  Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender=ComposeContact(sender_id, 5001);
+  Contact sender = ComposeContact(sender_id, 5001);
   {
     // Search in empty routing table and datastore
     // no alternative_store_
@@ -451,7 +451,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     ASSERT_EQ(test::k, find_value_rsp.closest_nodes_size());
     // the target must be contained in the response's closest_nodes
     bool target_exist(false);
-    for (int i=0; i < find_value_rsp.closest_nodes_size(); ++i) {
+    for (int i = 0; i < find_value_rsp.closest_nodes_size(); ++i) {
       Contact current(FromProtobuf(find_value_rsp.closest_nodes(i)));
       if (current.node_id() == target_id)
         target_exist = true;
@@ -461,7 +461,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());    
+    ASSERT_EQ(sender_id, pushed_in.node_id());
   }
   Clear();
   {
@@ -487,17 +487,17 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     ASSERT_EQ(sender_id, pushed_in.node_id());
   }
   Clear();
-  
+
   crypto::RsaKeyPair crypto_key;
   crypto_key.GenerateKeys(1024);
   bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
   KeyValueTuple target_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
   std::string target_key = target_kvt.key_value_signature.key;
   std::string target_value = target_kvt.key_value_signature.value;
-  
+
   {
     // Search in K+1 populated datastore (containing the target)
-    // with empty routing table    
+    // with empty routing table
     // no alternative_store_
     PopulateDataStore(test::k);
     EXPECT_TRUE(data_store_->StoreValue(target_kvt.key_value_signature, old_ttl,
@@ -518,7 +518,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());    
+    ASSERT_EQ(sender_id, pushed_in.node_id());
   }
   Clear();
   {
@@ -546,7 +546,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());      
+    ASSERT_EQ(sender_id, pushed_in.node_id());
   }
   Clear();
 
@@ -564,7 +564,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
     Service service(routing_table_, data_store_,
-                    alternative_store_true_ptr, securifier_);                    
+                    alternative_store_true_ptr, securifier_);
     service.set_node_joined(true);
     service.set_node_contact(node_contact);
     service.FindValue(info_, find_value_req, &find_value_rsp);
@@ -577,8 +577,8 @@ TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());     
-  }   
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
 }
 
 /*

@@ -154,7 +154,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
 
   RankInfoPtr rank_info_;
   NodeId holder_id_;
-  boost::uint16_t k_;   
+  boost::uint16_t k_;
   RoutingTable routing_table_;
   Contact contact_;
 };
@@ -165,10 +165,10 @@ class RoutingTableSingleKTest : public RoutingTableTest {
 };
 
 INSTANTIATE_TEST_CASE_P(VariantKValues, RoutingTableTest,
-                        testing::Range(2,21));
+                        testing::Range(2, 21));
 
 INSTANTIATE_TEST_CASE_P(SingleKValue, RoutingTableSingleKTest,
-                        testing::Values(2,16));
+                        testing::Values(2, 16));
 
 TEST_P(RoutingTableTest, BEH_KAD_CallToPrivateFunctions) {
   // Test Private member functions (GetLastSeenContact)

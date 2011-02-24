@@ -168,7 +168,7 @@ void Service::FindNodes(const transport::Info &info,
     return;
   NodeId key(request.key());
   if (!key.IsValid())
-    return;  
+    return;
   Contact sender(FromProtobuf(request.sender()));
   std::vector<Contact> closest_contacts, exclude_contacts;
   exclude_contacts.push_back(sender);
@@ -214,7 +214,7 @@ void Service::Store(const transport::Info &info,
                                         message_signature);
   if (is_refresh) {
     key_value_signature.value = request.serialised_store_request();
-    key_value_signature.signature = 
+    key_value_signature.signature =
         request.serialised_store_request_signature();
   }
   GetPublicKeyAndValidationCallback cb = boost::bind(
@@ -223,13 +223,13 @@ void Service::Store(const transport::Info &info,
   securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);
 }
 
-void Service::StoreCallback (const KeyValueSignature key_value_signature,
-                             const protobuf::StoreRequest request,
-                             const transport::Info info,
-                             const bool is_refresh,
-                             protobuf::StoreResponse *response,
-                             const std::string public_key,
-                             const std::string public_key_validation) {
+void Service::StoreCallback(const KeyValueSignature key_value_signature,
+                            const protobuf::StoreRequest request,
+                            const transport::Info info,
+                            const bool is_refresh,
+                            protobuf::StoreResponse *response,
+                            const std::string public_key,
+                            const std::string public_key_validation) {
   if  ( !securifier_->Validate(
           key_value_signature.value, request.sender().node_id(),
           key_value_signature.signature, request.public_key_id(), public_key,
@@ -239,7 +239,7 @@ void Service::StoreCallback (const KeyValueSignature key_value_signature,
     return;
   }
   RequestAndSignature request_signature(request.signed_value().value(),
-                                        request.signed_value().signature());  
+                                        request.signed_value().signature());
   bool result(false);
   result = datastore_->StoreValue(key_value_signature,
                                   boost::posix_time::seconds(request.ttl()),
@@ -252,7 +252,7 @@ void Service::StoreCallback (const KeyValueSignature key_value_signature,
                                RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }  
+  }
 }
 
 void Service::Delete(const transport::Info &info,
@@ -279,16 +279,16 @@ void Service::Delete(const transport::Info &info,
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::DeleteCallback, this, key_value_signature, request, info,
       is_refresh, response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);  
+  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);
 }
 
-void Service::DeleteCallback (const KeyValueSignature key_value_signature,
-                              const protobuf::DeleteRequest request,
-                              const transport::Info info,
-                              const bool is_refresh,
-                              protobuf::DeleteResponse *response,
-                              const std::string public_key,
-                              const std::string public_key_validation) {
+void Service::DeleteCallback(const KeyValueSignature key_value_signature,
+                             const protobuf::DeleteRequest request,
+                             const transport::Info info,
+                             const bool is_refresh,
+                             protobuf::DeleteResponse *response,
+                             const std::string public_key,
+                             const std::string public_key_validation) {
   if  ( !securifier_->Validate(
           key_value_signature.value, request.sender().node_id(),
           key_value_signature.signature, request.public_key_id(), public_key,
@@ -299,9 +299,9 @@ void Service::DeleteCallback (const KeyValueSignature key_value_signature,
   }
   // Only the signer of the value can delete it.
   // this shall be validated by the secuifier->validate
-//   if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-//     return;
-  
+//  if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
+//    return;
+
   RequestAndSignature request_signature(request.signed_value().value(),
                                         request.signed_value().signature());
   bool result(false);
