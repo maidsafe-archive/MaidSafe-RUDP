@@ -591,8 +591,8 @@ IF(MSVC)
   # prevents from automatic linking of boost libraries
   ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB)
 
-  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Ot /Oy /GL /D \"NDEBUG\" /EHsc /MT /Gy /W3 /Zi")
-  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Ot /Oy /D \"_DEBUG\" /EHsc /MTd  /c /ZI /TP")
+  SET(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /Ot /Oy /GL /D \"NDEBUG\" /EHsc /MT /Gy /W4 /Zi")
+  SET(CMAKE_CXX_FLAGS_DEBUG "/Od /Ot /Oy /D \"_DEBUG\" /EHsc /MTd /W4 /c /ZI /TP")
   SET(CMAKE_CXX_FLAGS_MINSIZEREL "/EHsc /MT")
   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/EHsc /MT")
 
@@ -602,13 +602,21 @@ IF(MSVC)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testcontact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functionalkademlia/testnode.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/testnatpmp.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/testtransport.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
-  # warning 4996 disabled due to generation through use of Boost Signals2
+  # warnings 4503, 4512 & 4996 disabled due to generation through use of Boost Signals2
   SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udttransport.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udtconnection.cc
-                                PROPERTIES COMPILE_FLAGS "/wd4996")
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/message_handler.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/message_handler.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/contact.cc
+                                PROPERTIES COMPILE_FLAGS "/wd4503 /wd4512 /wd4996")
+
+  # warning level set low for protocol buffer generated files
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/transport.pb.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/kademlia.pb.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/rpcs.pb.cc
+                                PROPERTIES COMPILE_FLAGS "/W0")
 
   # CMake defaults to passing stack size in LINKER_FLAGS of 10MB.  Set this to windows default of 1MB
   STRING(REGEX REPLACE "/STACK:[0-9]+" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")

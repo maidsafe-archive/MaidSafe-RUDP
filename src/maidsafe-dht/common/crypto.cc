@@ -27,6 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/scoped_ptr.hpp"
 #include "maidsafe-dht/common/crypto.h"
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4100 4127 4189 4244 4505 4512)
+#endif
 #include "maidsafe-dht/cryptopp/integer.h"
 #include "maidsafe-dht/cryptopp/pwdbased.h"
 #include "maidsafe-dht/cryptopp/sha.h"
@@ -38,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/cryptopp/modes.h"
 #include "maidsafe-dht/cryptopp/rsa.h"
 #include "maidsafe-dht/cryptopp/osrng.h"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 #include "maidsafe-dht/common/platform_config.h"
 #include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/common/log.h"

@@ -25,9 +25,16 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "boost/lexical_cast.hpp"
 #include "maidsafe-dht/transport/message_handler.h"
+#include "boost/lexical_cast.hpp"
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4244)
+#endif
 #include "maidsafe-dht/transport/transport.pb.h"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 #include "maidsafe-dht/common/securifier.h"
 
 namespace maidsafe {

@@ -57,7 +57,7 @@ CallLaterTimer::~CallLaterTimer() {
 }
 
 void CallLaterTimer::Run() {
-  while (true) {
+  for (;;) {
     try {
       io_service_.run();
       break;
