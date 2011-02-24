@@ -31,21 +31,32 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-Securifier::Securifier(const std::string &id,
+Securifier::Securifier(const std::string &signing_public_key_id,
+                       const std::string &signing_public_key,
                        const std::string &signing_private_key,
+                       const std::string &asymmetric_decryption_public_key_id,
+                       const std::string &asymmetric_decryption_public_key,
                        const std::string &asymmetric_decryption_private_key)
-    : kId_(id),
+    : kSigningKeyId_(signing_public_key_id),
+      kSigningPublicKey_(signing_public_key),
       kSigningPrivateKey_(signing_private_key),
+      kAsymmetricDecryptionKeyId_(asymmetric_decryption_public_key_id),
+      kAsymmetricDecryptionPublicKey_(asymmetric_decryption_public_key),
       kAsymmetricDecryptionPrivateKey_(asymmetric_decryption_private_key),
-      recipient_public_key_(),
+      parameters_() {}
+
+Securifier::Securifier(const std::string &public_key_id,
+                       const std::string &public_key,
+                       const std::string &private_key)
+    : kSigningKeyId_(public_key_id),
+      kSigningPublicKey_(public_key),
+      kSigningPrivateKey_(private_key),
+      kAsymmetricDecryptionKeyId_(public_key_id),
+      kAsymmetricDecryptionPublicKey_(public_key),
+      kAsymmetricDecryptionPrivateKey_(private_key),
       parameters_() {}
 
 Securifier::~Securifier() {}
-
-void Securifier::set_recipient_public_key(
-    const std::string &recipient_public_key) {
-  recipient_public_key_ = recipient_public_key;
-}
 
 void Securifier::AddParameters(const std::vector<std::string> &parameters) {
   size_t original_size(parameters_.size());
@@ -73,35 +84,74 @@ std::string Securifier::SignWithParameters(const std::string &value) const {
   return crypto::AsymSign(concatenation, kSigningPrivateKey_);
 }
 
-std::string Securifier::AsymmetricEncrypt(const std::string &value) const {
-  return crypto::AsymEncrypt(value, recipient_public_key_);
+std::string Securifier::AsymmetricEncrypt(
+    const std::string &value,
+    const std::string &recipient_public_key) const {
+  return crypto::AsymEncrypt(value, recipient_public_key);
+}
+
+void Securifier::GetPublicKeyAndValidation(
+    const std::string &public_key_id,
+    GetPublicKeyAndValidationCallback callback) {
+  callback("", "");
 }
 
 bool Securifier::Validate(const std::string &value,
-                          const std::string &sender_id,
                           const std::string &value_signature,
+                          const std::string &public_key_id,
                           const std::string &public_key,
                           const std::string &public_key_validation,
                           const std::string &kademlia_key) const {
-  return crypto::AsymCheckSig(value, value_signature, public_key);
+  if (!public_key.empty())
+    return crypto::AsymCheckSig(value, value_signature, public_key);
+  else
+    return true;
 }
 
 bool Securifier::ValidateWithParameters(
     const std::string &value,
-    const std::string &sender_id,
     const std::string &value_signature,
+    const std::string &public_key_id,
     const std::string &public_key,
     const std::string &public_key_validation,
     const std::string &kademlia_key) const {
-  std::string concatenation(value);
-  for (auto it = parameters_.begin(); it != parameters_.end(); ++it)
-    concatenation += *it;
-  return crypto::AsymCheckSig(concatenation, value_signature, public_key);
+  if (!public_key.empty()) {
+    std::string concatenation(value);
+    for (auto it = parameters_.begin(); it != parameters_.end(); ++it)
+      concatenation += *it;
+    return crypto::AsymCheckSig(concatenation, value_signature, public_key);
+  } else {
+    return true;
+  }
 }
 
 std::string Securifier::AsymmetricDecrypt(
     const std::string &encrypted_value) const {
   return crypto::AsymDecrypt(encrypted_value, kAsymmetricDecryptionPrivateKey_);
+}
+
+std::string Securifier::kSigningKeyId() const {
+  return kSigningKeyId_;
+}
+
+std::string Securifier::kSigningPublicKey() const {
+  return kSigningPublicKey_;
+}
+
+std::string Securifier::kSigningPrivateKey() const {
+  return kSigningPrivateKey_;
+}
+
+std::string Securifier::kAsymmetricDecryptionKeyId() const {
+  return kAsymmetricDecryptionKeyId_;
+}
+
+std::string Securifier::kAsymmetricDecryptionPublicKey() const {
+  return kAsymmetricDecryptionPublicKey_;
+}
+
+std::string Securifier::kAsymmetricDecryptionPrivateKey() const {
+  return kAsymmetricDecryptionPrivateKey_;
 }
 
 }  // namespace maidsafe

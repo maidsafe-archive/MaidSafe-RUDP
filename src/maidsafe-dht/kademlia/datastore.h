@@ -48,7 +48,10 @@ namespace maidsafe {
 
 namespace kademlia {
 
-namespace test { class DataStoreTest; }
+namespace test {
+  class DataStoreTest;
+  class ServicesTest;
+}
 
 struct KeyValueSignature {
   KeyValueSignature(const std::string &key,
@@ -185,6 +188,7 @@ class DataStore {
   void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
   bptime::seconds refresh_interval() const;
   friend class test::DataStoreTest;
+  friend class test::ServicesTest;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;

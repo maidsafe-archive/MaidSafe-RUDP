@@ -93,7 +93,7 @@ class NatPmpClientImpl {
   * @param lifetime
   * @note thread-safe
   */
-  void SendMappingRequest(boost::uint16_t protocol,
+  void SendMappingRequest(boost::uint32_t protocol,
                           boost::uint16_t private_port,
                           boost::uint16_t public_port,
                           boost::uint32_t lifetime);
@@ -106,7 +106,7 @@ class NatPmpClientImpl {
   /**
   * Sends a mapping.
   */
-  void DoSendMappingRequest(boost::uint16_t protocol,
+  void DoSendMappingRequest(boost::uint32_t protocol,
                             boost::uint16_t private_port,
                             boost::uint16_t public_port,
                             boost::uint32_t lifetime);

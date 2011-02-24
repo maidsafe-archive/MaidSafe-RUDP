@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_UTILS_H_
 #define MAIDSAFE_DHT_KADEMLIA_UTILS_H_
 
+#include <vector>
+
 namespace maidsafe {
 
 namespace transport { struct Endpoint; }
@@ -36,6 +38,7 @@ namespace kademlia {
 
 class Contact;
 class NodeId;
+
 namespace protobuf { class Contact; }
 
 bool IsValid(const transport::Endpoint &endpoint);
@@ -48,14 +51,11 @@ protobuf::Contact ToProtobuf(const Contact &contact);
 
 bool IsListeningOnTCP(const Contact &contact);
 
-//bool CompareContact(const ContactAndTargetKey &first,
-//                    const ContactAndTargetKey &second);
-//
-//// sort the contacts according the distance to the target key
-//void SortContacts(const Key &target_key, std::vector<Contact> *contacts);
-//
+// sort the contacts according the distance to the target key
+void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts);
+
 //// sort the contact list according the distance to the target key
-//void SortLookupContact(const Key &target_key,
+// void SortLookupContact(const Key &target_key,
 //                       std::vector<LookupContact> *lookup_contacts);
 
 }  // namespace kademlia

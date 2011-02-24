@@ -27,20 +27,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/node_impl.h"
 
-//#include <algorithm>
-//#include <vector>
-//#include <set>
+// #include <algorithm>
+// #include <vector>
+// #include <set>
 //
-//#include "boost/assert.hpp"
-//#include "boost/bind.hpp"
-//#include "boost/lexical_cast.hpp"
+// #include "boost/assert.hpp"
+// #include "boost/bind.hpp"
+// #include "boost/lexical_cast.hpp"
 //
-//#include "maidsafe-dht/common/crypto.h"
-//#include "maidsafe-dht/common/log.h"
-//#include "maidsafe-dht/common/online.h"
-//#include "maidsafe-dht/common/routing_table.h"
-//#include "maidsafe-dht/common/utils.h"
-//#include "maidsafe-dht/common/platform_config.h"
+// #include "maidsafe-dht/common/crypto.h"
+// #include "maidsafe-dht/common/log.h"
+// #include "maidsafe-dht/common/online.h"
+// #include "maidsafe-dht/common/routing_table.h"
+// #include "maidsafe-dht/common/utils.h"
+// #include "maidsafe-dht/common/platform_config.h"
 #include "maidsafe-dht/common/securifier.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/node_id.h"
@@ -49,10 +49,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/node_impl_structs.h"
 #include "maidsafe-dht/kademlia/utils.h"
-//#include "maidsafe-dht/kademlia/kademlia.pb.h"
-//#include "maidsafe-dht/kademlia/node_id.h"
-//#include "maidsafe-dht/transport/transport.h"
-//#include "maidsafe-dht/transport/utils.h"
+// #include "maidsafe-dht/kademlia/kademlia.pb.h"
+// #include "maidsafe-dht/kademlia/node_id.h"
+// #include "maidsafe-dht/transport/transport.h"
+// #include "maidsafe-dht/transport/utils.h"
 
 namespace maidsafe {
 
@@ -100,7 +100,7 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 }
 
 
-//void Node::Impl::JoinFirstNode(const NodeId &node_id,
+// void Node::Impl::JoinFirstNode(const NodeId &node_id,
 //                             const std::string &kad_config_file,
 //                             const IP &ip, const Port &port,
 //                             VoidFunctorOneString callback) {
@@ -152,33 +152,35 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //
 //  // Set kad_config_path_
 //  routing_table_.reset(new RoutingTable(node_id_, K_));
-//  routing_table_connection_ = routing_table_->on_ping_oldest_contact()->connect(
+//  routing_table_connection_ =
+//               routing_table_->on_ping_oldest_contact()->connect(
 //      boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
 //
 //  joined_ = true;
 ////  service_->set_node_joined(true);
 //
-////  addcontacts_routine_.reset(new boost::thread(&Node::Impl::CheckAddContacts,
+//  addcontacts_routine_.reset(new boost::thread(&Node::Impl::CheckAddContacts,
 ////                                               this));
 //  if (!refresh_routine_started_) {
 ////    ptimer_->AddCallLater(kRefreshTime * 1000,
 ////                          boost::bind(&Node::Impl::RefreshRoutine, this));
-////    ptimer_->AddCallLater(2000, boost::bind(&Node::Impl::RefreshValuesRoutine,
+//    ptimer_->AddCallLater(2000, boost::bind(&Node::Impl::RefreshValuesRoutine,
 ////                                            this));
 //    refresh_routine_started_ = true;
 //  }
 //  local_result.set_result(true);
 //  local_result.SerializeToString(&local_result_str);
 //  callback(local_result_str);
-//}
+// }
 //
-//void Node::Impl::JoinFirstNode(const std::string &kad_config_file,
+// void Node::Impl::JoinFirstNode(const std::string &kad_config_file,
 //                             const IP &ip, const Port &port,
 //                             VoidFunctorOneString callback) {
-//  JoinFirstNode(NodeId(NodeId::kRandomId), kad_config_file, ip, port, callback);
-//}
+//  JoinFirstNode(NodeId(NodeId::kRandomId),
+//                  kad_config_file, ip, port, callback);
+// }
 //
-//void Node::Impl::Leave() {
+// void Node::Impl::Leave() {
 //  if (joined_) {
 //    if (upnp_mapped_port_ != 0) {
 ////      UnMapUPnP();
@@ -201,18 +203,18 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //    }
 //    stopping_ = false;
 //  }
-//}
+// }
 //
-//void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
+// void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
 //                                       boost::shared_ptr<FindNodesArgs> fna) {
 //  boost::mutex::scoped_lock loch_lavitesse(fna->mutex);
 //  for (size_t n = 0; n < contacts.size(); ++n) {
 //    NodeContainerTuple nct(contacts[n]);
 //    fna->nc.insert(nct);
 //  }
-//}
+// }
 //
-//bool Node::Impl::MarkResponse(const Contact &contact,
+// bool Node::Impl::MarkResponse(const Contact &contact,
 //                             boost::shared_ptr<FindNodesArgs> fna,
 //                             SearchMarking mark,
 //                             std::list<Contact> *response_nodes) {
@@ -237,9 +239,9 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //  }
 //
 //  return false;
-//}
+// }
 //
-//int Node::Impl::NodesPending(boost::shared_ptr<FindNodesArgs> fna) {
+// int Node::Impl::NodesPending(boost::shared_ptr<FindNodesArgs> fna) {
 //  NodeContainerByState &index_state = fna->nc.get<nc_state>();
 //  std::pair<NCBSit, NCBSit> p = index_state.equal_range(kSelectedAlpha);
 //  int count(0);
@@ -248,9 +250,9 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //    ++p.first;
 //  }
 //  return count;
-//}
+// }
 //
-//bool Node::Impl::HandleIterationStructure(const Contact &contact,
+// bool Node::Impl::HandleIterationStructure(const Contact &contact,
 //                                         boost::shared_ptr<FindNodesArgs> fna,
 //                                         int round,
 //                                         SearchMarking mark,
@@ -266,7 +268,7 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //    nodes->clear();
 //    return true;
 //  } else {
-////    printf("Node::Impl::AnalyseIteration - Search not complete at Round(%d) - "
+//  printf("Node::Impl::AnalyseIteration - Search not complete at Round(%d) - "
 ////           "%d alphas\n", round, nodes->size());
 //  }
 //
@@ -358,9 +360,9 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //  }
 //
 //  return b;
-//}
+// }
 //
-//void Node::Impl::FindNodes(const FindNodesParams &fnp) {
+// void Node::Impl::FindNodes(const FindNodesParams &fnp) {
 //  std::vector<Contact> close_nodes, excludes;
 //  boost::shared_ptr<FindNodesArgs> fna(
 //      new FindNodesArgs(fnp.key, fnp.callback));
@@ -412,9 +414,9 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //  }
 //
 //  IterativeSearch(fna, false, false, &alphas);
-//}
+// }
 //
-//void Node::Impl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
+// void Node::Impl::IterativeSearch(boost::shared_ptr<FindNodesArgs> fna,
 //                               bool top_nodes_done,
 //                               bool calledback,
 //                               std::list<Contact> *contacts) {
@@ -429,7 +431,8 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //  if (contacts->empty())
 //    return;
 //
-//  printf("Node::Impl::IterativeSearch - Sending %d alphas\n", contacts->size());
+// printf("Node::Impl::IterativeSearch - Sending %d alphas\n",
+//           contacts->size());
 //  std::list<Contact>::iterator it = contacts->begin();
 //  for (; it != contacts->end(); ++it) {
 //    boost::shared_ptr<FindNodesRpcArgs> fnrpc(new FindNodesRpcArgs(*it, fna));
@@ -438,11 +441,11 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //                                 _1, _2, fnrpc),
 //                     kUdt);
 //  }
-//}
+// }
 //
-//void Node::Impl::IterativeSearchResponse(bool result,
+// void Node::Impl::IterativeSearchResponse(bool result,
 //                                       const std::vector<Contact> &contacts,
-//                                       boost::shared_ptr<FindNodesRpcArgs> fnrpc) {
+//                                boost::shared_ptr<FindNodesRpcArgs> fnrpc) {
 //  SearchMarking mark(kSearchContacted);
 //  if (!result)
 //    mark = kSearchDown;
@@ -463,7 +466,7 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
 //  }
 //
 //  IterativeSearch(fnrpc->rpc_fna, done, calledback, &close_nodes);
-//}
+// }
 void Node::Impl::PingOldestContact(const Contact &oldest_contact,
                                    const Contact &replacement_contact,
                                    RankInfoPtr replacement_rank_info) {
@@ -484,7 +487,6 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
 //    remove old contact
 //      add new contact
 //  }
-
 }
 
 

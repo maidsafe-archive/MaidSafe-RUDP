@@ -52,7 +52,8 @@ Commands::Commands(boost::shared_ptr<kademlia::Node> node,
                    boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
                    const boost::uint16_t &K)
       : node_(node), chmanager_(chmanager), result_arrived_(false),
-        finish_(false), min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore),
+        finish_(false),
+        min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore),
         cryobj_() {
   cryobj_.set_hash_algorithm(crypto::SHA_512);
 }
@@ -74,8 +75,8 @@ void Commands::Run() {
   }
 }
 
-void Commands::StoreCallback(const std::string &result, const kademlia::NodeId &key,
-                             const boost::int32_t &ttl) {
+void Commands::StoreCallback(const std::string &result,
+    const kademlia::NodeId &key, const boost::int32_t &ttl) {
 //  kademlia::StoreResponse msg;
 //  if (!msg.ParseFromString(result)) {
 //    printf("ERROR. Invalid response. Kademlia Store Value key %s\n",
@@ -85,7 +86,8 @@ void Commands::StoreCallback(const std::string &result, const kademlia::NodeId &
 //  }
 //  if (!msg.result()) {
 //    printf("Failed to store %f copies of values for key %s.\n",
-//        min_succ_stores_, key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
+//        min_succ_stores_,
+//        key.ToStringEncoded(kademlia::NodeId::kHex).c_str());
 //    printf("Some copies might have been stored\n");
 //  } else {
 //    printf("Successfully stored key %s with ttl %d\n",
@@ -94,7 +96,8 @@ void Commands::StoreCallback(const std::string &result, const kademlia::NodeId &
   result_arrived_ = true;
 }
 
-void Commands::PingCallback(const std::string &result, const kademlia::NodeId &id) {
+void Commands::PingCallback(const std::string &result,
+    const kademlia::NodeId &id) {
 //  kademlia::PingResponse msg;
 //  if (!msg.ParseFromString(result)) {
 //    printf("ERROR. Invalid response. Kademlia Ping Node to node with id %s\n",
@@ -384,7 +387,8 @@ void Commands::Store50Values(const std::string &prefix) {
   std::string value;
   for (boost::uint16_t i = 0; i < 50; ++i) {
     arrived = false;
-    kademlia::NodeId key(cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
+    kademlia::NodeId key(
+        cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
         "", crypto::STRING_STRING, false));
     value.clear();
     for (int j = 0; j < 1024 * 100; ++j) {
