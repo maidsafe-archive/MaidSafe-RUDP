@@ -57,8 +57,12 @@ class FindValueResponse;
 class FindNodesRequest;
 class FindNodesResponse;
 class StoreRequest;
+class StoreRefreshRequest;
 class StoreResponse;
+class StoreRefreshResponse;
 class DeleteRequest;
+class DeleteRefreshRequest;
+class DeleteRefreshResponse;
 class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
@@ -127,31 +131,45 @@ class Service : public boost::enable_shared_from_this<Service> {
                  const protobuf::FindNodesRequest &request,
                  protobuf::FindNodesResponse *response);
   /** Handle Store request.
-   *  It can be a publish request or just a refresh request
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to store.
    *  @param[in] message_signature The signature of the message to store.
-   *  @param[out] response To response. */                 
+   *  @param[out] response The response. */                 
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
              const std::string &message,
              const std::string &message_signature,
              protobuf::StoreResponse *response);
-  /** Handle Delete request.
-   *  It can be a publish request or just a refresh request
+  /** Handle StoreRefresh request.
    *  The request sender will be added into the routing table
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response The response. */                 
+  void StoreRefresh(const transport::Info &info,
+                    const protobuf::StoreRefreshRequest &request,
+                    protobuf::StoreRefreshResponse *response);
+  /** Handle Delete request.
+   *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to delete.
    *  @param[in] message_signature The signature of the message to delete.
-   *  @param[out] response To response. */              
+   *  @param[out] response The response. */                 
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
-              protobuf::DeleteResponse *response);
+              protobuf::DeleteResponse *response);  /** Handle Store request.
+  /** Handle DeleteRefresh request.
+   *  The request sender will be added into the routing table.
+   *  @param[in] info The rank info.
+   *  @param[in] request The request.
+   *  @param[out] response The response. */                 
+  void DeleteRefresh(const transport::Info &info,
+                     const protobuf::DeleteRefreshRequest &request,
+                     protobuf::DeleteRefreshResponse *response);
   /** Handle Downlist request.
    *  Try to ping the contacts in the downlist and then remove those no-response
    *  contacts from the routing table
@@ -160,7 +178,7 @@ class Service : public boost::enable_shared_from_this<Service> {
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request);
   /** Getter.
-   *  @return The singal handler. */
+   *  @return The signal handler. */
   PingDownListContactsPtr GetPingOldestContactSingalHandler();
   /** Set the status to be joined or not joined
    *  @param joined The bool switch. */
@@ -180,31 +198,55 @@ class Service : public boost::enable_shared_from_this<Service> {
   /** Store Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
-   *  @param[out] response To response.
-   *  @param[in] public_key_id public key id
+   *  @param[in] info The rank info.   
+   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
-  void StoreCallback(const KeyValueSignature key_value_signature,
-                     const protobuf::StoreRequest request,
-                     const transport::Info info,
-                     const bool is_refresh,
-                     protobuf::StoreResponse *response,
-                     const std::string public_key,
-                     const std::string public_key_validation);
+  void StoreCallback (const KeyValueSignature key_value_signature,
+                      const protobuf::StoreRequest request,
+                      const transport::Info info,
+                      protobuf::StoreResponse *response,
+                      const std::string public_key,
+                      const std::string public_key_validation);
+  /** Store Refresh Callback.
+   *  @param[in] key_value_signature tuple of <key, value, signature>.
+   *  @param[in] request The request.
+   *  @param[in] info The rank info.
+   *  @param[out] response The response.
+   *  @param[in] public_key public key
+   *  @param[in] public_key_validation public key validation */
+  void StoreRefreshCallback (const KeyValueSignature key_value_signature,
+                             const protobuf::StoreRefreshRequest request,
+                             const transport::Info info,
+                             protobuf::StoreRefreshResponse *response,
+                             const std::string public_key,
+                             const std::string public_key_validation);
   /** Delete Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
-   *  @param[out] response To response.
-   *  @param[in] public_key_id public key id
+   *  @param[in] info The rank info.
+   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
-  void DeleteCallback(const KeyValueSignature key_value_signature,
-                      const protobuf::DeleteRequest request,
-                      const transport::Info info,
-                      const bool is_refresh,
-                      protobuf::DeleteResponse *response,
-                      const std::string public_key,
-                      const std::string public_key_validation);
+  void DeleteCallback (const KeyValueSignature key_value_signature,
+                       const protobuf::DeleteRequest request,
+                       const transport::Info info,
+                       protobuf::DeleteResponse *response,
+                       const std::string public_key,
+                       const std::string public_key_validation);
+  /** Delete Refresh Callback.
+   *  @param[in] key_value_signature tuple of <key, value, signature>.
+   *  @param[in] request The request.
+   *  @param[in] info The rank info.
+   *  @param[out] response The response.
+   *  @param[in] public_key public key
+   *  @param[in] public_key_validation public key validation */
+  void DeleteRefreshCallback (const KeyValueSignature key_value_signature,
+                              const protobuf::DeleteRefreshRequest request,
+                              const transport::Info info,
+                              protobuf::DeleteRefreshResponse *response,
+                              const std::string public_key,
+                              const std::string public_key_validation);
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */

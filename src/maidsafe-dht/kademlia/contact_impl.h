@@ -25,12 +25,6 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
-
 #ifndef MAIDSAFE_DHT_KADEMLIA_CONTACT_IMPL_H_
 #define MAIDSAFE_DHT_KADEMLIA_CONTACT_IMPL_H_
 
@@ -53,7 +47,10 @@ class Contact::Impl {
        const std::vector<transport::Endpoint> &local_endpoints,
        const transport::Endpoint &rendezvous_endpoint,
        bool tcp443,
-       bool tcp80);
+       bool tcp80,
+       const std::string &public_key_id,
+       const std::string &public_key,
+       const std::string &other_info);
   NodeId node_id() const { return node_id_; }
   transport::Endpoint endpoint() const { return endpoint_; }
   std::vector<transport::Endpoint> local_endpoints() const {
@@ -64,6 +61,9 @@ class Contact::Impl {
   }
   transport::Endpoint tcp443endpoint() const;
   transport::Endpoint tcp80endpoint() const;
+  std::string public_key_id() const { return public_key_id_; }
+  std::string public_key() const { return public_key_; }
+  std::string other_info() const { return other_info_; }
   bool SetPreferredEndpoint(const transport::IP &ip);
   transport::Endpoint PreferredEndpoint() const;
   bool IsDirectlyConnected() const;
@@ -85,6 +85,7 @@ class Contact::Impl {
   std::vector<transport::Endpoint> local_endpoints_;
   transport::Endpoint rendezvous_endpoint_;
   bool tcp443_, tcp80_, prefer_local_;
+  std::string public_key_id_, public_key_, other_info_;
 };
 
 }  // namespace kademlia
