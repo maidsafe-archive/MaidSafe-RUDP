@@ -1,0 +1,378 @@
+/* Copyright (c) 2010 maidsafe.net limited
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+    * Neither the name of the maidsafe.net limited nor the names of its
+    contributors may be used to endorse or promote products derived from this
+    software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#include <signal.h>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include "maidsafe/base/log.h"
+#include "maidsafe/base/utils.h"
+#include "maidsafe/distributed_network/mysqlppwrap.h"
+#include "maidsafe/distributed_network/operator.h"
+#include "maidsafe/maidsafe-dht.h"
+
+namespace fs = boost::filesystem;
+
+namespace net_client {
+
+static const boost::uint16_t K = 4;
+
+void RunSmallTest() {
+  MySqlppWrap msw;
+  msw.Init("kademlia_network_test", "127.0.0.1", "root", "m41ds4f3",
+           "kademliavalues");
+
+  int n = msw.Delete("", "");
+  printf("Deleted %d previous entries.\n", n);
+
+  std::vector<std::string> values;
+  n = msw.Get("", &values);
+  if (n != 0 || !values.empty()) {
+    printf("Failed in Get #1: %d\n", n);
+    return;
+  }
+
+  std::string k("key1");
+  for (int a = 0; a < 10; ++a) {
+    std::string v("value_" + base::IntToString(a));
+    n = msw.Insert(k, v);
+    if (n != 0) {
+      printf("Failed inserting #1 value %d\n", a);
+      return;
+    }
+  }
+
+  n = msw.Get("", &values);
+  if (n != 0 || values.size() != size_t(10)) {
+    printf("Failed in Get #2\n");
+    return;
+  }
+
+  n = msw.Get("key1", &values);
+  if (n != 0 || values.size() != size_t(10)) {
+    printf("Failed in Get #3\n");
+    return;
+  }
+
+  k = "key2";
+  for (int a = 0; a < 5; ++a) {
+    std::string v("value_" + base::IntToString(a));
+    n = msw.Insert(k, v);
+    if (n != 0) {
+      printf("Failed inserting #2 value %d\n", a);
+      return;
+    }
+  }
+
+  n = msw.Get("", &values);
+  if (n != 0 || values.size() != size_t(15)) {
+    printf("Failed in Get #4\n");
+    return;
+  }
+
+  n = msw.Get("key2", &values);
+  if (n != 0 || values.size() != size_t(5)) {
+    printf("Failed in Get #5\n");
+    return;
+  }
+
+  n = msw.Delete("key1", "");
+  if (n != 10) {
+    printf("Failed in Delete #2\n");
+    return;
+  }
+
+  n = msw.Get("", &values);
+  if (n != 0 || values.size() != size_t(5)) {
+    printf("Failed in Get #4\n");
+    return;
+  }
+
+  n = msw.Get("key2", &values);
+  if (n != 0 || values.size() != size_t(5)) {
+    printf("Failed in Get #5\n");
+    return;
+  }
+
+  n = msw.Update("key2", "value_0", "value_5");
+  if (n != 0) {
+    printf("Failed in Update #1\n");
+    return;
+  }
+
+  n = msw.Get("key2", &values);
+  if (n != 0 || values.size() != size_t(5)) {
+    printf("Failed in Get #5\n");
+    return;
+  }
+
+  std::set<std::string> s(values.begin(), values.end());
+  values = std::vector<std::string>(s.begin(), s.end());
+  for (size_t y = 0; y < values.size(); ++y) {
+    if (values[y] != std::string("value_" + base::IntToString(y+1))) {
+      printf("Checking update #1 at value %d\n", y);
+      return;
+    }
+  }
+
+  n = msw.Delete("key2", "value_1");
+  if (n != 1) {
+    printf("Failed in Delete #3\n");
+    return;
+  }
+
+  n = msw.Get("key2", &values);
+  if (n != 0 || values.size() != size_t(4)) {
+    printf("Failed in Get #6\n");
+    return;
+  }
+
+  s = std::set<std::string>(values.begin(), values.end());
+  values = std::vector<std::string>(s.begin(), s.end());
+  for (size_t y = 0; y < values.size(); ++y) {
+    if (values[y] != std::string("value_" + base::IntToString(y+2))) {
+      printf("Checking delete #3 at value %d\n", y);
+      return;
+    }
+  }
+}
+
+void StartTest(boost::shared_ptr<Operator> op,
+               boost::shared_ptr<kademlia::Node> kn,
+               const std::string &public_key,
+               const std::string &private_key) {
+  op.reset(new Operator(kn, public_key, private_key));
+  op->Run();
+}
+
+bool WriteKadConfig() {
+//  base::KadConfig kadconfig;
+//  fs::path kadconfig_path("/.kadconfig");
+//  try {
+//    base::KadConfig::Contact *contact = kadconfig.add_contact();
+//    contact->set_ip("173.230.145.156");
+//  contact->set_node_id("916a6578803acd5ee57c5ffcba76e2e0688dcc079cf3912bab87d"
+//                       "43d5213cfedfb337ec8a62664fd85a11e02ca58724623abe17f1f"
+//                         "699a43fcbe970c77578266");
+//    contact->set_port(33818);
+//    contact->set_local_ip("173.230.145.156");
+//    contact->set_local_port(9000);
+//    boost::filesystem::fstream output(kadconfig_path.string().c_str(),
+//                                      std::ios::out | std::ios::trunc |
+//                                      std::ios::binary);
+//    if (!kadconfig.SerializeToOstream(&output)) {
+//      output.close();
+//      return false;
+//    }
+//    output.close();
+//    return fs::exists(kadconfig_path);
+//  }
+//  catch(const std::exception &) {
+//    return false;
+//  }
+}
+
+bool KadConfigOK() {
+//  base::KadConfig kadconfig;
+//  fs::path kadconfig_path("/.kadconfig");
+//  try {
+//    fs::ifstream input(kadconfig_path.string().c_str(),
+//                       std::ios::in | std::ios::binary);
+//    if (!kadconfig.ParseFromIstream(&input)) {
+//      return false;
+//    }
+//    input.close();
+//    if (kadconfig.contact_size() == 0)
+//      return false;
+//  }
+//  catch(const std::exception &) {
+//    return false;
+//  }
+  return true;
+}
+
+class JoinCallback {
+ public:
+  JoinCallback() : mutex_(),
+                   cond_var_(),
+                   result_arrived_(false),
+                   success_(false) {}
+  void AssessResult(const std::string &result) {
+//    base::GeneralResponse message;
+//    boost::mutex::scoped_lock lock(mutex_);
+//    success_ = true;
+//    if (!message.ParseFromString(result)) {
+//      DLOG(ERROR) << "Can't parse join response." << std::endl;
+//      success_ = false;
+//    }
+//    if (success_ && !message.IsInitialized()) {
+//      DLOG(ERROR) << "Join response isn't initialised." << std::endl;
+//      success_ = false;
+//    }
+//    if (success_ && !message.result()) {
+//      DLOG(ERROR) << "Join failed." << std::endl;
+//      success_ = false;
+//    }
+    result_arrived_ = true;
+    cond_var_.notify_one();
+  }
+  bool result_arrived() const { return result_arrived_; }
+  bool JoinedNetwork() {
+    boost::mutex::scoped_lock lock(mutex_);
+    try {
+      bool wait_success = cond_var_.timed_wait(lock,
+          boost::posix_time::milliseconds(30000),
+          boost::bind(&JoinCallback::result_arrived, this));
+      if (!wait_success) {
+        DLOG(ERROR) << "Failed to wait for join callback." << std::endl;
+        return false;
+      }
+    }
+    catch(const std::exception &e) {
+      DLOG(ERROR) << "Error waiting to join: " << e.what() << std::endl;
+      return false;
+    }
+    return success_;
+  }
+ private:
+  boost::mutex mutex_;
+  boost::condition_variable cond_var_;
+  bool result_arrived_, success_;
+};
+
+class NetworkTestValidator : public base::SignatureValidator {
+ public:
+  NetworkTestValidator() : SignatureValidator() {}
+  /**
+   * Signer Id is not validated, return always true
+   */
+  bool ValidateSignerId(const std::string&, const std::string&,
+                        const std::string&) {
+    return true;
+  }
+  /**
+   * Validates the request signed with private key that corresponds
+   * to public_key
+   */
+  bool ValidateRequest(const std::string &signed_request,
+                       const std::string &public_key,
+                       const std::string &signed_public_key,
+                       const std::string &key) {
+    if (signed_request == kademlia::kAnonymousSignedRequest)
+      return true;
+    crypto::Crypto co;
+    return co.AsymCheckSig(co.Hash(public_key + signed_public_key + key, "",
+                                   crypto::STRING_STRING, true),
+                           signed_request, public_key, crypto::STRING_STRING);
+  }
+};
+
+}  // namespace net_client
+
+volatile int ctrlc_pressed = 0;
+
+void CtrlcHandler(int b) {
+  b = 1;
+  ctrlc_pressed = b;
+}
+
+int main(int, char **argv) {
+  // Initialising logging
+  google::InitGoogleLogging(argv[0]);
+  // Choose to direct output to stderr or not.
+  FLAGS_logtostderr = false;
+  // If Google logging is linked in, log messages at or above this level.
+  // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
+  FLAGS_minloglevel = 3;
+
+  if (!net_client::KadConfigOK()) {
+    DLOG(ERROR) << "Can't find .kadconfig" << std::endl;
+    return 1;
+  }
+
+  // Create required objects
+//  net_client::NetworkTestValidator ntv;
+//  transport::UdtTransport transport_udt;
+//  boost::int16_t transport_id;
+//  rpcprotocol::ChannelManager channel_manager(&transport_handler);
+//  crypto::RsaKeyPair rsa_key_pair;
+//  rsa_key_pair.GenerateKeys(4096);
+//  kad::KnodeConstructionParameters kcp;
+//  kcp.type = kad::CLIENT;
+//  kcp.public_key = rsa_key_pair.public_key();
+//  kcp.private_key = rsa_key_pair.private_key();
+//  kcp.k = net_client::K;
+//  kcp.refresh_time = kad::kRefreshTime;
+//  boost::shared_ptr<kad::KNode> node(
+//      new kad::KNode(&channel_manager, &transport_handler, kcp));
+//  node->set_transport_id(transport_id);
+//  node->set_signature_validator(&ntv);
+//  if (!channel_manager.RegisterNotifiersToTransport() ||
+//      !transport_handler.RegisterOnServerDown(
+//          boost::bind(&kad::KNode::HandleDeadRendezvousServer,
+//                      node.get(), _1))) {
+//    return 2;
+//  }
+//
+//  if (0 != transport_udt.Start(0) ||
+//      0 != channel_manager.Start()) {
+//    return 3;
+//  }
+
+//  // Join the test network
+//  net_client::JoinCallback callback;
+//  node->Join("/.kadconfig",
+//             boost::bind(&net_client::JoinCallback::AssessResult,
+//                         &callback, _1));
+//  if (!callback.JoinedNetwork()) {
+//    transport_handler.Stop(transport_id);
+//    channel_manager.Stop();
+//    return 4;
+//  }
+
+//  boost::shared_ptr<net_client::Operator> op;
+//  boost::thread th(&net_client::StartTest, op, node,
+//                     rsa_key_pair.public_key(),
+//                   rsa_key_pair.private_key());
+//
+//  printf("Node info: %s", node->contact_info().DebugString().c_str());
+//  printf("=====================================\n");
+//  printf("Press Ctrl+C to exit\n");
+//  printf("=====================================\n\n");
+//  signal(SIGINT, CtrlcHandler);
+//  while (!ctrlc_pressed) {
+//    boost::this_thread::sleep(boost::posix_time::seconds(1));
+//  }
+//
+//  printf("\n");
+//  transport_handler.StopPingRendezvous();
+//  node->Leave();
+//  transport_handler.Stop(transport_id);
+//  channel_manager.Stop();
+
+  return 0;
+}
+
