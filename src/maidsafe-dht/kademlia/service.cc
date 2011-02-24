@@ -27,22 +27,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // TODO(Fraser#5#): 27/01/11 - output warnings consistently.
 
-#include "maidsafe-dht/kademlia/service.h"
-
 #include <utility>
 #include <set>
 
 // #include "boost/compressed_pair.hpp"
 
+#include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
-#include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
+
 #include "maidsafe-dht/common/alternative_store.h"
 #include "maidsafe-dht/common/securifier.h"
 #include "maidsafe-dht/common/log.h"
-
 #include "maidsafe-dht/common/crypto.h"
 
 namespace maidsafe {
@@ -50,15 +48,34 @@ namespace maidsafe {
 namespace kademlia {
 
 Service::Service(std::shared_ptr<RoutingTable> routing_table,
-                 std::shared_ptr<DataStore> datastore,
+                 std::shared_ptr<DataStore> data_store,
                  AlternativeStorePtr alternative_store,
-                 SecurifierPtr securifier)
+                 SecurifierPtr securifier,
+                 const boost::uint16_t &k )
     : routing_table_(routing_table),
-      datastore_(datastore),
+      datastore_(data_store),
       alternative_store_(alternative_store),
       securifier_(securifier),
       node_joined_(false),
-      node_contact_() {}
+      node_contact_(),
+      k_(k),
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
+
+Service::Service(std::shared_ptr<RoutingTable> routing_table,
+                 std::shared_ptr<DataStore> data_store,
+                 AlternativeStorePtr alternative_store,
+                 SecurifierPtr securifier)
+    : routing_table_(routing_table),
+      datastore_(data_store),
+      alternative_store_(alternative_store),
+      securifier_(securifier),
+      node_joined_(false),
+      node_contact_(),
+      k_(size_t(16)),
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
+
+Service::~Service() {
+}
 
 void Service::ConnectToSignals(TransportPtr transport,
                                MessageHandlerPtr message_handler) {
@@ -97,7 +114,7 @@ void Service::Ping(const transport::Info &info,
   routing_table_->AddContact(FromProtobuf(request.sender()),
                              RankInfoPtr(new transport::Info(info)));
 }
-/*
+
 void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
                         protobuf::FindValueResponse *response) {
@@ -109,7 +126,7 @@ void Service::FindValue(const transport::Info &info,
   // Are we the alternative value holder?
   std::string key(request.key());
   std::vector<std::pair<std::string, std::string>> values_str;
-  if (alternative_store_ != NULL && alternative_store_->Has(key)) {
+  if ((alternative_store_ != NULL) && (alternative_store_->Has(key))) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
@@ -118,18 +135,19 @@ void Service::FindValue(const transport::Info &info,
 
   // Do we have the values?
   if (datastore_->GetValues(key, &values_str)) {
-    if (using_signatures_) {
-      for (unsigned int i = 0; i < values_str.size(); i++) {
-        protobuf::SignedValue *signed_value = response->add_signed_values();
-        signed_value->set_value(values_str[i].first);
-        signed_value->set_signature(values_str[i].second);
-      }
-    } else {
-      for (unsigned int i = 0; i < values_str.size(); i++)
-        response->add_values(values_str[i].first);
+    // signature is mandatory in new implementation
+    //  if (using_signatures_) {
+    for (unsigned int i = 0; i < values_str.size(); i++) {
+      protobuf::SignedValue *signed_value = response->add_signed_values();
+      signed_value->set_value(values_str[i].first);
+      signed_value->set_signature(values_str[i].second);
     }
+//     } else {
+//       for (unsigned int i = 0; i < values_str.size(); i++)
+//         response->add_values(values_str[i].first);
+//     }
     response->set_result(true);
-    routing_table_->AddContact(sender, info);
+    routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
   }
 
@@ -148,74 +166,93 @@ void Service::FindNodes(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
+  NodeId key(request.key());
+  if (!key.IsValid())
+    return;  
   Contact sender(FromProtobuf(request.sender()));
   std::vector<Contact> closest_contacts, exclude_contacts;
-  NodeId key(request.key());
-
-  if (!key.IsValid())
-    return;
-
   exclude_contacts.push_back(sender);
-  // TODO change to an overloaded method with implicit K
-  routing_table_->FindCloseNodes(key, -1, exclude_contacts, &closest_contacts);
-  bool found_node(false);
+  // the repsonse will always be the k-closest contacts
+  // if the target is contained in the routing table, then it shall be one of
+  // the k-closest. Then the send will interate the result, if find the target
+  // then stop the search.
+  routing_table_->GetCloseContacts(key, k_, exclude_contacts,
+                                   &closest_contacts);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
-    if (key == closest_contacts[i].node_id())
-      found_node = true;
   }
-
-  if (!found_node) {
-    Contact key_node;
-    if (routing_table_->GetContact(key, &key_node))
-      (*response->add_closest_nodes()) = ToProtobuf(key_node);
-  }
-
   response->set_result(true);
-  routing_table_->AddContact(sender, info);
+  routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
 }
 
+//  Here are two situations need to be handled:
+//        Original Store (publish) and Refresh
+//  If the request is a refresh, the 6 and 7 fields in the StoreRequest message
+//  will be populated. If the 6 and 7 fields are not populated, then the request
+//  is an original store (publish)
+//  In case of an original store, message and message_signature hold the value
+//  In case of refresh, 6 and 7 fields in the StoreRequest hold the value
 void Service::Store(const transport::Info &info,
                     const protobuf::StoreRequest &request,
+                    const std::string &message,
+                    const std::string &message_signature,
                     protobuf::StoreResponse *response) {
   response->set_result(false);
   bool result(false);
   if (!node_joined_)
     return;
-  const protobuf::MessageSignature &signature(request.request_signature());
-  std::string serialised_deletion_signature;
-
-  if (using_signatures_) {
-    if (!request.has_request_signature() ||
-        !request.has_signed_value() ||
-        signature_validator_ == NULL ||
-        !signature_validator_->ValidateSignerId(
-            signature.signer_id(), signature.public_key(),
-            signature.public_key_validation()) ||
-        !signature_validator_->ValidateRequest(
-            signature.request_signature(), signature.public_key(),
-            signature.public_key_validation(), request.key())) {
-      DLOG(WARNING) << "Failed to validate Store request for kademlia value"
-                    << std::endl;
-      return;
-    }
-    result = StoreValueLocal(request.key(), request.signed_value(),
-                             request.ttl(), request.publish(),
-                             &serialised_deletion_signature);
-  } else if (request.has_value()) {
-    result = StoreValueLocal(request.key(), request.value(), request.ttl(),
-                             request.publish(), &serialised_deletion_signature);
+  if (message_signature.empty() ||
+      message.empty() ||
+      securifier_ == NULL) {
+    DLOG(WARNING) << "Input Error" << std::endl;
+    return;
   }
+  //  tell if the request is an original store or just a refresh
+  bool is_refresh = request.has_serialised_store_request() &&
+                    request.has_serialised_store_request_signature();
+  KeyValueSignature key_value_signature(request.key(), message,
+                                        message_signature);
+  if (is_refresh) {
+    key_value_signature.value = request.serialised_store_request();
+    key_value_signature.signature = 
+        request.serialised_store_request_signature();
+  }
+  GetPublicKeyAndValidationCallback cb = boost::bind(
+      &Service::StoreCallback, this, key_value_signature, request, info,
+      is_refresh, response, _1, _2);
+  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);
+}
 
+void Service::StoreCallback (const KeyValueSignature key_value_signature,
+                             const protobuf::StoreRequest request,
+                             const transport::Info info,
+                             const bool is_refresh,
+                             protobuf::StoreResponse *response,
+                             const std::string public_key,
+                             const std::string public_key_validation) {
+  if  ( !securifier_->Validate(
+          key_value_signature.value, request.sender().node_id(),
+          key_value_signature.signature, request.public_key_id(), public_key,
+          public_key_validation, request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << std::endl;
+    return;
+  }
+  RequestAndSignature request_signature(request.signed_value().value(),
+                                        request.signed_value().signature());  
+  bool result(false);
+  result = datastore_->StoreValue(key_value_signature,
+                                  boost::posix_time::seconds(request.ttl()),
+                                  request_signature,
+                                  public_key,
+                                  is_refresh);
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()), info);
-  } else if (!serialised_deletion_signature.empty()) {
-    (*response->mutable_deletion_signature()).ParseFromString(
-        serialised_deletion_signature);
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }
+  }  
 }
 
 void Service::Delete(const transport::Info &info,
@@ -224,208 +261,86 @@ void Service::Delete(const transport::Info &info,
                      const std::string &message_signature,
                      protobuf::DeleteResponse *response) {
   response->set_result(false);
-  if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)
+  if (!node_joined_ || securifier_ == NULL)
     return;
-
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
     return;
-
-  const protobuf::MessageSignature &signature(request.request_signature());
-  if (!signature_validator_->ValidateSignerId(signature.signer_id(),
-                                              signature.public_key(),
-                                              signature.public_key_validation()) ||
-      !signature_validator_->ValidateRequest(signature.request_signature(),
-                                             signature.public_key(),
-                                             signature.public_key_validation(),
-                                             request.key()))
-    return;
-
-  // Only the signer of the value can delete it.
-  crypto::Crypto cobj;
-  if (!cobj.AsymCheckSig(request.signed_value().value(),
-                         request.signed_value().signature(),
-                         request.request_signature().public_key(),
-                         crypto::STRING_STRING))
-    return;
-  KeyValueSignatureTuple keyvaluesignature(request.key(),
-                                           request.signed_value().value(),
-                                           request.signed_value().signature());
-  if (datastore_->MarkForDeletion(keyvaluesignature,
-                                  signature.SerializeAsString())) {
-    response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()), info);
+  //  tell if the request is a publish or just a refresh
+  bool is_refresh = request.has_serialised_delete_request() &&
+                    request.has_serialised_delete_request_signature();
+  KeyValueSignature key_value_signature(request.key(), message,
+                                        message_signature);
+  if (is_refresh) {
+    key_value_signature.value = request.serialised_delete_request();
+    key_value_signature.signature =
+        request.serialised_delete_request_signature();
   }
+  GetPublicKeyAndValidationCallback cb = boost::bind(
+      &Service::DeleteCallback, this, key_value_signature, request, info,
+      is_refresh, response, _1, _2);
+  securifier_->GetPublicKeyAndValidation(request.public_key_id(), cb);  
 }
 
-void Service::Update(const transport::Info &info,
-                     const protobuf::UpdateRequest &request,
-                     const std::string &message,
-                     const std::string &message_signature,
-                     protobuf::UpdateResponse *response) {
-  response->set_result(false);
-  if (!node_joined_ || !using_signatures_ || signature_validator_ == NULL)
-    return;
-
-  // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasKey(request.key()))
-    return;
-
-  const protobuf::MessageSignature &signature(request.request_signature());
-  if (!signature_validator_->ValidateSignerId(signature.signer_id(),
-                                              signature.public_key(),
-                                              signature.public_key_validation()) ||
-      !signature_validator_->ValidateRequest(signature.request_signature(),
-                                             signature.public_key(),
-                                             signature.public_key_validation(),
-                                             request.key()))
-    return;
-
-  crypto::Crypto cobj;
-  if (!cobj.AsymCheckSig(request.new_signed_value().value(),
-                         request.new_signed_value().signature(),
-                         signature.public_key(),
-                         crypto::STRING_STRING)) {
-    DLOG(WARNING) << "Service::Update - New value doesn't validate" <<
-                     std::endl;
+void Service::DeleteCallback (const KeyValueSignature key_value_signature,
+                              const protobuf::DeleteRequest request,
+                              const transport::Info info,
+                              const bool is_refresh,
+                              protobuf::DeleteResponse *response,
+                              const std::string public_key,
+                              const std::string public_key_validation) {
+  if  ( !securifier_->Validate(
+          key_value_signature.value, request.sender().node_id(),
+          key_value_signature.signature, request.public_key_id(), public_key,
+          public_key_validation, request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << std::endl;
     return;
   }
-  if (!cobj.AsymCheckSig(request.old_signed_value().value(),
-                         request.old_signed_value().signature(),
-                         signature.public_key(),
-                         crypto::STRING_STRING)) {
-    DLOG(WARNING) << "Service::Update - Old value doesn't validate" <<
-                     std::endl;
-    return;
+  // Only the signer of the value can delete it.
+  // this shall be validated by the secuifier->validate
+//   if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
+//     return;
+  
+  RequestAndSignature request_signature(request.signed_value().value(),
+                                        request.signed_value().signature());
+  bool result(false);
+  result = datastore_->DeleteValue(key_value_signature,
+                              request_signature, is_refresh);
+  if (result) {
+    response->set_result(true);
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+  } else {
+    DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
   }
-  */
-/*******************************************************************************
-This code would check if the current value is hashable, and accept only
-hashable replacement values.
-
-//  bool current_hashable(request->key() ==
-//                        cobj.Hash(sv.value() + sv.value_signature(), "",
-//                                  crypto::STRING_STRING, false));
-//  bool new_hashable(request->key() ==
-//                    cobj.Hash(request->new_value().value() +
-//                                  request->new_value().value_signature(),
-//                              "", crypto::STRING_STRING, false));
-//  if (current_hashable && !new_hashable && values_str.size() == size_t(1)) {
-//    done->Run();
-//    DLOG(WARNING) << "Service::Update - Hashable tags don't match" <<
-//                     std::endl;
-//    return;
-//  }
-*******************************************************************************/
-/*
-  bool new_hashable(SignedValueHashable(request.key(),
-                                        request.new_signed_value()));
-  KeyValueSignatureTuple old_keyvaluesignature(
-      request.key(), request.old_signed_value().value(),
-      request.old_signed_value().signature());
-  KeyValueSignatureTuple new_keyvaluesignature(
-      request.key(), request.new_signed_value().value(),
-      request.new_signed_value().signature());
-
-  if (!datastore_->UpdateValue(old_keyvaluesignature, new_keyvaluesignature,
-                               request.ttl(), new_hashable)) {
-    DLOG(WARNING) << "Service::Update - Failed UpdateItem" << std::endl;
-    return;
-  }
-
-  response->set_result(true);
-  routing_table_->AddContact(FromProtobuf(request.sender()), info);
 }
 
 void Service::Downlist(const transport::Info &info,
                        const protobuf::DownlistNotification &request) {
   if (!node_joined_)
     return;
-
   // A sophisticated attacker possibly sent a random downlist. We only verify
   // the offline status of the nodes in our routing table.
-  std::set<Contact> contacts;
   for (int i = 0; i < request.node_ids_size(); ++i) {
     NodeId id(request.node_ids(i));
     if (id.IsValid()) {
       Contact contact;
-      if (routing_table_->GetContact(id, &contact))
-        contacts.insert(contact);
+      routing_table_->GetContact(id, &contact);
+  // We can have a vector of contacts in the signal's signature and only fire
+  // it once, (and hence the node_impl has to iterate and ping each).
+  // Or we just fire the signal once per ID.
+  // As the normal case will be only one node per Downlist RPC, so option 2 is
+  // adapted by far.
+      if (contact != Contact() )
+        (*ping_down_list_contacts_)(contact);
     }
   }
-
-  // TODO async ping all contacts in set and remove from RT if no answer
 }
 
-bool Service::StoreValueLocal(const std::string &key,
-                              const std::string &value,
-                              const boost::int32_t &ttl,
-                              bool publish,
-                              std::string *serialised_deletion_signature) {
-  KeyValueSignatureTuple keyvaluesignature(key, value, "");
-  if (publish)
-    return datastore_->StoreValue(keyvaluesignature, ttl, false);
-
-  if (datastore_->RefreshKeyValue(keyvaluesignature,
-                                  serialised_deletion_signature))
-    return true;
-
-  if (serialised_deletion_signature->empty())
-    return datastore_->StoreValue(keyvaluesignature, ttl, false);
-
-  return false;
+PingDownListContactsPtr  Service::GetPingOldestContactSingalHandler() {
+  return this->ping_down_list_contacts_;
 }
-
-bool Service::StoreValueLocal(const std::string &key,
-                              const protobuf::SignedValue &signed_value,
-                              const boost::int32_t &ttl,
-                              bool publish,
-                              std::string *serialised_deletion_signature) {
-  bool hashable;
-  std::string ser_signed_value(signed_value.SerializeAsString());
-  KeyValueSignatureTuple keyvaluesignature(key, signed_value.value(),
-                                           signed_value.signature());
-
-  if (publish)
-    return CanStoreSignedValueHashable(key, signed_value, &hashable) &&
-        datastore_->StoreValue(keyvaluesignature, ttl, hashable);
-
-  if (datastore_->RefreshKeyValue(keyvaluesignature,
-                                  serialised_deletion_signature))
-    return true;
-
-  if (CanStoreSignedValueHashable(key, signed_value, &hashable) &&
-      serialised_deletion_signature->empty())
-    return datastore_->StoreValue(keyvaluesignature, ttl, hashable);
-
-  return false;
-}
-
-bool Service::SignedValueHashable(const std::string &key,
-                                  const protobuf::SignedValue &signed_value) {
-  crypto::Crypto cobj;
-  cobj.set_hash_algorithm(crypto::SHA_512);
-  return key == cobj.Hash(signed_value.value() + signed_value.signature(), "",
-                          crypto::STRING_STRING, false);
-}
-
-bool Service::CanStoreSignedValueHashable(
-    const std::string &key,
-    const protobuf::SignedValue &signed_value,
-    bool *hashable) {
-  std::vector< std::pair<std::string, bool> > attr;
-  attr = datastore_->LoadKeyAppendableAttr(key);
-  *hashable = false;
-  if (attr.empty()) {
-    *hashable = SignedValueHashable(key, signed_value);
-  } else if (attr.size() == 1) {
-    *hashable = attr[0].second;
-    if (*hashable &&
-        signed_value.value() + signed_value.signature() != attr[0].first)
-      return false;
-  }
-  return true;
-}*/
 
 }  // namespace kademlia
 
