@@ -229,12 +229,12 @@ void Service::StoreRefresh(const transport::Info &info,
   securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
 }
 
-void Service::StoreCallback (const KeyValueSignature key_value_signature,
-                             const protobuf::StoreRequest request,
-                             const transport::Info info,
-                             protobuf::StoreResponse *response,
-                             const std::string public_key,
-                             const std::string public_key_validation) {
+void Service::StoreCallback(KeyValueSignature key_value_signature,
+                            protobuf::StoreRequest request,
+                            transport::Info info,
+                            protobuf::StoreResponse *response,
+                            std::string public_key,
+                            std::string public_key_validation) {
   if (!securifier_->Validate(
           key_value_signature.value,
           key_value_signature.signature, request.sender().public_key_id(),
@@ -263,12 +263,12 @@ void Service::StoreCallback (const KeyValueSignature key_value_signature,
                              RankInfoPtr(new transport::Info(info)));
 }
 
-void Service::StoreRefreshCallback (const KeyValueSignature key_value_signature,
-                                    const protobuf::StoreRefreshRequest request,
-                                    const transport::Info info,
-                                    protobuf::StoreRefreshResponse *response,
-                                    const std::string public_key,
-                                    const std::string public_key_validation) {
+void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
+                                   protobuf::StoreRefreshRequest request,
+                                   transport::Info info,
+                                   protobuf::StoreRefreshResponse *response,
+                                   std::string public_key,
+                                   std::string public_key_validation) {
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
   if (!securifier_->Validate(
@@ -329,19 +329,19 @@ void Service::DeleteRefresh(const transport::Info &info,
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::DeleteRefreshCallback, this, key_value_signature, request, info,
       response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);  
+  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
 }
 
-void Service::DeleteCallback (const KeyValueSignature key_value_signature,
-                              const protobuf::DeleteRequest request,
-                              const transport::Info info,
-                              protobuf::DeleteResponse *response,
-                              const std::string public_key,
-                              const std::string public_key_validation) {
-  if  ( !securifier_->Validate(
+void Service::DeleteCallback(KeyValueSignature key_value_signature,
+                             protobuf::DeleteRequest request,
+                             transport::Info info,
+                             protobuf::DeleteResponse *response,
+                             std::string public_key,
+                             std::string public_key_validation) {
+  if (!securifier_->Validate(
           key_value_signature.value,
           key_value_signature.signature, request.sender().public_key_id(),
-          public_key, public_key_validation, request.key() ) ) {
+          public_key, public_key_validation, request.key())) {
     DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
                   << std::endl;
     return;
@@ -366,13 +366,12 @@ void Service::DeleteCallback (const KeyValueSignature key_value_signature,
   }
 }
 
-void Service::DeleteRefreshCallback (
-    const KeyValueSignature key_value_signature,
-    const protobuf::DeleteRefreshRequest request,
-    const transport::Info info,
-    protobuf::DeleteRefreshResponse *response,
-    const std::string public_key,
-    const std::string public_key_validation) {
+void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
+                                    protobuf::DeleteRefreshRequest request,
+                                    transport::Info info,
+                                    protobuf::DeleteRefreshResponse *response,
+                                    std::string public_key,
+                                    std::string public_key_validation) {
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
   if  ( !securifier_->Validate(
@@ -386,8 +385,8 @@ void Service::DeleteRefreshCallback (
   }
   // Only the signer of the value can delete it.
   // this shall be validated by the secuifier->validate
-//   if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-//     return;
+// if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
+//   return;
 
   RequestAndSignature request_signature(
       ori_delete_request.signed_value().value(),

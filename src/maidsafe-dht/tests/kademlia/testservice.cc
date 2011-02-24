@@ -96,7 +96,7 @@ class SecurifierValidateFalse: public Securifier {
                           const std::string &public_key,
                           const std::string &private_key) :
       Securifier(public_key_id, public_key, private_key) {}
-   
+
   bool Validate(const std::string &value,
                 const std::string &value_signature,
                 const std::string &public_key_id,
@@ -221,9 +221,9 @@ class ServicesTest: public testing::Test {
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
                     false, node_id.String(), public_key, private_key);
     return contact;
-  }  
+  }
 
-  void PopulateDataStore (boost::uint16_t count) {
+  void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
     for (int i = 0; i < count; ++i) {
       crypto::RsaKeyPair crypto_key;
@@ -311,7 +311,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender=ComposeContactWithKey(sender_id, 5001);
+  Contact sender = ComposeContactWithKey(sender_id, 5001);
 
   crypto::RsaKeyPair crypto_key;
   crypto_key.GenerateKeys(1024);
@@ -391,7 +391,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
-    
+
     protobuf::StoreRequest store_request;
     store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     store_request.set_key(signedvalue.key_value_signature.key);
@@ -412,9 +412,10 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   Clear();
   {
     // Try to store a validated tuple, into the datastore already containing it
-    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature, old_ttl,
-        signedvalue.request_and_signature, crypto_key.public_key(), false));
-    ASSERT_EQ(1U, GetDataStoreSize());        
+    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature,
+        old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
+        false));
+    ASSERT_EQ(1U, GetDataStoreSize());
     SecurifierPtr securifier_local(new Securifier(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
     // Store Request with empty data_store_
@@ -441,15 +442,15 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // the sender must be pushed into the routing table
     Contact pushed_in;
     routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());    
+    ASSERT_EQ(sender_id, pushed_in.node_id());
   }
 }
 
 TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
-  Contact target=ComposeContact(target_id, 5001);
+  Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender=ComposeContact(sender_id, 5001);
+  Contact sender = ComposeContact(sender_id, 5001);
   Clear();
   {
     // try to find a node from an empty routing table
