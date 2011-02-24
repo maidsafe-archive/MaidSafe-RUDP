@@ -26,13 +26,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-/*******************************************************************************
- * This file defines all main constants and enums used by the library.         *
- *                                                                             *
- * NOTE: This file is unlikely to have any breaking changes applied.  However, *
- *       it should not be regarded as final until this notice is removed.      *
- ******************************************************************************/
-
 #ifndef MAIDSAFE_DHT_COMMON_PLATFORM_CONFIG_H_
 #define MAIDSAFE_DHT_COMMON_PLATFORM_CONFIG_H_
 

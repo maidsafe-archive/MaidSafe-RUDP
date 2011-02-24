@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rawbuffer.h"
+// #include "maidsafe-dht/transport/rawbuffer.h"
 #include "maidsafe-dht/transport/tcpconnection.h"
 
 namespace maidsafe {

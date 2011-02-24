@@ -40,11 +40,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/random/uniform_int.hpp"
 #include "boost/random/variate_generator.hpp"
 
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4100 4127 4189 4244 4505 4512)
+#endif
 #include "maidsafe-dht/cryptopp/integer.h"
 #include "maidsafe-dht/cryptopp/osrng.h"
 #include "maidsafe-dht/cryptopp/base32.h"
 #include "maidsafe-dht/cryptopp/base64.h"
 #include "maidsafe-dht/cryptopp/hex.h"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 #include "maidsafe-dht/common/log.h"
 
 namespace maidsafe {

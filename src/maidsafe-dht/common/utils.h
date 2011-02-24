@@ -25,18 +25,19 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*******************************************************************************
- * NOTE: This header is unlikely to have any breaking changes applied.         *
- *       However, it should not be regarded as finalised until this notice is  *
- *       removed.                                                              *
- ******************************************************************************/
-
 #ifndef MAIDSAFE_DHT_COMMON_UTILS_H_
 #define MAIDSAFE_DHT_COMMON_UTILS_H_
 
 #include <string>
 #include "boost/cstdint.hpp"
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4127)
+#endif
 #include "boost/date_time/posix_time/posix_time.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 
 namespace maidsafe {
 

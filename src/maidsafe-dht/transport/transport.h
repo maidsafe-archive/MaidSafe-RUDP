@@ -137,7 +137,7 @@ const Timeout kImmediateTimeout(bptime::seconds(0));
 // Minimum timeout if being calculated dynamically
 const Timeout kMinTimeout(bptime::milliseconds(500));
 // Factor of message size used to calculate timeout dynamically
-const float kTimeoutFactor(0.01);
+const float kTimeoutFactor(0.01f);
 // Maximum period of inactivity on a send or receive before timeout triggered
 const Timeout kStallTimeout(bptime::seconds(3));
 // Maximum number of accepted incoming connections
