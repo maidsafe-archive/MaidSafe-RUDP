@@ -65,7 +65,10 @@ Contact FromProtobuf(const protobuf::Contact &pb_contact) {
                    pb_contact.rendezvous().port()) :
           Endpoint(),
       pb_contact.has_tcp443() ? pb_contact.tcp443() : false,
-      pb_contact.has_tcp80() ? pb_contact.tcp80() : false);
+      pb_contact.has_tcp80() ? pb_contact.tcp80() : false,
+      pb_contact.has_public_key_id() ? pb_contact.public_key_id() : "",
+      pb_contact.has_public_key() ? pb_contact.public_key() : "",
+      pb_contact.has_other_info() ? pb_contact.other_info() : "");
 }
 
 protobuf::Contact ToProtobuf(const Contact &contact) {
@@ -96,6 +99,9 @@ protobuf::Contact ToProtobuf(const Contact &contact) {
   if (IsValid(contact.tcp80endpoint()))
     pb_contact.set_tcp80(true);
 
+  pb_contact.set_public_key_id(contact.public_key_id());
+  pb_contact.set_public_key(contact.public_key());
+  pb_contact.set_other_info(contact.other_info());
   return pb_contact;
 }
 

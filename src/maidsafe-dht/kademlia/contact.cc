@@ -43,9 +43,13 @@ Contact::Contact(const NodeId &node_id,
                  const std::vector<transport::Endpoint> &local_endpoints,
                  const transport::Endpoint &rendezvous_endpoint,
                  bool tcp443,
-                 bool tcp80)
+                 bool tcp80,
+                 const std::string &public_key_id,
+                 const std::string &public_key,
+                 const std::string &other_info)
     : pimpl_(new Contact::Impl(node_id, endpoint, local_endpoints,
-                               rendezvous_endpoint, tcp443, tcp80)) {}
+                               rendezvous_endpoint, tcp443, tcp80,
+                               public_key_id, public_key, other_info)) {}
 
 Contact::~Contact() {}
 
@@ -71,6 +75,18 @@ transport::Endpoint Contact::tcp443endpoint() const {
 
 transport::Endpoint Contact::tcp80endpoint() const {
   return pimpl_->tcp80endpoint();
+}
+
+std::string Contact::public_key_id() const {
+  return pimpl_->public_key_id();
+}
+
+std::string Contact::public_key() const {
+  return pimpl_->public_key();
+}
+
+std::string Contact::other_info() const {
+  return pimpl_->other_info();
 }
 
 bool Contact::SetPreferredEndpoint(const transport::IP &ip) {

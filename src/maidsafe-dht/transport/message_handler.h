@@ -69,20 +69,24 @@ class MessageHandler {
  public:
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::ManagedEndpointMessage&,
-      protobuf::ManagedEndpointMessage*)>> ManagedEndpointMsgSigPtr;
+      protobuf::ManagedEndpointMessage*,
+      transport::Timeout*)>> ManagedEndpointMsgSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::NatDetectionRequest&,
-      protobuf::NatDetectionResponse*)>> NatDetectionReqSigPtr;
+      protobuf::NatDetectionResponse*,
+      transport::Timeout*)>> NatDetectionReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::NatDetectionResponse&)>> NatDetectionRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::ProxyConnectRequest&,
-      protobuf::ProxyConnectResponse*)>> ProxyConnectReqSigPtr;
+      protobuf::ProxyConnectResponse*,
+      transport::Timeout*)>> ProxyConnectReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::ProxyConnectResponse&)>> ProxyConnectRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::ForwardRendezvousRequest&,
-      protobuf::ForwardRendezvousResponse*)>> ForwardRendezvousReqSigPtr;
+      protobuf::ForwardRendezvousResponse*,
+      transport::Timeout*)>> ForwardRendezvousReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::ForwardRendezvousResponse&)>> ForwardRendezvousRspSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
@@ -115,13 +119,9 @@ class MessageHandler {
 
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
-  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
   std::string WrapMessage(const protobuf::ProxyConnectRequest &msg);
-  std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
   std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
-  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
   std::string WrapMessage(const protobuf::RendezvousRequest &msg);
-  std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
 
   ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
     return on_managed_endpoint_message_;
@@ -155,19 +155,27 @@ class MessageHandler {
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
+                                        const SecurityType &security_type,
                                         const std::string &message_signature,
                                         const Info &info,
-                                        bool asymmetrical_encrypted,
                                         std::string *message_response,
                                         Timeout *timeout);
-  std::string MakeSerialisedWrapperMessage(const int &message_type,
-                                           const std::string &payload,
-                                           SecurityType security_type);
+  std::string MakeSerialisedWrapperMessage(
+      const int &message_type,
+      const std::string &payload,
+      SecurityType security_type,
+      const std::string &recipient_public_key);
   std::shared_ptr<Securifier> securifier_;
 
  private:
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
+
+  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
+  std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
+  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
+  std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
+
   ManagedEndpointMsgSigPtr on_managed_endpoint_message_;
   NatDetectionReqSigPtr on_nat_detection_request_;
   NatDetectionRspSigPtr on_nat_detection_response_;

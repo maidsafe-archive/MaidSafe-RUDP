@@ -43,7 +43,10 @@ Contact::Impl::Impl()
       rendezvous_endpoint_(),
       tcp443_(false),
       tcp80_(false),
-      prefer_local_(false) {}
+      prefer_local_(false),
+      public_key_id_(),
+      public_key_(),
+      other_info_() {}
 
 Contact::Impl::Impl(const Contact &other)
     : node_id_(other.pimpl_->node_id_),
@@ -52,21 +55,30 @@ Contact::Impl::Impl(const Contact &other)
       rendezvous_endpoint_(other.pimpl_->rendezvous_endpoint_),
       tcp443_(other.pimpl_->tcp443_),
       tcp80_(other.pimpl_->tcp80_),
-      prefer_local_(other.pimpl_->prefer_local_) {}
+      prefer_local_(other.pimpl_->prefer_local_),
+      public_key_id_(other.pimpl_->public_key_id_),
+      public_key_(other.pimpl_->public_key_),
+      other_info_(other.pimpl_->other_info_) {}
 
 Contact::Impl::Impl(const NodeId &node_id,
                     const transport::Endpoint &endpoint,
                     const std::vector<transport::Endpoint> &local_endpoints,
                     const transport::Endpoint &rendezvous_endpoint,
                     bool tcp443,
-                    bool tcp80)
+                    bool tcp80,
+                    const std::string &public_key_id,
+                    const std::string &public_key,
+                    const std::string &other_info)
     : node_id_(node_id),
       endpoint_(endpoint),
       local_endpoints_(local_endpoints),
       rendezvous_endpoint_(rendezvous_endpoint),
       tcp443_(tcp443),
       tcp80_(tcp80),
-      prefer_local_(false) {
+      prefer_local_(false),
+      public_key_id_(public_key_id),
+      public_key_(public_key),
+      other_info_(other_info) {
   Init();
 }
 

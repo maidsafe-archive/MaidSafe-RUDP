@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/common/crypto.h"
 #include "maidsafe-dht/common/log.h"
 #include "maidsafe-dht/common/utils.h"
+#include "maidsafe-dht/common/securifier.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
@@ -52,14 +53,14 @@ namespace kademlia {
 namespace test {
 
 static const boost::uint16_t k = 16;
-/*
+
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   *pub_key =  kp.public_key();
   *priv_key = kp.private_key();
 }
-
+/*
 inline void CreateSignedRequest(const std::string &pub_key,
                                 const std::string &priv_key,
                                 const std::string &key,
@@ -89,6 +90,23 @@ class Callback {
 };
 */
 
+class SecurifierValidateFalse: public Securifier {
+ public:
+  SecurifierValidateFalse(const std::string &public_key_id,
+                          const std::string &public_key,
+                          const std::string &private_key) :
+      Securifier(public_key_id, public_key, private_key) {}
+
+  bool Validate(const std::string &value,
+                const std::string &value_signature,
+                const std::string &public_key_id,
+                const std::string &public_key,
+                const std::string &public_key_validation,
+                const std::string &kademlia_key) const {
+    return false;
+  }
+};
+
 class AlternativeStoreTrue: public AlternativeStore {
  public:
   virtual ~AlternativeStoreTrue() {}
@@ -110,7 +128,7 @@ typedef std::shared_ptr<AlternativeStoreFalse> AlternativeStoreFalsePtr;
 
 class ServicesTest: public testing::Test {
  protected:
-  ServicesTest() : contact_(), node_id_(NodeId::kRandomId), service_(),
+  ServicesTest() : contact_(), node_id_(NodeId::kRandomId),
                    data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                    routing_table_(new RoutingTable(node_id_, test::k)),
                    alternative_store_(), securifier_(),
@@ -189,7 +207,19 @@ class ServicesTest: public testing::Test {
     transport::Endpoint end_point(ip, port);
     local_endpoints.push_back(end_point);
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false);
+                    false, "", "", "");
+    return contact;
+  }
+
+  Contact ComposeContactWithKey(const NodeId& node_id, boost::uint16_t port) {
+    std::string ip("127.0.0.1");
+    std::vector<transport::Endpoint> local_endpoints;
+    transport::Endpoint end_point(ip, port);
+    local_endpoints.push_back(end_point);
+    std::string public_key, private_key;
+    CreateRSAKeys(&public_key, &private_key);
+    Contact contact(node_id, end_point, local_endpoints, end_point, false,
+                    false, node_id.String(), public_key, private_key);
     return contact;
   }
 
@@ -229,7 +259,6 @@ class ServicesTest: public testing::Test {
 
   Contact contact_;
   kademlia::NodeId node_id_;
-  std::shared_ptr<Service> service_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<RoutingTable> routing_table_;
   AlternativeStorePtr alternative_store_;
@@ -278,7 +307,146 @@ class ServicesTest: public testing::Test {
   */
 };
 
-TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
+TEST_F(ServicesTest, BEH_KAD_Store) {
+  NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
+  Contact target = ComposeContact(target_id, 5001);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact sender = ComposeContactWithKey(sender_id, 5001);
+
+  crypto::RsaKeyPair crypto_key;
+  crypto_key.GenerateKeys(1024);
+  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
+  KeyValueTuple signedvalue = MakeKVT(crypto_key, 1024, old_ttl, "", "");
+
+  Contact node_contact = ComposeContact(node_id_, 5000);
+//   std::string hex_key;
+//   for (int i = 0; i < 128; ++i)
+//     hex_key += "a";
+//   std::string key = DecodeFromHex(hex_key);
+
+  {
+    // Try to store with empty message and mesaage_sig
+    // into empty datastore and empty routingtable
+    SecurifierPtr securifier_local(new Securifier(
+    sender.public_key_id(), sender.public_key(), sender.other_info()));
+    // Store Request with empty data_store_
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(signedvalue.key_value_signature.key);
+    store_request.mutable_signed_value()
+        ->set_signature(signedvalue.key_value_signature.signature);
+    store_request.mutable_signed_value()->set_value(signedvalue.value());
+    store_request.set_ttl(3600*24);
+
+    std::string message;
+    std::string message_sig;
+
+    protobuf::StoreResponse store_response;
+    service.Store(info_, store_request, message, message_sig, &store_response);
+    EXPECT_FALSE(store_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to store an in-valid tuple
+    // into empty datastore and empty routingtable
+    SecurifierPtr securifier_local(new SecurifierValidateFalse(
+    sender.public_key_id(), sender.public_key(), sender.other_info()));
+    // Store Request with empty data_store_
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(signedvalue.key_value_signature.key);
+    store_request.mutable_signed_value()
+        ->set_signature(signedvalue.key_value_signature.signature);
+    store_request.mutable_signed_value()->set_value(signedvalue.value());
+    store_request.set_ttl(3600*24);
+
+    std::string message = store_request.SerializeAsString();
+    std::string message_sig = sender.node_id().String();
+
+    protobuf::StoreResponse store_response;
+    service.Store(info_, store_request, message, message_sig, &store_response);
+    EXPECT_FALSE(store_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to store a validated tuple
+    // into empty datastore, but the routingtable already contains the sender
+    routing_table_->AddContact(sender, rank_info_);
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    SecurifierPtr securifier_local(new Securifier(
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
+    // Store Request with empty data_store_
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(signedvalue.key_value_signature.key);
+    store_request.mutable_signed_value()
+        ->set_signature(signedvalue.key_value_signature.signature);
+    store_request.mutable_signed_value()->set_value(signedvalue.value());
+    store_request.set_ttl(3600*24);
+
+    std::string message = store_request.SerializeAsString();
+    std::string message_sig = sender.node_id().String();
+
+    protobuf::StoreResponse store_response;
+    service.Store(info_, store_request, message, message_sig, &store_response);
+    EXPECT_TRUE(store_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to store a validated tuple, into the datastore already containing it
+    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature,
+        old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
+        false));
+    ASSERT_EQ(1U, GetDataStoreSize());
+    SecurifierPtr securifier_local(new Securifier(
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
+    // Store Request with empty data_store_
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(signedvalue.key_value_signature.key);
+    store_request.mutable_signed_value()
+        ->set_signature(signedvalue.key_value_signature.signature);
+    store_request.mutable_signed_value()->set_value(signedvalue.value());
+    store_request.set_ttl(3600*24);
+
+    std::string message = store_request.SerializeAsString();
+    std::string message_sig = sender.node_id().String();
+
+    protobuf::StoreResponse store_response;
+    service.Store(info_, store_request, message, message_sig, &store_response);
+    EXPECT_FALSE(store_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    // the sender must be pushed into the routing table
+    Contact pushed_in;
+    routing_table_->GetContact(sender_id, &pushed_in);
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
+}
+
+TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -407,7 +575,7 @@ TEST_F(ServicesTest, BEH_KAD_Find_Nodes) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_KAD_ServicesFindValue) {
+TEST_F(ServicesTest, BEH_KAD_FindValue) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
