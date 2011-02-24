@@ -478,7 +478,7 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
 
 void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
                                            RankInfoPtr oldest_rank_info,
-                                           const int &result,
+                                           const int &/*result*/,
                                            Contact replacement_contact,
                                            RankInfoPtr replacement_rank_info) {
 //  if(result == 0) {

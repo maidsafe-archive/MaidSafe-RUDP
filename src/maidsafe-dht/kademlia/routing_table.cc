@@ -330,12 +330,11 @@ boost::uint16_t RoutingTable::KBucketCount() const {
 boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
   if (key > bucket_of_holder_) {
     auto pit = contacts_.get<KBucketTag>().equal_range(bucket_of_holder_);
-    return distance(pit.first, pit.second);
+    return static_cast<boost::uint16_t>(distance(pit.first, pit.second));
   } else {
     auto pit = contacts_.get<KBucketTag>().equal_range(key);
-    return distance(pit.first, pit.second);
+    return static_cast<boost::uint16_t>(distance(pit.first, pit.second));
   }
-  return -1;
 }
 
 void RoutingTable::SplitKbucket(std::shared_ptr<UpgradeLock> upgrade_lock) {
