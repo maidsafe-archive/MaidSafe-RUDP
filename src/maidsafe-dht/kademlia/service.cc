@@ -254,11 +254,13 @@ void Service::StoreCallback (const KeyValueSignature key_value_signature,
                                   is_refresh);
   if (result) {
     response->set_result(true);
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
   } else {
     DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }  
+  }
+  // no matter the store succeed or not, the send shall always be add into
+  // the routing table
+  routing_table_->AddContact(FromProtobuf(request.sender()),
+                             RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::StoreRefreshCallback (const KeyValueSignature key_value_signature,
