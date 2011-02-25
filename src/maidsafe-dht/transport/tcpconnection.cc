@@ -159,7 +159,7 @@ void TcpConnection::Send(const std::string &data,
   }
 
   for (int i = 0; i != 4; ++i)
-    size_buffer_.at(i) = msg_size >> (8 * (3 - i));
+    size_buffer_.at(i) = static_cast<char>(msg_size >> (8 * (3 - i)));
   data_buffer_.assign(data.begin(), data.end());
 
   // TODO(Fraser#5#): 2011-01-18 - Check timeout logic
