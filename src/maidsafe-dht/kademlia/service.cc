@@ -251,7 +251,7 @@ void Service::StoreCallback(KeyValueSignature key_value_signature,
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
       response, public_key, public_key_validation, false))
     routing_table_->AddContact(FromProtobuf(request.sender()),
-                              RankInfoPtr(new transport::Info(info)));
+                               RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
@@ -274,7 +274,7 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
     if (store_response->result())
       response->set_result(true);
     routing_table_->AddContact(FromProtobuf(request.sender()),
-                              RankInfoPtr(new transport::Info(info)));
+                               RankInfoPtr(new transport::Info(info)));
   }
 }
 
@@ -318,11 +318,20 @@ void Service::Delete(const transport::Info &info,
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
     return;
-  KeyValueSignature key_value_signature(request.key(), message,
-                                        message_signature);
+  if (message_signature.empty() || message.empty() || !securifier_) {
+    DLOG(WARNING) << "Delete Input Error" << std::endl;
+    return;
+  }
+  // Only the signer of the value can delete it.
+  // this shall be validated by the secuifier->validate
+//  if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
+//    return;  
+  KeyValueSignature key_value_signature(request.key(),
+      request.signed_value().value(), request.signed_value().signature());
+  RequestAndSignature request_signature(message, message_signature);      
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::DeleteCallback, this, key_value_signature, request, info,
-      response, _1, _2);
+      request_signature, response, _1, _2);
   securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
 }
 
@@ -330,92 +339,96 @@ void Service::DeleteRefresh(const transport::Info &info,
                             const protobuf::DeleteRefreshRequest &request,
                             protobuf::DeleteRefreshResponse *response) {
   response->set_result(false);
-  if (!node_joined_)
+  if (!node_joined_ || securifier_ == NULL)
     return;
-  KeyValueSignature key_value_signature(
-      request.sender().node_id(),
-      request.serialised_delete_request(),
-      request.serialised_delete_request_signature());
+  if (request.serialised_delete_request().empty() ||
+      request.serialised_delete_request_signature().empty()){
+    DLOG(WARNING) << "DeleteFresh Input Error" << std::endl;
+    return;
+  }
+  protobuf::DeleteRequest ori_delete_request;
+  ori_delete_request.ParseFromString(request.serialised_delete_request());
+  KeyValueSignature key_value_signature(ori_delete_request.key(),
+                        ori_delete_request.signed_value().value(),
+                        ori_delete_request.signed_value().signature());
+  RequestAndSignature request_signature(request.serialised_delete_request(),
+                          request.serialised_delete_request_signature());
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::DeleteRefreshCallback, this, key_value_signature, request, info,
-      response, _1, _2);
+      request_signature, response, _1, _2);
   securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
 }
 
 void Service::DeleteCallback(KeyValueSignature key_value_signature,
                              protobuf::DeleteRequest request,
                              transport::Info info,
+                             RequestAndSignature request_signature,
                              protobuf::DeleteResponse *response,
                              std::string public_key,
                              std::string public_key_validation) {
-  if (!securifier_->Validate(
-          key_value_signature.value,
-          key_value_signature.signature, request.sender().public_key_id(),
-          public_key, public_key_validation, request.key())) {
-    DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
-                  << std::endl;
-    return;
-  }
-  // Only the signer of the value can delete it.
-  // this shall be validated by the secuifier->validate
-//  if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-//    return;
-
-  RequestAndSignature request_signature(request.signed_value().value(),
-                                        request.signed_value().signature());
-  bool result(false);
-  bool is_refresh(false);
-  result = datastore_->DeleteValue(key_value_signature,
-                              request_signature, is_refresh);
-  if (result) {
-    response->set_result(true);
-  } else {
-    DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
-  }
-  // no matter the refresh succeed or not, the send shall always be add into
-  // the routing table
-  routing_table_->AddContact(FromProtobuf(request.sender()),
-                             RankInfoPtr(new transport::Info(info)));
+  // no matter the store succeed or not, once validated, the sender shall
+  // always be add into the routing table
+  if (ValidateAndDelete(key_value_signature, request, info, request_signature,
+      response, public_key, public_key_validation, false))
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                     protobuf::DeleteRefreshRequest request,
                                     transport::Info info,
+                                    RequestAndSignature request_signature,
                                     protobuf::DeleteRefreshResponse *response,
                                     std::string public_key,
                                     std::string public_key_validation) {
+  response->set_result(false);
+  protobuf::DeleteResponse *delete_response(new protobuf::DeleteResponse());
+  delete_response->set_result(false);
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
-  if  ( !securifier_->Validate(
-          key_value_signature.value, key_value_signature.signature,
-          request.sender().public_key_id(), public_key,
-          public_key_validation, ori_delete_request.key() ) ) {
-    DLOG(WARNING)
-        << "Failed to validate Refresh(Delete) request for kademlia value"
-        << std::endl;
-    return;
+  // no matter the store succeed or not, once validated, the sender shall
+  // always be add into the routing table
+  if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
+      request_signature, delete_response, public_key,
+      public_key_validation, true)) {
+    if (delete_response->result())
+      response->set_result(true);
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
   }
-  // Only the signer of the value can delete it.
-  // this shall be validated by the secuifier->validate
-// if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-//   return;
+}
 
-  RequestAndSignature request_signature(
-      ori_delete_request.signed_value().value(),
-      ori_delete_request.signed_value().signature());
+bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
+                                const protobuf::DeleteRequest &request,
+                                const transport::Info &info,
+                                const RequestAndSignature &request_signature,
+                                protobuf::DeleteResponse *response,
+                                const std::string &public_key,
+                                const std::string &public_key_validation,
+                                const bool is_refresh) {
+  if (!securifier_->Validate(key_value_signature.value,
+                             key_value_signature.signature,
+                             request.signing_public_key_id(),
+                             public_key,
+                             public_key_validation,
+                             request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << " (is_refresh = " << is_refresh << " )"
+                  << std::endl;
+    return false;
+  }
+
   bool result(false);
-  bool is_refresh(true);
+
   result = datastore_->DeleteValue(key_value_signature,
-                                   request_signature, is_refresh);
-  if (result) {
+                              request_signature, is_refresh);
+  if (datastore_->DeleteValue(key_value_signature,
+                              request_signature, is_refresh)) {
     response->set_result(true);
   } else {
     DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
   }
-  // no matter the refresh succeed or not, the send shall always be add into
-  // the routing table
-  routing_table_->AddContact(FromProtobuf(request.sender()),
-                             RankInfoPtr(new transport::Info(info)));
+  return true;
 }
 
 void Service::Downlist(const transport::Info &info,
