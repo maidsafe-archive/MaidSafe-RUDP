@@ -171,7 +171,7 @@ class Securifier {
   std::vector<std::string> parameters_;
  
  private:
-  Securifier& operator=( Securifier const& );
+  Securifier& operator=(Securifier const&);
 };
 
 }  // namespace maidsafe
