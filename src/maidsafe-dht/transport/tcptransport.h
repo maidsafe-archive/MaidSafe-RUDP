@@ -28,73 +28,48 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCPTRANSPORT_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCPTRANSPORT_H_
 
-#include <map>
+#include <memory>
+#include <set>
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
-// #include "maidsafe-dht/transport/rawbuffer.h"
 #include "maidsafe-dht/transport/tcpconnection.h"
 
 namespace maidsafe {
 
 namespace transport {
-/*
+
 class TcpTransport : public Transport {
  public:
-  TcpTransport();
+  explicit TcpTransport(std::shared_ptr<boost::asio::io_service> asio_service);
   ~TcpTransport();
-
-  boost::asio::io_service &IOService();
-
-  Port StartListening(const IP &ip,
-                      const Port &try_port,
-                      TransportCondition *condition);
-
-  bool StopListening(const Port &port);
-  bool StopAllListening();
-
-  SocketId PrepareToSend(const IP &remote_ip,
-                         const Port &remote_port,
-                         const IP &rendezvous_ip,
-                         const Port &rendezvous_port);
-
-  void Send(const TransportMessage &transport_message,
-            const SocketId &socket_id,
-            const boost::uint32_t &timeout_wait_for_response);
-
-  void SendFile(const boost::filesystem::path &path,
-                const SocketId &socket_id);
-
+  virtual TransportCondition StartListening(const Endpoint &endpoint);
+  virtual void StopListening();
+  virtual void Send(const std::string &data,
+                    const Endpoint &endpoint,
+                    const Timeout &timeout);
  private:
+  TcpTransport(const TcpTransport&);
+  TcpTransport& operator=(const TcpTransport&);
   friend class TcpConnection;
-
-  typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
-  typedef std::vector<AcceptorPtr> AcceptorList;
-  typedef boost::shared_ptr<TcpConnection> ConnectionPtr;
-  typedef std::map<SocketId, ConnectionPtr> ConnectionMap;
-
-  SocketId NextSocketId();
-  void Run();
-  void HandleAccept(const AcceptorPtr &acceptor,
-                    const ConnectionPtr &connection,
+  typedef std::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
+  typedef std::shared_ptr<TcpConnection> ConnectionPtr;
+  typedef std::set<ConnectionPtr> ConnectionSet;
+  void HandleAccept(ConnectionPtr connection,
                     const boost::system::error_code &ec);
 
-  void RemoveConnection(SocketId id);
+  void RemoveConnection(ConnectionPtr connection);
 
-  boost::asio::io_service io_service_;
-  boost::shared_ptr<boost::asio::io_service::work> keep_alive_;
-  boost::thread worker_thread_;
-
-  AcceptorList acceptors_;
-  SocketId current_socket_id_;
+  AcceptorPtr acceptor_;
 
   // Because the connections can be in an idle initial state with no pending
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.
-  ConnectionMap connections_;
+  ConnectionSet connections_;
+  boost::mutex mutex_;
 };
-*/
+
 }  // namespace transport
 
 }  // namespace maidsafe

@@ -34,24 +34,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDTCONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDTCONNECTION_H_
 
-//#ifdef __MSVC__
-//#pragma warning(push)
-//#pragma warning(disable:4244)
-//#endif
 
+#include <functional>
 #include <memory>
 #include <string>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/enable_shared_from_this.hpp"
-#include "boost/shared_ptr.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/transport.pb.h"
 #include "maidsafe-dht/transport/udtutils.h"
 #include "maidsafe-dht/udt/udt.h"
-
-//#ifdef __MSVC__
-//#pragma warning(pop)
-//#endif
 
 namespace maidsafe {
 
@@ -82,7 +74,7 @@ struct UdtStats : public Info {
   UDT::TRACEINFO performance_monitor_;
 };
 
-class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
+class UdtConnection : public std::enable_shared_from_this<UdtConnection> {
  public:
   ~UdtConnection();
   // Send message on connected socket.  timeout_wait_for_response defines
@@ -103,10 +95,10 @@ class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
   friend class test::UdtConnectionTest_BEH_TRANS_UdtConnBigMessage_Test;
  private:
   enum ConnectionType { kOutgoing, kAccepted, kManaged };
-  UdtConnection(boost::shared_ptr<UdtTransport> transport,
+  UdtConnection(std::shared_ptr<UdtTransport> transport,
                 const Endpoint &endpoint,
                 const ConnectionType &connection_type);
-  UdtConnection(boost::shared_ptr<UdtTransport> transport,
+  UdtConnection(std::shared_ptr<UdtTransport> transport,
                 const SocketId &socket_id,
                 const ConnectionType &connection_type);
   UdtConnection(const UdtConnection &other);
@@ -123,7 +115,7 @@ class UdtConnection : public boost::enable_shared_from_this<UdtConnection> {
                               const DataSize &data_size,
                               char *data);
 
-  boost::shared_ptr<UdtTransport> transport_;
+  std::shared_ptr<UdtTransport> transport_;
   SocketId socket_id_;
   Endpoint endpoint_;
   ConnectionType connection_type_;

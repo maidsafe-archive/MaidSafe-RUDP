@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDTTRANSPORT_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDTTRANSPORT_H_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -64,7 +65,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/cstdint.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "boost/detail/atomic_count.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
@@ -96,7 +96,7 @@ const size_t kMaxUnusedSocketsCount(10);
 const int kManagedSocketBufferSize(200);  // bytes
 
 class UdtTransport : public Transport,
-                     public boost::enable_shared_from_this<UdtTransport> {
+                     public std::enable_shared_from_this<UdtTransport> {
  public:
   explicit UdtTransport(std::shared_ptr<boost::asio::io_service> asio_service);
   UdtTransport(std::shared_ptr<boost::asio::io_service> asio_service,

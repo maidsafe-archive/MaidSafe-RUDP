@@ -36,11 +36,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/common/log.h"
 #include "maidsafe-dht/transport/udttransport.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace transport {
 
-UdtConnection::UdtConnection(boost::shared_ptr<UdtTransport> transport,
+UdtConnection::UdtConnection(std::shared_ptr<UdtTransport> transport,
                              const Endpoint &endpoint,
                              const ConnectionType &connection_type)
     : transport_(transport),
@@ -56,7 +58,7 @@ UdtConnection::UdtConnection(boost::shared_ptr<UdtTransport> transport,
   Init();
 }
 
-UdtConnection::UdtConnection(boost::shared_ptr<UdtTransport> transport,
+UdtConnection::UdtConnection(std::shared_ptr<UdtTransport> transport,
                              const SocketId &socket_id,
                              const ConnectionType &connection_type)
     : transport_(transport),
@@ -138,9 +140,9 @@ void UdtConnection::Send(const std::string &data,
     return;
   }
   data_ = data;
-  transport_->asio_service_->post(boost::bind(&UdtConnection::SendData,
-                                              shared_from_this(),
-                                              timeout_wait_for_response));
+  transport_->asio_service_->post(std::bind(&UdtConnection::SendData,
+                                            shared_from_this(),
+                                            timeout_wait_for_response));
 }
 
 void UdtConnection::SendData(const Timeout &timeout_wait_for_response) {
