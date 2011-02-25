@@ -315,17 +315,18 @@ void Service::Delete(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_ || securifier_ == NULL)
     return;
-  // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasKey(request.key()))
-    return;
   if (message_signature.empty() || message.empty() || !securifier_) {
     DLOG(WARNING) << "Delete Input Error" << std::endl;
     return;
   }
-  // Only the signer of the value can delete it.
-  // this shall be validated by the secuifier->validate
-//  if (!crypto::AsymCheckSig(message, message_signature, request.public_key()))
-//    return;  
+  // Avoid CPU-heavy validation work if key doesn't exist.
+  if (!datastore_->HasKey(request.key()))
+    return;  
+   // Only the signer of the value can delete it.
+   // this will be done in message_handler, no need to do it here   
+//   if (!crypto::AsymCheckSig(message, message_signature,
+//                             request.sender().public_key()))
+//     return;
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
   RequestAndSignature request_signature(message, message_signature);      
@@ -348,6 +349,9 @@ void Service::DeleteRefresh(const transport::Info &info,
   }
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+  // Avoid CPU-heavy validation work if key doesn't exist.
+  if (!datastore_->HasKey(ori_delete_request.key()))
+    return;
   KeyValueSignature key_value_signature(ori_delete_request.key(),
                         ori_delete_request.signed_value().value(),
                         ori_delete_request.signed_value().signature());
@@ -418,10 +422,6 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
     return false;
   }
 
-  bool result(false);
-
-  result = datastore_->DeleteValue(key_value_signature,
-                              request_signature, is_refresh);
   if (datastore_->DeleteValue(key_value_signature,
                               request_signature, is_refresh)) {
     response->set_result(true);

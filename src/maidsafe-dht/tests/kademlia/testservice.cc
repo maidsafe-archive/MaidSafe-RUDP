@@ -173,7 +173,38 @@ class ServicesTest: public testing::Test {
     std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
     return KeyValueTuple(kvs, expire_time, refresh_time,
                          RequestAndSignature(request, req_sig), false);
-  }  
+  }
+
+protobuf::StoreRequest MakeStoreRequest (const Contact& sender,
+                           const KeyValueSignature& kvs,
+                           const crypto::RsaKeyPair& crypto_key_data) {
+  protobuf::StoreRequest store_request;
+  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  store_request.set_key(kvs.key);
+  store_request.mutable_signed_value()->set_signature(kvs.signature);
+  store_request.mutable_signed_value()->set_value(kvs.value);
+  store_request.set_ttl(3600*24);
+  store_request.set_signing_public_key_id(
+      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+          crypto::AsymSign(crypto_key_data.public_key(),
+                           crypto_key_data.private_key())));
+  return store_request;
+}
+
+protobuf::DeleteRequest MakeDeleteRequest (const Contact& sender,
+                           const KeyValueSignature& kvs,
+                           const crypto::RsaKeyPair& crypto_key_data) {
+  protobuf::DeleteRequest delete_request;
+  delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  delete_request.set_key(kvs.key);
+  delete_request.mutable_signed_value()->set_signature(kvs.signature);
+  delete_request.mutable_signed_value()->set_value(kvs.value);
+  delete_request.set_signing_public_key_id(
+      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+          crypto::AsymSign(crypto_key_data.public_key(),
+                           crypto_key_data.private_key())));
+  return delete_request;
+}
 
   void Clear() {
     routing_table_->Clear();
@@ -206,9 +237,9 @@ class ServicesTest: public testing::Test {
 
   void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
+    crypto::RsaKeyPair crypto_key;
+    crypto_key.GenerateKeys(1024);
     for (int i = 0; i < count; ++i) {
-      crypto::RsaKeyPair crypto_key;
-      crypto_key.GenerateKeys(1024);
       KeyValueTuple cur_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
       EXPECT_TRUE(data_store_->StoreValue(cur_kvt.key_value_signature, old_ttl,
           cur_kvt.request_and_signature, crypto_key.public_key(), false));
@@ -259,16 +290,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request;
-  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  store_request.set_key(kvs.key);
-  store_request.mutable_signed_value()->set_signature(kvs.signature);
-  store_request.mutable_signed_value()->set_value(kvs.value);
-  store_request.set_ttl(3600*24);
-  store_request.set_signing_public_key_id(
-      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-          crypto::AsymSign(crypto_key_data.public_key(),
-                           crypto_key_data.private_key())));
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
+                                                          crypto_key_data);
 
   std::string message = store_request.SerializeAsString();
   std::string message_sig = crypto::AsymSign(message,
@@ -295,7 +318,6 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
     sender.public_key_id(), sender.public_key(), sender.other_info()));
-    // Store Request with empty data_store_
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
@@ -338,6 +360,102 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   }
 }
 
+TEST_F(ServicesTest, BEH_KAD_Delete) {
+  crypto::RsaKeyPair crypto_key_id;
+  crypto_key_id.GenerateKeys(1024);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_id);
+
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(1024);
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
+
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
+                                                          crypto_key_data);
+  std::string store_message = store_request.SerializeAsString();
+  std::string store_message_sig = crypto::AsymSign(store_message,
+                                      crypto_key_data.private_key());
+                                                          
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
+                                                             crypto_key_data);
+  std::string delete_message = delete_request.SerializeAsString();
+  std::string delete_message_sig = crypto::AsymSign(delete_message,
+                                       crypto_key_data.private_key());
+  RequestAndSignature request_signature(delete_message, delete_message_sig);
+  bptime::time_duration old_ttl(bptime::pos_infin);  
+
+  {
+    // Try to delete with empty message and mesaage_sig
+    // from empty datastore and empty routingtable
+    std::string message_empty;
+    std::string message_sig_empty;
+
+    protobuf::DeleteResponse delete_response;
+    service_->Delete(info_, delete_request, message_empty,
+                     message_sig_empty, &delete_response);
+    EXPECT_FALSE(delete_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to delete an in-valid tuple
+    // from populated datastore and empty routingtable
+    SecurifierPtr securifier_local(new SecurifierValidateFalse(
+    sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                        crypto_key_data.public_key(), false));
+    ASSERT_EQ(1U, GetDataStoreSize());    
+
+    protobuf::DeleteResponse delete_response;
+    service.Delete(info_, delete_request, delete_message,
+                   delete_message_sig, &delete_response);
+    EXPECT_FALSE(delete_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to delete a validated tuple
+    // from empty datastore, but the routingtable already contains the sender
+    routing_table_->AddContact(sender, rank_info_);
+    ASSERT_EQ(1U, GetRoutingTableSize());
+
+    protobuf::DeleteResponse delete_response;
+    service_->Delete(info_, delete_request, delete_message,
+                     delete_message_sig, &delete_response);
+    EXPECT_FALSE(delete_response.result());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+  }
+  Clear();
+  {
+    // Try to delete a validated tuple, from the datastore already containing it
+    // with an empty routing table
+    protobuf::StoreResponse store_response;
+    service_->Store(info_, store_request, store_message,
+                    store_message_sig, &store_response);
+    ASSERT_TRUE(store_response.result());
+    ASSERT_EQ(1U, GetDataStoreSize());
+
+    protobuf::DeleteResponse delete_response;
+    service_->Delete(info_, delete_request, delete_message,
+                     delete_message_sig, &delete_response);
+    EXPECT_TRUE(delete_response.result());
+    // data_store_ will only mark the entry as deleted, but still keep it
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    // the sender must be pushed into the routing table
+    Contact pushed_in;
+    routing_table_->GetContact(sender_id, &pushed_in);
+    ASSERT_EQ(sender_id, pushed_in.node_id());
+  }
+}
+
 TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   crypto::RsaKeyPair crypto_key_id;
   crypto_key_id.GenerateKeys(1024);
@@ -348,16 +466,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request;
-  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  store_request.set_key(kvs.key);
-  store_request.mutable_signed_value()->set_signature(kvs.signature);
-  store_request.mutable_signed_value()->set_value(kvs.value);
-  store_request.set_ttl(3600*24);
-  store_request.set_signing_public_key_id(
-      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-          crypto::AsymSign(crypto_key_data.public_key(),
-                           crypto_key_data.private_key())));
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
+                                                          crypto_key_data);
 
   std::string message = store_request.SerializeAsString();
   std::string message_sig = crypto::AsymSign(message,
