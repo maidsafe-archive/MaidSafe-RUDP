@@ -231,7 +231,7 @@ TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
       contact_id))).validated);
   routing_table_.SetValidated(contact_id, true);
   ASSERT_EQ(true, (*(GetContainer().get<NodeIdTag>().find(
-      contact_id))).validated);  
+      contact_id))).validated);
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
