@@ -201,6 +201,11 @@ ENDIF()
 # Boost libraries search                                                                          #
 ###################################################################################################
 SET(REQUIRED_BOOST_COMPONENTS date_time filesystem program_options regex system thread unit_test_framework)
+IF(UNIX)
+  IF(NOT "${BOOST_ROOT_DIR}") 
+    SET(BOOST_ROOT_DIR="/usr/local")
+  ENDIF()
+ENDIF()
 INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindBoost.cmake)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 SET(LIBS_DIRS ${LIBS_DIRS} ${Boost_LIBRARY_DIRS})
