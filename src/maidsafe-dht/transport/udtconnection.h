@@ -34,6 +34,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDTCONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDTCONNECTION_H_
 
+//#ifdef __MSVC__
+//#pragma warning(push)
+//#pragma warning(disable:4244)
+//#endif
+
 #include <memory>
 #include <string>
 #include "boost/asio/deadline_timer.hpp"
@@ -43,6 +48,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.pb.h"
 #include "maidsafe-dht/transport/udtutils.h"
 #include "maidsafe-dht/udt/udt.h"
+
+//#ifdef __MSVC__
+//#pragma warning(pop)
+//#endif
 
 namespace maidsafe {
 
