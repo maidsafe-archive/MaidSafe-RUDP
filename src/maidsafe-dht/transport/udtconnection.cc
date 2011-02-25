@@ -249,7 +249,7 @@ void UdtConnection::ReceiveData(const Timeout &timeout) {
                   << UDT::getlasterror().getErrorCode() << std::endl;
 #endif
   } else {
-    udt_stats->rtt = udt_stats->performance_monitor_.msRTT;
+    udt_stats->rtt = static_cast<boost::uint32_t>(udt_stats->performance_monitor_.msRTT);
   }
 
   // Signal message received and send response if applicable
@@ -279,7 +279,7 @@ TransportCondition UdtConnection::MoveData(bool sending,
   DataSize moved_total = 0;
   int moved_size = 0;
 
-  while (true) {
+  for(;;) {
     if (sending) {
       moved_size = UDT::send(socket_id_, data + moved_total,
                              data_size - moved_total, 0);
