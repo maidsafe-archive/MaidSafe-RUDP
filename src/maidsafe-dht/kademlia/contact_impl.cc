@@ -25,12 +25,21 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "boost/bind.hpp"
+#include "maidsafe-dht/kademlia/utils.h"
+
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4244)
+#endif
+#include "maidsafe-dht/kademlia/kademlia.pb.h"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
+
+#include "maidsafe-dht/common/utils.h"
 #include "maidsafe-dht/kademlia/contact_impl.h"
 #include <algorithm>
-#include "boost/bind.hpp"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/kademlia/kademlia.pb.h"
-#include "maidsafe-dht/kademlia/utils.h"
 
 namespace maidsafe {
 
