@@ -36,16 +36,24 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 #include <iostream>  // NOLINT
-#include "boost/signals2/signal.hpp"
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 
-// #if MAIDSAFE_DHT_VERSION < 25
-// #error This API is not compatible with the installed library.\
-//   Please update the maidsafe-dht library.
-// #endif
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4244 4512)
+#endif
+#include "boost/signals2/signal.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 
+/* #if MAIDSAFE_DHT_VERSION < 25
+   #error This API is not compatible with the installed library.\
+    Please update the maidsafe-dht library.
+   #endif 
+*/
 namespace bs2 = boost::signals2;
 namespace bptime = boost::posix_time;
 

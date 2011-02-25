@@ -404,7 +404,7 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
   }
 }
 
-void Service::Downlist(const transport::Info &info,
+void Service::Downlist(const transport::Info &/*info*/,
                        const protobuf::DownlistNotification &request) {
   if (!node_joined_)
     return;

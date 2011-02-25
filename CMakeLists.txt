@@ -664,6 +664,24 @@ IF(UNIX)
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/crypto.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/utils.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/main.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_bind.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_smart_ptr.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_format.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testcalllater.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testutils.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testcrypto.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testthreadpool.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testdetectplatform.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/testc++0x.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testnodeid.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testservice.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testroutingtable.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testdatastore.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/testcontact.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/testnatpmp.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/testtcptransport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/upnp/testupnp.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   IF(APPLE)
     ADD_DEFINITIONS(-DMAIDSAFE_APPLE -DBSD)
