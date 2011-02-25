@@ -49,11 +49,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
-// #if MAIDSAFE_DHT_VERSION < 25
-// #error This API is not compatible with the installed library.\
-//   Please update the maidsafe-dht library.
-// #endif
-
+/* #if MAIDSAFE_DHT_VERSION < 25
+   #error This API is not compatible with the installed library.\
+    Please update the maidsafe-dht library.
+   #endif 
+*/
 namespace bs2 = boost::signals2;
 namespace bptime = boost::posix_time;
 
