@@ -32,7 +32,15 @@ Created by Julian Cain on 11/3/09.
 #define MAIDSAFE_DHT_NAT_PMP_NATPMPPROTOCOL_H_
 
 #include "boost/asio.hpp"
+
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4127)
+#endif
 #include "boost/date_time/posix_time/posix_time.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 
 namespace maidsafe {
 
