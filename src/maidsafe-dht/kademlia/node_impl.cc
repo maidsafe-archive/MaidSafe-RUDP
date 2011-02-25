@@ -476,19 +476,11 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
   rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kUdt);
 }
 
-<<<<<<< HEAD
-void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
-                                           RankInfoPtr oldest_rank_info,
-                                           const int &/*result*/,
-                                           Contact replacement_contact,
-                                           RankInfoPtr replacement_rank_info) {
-=======
 void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
                                            RankInfoPtr /*oldest_rank_info*/,
                                            const int &/*result*/,
                                            Contact /*replacement_contact*/,
                                            RankInfoPtr /*replacement_rank_info*/) {
->>>>>>> dcbc4e1d34113ef0c12206371642f8181c5a4060
 //  if(result == 0) {
 //    add new contact - or ++ failed count?
 //  } else {
