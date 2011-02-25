@@ -198,13 +198,15 @@ class Service : public boost::enable_shared_from_this<Service> {
   /** Store Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
-   *  @param[in] info The rank info.   
+   *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.
    *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreCallback(KeyValueSignature key_value_signature,
                      protobuf::StoreRequest request,
                      transport::Info info,
+                     RequestAndSignature request_signature,
                      protobuf::StoreResponse *response,
                      std::string public_key,
                      std::string public_key_validation);
@@ -212,15 +214,36 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
    *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.   
    *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreRefreshCallback(KeyValueSignature key_value_signature,
                             protobuf::StoreRefreshRequest request,
                             transport::Info info,
+                            RequestAndSignature request_signature,
                             protobuf::StoreRefreshResponse *response,
                             std::string public_key,
                             std::string public_key_validation);
+  /** Validate the request and then store the tuple.
+   *  @param[in] key_value_signature tuple of <key, value, signature>.
+   *  @param[in] request The request.
+   *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.
+   *  @param[out] response The response.
+   *  @param[in] public_key public key
+   *  @param[in] public_key_validation public key validation
+   *  @param[in] is_refresh Indicating a publish or a refresh
+   *  @return Indicating validation succeed or not. The success of store will be
+   *          reflected in response.result() */
+  bool ValidateAndStore(const KeyValueSignature &key_value_signature,
+                        const protobuf::StoreRequest &request,
+                        const transport::Info &info,
+                        const RequestAndSignature &request_signature,
+                        protobuf::StoreResponse *response,
+                        const std::string &public_key,
+                        const std::string &public_key_validation,
+                        const bool is_refresh);
   /** Delete Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
