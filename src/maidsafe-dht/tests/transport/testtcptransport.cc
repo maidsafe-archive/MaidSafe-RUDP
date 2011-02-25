@@ -34,7 +34,7 @@ namespace transport {
 
 namespace test {
 
-// INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
+INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
 
 }  // namespace test
 
