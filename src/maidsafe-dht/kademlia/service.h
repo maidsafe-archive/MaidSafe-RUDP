@@ -248,12 +248,14 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
    *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.
    *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteCallback(KeyValueSignature key_value_signature,
                       protobuf::DeleteRequest request,
                       transport::Info info,
+                      RequestAndSignature request_signature,
                       protobuf::DeleteResponse *response,
                       std::string public_key,
                       std::string public_key_validation);
@@ -261,15 +263,36 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
    *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.
    *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteRefreshCallback(KeyValueSignature key_value_signature,
                              protobuf::DeleteRefreshRequest request,
                              transport::Info info,
+                             RequestAndSignature request_signature,
                              protobuf::DeleteRefreshResponse *response,
                              std::string public_key,
                              std::string public_key_validation);
+  /** Validate the request and then delete the tuple.
+   *  @param[in] key_value_signature tuple of <key, value, signature>.
+   *  @param[in] request The request.
+   *  @param[in] info The rank info.
+   *  @param[in] request_signature The request signature.
+   *  @param[out] response The response.
+   *  @param[in] public_key public key
+   *  @param[in] public_key_validation public key validation
+   *  @param[in] is_refresh Indicating a publish or a refresh
+   *  @return Indicating validation succeed or not. The success of delete will
+   *          be reflected in response.result() */
+  bool ValidateAndDelete(const KeyValueSignature &key_value_signature,
+                         const protobuf::DeleteRequest &request,
+                         const transport::Info &info,
+                         const RequestAndSignature &request_signature,
+                         protobuf::DeleteResponse *response,
+                         const std::string &public_key,
+                         const std::string &public_key_validation,
+                         const bool is_refresh);                             
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */
