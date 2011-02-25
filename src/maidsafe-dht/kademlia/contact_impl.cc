@@ -24,7 +24,9 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#include "maidsafe-dht/kademlia/contact_impl.h"
+#include <algorithm>
+#include <string>
 #include "boost/bind.hpp"
 #include "maidsafe-dht/kademlia/utils.h"
 
@@ -38,8 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/kademlia/contact_impl.h"
-#include <algorithm>
+
 
 namespace maidsafe {
 
