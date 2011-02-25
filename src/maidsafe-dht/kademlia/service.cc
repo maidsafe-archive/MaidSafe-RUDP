@@ -205,11 +205,12 @@ void Service::Store(const transport::Info &info,
     DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
-  KeyValueSignature key_value_signature(request.key(), message,
-                                        message_signature);
+  KeyValueSignature key_value_signature(request.key(),
+      request.signed_value().value(), request.signed_value().signature());
+  RequestAndSignature request_signature(message, message_signature);      
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::StoreCallback, this, key_value_signature, request, info,
-      response, _1, _2);
+      request_signature, response, _1, _2);
   securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
 }
 
@@ -227,82 +228,83 @@ void Service::StoreRefresh(const transport::Info &info,
   protobuf::StoreRequest ori_store_request;  
   ori_store_request.ParseFromString(request.serialised_store_request());  
   KeyValueSignature key_value_signature(ori_store_request.key(),
-      ori_store_request.mutable_signed_value()->value(),
-      ori_store_request.mutable_signed_value()->signature());
+                        ori_store_request.signed_value().value(),
+                        ori_store_request.signed_value().signature());
+  RequestAndSignature request_signature(request.serialised_store_request(),
+                          request.serialised_store_request_signature());
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::StoreRefreshCallback, this, key_value_signature, request, info,
-      response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
+      request_signature, response, _1, _2);
+  securifier_->GetPublicKeyAndValidation(
+                  ori_store_request.sender().public_key_id(), cb);
 }
 
 void Service::StoreCallback(KeyValueSignature key_value_signature,
                             protobuf::StoreRequest request,
                             transport::Info info,
+                            RequestAndSignature request_signature,
                             protobuf::StoreResponse *response,
                             std::string public_key,
                             std::string public_key_validation) {
-  if (!securifier_->Validate(
-          key_value_signature.value,
-          key_value_signature.signature, request.sender().public_key_id(),
-          public_key, public_key_validation, request.key() ) ) {
-    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
-                  << std::endl;
-    return;
-  }
-  RequestAndSignature request_signature(request.signed_value().value(),
-                                        request.signed_value().signature());
-  bool result(false);
-  bool is_refresh(false);
-  result = datastore_->StoreValue(key_value_signature,
-                                  boost::posix_time::seconds(request.ttl()),
-                                  request_signature,
-                                  public_key,
-                                  is_refresh);
-  if (result) {
-    response->set_result(true);
-  } else {
-    DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }
-  // no matter the store succeed or not, the send shall always be add into
-  // the routing table
-  routing_table_->AddContact(FromProtobuf(request.sender()),
-                             RankInfoPtr(new transport::Info(info)));
+  // no matter the store succeed or not, once validated, the sender shall
+  // always be add into the routing table
+  if (ValidateAndStore(key_value_signature, request, info, request_signature,
+      response, public_key, public_key_validation, false))
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                              RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
                                    protobuf::StoreRefreshRequest request,
                                    transport::Info info,
+                                   RequestAndSignature request_signature,
                                    protobuf::StoreRefreshResponse *response,
                                    std::string public_key,
                                    std::string public_key_validation) {
+  response->set_result(false);
+  protobuf::StoreResponse *store_response(new protobuf::StoreResponse());
+  store_response->set_result(false);
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
-  if (!securifier_->Validate(
-          key_value_signature.value, key_value_signature.signature,
-          request.sender().public_key_id(), public_key,
-          public_key_validation, ori_store_request.key() ) ) {
-    DLOG(WARNING)
-        << "Failed to validate Refresh(store) request for kademlia value"
-        << std::endl;
-    return;
+  // no matter the store succeed or not, once validated, the sender shall
+  // always be add into the routing table
+  if (ValidateAndStore(key_value_signature, ori_store_request, info,
+      request_signature, store_response, public_key,
+      public_key_validation, true)) {
+    if (store_response->result())
+      response->set_result(true);
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                              RankInfoPtr(new transport::Info(info)));
   }
-  RequestAndSignature request_signature(
-      ori_store_request.signed_value().value(),
-      ori_store_request.signed_value().signature());
-  bool result(false);
-  bool is_refresh(true);
-  result = datastore_->StoreValue(key_value_signature,
-      boost::posix_time::seconds(ori_store_request.ttl()),
-      request_signature, public_key, is_refresh);
-  if (result) {
+}
+
+bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
+                               const protobuf::StoreRequest &request,
+                               const transport::Info &info,
+                               const RequestAndSignature &request_signature,
+                               protobuf::StoreResponse *response,
+                               const std::string &public_key,
+                               const std::string &public_key_validation,
+                               const bool is_refresh) {
+  if (!securifier_->Validate(key_value_signature.value,
+                             key_value_signature.signature,
+                             request.signing_public_key_id(),
+                             public_key,
+                             public_key_validation,
+                             request.key() ) ) {
+    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+                  << " (is_refresh = " << is_refresh << " )"
+                  << std::endl;
+    return false;
+  }
+  if (datastore_->StoreValue(key_value_signature,
+      boost::posix_time::seconds(request.ttl()), request_signature,
+      public_key, is_refresh)) {
     response->set_result(true);
   } else {
-    DLOG(WARNING) << "Failed to refresh(Store) kademlia value" << std::endl;
+    DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
   }
-  // no matter the refresh succeed or not, the send shall always be add into
-  // the routing table  
-  routing_table_->AddContact(FromProtobuf(request.sender()),
-                             RankInfoPtr(new transport::Info(info)));
+  return true;
 }
 
 void Service::Delete(const transport::Info &info,

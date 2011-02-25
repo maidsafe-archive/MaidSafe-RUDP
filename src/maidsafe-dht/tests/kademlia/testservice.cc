@@ -168,11 +168,10 @@ class ServicesTest: public testing::Test {
     return new_node;
   }
 
-  KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
-                        const size_t &value_size,
-                        const bptime::time_duration &ttl,
-                        std::string key,
-                        std::string value) {
+  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
+                            const size_t &value_size,
+                            std::string key,
+                            std::string value) {
     if (key.empty())
       key = crypto::Hash<crypto::SHA512>(RandomString(1024));
     if (value.empty()) {
@@ -183,15 +182,38 @@ class ServicesTest: public testing::Test {
       value = value.substr(0, value_size);
     }
     std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    return KeyValueSignature(key, value, signature);
+  }
+
+  KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
+                        const size_t &value_size,
+                        const bptime::time_duration &ttl,
+                        std::string key,
+                        std::string value) {
+    KeyValueSignature kvs = MakeKVS(rsa_key_pair, value_size, key, value);
     bptime::ptime now = bptime::microsec_clock::universal_time();
     bptime::ptime expire_time = now + ttl;
     bptime::ptime refresh_time = now + bptime::minutes(30);
     std::string request = RandomString(1024);
     std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
-    return KeyValueTuple(KeyValueSignature(key, value, signature),
-                         expire_time, refresh_time,
+    return KeyValueTuple(kvs, expire_time, refresh_time,
                          RequestAndSignature(request, req_sig), false);
   }
+
+  KeyValueTuple MakeKVTWithRequestAndSignature(
+                    const crypto::RsaKeyPair &rsa_key_pair,
+                    const size_t &value_size,
+                    const bptime::time_duration &ttl,
+                    const RequestAndSignature request_signature,
+                    std::string key,
+                    std::string value) {
+    KeyValueSignature kvs = MakeKVS(rsa_key_pair, value_size, key, value);
+    bptime::ptime now = bptime::microsec_clock::universal_time();
+    bptime::ptime expire_time = now + ttl;
+    bptime::ptime refresh_time = now + bptime::minutes(30);
+    return KeyValueTuple(kvs, expire_time, refresh_time,
+                         request_signature, false);
+  }  
 
   void Clear() {
     routing_table_->Clear();
@@ -222,6 +244,17 @@ class ServicesTest: public testing::Test {
                     false, node_id.String(), public_key, private_key);
     return contact;
   }
+
+  Contact ComposeContactWithKey(const NodeId& node_id, boost::uint16_t port,
+                                const crypto::RsaKeyPair& crypto_key) {
+    std::string ip("127.0.0.1");
+    std::vector<transport::Endpoint> local_endpoints;
+    transport::Endpoint end_point(ip, port);
+    local_endpoints.push_back(end_point);
+    Contact contact(node_id, end_point, local_endpoints, end_point, false,
+                    false, node_id.String(), crypto_key.public_key(), "");
+    return contact;
+  }  
 
   void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
@@ -308,28 +341,32 @@ class ServicesTest: public testing::Test {
 };
 
 TEST_F(ServicesTest, BEH_KAD_Store) {
-  NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
-  Contact target = ComposeContact(target_id, 5001);
+  crypto::RsaKeyPair crypto_key_id;
+  crypto_key_id.GenerateKeys(1024);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender = ComposeContactWithKey(sender_id, 5001);
+  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_id);
 
-  crypto::RsaKeyPair crypto_key;
-  crypto_key.GenerateKeys(1024);
-  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
-  KeyValueTuple signedvalue = MakeKVT(crypto_key, 1024, old_ttl, "", "");
-//   std::string hex_key;
-//   for (int i = 0; i < 128; ++i)
-//     hex_key += "a";
-//   std::string key = DecodeFromHex(hex_key);
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(1024);
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
   protobuf::StoreRequest store_request;
   store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  store_request.set_key(signedvalue.key_value_signature.key);
-  store_request.mutable_signed_value()
-      ->set_signature(signedvalue.key_value_signature.signature);
-  store_request.mutable_signed_value()->set_value(signedvalue.value());
+  store_request.set_key(kvs.key);
+  store_request.mutable_signed_value()->set_signature(kvs.signature);
+  store_request.mutable_signed_value()->set_value(kvs.value);
   store_request.set_ttl(3600*24);
+  store_request.set_signing_public_key_id(
+      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+          crypto::AsymSign(crypto_key_data.public_key(),
+                           crypto_key_data.private_key())));
 
+  std::string message = store_request.SerializeAsString();
+  std::string message_sig = crypto::AsymSign(message,
+                                             crypto_key_data.private_key());
+  RequestAndSignature request_signature(message, message_sig);
+  bptime::time_duration old_ttl(bptime::pos_infin);
+  
   {
     // Try to store with empty message and mesaage_sig
     // into empty datastore and empty routingtable
@@ -339,19 +376,17 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
 
-    std::string message;
-    std::string message_sig;
+    std::string message_empty;
+    std::string message_sig_empty;
 
     protobuf::StoreResponse store_response;
-    service.Store(info_, store_request, message, message_sig, &store_response);
+    service.Store(info_, store_request, message_empty,
+                  message_sig_empty, &store_response);
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
   }
   Clear();
-
-  std::string message = store_request.SerializeAsString();
-  std::string message_sig = sender.node_id().String();
   {
     // Try to store an in-valid tuple
     // into empty datastore and empty routingtable
@@ -389,9 +424,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   Clear();
   {
     // Try to store a validated tuple, into the datastore already containing it
-    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature,
-        old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
-        false));
+    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                        crypto_key_data.public_key(), false));
     ASSERT_EQ(1U, GetDataStoreSize());
     
     SecurifierPtr securifier_local(new Securifier(
@@ -400,9 +434,6 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
 
-    message = signedvalue.key_value_signature.value;
-    message_sig = signedvalue.key_value_signature.signature;
-    
     protobuf::StoreResponse store_response;
     service.Store(info_, store_request, message, message_sig, &store_response);
     EXPECT_TRUE(store_response.result());
@@ -416,28 +447,39 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 }
 
 TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
-  NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
-  Contact target = ComposeContact(target_id, 5001);
+  crypto::RsaKeyPair crypto_key_id;
+  crypto_key_id.GenerateKeys(1024);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-  Contact sender = ComposeContact(sender_id, 5001);
-  NodeId ori_sender_id = GenerateUniqueRandomId(node_id_, 501);
-  Contact ori_sender = ComposeContactWithKey(sender_id, 5001);  
+  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_id);
 
-  crypto::RsaKeyPair crypto_key;
-  crypto_key.GenerateKeys(1024);
-  bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
-  KeyValueTuple signedvalue = MakeKVT(crypto_key, 1024, old_ttl, "", "");
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(1024);
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest ori_store_request;
-  ori_store_request.mutable_sender()->CopyFrom(ToProtobuf(ori_sender));
-  ori_store_request.set_key(signedvalue.key_value_signature.key);
-  ori_store_request.mutable_signed_value()
-      ->set_signature(signedvalue.key_value_signature.signature);
-  ori_store_request.mutable_signed_value()->set_value(signedvalue.value());
-  ori_store_request.set_ttl(3600*24);
+  protobuf::StoreRequest store_request;
+  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  store_request.set_key(kvs.key);
+  store_request.mutable_signed_value()->set_signature(kvs.signature);
+  store_request.mutable_signed_value()->set_value(kvs.value);
+  store_request.set_ttl(3600*24);
+  store_request.set_signing_public_key_id(
+      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+          crypto::AsymSign(crypto_key_data.public_key(),
+                           crypto_key_data.private_key())));
 
+  std::string message = store_request.SerializeAsString();
+  std::string message_sig = crypto::AsymSign(message,
+                                             crypto_key_data.private_key());
+  RequestAndSignature request_signature(message, message_sig);
+  bptime::time_duration old_ttl(bptime::pos_infin);
+
+  crypto::RsaKeyPair new_crypto_key_id;
+  new_crypto_key_id.GenerateKeys(1024);
+  NodeId new_sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact new_sender = ComposeContactWithKey(new_sender_id, 5001,
+                                             new_crypto_key_id);
   protobuf::StoreRefreshRequest store_refresh_request;
-  store_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  store_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(new_sender));
 
   {
     // Try to storerefresh with empty message and mesaage_sig
@@ -459,10 +501,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     ASSERT_EQ(0U, GetRoutingTableSize());
   }
   Clear();
-  store_refresh_request.set_serialised_store_request(
-      ori_store_request.SerializeAsString());
-  store_refresh_request.set_serialised_store_request_signature(
-      ori_sender.other_info());  
+  store_refresh_request.set_serialised_store_request(message);
+  store_refresh_request.set_serialised_store_request_signature(message_sig);  
   {
     // Try to storefresh an in-valid tuple
     // into empty datastore and empty routingtable
@@ -482,7 +522,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   {
     // Try to storerefresh a validated tuple into empty datastore,
     // but the routingtable already contains the sender
-    routing_table_->AddContact(sender, rank_info_);
+    routing_table_->AddContact(new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     SecurifierPtr securifier_local(new Securifier(
@@ -501,9 +541,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   {
     // Try to storerefresh a validated tuple into the datastore already
     // containing it
-    EXPECT_TRUE(data_store_->StoreValue(signedvalue.key_value_signature,
-        old_ttl, signedvalue.request_and_signature, crypto_key.public_key(),
-        false));
+    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                        crypto_key_data.public_key(), false));
     ASSERT_EQ(1U, GetDataStoreSize());
     
     SecurifierPtr securifier_local(new Securifier(
@@ -519,8 +558,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     ASSERT_EQ(1U, GetRoutingTableSize());
     // the sender must be pushed into the routing table
     Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    routing_table_->GetContact(new_sender_id, &pushed_in);
+    ASSERT_EQ(new_sender_id, pushed_in.node_id());
   }
 }
 
