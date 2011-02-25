@@ -55,7 +55,7 @@ Contact FromProtobuf(const protobuf::Contact &pb_contact) {
   for (int i = 0; i < pb_contact.local_ips_size(); ++i)
     local_endpoints.push_back(
         Endpoint(pb_contact.local_ips(i),
-                 static_cast<boost::uint16_t>(pb_contact.local_port())));
+                static_cast<boost::uint16_t>(pb_contact.local_port())));
 
   return Contact(
       NodeId(pb_contact.node_id()),
@@ -63,9 +63,9 @@ Contact FromProtobuf(const protobuf::Contact &pb_contact) {
                static_cast<boost::uint16_t>(pb_contact.endpoint().port())),
       local_endpoints,
       pb_contact.has_rendezvous() ?
-          Endpoint(pb_contact.rendezvous().ip(),
-              static_cast<boost::uint16_t>(pb_contact.rendezvous().port())) :
-          Endpoint(),
+        Endpoint(pb_contact.rendezvous().ip(),
+                 static_cast<boost::uint16_t>(pb_contact.rendezvous().port())) :
+        Endpoint(),
       pb_contact.has_tcp443() ? pb_contact.tcp443() : false,
       pb_contact.has_tcp80() ? pb_contact.tcp80() : false,
       pb_contact.has_public_key_id() ? pb_contact.public_key_id() : "",
