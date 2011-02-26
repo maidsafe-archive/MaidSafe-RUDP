@@ -202,7 +202,7 @@ ENDIF()
 ###################################################################################################
 SET(REQUIRED_BOOST_COMPONENTS date_time filesystem program_options regex system thread unit_test_framework)
 IF(UNIX)
-  IF(NOT "${BOOST_ROOT_DIR}") 
+  IF(NOT DEFINED  "${BOOST_ROOT_DIR}") 
     SET(BOOST_ROOT_DIR="/usr/local")
   ENDIF()
 ENDIF()
