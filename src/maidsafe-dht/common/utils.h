@@ -95,7 +95,7 @@ class Stats {
   * Get the average of values in the set.
   * @return arithmetic mean
   */
-  T Mean() const { return size_ > 0 ? sum_ / size_ : 0; }
+  T Mean() const { return size_ > 0 ? static_cast<T>(sum_ / size_) : 0; }
  private:
   boost::uint64_t size_;
   T min_;

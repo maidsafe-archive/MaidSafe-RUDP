@@ -85,7 +85,7 @@ class CallLaterTest : public testing::Test {
   CallLaterTest& operator=(const CallLaterTest&);
 };
 
-TEST_F(CallLaterTest, BEH_BASE_AddSingleCallLater) {
+TEST_F(CallLaterTest, BEH_COMMON_AddSingleCallLater) {
   // Most basic test - create object on stack and call a method later.
   ASSERT_TRUE(clt_.IsStarted());
   clt_.CancelAll();
@@ -101,7 +101,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddSingleCallLater) {
   ASSERT_EQ(0, clt_.TimersMapSize()) << "List not empty";
 }
 
-TEST_F(CallLaterTest, BEH_BASE_AddManyCallLaters) {
+TEST_F(CallLaterTest, BEH_COMMON_AddManyCallLaters) {
   // Set up 100 calls fairly closely spaced
   ASSERT_TRUE(clt_.IsStarted());
   clt_.CancelAll();
@@ -126,7 +126,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddManyCallLaters) {
   ASSERT_EQ(0, clt_.TimersMapSize()) << "List not empty";
 }
 
-TEST_F(CallLaterTest, BEH_BASE_AddCallLatersDestroyService) {
+TEST_F(CallLaterTest, BEH_COMMON_AddCallLatersDestroyService) {
   Lynyrd sweethome;
   {
     CallLaterTimer clt;
@@ -144,7 +144,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddCallLatersDestroyService) {
   ASSERT_GT(1000, sweethome.count());
 }
 
-TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
+TEST_F(CallLaterTest, BEH_COMMON_AddRemoveCallLaters) {
   // Set up 100 calls and remove 50 of them before they start
   boost::shared_ptr<boost::mutex> mutex(new boost::mutex);
   boost::shared_ptr<boost::condition_variable>
@@ -210,7 +210,7 @@ TEST_F(CallLaterTest, BEH_BASE_AddRemoveCallLaters) {
   ASSERT_EQ(100 - n, sweethome.count()) << "Count in variable incorrect";
 }
 
-TEST_F(CallLaterTest, BEH_BASE_AddPtrCallLater) {
+TEST_F(CallLaterTest, BEH_COMMON_AddPtrCallLater) {
   // Basic call later, but this time to method of object created on heap.
   boost::scoped_ptr<Lynyrd> sweethome(new Lynyrd());
   ASSERT_EQ(0, sweethome->count());

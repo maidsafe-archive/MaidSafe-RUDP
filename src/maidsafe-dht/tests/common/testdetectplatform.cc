@@ -34,7 +34,7 @@ namespace maidsafe {
 
 namespace test {
 
-TEST(FindPlatform, BEH_BASE_DetectPlatform) {
+TEST(FindPlatform, BEH_COMMON_DetectPlatform) {
   int macflag(0);
   int posixflag(0);
   int winflag(0);

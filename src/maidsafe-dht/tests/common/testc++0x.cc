@@ -28,19 +28,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <vector>
 #include <typeinfo>
-// #include <iostream>
 #include "gtest/gtest.h"
 
-/*
- * This file tests the operations available on compilers used in the project
- * at the moment they work with gcc 4.5 and MSVC-10
+/**
+ *  This file tests the operations available on compilers used in the project
+ *  at the moment they work with gcc 4.5 and MSVC-10
  */
 
 namespace maidsafe {
 
 namespace test {
 
-TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
+TEST(cplusplus, DISABLED_BEH_COMMON_StaticAssert) {
 // well enable this to check your compiler fails on a static assert
 // good reason we cannot leave this uncommented.
 
@@ -48,7 +47,7 @@ TEST(DISABLE_cplusplus, BEH_BASE_static_assert) {
 // static_assert ((sizeof(bool) > 800), "I need this to be bigger");
 }
 
-TEST(cplusplus, BEH_BASE_auto) {
+TEST(cplusplus, BEH_COMMON_Auto) {
   auto x = 7;
   ASSERT_EQ(x, 7);
   ASSERT_STREQ(typeid(int).name(), typeid(7).name());  // NOLINT
@@ -66,8 +65,10 @@ TEST(cplusplus, BEH_BASE_auto) {
     *it = *it+1;
   ASSERT_EQ(v, p);
 }
-/* gcc 4.5
-TEST(cplusplus, BEH_BASE_decltype) {
+
+// gcc 4.5
+TEST(cplusplus, DISABLED_BEH_COMMON_Decltype) {
+/*
   int i = 7;
   static const decltype(i++) j = 4;
   ASSERT_EQ(7, i); //decltype has own scope so i unchanged
@@ -89,9 +90,11 @@ TEST(cplusplus, BEH_BASE_decltype) {
   // const int, the redundant const qualifier is ignored
   const decltype(k) var2 = 1;
     ASSERT_EQ(typeid(var2), typeid(const int));
+*/
 }
 
-TEST(cplusplus, BEH_BASE_lambda) {
+TEST(cplusplus, DISABLED_BEH_COMMON_Lambda) {
+/*
   std::vector<int> v;
   v.push_back(50);
   v.push_back(-10);
@@ -104,11 +107,12 @@ TEST(cplusplus, BEH_BASE_lambda) {
   q.push_back(50);
   std::sort(v.begin(), v.end(), [](int a, int b) { return abs(a)<abs(b); });
   ASSERT_EQ(v, q);
-}*/
+*/
+}
 
 
 // gcc 4.6
-TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
+TEST(cplusplus, DISABLED_BEH_COMMON_RangeBasedFor) {
 //   int my_array[5] = {1, 2, 3, 4, 5};
 //   for (int &x: my_array) {
 //     x *= 2;
@@ -116,7 +120,7 @@ TEST(DISABLE_cplusplus, BEH_BASE_rangeBasedFor) {
 //
 }
 
-TEST(DISABLE_cplusplus, BEH_BASE_localAndUnamedTemplteArgs) {
+TEST(cplusplus, DISABLED_BEH_COMMON_LocalAndUnamedTemplteArgs) {
 // template< typename First, typename Second, int third>
 // class SomeType;
 //

@@ -105,7 +105,7 @@ class ThreadpoolTest : public testing::Test {
   ThreadpoolTest& operator=(const ThreadpoolTest&);
 };
 
-TEST_F(ThreadpoolTest, BEH_BASE_SingleTask) {
+TEST_F(ThreadpoolTest, BEH_COMMON_SingleTask) {
   boost::function<void()> functor(boost::bind(&Work::DoTask, &work_, 999));
   // Run a threadpool with 0 threads
   Threadpool threadpool1(0);
@@ -136,7 +136,7 @@ TEST_F(ThreadpoolTest, BEH_BASE_SingleTask) {
   EXPECT_EQ(3U, work_.completed_tasks().size());
 }
 
-TEST_F(ThreadpoolTest, BEH_BASE_MultipleTasks) {
+TEST_F(ThreadpoolTest, BEH_COMMON_MultipleTasks) {
   const size_t kThreadCount(10);
   const size_t kTaskCount(1000);
   std::vector<int> enqueued_tasks;

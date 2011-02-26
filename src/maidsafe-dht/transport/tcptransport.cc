@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <functional> 
+#include <functional>
 
 #include "google/protobuf/descriptor.h"
 
@@ -96,7 +96,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
 
 void TcpTransport::StopListening() {
   boost::system::error_code ec;
-  if(acceptor_)
+  if (acceptor_)
     acceptor_->close(ec);
   listening_port_ = 0;
 }

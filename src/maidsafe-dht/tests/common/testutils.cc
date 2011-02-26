@@ -53,7 +53,7 @@ void GenerateSRandomStrings(const int &string_count,
     SRandomString(string_size);
 }
 
-TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
+TEST(UtilsTest, FUNC_COMMON_RandomStringMultiThread) {
   int thread_count(20);
   int string_count(1000);
   size_t string_size(4096);
@@ -67,7 +67,7 @@ TEST(UtilsTest, FUNC_BASE_RandomStringMultiThread) {
   }
 }
 
-TEST(UtilsTest, FUNC_BASE_SRandomStringMultiThread) {
+TEST(UtilsTest, FUNC_COMMON_SRandomStringMultiThread) {
   int thread_count(20);
   int string_count(1000);
   size_t string_size(4096);
@@ -81,7 +81,7 @@ TEST(UtilsTest, FUNC_BASE_SRandomStringMultiThread) {
   }
 }
 
-TEST(UtilsTest, FUNC_BASE_RandomStringGenerator) {
+TEST(UtilsTest, FUNC_COMMON_RandomStringGenerator) {
   std::set<std::string>random_strings;
   const size_t kCount(100);
   const size_t kMaxDuplicates(1);
@@ -94,7 +94,7 @@ TEST(UtilsTest, FUNC_BASE_RandomStringGenerator) {
   }
 }
 
-TEST(UtilsTest, FUNC_BASE_SRandomStringGenerator) {
+TEST(UtilsTest, FUNC_COMMON_SRandomStringGenerator) {
   std::set<std::string>random_strings;
   const size_t kCount(100);
   const size_t kMaxDuplicates(1);
@@ -107,7 +107,7 @@ TEST(UtilsTest, FUNC_BASE_SRandomStringGenerator) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_Stats) {
+TEST(UtilsTest, BEH_COMMON_Stats) {
   {
     Stats<int> stats;
     EXPECT_EQ(0, stats.Size());
@@ -135,20 +135,20 @@ TEST(UtilsTest, BEH_BASE_Stats) {
     EXPECT_FLOAT_EQ(0.0, stats.Sum());
     EXPECT_FLOAT_EQ(0.0, stats.Mean());
 
-    stats.Add(1.1);
-    stats.Add(2.2);
-    stats.Add(3.3);
-    stats.Add(4.4);
+    stats.Add(1.1f);
+    stats.Add(2.2f);
+    stats.Add(3.3f);
+    stats.Add(4.4f);
 
     EXPECT_EQ(4, stats.Size());
-    EXPECT_FLOAT_EQ(1.1, stats.Min());
-    EXPECT_FLOAT_EQ(4.4, stats.Max());
-    EXPECT_FLOAT_EQ(11.0, stats.Sum());
-    EXPECT_FLOAT_EQ(2.75, stats.Mean());
+    EXPECT_FLOAT_EQ(1.1f, stats.Min());
+    EXPECT_FLOAT_EQ(4.4f, stats.Max());
+    EXPECT_FLOAT_EQ(11.0f, stats.Sum());
+    EXPECT_FLOAT_EQ(2.75f, stats.Mean());
   }
 }
 
-TEST(UtilsTest, BEH_BASE_IntToString) {
+TEST(UtilsTest, BEH_COMMON_IntToString) {
   EXPECT_EQ("1234567890", IntToString(1234567890));
   EXPECT_EQ("-1234567890", IntToString(-1234567890));
   EXPECT_EQ("0", IntToString(0));
@@ -156,7 +156,7 @@ TEST(UtilsTest, BEH_BASE_IntToString) {
 }
 
 
-TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
+TEST(UtilsTest, BEH_COMMON_RandomStringSingleThread) {
   const size_t kStringSize = 4096;
   std::string test1 = RandomAlphaNumericString(kStringSize);
   std::string test2 = RandomAlphaNumericString(kStringSize);
@@ -171,7 +171,7 @@ TEST(UtilsTest, BEH_BASE_RandomStringSingleThread) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_HexEncodeDecode) {
+TEST(UtilsTest, BEH_COMMON_HexEncodeDecode) {
   const std::string kKnownEncoded("0123456789abcdef");
   const std::string kKnownDecoded("\x1\x23\x45\x67\x89\xab\xcd\xef");
   EXPECT_EQ(kKnownEncoded, EncodeToHex(kKnownDecoded));
@@ -188,7 +188,7 @@ TEST(UtilsTest, BEH_BASE_HexEncodeDecode) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_Base64EncodeDecode) {
+TEST(UtilsTest, BEH_COMMON_Base64EncodeDecode) {
   const std::string kKnownEncoded("BCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
                                   "stuvwxyz0123456789+/A");
   const std::string kKnownDecoded("\x04\x20\xc4\x14\x61\xc8\x24\xa2\xcc\x34\xe3"
@@ -209,7 +209,7 @@ TEST(UtilsTest, BEH_BASE_Base64EncodeDecode) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
+TEST(UtilsTest, BEH_COMMON_Base32EncodeDecode) {
   const std::string kKnownEncoded("bcdefghijkmnpqrstuvwxyz23456789a");
   const std::string kKnownDecoded("\x08\x86\x42\x98\xe8\x4a\x96\xc6\xb9\xf0\x8c"
                                   "\xa7\x4a\xda\xf8\xce\xb7\xce\xfb\xe0");
@@ -227,26 +227,31 @@ TEST(UtilsTest, BEH_BASE_Base32EncodeDecode) {
   }
 }
 
-TEST(UtilsTest, BEH_BASE_TimeFunctions) {
-  boost::uint64_t s, ms, ns;
-  ms = GetDurationSinceEpoch().total_milliseconds();
-  ns = GetDurationSinceEpoch().total_nanoseconds();
-  s = GetDurationSinceEpoch().total_seconds();
+TEST(UtilsTest, BEH_COMMON_TimeFunctions) {
+  double s, ms, ns;
+  ms = static_cast<double>(GetDurationSinceEpoch().total_milliseconds());
+  ns = static_cast<double>(GetDurationSinceEpoch().total_nanoseconds());
+  s = static_cast<double>(GetDurationSinceEpoch().total_seconds());
 
   // Within a second
-  EXPECT_NEAR(s*1000, ms, 1000) << "s vs. ms failed.";
+  EXPECT_NEAR(s * 1000, ms, 1000);
   // Within a second
-  EXPECT_NEAR(s*1000000000, ns, 1000000000) << "s vs. ns failed.";
+  EXPECT_NEAR(s * 1000000000, ns, 1000000000);
   // Within quarter of a second
-  EXPECT_NEAR(ms*1000000, ns, 250000000) << "ms vs. ns failed.";
+  EXPECT_NEAR(ms * 1000000, ns, 250000000);
 }
 
-TEST(UtilsTest, BEH_BASE_SRandomNumberGen) {
+TEST(UtilsTest, BEH_COMMON_SRandomNumberGen) {
   std::set<boost::int32_t>random_ints;
   std::set<boost::uint32_t>random_uints;
-  const size_t kCount(10000);
-  // look for less than 0.01% duplicates
-  const size_t kMaxDuplicates(kCount * 0.0001);
+  const size_t kCount(100000);
+  // Given kCount random integers drawn from a discrete uniform distribution
+  // with range [1, 2^32], the probability that at least two numbers are the
+  // same is 1 - (((2^32 - 1) / 2^32) ^ (kCount * (kCount - 1) / 2)).
+  // For kCount == 100,000; probability == 0.6878094613.
+  // For kCount == 10,000; probability == 0.0115728810.
+  // Look for less than 0.01% duplicates.
+  const size_t kMaxDuplicates(static_cast<size_t>(kCount * 0.0001));
   for (size_t i = 0; i < kCount; ++i) {
     random_ints.insert(SRandomInt32());
     random_uints.insert(SRandomUint32());
@@ -255,12 +260,17 @@ TEST(UtilsTest, BEH_BASE_SRandomNumberGen) {
   EXPECT_GE(kMaxDuplicates, kCount - random_uints.size());
 }
 
-TEST(UtilsTest, BEH_BASE_RandomNumberGen) {
-  std::set<boost::int32_t>random_ints;
-  std::set<boost::uint32_t>random_uints;
-  const size_t kCount(10000);
-  // look for less than 0.01% duplicates
-  const size_t kMaxDuplicates(kCount * 0.0001);
+TEST(UtilsTest, BEH_COMMON_RandomNumberGen) {
+  std::set<boost::int32_t> random_ints;
+  std::set<boost::uint32_t> random_uints;
+  const size_t kCount(100000);
+  // Given kCount random integers drawn from a discrete uniform distribution
+  // with range [1, 2^32], the probability that at least two numbers are the
+  // same is 1 - (((2^32 - 1) / 2^32) ^ (kCount * (kCount - 1) / 2)).
+  // For kCount == 100,000; probability == 0.6878094613.
+  // For kCount == 10,000; probability == 0.0115728810.
+  // Look for less than 0.01% duplicates.
+  const size_t kMaxDuplicates(static_cast<size_t>(kCount * 0.0001));
   for (size_t i = 0; i < kCount; ++i) {
     random_ints.insert(RandomInt32());
     random_uints.insert(RandomUint32());
