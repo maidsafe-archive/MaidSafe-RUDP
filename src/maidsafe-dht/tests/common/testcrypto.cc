@@ -43,7 +43,7 @@ namespace crypto {
 
 namespace test {
 
-TEST(CryptoTest, BEH_BASE_Obfuscation) {
+TEST(CryptoTest, BEH_COMMON_Obfuscation) {
   EXPECT_TRUE(XOR("A", "").empty());
   EXPECT_TRUE(XOR("", "B").empty());
   EXPECT_TRUE(XOR("A", "BB").empty());
@@ -63,7 +63,7 @@ TEST(CryptoTest, BEH_BASE_Obfuscation) {
   EXPECT_EQ(std::string("\xff\xff"), XOR(kKnown1, kKnown2));
 }
 
-TEST(CryptoTest, BEH_BASE_SecurePasswordGeneration) {
+TEST(CryptoTest, BEH_COMMON_SecurePasswordGeneration) {
   EXPECT_TRUE(SecurePassword("", "salt", 100).empty());
   EXPECT_TRUE(SecurePassword("password", "", 100).empty());
   EXPECT_TRUE(SecurePassword("password", "salt", 0).empty());
@@ -113,7 +113,7 @@ struct HashTestData {
   std::string SHA512_raw_result;
 };
 
-TEST(CryptoTest, BEH_BASE_Hash) {
+TEST(CryptoTest, BEH_COMMON_Hash) {
   // Set up industry standard test data
   std::vector<HashTestData> test_data;
   test_data.push_back(HashTestData("abc",
@@ -231,7 +231,7 @@ std::string CorruptData(const std::string &input) {
   return output;
 }
 
-TEST(CryptoTest, BEH_BASE_SymmEncrypt) {
+TEST(CryptoTest, BEH_COMMON_SymmEncrypt) {
   // Set up data
   const std::string kKey(DecodeFromHex("0a89927670e292af98080a3c3e2bdee4"
                                        "289b768de74570f9f470282756390fe3"));
@@ -261,7 +261,7 @@ TEST(CryptoTest, BEH_BASE_SymmEncrypt) {
   EXPECT_TRUE(SymmDecrypt("", kKey, kIV).empty());
 }
 
-TEST(CryptoTest, BEH_BASE_AsymEncrypt) {
+TEST(CryptoTest, BEH_COMMON_AsymEncrypt) {
   // Set up data
   RsaKeyPair rsakp;
   rsakp.GenerateKeys(4096);
@@ -299,7 +299,7 @@ TEST(CryptoTest, BEH_BASE_AsymEncrypt) {
   EXPECT_TRUE(AsymEncrypt(kInvalidData, kPublicKey).empty());
 }
 
-TEST(CryptoTest, BEH_BASE_AsymSign) {
+TEST(CryptoTest, BEH_COMMON_AsymSign) {
   // Set up data
   RsaKeyPair rsakp;
   rsakp.GenerateKeys(4096);
@@ -332,7 +332,7 @@ TEST(CryptoTest, BEH_BASE_AsymSign) {
   EXPECT_FALSE(AsymCheckSig(kTestData, signature_string, kPrivateKey));
 }
 
-TEST(CryptoTest, BEH_BASE_Compress) {
+TEST(CryptoTest, BEH_COMMON_Compress) {
   const size_t kTestDataSize(10000);
   const size_t kTolerance(kTestDataSize * 0.005);
   std::string initial_data(kTestDataSize, 'A');
@@ -363,7 +363,7 @@ TEST(CryptoTest, BEH_BASE_Compress) {
   EXPECT_TRUE(Uncompress(kTestData).empty());
 }
 
-TEST(RSAKeysTest, BEH_BASE_RsaKeyPair) {
+TEST(RSAKeysTest, BEH_COMMON_RsaKeyPair) {
   // Check setters and getters
   RsaKeyPair rsakp;
   EXPECT_TRUE(rsakp.public_key().empty());

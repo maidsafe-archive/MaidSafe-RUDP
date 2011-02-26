@@ -169,7 +169,7 @@ class Securifier {
   const std::string kAsymmetricDecryptionPublicKey_;
   const std::string kAsymmetricDecryptionPrivateKey_;
   std::vector<std::string> parameters_;
- 
+
  private:
   Securifier& operator=(Securifier const&);
 };

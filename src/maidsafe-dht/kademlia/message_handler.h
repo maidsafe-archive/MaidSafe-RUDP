@@ -68,74 +68,74 @@ const int kMaxMessageType(transport::kMaxMessageType + 1000);
 class MessageHandler : public transport::MessageHandler {
  public:
 
-   typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::PingRequest&,
            protobuf::PingResponse*,
            transport::Timeout*)>> PingReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::PingResponse&)>> PingRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindValueRequest&,
            protobuf::FindValueResponse*,
            transport::Timeout*)>> FindValueReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindNodesRequest&,
            protobuf::FindNodesResponse*,
            transport::Timeout*)>> FindNodesReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreRequest&,
            const std::string&,
            const std::string&,
            protobuf::StoreResponse*,
            transport::Timeout*)>> StoreReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreResponse&)>> StoreRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreRefreshRequest&,
            protobuf::StoreRefreshResponse*,
            transport::Timeout*)>> StoreRefreshReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreRefreshResponse&)>> StoreRefreshRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteRequest&,
            const std::string&,
            const std::string&,
            protobuf::DeleteResponse*,
            transport::Timeout*)>> DeleteReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteRefreshRequest&,
            protobuf::DeleteRefreshResponse*,
            transport::Timeout*)>> DeleteRefreshReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteRefreshResponse&)>> DeleteRefreshRspSigPtr;
 
-  typedef std::shared_ptr<bs2::signal<
+  typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DownlistNotification&)>> DownlistNtfSigPtr;
 

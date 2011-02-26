@@ -28,14 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/tcpconnection.h"
 
 #include <algorithm>
-#include <functional> 
+#include <functional>
 #include <vector>
 
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
 #include "maidsafe-dht/transport/tcptransport.h"
-#include "maidsafe-dht/transport/tcpconnection.h"
 #include "maidsafe-dht/common/log.h"
 
 namespace asio = boost::asio;

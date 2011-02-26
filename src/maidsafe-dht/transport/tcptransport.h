@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 #include <set>
+#include <string>
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/thread/thread.hpp"

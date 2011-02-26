@@ -28,7 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 
+#include <string>
 #include <memory>
+#include <vector>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
