@@ -48,16 +48,21 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
   std::shared_ptr<boost::asio::io_service::work>
       work2(new boost::asio::io_service::work(*asio_service2));
   boost::thread_group threads1, threads2;
-  threads1.create_thread(std::bind(&boost::asio::io_service::run,
-                                   asio_service1));
-  threads1.create_thread(std::bind(&boost::asio::io_service::run,
-                                   asio_service1));
-  threads1.create_thread(std::bind(&boost::asio::io_service::run,
-                                   asio_service1));
-  threads2.create_thread(std::bind(&boost::asio::io_service::run,
-                                   asio_service2));
-  threads2.create_thread(std::bind(&boost::asio::io_service::run,
-                                   asio_service2));
+  threads1.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), asio_service1));
+  threads1.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), asio_service1));
+  threads1.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), asio_service1));
+  threads2.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), asio_service2));
+  threads2.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), asio_service2));
   std::shared_ptr<UdtTransport> transport1(new UdtTransport(asio_service1));
   MessageHandler message_handler1("message_handler1");
   MessageHandler message_handler2("message_handler2");
