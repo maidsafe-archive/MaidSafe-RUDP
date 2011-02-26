@@ -90,6 +90,15 @@ std::string Securifier::AsymmetricEncrypt(
   return crypto::AsymEncrypt(value, recipient_public_key);
 }
 
+void Securifier::GetPublicKeyAndValidation(const std::string &/*public_key_id*/,
+                                           std::string *public_key,
+                                           std::string *public_key_validation) {
+  if (public_key)
+    public_key->clear();
+  if (public_key_validation)
+    public_key_validation->clear();
+}
+
 void Securifier::GetPublicKeyAndValidation(
     const std::string &/*public_key_id*/,
     GetPublicKeyAndValidationCallback callback) {
