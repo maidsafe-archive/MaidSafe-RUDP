@@ -177,7 +177,7 @@ ENDIF()
 FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \".pb.\" \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"thirdpartylibs/\" \"udt/\" \"upnp/\")\n\n")
 
 ###################################################################################################
-# Set default directories to be searched for included files and libs                              #
+# Set default directories to be searched for include files and libs                              #
 ###################################################################################################
 IF(DEFINED ADD_LIBRARY_DIR)
   IF(DEFAULT_LIBRARY_DIR)
