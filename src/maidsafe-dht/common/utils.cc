@@ -56,12 +56,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_srandom_number_generator;
-boost::mt19937 g_random_number_generator(static_cast<unsigned int>(
-      boost::posix_time::microsec_clock::universal_time().time_of_day().
-      total_microseconds()));
-boost::mutex g_srandom_number_generator_mutex;
-boost::mutex g_random_number_generator_mutex;
+static CryptoPP::AutoSeededX917RNG<CryptoPP::AES> g_srandom_number_generator;
+static unsigned int g_last_random_number(0);
+static boost::mt19937 g_random_number_generator(static_cast<unsigned int>(
+    boost::posix_time::microsec_clock::universal_time().time_of_day().
+    total_microseconds()) + g_last_random_number);
+static boost::mutex g_srandom_number_generator_mutex;
+static boost::mutex g_random_number_generator_mutex;
 
 boost::int32_t SRandomInt32() {
   boost::int32_t result(0);
@@ -84,7 +85,7 @@ boost::int32_t RandomInt32() {
   boost::mutex::scoped_lock lock(g_random_number_generator_mutex);
   boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
       g_random_number_generator, uniform_distribution);
-  return uni();
+  return g_last_random_number = uni();
 }
 
 boost::uint32_t SRandomUint32() {
@@ -126,6 +127,7 @@ std::string RandomString(const size_t &length) {
     boost::variate_generator<boost::mt19937&, boost::uniform_int<>> uni(
         g_random_number_generator, uniform_distribution);
     std::generate(random_string.begin(), random_string.end(), uni);
+    g_last_random_number = uni();
   }
   return random_string;
 }
@@ -141,6 +143,7 @@ std::string RandomAlphaNumericString(const size_t &length) {
         g_random_number_generator, uniform_distribution);
     for (auto it = random_string.begin(); it != random_string.end(); ++it)
       *it = alpha_numerics[uni()];
+    g_last_random_number = uni();
   }
   return random_string;
 }
