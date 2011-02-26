@@ -25,27 +25,46 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#ifndef MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
+#define MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+#include <string>
+#include <map>
+#include "boost/function.hpp"
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace upnp {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+const int kSearchTime = 2;
+const int kLeaseDuration = 900;
+const int kRefreshThreshold = 10;
+const char kClientName[] = "maidsafe-dht";
+
+enum ProtocolType {
+  kUdp = 0,
+  kTcp = 1
+};
+
+// params: port, protocol
+typedef boost::function<void(const int&, const ProtocolType&)> upnp_callback;
+
+struct PortMapping {
+  PortMapping(const int &port_,
+              const ProtocolType &protocol_): internal_port(port_),
+                                              external_port(port_),
+                                              protocol(protocol_),
+                                              enabled(false),
+                                              last_refresh() {}
+  int internal_port;
+  int external_port;
+  ProtocolType protocol;
+  bool enabled;
+  std::map<std::string, boost::uint32_t> last_refresh;
+};
+
+}  // namespace upnp
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_

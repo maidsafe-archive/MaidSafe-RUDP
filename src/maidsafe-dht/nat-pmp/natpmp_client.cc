@@ -23,29 +23,73 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Created by Julian Cain on 11/3/09.
+
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#include "maidsafe-dht/nat-pmp/natpmp_client.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
+#include <stdexcept>
+
 #include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+#include "maidsafe-dht/nat-pmp/natpmp_protocol.h"
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace natpmp {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+void NatPmpClient::Start() {
+  if (impl_) {
+    // ...
+  } else {
+    // Allocate the implementation.
+    impl_.reset(new NatPmpClientImpl(io_service_));
+
+    // Start the implementation.
+    impl_->Start();
+  }
+}
+
+void NatPmpClient::Stop() {
+  if (impl_) {
+    // Stop the implementation.
+    impl_->Stop();
+
+    // Cleanup
+    impl_.reset();
+  } else {
+        // ...
+  }
+}
+
+void NatPmpClient::SetMapPortSuccessCallback(
+    const NatPmpMapPortSuccessCbType & map_port_success_cb) {
+  if (impl_) {
+    impl_->SetMapPortSuccessCallback(map_port_success_cb);
+  } else {
+    DLOG(ERROR) << "Cannot set NAT-PMP success callback with null impl." <<
+        std::endl;
+  }
+}
+
+void NatPmpClient::MapPort(boost::uint32_t protocol,
+                           boost::uint16_t private_port,
+                           boost::uint16_t public_port,
+                           boost::uint32_t lifetime) {
+  if (protocol != Protocol::kTcp && protocol != Protocol::kUdp) {
+    throw std::runtime_error(
+        Protocol::StringFromOpcode(Protocol::kErrorInvalidArgs));
+  }
+
+  if (impl_) {
+    impl_->SendMappingRequest(protocol, private_port, public_port, lifetime);
+  } else {
+    throw std::runtime_error(
+        "Attempted to map nat-pmp port while subsystem is not started.");
+  }
+}
+
+}  // namespace natpmp
+
+}  // namespace maidsafe
