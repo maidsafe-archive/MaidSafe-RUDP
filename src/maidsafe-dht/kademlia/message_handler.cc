@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/message_handler.h"
 #include "boost/lexical_cast.hpp"
+#include "maidsafe-dht/common/securifier.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 
 namespace maidsafe {
@@ -245,8 +246,23 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::StoreRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
+        if (!request.sender().has_node_id())
+          return;
         std::string message =
-           boost::lexical_cast<std::string>(message_type) + payload;
+            boost::lexical_cast<std::string>(message_type) + payload;
+        std::string public_key_id, public_key, other_info;
+        if (request.sender().has_public_key_id())
+          public_key_id = request.sender().public_key_id();
+        if (request.sender().has_public_key())
+          public_key = request.sender().public_key();
+        if (request.sender().has_other_info())
+          other_info = request.sender().other_info();
+        securifier_->GetPublicKeyAndValidation(public_key_id, &public_key,
+                                               &other_info);
+        if (!securifier_->Validate(message, message_signature, public_key_id,
+                                   public_key, other_info,
+                                   request.sender().node_id()))
+          return;
         protobuf::StoreResponse response;
         (*on_store_request_)(info, request, message, message_signature,
                              &response, timeout);
@@ -291,8 +307,23 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::DeleteRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
+        if (!request.sender().has_node_id())
+          return;
         std::string message =
-           boost::lexical_cast<std::string>(message_type) + payload;
+            boost::lexical_cast<std::string>(message_type) + payload;
+        std::string public_key_id, public_key, other_info;
+        if (request.sender().has_public_key_id())
+          public_key_id = request.sender().public_key_id();
+        if (request.sender().has_public_key())
+          public_key = request.sender().public_key();
+        if (request.sender().has_other_info())
+          other_info = request.sender().other_info();
+        securifier_->GetPublicKeyAndValidation(public_key_id, &public_key,
+                                               &other_info);
+        if (!securifier_->Validate(message, message_signature, public_key_id,
+                                   public_key, other_info,
+                                   request.sender().node_id()))
+          return;
         protobuf::DeleteResponse response;
         (*on_delete_request_)(info, request, message, message_signature,
                               &response, timeout);
