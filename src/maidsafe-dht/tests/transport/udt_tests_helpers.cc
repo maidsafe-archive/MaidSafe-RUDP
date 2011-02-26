@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,27 +25,27 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#include "maidsafe-dht/tests/transport/udt_tests_helpers.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+#include <string>
+#include <vector>
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+#include "maidsafe-dht/udt/api.h"
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace maidsafe {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+namespace transport {
+
+namespace test {
+
+bool SocketAlive(const SocketId &udt_socket_id) {
+  std::vector<int> socket_to_check(1, udt_socket_id);
+  std::vector<int> sockets_bad;
+  return (UDT::selectEx(socket_to_check, NULL, NULL, &sockets_bad, 1000) == 0);
+}
+
+}  // namespace test
+
+}  // namespace transport
+
+}  // namespace maidsafe

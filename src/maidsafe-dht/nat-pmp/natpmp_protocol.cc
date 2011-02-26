@@ -23,29 +23,44 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Created by Julian Cain on 11/3/09.
+
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#include "maidsafe-dht/nat-pmp/natpmp_protocol.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace natpmp {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+const char * Protocol::StringFromOpcode(unsigned int opcode) {
+  const char * str;
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+  switch (opcode) {
+    case kErrorInvalidArgs:
+      str = "invalid arguments";
+      break;
+    case kErrorSocketError:
+      str = "socket() failed";
+      break;
+    case kErrorCannotGetGateway:
+      str = "cannot get default gateway ip address";
+      break;
+    case kResultOutOfResources:
+      str = "Out of resources (NAT box cannot create any more mappings at "
+            "this time).";
+      break;
+    case kResultNetworkFailure:
+      str = "Network Failure, nat box may have not obtained a DHCP lease.";
+      break;
+    default:
+      str = "Unknown NAT-PMP error";
+  }
+
+  return str;
+}
+
+}  // namespace natpmp
+
+}  // namespace maidsafe

@@ -25,27 +25,59 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#include "maidsafe-dht/upnp/upnp_client.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+#include <vector>
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace upnp {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+UpnpIgdClient::UpnpIgdClient() : pimpl_(new UpnpIgdClientImpl()) {}
+
+UpnpIgdClient::~UpnpIgdClient() {}
+
+bool UpnpIgdClient::IsAsync() {
+  return pimpl_->IsAsync();
+}
+
+bool UpnpIgdClient::HasServices() {
+  return pimpl_->HasServices();
+}
+
+bool UpnpIgdClient::InitControlPoint() {
+  return pimpl_->InitControlPoint();
+}
+
+bool UpnpIgdClient::AddPortMapping(const int &port,
+                                   const ProtocolType &protocol) {
+  return pimpl_->AddPortMapping(PortMapping(port, protocol));
+}
+
+bool UpnpIgdClient::DeletePortMapping(const int &port,
+                                      const ProtocolType &protocol) {
+  return pimpl_->DeletePortMapping(port, protocol);
+}
+
+std::string UpnpIgdClient::GetExternalIpAddress() {
+  return pimpl_->GetExternalIpAddress();
+}
+
+void UpnpIgdClient::SetNewMappingCallback(
+       const upnp_callback &new_mapping_callback) {
+  pimpl_->SetNewMappingCallback(new_mapping_callback);
+}
+
+void UpnpIgdClient::SetLostMappingCallback(
+       const upnp_callback &lost_mapping_callback) {
+  pimpl_->SetLostMappingCallback(lost_mapping_callback);
+}
+
+void UpnpIgdClient::SetFailedMappingCallback(
+       const upnp_callback &failed_mapping_callback) {
+  pimpl_->SetFailedMappingCallback(failed_mapping_callback);
+}
+
+}  // namespace upnp
+
+}  // namespace maidsafe

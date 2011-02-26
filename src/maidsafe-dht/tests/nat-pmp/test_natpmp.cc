@@ -25,27 +25,65 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#include "gtest/gtest.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
+#include "boost/asio/io_service.hpp"
+#include "boost/bind.hpp"
+#include "boost/shared_ptr.hpp"
+#include "boost/thread.hpp"
+
+#include "maidsafe-dht/nat-pmp/natpmp_client.h"
 #include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace natpmp {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+namespace test {
+
+class NATPMPTest : public testing::Test {
+ public:
+  NATPMPTest() {}
+};
+
+TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
+  boost::asio::io_service ios;
+
+  NatPmpClient client(&ios);
+
+  boost::uint16_t tcp_port = 33333;
+  boost::uint16_t udp_port = 33333;
+
+  DLOG(INFO) << "Starting NAT-PMP..." << std::endl;
+
+  DLOG(INFO) << "Requesting external ip address from gateway." << std::endl;
+
+  client.Start();
+
+  DLOG(INFO) << "Queueing mapping request for tcp port " << tcp_port << " to "
+             << tcp_port << std::endl;
+
+  client.MapPort(Protocol::kTcp, 33333, 33333, 3600);
+
+  DLOG(INFO) << "Queueing mapping request for udp port " << udp_port << " to "
+             << udp_port << std::endl;
+
+  client.MapPort(Protocol::kUdp, 33333, 33333, 3600);
+
+  boost::shared_ptr<boost::thread> thread(new boost::thread(
+      boost::bind(&boost::asio::io_service::run, &ios)));
+
+  DLOG(INFO) << "Sleeping for 64 seconds..." << std::endl;
+
+  boost::this_thread::sleep(boost::posix_time::seconds(64));
+
+  DLOG(INFO) << "Stopping NAT-PMP..." << std::endl;
+
+  client.Stop();
+}
+
+}  // namespace test
+
+}  // namespace natpmp
+
+}  // namespace maidsafe

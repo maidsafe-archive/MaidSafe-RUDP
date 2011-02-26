@@ -25,27 +25,42 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_MAIDSAFE_DHT_H_
-#define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+#ifndef MAIDSAFE_DHT_UPNP_UPNP_CLIENT_H_
+#define MAIDSAFE_DHT_UPNP_UPNP_CLIENT_H_
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/threadpool.h"
-#include "maidsafe-dht/common/utils.h"
-#include "maidsafe-dht/common/version.h"
+#include <string>
+#include "boost/shared_ptr.hpp"
+// #include "maidsafe-dht/upnp/upnp_client_impl.h"
+#include "maidsafe-dht/upnp/mini_upnp_client_impl.h"
 
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/contact.h"
-#include "maidsafe-dht/kademlia/node_id.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
+namespace maidsafe {
 
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/message_handler.h"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+namespace upnp {
 
-#endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_
+// control point for a UPnP Internet Gateway Device
+class UpnpIgdClient {
+ public:
+  UpnpIgdClient();
+  ~UpnpIgdClient();
+
+  bool IsAsync();
+  bool HasServices();
+
+  bool InitControlPoint();
+  bool AddPortMapping(const int &port, const ProtocolType &protocol);
+  bool DeletePortMapping(const int &port, const ProtocolType &protocol);
+
+  std::string GetExternalIpAddress();
+
+  void SetNewMappingCallback(const upnp_callback &new_mapping_callback);
+  void SetLostMappingCallback(const upnp_callback &lost_mapping_callback);
+  void SetFailedMappingCallback(const upnp_callback &failed_mapping_callback);
+ private:
+  boost::shared_ptr<UpnpIgdClientImpl> pimpl_;
+};
+
+}  // namespace upnp
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_UPNP_UPNP_CLIENT_H_

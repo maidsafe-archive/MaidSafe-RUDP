@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/kademlia.pb.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
-#include "maidsafe-dht/transport/udttransport.h"
+#include "maidsafe-dht/transport/udt_transport.h"
 #include "maidsafe-dht/transport/tcptransport2.h"
 
 namespace maidsafe {
