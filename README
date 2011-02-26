@@ -24,7 +24,7 @@ Directory structure
     - maidsafe (all source files, inc 3rd party)
 
 
-For full build instructions, see http://code.google.com/p/maidsafe-dht/wiki/DevBuild
+For full build instructions, see https://github.com/maidsafe/MaidSafe-DHT/wiki/DevBuild 
 Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
 
 Please note the src/udt directory is a (nearly clean) CVS copy of the official udt
