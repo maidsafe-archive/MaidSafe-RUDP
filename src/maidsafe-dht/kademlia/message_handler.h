@@ -73,6 +73,7 @@ class MessageHandler : public transport::MessageHandler {
            const protobuf::PingRequest&,
            protobuf::PingResponse*,
            transport::Timeout*)>> PingReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::PingResponse&)>> PingRspSigPtr;
@@ -82,6 +83,7 @@ class MessageHandler : public transport::MessageHandler {
            const protobuf::FindValueRequest&,
            protobuf::FindValueResponse*,
            transport::Timeout*)>> FindValueReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindValueResponse&)>> FindValueRspSigPtr;
@@ -91,6 +93,7 @@ class MessageHandler : public transport::MessageHandler {
            const protobuf::FindNodesRequest&,
            protobuf::FindNodesResponse*,
            transport::Timeout*)>> FindNodesReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::FindNodesResponse&)>> FindNodesRspSigPtr;
@@ -102,6 +105,7 @@ class MessageHandler : public transport::MessageHandler {
            const std::string&,
            protobuf::StoreResponse*,
            transport::Timeout*)>> StoreReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreResponse&)>> StoreRspSigPtr;
@@ -111,6 +115,7 @@ class MessageHandler : public transport::MessageHandler {
            const protobuf::StoreRefreshRequest&,
            protobuf::StoreRefreshResponse*,
            transport::Timeout*)>> StoreRefreshReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::StoreRefreshResponse&)>> StoreRefreshRspSigPtr;
@@ -122,6 +127,7 @@ class MessageHandler : public transport::MessageHandler {
            const std::string&,
            protobuf::DeleteResponse*,
            transport::Timeout*)>> DeleteReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteResponse&)>> DeleteRspSigPtr;
@@ -131,6 +137,7 @@ class MessageHandler : public transport::MessageHandler {
            const protobuf::DeleteRefreshRequest&,
            protobuf::DeleteRefreshResponse*,
            transport::Timeout*)>> DeleteRefreshReqSigPtr;
+
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::DeleteRefreshResponse&)>> DeleteRefreshRspSigPtr;
