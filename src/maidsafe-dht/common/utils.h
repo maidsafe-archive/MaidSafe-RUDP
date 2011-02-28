@@ -41,23 +41,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-// 01 Jan 2000
+/// The definition of epoch date for MaidSafe products
 const boost::posix_time::ptime kMaidSafeEpoch(
-    boost::posix_time::from_iso_string("20000101T000000"));
+    boost::posix_time::from_iso_string("20000101T000000"));  ///< 01 Jan 2000
 
-/**
-* @class Stats
-* A simple class to determine statistical properties of a data set, computed
-* without storing the values. Data type must be numerical.
-*/
+/** @class Stats
+ *  A simple class to determine statistical properties of a data set, computed
+ *  without storing the values. Data type must be numerical. */
 template <typename T>
 class Stats {
  public:
   Stats() : size_(0), min_(0), max_(0), sum_(0) {}
-  /**
-  * Add a datum to the data set.
-  * @param value The data value.
-  */
+  /** Add a datum to the data set.
+   *  @param value The data value. */
   void Add(const T &value) {
     sum_ += value;
     ++size_;
@@ -71,31 +67,21 @@ class Stats {
         max_ = value;
     }
   }
-  /**
-  * Get the size of the data set.
-  * @return number of elements
-  */
+  /** Get the size of the data set.
+   *  @return number of elements */
   boost::uint64_t Size() const { return size_; }
-  /**
-  * Get the smallest value in the set.
-  * @return minimum
-  */
+  /** Get the smallest value in the set.
+   *  @return minimum */
   T Min() const { return min_; }
-  /**
-  * Get the biggest value in the set.
-  * @return maximum
-  */
+  /** Get the biggest value in the set.
+   *  @return maximum */
   T Max() const { return max_; }
-  /**
-  * Get the sum of values in the set.
-  * @return sum
-  */
+  /** Get the sum of values in the set.
+   *  @return sum */
   T Sum() const { return sum_; }
-  /**
-  * Get the average of values in the set.
-  * @return arithmetic mean
-  */
-  T Mean() const { return size_ > 0 ? sum_ / size_ : 0; }
+  /** Get the average of values in the set.
+   *  @return arithmetic mean */
+  T Mean() const { return size_ > 0 ? static_cast<T>(sum_ / size_) : 0; }
  private:
   boost::uint64_t size_;
   T min_;
@@ -103,50 +89,49 @@ class Stats {
   T sum_;
 };
 
-// Generate a cryptographically-secure 32bit signed integer
+/// Generates a cryptographically-secure 32bit signed integer
 boost::int32_t SRandomInt32();
 
-// Generate a non-cryptographically-secure 32bit signed integer
+/// Generates a non-cryptographically-secure 32bit signed integer
 boost::int32_t RandomInt32();
 
-// Generate a cryptographically-secure 32bit unsigned integer
+/// Generates a cryptographically-secure 32bit unsigned integer
 boost::uint32_t SRandomUint32();
 
-// Generate a non-cryptographically-secure 32bit unsigned integer
+/// Generates a non-cryptographically-secure 32bit unsigned integer
 boost::uint32_t RandomUint32();
 
-// Generate a cryptographically-secure random string.
+/// Generates a cryptographically-secure random string.
 std::string SRandomString(const size_t &length);
 
-// Generate a non-cryptographically-secure random string.
+/// Generates a non-cryptographically-secure random string.
 std::string RandomString(const size_t &length);
 
-// Generate a non-cryptographically-secure random string containing only
-// alphanumeric characters.
+/// Generates a non-cryptographically-secure random alphanumeric string.
 std::string RandomAlphaNumericString(const size_t &length);
 
-// Convert from int to string.
+/// Converts from int to string.
 std::string IntToString(const int &value);
 
-// Encode a string to hex.
+/// Encodes a string to hex.
 std::string EncodeToHex(const std::string &non_hex_input);
 
-// Encode a string to Base64.
+/// Encodes a string to Base64.
 std::string EncodeToBase64(const std::string &non_base64_input);
 
-// Encode a string to Base32.
+/// Encodes a string to Base32.
 std::string EncodeToBase32(const std::string &non_base32_input);
 
-// Decode a string from hex.
+/// Decodes a string from hex.
 std::string DecodeFromHex(const std::string &hex_input);
 
-// Decode a string from Base64.
+/// Decodes a string from Base64.
 std::string DecodeFromBase64(const std::string &base64_input);
 
-// Decode a string from Base32.
+/// Decodes a string from Base32.
 std::string DecodeFromBase32(const std::string &base32_input);
 
-// Return the duration since kMaidsafeEpoch (1st January 2000).
+/// Returns the duration since kMaidsafeEpoch (1st January 2000).
 boost::posix_time::time_duration GetDurationSinceEpoch();
 
 }  // namespace maidsafe

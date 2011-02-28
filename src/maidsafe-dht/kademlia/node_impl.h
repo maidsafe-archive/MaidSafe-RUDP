@@ -170,6 +170,10 @@ class Node::Impl {
                                  const int &result,
                                  Contact replacement_contact,
                                  RankInfoPtr replacement_rank_info);
+  void ValidateContact(const Contact &contact);
+  void ValidateContactCallback(Contact contact,
+                               std::string public_key,
+                               std::string public_key_validation);
 
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
