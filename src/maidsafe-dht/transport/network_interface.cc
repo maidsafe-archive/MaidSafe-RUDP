@@ -33,14 +33,14 @@ Created by Julian Cain on 11/3/09.
                                               // for preprocessor definitions
 
 #if !defined (MAIDSAFE_WIN32)
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <errno.h>
-#include <netdb.h>
+#include <sys/types.h>  // NOLINT (Fraser)
+#include <sys/socket.h>  // NOLINT (Fraser)
+#include <netinet/in.h>  // NOLINT (Fraser)
+#include <arpa/inet.h>  // NOLINT (Fraser)
+#include <sys/ioctl.h>  // NOLINT (Fraser)
+#include <net/if.h>  // NOLINT (Fraser)
+#include <errno.h>  // NOLINT (Fraser)
+#include <netdb.h>  // NOLINT (Fraser)
 #endif
 
 namespace maidsafe {

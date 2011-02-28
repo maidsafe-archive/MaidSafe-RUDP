@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_CONTACT_H_
 #define MAIDSAFE_DHT_KADEMLIA_CONTACT_H_
 
+#include <string>
 #include <vector>
 #include <string>
 #include "boost/cstdint.hpp"

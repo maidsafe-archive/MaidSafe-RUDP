@@ -480,8 +480,7 @@ void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
                                            RankInfoPtr /*oldest_rank_info*/,
                                            const int &/*result*/,
                                            Contact /*replacement_contact*/,
-                                           RankInfoPtr
-                                             /*replacement_rank_info*/) {
+                                        RankInfoPtr /*replacement_rank_info*/) {
 //  if(result == 0) {
 //    add new contact - or ++ failed count?
 //  } else {
@@ -490,6 +489,21 @@ void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
 //  }
 }
 
+void Node::Impl::ValidateContact(const Contact &contact) {
+  GetPublicKeyAndValidationCallback callback(boost::bind(
+      &Node::Impl::ValidateContactCallback, this, contact, _1, _2));
+  default_securifier_->GetPublicKeyAndValidation(contact.public_key_id(),
+                                                 callback);
+}
+
+void Node::Impl::ValidateContactCallback(Contact contact,
+                                         std::string public_key,
+                                         std::string public_key_validation) {
+  bool valid = default_securifier_->Validate("", "", contact.public_key_id(),
+                                             public_key, public_key_validation,
+                                             contact.node_id().String());
+  routing_table_->SetValidated(contact.node_id(), valid);
+}
 
 }  // namespace kademlia
 
