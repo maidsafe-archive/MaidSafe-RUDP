@@ -292,7 +292,7 @@ void Service::Delete(const transport::Info &info,
                      const std::string &message_signature,
                      protobuf::DeleteResponse *response) {
   response->set_result(false);
-  if (!node_joined_ || securifier_ == NULL)
+  if (!node_joined_ || !securifier_)
     return;
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
