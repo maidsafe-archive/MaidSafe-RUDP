@@ -28,7 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCP_CONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCP_CONNECTION_H_
 
-<<<<<<< HEAD
 #ifdef __MSVC__
 #pragma warning(disable:4996)
 #endif
@@ -37,11 +36,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(default:4996)
 #endif
 
-=======
 #include <string>
 #include <memory>
 #include <vector>
->>>>>>> 9ccf8c03694ad7554875660146f06137f64500b7
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
@@ -88,9 +85,4 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 
 }  // namespace maidsafe
 
-<<<<<<< HEAD
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
-=======
 #endif  // MAIDSAFE_DHT_TRANSPORT_TCP_CONNECTION_H_
->>>>>>> 9ccf8c03694ad7554875660146f06137f64500b7
