@@ -35,7 +35,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4512)
+#endif
 #include "boost/signals2/connection.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/node-api.h"
@@ -162,6 +170,10 @@ class Node::Impl {
                                  const int &result,
                                  Contact replacement_contact,
                                  RankInfoPtr replacement_rank_info);
+  void ValidateContact(const Contact &contact);
+  void ValidateContactCallback(Contact contact,
+                               std::string public_key,
+                               std::string public_key_validation);
 
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
