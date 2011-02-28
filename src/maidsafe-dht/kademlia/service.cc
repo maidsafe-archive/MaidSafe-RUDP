@@ -25,8 +25,6 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// TODO(Fraser#5#): 27/01/11 - output warnings consistently.
-
 #include <utility>
 #ifdef __MSVC__
 #pragma warning(disable:4996)
@@ -35,8 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #pragma warning(default:4996)
 #endif
-
-// #include "boost/compressed_pair.hpp"
 
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
@@ -80,8 +76,7 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       k_(16U),
       ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
 
-Service::~Service() {
-}
+Service::~Service() {}
 
 void Service::ConnectToSignals(TransportPtr transport,
                                MessageHandlerPtr message_handler) {
@@ -139,7 +134,7 @@ void Service::FindValue(const transport::Info &info,
   // Are we the alternative value holder?
   std::string key(request.key());
   std::vector<std::pair<std::string, std::string>> values_str;
-  if ((alternative_store_ != NULL) && (alternative_store_->Has(key))) {
+  if (alternative_store_ && (alternative_store_->Has(key))) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
@@ -148,17 +143,11 @@ void Service::FindValue(const transport::Info &info,
 
   // Do we have the values?
   if (datastore_->GetValues(key, &values_str)) {
-    // signature is mandatory in new implementation
-    //  if (using_signatures_) {
     for (unsigned int i = 0; i < values_str.size(); i++) {
       protobuf::SignedValue *signed_value = response->add_signed_values();
       signed_value->set_value(values_str[i].first);
       signed_value->set_signature(values_str[i].second);
     }
-//     } else {
-//       for (unsigned int i = 0; i < values_str.size(); i++)
-//         response->add_values(values_str[i].first);
-//     }
     response->set_result(true);
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
@@ -426,7 +415,7 @@ void Service::Downlist(const transport::Info &/*info*/,
   // Or we just fire the signal once per ID.
   // As the normal case will be only one node per Downlist RPC, so option 2 is
   // adapted by far.
-      if (contact != Contact() )
+      if (contact != Contact())
         (*ping_down_list_contacts_)(contact);
     }
   }

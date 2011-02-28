@@ -104,6 +104,15 @@ void EnumGenerator::Generate(io::Printer* printer) {
       "public static final $classname$ $name$ = $canonical_name$;\n");
   }
 
+  for (int i = 0; i < descriptor_->value_count(); i++) {
+    map<string, string> vars;
+    vars["name"] = descriptor_->value(i)->name();
+    vars["number"] = SimpleItoa(descriptor_->value(i)->number());
+    printer->Print(vars,
+      "public static final int $name$_VALUE = $number$;\n");
+  }
+  printer->Print("\n");
+
   // -----------------------------------------------------------------
 
   printer->Print(
@@ -138,7 +147,7 @@ void EnumGenerator::Generate(io::Printer* printer) {
     "    internalValueMap =\n"
     "      new com.google.protobuf.Internal.EnumLiteMap<$classname$>() {\n"
     "        public $classname$ findValueByNumber(int number) {\n"
-    "          return $classname$.valueOf(number)\n;"
+    "          return $classname$.valueOf(number);\n"
     "        }\n"
     "      };\n"
     "\n",
@@ -190,6 +199,7 @@ void EnumGenerator::Generate(io::Printer* printer) {
     printer->Print(
       "\n"
       "};\n"
+      "\n"
       "public static $classname$ valueOf(\n"
       "    com.google.protobuf.Descriptors.EnumValueDescriptor desc) {\n"
       "  if (desc.getType() != getDescriptor()) {\n"
@@ -197,31 +207,26 @@ void EnumGenerator::Generate(io::Printer* printer) {
       "      \"EnumValueDescriptor is not for this type.\");\n"
       "  }\n"
       "  return VALUES[desc.getIndex()];\n"
-      "}\n",
+      "}\n"
+      "\n",
       "classname", descriptor_->name());
+
+    // index is only used for reflection; lite implementation does not need it
+    printer->Print("private final int index;\n");
   }
 
   // -----------------------------------------------------------------
 
   printer->Print(
-    "private final int index;\n"
-    "private final int value;\n"
-    "private $classname$(int index, int value) {\n"
-    "  this.index = index;\n"
-    "  this.value = value;\n"
-    "}\n",
+    "private final int value;\n\n"
+    "private $classname$(int index, int value) {\n",
     "classname", descriptor_->name());
-
   if (HasDescriptorMethods(descriptor_)) {
-    // Force the static initialization code for the file to run, since it may
-    // initialize static variables declared in this class.
-    printer->Print(
-      "\n"
-      "static {\n"
-      "  $file$.getDescriptor();\n"
-      "}\n",
-      "file", ClassName(descriptor_->file()));
+    printer->Print("  this.index = index;\n");
   }
+  printer->Print(
+    "  this.value = value;\n"
+    "}\n");
 
   printer->Print(
     "\n"

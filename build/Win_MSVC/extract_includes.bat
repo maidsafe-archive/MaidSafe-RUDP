@@ -20,5 +20,5 @@ copy ..\..\src\maidsafe-dht\maidsafe-dht.h include\maidsafe-dht\maidsafe-dht.h
 md include\maidsafe-dht\transport
 copy ..\..\src\maidsafe-dht\transport\transport.h include\maidsafe-dht\transport\transport.h
 copy ..\..\src\maidsafe-dht\transport\message_handler.h include\maidsafe-dht\transport\message_handler.h
-copy ..\..\src\maidsafe-dht\transport\tcptransport.h include\maidsafe-dht\transport\tcptransport.h
-copy ..\..\src\maidsafe-dht\transport\udttransport.h include\maidsafe-dht\transport\udttransport.h
+copy ..\..\src\maidsafe-dht\transport\tcp_transport.h include\maidsafe-dht\transport\tcp_transport.h
+copy ..\..\src\maidsafe-dht\transport\udt_transport.h include\maidsafe-dht\transport\udt_transport.h

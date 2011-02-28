@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
@@ -237,10 +237,6 @@
 			</File>
 			<File
 				RelativePath="..\src\google\protobuf\generated_message_util.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\src\google\protobuf\stubs\hash.cc"
 				>
 			</File>
 			<File
