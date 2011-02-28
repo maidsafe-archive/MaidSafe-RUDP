@@ -250,20 +250,29 @@ protobuf::DeleteRequest MakeDeleteRequest (const Contact& sender,
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
+      AddContact(contact, rank_info_);
     }
   }
   void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_->AddContact(contact, rank_info_);
+      AddContact(contact, rank_info_);
     }
+  }
+
+  void AddContact (const Contact& contact, const RankInfoPtr rank_info) {
+    routing_table_->AddContact(contact, rank_info);
+    routing_table_->SetValidated(contact.node_id(), true);
   }
 
   size_t GetRoutingTableSize() const {
     return routing_table_->Size();
   }
+
+  size_t CountUnValidatedContacts() const {
+    return routing_table_->unvalidated_contacts_.size();
+  }  
 
   size_t GetDataStoreSize() const {
     return data_store_->key_value_index_->size();
@@ -311,6 +320,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -327,12 +337,13 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
     // Try to store a validated tuple
     // into empty datastore, but the routingtable already contains the sender
-    routing_table_->AddContact(sender, rank_info_);
+    AddContact(sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::StoreResponse store_response;
@@ -340,6 +351,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     EXPECT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -352,11 +364,9 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     service_->Store(info_, store_request, message, message_sig, &store_response);
     EXPECT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    // the sender will be pushed into the unvalidated_contacts list
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
 }
 
@@ -396,6 +406,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -417,12 +428,13 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
     // Try to delete a validated tuple
     // from empty datastore, but the routingtable already contains the sender
-    routing_table_->AddContact(sender, rank_info_);
+    AddContact(sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::DeleteResponse delete_response;
@@ -431,6 +443,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -448,11 +461,9 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     EXPECT_TRUE(delete_response.result());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    // the sender will be pushed into the unvalidated_contacts list
+    ASSERT_EQ(0U, GetRoutingTableSize());    
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
 }
 
@@ -495,6 +506,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     EXPECT_FALSE(store_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   store_refresh_request.set_serialised_store_request(message);
@@ -513,12 +525,13 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     EXPECT_FALSE(store_fresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
     // Try to storerefresh a validated tuple into empty datastore,
     // but the routingtable already contains the sender
-    routing_table_->AddContact(new_sender, rank_info_);
+    AddContact(new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::StoreRefreshResponse store_fresh_response;
@@ -526,6 +539,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     EXPECT_TRUE(store_fresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -539,11 +553,9 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response);
     EXPECT_TRUE(store_fresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(new_sender_id, &pushed_in);
-    ASSERT_EQ(new_sender_id, pushed_in.node_id());
+    // the sender will be pushed into the unvalidated_contacts list
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
 }
 
@@ -593,6 +605,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   delete_refresh_request.set_serialised_delete_request(delete_message);
@@ -617,13 +630,15 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
     // Try to deleterefresh a validated tuple
     // from empty datastore, but the routingtable already contains the sender
-    routing_table_->AddContact(sender, rank_info_);
+    AddContact(sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
@@ -631,6 +646,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -641,7 +657,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
                     store_message_sig, &store_response);
     ASSERT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
@@ -650,11 +667,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // will fail, but the sender will be added into the routing table
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(2U, GetRoutingTableSize());
-    // the new_sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(new_sender_id, &pushed_in);
-    ASSERT_EQ(new_sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(2U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -665,7 +679,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
                     store_message_sig, &store_response);
     ASSERT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
 
     // delete the entry, mark it as "deleted"
     protobuf::DeleteResponse delete_response;
@@ -674,7 +689,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     EXPECT_TRUE(delete_response.result());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(1U, GetRoutingTableSize());    
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
@@ -683,12 +699,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // will refresh its ttl
     EXPECT_TRUE(delete_refresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
-    ASSERT_EQ(2U, GetRoutingTableSize());
-    // the new_sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(new_sender_id, &pushed_in);
-    ASSERT_EQ(new_sender_id, pushed_in.node_id());
-  }  
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(2U, CountUnValidatedContacts());
+  }
 }
 
 TEST_F(ServicesTest, BEH_KAD_FindNodes) {
@@ -705,12 +718,9 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(0, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(1, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -723,11 +733,8 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k / 2, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(test::k / 2 + 1, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(test::k / 2, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -741,11 +748,8 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(2 * test::k, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -753,14 +757,15 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     // (containing the target)
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k - 1, 501);
-    routing_table_->AddContact(target, rank_info_);
+    AddContact(target, rank_info_);
     EXPECT_EQ(2 * test::k, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    ASSERT_EQ(2 * test::k, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
     // the target must be contained in the response's closest_nodes
     bool target_exist(false);
     for (int i = 0; i < find_nodes_rsp.closest_nodes_size(); ++i) {
@@ -769,10 +774,6 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
         target_exist = true;
     }
     ASSERT_EQ(true, target_exist);
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
   }
   Clear();
   {
@@ -780,7 +781,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     // (containing the sender, but not containing the target)
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k, 501);
-    routing_table_->AddContact(sender, rank_info_);
+    AddContact(sender, rank_info_);
     EXPECT_EQ(2 * test::k + 1, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
@@ -788,6 +789,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
   }
 }
 
@@ -807,11 +809,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     service_->FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -820,7 +819,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // no alternative_store_
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k, 501);
-    routing_table_->AddContact(target, rank_info_);
+    AddContact(target, rank_info_);
 
     protobuf::FindValueResponse find_value_rsp;    
     service_->FindValue(info_, find_value_req, &find_value_rsp);
@@ -834,11 +833,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
         target_exist = true;
     }
     ASSERT_TRUE(target_exist);
-    ASSERT_EQ(2 * test::k + 2, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -852,11 +848,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     service_->FindValue(info_, find_value_req, &find_value_rsp);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
 
@@ -882,11 +875,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(target_value, (*find_value_rsp.mutable_signed_values(0)).value());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
@@ -910,11 +900,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     ASSERT_EQ(Contact(),
         FromProtobuf((*find_value_rsp.mutable_alternative_value_holder())));
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
 
@@ -941,11 +928,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     ASSERT_EQ(node_contact,
         FromProtobuf((*find_value_rsp.mutable_alternative_value_holder())));
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
-    ASSERT_EQ(1U, GetRoutingTableSize());
-    // the sender must be pushed into the routing table
-    Contact pushed_in;
-    routing_table_->GetContact(sender_id, &pushed_in);
-    ASSERT_EQ(sender_id, pushed_in.node_id());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
   }
 }
 
