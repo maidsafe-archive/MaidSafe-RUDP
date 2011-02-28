@@ -37,6 +37,7 @@ RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
     : kThisId_(this_id),
       k_(k),
       contacts_(),
+      unvalidated_contacts_(),
       ping_oldest_contact_(new PingOldestContactPtr::element_type),
       validate_contact_(new ValidateContactPtr::element_type),
       shared_mutex_(),
@@ -44,6 +45,7 @@ RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
 
 RoutingTable::~RoutingTable() {
   UniqueLock unique_lock(shared_mutex_);
+  unvalidated_contacts_.clear();
   contacts_.clear();
 }
 
@@ -65,7 +67,16 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
     contacts_.modify(it_node,
                      ChangeLastSeen(bptime::microsec_clock::universal_time()));
   } else {
-    InsertContact(contact, rank_info, upgrade_lock);
+    // put the contact into the unvalidated contacts container
+    UnValidatedContactsById contact_indx =
+        unvalidated_contacts_.get<NodeIdTag>();
+    auto it_contact = contact_indx.find(node_id);
+    if (it_contact == contact_indx.end()) {
+      UnValidatedContact new_entry(contact, rank_info);
+      unvalidated_contacts_.insert(new_entry);
+      // fire the signal to validate the contact
+      (*validate_contact_)(contact);
+    }
   }
 }
 
@@ -101,7 +112,6 @@ void RoutingTable::InsertContact(const Contact &contact,
     new_routing_table_contact.kbucket_index = target_kbucket_index;
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     contacts_.insert(new_routing_table_contact);
-    (*validate_contact_)(contact);
   }
 }
 
@@ -256,20 +266,40 @@ int RoutingTable::SetPreferredEndpoint(const NodeId &node_id,
 
 int RoutingTable::SetValidated(const NodeId &node_id,
                                bool validated) {
-  UpgradeLock upgrade_lock(shared_mutex_);
+  std::shared_ptr<UpgradeLock> upgrade_lock(new UpgradeLock(shared_mutex_));
+
+  UnValidatedContactsById contact_indx =
+      unvalidated_contacts_.get<NodeIdTag>();
+  auto it_contact = contact_indx.find(node_id);
+
+  // if the contact can be find in the un-validated contacts container
+  if (it_contact != contact_indx.end()) {
+    // If an un-validated entry proved to be valid
+    // remove it from un-validated container and insert it into routing_table.
+    // Otherwise, the entry shall be dropped.
+    if (validated) {
+      InsertContact((*it_contact).contact, (*it_contact).rank_info, upgrade_lock);
+    }
+    UpgradeToUniqueLock unique_lock(*upgrade_lock);    
+    contact_indx.erase(it_contact);
+    return 0;
+  }
+  
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  // return if can't find the contact having the nodeID
-  if (it == key_indx.end())
-    return -1;
-  UpgradeToUniqueLock unique_lock(upgrade_lock);
-  if (validated || (*it).validated) {
-    key_indx.modify(it, ChangeValidated(validated));
-  } else {
-    // if an un-validated entry proved to be invalid, then it shall be removed
-    key_indx.erase(it);
+  if (it != key_indx.end()) {
+    if (!validated) {
+      // if the contact proved to be invalid, remove it from the routing_table
+      // and put it into the un-validated contacts container
+      UpgradeToUniqueLock unique_lock(*upgrade_lock);
+      UnValidatedContact new_entry((*it).contact, (*it).rank_info);
+      unvalidated_contacts_.insert(new_entry);
+      key_indx.erase(it);
+    }
+    return 0;
   }
-  return 0;
+
+  return -1;
 }
 
 int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
@@ -422,7 +452,6 @@ int RoutingTable::ForceKAcceptNewPeer(
                                         KDistanceTo(new_contact.node_id()));
   new_local_contact.kbucket_index = brother_bucket_of_holder;
   contacts_.insert(new_local_contact);
-  (*validate_contact_)(new_contact);
   return 0;
 }
 
@@ -445,6 +474,7 @@ size_t RoutingTable::Size() {
 
 void RoutingTable::Clear() {
   UniqueLock unique_lock(shared_mutex_);
+  unvalidated_contacts_.clear();
   contacts_.clear();
   bucket_of_holder_ = 0;
 }
