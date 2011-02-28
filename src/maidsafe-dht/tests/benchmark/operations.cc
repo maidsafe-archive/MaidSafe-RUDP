@@ -51,10 +51,9 @@ namespace maidsafe {
 namespace benchmark {
 
 Operations::Operations(boost::shared_ptr<kademlia::Node> node)
-    : node_(node), cryobj_(), private_key_(), public_key_(),
-      public_key_validation_() {
-  cryobj_.set_symm_algorithm(crypto::AES_256);
-  cryobj_.set_hash_algorithm(crypto::SHA_512);
+    : node_(node), private_key_(), public_key_(), public_key_validation_() {
+//  cryobj_.set_symm_algorithm(crypto::AES_256);
+//  cryobj_.set_hash_algorithm(crypto::SHA_512);
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   public_key_ = kp.public_key();
@@ -71,15 +70,15 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
     boost::shared_ptr<CallbackData> data(new CallbackData());
     boost::mutex::scoped_lock lock(data->mutex);
     for (size_t i = 0; i < nodes.size(); ++i) {
-      boost::uint64_t t = GetEpochMilliseconds();
-      node_->GetNodeContactDetails(
-            nodes[i],
-            boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
-                        data),
-            false);
-      while (static_cast<size_t>(data->returned_count) <= i)
-        data->condition.wait(lock);
-      stats.Add(GetEpochMilliseconds() - t);
+      boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//      node_->GetNodeContactDetails(
+//            nodes[i],
+//            boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
+//                        data),
+//            false);
+//      while (static_cast<size_t>(data->returned_count) <= i)
+//        data->condition.wait(lock);
+//      stats.Add(GetEpochMilliseconds() - t);
       kademlia::Contact ctc;
 //      ctc.ParseFromString(data->content);
       contacts.push_back(ctc);
@@ -101,12 +100,12 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        boost::uint64_t t = GetEpochMilliseconds();
-        node_->Ping(contacts[i], boost::bind(
-            &Operations::PingCallback, this, _1, data));
+        boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//        node_->Ping(contacts[i], boost::bind(
+//            &Operations::PingCallback, this, _1, data));
         while (data->returned_count <= j)
           data->condition.wait(lock);
-        it_stats.Add(GetEpochMilliseconds() - t);
+//        it_stats.Add(GetEpochMilliseconds() - t);
       }
       stats.Add(it_stats.Mean());
       printf(" Pinged contact %d, %02d/%02d times "
@@ -158,48 +157,48 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
       Stats<boost::uint64_t> it_stats;
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
-      for (int j = 0; j < iterations; ++j) {
-        kademlia::NodeId mod =
-            GetModId(val * iterations * nodes.size() + i * iterations + j);
-        kademlia::NodeId key(nodes[i] ^ mod);
-        kademlia::protobuf::SignedValue sig_val;
-        kademlia::protobuf::MessageSignature sig_req;
-        if (sign) {
-          std::string req_sig, ser_sig_val;
-
-
-  Validifier signer;
-
-
-          sig_val.set_value(value);
-//          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
-//              private_key_, crypto::STRING_STRING));
-//          ser_sig_val = sig_val.SerializeAsString();
-//          sig_req.set_signer_id(node_->node_id().String());
-//          sig_req.set_public_key(public_key_);
-//          sig_req.set_public_key_validation(public_key_validation_);
-//          sig_req.set_request_signature(req_sig);
-        }
-        boost::uint64_t t = GetEpochMilliseconds();
-        if (sign) {
-          node_->StoreValue(key, sig_val, sig_req, 86400, boost::bind(
-              &Operations::StoreCallback, this, _1, data));
-        } else {
-          node_->StoreValue(key, value, 86400, boost::bind(
-              &Operations::StoreCallback, this, _1, data));
-        }
-        while (data->returned_count <= j)
-          data->condition.wait(lock);
-        it_stats.Add(GetEpochMilliseconds() - t);
-      }
-      store_stats.Add(it_stats.Mean());
-      printf(" Stored close to %d, %02d/%02d times "
-             "(total %.2f s, min/avg/max %.2f/%.2f/%.2f s)\n", i + 1,
-             data->succeeded_count, data->returned_count,
-             it_stats.Sum() / 1000.0,
-             it_stats.Min() / 1000.0,
-             it_stats.Mean() / 1000.0,
-             it_stats.Max() / 1000.0);
+//      for (int j = 0; j < iterations; ++j) {
+//        kademlia::NodeId mod =
+//            GetModId(val * iterations * nodes.size() + i * iterations + j);
+//        kademlia::NodeId key(nodes[i] ^ mod);
+//        kademlia::protobuf::SignedValue sig_val;
+//        kademlia::protobuf::MessageSignature sig_req;
+//        if (sign) {
+//          std::string req_sig, ser_sig_val;
+//
+//
+//  Validifier signer;
+//
+//
+//          sig_val.set_value(value);
+////          sig_val.set_value_signature(cryobj_.AsymSign(value, "",
+////              private_key_, crypto::STRING_STRING));
+////          ser_sig_val = sig_val.SerializeAsString();
+////          sig_req.set_signer_id(node_->node_id().String());
+////          sig_req.set_public_key(public_key_);
+////          sig_req.set_public_key_validation(public_key_validation_);
+////          sig_req.set_request_signature(req_sig);
+//        }
+//        boost::uint64_t t = GetEpochMilliseconds();
+//        if (sign) {
+//          node_->StoreValue(key, sig_val, sig_req, 86400, boost::bind(
+//              &Operations::StoreCallback, this, _1, data));
+//        } else {
+//          node_->StoreValue(key, value, 86400, boost::bind(
+//              &Operations::StoreCallback, this, _1, data));
+//        }
+//        while (data->returned_count <= j)
+//          data->condition.wait(lock);
+//        it_stats.Add(GetEpochMilliseconds() - t);
+//      }
+//      store_stats.Add(it_stats.Mean());
+//      printf(" Stored close to %d, %02d/%02d times "
+//             "(total %.2f s, min/avg/max %.2f/%.2f/%.2f s)\n", i + 1,
+//             data->succeeded_count, data->returned_count,
+//             it_stats.Sum() / 1000.0,
+//             it_stats.Min() / 1000.0,
+//             it_stats.Mean() / 1000.0,
+//             it_stats.Max() / 1000.0);
     }
 
     printf("Done: min/avg/max %.2f/%.2f/%.2f s\n",
@@ -218,12 +217,12 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
       for (int j = 0; j < iterations; ++j) {
         kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-        boost::uint64_t t = GetEpochMilliseconds();
-        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
-            &Operations::FindValueCallback, this, _1, data));
+        boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
+//            &Operations::FindValueCallback, this, _1, data));
         while (data->returned_count <= j)
           data->condition.wait(lock);
-        it_stats.Add(GetEpochMilliseconds() - t);
+//        it_stats.Add(GetEpochMilliseconds() - t);
       }
       load_stats.Add(it_stats.Mean());
       printf(" Loaded from %d, %02d/%02d times "

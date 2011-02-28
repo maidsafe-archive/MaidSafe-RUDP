@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/message_handler.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
-#include "maidsafe-dht/transport/udttransport.h"
+#include "maidsafe-dht/transport/udt_transport.h"
 
 // TODO(Fraser#5#): 2011-01-30 - Handle sending to port-restricted peers.
 namespace maidsafe {
@@ -320,7 +320,7 @@ void Rpcs::StoreRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreRefreshResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     StoreRefreshFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
@@ -350,7 +350,7 @@ void Rpcs::DeleteRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteRefreshResponse &response,
-    ConnectedObjects connected_objects,
+    ConnectedObjects /*connected_objects*/,
     DeleteRefreshFunctor callback) {
   if (transport_condition != transport::kSuccess)
     return callback(RankInfoPtr(new transport::Info(info)),
