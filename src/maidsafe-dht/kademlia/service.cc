@@ -28,7 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // TODO(Fraser#5#): 27/01/11 - output warnings consistently.
 
 #include <utility>
+#ifdef __MSVC__
+#pragma warning(disable:4996)
+#endif
 #include <set>
+#ifdef __MSVC__
+#pragma warning(default:4996)
+#endif
 
 // #include "boost/compressed_pair.hpp"
 
