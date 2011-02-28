@@ -104,6 +104,7 @@ ELSE()
 ENDIF()
 
 ENABLE_TESTING()
+SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 
 IF(UNIX)
   EXECUTE_PROCESS(COMMAND date +%a%d%m%y OUTPUT_VARIABLE pddate OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -488,6 +489,12 @@ IF(NOT MSVC)
   ENDIF()
 ENDIF()
 
+SET(TEST_TARGETS TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost TESTudt)
+SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static cryptest PROPERTIES FOLDER "Tests")
+IF(Mysqlpp_FOUND)
+  SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
+ENDIF()
+
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
@@ -501,6 +508,10 @@ ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
 IF(UNIX)
   ADD_CUSTOM_TARGET(CleanCoverage COMMAND ${CMAKE_COMMAND} -DSEARCH_DIR=${CMAKE_BINARY_DIR} -P ${${PROJECT_NAME}_ROOT}/build/tools/clean_coverage.cmake)
 ENDIF()
+
+SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES FOLDER "MaidSafe Libraries")
+SET_TARGET_PROPERTIES(cryptopp_static udt_static gmock gmock_main gtest gtest_main PROPERTIES FOLDER "Third Party Libraries")
+
 
 ###################################################################################################
 # Builds                                                                                          #
@@ -743,7 +754,6 @@ IF(PYTHONINTERP_FOUND)
   ENDIF()
 ENDIF()
 
-SET(TEST_TARGETS TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost)
 FOREACH(TEST_TARGET ${TEST_TARGETS})
   ADD_GTESTS(${TEST_TARGET})
 ENDFOREACH()
@@ -765,7 +775,8 @@ ENDIF()
 
 ###################################################################################################
 MESSAGE("")
-MESSAGE("${MAIDSAFE_TEST_TYPE_MESSAGE}")
+LIST(LENGTH ALL_GTESTS GTEST_COUNT)
+MESSAGE("${MAIDSAFE_TEST_TYPE_MESSAGE}.   ${GTEST_COUNT} Google Tests.")
 MESSAGE("")
 MESSAGE("    To include all tests,                ${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_TEST_TYPE=ALL")
 MESSAGE("    To include behavioural tests,        ${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_TEST_TYPE=BEH")

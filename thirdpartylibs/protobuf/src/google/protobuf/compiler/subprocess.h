@@ -40,9 +40,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif  // !_WIN32
+#include <google/protobuf/stubs/common.h>
 
 #include <string>
-#include <google/protobuf/stubs/common.h>
+
 
 namespace google {
 namespace protobuf {
@@ -76,7 +77,7 @@ class Subprocess {
 #ifdef _WIN32
   // Given an error code, returns a human-readable error message.  This is
   // defined here so that CommandLineInterface can share it.
-  static string Subprocess::Win32ErrorMessage(DWORD error_code);
+  static string Win32ErrorMessage(DWORD error_code);
 #endif
 
  private:
