@@ -263,7 +263,12 @@ int RoutingTable::SetValidated(const NodeId &node_id,
   if (it == key_indx.end())
     return -1;
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  key_indx.modify(it, ChangeValidated(validated));
+  if (validated || (*it).validated) {
+    key_indx.modify(it, ChangeValidated(validated));
+  } else {
+    // if an un-validated entry proved to be invalid, then it shall be removed
+    key_indx.erase(it);
+  }
   return 0;
 }
 
