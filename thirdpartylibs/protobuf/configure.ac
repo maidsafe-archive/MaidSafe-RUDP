@@ -12,7 +12,7 @@ AC_PREREQ(2.59)
 # In the SVN trunk, the version should always be the next anticipated release
 # version with the "-pre" suffix.  (We used to use "-SNAPSHOT" but this pushed
 # the size of one file name in the dist tarfile over the 99-char limit.)
-AC_INIT([Protocol Buffers],[2.3.0],[protobuf@googlegroups.com],[protobuf])
+AC_INIT([Protocol Buffers],[2.4.0a],[protobuf@googlegroups.com],[protobuf])
 
 
 AC_CONFIG_SRCDIR(src/google/protobuf/message.cc)
@@ -118,7 +118,7 @@ AM_CONDITIONAL([HAVE_ZLIB], [test $HAVE_ZLIB = 1])
 
 AS_IF([test "$with_protoc" != "no"], [
   PROTOC=$with_protoc
-  AS_IF([test "$with_protoc" == "yes"], [
+  AS_IF([test "$with_protoc" = "yes"], [
     # No argument given.  Use system protoc.
     PROTOC=protoc
   ])
