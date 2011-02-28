@@ -107,6 +107,16 @@ class Securifier {
 
   /** Retrieve the public key and the public key validation certificate.
    *  Results are passed in GetPublicKeyAndValidationCallback.
+   *  @param[in] public_key_id ID of public key.
+   *  @param[out] public_key public key.
+   *  @param[out] public_key_validation object to allow validation of
+   *              public_key. */
+  virtual void GetPublicKeyAndValidation(const std::string &public_key_id,
+                                         std::string *public_key,
+                                         std::string *public_key_validation);
+
+  /** Retrieve the public key and the public key validation certificate.
+   *  Results are passed in GetPublicKeyAndValidationCallback.
    *  @param[in] public_key_id ID of public key. */
   virtual void GetPublicKeyAndValidation(
       const std::string &public_key_id,
@@ -169,7 +179,7 @@ class Securifier {
   const std::string kAsymmetricDecryptionPublicKey_;
   const std::string kAsymmetricDecryptionPrivateKey_;
   std::vector<std::string> parameters_;
- 
+
  private:
   Securifier& operator=(Securifier const&);
 };
