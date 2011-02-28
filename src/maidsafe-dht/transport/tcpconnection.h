@@ -28,7 +28,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
 
+#ifdef __MSVC__
+#pragma warning(disable:4996)
+#endif
 #include <memory>
+#ifdef __MSVC__
+#pragma warning(default:4996)
+#endif
+
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
@@ -74,5 +81,6 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 }  // namespace transport
 
 }  // namespace maidsafe
+
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_TCPCONNECTION_H_
