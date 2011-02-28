@@ -230,14 +230,14 @@ void UdtTransport::Send(const std::string &data,
   udt_connection->Send(data, timeout);
 }
 
-void UdtTransport::SendStream(const std::istream &data,
-                              const Endpoint &endpoint) {
+void UdtTransport::SendStream(const std::istream &/*data*/,
+                              const Endpoint &/*endpoint*/) {
 }
 
-void UdtTransport::SendToPortRestricted(const std::string &data,
-                                        const Endpoint &endpoint,
-                                        const Endpoint &rendezvous_endpoint,
-                                        const Timeout &timeout) {
+void UdtTransport::SendToPortRestricted(const std::string &/*data*/,
+                                        const Endpoint &/*endpoint*/,
+                                        const Endpoint &/*rendezvous_endpoint*/,
+                                        const Timeout &/*timeout*/) {
 }
 
 // void UdtTransport::DetectNat() {
