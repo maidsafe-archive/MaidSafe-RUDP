@@ -43,7 +43,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/udt_transport.h"
 
-// #include "maidsafe-dht/tests/validationimpl.h"
 // #include "maidsafe-dht/tests/kademlia/fake_callbacks.h"
 
 namespace maidsafe {
