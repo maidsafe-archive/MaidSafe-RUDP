@@ -156,7 +156,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     EXPECT_EQ(k_, GetSize());
   }
 
-  void AddContact (const Contact& contact) {
+  void AddContact(const Contact& contact) {
     routing_table_.AddContact(contact, rank_info_);
     routing_table_.SetValidated(contact.node_id(), true);
   }
@@ -235,7 +235,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContact) {
   Contact unvalidated_result;
   routing_table_.AddContact(contact, rank_info_);
   routing_table_.GetContact(contact_id, &unvalidated_result);
-  ASSERT_EQ(unvalidated_result, Contact());  
+  ASSERT_EQ(unvalidated_result, Contact());
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
@@ -261,7 +261,6 @@ TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
   routing_table_.SetValidated(contact_id, false);
   ASSERT_EQ(0U, GetUnValidatedContactsContainer().size());
   ASSERT_EQ(0U, GetContainer().size());
-
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
@@ -855,7 +854,7 @@ TEST_P(RoutingTableTest, BEH_KAD_SetPreferredEndpoint) {
   ASSERT_EQ(0, routing_table_.SetPreferredEndpoint(contact_.node_id(), ip));
   ASSERT_EQ(ip, (*(GetContainer().get<NodeIdTag>().find(
     contact_.node_id()))).contact.PreferredEndpoint().ip);
-    
+
   Clear();
   {
     // try to set an un-validated contact's preferredendpoint
@@ -897,7 +896,7 @@ TEST_P(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
     NodeId contact_id(NodeId::kRandomId);
     Contact contact = ComposeContact(contact_id, 5000);
     routing_table_.AddContact(contact, rank_info_);
-    EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(contact_id));    
+    EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(contact_id));
   }
 }
 
@@ -922,7 +921,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetBootstrapContacts) {
     routing_table_.AddContact(contact, rank_info_);
     std::vector<Contact> contacts;
     routing_table_.GetBootstrapContacts(&contacts);
-    EXPECT_EQ(k_ / 2, contacts.size());    
+    EXPECT_EQ(k_ / 2, contacts.size());
   }
 }
 

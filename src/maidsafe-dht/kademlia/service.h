@@ -292,7 +292,7 @@ class Service : public boost::enable_shared_from_this<Service> {
                          protobuf::DeleteResponse *response,
                          const std::string &public_key,
                          const std::string &public_key_validation,
-                         const bool is_refresh);                             
+                         const bool is_refresh);
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */

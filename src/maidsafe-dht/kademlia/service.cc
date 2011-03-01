@@ -198,7 +198,7 @@ void Service::Store(const transport::Info &info,
   }
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
-  RequestAndSignature request_signature(message, message_signature);      
+  RequestAndSignature request_signature(message, message_signature);
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::StoreCallback, this, key_value_signature, request, info,
       request_signature, response, _1, _2);
@@ -212,12 +212,12 @@ void Service::StoreRefresh(const transport::Info &info,
   if (!node_joined_)
     return;
   if (request.serialised_store_request().empty() ||
-      request.serialised_store_request_signature().empty() || !securifier_){
+      request.serialised_store_request_signature().empty() || !securifier_) {
     DLOG(WARNING) << "StoreFresh Input Error" << std::endl;
     return;
   }
-  protobuf::StoreRequest ori_store_request;  
-  ori_store_request.ParseFromString(request.serialised_store_request());  
+  protobuf::StoreRequest ori_store_request;
+  ori_store_request.ParseFromString(request.serialised_store_request());
   KeyValueSignature key_value_signature(ori_store_request.key(),
                         ori_store_request.signed_value().value(),
                         ori_store_request.signed_value().signature());
@@ -312,15 +312,15 @@ void Service::Delete(const transport::Info &info,
   }
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
-    return;  
-   // Only the signer of the value can delete it.
-   // this will be done in message_handler, no need to do it here   
+    return;
+    // Only the signer of the value can delete it.
+    // this will be done in message_handler, no need to do it here
 //   if (!crypto::AsymCheckSig(message, message_signature,
 //                             request.sender().public_key()))
 //     return;
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
-  RequestAndSignature request_signature(message, message_signature);      
+  RequestAndSignature request_signature(message, message_signature);
   GetPublicKeyAndValidationCallback cb = boost::bind(
       &Service::DeleteCallback, this, key_value_signature, request, info,
       request_signature, response, _1, _2);
@@ -334,7 +334,7 @@ void Service::DeleteRefresh(const transport::Info &info,
   if (!node_joined_ || securifier_ == NULL)
     return;
   if (request.serialised_delete_request().empty() ||
-      request.serialised_delete_request_signature().empty()){
+      request.serialised_delete_request_signature().empty()) {
     DLOG(WARNING) << "DeleteFresh Input Error" << std::endl;
     return;
   }
