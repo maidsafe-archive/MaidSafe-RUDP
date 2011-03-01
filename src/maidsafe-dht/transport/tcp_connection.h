@@ -37,7 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include <string>
-#include <memory>
 #include <vector>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
