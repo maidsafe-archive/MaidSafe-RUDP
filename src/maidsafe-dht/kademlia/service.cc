@@ -453,7 +453,7 @@ void Service::Downlist(const transport::Info &info,
   }
 }
 
-PingDownListContactsPtr  Service::GetPingOldestContactSingalHandler() {
+PingDownListContactsPtr  Service::GetPingDownListSignalHandler() {
   return this->ping_down_list_contacts_;
 }
 
