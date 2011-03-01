@@ -75,8 +75,8 @@ TEST(UdtTransportTest, BEH_MAID_Transport) {
   for (int i = 0; i < 200; ++i) {
     std::shared_ptr<UdtTransport> transport2(new UdtTransport(asio_service2));
     transport2->on_message_received()->connect(boost::bind(
-        &TestMessageHandler::DoOnResponseReceived, &message_handler2, _1, _2, _3,
-        _4));
+        &TestMessageHandler::DoOnResponseReceived, &message_handler2, _1, _2,
+        _3, _4));
     transport2->on_error()->connect(boost::bind(&TestMessageHandler::DoOnError,
                                                 &message_handler2, _1));
     transport2->Send("Test", listening_endpoint, boost::posix_time::seconds(1));
