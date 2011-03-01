@@ -117,7 +117,9 @@ void Service::ConnectToSignals(TransportPtr transport,
 void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response) {
-  response->set_echo(request.ping());
+  if (request.ping() != "ping")
+    return;
+  response->set_echo("pong");
   routing_table_->AddContact(FromProtobuf(request.sender()),
                              RankInfoPtr(new transport::Info(info)));
 }
