@@ -385,13 +385,13 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
   sender->on_message_received()->connect(
-      boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender, _1, _2,
-      _3, _4));
+      boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender, _1,
+      _2, _3, _4));
   sender->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
   listener->on_message_received()->connect(
-      boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1, _2,
-      _3, _4));
+      boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1,
+      _2, _3, _4));
   listener->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
 

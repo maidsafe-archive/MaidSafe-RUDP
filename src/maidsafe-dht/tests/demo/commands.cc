@@ -53,10 +53,7 @@ Commands::Commands(boost::shared_ptr<kademlia::Node> node,
                    const boost::uint16_t &K)
       : node_(node), chmanager_(chmanager), result_arrived_(false),
         finish_(false),
-        min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore)
-        /*cryobj_()*/ {
-//  cryobj_.set_hash_algorithm(crypto::SHA_512);
-}
+        min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore) {}
 
 void Commands::Run() {
   PrintUsage();
@@ -265,7 +262,7 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//       key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
 //            false));
       }
 //      if (ttl == -1)
@@ -284,7 +281,7 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//       key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
 //                                      false));
       }
 //      if (ttl == -1)
@@ -302,11 +299,11 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//       key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
 //            false));
       }
 //      node_->FindValue(key, false,
-//          boost::bind(&Commands::FindValueCallback, this, _1, key, false, ""));
+//         boost::bind(&Commands::FindValueCallback, this, _1, key, false, ""));
       *wait_for_cb = true;
     }
   } else if (cmd == "findfile") {
@@ -316,7 +313,7 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//       key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
 //            false));
       }
 //      node_->FindValue(key, false,
