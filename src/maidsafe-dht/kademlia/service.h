@@ -179,7 +179,7 @@ class Service : public boost::enable_shared_from_this<Service> {
                 const protobuf::DownlistNotification &request);
   /** Getter.
    *  @return The signal handler. */
-  PingDownListContactsPtr GetPingOldestContactSingalHandler();
+  PingDownListContactsPtr GetPingDownListSignalHandler();
   /** Set the status to be joined or not joined
    *  @param joined The bool switch. */
   void set_node_joined(bool joined) { node_joined_ = joined; }

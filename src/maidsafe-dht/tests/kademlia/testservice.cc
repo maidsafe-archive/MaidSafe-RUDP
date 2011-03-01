@@ -98,7 +98,7 @@ typedef std::shared_ptr<AlternativeStoreTrue> AlternativeStoreTruePtr;
 typedef std::shared_ptr<AlternativeStoreFalse> AlternativeStoreFalsePtr;
 
 class ServicesTest: public testing::Test {
- protected:
+ public:
   ServicesTest() : contact_(), node_id_(NodeId::kRandomId),
                    data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                    routing_table_(new RoutingTable(node_id_, test::k)),
@@ -106,7 +106,8 @@ class ServicesTest: public testing::Test {
                    securifier_(new Securifier("", "", "")),
                    info_(), rank_info_(),
                    service_(new Service(routing_table_, data_store_,
-                   alternative_store_, securifier_)) {
+                   alternative_store_, securifier_)),
+                   num_of_pings_(0) {
     service_->set_node_joined(true);
   }
 
@@ -175,40 +176,45 @@ class ServicesTest: public testing::Test {
                          RequestAndSignature(request, req_sig), false);
   }
 
-protobuf::StoreRequest MakeStoreRequest (const Contact& sender,
-                           const KeyValueSignature& kvs,
-                           const crypto::RsaKeyPair& crypto_key_data) {
-  protobuf::StoreRequest store_request;
-  store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  store_request.set_key(kvs.key);
-  store_request.mutable_signed_value()->set_signature(kvs.signature);
-  store_request.mutable_signed_value()->set_value(kvs.value);
-  store_request.set_ttl(3600*24);
-  store_request.set_signing_public_key_id(
-      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-          crypto::AsymSign(crypto_key_data.public_key(),
-                           crypto_key_data.private_key())));
-  return store_request;
-}
+  protobuf::StoreRequest MakeStoreRequest (const Contact& sender,
+                            const KeyValueSignature& kvs,
+                            const crypto::RsaKeyPair& crypto_key_data) {
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(kvs.key);
+    store_request.mutable_signed_value()->set_signature(kvs.signature);
+    store_request.mutable_signed_value()->set_value(kvs.value);
+    store_request.set_ttl(3600*24);
+    store_request.set_signing_public_key_id(
+        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+            crypto::AsymSign(crypto_key_data.public_key(),
+                            crypto_key_data.private_key())));
+    return store_request;
+  }
 
-protobuf::DeleteRequest MakeDeleteRequest (const Contact& sender,
-                           const KeyValueSignature& kvs,
-                           const crypto::RsaKeyPair& crypto_key_data) {
-  protobuf::DeleteRequest delete_request;
-  delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  delete_request.set_key(kvs.key);
-  delete_request.mutable_signed_value()->set_signature(kvs.signature);
-  delete_request.mutable_signed_value()->set_value(kvs.value);
-  delete_request.set_signing_public_key_id(
-      crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-          crypto::AsymSign(crypto_key_data.public_key(),
-                           crypto_key_data.private_key())));
-  return delete_request;
-}
+  protobuf::DeleteRequest MakeDeleteRequest (const Contact& sender,
+                            const KeyValueSignature& kvs,
+                            const crypto::RsaKeyPair& crypto_key_data) {
+    protobuf::DeleteRequest delete_request;
+    delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    delete_request.set_key(kvs.key);
+    delete_request.mutable_signed_value()->set_signature(kvs.signature);
+    delete_request.mutable_signed_value()->set_value(kvs.value);
+    delete_request.set_signing_public_key_id(
+        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+            crypto::AsymSign(crypto_key_data.public_key(),
+                            crypto_key_data.private_key())));
+    return delete_request;
+  }
+
+  void FakePingContact(Contact contact) {
+    ++num_of_pings_;
+  }
 
   void Clear() {
     routing_table_->Clear();
     data_store_->key_value_index_->clear();
+    num_of_pings_ = 0;
   }
 
   virtual void TearDown() {}
@@ -287,6 +293,7 @@ protobuf::DeleteRequest MakeDeleteRequest (const Contact& sender,
   transport::Info info_;
   RankInfoPtr rank_info_;
   std::shared_ptr<Service> service_;
+  int num_of_pings_;
 };
 
 TEST_F(ServicesTest, BEH_KAD_Store) {
@@ -933,6 +940,38 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
   }
 }
 
+TEST_F(ServicesTest, BEH_KAD_Downlist) {
+  service_->GetPingDownListSignalHandler()->connect(
+      kademlia::PingDownListContactsPtr::element_type::slot_type(
+          &ServicesTest::FakePingContact, this, _1));
+  protobuf::DownlistNotification downlist_request;
+
+  {
+    // given an empty downlist
+    service_->Downlist(info_, downlist_request);
+    ASSERT_EQ(0U, num_of_pings_);
+  }
+  {
+    // given a downlist contains k nodes in the routingtable
+    for (int i = 0; i < test::k; ++i ) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
+      Contact contact = ComposeContact(contact_id, 5000);
+      downlist_request.add_node_ids(contact_id.String());
+      AddContact(contact, rank_info_);
+    }
+    service_->Downlist(info_, downlist_request);
+    ASSERT_EQ(test::k, num_of_pings_);
+  }
+  num_of_pings_ = 0;
+  {
+    // given a downlist contains k+1 nodes
+    // with one node not in the routingtable
+    NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
+    downlist_request.add_node_ids(contact_id.String());
+    service_->Downlist(info_, downlist_request);
+    ASSERT_EQ(test::k, num_of_pings_);
+  }
+}
 /*
 TEST_F(ServicesTest, BEH_KAD_ServicesPing) {
   // Check failure with ping set incorrectly.
@@ -971,631 +1010,7 @@ TEST_F(ServicesTest, BEH_KAD_ServicesPing) {
                                         &contactback));
 }
 */
-/*
-TEST_F(ServicesTest, BEH_KAD_InvalidStoreValue) {
-  std::string value("value4"), value1("value5");
-  std::string key = crypto_.Hash(value, "", crypto::STRING_STRING, false);
-  rpcprotocol::Controller controller;
-  StoreRequest store_request;
-  StoreResponse store_response;
-  store_request.set_key(key);
-  store_request.set_value(value);
-  store_request.set_ttl(24*3600);
-  store_request.set_publish(true);
-  ContactInfo *sender_info = store_request.mutable_sender_info();
-  *sender_info = contact_;
-  Callback cb_obj;
-  google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done1);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  store_response.Clear();
-  std::vector<std::string> values;
-  EXPECT_FALSE(datastore_->LoadItem(key, &values));
 
-  std::string public_key, private_key, public_key_validation, request_signature;
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &public_key_validation,
-      &request_signature);
-
-  store_request.clear_value();
-  SignedValue *sig_value = store_request.mutable_sig_value();
-  sig_value->set_value(value);
-  sig_value->set_value_signature(crypto_.AsymSign(value, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_sig_value = sig_value->SerializeAsString();
-
-  SignedRequest *sig_req = store_request.mutable_request_signature();
-  sig_req->set_signer_id("id1");
-  sig_req->set_public_key("public_key");
-  sig_req->set_public_key_validation(public_key_validation);
-  sig_req->set_request_signature(request_signature);
-
-  google::protobuf::Closure *done6 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done6);
-  EXPECT_FALSE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  store_response.Clear();
-  values.clear();
-  EXPECT_FALSE(datastore_->LoadItem(key, &values));
-
-  sig_req->set_public_key(public_key);
-  google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done2);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_TRUE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key, &values));
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ(ser_sig_value, values[0]);
-
-  store_request.clear_value();
-  store_request.clear_sig_value();
-  store_request.set_value("other value");
-  google::protobuf::Closure *done3 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done3);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key, &values));
-  ASSERT_EQ(1, values.size());
-  ASSERT_EQ(ser_sig_value, values[0]);
-
-  // storing a hashable value
-  store_request.Clear();
-  store_response.Clear();
-  SignedValue *sig_value1 = store_request.mutable_sig_value();
-  sig_value1->set_value(value1);
-  sig_value1->set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_sig_value1 = sig_value1->SerializeAsString();
-
-  std::string key1 = crypto_.Hash(ser_sig_value1, "", crypto::STRING_STRING,
-      false);
-  ContactInfo *sender_info1 = store_request.mutable_sender_info();
-  *sender_info1 = contact_;
-  store_request.set_key(key1);
-  store_request.set_publish(true);
-  store_request.set_ttl(24*3600);
-  public_key_validation = "";
-  request_signature = "";
-  CreateSignedRequest(public_key, private_key, key1, &public_key_validation,
-      &request_signature);
-  SignedRequest *sig_req1 = store_request.mutable_request_signature();
-  sig_req1->set_signer_id("id1");
-  sig_req1->set_public_key(public_key);
-  sig_req1->set_public_key_validation(public_key_validation);
-  sig_req1->set_request_signature(request_signature);
-  google::protobuf::Closure *done4 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done4);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_TRUE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key1, &values));
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ(ser_sig_value1, values[0]);
-
-  store_request.clear_sig_value();
-  sig_value1->Clear();
-  sig_value1->set_value("other value");
-  sig_value1->set_value_signature(crypto_.AsymSign("other value", "",
-      private_key, crypto::STRING_STRING));
-  std::string ser_sig_value2 = sig_value1->SerializeAsString();
-  google::protobuf::Closure *done5 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &store_request, &store_response, done5);
-  EXPECT_TRUE(store_response.IsInitialized());
-  EXPECT_FALSE(store_response.result());
-  EXPECT_EQ(node_id_.String(), store_response.node_id());
-  values.clear();
-  EXPECT_TRUE(datastore_->LoadItem(key1, &values));
-  ASSERT_EQ(1, values.size());
-  ASSERT_EQ(ser_sig_value1, values[0]);
-}
-
-TEST_F(ServicesTest, FUNC_KAD_ServicesDownlist) {
-  // Set up details of 10 nodes and add 7 of these to the routing table.
-  std::vector<Contact> contacts;
-  int rt(0);
-  for (int i = 0; i < 10; ++i) {
-    std::string character = boost::lexical_cast<std::string>(i);
-    std::string hex_id, id;
-    for (int j = 0; j < 128; ++j)
-      hex_id += character;
-    id = DecodeFromHex(hex_id);
-    std::string ip("127.0.0.6");
-    boost::uint16_t port = 9000 + i;
-    Contact contact(id, ip, port, ip, port);
-    if (rt < 7 && rt == i && 0 == routingtable_->AddContact(contact))
-      ++rt;
-    contacts.push_back(contact);
-  }
-  ASSERT_EQ(rt, routingtable_->Size());
-
-  // Check downlisting nodes we don't have returns failure
-  rpcprotocol::Controller controller;
-  DownlistRequest downlist_request;
-  Contact ctc;
-  for (int i = rt; i < 10; ++i) {
-    std::string dead_node;
-    ASSERT_FALSE(routingtable_->GetContact(contacts[i].node_id(), &ctc));
-    if (contacts[i].SerialiseToString(&dead_node))
-      downlist_request.add_downlist(dead_node);
-  }
-  ContactInfo *sender_info = downlist_request.mutable_sender_info();
-  *sender_info = contact_;
-  DownlistResponse downlist_response;
-  Callback cb_obj;
-  google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  service_->Downlist(&controller, &downlist_request, &downlist_response, done1);
-  // Give the function time to allow any ping rpcs to timeout (they shouldn't
-  // be called though)
-  boost::this_thread::sleep(boost::posix_time::seconds(2));
-  EXPECT_EQ(rt + 1, routingtable_->Size());
-
-  // Check downlist works for one we have.
-  downlist_request.clear_downlist();
-  std::string dead_node;
-  ASSERT_TRUE(routingtable_->GetContact(contacts[rt / 2].node_id(), &ctc));
-  if (contacts[rt / 2].SerialiseToString(&dead_node))
-    downlist_request.add_downlist(dead_node);
-  google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  downlist_response.Clear();
-  service_->Downlist(&controller, &downlist_request, &downlist_response, done2);
-  int timeout = 8000;  // milliseconds
-  int count = 0;
-  while (routingtable_->Size() >= size_t(rt) && count < timeout) {
-    count += 50;
-    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-  }
-  EXPECT_EQ(rt, routingtable_->Size());
-  Contact testcontact;
-  EXPECT_FALSE(routingtable_->GetContact(contacts[rt / 2].node_id(),
-                                         &testcontact));
-
-  // Check downlist works for one we have and one we don't.
-  downlist_request.clear_downlist();
-  for (int i = rt - 1; i <= rt; ++i) {
-    std::string dead_node;
-    if (contacts[i].SerialiseToString(&dead_node))
-      downlist_request.add_downlist(dead_node);
-  }
-  google::protobuf::Closure *done3 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  downlist_response.Clear();
-  service_->Downlist(&controller, &downlist_request, &downlist_response, done3);
-  count = 0;
-  while (routingtable_->Size() >= size_t(rt - 1) && count < timeout) {
-    count += 50;
-    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-  }
-  EXPECT_EQ(rt - 1, routingtable_->Size());
-  EXPECT_FALSE(routingtable_->GetContact(contacts[rt - 1].node_id(),
-                                         &testcontact));
-
-  // Check downlist with multiple valid nodes
-  downlist_request.clear_downlist();
-  for (int i = 2; i <= rt - 1; ++i) {
-    std::string dead_node;
-    if (contacts[i].SerialiseToString(&dead_node))
-      downlist_request.add_downlist(dead_node);
-  }
-  google::protobuf::Closure *done4 = google::protobuf::NewCallback<Callback>
-      (&cb_obj, &Callback::CallbackFunction);
-  downlist_response.Clear();
-  service_->Downlist(&controller, &downlist_request, &downlist_response, done4);
-  count = 0;
-  while ((routingtable_->Size() > 2) && (count < timeout)) {
-    count += 50;
-    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-  }
-  EXPECT_EQ(3, routingtable_->Size());
-  for (int i = 0; i < rt - 1; ++i) {
-    if (i > 1)
-      EXPECT_FALSE(routingtable_->GetContact(contacts[i].node_id(),
-                   &testcontact));
-    else
-      EXPECT_TRUE(routingtable_->GetContact(contacts[i].node_id(),
-                  &testcontact));
-  }
-}
-
-TEST_F(ServicesTest, FUNC_KAD_ServiceDelete) {
-  // Store value in kademlia::DataStore
-  std::string hex_key;
-  for (int i = 0; i < 128; ++i)
-    hex_key += "a";
-  std::string value1("Val1"), value2("Val2");
-  std::string public_key, private_key, public_key_validation, request_signature;
-  std::string key = DecodeFromHex(hex_key);
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &public_key_validation,
-    &request_signature);
-
-  SignedValue svalue;
-  svalue.set_value(value1);
-  svalue.set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-  std::string ser_svalue(svalue.SerializeAsString());
-  ASSERT_TRUE(datastore_->StoreItem(key, ser_svalue, -1, false));
-  svalue.Clear();
-  svalue.set_value(value2);
-  svalue.set_value_signature(crypto_.AsymSign(value2, "", private_key,
-      crypto::STRING_STRING));
-  ser_svalue = svalue.SerializeAsString();
-  ASSERT_TRUE(datastore_->StoreItem(key, ser_svalue, -1, false));
-
-  std::vector<std::string> values;
-  ASSERT_TRUE(datastore_->LoadItem(key, &values));
-  ASSERT_EQ(2, values.size());
-  int values_found = 0;
-  for (unsigned int i = 0; i < values.size(); ++i) {
-    svalue.Clear();
-    EXPECT_TRUE(svalue.ParseFromString(values[i]));
-    if (svalue.value() == value1) {
-      ++values_found;
-      break;
-    }
-  }
-  for (unsigned int i = 0; i < values.size(); ++i) {
-    svalue.Clear();
-    EXPECT_TRUE(svalue.ParseFromString(values[i]));
-    if (svalue.value() == value2) {
-      ++values_found;
-      break;
-    }
-  }
-  ASSERT_EQ(2, values_found);
-  // setting validator class to NULL
-  service_->set_signature_validator(NULL);
-
-  rpcprotocol::Controller controller;
-  DeleteRequest delete_request;
-  delete_request.set_key(key);
-  ContactInfo *sender_info = delete_request.mutable_sender_info();
-  SignedValue *req_svalue = delete_request.mutable_value();
-  *sender_info = contact_;
-  req_svalue->set_value(value1);
-  req_svalue->set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-  SignedRequest *sreq = delete_request.mutable_request_signature();
-  sreq->set_signer_id("id1");
-  sreq->set_public_key(public_key);
-  sreq->set_public_key_validation(public_key_validation);
-  sreq->set_request_signature(request_signature);
-  DeleteResponse delete_response;
-  Callback cb_obj;
-  google::protobuf::Closure *done =
-    google::protobuf::NewPermanentCallback<Callback>(&cb_obj,
-    &Callback::CallbackFunction);
-  service_->Delete(&controller, &delete_request, &delete_response, done);
-  EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE(delete_response.result());
-
-  // setting validator
-  service_->set_signature_validator(&validator_);
-  delete_response.Clear();
-
-  // value does not exists
-  req_svalue->set_value("othervalue");
-  req_svalue->set_value_signature(crypto_.AsymSign("othervalue", "",
-      private_key, crypto::STRING_STRING));
-  service_->Delete(&controller, &delete_request, &delete_response, done);
-  EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE(delete_response.result());
-  delete_response.Clear();
-
-  // request sent signed with different key
-  req_svalue->set_value(value1);
-  req_svalue->set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-  std::string public_key1, private_key1, public_key_validation1, request_signature1;
-  CreateRSAKeys(&public_key1, &private_key1);
-  CreateSignedRequest(public_key1, private_key1, key, &public_key_validation1,
-    &request_signature1);
-  sreq->Clear();
-  sreq->set_signer_id("id1");
-  sreq->set_public_key(public_key);
-  sreq->set_public_key_validation(public_key_validation1);
-  sreq->set_request_signature(request_signature1);
-  service_->Delete(&controller, &delete_request, &delete_response, done);
-  EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_FALSE(delete_response.result());
-  delete_response.Clear();
-
-  // correct delete (Marked as delete)
-  sreq->Clear();
-  sreq->set_signer_id("id1");
-  sreq->set_public_key(public_key);
-  sreq->set_public_key_validation(public_key_validation);
-  sreq->set_request_signature(request_signature);
-
-  service_->Delete(&controller, &delete_request, &delete_response, done);
-  EXPECT_TRUE(delete_response.IsInitialized());
-  EXPECT_TRUE(delete_response.result());
-
-  // validating DataStore no longer returns value1 and in refresh returns
-  // the correct signed request
-  values.clear();
-  ASSERT_TRUE(datastore_->LoadItem(key, &values));
-  ASSERT_EQ(1, values.size());
-  svalue.Clear();
-  ASSERT_TRUE(svalue.ParseFromString(values[0]));
-  EXPECT_EQ(value2, svalue.value());
-
-  // refreshing Deleted value
-  svalue.Clear();
-  svalue.set_value(value1);
-  svalue.set_value_signature(crypto_.AsymSign(value1, "", private_key,
-      crypto::STRING_STRING));
-
-  std::string ser_req;
-  EXPECT_FALSE(datastore_->RefreshItem(key, svalue.SerializeAsString(),
-    &ser_req));
-  SignedRequest req;
-  ASSERT_TRUE(req.ParseFromString(ser_req));
-  ASSERT_EQ(sreq->public_key(), req.public_key());
-  ASSERT_EQ(sreq->public_key_validation(), req.public_key_validation());
-  ASSERT_EQ(sreq->request_signature(), req.request_signature());
-
-  delete done;
-}
-
-TEST_F(ServicesTest, FUNC_KAD_RefreshDeletedValue) {
-  std::string value("Value");
-  std::string public_key, private_key, public_key_validation, request_signature;
-  std::string key = crypto_.Hash(RandomString(5), "",
-                                 crypto::STRING_STRING, false);
-
-  SignedValue svalue;
-  svalue.set_value(value);
-  svalue.set_value_signature(crypto_.AsymSign(value, "", private_key,
-                                              crypto::STRING_STRING));
-  std::string ser_svalue(svalue.SerializeAsString());
-  ASSERT_TRUE(datastore_->StoreItem(key, ser_svalue, -1, false));
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &public_key_validation,
-                      &request_signature);
-  SignedRequest sreq;
-  sreq.set_signer_id("id1");
-  sreq.set_public_key(public_key);
-  sreq.set_public_key_validation(public_key_validation);
-  sreq.set_request_signature(request_signature);
-  std::string ser_sreq(sreq.SerializeAsString());
-  ASSERT_TRUE(datastore_->MarkForDeletion(key, ser_svalue, ser_sreq));
-
-  rpcprotocol::Controller controller;
-  StoreRequest request;
-  request.set_key(key);
-  public_key.clear();
-  private_key.clear();
-  request_signature.clear();
-
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &public_key_validation,
-                      &request_signature);
-  SignedRequest *sig_req = request.mutable_request_signature();
-  sig_req->set_signer_id("id2");
-  sig_req->set_public_key(public_key);
-  sig_req->set_public_key_validation(public_key_validation);
-  sig_req->set_request_signature(request_signature);
-  request.set_publish(false);
-  request.set_ttl(-1);
-  ContactInfo *sender_info = request.mutable_sender_info();
-  *sender_info = contact_;
-  SignedValue *sig_value = request.mutable_sig_value();
-  *sig_value = svalue;
-  StoreResponse response;
-  Callback cb_obj;
-  google::protobuf::Closure *done =
-      google::protobuf::NewPermanentCallback<Callback>
-          (&cb_obj, &Callback::CallbackFunction);
-  service_->Store(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_TRUE(response.has_request_signature());
-  EXPECT_EQ(sreq.signer_id(), response.request_signature().signer_id());
-  EXPECT_EQ(sreq.public_key(), response.request_signature().public_key());
-  EXPECT_EQ(sreq.public_key_validation(),
-            response.request_signature().public_key_validation());
-  EXPECT_EQ(sreq.request_signature(), response.request_signature().request_signature());
-
-  response.Clear();
-  ASSERT_TRUE(datastore_->MarkAsDeleted(key, ser_svalue));
-  service_->Store(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_TRUE(response.has_request_signature());
-  EXPECT_EQ(sreq.signer_id(), response.request_signature().signer_id());
-  EXPECT_EQ(sreq.public_key(), response.request_signature().public_key());
-  EXPECT_EQ(sreq.public_key_validation(),
-            response.request_signature().public_key_validation());
-  EXPECT_EQ(sreq.request_signature(), response.request_signature().request_signature());
-  delete done;
-}
-
-TEST_F(ServicesTest, BEH_KAD_UpdateValue) {
-  std::string public_key, private_key, publickey_signature, request_signature,
-              key;
-  CreateDecodedKey(&key);
-  CreateRSAKeys(&public_key, &private_key);
-  CreateSignedRequest(public_key, private_key, key, &publickey_signature,
-                      &request_signature);
-
-  // Fail: Request not initialised
-  rpcprotocol::Controller controller;
-  UpdateRequest request;
-  UpdateResponse response;
-  Callback cb_obj;
-  google::protobuf::Closure *done = google::protobuf::NewCallback<Callback>
-                                    (&cb_obj, &Callback::CallbackFunction);
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: Request not properly initialised
-  request.set_key(key);
-  SignedValue *new_value = request.mutable_new_value();
-  SignedValue *old_value = request.mutable_old_value();
-  request.set_ttl(86400);
-  SignedRequest *request_signature = request.mutable_request();
-  ContactInfo *sender_info = request.mutable_sender_info();
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: trying to update non-existent value
-  crypto::Crypto co;
-  std::string nv(RandomString(16));
-  new_value->set_value(nv);
-  new_value->set_value_signature(co.AsymSign(nv, "", private_key,
-                                             crypto::STRING_STRING));
-  std::string ov(RandomString(16));
-  old_value->set_value(ov);
-  old_value->set_value_signature(co.AsymSign(ov, "", private_key,
-                                             crypto::STRING_STRING));
-
-  std::string kad_id(co.Hash(public_key + publickey_signature, "",
-                             crypto::STRING_STRING, false));
-  request_signature->set_signer_id(kad_id);
-  request_signature->set_public_key(public_key);
-  request_signature->set_public_key_validation(publickey_signature);
-  request_signature->set_request_signature(request_signature);
-  *sender_info = contact_;
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: Value to update doesn't exist
-  size_t total_values(5);
-  for (size_t n = 0; n < total_values; ++n) {
-    SignedValue sv;
-    sv.set_value("value" + IntToString(n));
-    sv.set_value_signature(co.AsymSign(sv.value(), "", private_key,
-                                       crypto::STRING_STRING));
-    ASSERT_TRUE(service_->pdatastore_->StoreItem(key, sv.SerializeAsString(),
-                                                 3600 * 24, false));
-  }
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: New value doesn't validate
-  old_value = request.mutable_old_value();
-  old_value->set_value("value0");
-  old_value->set_value_signature(co.AsymSign(old_value->value(), "",
-                                             private_key,
-                                             crypto::STRING_STRING));
-  new_value = request.mutable_new_value();
-  new_value->set_value("valueX");
-  new_value->set_value_signature("signature of value X");
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: Old value doesn't validate
-  std::string wrong_public, wrong_private, wrong_publickey_signature,
-              wrong_request_signature;
-  CreateRSAKeys(&wrong_public, &wrong_private);
-  CreateSignedRequest(wrong_public, wrong_private, key,
-                      &wrong_publickey_signature, &wrong_request_signature);
-  old_value = request.mutable_old_value();
-  old_value->set_value("value0");
-  old_value->set_value_signature(co.AsymSign(old_value->value(), "",
-                                             private_key,
-                                             crypto::STRING_STRING));
-  new_value = request.mutable_new_value();
-  new_value->set_value("valueX");
-  new_value->set_value_signature(co.AsymSign(new_value->value(), "",
-                                             wrong_private,
-                                             crypto::STRING_STRING));
-  request_signature = request.mutable_request();
-  request_signature->set_signer_id(kad_id);
-  request_signature->set_public_key(wrong_public);
-  request_signature->set_public_key_validation(wrong_publickey_signature);
-  request_signature->set_request_signature(wrong_request_signature);
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Fail: Update fails
-  old_value = request.mutable_old_value();
-  old_value->set_value("value0");
-  old_value->set_value_signature(co.AsymSign(old_value->value(), "",
-                                             private_key,
-                                             crypto::STRING_STRING));
-  new_value = request.mutable_new_value();
-  new_value->set_value("value2");
-  new_value->set_value_signature(co.AsymSign(new_value->value(), "",
-                                             private_key,
-                                             crypto::STRING_STRING));
-  request_signature = request.mutable_request();
-  request_signature->set_signer_id(kad_id);
-  request_signature->set_public_key(public_key);
-  request_signature->set_public_key_validation(publickey_signature);
-  request_signature->set_request_signature(request_signature);
-  done = google::protobuf::NewCallback<Callback>
-         (&cb_obj, &Callback::CallbackFunction);
-  response.Clear();
-  service_->Update(&controller, &request, &response, done);
-  ASSERT_TRUE(response.IsInitialized());
-  ASSERT_FALSE(response.result());
-  ASSERT_EQ(node_id_.String(), response.node_id());
-
-  // Successful updates
-  for (size_t a = 0; a < total_values; ++a) {
-    old_value = request.mutable_old_value();
-    old_value->set_value("value" + IntToString(a));
-    old_value->set_value_signature(co.AsymSign(old_value->value(), "",
-                                               private_key,
-                                               crypto::STRING_STRING));
-    new_value = request.mutable_new_value();
-    new_value->set_value("value_" + IntToString(a));
-    new_value->set_value_signature(co.AsymSign(new_value->value(), "",
-                                               private_key,
-                                               crypto::STRING_STRING));
-    done = google::protobuf::NewCallback<Callback>
-           (&cb_obj, &Callback::CallbackFunction);
-    response.Clear();
-    service_->Update(&controller, &request, &response, done);
-    ASSERT_TRUE(response.IsInitialized());
-    ASSERT_TRUE(response.result());
-    ASSERT_EQ(node_id_.String(), response.node_id());
-  }
-}
-*/
 }  // namespace test_service
 
 }  // namespace kademlia
