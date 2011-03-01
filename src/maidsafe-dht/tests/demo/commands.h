@@ -76,7 +76,7 @@ class Commands {
   boost::shared_ptr<rpcprotocol::ChannelManager> chmanager_;
   bool result_arrived_, finish_;
   double min_succ_stores_;
-  crypto::Crypto cryobj_;
+//  crypto::Crypto cryobj_;
 };
 
 }  // namespace kaddemo
