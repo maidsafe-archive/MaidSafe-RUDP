@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/tests/transport/message_handler.h"
 #include "boost/lexical_cast.hpp"
+#include "boost/thread/thread.hpp"
 #include "maidsafe-dht/common/log.h"
 
 namespace maidsafe {
@@ -39,11 +40,12 @@ void MessageHandler::DoOnRequestReceived(const std::string &request,
                                          const Info &info,
                                          std::string *response,
                                          Timeout *timeout) {
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
   boost::mutex::scoped_lock lock(mutex_);
   requests_received_.push_back(std::make_pair(request, info));
-  responses_sent_.push_back(*response);
   *response = "Replied to " + request + " (Id = " +
               boost::lexical_cast<std::string>(requests_received_.size()) + ")";
+  responses_sent_.push_back(*response);
   *timeout = kImmediateTimeout;
   DLOG(INFO) << this_id_ << " - Received request: \"" << request
               << "\".  Responding with \"" << *response << "\"" << std::endl;
