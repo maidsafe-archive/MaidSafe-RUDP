@@ -212,7 +212,7 @@ class Node {
   boost::uint16_t k() const;
   boost::uint16_t alpha() const;
   boost::uint16_t beta() const;
-  boost::uint32_t mean_refresh_interval() const;
+  boost::posix_time::time_duration mean_refresh_interval() const;
 
  private:
   class Impl;

@@ -53,9 +53,9 @@ Commands::Commands(boost::shared_ptr<kademlia::Node> node,
                    const boost::uint16_t &K)
       : node_(node), chmanager_(chmanager), result_arrived_(false),
         finish_(false),
-        min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore),
-        cryobj_() {
-  cryobj_.set_hash_algorithm(crypto::SHA_512);
+        min_succ_stores_(K * kademlia::kMinSuccessfulPecentageStore)
+        /*cryobj_()*/ {
+//  cryobj_.set_hash_algorithm(crypto::SHA_512);
 }
 
 void Commands::Run() {
@@ -265,15 +265,15 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
-            false));
+//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//            false));
       }
-      if (ttl == -1)
-        node_->StoreValue(key, content, ttl, boost::bind(
-            &Commands::StoreCallback, this, _1, key, ttl));
-      else
-        node_->StoreValue(key, content, ttl*60, boost::bind(
-            &Commands::StoreCallback, this, _1, key, ttl));
+//      if (ttl == -1)
+//        node_->StoreValue(key, content, ttl, boost::bind(
+//            &Commands::StoreCallback, this, _1, key, ttl));
+//      else
+//        node_->StoreValue(key, content, ttl*60, boost::bind(
+//            &Commands::StoreCallback, this, _1, key, ttl));
       *wait_for_cb = true;
     }
   } else if (cmd == "storevalue") {
@@ -284,15 +284,15 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
       boost::int32_t ttl = boost::lexical_cast<boost::int32_t>(args[2]);
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
-                                      false));
+//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//                                      false));
       }
-      if (ttl == -1)
-        node_->StoreValue(key, args[1], ttl, boost::bind(
-          &Commands::StoreCallback, this, _1, key, ttl));
-      else
-        node_->StoreValue(key, args[1], ttl*60, boost::bind(
-          &Commands::StoreCallback, this, _1, key, ttl));
+//      if (ttl == -1)
+//        node_->StoreValue(key, args[1], ttl, boost::bind(
+//          &Commands::StoreCallback, this, _1, key, ttl));
+//      else
+//        node_->StoreValue(key, args[1], ttl*60, boost::bind(
+//          &Commands::StoreCallback, this, _1, key, ttl));
       *wait_for_cb = true;
     }
   } else if (cmd == "findvalue") {
@@ -302,11 +302,11 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
-            false));
+//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//            false));
       }
-      node_->FindValue(key, false,
-          boost::bind(&Commands::FindValueCallback, this, _1, key, false, ""));
+//      node_->FindValue(key, false,
+//          boost::bind(&Commands::FindValueCallback, this, _1, key, false, ""));
       *wait_for_cb = true;
     }
   } else if (cmd == "findfile") {
@@ -316,12 +316,12 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (!key.IsValid()) {
-        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
-            false));
+//        key = kademlia::NodeId(cryobj_.Hash(args[0], "", crypto::STRING_STRING,
+//            false));
       }
-      node_->FindValue(key, false,
-          boost::bind(&Commands::FindValueCallback, this, _1, key, true,
-          args[1]));
+//      node_->FindValue(key, false,
+//          boost::bind(&Commands::FindValueCallback, this, _1, key, true,
+//          args[1]));
       *wait_for_cb = true;
     }
   } else if (cmd == "findnode") {
@@ -331,8 +331,8 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (key.IsValid()) {
-        node_->GetNodeContactDetails(key, boost::bind(
-            &Commands::GetNodeContactDetailsCallback, this, _1, key), false);
+//        node_->GetNodeContactDetails(key, boost::bind(
+//            &Commands::GetNodeContactDetailsCallback, this, _1, key), false);
         *wait_for_cb = true;
       } else {
          printf("Invalid Node id\n");
@@ -346,8 +346,8 @@ void Commands::ProcessCommand(const std::string &cmdline, bool *wait_for_cb) {
     } else {
       kademlia::NodeId key(std::string(args.at(0)), kademlia::NodeId::kHex);
       if (key.IsValid()) {
-        node_->Ping(key, boost::bind(&Commands::PingCallback, this, _1,
-            key));
+//        node_->Ping(key, boost::bind(&Commands::PingCallback, this, _1,
+//            key));
         *wait_for_cb = true;
       } else {
         printf("Invalid Node id\n");
@@ -387,16 +387,16 @@ void Commands::Store50Values(const std::string &prefix) {
   std::string value;
   for (boost::uint16_t i = 0; i < 50; ++i) {
     arrived = false;
-    kademlia::NodeId key(
-        cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
-        "", crypto::STRING_STRING, false));
+//    kademlia::NodeId key(
+//        cryobj_.Hash(prefix + boost::lexical_cast<std::string>(i),
+//        "", crypto::STRING_STRING, false));
     value.clear();
     for (int j = 0; j < 1024 * 100; ++j) {
       value += prefix + boost::lexical_cast<std::string>(i);
     }
-    node_->StoreValue(key, value, 1040*60, boost::bind(
-          &Commands::Store50Callback, this, _1, prefix +
-          boost::lexical_cast<std::string>(i), &arrived));
+//    node_->StoreValue(key, value, 1040*60, boost::bind(
+//          &Commands::Store50Callback, this, _1, prefix +
+//          boost::lexical_cast<std::string>(i), &arrived));
     while (!arrived) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     }

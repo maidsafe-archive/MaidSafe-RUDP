@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
       refresh_time = vm["refresh_time"].as<boost::uint32_t>();
       refresh_time = refresh_time * 60;
     } else {
-      refresh_time = kademlia::kRefreshTime;
+//      refresh_time = kademlia::kRefreshTime;
     }
 
     // checking if path of kadconfigfile exists
