@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
@@ -264,6 +264,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\google\protobuf\compiler\java\java_string_field.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\google\protobuf\compiler\python\python_generator.h"
 				>
 			</File>
@@ -393,6 +397,10 @@
 			</File>
 			<File
 				RelativePath="..\src\google\protobuf\compiler\java\java_service.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\src\google\protobuf\compiler\java\java_string_field.cc"
 				>
 			</File>
 			<File
