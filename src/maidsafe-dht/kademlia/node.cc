@@ -162,7 +162,7 @@ boost::uint16_t Node::beta() const {
   return pimpl_->beta();
 }
 
-boost::uint32_t Node::mean_refresh_interval() const {
+boost::posix_time::time_duration Node::mean_refresh_interval() const {
   return pimpl_->mean_refresh_interval();
 }
 
