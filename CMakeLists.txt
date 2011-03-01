@@ -700,6 +700,8 @@ IF(UNIX)
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_contact.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/test_tcp_transport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/test_udt_transport.cc
+                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/test_utils.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/upnp/test_upnp.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   IF(APPLE)
