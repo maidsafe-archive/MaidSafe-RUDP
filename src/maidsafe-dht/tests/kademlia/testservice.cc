@@ -960,6 +960,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
       AddContact(contact, rank_info_);
     }
     service_->Downlist(info_, downlist_request);
+    // boost::this_thread::sleep(boost::posix_time::milliseconds(100);
     ASSERT_EQ(test::k, num_of_pings_);
   }
   num_of_pings_ = 0;
@@ -969,47 +970,43 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
     downlist_request.add_node_ids(contact_id.String());
     service_->Downlist(info_, downlist_request);
+    // boost::this_thread::sleep(boost::posix_time::milliseconds(100);
     ASSERT_EQ(test::k, num_of_pings_);
   }
 }
-/*
-TEST_F(ServicesTest, BEH_KAD_ServicesPing) {
-  // Check failure with ping set incorrectly.
-  rpcprotocol::Controller controller;
-  PingRequest ping_request;
-  ping_request.set_ping("doink");
-  ContactInfo *sender_info = ping_request.mutable_sender_info();
-  *sender_info = contact_;
-  PingResponse ping_response;
-  Callback cb_obj;
-  google::protobuf::Closure *done1 = google::protobuf::NewCallback<Callback>
-                                     (&cb_obj, &Callback::CallbackFunction);
-  service_->Ping(&controller, &ping_request, &ping_response, done1);
-  while (!ping_response.IsInitialized())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_FALSE(ping_response.result());
-  EXPECT_FALSE(ping_response.has_echo());
-  EXPECT_EQ(node_id_.String(), ping_response.node_id());
-  Contact contactback;
-  EXPECT_FALSE(routingtable_->GetContact(kademlia::NodeId(contact_.node_id()),
-                                         &contactback));
-  // Check success.
-  ping_request.set_ping("ping");
-  google::protobuf::Closure *done2 = google::protobuf::NewCallback<Callback>
-                                     (&cb_obj, &Callback::CallbackFunction);
-  ping_response.Clear();
-  service_->Ping(&controller, &ping_request, &ping_response, done2);
-  while (!ping_response.IsInitialized())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_TRUE(ping_response.result());
-  EXPECT_EQ("pong", ping_response.echo());
-  EXPECT_EQ(node_id_.String(), ping_response.node_id());
-  EXPECT_TRUE(routingtable_->GetContact(kademlia::NodeId(contact_.node_id()),
-                                        &contactback));
+
+TEST_F(ServicesTest, BEH_KAD_Ping) {
+  protobuf::PingRequest ping_request;
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact = ComposeContact(contact_id, 5000);
+  ping_request.mutable_sender()->CopyFrom(ToProtobuf(contact));
+
+  {
+    // Check failure with ping set incorrectly.
+    ping_request.set_ping("doink");
+    protobuf::PingResponse ping_response;
+    service_->Ping(info_, ping_request, &ping_response);
+  //   while (!ping_response.IsInitialized())
+  //     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_FALSE(ping_response.IsInitialized());
+    EXPECT_FALSE(ping_response.has_echo());
+    EXPECT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
+  }
+  {
+    // Check success.
+    ping_request.set_ping("ping");
+    protobuf::PingResponse ping_response;
+    service_->Ping(info_, ping_request, &ping_response);
+  //   while (!ping_response.IsInitialized())
+  //     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(ping_response.IsInitialized());
+    EXPECT_EQ("pong", ping_response.echo());
+    EXPECT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
+  }
 }
-*/
+
 
 }  // namespace test_service
 
