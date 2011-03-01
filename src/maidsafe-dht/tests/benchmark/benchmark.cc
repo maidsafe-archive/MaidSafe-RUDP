@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/common/log.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/node_impl.h"
-#include "maidsafe-dht/transport/udttransport.h"
+#include "maidsafe-dht/transport/udt_transport.h"
 #include "maidsafe-dht/tests/benchmark/operations.h"
 
 namespace po = boost::program_options;

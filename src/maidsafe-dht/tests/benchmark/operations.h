@@ -78,7 +78,7 @@ class Operations {
   void FindValueCallback(const std::string &result,
                          boost::shared_ptr<CallbackData> data);
   boost::shared_ptr<kademlia::Node> node_;
-  crypto::Crypto cryobj_;
+//  crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_validation_;
 };
 

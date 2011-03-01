@@ -35,10 +35,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4512)
+#endif
 #include "boost/signals2/connection.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/node-api.h"
+#include "maidsafe-dht/kademlia/contact.h"
 
 namespace maidsafe {
 
@@ -123,7 +132,7 @@ class Node::Impl {
   boost::uint16_t k() const;
   boost::uint16_t alpha() const;
   boost::uint16_t beta() const;
-  boost::uint32_t mean_refresh_interval() const;
+  boost::posix_time::time_duration mean_refresh_interval() const;
 
  private:
   Impl(const Impl&);
@@ -146,10 +155,10 @@ class Node::Impl {
                                 bool *calledback,
                                 int *nodes_pending);
   void FindNodes(const FindNodesParams &find_nodes_params);
-  virtual void IterativeSearch(std::shared_ptr<FindNodesArgs> find_nodes_args,
-                               bool top_nodes_done,
-                               bool calledback,
-                               std::vector<Contact> *contacts);
+  void IterativeSearch(std::shared_ptr<FindNodesArgs> find_nodes_args,
+                       bool top_nodes_done,
+                       bool calledback,
+                       std::vector<Contact> *contacts);
   void IterativeSearchResponse(
       bool,
       const std::vector<Contact>&,
@@ -162,6 +171,10 @@ class Node::Impl {
                                  const int &result,
                                  Contact replacement_contact,
                                  RankInfoPtr replacement_rank_info);
+  void ValidateContact(const Contact &contact);
+  void ValidateContactCallback(Contact contact,
+                               std::string public_key,
+                               std::string public_key_validation);
 
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
@@ -177,6 +190,7 @@ class Node::Impl {
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs> rpcs_;
+  Contact contact_;
   bool joined_, refresh_routine_started_, stopping_;
   boost::signals2::connection routing_table_connection_;
 };

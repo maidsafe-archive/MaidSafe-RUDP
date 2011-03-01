@@ -90,18 +90,27 @@ std::string Securifier::AsymmetricEncrypt(
   return crypto::AsymEncrypt(value, recipient_public_key);
 }
 
+void Securifier::GetPublicKeyAndValidation(const std::string &/*public_key_id*/,
+                                           std::string *public_key,
+                                           std::string *public_key_validation) {
+  if (public_key)
+    public_key->clear();
+  if (public_key_validation)
+    public_key_validation->clear();
+}
+
 void Securifier::GetPublicKeyAndValidation(
-    const std::string &public_key_id,
+    const std::string &/*public_key_id*/,
     GetPublicKeyAndValidationCallback callback) {
   callback("", "");
 }
 
 bool Securifier::Validate(const std::string &value,
                           const std::string &value_signature,
-                          const std::string &public_key_id,
+                          const std::string &/*public_key_id*/,
                           const std::string &public_key,
-                          const std::string &public_key_validation,
-                          const std::string &kademlia_key) const {
+                          const std::string &/*public_key_validation*/,
+                          const std::string &/*kademlia_key*/) const {
   if (!public_key.empty())
     return crypto::AsymCheckSig(value, value_signature, public_key);
   else
@@ -111,10 +120,10 @@ bool Securifier::Validate(const std::string &value,
 bool Securifier::ValidateWithParameters(
     const std::string &value,
     const std::string &value_signature,
-    const std::string &public_key_id,
+    const std::string &/*public_key_id*/,
     const std::string &public_key,
-    const std::string &public_key_validation,
-    const std::string &kademlia_key) const {
+    const std::string &/*public_key_validation*/,
+    const std::string &/*kademlia_key*/) const {
   if (!public_key.empty()) {
     std::string concatenation(value);
     for (auto it = parameters_.begin(); it != parameters_.end(); ++it)
