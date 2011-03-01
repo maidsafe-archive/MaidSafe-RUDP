@@ -84,6 +84,7 @@ Node::Impl::Impl(IoServicePtr asio_service,
       service_(),
       routing_table_(),
       rpcs_(new Rpcs(asio_service_, default_securifier)),
+      contact_(),
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false),
@@ -94,9 +95,112 @@ Node::Impl::~Impl() {
     Leave(NULL);
 }
 
+void Node::Impl::Join(const NodeId &/*node_id*/,
+                      const Port &/*port*/,
+                      const std::vector<Contact> &/*bootstrap_contacts*/,
+                      JoinFunctor /*callback*/) {
+}
+
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   routing_table_connection_.disconnect();
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
+}
+
+void Node::Impl::Store(const Key &/*key*/,
+                       const std::string &/*value*/,
+                       const std::string &/*signature*/,
+                       const boost::posix_time::time_duration &/*ttl*/,
+                       SecurifierPtr /*securifier*/,
+                       StoreFunctor /*callback*/) {
+}
+
+void Node::Impl::Delete(const Key &/*key*/,
+                        const std::string &/*value*/,
+                        const std::string &/*signature*/,
+                        SecurifierPtr /*securifier*/,
+                        DeleteFunctor /*callback*/) {
+}
+
+void Node::Impl::Update(const Key &/*key*/,
+                        const std::string &/*new_value*/,
+                        const std::string &/*new_signature*/,
+                        const std::string &/*old_value*/,
+                        const std::string &/*old_signature*/,
+                        SecurifierPtr /*securifier*/,
+                        const boost::posix_time::time_duration &/*ttl*/,
+                        UpdateFunctor /*callback*/) {
+}
+
+void Node::Impl::FindValue(const Key &/*key*/,
+                           SecurifierPtr /*securifier*/,
+                           FindValueFunctor /*callback*/) {
+}
+
+void Node::Impl::FindNodes(const Key &/*key*/, FindNodesFunctor /*callback*/) {
+}
+
+void Node::Impl::GetContact(const NodeId &/*node_id*/,
+                            GetContactFunctor /*callback*/) {
+}
+
+void Node::Impl::SetLastSeenToNow(const Contact &/*contact*/) {
+}
+
+void Node::Impl::IncrementFailedRpcs(const Contact &/*contact*/) {
+}
+
+void Node::Impl::UpdateRankInfo(const Contact &/*contact*/,
+                                RankInfoPtr /*rank_info*/) {
+}
+
+RankInfoPtr Node::Impl::GetLocalRankInfo(const Contact &/*contact*/) {
+  return RankInfoPtr();
+}
+
+void Node::Impl::GetAllContacts(std::vector<Contact> * /*contacts*/) {
+}
+
+void Node::Impl::GetBootstrapContacts(std::vector<Contact> * /*contacts*/) {
+}
+
+Contact Node::Impl::contact() const {
+  return contact_;
+}
+
+bool Node::Impl::joined() const {
+  return joined_;
+}
+
+IoServicePtr Node::Impl::asio_service() {
+  return asio_service_;
+}
+
+AlternativeStorePtr Node::Impl::alternative_store() {
+  return alternative_store_;
+}
+
+OnOnlineStatusChangePtr Node::Impl::on_online_status_change() {
+  return on_online_status_change_;
+}
+
+bool Node::Impl::client_only_node() const {
+  return client_only_node_;
+}
+
+boost::uint16_t Node::Impl::k() const {
+  return k_;
+}
+
+boost::uint16_t Node::Impl::alpha() const {
+  return kAlpha_;
+}
+
+boost::uint16_t Node::Impl::beta() const {
+  return kBeta_;
+}
+
+boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
+  return kMeanRefreshInterval_;
 }
 
 
@@ -476,11 +580,11 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
   rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kUdt);
 }
 
-void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
-                                           RankInfoPtr oldest_rank_info,
-                                           const int &result,
-                                           Contact replacement_contact,
-                                           RankInfoPtr replacement_rank_info) {
+void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
+                                           RankInfoPtr /*oldest_rank_info*/,
+                                           const int &/*result*/,
+                                           Contact /*replacement_contact*/,
+                                        RankInfoPtr /*replacement_rank_info*/) {
 //  if(result == 0) {
 //    add new contact - or ++ failed count?
 //  } else {
@@ -489,6 +593,21 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
 //  }
 }
 
+void Node::Impl::ValidateContact(const Contact &contact) {
+  GetPublicKeyAndValidationCallback callback(boost::bind(
+      &Node::Impl::ValidateContactCallback, this, contact, _1, _2));
+  default_securifier_->GetPublicKeyAndValidation(contact.public_key_id(),
+                                                 callback);
+}
+
+void Node::Impl::ValidateContactCallback(Contact contact,
+                                         std::string public_key,
+                                         std::string public_key_validation) {
+  bool valid = default_securifier_->Validate("", "", contact.public_key_id(),
+                                             public_key, public_key_validation,
+                                             contact.node_id().String());
+  routing_table_->SetValidated(contact.node_id(), valid);
+}
 
 }  // namespace kademlia
 

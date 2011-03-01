@@ -47,10 +47,8 @@ NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
     case kMaxId :
       break;  // already set
     case kRandomId :
-      for (std::string::iterator it = raw_id_.begin(); it != raw_id_.end();
-           ++it) {
-        (*it) = SRandomUint32();
-      }
+      std::generate(raw_id_.begin(), raw_id_.end(),
+                    boost::bind(&SRandomUint32));
       break;
     default :
       break;
@@ -131,11 +129,12 @@ NodeId::NodeId(const NodeId &id1, const NodeId &id2) : raw_id_(kZeroId) {
       }
     } else if (!greater_than_lower_limit) {
       min_id_char = min_id[pos];
-      raw_id_[pos] = (SRandomUint32() % (256 - min_id_char)) + min_id_char;
+      raw_id_[pos] = static_cast<char>(SRandomUint32() % (256 - min_id_char))
+                     + min_id_char;
       this_char = raw_id_[pos];
       greater_than_lower_limit = (this_char > min_id_char);
     } else {
-      raw_id_[pos] = SRandomUint32();
+      raw_id_[pos] = static_cast<char>(SRandomUint32());
     }
   }
 }
@@ -157,7 +156,7 @@ void NodeId::DecodeFromBinary(const std::string &binary_id) {
   }
   for (size_t i = 0; i < kKeySizeBytes; ++i) {
     std::bitset<8> temp(binary_id.substr(i * 8, 8));
-    raw_id_[i] = temp.to_ulong();
+    raw_id_[i] = static_cast<char>(temp.to_ulong());
   }
 }
 
