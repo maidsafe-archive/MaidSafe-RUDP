@@ -150,7 +150,8 @@ void TcpConnection::Send(const std::string &data,
                          bool is_response) {
   // Serialize message to internal buffer
   DataSize msg_size = data.size();
-  if (static_cast<size_t>(msg_size) > static_cast<size_t>(kMaxTransportMessageSize)) {
+  if (static_cast<size_t>(msg_size) >
+          static_cast<size_t>(kMaxTransportMessageSize)) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << kMaxTransportMessageSize << ")" << std::endl;
     (*transport_->on_error_)(kMessageSizeTooLarge);

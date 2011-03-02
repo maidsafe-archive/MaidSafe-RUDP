@@ -288,7 +288,7 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
           ec);
 
 #ifdef __MSVC__
-	  strncpy_s(r.name, sizeof(r.name), adapter->AdapterName, sizeof(r.name));
+      strncpy_s(r.name, sizeof(r.name), adapter->AdapterName, sizeof(r.name));
 #else
       strncpy(r.name, adapter->AdapterName, sizeof(r.name));
 #endif
