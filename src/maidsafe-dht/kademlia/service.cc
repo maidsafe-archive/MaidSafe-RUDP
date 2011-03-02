@@ -26,7 +26,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <utility>
+#ifdef __MSVC__
+#pragma warning(disable:4996)
+#endif
 #include <set>
+#ifdef __MSVC__
+#pragma warning(default:4996)
+#endif
 
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/alternative_store.h"
@@ -271,7 +277,7 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
 
 bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                                const protobuf::StoreRequest &request,
-                               const transport::Info &info,
+                               const transport::Info &/*info*/,
                                const RequestAndSignature &request_signature,
                                protobuf::StoreResponse *response,
                                const std::string &public_key,
@@ -331,7 +337,7 @@ void Service::DeleteRefresh(const transport::Info &info,
                             const protobuf::DeleteRefreshRequest &request,
                             protobuf::DeleteRefreshResponse *response) {
   response->set_result(false);
-  if (!node_joined_ || securifier_ == NULL)
+  if (!node_joined_ || !securifier_)
     return;
   if (request.serialised_delete_request().empty() ||
       request.serialised_delete_request_signature().empty()) {
@@ -395,7 +401,7 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
 
 bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                                 const protobuf::DeleteRequest &request,
-                                const transport::Info &info,
+                                const transport::Info &/*info*/,
                                 const RequestAndSignature &request_signature,
                                 protobuf::DeleteResponse *response,
                                 const std::string &public_key,

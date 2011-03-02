@@ -287,7 +287,11 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
           adapter->IpAddressList.IpMask.String,
           ec);
 
+#ifdef __MSVC__
+      strncpy_s(r.name, sizeof(r.name), adapter->AdapterName, sizeof(r.name));
+#else
       strncpy(r.name, adapter->AdapterName, sizeof(r.name));
+#endif
 
       if (ec) {
         ec = boost::system::error_code();
