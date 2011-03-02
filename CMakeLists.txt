@@ -232,10 +232,9 @@ SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
 ###################################################################################################
 # Protocol Buffers library search                                                                 #
 ###################################################################################################
-FILE(GLOB PROTO_FILES_COMMON RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.proto")
 FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.proto")
 FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.proto")
-SET(PROTO_FILES "${PROTO_FILES_COMMON};${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
+SET(PROTO_FILES "${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
 INCLUDE(maidsafe_FindProtobuf)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Protobuf_INCLUDE_DIR})
 
@@ -354,6 +353,9 @@ SOURCE_GROUP("nat-pnp Header Files" FILES ${HEADER_FILES_NATPMP_DIR})
 FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.cc")
 FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.h")
 SET(ALL_FILES_TRANSPORT_DIR ${SOURCE_FILES_TRANSPORT_DIR} ${HEADER_FILES_TRANSPORT_DIR})
+SET(STYLE_TRANSPORT ${ALL_FILES_TRANSPORT_DIR})
+LIST(REMOVE_ITEM STYLE_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/transport.pb.cc")
+LIST(REMOVE_ITEM STYLE_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/transport.pb.h")
 SOURCE_GROUP("transport Source Files" FILES ${SOURCE_FILES_TRANSPORT_DIR})
 SOURCE_GROUP("transport Header Files" FILES ${HEADER_FILES_TRANSPORT_DIR})
 
@@ -406,9 +408,9 @@ ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${
 ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
 #ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(KademliaDemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(KademliaDemo EXCLUDE_FROM_ALL ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 #ADD_EXECUTABLE(benchmark ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(benchmark_static ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(benchmark_static EXCLUDE_FROM_ALL ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 IF(Mysqlpp_FOUND)
   ADD_EXECUTABLE(distributed_net_clients EXCLUDE_FROM_ALL ${ALL_FILES_NETWORK_TEST_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ENDIF()
@@ -590,10 +592,9 @@ IF(UNIX)
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg -fprofile-arcs -ftest-coverage")
-  FILE(GLOB PROTO_SOURCE_FILES_COMMON "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.pb.cc")
-  SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_COMMON};${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
+  SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/main.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_node_id.cc
@@ -617,6 +618,11 @@ IF(UNIX)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pedantic -pedantic-errors -std=c++0x -Weffc++")
   ENDIF()
   SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_node_impl.cc" PROPERTY COMPILE_FLAGS "-w")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/rpcs.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node_impl.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/service.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_transport.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_connection.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()
 
 

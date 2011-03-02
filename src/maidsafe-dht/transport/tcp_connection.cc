@@ -150,7 +150,8 @@ void TcpConnection::Send(const std::string &data,
                          bool is_response) {
   // Serialize message to internal buffer
   DataSize msg_size = data.size();
-  if (msg_size > static_cast<size_t>(kMaxTransportMessageSize)) {
+  if (static_cast<size_t>(msg_size) >
+          static_cast<size_t>(kMaxTransportMessageSize)) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << kMaxTransportMessageSize << ")" << std::endl;
     (*transport_->on_error_)(kMessageSizeTooLarge);
@@ -158,7 +159,7 @@ void TcpConnection::Send(const std::string &data,
   }
 
   for (int i = 0; i != 4; ++i)
-    size_buffer_.at(i) = msg_size >> (8 * (3 - i));
+    size_buffer_.at(i) = static_cast<char>(msg_size >> (8 * (3 - i)));
   data_buffer_.assign(data.begin(), data.end());
 
   // TODO(Fraser#5#): 2011-01-18 - Check timeout logic

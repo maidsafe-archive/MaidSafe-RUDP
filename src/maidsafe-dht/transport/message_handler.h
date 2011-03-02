@@ -31,7 +31,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 #include "boost/function.hpp"
+
+#ifdef __MSVC__
+#pragma warning(push)
+#pragma warning(disable:4244)
+#endif
 #include "boost/signals2/signal.hpp"
+#ifdef __MSVC__
+#pragma warning(pop)
+#endif
+
 #include "maidsafe-dht/transport/transport.h"
 
 namespace bs2 = boost::signals2;
