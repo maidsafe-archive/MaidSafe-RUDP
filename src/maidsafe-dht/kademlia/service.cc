@@ -337,7 +337,7 @@ void Service::DeleteRefresh(const transport::Info &info,
                             const protobuf::DeleteRefreshRequest &request,
                             protobuf::DeleteRefreshResponse *response) {
   response->set_result(false);
-  if (!node_joined_ || securifier_ == NULL)
+  if (!node_joined_ || !securifier_)
     return;
   if (request.serialised_delete_request().empty() ||
       request.serialised_delete_request_signature().empty()) {
