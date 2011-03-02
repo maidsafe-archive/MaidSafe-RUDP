@@ -46,6 +46,5 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/message_handler.h"
 #include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
 
 #endif  // MAIDSAFE_DHT_MAIDSAFE_DHT_H_

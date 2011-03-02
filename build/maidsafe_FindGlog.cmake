@@ -40,6 +40,10 @@
 #  Settable variables to aid with finding Glog are:                            #
 #    GLOG_LIB_DIR, GLOG_INC_DIR and GLOG_ROOT_DIR                              #
 #                                                                              #
+#  If GLOG_REQUIRED is set to TRUE, failure of this module will result in      #
+#  a FATAL_ERROR message being generated.                                      #
+#                                                                              #
+#                                                                              #
 #  Variables set and cached by this module are:                                #
 #    Glog_INCLUDE_DIR, Glog_LIBRARY_DIR, Glog_LIBRARY, Glog_FOUND              #
 #                                                                              #
@@ -47,11 +51,6 @@
 #                                                                              #
 #==============================================================================#
 
-IF(WIN32 AND NOT MSVC)
-  MESSAGE(FATAL_ERROR "\nThis module is only applicable on Windows when building for Microsoft Visual Studio.\n\n")
-ENDIF()
-
-UNSET(WARNING_MESSAGE)
 UNSET(Glog_INCLUDE_DIR CACHE)
 UNSET(Glog_LIBRARY_DIR CACHE)
 UNSET(Glog_LIBRARY_DIR_DEBUG CACHE)
@@ -97,52 +96,49 @@ ENDIF()
 
 
 IF(NOT Glog_LIBRARY_RELEASE)
-  IF(NOT GLOG_MESSAGE_REQUIRED)
+  IF(NOT GLOG_REQUIRED)
     RETURN()
   ENDIF()
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find Google Logging library")
+  SET(ERROR_MESSAGE "\nCould not find Google Logging.   NO GLOG LIBRARY - ")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_LIB_DIR=<Path to glog lib directory> and/or")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_ROOT_DIR=<Path to glog root directory>")
+  MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
 ELSE()
   SET(Glog_LIBRARY ${Glog_LIBRARY_RELEASE} CACHE PATH "Path to Google Logging library" FORCE)
-  MESSAGE("-- Found Google Logging library")
 ENDIF()
 
 IF(MSVC)
   IF(NOT Glog_LIBRARY_DEBUG)
-    IF(NOT GLOG_MESSAGE_REQUIRED)
+    IF(NOT GLOG_REQUIRED)
       RETURN()
     ENDIF()
-    SET(WARNING_MESSAGE TRUE)
-    MESSAGE("-- Did not find Google Logging Debug library")
+    SET(ERROR_MESSAGE "\nCould not find Google Logging.  NO *DEBUG* GLOG LIBRARY - ")
+    SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
+    SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
+    SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_ROOT_DIR=<Path to glog root directory>")
+    MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
   ELSE()
-    MESSAGE("-- Found Google Logging Debug library")
     SET(Glog_LIBRARY debug ${Glog_LIBRARY_DEBUG} optimized ${Glog_LIBRARY} CACHE PATH "Path to Google Logging libraries" FORCE)
   ENDIF()
 ENDIF()
 
 IF(NOT Glog_INCLUDE_DIR)
-  IF(NOT GLOG_MESSAGE_REQUIRED)
+  IF(NOT GLOG_REQUIRED)
     RETURN()
   ENDIF()
-  SET(WARNING_MESSAGE TRUE)
-  MESSAGE("-- Did not find Google Logging library headers")
-ENDIF()
-
-IF(WARNING_MESSAGE)
-  SET(WARNING_MESSAGE "   You can download it at http://code.google.com/p/google-glog\n")
-  SET(WARNING_MESSAGE "${WARNING_MESSAGE}   If Google Logging is already installed, run:\n")
-  SET(WARNING_MESSAGE "${WARNING_MESSAGE}   ${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_LIB_DIR=<Path to glog lib directory> and/or")
-  SET(WARNING_MESSAGE "${WARNING_MESSAGE}\n   ${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_INC_DIR=<Path to glog include directory> and/or")
-  SET(WARNING_MESSAGE "${WARNING_MESSAGE}\n   ${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_ROOT_DIR=<Path to glog root directory>")
-  MESSAGE("${WARNING_MESSAGE}")
-  SET(Glog_FOUND FALSE CACHE INTERNAL "Found Google Logging library and headers" FORCE)
-  UNSET(Glog_INCLUDE_DIR CACHE)
-  UNSET(Glog_LIBRARY_DIR CACHE)
-  UNSET(Glog_LIBRARY_DIR_DEBUG CACHE)
-  UNSET(Glog_LIBRARY CACHE)
-  UNSET(Glog_LIBRARY_DEBUG CACHE)
-  UNSET(Glog_LIBRARY_RELEASE CACHE)
+  SET(ERROR_MESSAGE "\nCould not find Google Logging.  NO HEADER FILE - ")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_INC_DIR=<Path to glog include directory> and/or")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DGLOG_ROOT_DIR=<Path to glog root directory>")
+  MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
 ELSE()
   SET(Glog_FOUND TRUE CACHE INTERNAL "Found Google Logging library and headers" FORCE)
 ENDIF()
 
+MESSAGE("-- Found Google Logging library")
+IF(MSVC)
+  MESSAGE("-- Found Google Logging Debug library")
+ENDIF()
