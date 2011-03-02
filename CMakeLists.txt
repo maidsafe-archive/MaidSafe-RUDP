@@ -56,7 +56,7 @@ ELSEIF(UNIX)
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}then run e.g:\n\t${ERROR_MESSAGE_CMAKE_PATH} -G\"CodeBlocks - Unix Makefiles\"\n\n")
 ELSE()
   SET(ERROR_MESSAGE "${ERROR_MESSAGE}\tdel ${CMAKE_CACHEFILE}\n")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}then run e.g:\n\t${ERROR_MESSAGE_CMAKE_PATH} -G\"CodeBlocks - MinGW Makefiles\"\n\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}then run e.g:\n\t${ERROR_MESSAGE_CMAKE_PATH}\n\n")
 ENDIF()
 
 IF(CMAKE_BUILD_TYPE_DIR MATCHES "kdev")
@@ -175,7 +175,7 @@ IF(NOT DEFINED ${KDEV})
   ENDIF()
 ENDIF()
 # Create CTestCustom.cmake to avoid inclusion of coverage results from third-party code
-FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \".pb.\" \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"thirdpartylibs/\" \"udt/\" \"upnp/\")\n\n")
+FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COVERAGE_EXCLUDE \${CTEST_CUSTOM_COVERAGE_EXCLUDE} \".pb.\" \"cryptopp/\" \"distributed_network/\" \"libupnp/\" \"nat-pmp/\" \"protobuf/\" \"tests/\" \"thirdpartylibs/\" \"upnp/\")\n\n")
 
 ###################################################################################################
 # Set default directories to be searched for include files and libs                              #
@@ -187,26 +187,10 @@ IF(DEFINED ADD_LIBRARY_DIR)
   SET(DEFAULT_LIBRARY_DIR ${DEFAULT_LIBRARY_DIR} ${ADD_LIBRARY_DIR} CACHE PATH "Path to libraries directories" FORCE)
 ENDIF()
 
-IF(MSVC)
-  SET(CMAKE_INCLUDE_PATH "c:\\msvc\\include")
-  SET(CMAKE_LIBRARY_PATH "c:\\msvc\\lib" ${DEFAULT_LIBRARY_DIR})
-ELSEIF(WIN32) # MinGW builds
-  SET(CMAKE_INCLUDE_PATH "c:\\MinGW\\include")
-  SET(CMAKE_LIBRARY_PATH "c:\\MinGW\\lib" ${DEFAULT_LIBRARY_DIR})
-ELSE()
-  SET(CMAKE_INCLUDE_PATH "/usr/include")
-  SET(CMAKE_LIBRARY_PATH "/usr/lib" ${DEFAULT_LIBRARY_DIR})
-ENDIF()
-
 ###################################################################################################
 # Boost libraries search                                                                          #
 ###################################################################################################
 SET(REQUIRED_BOOST_COMPONENTS date_time filesystem program_options regex system thread unit_test_framework)
-IF(UNIX)
-  IF(NOT DEFINED  "${BOOST_ROOT_DIR}")
-    SET(BOOST_ROOT_DIR="/usr/local")
-  ENDIF()
-ENDIF()
 INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindBoost.cmake)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 SET(LIBS_DIRS ${LIBS_DIRS} ${Boost_LIBRARY_DIRS})
@@ -236,21 +220,17 @@ ADD_SUBDIRECTORY(${${PROJECT_NAME}_ROOT}/thirdpartylibs/googlemock)
 INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR})
 
 ###################################################################################################
-# Google Log library search - Glog can't currently be compiled on Windows with MinGW              #
+# Google Log library search                                                                       #
 ###################################################################################################
-IF((NOT WIN32) OR MSVC)
-  SET(GLOG_MESSAGE_REQUIRED FALSE)
-  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
-  IF(NOT Glog_FOUND)
-    SET(GLOG_MESSAGE_REQUIRED TRUE)
-    INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildGlog.cmake)
-  ENDIF()
-  IF(Glog_FOUND)
-    SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
-    SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
-    SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Glog_LIBRARY_DIR_DEBUG})
-  ENDIF()
+SET(GLOG_REQUIRED FALSE)
+INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
+IF(NOT Glog_FOUND)
+  SET(GLOG_REQUIRED TRUE)
+  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildGlog.cmake)
 ENDIF()
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
+SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
+SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Glog_LIBRARY_DIR_DEBUG})
 
 ###################################################################################################
 # MySQL++ library search                                                                          #
@@ -424,7 +404,6 @@ ENDIF()
 ###################################################################################################
 # Traverse subdirs for imported 3rd party libs                                                    #
 ###################################################################################################
-ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/udt ${CMAKE_BINARY_DIR}/udt)
 ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/cryptopp ${CMAKE_BINARY_DIR}/cryptopp)
 
 ###################################################################################################
@@ -492,7 +471,7 @@ IF(NOT MSVC)
   ENDIF()
 ENDIF()
 
-SET(TEST_TARGETS TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost TESTudt)
+SET(TEST_TARGETS TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost)
 SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static cryptest PROPERTIES FOLDER "Tests")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
@@ -513,7 +492,7 @@ IF(UNIX)
 ENDIF()
 
 SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES FOLDER "MaidSafe Libraries")
-SET_TARGET_PROPERTIES(cryptopp_static udt_static gmock gmock_main gtest gtest_main PROPERTIES FOLDER "Third Party Libraries")
+SET_TARGET_PROPERTIES(cryptopp_static gmock gmock_main gtest gtest_main PROPERTIES FOLDER "Third Party Libraries")
 
 
 ###################################################################################################
@@ -525,31 +504,7 @@ IF(Glog_FOUND)
 ENDIF()
 ADD_DEFINITIONS(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_FILESYSTEM_VERSION=3)
 
-#Ensure we pick up correct libs and not some older installed one
-IF(MSVC)
-#  SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.lib)
-#  SET_TARGET_PROPERTIES(maidsafe_dht PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.dll)
-#  SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.lib)
-#  SET_TARGET_PROPERTIES(cryptopp PROPERTIES IMPORTED_LOCATION bin/libcryptopp.dll)
-#  SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.lib)
-#  SET_TARGET_PROPERTIES(udt PROPERTIES  IMPORTED_LOCATION bin/libudt.dll)
-ELSE()
-  IF(WIN32)
-#    SET_TARGET_PROPERTIES(maidsafe_dht PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.dll)
-#    SET_TARGET_PROPERTIES(cryptopp PROPERTIES IMPORTED_LOCATION bin/libcryptopp.dll)
-#    SET_TARGET_PROPERTIES(udt PROPERTIES IMPORTED_LOCATION bin/libudt.dll)
-  ELSE()
-#    SET_TARGET_PROPERTIES(maidsafe_dht PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.so)
-#    SET_TARGET_PROPERTIES(cryptopp PROPERTIES IMPORTED_LOCATION bin/libcryptopp.so)
-#    SET_TARGET_PROPERTIES(udt PROPERTIES IMPORTED_LOCATION bin/libudt.so)
-  ENDIF()
-  SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES IMPORTED_LOCATION bin/libmaidsafe_dht.a)
-  SET_TARGET_PROPERTIES(cryptopp_static PROPERTIES IMPORTED_LOCATION bin/libcryptopp.a)
-  SET_TARGET_PROPERTIES(udt_static PROPERTIES IMPORTED_LOCATION bin/libudt.a)
-ENDIF()
-
 TARGET_LINK_LIBRARIES(maidsafe_dht_static
-                        udt_static
                         cryptopp_static
                         ${Protobuf_LIBRARY}
                         ${Glog_LIBRARY}
@@ -572,21 +527,6 @@ IF(Mysqlpp_FOUND)
   TARGET_LINK_LIBRARIES(distributed_net_clients maidsafe_dht_static ${Mysqlpp_LIBRARY})
 ENDIF()
 
-IF(NOT MSVC)
-#  IF(WIN32)
-#    TARGET_LINK_LIBRARIES(maidsafe_dht "-Wl,--enable-auto-import" udt cryptopp ${SYS_LIB})
-#    TARGET_LINK_LIBRARIES(kaddemo "-Wl,--enable-auto-import" maidsafe_dht udt cryptopp)
-#    TARGET_LINK_LIBRARIES(benchmark "-Wl,--enable-auto-import" maidsafe_dht udt cryptopp)
-#  ELSEIF(APPLE)
-#    TARGET_LINK_LIBRARIES(maidsafe_dht udt cryptopp ${SYS_LIB})
-#    TARGET_LINK_LIBRARIES(kaddemo maidsafe_dht udt cryptopp ${SYS_LIB})
-#    TARGET_LINK_LIBRARIES(benchmark maidsafe_dht udt cryptopp ${SYS_LIB})
-#  ELSE()
-#    TARGET_LINK_LIBRARIES(kaddemo maidsafe_dht udt cryptopp ${SYS_LIB})
-#    TARGET_LINK_LIBRARIES(benchmark maidsafe_dht udt cryptopp ${SYS_LIB})
-#  ENDIF()
-ENDIF()
-
 IF(CMAKE_BUILD_TYPE MATCHES "Debug")
   ADD_DEFINITIONS(-DDEBUG)
 ENDIF()
@@ -596,7 +536,7 @@ IF(WIN32)
 ENDIF()
 
 IF(MSVC)
-  ADD_DEFINITIONS(-D__MSVC__ -DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x501 -DUDT_STATIC)
+  ADD_DEFINITIONS(-D__MSVC__ -DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x501)
   ADD_DEFINITIONS(-D_CONSOLE -D_UNICODE -DUNICODE -D_BIND_TO_CURRENT_VCLIBS_VERSION=1)
 
   # prevents std::min() and std::max() to be overwritten
@@ -624,9 +564,7 @@ IF(MSVC)
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warnings 4503, 4512 & 4996 disabled due to generation through use of Boost Signals2
-  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udt_transport.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/udt_connection.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/message_handler.cc
+  SET_SOURCE_FILES_PROPERTIES(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/message_handler.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/message_handler.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/contact.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503 /wd4512 /wd4996")
@@ -672,7 +610,7 @@ ENDIF()
 
 IF(UNIX)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/protobuf/ -isystem -W -Wall -Wextra -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_INCLUDE_PATH} -isystem -W -Wall -Wextra -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -ggdb -pg -fprofile-arcs -ftest-coverage")
   SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg -fprofile-arcs -ftest-coverage")
@@ -715,21 +653,7 @@ IF(UNIX)
     ADD_DEFINITIONS(-DMAIDSAFE_LINUX)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pedantic -pedantic-errors -std=c++0x -Weffc++")
   ENDIF()
-#  SET_PROPERTY(TARGET TESTkademlia PROPERTY COMPILE_FLAGS "-w")
   SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_node_impl.cc" PROPERTY COMPILE_FLAGS "-w")
-ELSEIF(WIN32 AND NOT MSVC)
-  ADD_DEFINITIONS(-D__MINGW__ -DWIN32_LEAN_AND_MEAN -D_GLIBCXX_USE_WCHAR_T -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0501)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNDEBUG -DWIN32_LEAN_AND_MEAN -D__MINGW__  -D_GLIBCXX_USE_WCHAR_T -DUNICODE -D_UNICODE -DWIN32 -D_WIN32_WINNT=0x0501")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wuninitialized -D_WIN32_WINNT=0x0501 -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64")
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -ggdb -pg -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
-  IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-    SET_TARGET_PROPERTIES(TESTcommon TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp PROPERTIES LINK_FLAGS "-lgcov -pg -fprofile-arcs -ftest-coverage")
-  ENDIF()
-  SET_TARGET_PROPERTIES(TESTcommon TESTtransport TESTkademlia TESTnode TESTnatpmp TESTupnp KademliaDemo benchmark_static PROPERTIES LINK_FLAGS "-mthreads")
-  IF(Mysqlpp_FOUND)
-    SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES LINK_FLAGS "-mthreads")
-  ENDIF()
 ENDIF()
 
 
@@ -767,11 +691,7 @@ IF(UNIX)
   SET(MEMORYCHECK_COMMAND "/usr/bin/valgrind --show-reachable=no")
 ENDIF()
 
-IF(NOT INSTALL_PREFIX)
-  IF(MINGW)
-    SET(CMAKE_INSTALL_PREFIX "/MinGW")
-  ENDIF()
-ELSE()
+IF(INSTALL_PREFIX)
   IF(WIN32)
     STRING(REPLACE "\\" "/" INSTALL_PREFIX ${INSTALL_PREFIX})
   ENDIF()
@@ -818,40 +738,7 @@ SET(MAIDSAFE_MAIN_INSTALL_FILES
 SET(MAIDSAFE_TRANS_INSTALL_FILES
       maidsafe-dht/transport/transport.h
       maidsafe-dht/transport/message_handler.h
-      maidsafe-dht/transport/tcp_transport.h
-      maidsafe-dht/transport/udt_transport.h)
-# Check the script /build/Win_MSVC/extract_includes.bat matches this list
-FILE(STRINGS ${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat EXTRACT_INCLUDE_BAT)
-STRING(REPLACE "\\" "/" EXTRACT_INCLUDE_BAT "${EXTRACT_INCLUDE_BAT}")
-FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_COMMON_INSTALL_FILES})
-  STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
-  IF(NOT FOUND)
-    MESSAGE(FATAL_ERROR "\nUpdate build/Win_MSVC/extract_includes.bat to include ${MAIDSAFE_INSTALL_FILE}\n")
-  ENDIF()
-  SET(ABS_MAIDSAFE_COMMON_INSTALL_FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
-ENDFOREACH()
-FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_KAD_INSTALL_FILES})
-  STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
-  IF(NOT FOUND)
-    MESSAGE(FATAL_ERROR "\nUpdate build/Win_MSVC/extract_includes.bat to include ${MAIDSAFE_INSTALL_FILE}\n")
-  ENDIF()
-  SET(ABS_MAIDSAFE_KAD_INSTALL_FILES ${ABS_MAIDSAFE_KAD_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
-ENDFOREACH()
-FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_MAIN_INSTALL_FILES})
-  STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
-  IF(NOT FOUND)
-    MESSAGE(FATAL_ERROR "\nUpdate build/Win_MSVC/extract_includes.bat to include ${MAIDSAFE_INSTALL_FILE}\n")
-  ENDIF()
-  SET(ABS_MAIDSAFE_MAIN_INSTALL_FILES ${ABS_MAIDSAFE_MAIN_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
-ENDFOREACH()
-FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_TRANS_INSTALL_FILES})
-  STRING(REGEX MATCH src/${MAIDSAFE_INSTALL_FILE} FOUND ${EXTRACT_INCLUDE_BAT})
-  IF(NOT FOUND)
-    MESSAGE(FATAL_ERROR "\nUpdate build/Win_MSVC/extract_includes.bat to include ${MAIDSAFE_INSTALL_FILE}\n")
-  ENDIF()
-  SET(ABS_MAIDSAFE_TRANS_INSTALL_FILES ${ABS_MAIDSAFE_TRANS_INSTALL_FILES} ${${PROJECT_NAME}_SOURCE_DIR}/${MAIDSAFE_INSTALL_FILE})
-ENDFOREACH()
-EXECUTE_PROCESS(COMMAND CMD /C "${${PROJECT_NAME}_ROOT}/build/Win_MSVC/extract_includes.bat > NUL 2>&1")
+      maidsafe-dht/transport/tcp_transport.h)
 
 IF(MSVC)
   INSTALL(TARGETS maidsafe_dht_static # maidsafe_dht
@@ -882,7 +769,7 @@ IF(CMAKE_BUILD_TYPE MATCHES "Release")
   SET(CPACK_PACKAGE_VENDOR "maidsafe.net")
   SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of Kademlia DHT")
   SET(CPACK_PACKAGE_INSTALL_DIRECTORY "maidsafe-dht")
-  SET(CPACK_RESOURCE_FILE_README "${${PROJECT_NAME}_ROOT}/docs/readme.txt")
+#  SET(CPACK_RESOURCE_FILE_README "${${PROJECT_NAME}_ROOT}/docs/readme.txt")
   IF(UNIX)
     SET(CPACK_SET_DESTDIR on)
     SET(CPACK_GENERATOR DEB;RPM;TGZ)

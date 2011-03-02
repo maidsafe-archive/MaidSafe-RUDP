@@ -112,6 +112,10 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     return routing_table_.contacts_;
   }
 
+  UnValidatedContactsContainer GetUnValidatedContactsContainer() {
+    return routing_table_.unvalidated_contacts_;
+  }
+
   size_t GetSize() {
     return routing_table_.Size();
   }
@@ -124,13 +128,13 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     for (int i = 0; i < k_; ++i) {
       NodeId node_id = GenerateUniqueRandomId(holder_id_, kKeySizeBits - 2);
       Contact contact = ComposeContact(node_id, 5431);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
       EXPECT_EQ(0U, routing_table_.KBucketIndex(contact.node_id()));
     }
     {
       NodeId node_id = GenerateUniqueRandomId(holder_id_, kKeySizeBits - 1);
       Contact contact = ComposeContact(node_id, 4321);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
       Contact contact1 = routing_table_.GetLastSeenContact(0);
       EXPECT_EQ(contact1.node_id(), contact.node_id());
       EXPECT_EQ(2U, routing_table_.KBucketCount());
@@ -138,7 +142,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     }
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 1);
     Contact contact = ComposeContact(node_id, 4323);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     boost::uint16_t distance = routing_table_.KDistanceTo(node_id);
     EXPECT_EQ(kKeySizeBits - 2, distance);
   }
@@ -146,10 +150,15 @@ class RoutingTableTest : public testing::TestWithParam<int> {
   void FillContactToRoutingTable() {
     for (int i = 0; i < k_; ++i) {
       Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 6111);
-      (i == (k_ -1) ) ? routing_table_.AddContact(contact_, rank_info_) :
-          routing_table_.AddContact(contact, rank_info_);
+      (i == (k_ -1) ) ? AddContact(contact_) :
+          AddContact(contact);
     }
     EXPECT_EQ(k_, GetSize());
+  }
+
+  void AddContact(const Contact& contact) {
+    routing_table_.AddContact(contact, rank_info_);
+    routing_table_.SetValidated(contact.node_id(), true);
   }
 
   RankInfoPtr rank_info_;
@@ -185,7 +194,7 @@ TEST_P(RoutingTableTest, BEH_KAD_Clear) {
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
-  routing_table_.AddContact(contact, rank_info_);
+  AddContact(contact);
   ASSERT_EQ(1U, GetSize());
 
   // Try to clear the routing table
@@ -193,9 +202,10 @@ TEST_P(RoutingTableTest, BEH_KAD_Clear) {
   ASSERT_EQ(0U, GetSize());
   ASSERT_EQ(1U, GetKBucketCount());
 
-  // Try to add the contact again
+  // Try to add the contact (default unvalidated)
   routing_table_.AddContact(contact, rank_info_);
-  ASSERT_EQ(1U, GetSize());
+  ASSERT_EQ(1U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(0U, GetSize());
   ASSERT_EQ(1U, GetKBucketCount());
 }
 
@@ -203,7 +213,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContact) {
   // create a contact and add it into the routing table
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
-  routing_table_.AddContact(contact, rank_info_);
+  AddContact(contact);
 
   // Try to get an exist contact
   Contact result;
@@ -219,19 +229,38 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContact) {
   // Try to overload with an exist contact
   routing_table_.GetContact(contact_id, &non_exist_result);
   ASSERT_NE(non_exist_result, Contact());
+
+  // Try to get a un-validated contact
+  Clear();
+  Contact unvalidated_result;
+  routing_table_.AddContact(contact, rank_info_);
+  routing_table_.GetContact(contact_id, &unvalidated_result);
+  ASSERT_EQ(unvalidated_result, Contact());
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
   // Note: this test case might need to be modified once the signal slot
   // is connected (i.e. there is handler to set the Validated tag automaticaly)
+
+  // Set one entry to Validated
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5001);
   routing_table_.AddContact(contact, rank_info_);
-  ASSERT_EQ(false, (*(GetContainer().get<NodeIdTag>().find(
-      contact_id))).validated);
+  ASSERT_EQ(1U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(0U, GetContainer().size());
   routing_table_.SetValidated(contact_id, true);
-  ASSERT_EQ(true, (*(GetContainer().get<NodeIdTag>().find(
-      contact_id))).validated);
+  ASSERT_EQ(0U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(1U, GetContainer().size());
+
+  // Set the entry to in-valid
+  routing_table_.SetValidated(contact_id, false);
+  ASSERT_EQ(1U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(0U, GetContainer().size());
+
+  // Set the entry to in-valid again, this shall remove the entry
+  routing_table_.SetValidated(contact_id, false);
+  ASSERT_EQ(0U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(0U, GetContainer().size());
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
@@ -240,12 +269,12 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_,
                                             511 - (RandomUint32() % 511));
     Contact contact = ComposeContact(node_id, 5111 + i);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
 
   NodeId node_id = GenerateUniqueRandomId(holder_id_, 511 - 9);
   Contact contact = ComposeContact(node_id, 5113);
-  routing_table_.AddContact(contact, rank_info_);
+  AddContact(contact);
   boost::uint16_t num_of_contacts(0);
   for (int i = 0; i < GetKBucketCount(); ++i) {
     boost::uint16_t contacts_in_bucket = GetKBucketSizeForKey(i);
@@ -262,12 +291,12 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   for (int i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, i);
     Contact contact = ComposeContact(node_id, 5111 + i);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
 
   NodeId node_id = GenerateUniqueRandomId(holder_id_, 9);
   Contact contact = ComposeContact(node_id, 5113);
-  routing_table_.AddContact(contact, rank_info_);
+  AddContact(contact);
   EXPECT_EQ(k_ + 1, GetSize());
   boost::uint16_t expected_kbucket_count = kKeySizeBits - (k_ - 2);
   if (k_ <= 9 )
@@ -285,7 +314,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
   for (int i = 0; i < k_ - 1; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 507);
     Contact contact = ComposeContact(node_id, 5333);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
   {
     RankInfoPtr rank_info;
@@ -300,12 +329,12 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
   for (int i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 510);
     Contact contact = ComposeContact(node_id, 5333);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
   for (int i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 511);
     Contact contact = ComposeContact(node_id, 5333);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
   {
     EXPECT_EQ(2U, GetKBucketCount());
@@ -322,7 +351,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
   for (int i = 0; i < (k_ - 1); ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 509);
     Contact contact = ComposeContact(node_id, 5333);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
   }
   {
     EXPECT_EQ(3U, GetKBucketCount());
@@ -363,7 +392,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
   {
     // try to add the holder itself into the routing table
     Contact contact = ComposeContact(holder_id_, 5000);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     EXPECT_EQ(0U, GetSize());
     EXPECT_EQ(1U, GetKBucketCount());
     EXPECT_EQ(0U, GetKBucketSizeForKey(0));
@@ -372,13 +401,13 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     // Test update NumFailedRpc and LastSeen when new contact already exists
     NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
     Contact contact = ComposeContact(contact_id, 5000);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     routing_table_.IncrementFailedRpcCount(contact_id);
     bptime::ptime old_last_seen = (*(GetContainer().get<NodeIdTag>().find(
         contact_.node_id()))).last_seen;
     ASSERT_EQ(1U, (*(GetContainer().get<NodeIdTag>().find(
         contact_id))).num_failed_rpcs);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     ASSERT_EQ(0U, (*(GetContainer().get<NodeIdTag>().find(
         contact_id))).num_failed_rpcs);
     ASSERT_NE(old_last_seen, (*(GetContainer().get<NodeIdTag>().find(
@@ -394,7 +423,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
       EXPECT_EQ(1U, GetKBucketCount());
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
       Contact contact = ComposeContact(contact_id, (5000 + i));
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     EXPECT_EQ(k_, GetKBucketSizeForKey(0));
   }
@@ -405,7 +434,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     // and add it into the routing table
     NodeId contact_id = GenerateUniqueRandomId(holder_id_, 510);
     Contact contact = ComposeContact(contact_id, 5000 + i);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     ++i;
     EXPECT_EQ(i, GetSize());
 
@@ -423,7 +452,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     // and add it into the routing table
     NodeId contact_id = GenerateUniqueRandomId(holder_id_, 507);
     Contact contact = ComposeContact(contact_id, 5000 + i);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
     ++i;
     EXPECT_EQ(i, GetSize());
     // all 16 contacts having 3 common leading bits sit in the kbucket
@@ -450,7 +479,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     while (((!not_replaced) || (!replaced)) && (times_of_try < 60000)) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
       Contact contact = ComposeContact(contact_id, (5000 + i + times_of_try));
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
       EXPECT_EQ(i, GetSize());
       EXPECT_EQ(5U, GetKBucketCount());
 
@@ -474,7 +503,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_AddContactPerformanceMaxFullFill) {
     for (int num_contact = 0; num_contact < k_; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 511 - common_head);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     EXPECT_EQ(((common_head + 1) * k_), GetSize());
     EXPECT_EQ((common_head + 1), GetKBucketCount());
@@ -485,7 +514,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_AddContactPerformance8000RandomFill) {
   for (int num_contact = 0; num_contact < 8000; ++num_contact) {
     NodeId contact_id(NodeId::kRandomId);
     Contact contact = ComposeContact(contact_id, 5000);
-    routing_table_.AddContact(contact, rank_info_);
+    AddContact(contact);
 
     boost::uint32_t contacts_in_table(0);
     for (int i = 0; i < GetKBucketCount(); ++i) {
@@ -506,13 +535,32 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContactsClosestToOwnId) {
                                    &close_contacts);
     EXPECT_EQ(0U, close_contacts.size());
   }
+  {
+    // try to get k close contacts from an k/2+1 filled routing table
+    // with 1 contact un-validated
+    for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
+      NodeId contact_id(NodeId::kRandomId);
+      Contact contact = ComposeContact(contact_id, 5000);
+      AddContact(contact);
+    }
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(k_ / 2, GetSize());
 
+    std::vector<Contact> close_contacts;
+    std::vector<Contact> exclude_contacts;
+    routing_table_.GetContactsClosestToOwnId(k_, exclude_contacts,
+                                    &close_contacts);
+    EXPECT_EQ(k_ / 2, close_contacts.size());
+  }
+  Clear();
   {
     // try to get k close contacts from an k/2 filled routing table
     for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     EXPECT_EQ(k_ / 2, GetSize());
 
@@ -528,14 +576,14 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContactsClosestToOwnId) {
     for (int num_contact = 0; num_contact < (k_ - 1); ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     NodeId contact_id_close = GenerateUniqueRandomId(holder_id_, 500);
     Contact contact_close = ComposeContact(contact_id_close, 5000);
-    routing_table_.AddContact(contact_close, rank_info_);
+    AddContact(contact_close);
     NodeId contact_id_furthest = GenerateUniqueRandomId(holder_id_, 501);
     Contact contact_furthest = ComposeContact(contact_id_furthest, 5000);
-    routing_table_.AddContact(contact_furthest, rank_info_);
+    AddContact(contact_furthest);
     EXPECT_EQ(k_ + 1, GetSize());
 
     std::vector<Contact> close_contacts;
@@ -557,17 +605,17 @@ TEST_P(RoutingTableTest, BEH_KAD_GetContactsClosestToOwnId) {
     for (int num_contact = 0; num_contact < (k_ - 1); ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     NodeId contact_id_close = GenerateUniqueRandomId(holder_id_, 500);
     Contact contact_close = ComposeContact(contact_id_close, 5000);
-    routing_table_.AddContact(contact_close, rank_info_);
+    AddContact(contact_close);
     NodeId contact_id_exclude = GenerateUniqueRandomId(holder_id_, 499);
     Contact contact_exclude = ComposeContact(contact_id_exclude, 5000);
-    routing_table_.AddContact(contact_exclude, rank_info_);
+    AddContact(contact_exclude);
     NodeId contact_id_furthest = GenerateUniqueRandomId(holder_id_, 501);
     Contact contact_furthest = ComposeContact(contact_id_furthest, 5000);
-    routing_table_.AddContact(contact_furthest, rank_info_);
+    AddContact(contact_furthest);
     EXPECT_EQ(k_ + 2, GetSize());
 
     std::vector<Contact> close_contacts;
@@ -598,13 +646,32 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
                                     &close_contacts);
     EXPECT_EQ(0U, close_contacts.size());
   }
+  {
+    // try to get k close contacts from an k/2+1 filled routing table
+    // with one un-validated contact
+    for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
+      NodeId contact_id(NodeId::kRandomId);
+      Contact contact = ComposeContact(contact_id, 5000);
+      AddContact(contact);
+    }
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(k_ / 2, GetSize());
 
+    std::vector<Contact> close_contacts;
+    std::vector<Contact> exclude_contacts;
+    routing_table_.GetCloseContacts(target_id, k_, exclude_contacts,
+                                    &close_contacts);
+    EXPECT_EQ(k_ / 2, close_contacts.size());
+  }
+  Clear();
   {
     // try to get k close contacts from an k/2 filled routing table
     for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     EXPECT_EQ(k_ / 2, GetSize());
 
@@ -620,14 +687,14 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
     for (int num_contact = 0; num_contact < (k_ - 1); ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     NodeId contact_id_close = GenerateUniqueRandomId(holder_id_, 500);
     Contact contact_close = ComposeContact(contact_id_close, 5000);
-    routing_table_.AddContact(contact_close, rank_info_);
+    AddContact(contact_close);
     NodeId contact_id_furthest = GenerateUniqueRandomId(holder_id_, 501);
     Contact contact_furthest = ComposeContact(contact_id_furthest, 5000);
-    routing_table_.AddContact(contact_furthest, rank_info_);
+    AddContact(contact_furthest);
     EXPECT_EQ(k_ + 1, GetSize());
 
     std::vector<Contact> close_contacts;
@@ -649,17 +716,17 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
     for (int num_contact = 0; num_contact < (k_ - 2); ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
     }
     NodeId contact_id_close = GenerateUniqueRandomId(holder_id_, 500);
     Contact contact_close = ComposeContact(contact_id_close, 5000);
-    routing_table_.AddContact(contact_close, rank_info_);
+    AddContact(contact_close);
     NodeId contact_id_exclude = GenerateUniqueRandomId(holder_id_, 499);
     Contact contact_exclude = ComposeContact(contact_id_exclude, 5000);
-    routing_table_.AddContact(contact_exclude, rank_info_);
+    AddContact(contact_exclude);
     NodeId contact_id_furthest = GenerateUniqueRandomId(holder_id_, 501);
     Contact contact_furthest = ComposeContact(contact_id_furthest, 5000);
-    routing_table_.AddContact(contact_furthest, rank_info_);
+    AddContact(contact_furthest);
     EXPECT_EQ(k_ + 1, GetSize());
 
     std::vector<Contact> close_contacts;
@@ -691,7 +758,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
     for (int num_contact = 0; num_contact < k_; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 400);
       Contact contact = ComposeContact(contact_id, 5000);
-      routing_table_.AddContact(contact, rank_info_);
+      AddContact(contact);
       RoutingTableContact new_contact(contact, target_id, 0);
       target_routingtable.insert(new_contact);
     }
@@ -701,7 +768,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
         NodeId contact_id = GenerateUniqueRandomId(holder_id_,
                                                    511 - common_head);
         Contact contact = ComposeContact(contact_id, 5000);
-        routing_table_.AddContact(contact, rank_info_);
+        AddContact(contact);
         RoutingTableContact new_contact(contact, target_id, 0);
         target_routingtable.insert(new_contact);
       }
@@ -747,6 +814,15 @@ TEST_P(RoutingTableTest, BEH_KAD_SetPublicKey) {
                                            new_public_key));
   ASSERT_EQ(new_public_key , (*(GetContainer().get<NodeIdTag>().find(
       contact_.node_id()))).public_key);
+
+  Clear();
+  {
+    // try to set un-validated contact's publickey
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(-1, routing_table_.SetPublicKey(contact_id, new_public_key));
+  }
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_UpdateRankInfo) {
@@ -759,6 +835,15 @@ TEST_P(RoutingTableTest, BEH_KAD_UpdateRankInfo) {
                                              new_rank_info));
   ASSERT_EQ(new_rank_info->rtt, (*(GetContainer().get<NodeIdTag>().find(
       contact_.node_id()))).rank_info->rtt);
+
+  Clear();
+  {
+    // try to update un-validated contact's rankinfo
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(-1, routing_table_.UpdateRankInfo(contact_id, new_rank_info));
+  }
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_SetPreferredEndpoint) {
@@ -769,6 +854,15 @@ TEST_P(RoutingTableTest, BEH_KAD_SetPreferredEndpoint) {
   ASSERT_EQ(0, routing_table_.SetPreferredEndpoint(contact_.node_id(), ip));
   ASSERT_EQ(ip, (*(GetContainer().get<NodeIdTag>().find(
     contact_.node_id()))).contact.PreferredEndpoint().ip);
+
+  Clear();
+  {
+    // try to set an un-validated contact's preferredendpoint
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(-1, routing_table_.SetPreferredEndpoint(contact_id, ip));
+  }
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
@@ -796,15 +890,39 @@ TEST_P(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
       ASSERT_EQ(ori_size-1, GetSize());
     }
   }
+  Clear();
+  {
+    // try to increase failed RPC counter of an un-validated contact
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(contact_id));
+  }
 }
 
 TEST_P(RoutingTableTest, BEH_KAD_GetBootstrapContacts) {
-  this->FillContactToRoutingTable();
-  std::vector<Contact> contacts;
-  routing_table_.GetBootstrapContacts(&contacts);
-  EXPECT_EQ(k_, contacts.size());
-  EXPECT_EQ(contact_.node_id(),
-            (std::find(contacts.begin(), contacts.end(), contact_))->node_id());
+  {
+    this->FillContactToRoutingTable();
+    std::vector<Contact> contacts;
+    routing_table_.GetBootstrapContacts(&contacts);
+    EXPECT_EQ(k_, contacts.size());
+    EXPECT_EQ(contact_.node_id(),
+        (std::find(contacts.begin(), contacts.end(), contact_))->node_id());
+  }
+  Clear();
+  {
+    for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
+      NodeId contact_id(NodeId::kRandomId);
+      Contact contact = ComposeContact(contact_id, 5000);
+      AddContact(contact);
+    }
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    routing_table_.AddContact(contact, rank_info_);
+    std::vector<Contact> contacts;
+    routing_table_.GetBootstrapContacts(&contacts);
+    EXPECT_EQ(k_ / 2, contacts.size());
+  }
 }
 
 }  // namespace test

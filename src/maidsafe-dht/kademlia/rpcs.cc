@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/message_handler.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
-#include "maidsafe-dht/transport/udt_transport.h"
+#include "maidsafe-dht/transport/tcp_transport.h"
 
 // TODO(Fraser#5#): 2011-01-30 - Handle sending to port-restricted peers.
 namespace maidsafe {
@@ -365,12 +365,9 @@ Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
                                      SecurifierPtr securifier) {
   TransportPtr transport;
   switch (type) {
-    case kUdt:
-      transport.reset(new transport::UdtTransport(asio_service_));
+    case kTcp:
+      transport.reset(new transport::TcpTransport(asio_service_));
       break;
-//    case kTcp:
-//      transport.reset(new transport::TcpTransport(asio_service_));
-//      break;
 //    case kOther:
 //      transport.reset(new transport::UdtTransport(asio_service_));
 //      break;

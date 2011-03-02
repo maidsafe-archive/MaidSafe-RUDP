@@ -54,7 +54,7 @@ namespace maidsafe {
 
 namespace kademlia {
 
-enum TransportType { kUdt, kTcp, kOther };
+enum TransportType { kTcp, kOther };
 
 class MessageHandler;
 class NodeId;
