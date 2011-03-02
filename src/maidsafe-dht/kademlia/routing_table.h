@@ -93,8 +93,7 @@ struct RoutingTableContact {
         common_leading_bits(common_leading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
-        rank_info(rank_info),
-        validated(false) {}
+        rank_info(rank_info) {}
   RoutingTableContact(const Contact &contact,
                       const NodeId &holder_id,
                       boost::uint16_t common_leading_bits)
@@ -106,8 +105,7 @@ struct RoutingTableContact {
         common_leading_bits(common_leading_bits),
         kbucket_index(0),
         last_seen(bptime::microsec_clock::universal_time()),
-        rank_info(),
-        validated(false) {}
+        rank_info() {}
   RoutingTableContact(const RoutingTableContact &other)
       : contact(other.contact),
         node_id(other.node_id),
@@ -117,8 +115,7 @@ struct RoutingTableContact {
         common_leading_bits(other.common_leading_bits),
         kbucket_index(other.kbucket_index),
         last_seen(other.last_seen),
-        rank_info(other.rank_info),
-        validated(other.validated) {}
+        rank_info(other.rank_info) {}
   bool DirectConnected() const {
     return contact.IsDirectlyConnected();
   }
@@ -135,7 +132,6 @@ struct RoutingTableContact {
   boost::uint16_t kbucket_index;
   bptime::ptime last_seen;
   RankInfoPtr rank_info;
-  bool validated;
 };
 
 struct ChangeContact {
@@ -196,16 +192,6 @@ struct ChangeLastSeen {
     routing_table_contact.num_failed_rpcs = 0;
   }
   bptime::ptime new_last_seen;
-};
-
-struct ChangeValidated {
-  explicit ChangeValidated(bool new_validated)
-      : new_validated(new_validated) {}
-  // Anju: use nolint to satisfy multi-indexing
-  void operator()(RoutingTableContact &routing_table_contact) {  // NOLINT
-    routing_table_contact.validated = new_validated;
-  }
-  bool new_validated;
 };
 
 struct NodeIdTag;
@@ -279,6 +265,31 @@ typedef boost::multi_index_container<
 typedef RoutingTableContactsContainer::index<NodeIdTag>::type& ContactsById;
 typedef RoutingTableContactsContainer::index<DistanceToThisIdTag>::type&
     ContactsByDistanceToThisId;
+
+struct UnValidatedContact {
+  UnValidatedContact(const Contact &contact,
+                     const RankInfoPtr &rank_info)
+      : contact(contact), node_id(contact.node_id()), rank_info(rank_info) {}
+
+  Contact contact;
+  NodeId node_id;
+  RankInfoPtr rank_info;
+};
+
+typedef boost::multi_index_container<
+  UnValidatedContact,
+  bmi::indexed_by<
+    bmi::ordered_unique<
+      bmi::tag<NodeIdTag>,
+      boost::multi_index::member<UnValidatedContact, NodeId,
+          &UnValidatedContact::node_id>
+    >
+  >
+> UnValidatedContactsContainer;
+
+typedef UnValidatedContactsContainer::index<NodeIdTag>::type&
+    UnValidatedContactsById;
+
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
     const Contact&, RankInfoPtr)>> PingOldestContactPtr;
@@ -445,6 +456,8 @@ class RoutingTable {
   const boost::uint16_t k_;
   /** Multi_index container of all contacts */
   RoutingTableContactsContainer contacts_;
+  /** Container of all un-validated contacts */
+  UnValidatedContactsContainer unvalidated_contacts_;
   /** Signal to be fired when k-bucket is full and cannot be split.  In signal
    *  signature, last-seen contact is first, then new contact and new contact's
    *  rank info.  Slot should ping the old contact and if successful, should

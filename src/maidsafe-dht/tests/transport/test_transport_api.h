@@ -25,13 +25,16 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
-#define MAIDSAFE_DHT_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
+#ifndef MAIDSAFE_DHT_TESTS_TRANSPORT_TEST_TRANSPORT_API_H_
+#define MAIDSAFE_DHT_TESTS_TRANSPORT_TEST_TRANSPORT_API_H_
 
+#include <memory>
 #include <string>
-#include <utility>
 #include <vector>
+#include <utility>
+#include "gtest/gtest.h"
 #include "boost/thread/mutex.hpp"
+#include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
@@ -40,19 +43,23 @@ namespace transport {
 
 namespace test {
 
+class TestMessageHandler;
+
+static const IP kIP(boost::asio::ip::address_v4::loopback());
+static const boost::uint16_t kThreadGroupSize = 8;
+typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+typedef boost::shared_ptr<Transport> TransportPtr;
+typedef boost::shared_ptr<TestMessageHandler> TestMessageHandlerPtr;
+typedef std::vector<std::string> Messages;
+
 typedef std::vector<std::pair<std::string, Info>> IncomingMessages;
 typedef std::vector<std::string> OutgoingResponses;
-typedef std::vector<TransportCondition> Errors;
+typedef std::vector<TransportCondition> Results;
 
-class MessageHandler {
+class TestMessageHandler {
  public:
-  explicit MessageHandler(const std::string &id)
-    : this_id_(id),
-      requests_received_(),
-      responses_received_(),
-      responses_sent_(),
-      errors_(),
-      mutex_() {}
+  explicit TestMessageHandler(const std::string &id);
   void DoOnRequestReceived(const std::string &request,
                            const Info &info,
                            std::string *response,
@@ -66,16 +73,47 @@ class MessageHandler {
   IncomingMessages requests_received();
   IncomingMessages responses_received();
   OutgoingResponses responses_sent();
-  Errors errors();
+  Results results();
  private:
-  MessageHandler(const MessageHandler&);
-  MessageHandler& operator=(const MessageHandler&);
+  TestMessageHandler(const TestMessageHandler&);
+  TestMessageHandler& operator=(const TestMessageHandler&);
   std::string this_id_;
   IncomingMessages requests_received_, responses_received_;
   OutgoingResponses responses_sent_;
-  Errors errors_;
+  Results results_;
   boost::mutex mutex_;
 };
+
+
+template <typename T>
+class TransportAPITest: public testing::Test {
+ public:
+  TransportAPITest();
+  ~TransportAPITest();
+ protected:
+  // Create a transport and an io_service listening on the given or random port
+  // (if zero) if listen == true.  If not, only a transport is created, and the
+  // test member asio_service_ is used.
+  void SetupTransport(bool listen, Port lport);
+  void RunTransportTest(const int &num_messages);
+  void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt);
+  void CheckMessages();
+
+  IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
+  WorkPtr work_, work_1_, work_2_, work_3_;
+  std::vector<TransportPtr> listening_transports_;
+  std::vector<TestMessageHandlerPtr> listening_message_handlers_;
+  std::vector<TransportPtr> sending_transports_;
+  std::vector<TestMessageHandlerPtr> sending_message_handlers_;
+  boost::thread_group thread_group_;
+  boost::thread_group thread_group_1_;
+  boost::thread_group thread_group_2_;
+  boost::thread_group thread_group_3_;
+  std::vector<std::string> request_messages_;
+  boost::uint16_t count_;
+};
+
+TYPED_TEST_CASE_P(TransportAPITest);
 
 }  // namespace test
 
@@ -83,5 +121,4 @@ class MessageHandler {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TESTS_TRANSPORT_MESSAGE_HANDLER_H_
-
+#endif  // MAIDSAFE_DHT_TESTS_TRANSPORT_TEST_TRANSPORT_API_H_
