@@ -577,14 +577,15 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
   Rpcs::PingFunctor callback(boost::bind(&Node::Impl::PingOldestContactCallback,
       this, oldest_contact, _1, _2, replacement_contact,
       replacement_rank_info));
-  rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kUdt);
+  rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kTcp);
 }
 
 void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
                                            RankInfoPtr /*oldest_rank_info*/,
                                            const int &/*result*/,
                                            Contact /*replacement_contact*/,
-                                        RankInfoPtr /*replacement_rank_info*/) {
+                                           RankInfoPtr
+                                             /*replacement_rank_info*/) {
 //  if(result == 0) {
 //    add new contact - or ++ failed count?
 //  } else {
