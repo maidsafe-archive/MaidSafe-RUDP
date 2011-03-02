@@ -163,7 +163,7 @@ class Securifier {
   virtual std::string AsymmetricDecrypt(
       const std::string &encrypted_value) const;
 
-  //@{
+  // @{
   /** Getters for cryptographic keys. */
   std::string kSigningKeyId() const;
   std::string kSigningPublicKey() const;
@@ -171,7 +171,7 @@ class Securifier {
   std::string kAsymmetricDecryptionKeyId() const;
   std::string kAsymmetricDecryptionPublicKey() const;
   std::string kAsymmetricDecryptionPrivateKey() const;
-  //@}
+  // @}
 
  protected:
   const std::string kSigningKeyId_, kSigningPublicKey_, kSigningPrivateKey_;

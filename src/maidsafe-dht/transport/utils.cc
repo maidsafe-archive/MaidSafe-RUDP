@@ -96,7 +96,8 @@ void IpNetToAscii(boost::uint32_t address, char *ip_buffer) {
   // TODO(Team): warning thrown on 64-bit machine
   const int sizer = 15;
   #ifdef __MSVC__
-    _snprintf(ip_buffer, sizer, "%u.%u.%u.%u", (address>>24)&0xFF,
+    // N.B. first sizer value results from sizer * sizeof(char)
+    _snprintf_s(ip_buffer, sizer, sizer, "%u.%u.%u.%u", (address>>24)&0xFF,
         (address>>16)&0xFF, (address>>8)&0xFF, (address>>0)&0xFF);
   #else
     snprintf(ip_buffer, sizer, "%u.%u.%u.%u", (address>>24)&0xFF,
