@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "gtest/gtest.h"
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 
 int main(int argc, char **argv) {
   // Initialising logging

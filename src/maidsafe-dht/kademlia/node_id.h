@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include "boost/cstdint.hpp"
-#include "maidsafe-dht/common/platform_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe-dht/kademlia/config.h"
 
 namespace maidsafe {

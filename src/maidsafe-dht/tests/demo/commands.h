@@ -31,9 +31,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <string>
 #include "boost/function.hpp"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/platform_config.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 

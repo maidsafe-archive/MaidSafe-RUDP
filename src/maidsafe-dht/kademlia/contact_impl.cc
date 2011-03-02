@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/contact_impl.h"
 
 namespace maidsafe {

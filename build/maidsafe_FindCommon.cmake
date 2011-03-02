@@ -37,22 +37,17 @@
 #    maidsafe_common libs and headers.                                         #
 #                                                                              #
 #  Settable variables to aid with finding MaidSafe-Common are:                 #
-#    MAIDSAFE_COMMON_LIB_DIR, MAIDSAFE_COMMON_INC_DIR,                         #
-#    MAIDSAFE_COMMON_SHARE_DIR and MAIDSAFE_COMMON_ROOT_DIR                    #
+#    MAIDSAFE_COMMON_ROOT_DIR                                                  #
+#                                                                              #
+#  If found, a target named maidsafe_common_static is imported.                #
 #                                                                              #
 #  Variables set and cached by this module are:                                #
-#    MaidSafeCommon_INCLUDE_DIR, MaidSafeCommon_LIBRARY_DIR,                   #
-#    MaidSafeCommon_LIBRARY, MaidSafeCommon_MODULES_DIR, and                   #
+#    MaidSafeCommon_INCLUDE_DIR, MaidSafeCommon_MODULES_DIR, and               #
 #    MaidSafeCommon_TOOLS_DIR.                                                 #
 #                                                                              #
 #==============================================================================#
 
 UNSET(MaidSafeCommon_INCLUDE_DIR CACHE)
-UNSET(MaidSafeCommon_LIBRARY_DIR CACHE)
-UNSET(MaidSafeCommon_LIBRARY_DIR_DEBUG CACHE)
-UNSET(MaidSafeCommon_LIBRARY CACHE)
-UNSET(MaidSafeCommon_LIBRARY_DEBUG CACHE)
-UNSET(MaidSafeCommon_LIBRARY_RELEASE CACHE)
 UNSET(MaidSafeCommon_MODULES_DIR CACHE)
 UNSET(MaidSafeCommon_TOOLS_DIR CACHE)
 
@@ -60,65 +55,32 @@ IF(NOT MAIDSAFE_COMMON_ROOT_DIR AND DEFAULT_THIRD_PARTY_ROOT)
   SET(MAIDSAFE_COMMON_ROOT_DIR ${DEFAULT_THIRD_PARTY_ROOT})
 ENDIF()
 
-SET(MAIDSAFE_PATH_SUFFIX maidsafe_common_lib/build/common_lib/lib lib)
-FIND_LIBRARY(MaidSafeCommon_LIBRARY_RELEASE NAMES maidsafe_common PATHS ${MAIDSAFE_COMMON_LIB_DIR} ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-FIND_LIBRARY(MaidSafeCommon_LIBRARY_DEBUG NAMES maidsafe_common_d PATHS ${MAIDSAFE_COMMON_LIB_DIR} ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+SET(MAIDSAFE_PATH_SUFFIX maidsafe_common_lib/build/common_lib/cmake cmake)
+FIND_FILE(MAIDSAFE_COMMON_CMAKE maidsafe_common.cmake PATHS ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+IF(MAIDSAFE_COMMON_CMAKE)
+  INCLUDE(${MAIDSAFE_COMMON_CMAKE})
+ENDIF()
 
 SET(MAIDSAFE_PATH_SUFFIX maidsafe_common_lib/build/common_lib/include include)
 FIND_PATH(MaidSafeCommon_INCLUDE_DIR maidsafe/common/version.h PATHS ${MAIDSAFE_COMMON_INC_DIR} ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
 
-GET_FILENAME_COMPONENT(MAIDSAFE_COMMON_LIBRARY_DIR ${MaidSafeCommon_LIBRARY_RELEASE} PATH)
-SET(MaidSafeCommon_LIBRARY_DIR ${MAIDSAFE_COMMON_LIBRARY_DIR} CACHE PATH "Path to Google Logging libraries directory" FORCE)
-IF(MSVC)
-  GET_FILENAME_COMPONENT(MAIDSAFE_COMMON_LIBRARY_DIR_DEBUG ${MaidSafeCommon_LIBRARY_DEBUG} PATH)
-  SET(MaidSafeCommon_LIBRARY_DIR_DEBUG ${MAIDSAFE_COMMON_LIBRARY_DIR_DEBUG} CACHE PATH "Path to Google Logging debug libraries directory" FORCE)
-ENDIF()
+SET(MAIDSAFE_PATH_SUFFIX maidsafe_common_lib/build/common_lib/share/maidsafe/cmake_modules share/maidsafe/cmake_modules)
+FIND_PATH(MaidSafeCommon_MODULES_DIR maidsafe_FindBoost.cmake PATHS ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
 
+SET(MAIDSAFE_PATH_SUFFIX maidsafe_common_lib/build/common_lib/share/maidsafe/tools share/maidsafe/tools)
+FIND_PATH(MaidSafeCommon_TOOLS_DIR cpplint.py PATHS ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${MaidSafeCommon_MODULES_DIR})
 
-IF(NOT MaidSafeCommon_LIBRARY_RELEASE)
-  IF(NOT MAIDSAFE_COMMON_REQUIRED)
-    RETURN()
-  ENDIF()
-  SET(ERROR_MESSAGE "\nCould not find Google Logging.   NO MAIDSAFE_COMMON LIBRARY - ")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_LIB_DIR=<Path to glog lib directory> and/or")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_ROOT_DIR=<Path to glog root directory>")
+SET(MAIDSAFE_PATH_SUFFIX ../../..)
+FIND_PATH(DEFAULT_THIRD_PARTY_ROOT README PATHS ${MAIDSAFE_COMMON_ROOT_DIR} PATH_SUFFIXES ${MAIDSAFE_PATH_SUFFIX} NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+
+IF(NOT MaidSafeCommon_INCLUDE_DIR OR NOT MaidSafeCommon_MODULES_DIR OR NOT MaidSafeCommon_TOOLS_DIR)
+  SET(ERROR_MESSAGE "\nCould not find MaidSafe Common.\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can clone it at git@github.com:maidsafe/MaidSafe-Common.git\n\n")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}If MaidSafe Common is already installed, run:")
+  SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_ROOT_DIR=<Path to MaidSafe Common directory>\n\n")
   MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
-ELSE()
-  SET(MaidSafeCommon_LIBRARY ${MaidSafeCommon_LIBRARY_RELEASE} CACHE PATH "Path to Google Logging library" FORCE)
 ENDIF()
 
-IF(MSVC)
-  IF(NOT MaidSafeCommon_LIBRARY_DEBUG)
-    IF(NOT MAIDSAFE_COMMON_REQUIRED)
-      RETURN()
-    ENDIF()
-    SET(ERROR_MESSAGE "\nCould not find Google Logging.  NO *DEBUG* MAIDSAFE_COMMON LIBRARY - ")
-    SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
-    SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
-    SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_ROOT_DIR=<Path to glog root directory>")
-    MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
-  ELSE()
-    SET(MaidSafeCommon_LIBRARY debug ${MaidSafeCommon_LIBRARY_DEBUG} optimized ${MaidSafeCommon_LIBRARY} CACHE PATH "Path to Google Logging libraries" FORCE)
-  ENDIF()
-ENDIF()
-
-IF(NOT MaidSafeCommon_INCLUDE_DIR)
-  IF(NOT MAIDSAFE_COMMON_REQUIRED)
-    RETURN()
-  ENDIF()
-  SET(ERROR_MESSAGE "\nCould not find Google Logging.  NO HEADER FILE - ")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}You can download it at http://code.google.com/p/google-glog\n")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}If Google Logging is already installed, run:\n")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_INC_DIR=<Path to glog include directory> and/or")
-  SET(ERROR_MESSAGE "${ERROR_MESSAGE}\n${ERROR_MESSAGE_CMAKE_PATH} -DMAIDSAFE_COMMON_ROOT_DIR=<Path to glog root directory>")
-  MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
-ELSE()
-  SET(MaidSafeCommon_FOUND TRUE CACHE INTERNAL "Found Google Logging library and headers" FORCE)
-ENDIF()
-
-MESSAGE("-- Found Google Logging library")
-IF(MSVC)
-  MESSAGE("-- Found Google Logging Debug library")
-ENDIF()
+MESSAGE("-- Found MaidSafe Common library")
+MESSAGE("-- Found MaidSafe Common Debug library")

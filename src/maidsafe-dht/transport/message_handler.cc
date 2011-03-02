@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #pragma warning(pop)
 #endif
-#include "maidsafe-dht/common/securifier.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 
 namespace maidsafe {
 

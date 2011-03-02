@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include "gtest/gtest.h"
 #include "boost/scoped_array.hpp"
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe-dht/transport/utils.h"
 
 namespace maidsafe {

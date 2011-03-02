@@ -32,7 +32,7 @@ Created by Julian Cain on 11/3/09.
 
 #include <stdexcept>
 
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe-dht/nat-pmp/natpmp_protocol.h"
 
 namespace maidsafe {
