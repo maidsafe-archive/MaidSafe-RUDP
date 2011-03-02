@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/message_handler.h"
 #include "boost/lexical_cast.hpp"
-#include "maidsafe-dht/common/securifier.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 
 namespace maidsafe {

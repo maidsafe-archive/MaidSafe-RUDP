@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/function.hpp"
 #include "boost/shared_ptr.hpp"
 
-#include "maidsafe-dht/common/platform_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/kademlia.pb.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"

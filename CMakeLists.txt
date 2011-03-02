@@ -88,8 +88,8 @@ SET(${PROJECT_NAME}_SOURCE_DIR ${${PROJECT_NAME}_ROOT}/src)
 SET(SOURCE_DIR ${${PROJECT_NAME}_ROOT}/src)
 
 IF(NOT MAIDSAFE_TEST_TYPE)
-  SET(MAIDSAFE_TEST_TYPE "BEH" CACHE STRING "Choose the type of TEST, options are: _ BEH FUNC" FORCE)
-  SET(MAIDSAFE_TEST_TYPE_MESSAGE "Tests included: Behavioural")
+  SET(MAIDSAFE_TEST_TYPE "ALL" CACHE STRING "Choose the type of TEST, options are: ALL BEH FUNC" FORCE)
+  SET(MAIDSAFE_TEST_TYPE_MESSAGE "Tests included: All")
 ELSE()
   IF(${MAIDSAFE_TEST_TYPE} MATCHES _)
     SET(MAIDSAFE_TEST_TYPE_MESSAGE "Tests included: All")
@@ -180,6 +180,8 @@ FILE(WRITE ${${PROJECT_NAME}_BINARY_DIR}/CTestCustom.cmake "SET(CTEST_CUSTOM_COV
 ###################################################################################################
 # Set default directories to be searched for include files and libs                              #
 ###################################################################################################
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${${PROJECT_NAME}_ROOT}/build)
+
 IF(DEFINED ADD_LIBRARY_DIR)
   IF(DEFAULT_LIBRARY_DIR)
     LIST(REMOVE_DUPLICATES DEFAULT_LIBRARY_DIR)
@@ -188,13 +190,44 @@ IF(DEFINED ADD_LIBRARY_DIR)
 ENDIF()
 
 ###################################################################################################
+# MaidSafe Common library search                                                                  #
+###################################################################################################
+INCLUDE(maidsafe_FindCommon)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${MaidSafeCommon_INCLUDE_DIR})
+
+###################################################################################################
 # Boost libraries search                                                                          #
 ###################################################################################################
 SET(REQUIRED_BOOST_COMPONENTS date_time filesystem program_options regex system thread unit_test_framework)
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindBoost.cmake)
+INCLUDE(maidsafe_FindBoost)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Boost_LIBRARY_DIRS})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Boost_LIBRARY_DIRS})
+
+###################################################################################################
+# Cryptopp library search                                                                         #
+###################################################################################################
+INCLUDE(maidsafe_FindCryptopp)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Cryptopp_INCLUDE_DIR})
+
+###################################################################################################
+# Google Test library search                                                                      #
+###################################################################################################
+INCLUDE(maidsafe_FindGtest)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gtest_INCLUDE_DIR})
+IF(NOT WIN32)
+  SET(Gtest_LIBRARY "${Gtest_LIBRARY};pthread")
+ENDIF()
+
+###################################################################################################
+# Google Mock library search                                                                      #
+###################################################################################################
+INCLUDE(maidsafe_FindGmock)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Gmock_INCLUDE_DIR})
+
+###################################################################################################
+# Google Log library search                                                                       #
+###################################################################################################
+INCLUDE(maidsafe_FindGlog)
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
 
 ###################################################################################################
 # Protocol Buffers library search                                                                 #
@@ -203,39 +236,13 @@ FILE(GLOB PROTO_FILES_COMMON RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT
 FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.proto")
 FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${${PROJECT_NAME}_SOURCE_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.proto")
 SET(PROTO_FILES "${PROTO_FILES_COMMON};${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
-SET(PROTOBUF_REQUIRED FALSE)
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindProtobuf.cmake)
-IF(NOT Protobuf_FOUND)
-  SET(PROTOBUF_REQUIRED TRUE)
-  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildProtobuf.cmake)
-ENDIF()
+INCLUDE(maidsafe_FindProtobuf)
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Protobuf_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Protobuf_LIBRARY_DIR})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Protobuf_LIBRARY_DIR_DEBUG})
-
-###################################################################################################
-# Google Mock and Test library                                                                    #
-###################################################################################################
-ADD_SUBDIRECTORY(${${PROJECT_NAME}_ROOT}/thirdpartylibs/googlemock)
-INCLUDE_DIRECTORIES(BEFORE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR})
-
-###################################################################################################
-# Google Log library search                                                                       #
-###################################################################################################
-SET(GLOG_REQUIRED FALSE)
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindGlog.cmake)
-IF(NOT Glog_FOUND)
-  SET(GLOG_REQUIRED TRUE)
-  INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_BuildGlog.cmake)
-ENDIF()
-SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Glog_INCLUDE_DIR})
-SET(LIBS_DIRS ${LIBS_DIRS} ${Glog_LIBRARY_DIR})
-SET(LIBS_DIRS_DEBUG ${LIBS_DIRS_DEBUG} ${Glog_LIBRARY_DIR_DEBUG})
 
 ###################################################################################################
 # MySQL++ library search                                                                          #
 ###################################################################################################
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindMysqlpp.cmake)
+#INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_FindMysqlpp.cmake)
 IF(Mysqlpp_FOUND)
   SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${Mysqlpp_INCLUDE_DIR} ${Mysql_INCLUDE_DIR})
   SET(LIBS_DIRS ${LIBS_DIRS} ${Mysqlpp_LIBRARY_DIR} ${Mysql_LIBRARY_DIR})
@@ -315,12 +322,6 @@ SET(ALL_FILES_MAIDSAFE_DIR ${SOURCE_FILES_MAIDSAFE_DIR} ${HEADER_FILES_MAIDSAFE_
 SOURCE_GROUP("maidsafe-dht Source Files" FILES ${SOURCE_FILES_MAIDSAFE_DIR})
 SOURCE_GROUP("maidsafe-dht Header Files" FILES ${HEADER_FILES_MAIDSAFE_DIR})
 
-FILE(GLOB SOURCE_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.cc")
-FILE(GLOB HEADER_FILES_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/*.h")
-SET(ALL_FILES_COMMON_DIR ${SOURCE_FILES_COMMON_DIR} ${HEADER_FILES_COMMON_DIR})
-SOURCE_GROUP("common Source Files" FILES ${SOURCE_FILES_COMMON_DIR})
-SOURCE_GROUP("common Header Files" FILES ${HEADER_FILES_COMMON_DIR})
-
 FILE(GLOB SOURCE_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.cc")
 FILE(GLOB HEADER_FILES_KADEMLIA_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/*.h")
 SET(ALL_FILES_KADEMLIA_DIR ${SOURCE_FILES_KADEMLIA_DIR} ${HEADER_FILES_KADEMLIA_DIR})
@@ -364,8 +365,7 @@ SET(ALL_FILES_UPNP_DIR ${SOURCE_FILES_UPNP_DIR} ${HEADER_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Source Files" FILES ${SOURCE_FILES_UPNP_DIR})
 SOURCE_GROUP("upnp Header Files" FILES ${HEADER_FILES_UPNP_DIR})
 
-LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_COMMON_DIR}
-                             ${ALL_FILES_KADEMLIA_DIR}
+LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_KADEMLIA_DIR}
                              ${ALL_FILES_TRANSPORT_DIR}
                              ${ALL_FILES_LIBUPNP_DIR}
                              ${ALL_FILES_UPNP_DIR}
@@ -375,11 +375,8 @@ LIST(APPEND DHT_SOURCE_FILES ${ALL_FILES_COMMON_DIR}
 ####    TESTS    ####
 FILE(GLOB ALL_FILES_TEST_MAIN "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/*.cc"
                               "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/*.h")
-FILE(GLOB ALL_FILES_TEST_COMMON_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/*.cc"
-                                  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/*.h")
 FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/benchmark/*.cc"
                                        "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/benchmark/*.h")
-FILE(GLOB ALL_FILES_TEST_BOOST_DIR  "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/*.cc")
 FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/demo/*.cc"
                                   "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/demo/*.h")
 FILE(GLOB ALL_FILES_TEST_NODE_DIR "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/functional_kademlia/*.cc"
@@ -398,21 +395,15 @@ IF(Mysqlpp_FOUND)
                                        "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/distributed_network/*.h")
 ENDIF()
 
-###################################################################################################
-# Traverse subdirs for imported 3rd party libs                                                    #
-###################################################################################################
-ADD_SUBDIRECTORY(${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/cryptopp ${CMAKE_BINARY_DIR}/cryptopp)
 
 ###################################################################################################
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
-ADD_EXECUTABLE(TESTcommon ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_COMMON_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTboost ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_BOOST_DIR} "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/log.cc")
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
 #ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(KademliaDemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -424,10 +415,6 @@ ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 IF(NOT MSVC)
-  SET_TARGET_PROPERTIES(TESTcommon PROPERTIES
-                          DEBUG_OUTPUT_NAME TESTcommon${CMAKE_DEBUG_POSTFIX}
-                          RELWITHDEBINFO_OUTPUT_NAME TESTcommon${CMAKE_RELWITHDEBINFO_POSTFIX}
-                          MINSIZEREL_OUTPUT_NAME TESTcommon${CMAKE_MINSIZEREL_POSTFIX})
   SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES
                           DEBUG_OUTPUT_NAME TESTkademlia${CMAKE_DEBUG_POSTFIX}
                           RELWITHDEBINFO_OUTPUT_NAME TESTkademlia${CMAKE_RELWITHDEBINFO_POSTFIX}
@@ -456,10 +443,6 @@ IF(NOT MSVC)
                           DEBUG_OUTPUT_NAME benchmark_static${CMAKE_DEBUG_POSTFIX}
                           RELWITHDEBINFO_OUTPUT_NAME benchmark_static${CMAKE_RELWITHDEBINFO_POSTFIX}
                           MINSIZEREL_OUTPUT_NAME benchmark_static${CMAKE_MINSIZEREL_POSTFIX})
-  SET_TARGET_PROPERTIES(TESTboost PROPERTIES
-                          DEBUG_OUTPUT_NAME TESTboost${CMAKE_DEBUG_POSTFIX}
-                          RELWITHDEBINFO_OUTPUT_NAME TESTboost${CMAKE_RELWITHDEBINFO_POSTFIX}
-                          MINSIZEREL_OUTPUT_NAME TESTboost${CMAKE_MINSIZEREL_POSTFIX})
   IF(Mysqlpp_FOUND)
     SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES
                             DEBUG_OUTPUT_NAME distributed_net_clients${CMAKE_DEBUG_POSTFIX}
@@ -468,8 +451,8 @@ IF(NOT MSVC)
   ENDIF()
 ENDIF()
 
-SET(TEST_TARGETS TESTupnp TESTnatpmp TESTcommon TESTnode TESTkademlia TESTtransport TESTboost)
-SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static cryptest PROPERTIES FOLDER "Tests")
+SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
+SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static PROPERTIES FOLDER "Tests")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
 ENDIF()
@@ -485,24 +468,24 @@ ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
 
 # When this target is built, it removes all .gcda files from the build directory and its subdirectories
 IF(UNIX)
-  ADD_CUSTOM_TARGET(CleanCoverage COMMAND ${CMAKE_COMMAND} -DSEARCH_DIR=${CMAKE_BINARY_DIR} -P ${${PROJECT_NAME}_ROOT}/build/tools/clean_coverage.cmake)
+  FIND_FILE(CLEAN_COVERAGE_CMAKE clean_coverage.cmake ${MaidSafeCommon_MODULES_DIR})
+  IF(CLEAN_COVERAGE_CMAKE)
+    ADD_CUSTOM_TARGET(CleanCoverage COMMAND ${CMAKE_COMMAND} -DSEARCH_DIR=${CMAKE_BINARY_DIR} -P ${CLEAN_COVERAGE_CMAKE})
+  ENDIF()
 ENDIF()
 
 SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES FOLDER "MaidSafe Libraries")
-SET_TARGET_PROPERTIES(cryptopp_static gmock gmock_main gtest gtest_main PROPERTIES FOLDER "Third Party Libraries")
 
 
 ###################################################################################################
 # Builds                                                                                          #
 ###################################################################################################
 ADD_DEFINITIONS(-DSTATICLIB)
-IF(Glog_FOUND)
-  ADD_DEFINITIONS(-DHAVE_GLOG)
-ENDIF()
 ADD_DEFINITIONS(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_FILESYSTEM_VERSION=3)
 
 TARGET_LINK_LIBRARIES(maidsafe_dht_static
-                        cryptopp_static
+                        maidsafe_common_static
+                        ${Cryptopp_LIBRARY}
                         ${Protobuf_LIBRARY}
                         ${Glog_LIBRARY}
                         ${Boost_DATE_TIME_LIBRARIES}
@@ -511,13 +494,11 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${Boost_SYSTEM_LIBRARIES}
                         ${Boost_REGEX_LIBRARIES}
                         ${SYS_LIB})
-TARGET_LINK_LIBRARIES(TESTcommon maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gtest_main gmock_main)
-TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_main)
-TARGET_LINK_LIBRARIES(TESTboost ${Glog_LIBRARY} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARIES} gtest_main ${SYS_LIB})
+TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static ${Gtest_LIBRARY})
+TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static ${Gtest_LIBRARY} ${Gmock_LIBRARY})
+TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static ${Gtest_LIBRARY})
+TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static ${Gtest_LIBRARY})
+TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static ${Gtest_LIBRARY})
 TARGET_LINK_LIBRARIES(KademliaDemo maidsafe_dht_static ${Boost_PROGRAM_OPTIONS_LIBRARIES})
 TARGET_LINK_LIBRARIES(benchmark_static maidsafe_dht_static ${Boost_PROGRAM_OPTIONS_LIBRARIES})
 IF(Mysqlpp_FOUND)
@@ -540,9 +521,7 @@ IF(MSVC)
   ADD_DEFINITIONS(-DNOMINMAX)
 
   # flag to link to static version of Google Glog
-  IF(Glog_FOUND)
-    ADD_DEFINITIONS(-DGOOGLE_GLOG_DLL_DECL=)
-  ENDIF()
+  ADD_DEFINITIONS(-DGOOGLE_GLOG_DLL_DECL=)
 
   # prevents from automatic linking of boost libraries
   ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB)
@@ -586,7 +565,7 @@ IF(MSVC)
     STRING(REPLACE "\\" "\\\\" LIBS_DIR_DEBUG ${LIBS_DIR_DEBUG})
     SET(LINKER_LIBS_DIRS_DEBUG "${LINKER_LIBS_DIRS_DEBUG} /LIBPATH:\"${LIBS_DIR_DEBUG}\"")
   ENDFOREACH()
-  SET_TARGET_PROPERTIES(TESTcommon TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static TESTboost PROPERTIES
+  SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
@@ -616,18 +595,7 @@ IF(UNIX)
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_COMMON};${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/crypto.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/common/utils.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/main.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_bind.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_smart_ptr.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/boost/test_format.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_call_later.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_utils.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_crypto.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_threadpool.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_detect_platform.cc
-                              ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/common/test_c++0x.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_node_id.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_service.cc
                               ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/kademlia/test_routing_table.cc
@@ -656,7 +624,7 @@ ENDIF()
 # Tests                                                                                           #
 ###################################################################################################
 INCLUDE(CTest)
-INCLUDE(${${PROJECT_NAME}_ROOT}/build/maidsafe_AddGtests.cmake)
+INCLUDE(maidsafe_AddGtests)
 
 SET(CTEST_CUSTOM_MAXIMUM_PASSED_TEST_OUTPUT_SIZE 50000)
 SET(CTEST_CUSTOM_MAXIMUM_FAILED_TEST_OUTPUT_SIZE 50000)
@@ -665,15 +633,13 @@ SET(CTEST_CONTINUOUS_MINIMUM_INTERVAL 10)
 SET(CTEST_START_WITH_EMPTY_BINARY_DIRECTORY true)
 IF(PYTHONINTERP_FOUND)
   IF(UNIX)
-    ADD_TEST(STYLE_CHECK_KAD python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
+    ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_KAD PROPERTY LABELS Functional Kademlia CodingStyle)
-    ADD_TEST(STYLE_CHECK_COMMON python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${ALL_FILES_COMMON_DIR} ${ALL_FILES_TEST_COMMON_DIR})
-    SET_PROPERTY(TEST STYLE_CHECK_COMMON PROPERTY LABELS Functional Common CodingStyle)
-    ADD_TEST(STYLE_CHECK_TRANSPORT python ${${PROJECT_NAME}_ROOT}/build/tools/cpplint.py ${ALL_FILES_TRANSPORT_DIR} ${ALL_FILES_TEST_TRANSPORT_DIR})
+    ADD_TEST(STYLE_CHECK_TRANSPORT python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${ALL_FILES_TRANSPORT_DIR} ${ALL_FILES_TEST_TRANSPORT_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_TRANSPORT PROPERTY LABELS Functional Transport CodingStyle)
   ELSE()
     STRING(REPLACE "/" "\\\\" STYLE_CHECK_SOURCE ${${PROJECT_NAME}_ROOT})
-    ADD_TEST(STYLE_CHECK ${${PROJECT_NAME}_ROOT}/build/tools/run_cpplint.bat ${STYLE_CHECK_SOURCE})
+    ADD_TEST(STYLE_CHECK ${MaidSafeCommon_TOOLS_DIR}/run_cpplint.bat ${STYLE_CHECK_SOURCE})
     SET_PROPERTY(TEST STYLE_CHECK PROPERTY LABELS Functional CodingStyle)
   ENDIF()
 ENDIF()
@@ -713,15 +679,6 @@ ENDIF()
 MESSAGE("================================================================================")
 MESSAGE("")
 
-SET(MAIDSAFE_COMMON_INSTALL_FILES
-      maidsafe-dht/common/alternative_store.h
-      maidsafe-dht/common/crypto.h
-      maidsafe-dht/common/log.h
-      maidsafe-dht/common/platform_config.h
-      maidsafe-dht/common/securifier.h
-      maidsafe-dht/common/threadpool.h
-      maidsafe-dht/common/utils.h
-      maidsafe-dht/common/version.h)
 SET(MAIDSAFE_KAD_INSTALL_FILES
       maidsafe-dht/kademlia/node-api.h
       maidsafe-dht/kademlia/config.h
@@ -749,10 +706,9 @@ ELSE()
           )
 ENDIF()
 
-INSTALL(FILES ${ABS_MAIDSAFE_COMMON_INSTALL_FILES} DESTINATION include/maidsafe-dht/common)
-INSTALL(FILES ${ABS_MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe-dht/kademlia)
-INSTALL(FILES ${ABS_MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe-dht)
-INSTALL(FILES ${ABS_MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe-dht/transport)
+INSTALL(FILES ${MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe-dht/kademlia)
+INSTALL(FILES ${MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe-dht)
+INSTALL(FILES ${MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe-dht/transport)
 
 IF(CMAKE_BUILD_TYPE MATCHES "Release")
   SET(CPACK_PACKAGE_VERSION_MAJOR "0")
