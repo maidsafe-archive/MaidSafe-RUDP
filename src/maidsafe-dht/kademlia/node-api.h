@@ -43,12 +43,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/scoped_ptr.hpp"
 
 #include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/common/version.h"
+#include "maidsafe/common/version.h"
 
-#if MAIDSAFE_DHT_VERSION < 25
-#error This API is not compatible with the installed library.\
-  Please update the maidsafe-dht library.
-#endif
+//#if MAIDSAFE_DHT_VERSION < 25
+//#error This API is not compatible with the installed library.\
+//  Please update the maidsafe-dht library.
+//#endif
 
 
 namespace maidsafe {

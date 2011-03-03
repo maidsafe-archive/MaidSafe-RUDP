@@ -33,7 +33,7 @@ Created by Julian Cain on 11/3/09.
 
 #include <vector>
 #include "boost/asio.hpp"
-#include "maidsafe-dht/common/platform_config.h"
+#include "maidsafe/common/platform_config.h"
 #include "maidsafe-dht/transport/network_interface.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \

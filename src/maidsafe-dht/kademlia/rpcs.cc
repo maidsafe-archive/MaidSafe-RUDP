@@ -26,11 +26,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe-dht/kademlia/rpcs.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/tcp_transport.h"
 

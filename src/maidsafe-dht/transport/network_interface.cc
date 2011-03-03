@@ -29,7 +29,7 @@ Created by Julian Cain on 11/3/09.
 */
 
 #include "maidsafe-dht/transport/network_interface.h"
-#include "maidsafe-dht/common/platform_config.h"  // NOLINT (Fraser) - This is
+#include "maidsafe/common/platform_config.h"  // NOLINT (Fraser) - This is
                                               // for preprocessor definitions
 
 #if !defined (MAIDSAFE_WIN32)

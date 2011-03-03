@@ -31,9 +31,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
 
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/node_id.h"

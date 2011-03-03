@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/filesystem.hpp"
 #include "boost/shared_ptr.hpp"
 #include "boost/lexical_cast.hpp"
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/tests/benchmark/operations.h"
