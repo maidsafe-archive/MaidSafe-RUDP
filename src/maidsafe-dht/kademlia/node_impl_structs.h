@@ -34,15 +34,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #include <string>
 // #include <vector>
 
-// #include "boost/thread/mutex.hpp"
-// #include "boost/multi_index_container.hpp"
-// #include "boost/multi_index/composite_key.hpp"
-// #include "boost/multi_index/ordered_index.hpp"
-// #include "boost/multi_index/identity.hpp"
-// #include "boost/multi_index/member.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/multi_index_container.hpp"
+#include "boost/multi_index/composite_key.hpp"
+#include "boost/multi_index/ordered_index.hpp"
+#include "boost/multi_index/identity.hpp"
+#include "boost/multi_index/member.hpp"
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
+#include "maidsafe-dht/kademlia/node_id.h"
+#include "maidsafe-dht/kademlia/rpcs.h"
+#include "maidsafe-dht/kademlia/utils.h"
 
 namespace maidsafe {
 
@@ -52,6 +55,139 @@ class Signature;
 class SignedValue;
 
 enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
+
+enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
+
+struct NodeContainerTuple {
+  explicit NodeContainerTuple(const Contact &cont, const NodeId &target_id)
+      : contact(cont),
+        contact_id(cont.node_id()),
+        state(kNew),
+        distance_to_target(contact_id ^ target_id),
+        round(-1) {}
+  NodeContainerTuple(const Contact &cont, const NodeId &target_id, int rnd)
+      : contact(cont),
+        contact_id(cont.node_id()),
+        state(kNew),
+        distance_to_target(contact_id ^ target_id),
+        round(rnd) {}
+  Contact contact;
+  NodeId contact_id;
+  NodeSearchState state;
+  NodeId distance_to_target;
+  int round;
+};
+
+// Modifiers
+struct ChangeState {
+  explicit ChangeState(NodeSearchState new_state)
+      : new_state(new_state) {}
+  void operator()(NodeContainerTuple &node_container_tuple) {  // NOLINT
+    node_container_tuple.state = new_state;
+  }
+  NodeSearchState new_state;
+};
+
+struct ChangeRound {
+  explicit ChangeRound(int new_round)
+      : new_round(new_round) {}
+  void operator()(NodeContainerTuple &node_container_tuple) {  // NOLINT
+    node_container_tuple.round = new_round;
+  }
+  int new_round;
+};
+
+// Tags
+struct nc_id;
+struct nc_state;
+struct nc_distance;
+struct nc_round;
+struct nc_state_round;
+struct nc_state_distance;
+
+typedef boost::multi_index_container<
+  NodeContainerTuple,
+  boost::multi_index::indexed_by<
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<nc_id>,
+      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, contact_id)
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<nc_state>,
+      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state)
+    >,
+    boost::multi_index::ordered_unique<
+      boost::multi_index::tag<nc_distance>,
+      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, distance_to_target)
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<nc_round>,
+      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<nc_state_round>,
+      boost::multi_index::composite_key<
+        NodeContainerTuple,
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
+      >
+    >,
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<nc_state_distance>,
+      boost::multi_index::composite_key<
+        NodeContainerTuple,
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),        
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, distance_to_target)
+      >
+    >    
+  >
+> NodeContainer;
+
+typedef NodeContainer::index<nc_id>::type& NodeContainerByNodeId;
+
+typedef NodeContainer::index<nc_state>::type& NodeContainerByState;
+
+typedef NodeContainer::index<nc_distance>::type& NodeContainerByDistance;
+
+typedef NodeContainer::index<nc_round>::type& NodeContainerByRound;
+
+typedef NodeContainer::index<nc_state_round>::type& NodeContainerByStateRound;
+
+typedef NodeContainer::index<nc_state_distance>::type&
+            NodeContainerByStateDistance;
+
+struct FindNodesArgs {
+  FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
+      : key(fna_key),
+        nc(),
+        result(),
+        mutex(),
+        last_contact(),
+        callback(fna_callback),
+        calledback(false),
+        round(0) {}
+  NodeId key;
+  NodeContainer nc;
+  NodeContainer result;
+  boost::mutex mutex;
+  Contact last_contact;
+  FindNodesFunctor callback;
+  bool calledback;
+  int round;
+};
+
+struct FindNodesRpcArgs {
+  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna)
+      : contact(c),
+        rpc_fna(fna),
+        round(0) {
+    boost::mutex::scoped_lock loch_lavittese(fna->mutex);
+    round = fna->round;
+  }
+  Contact contact;
+  std::shared_ptr<FindNodesArgs> rpc_fna;
+  int round;
+};
 
 /*
 struct ContactAndTargetKey {
@@ -317,70 +453,6 @@ struct UpdateCallbackArgs {
   Contact contact;
 };
 
-enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
-
-struct NodeContainerTuple {
-  NodeContainerTuple()
-      : contact(),
-        state(kNew),
-        round(-1) {}
-  explicit NodeContainerTuple(const Contact &cont)
-      : contact(cont),
-        state(kNew),
-        round(-1) {}
-  NodeContainerTuple(const Contact &cont, int rnd)
-      : contact(cont),
-        state(kNew),
-        round(rnd) {}
-  Contact contact;
-  NodeSearchState state;
-  int round;
-};
-
-// Tags
-struct nc_contact {};
-struct nc_state {};
-struct nc_round {};
-struct nc_state_round {};
-
-typedef boost::multi_index_container<
-  NodeContainerTuple,
-  boost::multi_index::indexed_by<
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<nc_contact>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, Contact, contact)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_state>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_round>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_state_round>,
-      boost::multi_index::composite_key<
-        NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
-      >
-    >
-  >
-> NodeContainer;
-
-typedef NodeContainer::index<nc_contact>::type NodeContainerByContact;
-typedef NodeContainerByContact::iterator NCBCit;
-
-typedef NodeContainer::index<nc_state>::type NodeContainerByState;
-typedef NodeContainerByState::iterator NCBSit;
-
-typedef NodeContainer::index<nc_round>::type NodeContainerByRound;
-typedef NodeContainerByRound::iterator NCBRit;
-
-typedef NodeContainer::index<nc_state_round>::type NodeContainerByStateRound;
-typedef NodeContainerByStateRound::iterator NCBSRit;
-
 struct FindNodesParams {
   FindNodesParams()
       : key(),
@@ -393,37 +465,6 @@ struct FindNodesParams {
   std::vector<Contact> exclude_nodes;
   bool use_routingtable;
   FindNodesFunctor callback;
-};
-
-struct FindNodesArgs {
-  FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
-      : key(fna_key),
-        kth_closest(),
-        nc(),
-        mutex(),
-        callback(fna_callback),
-        calledback(false),
-        round(0),
-        nodes_pending(0) {}
-  NodeId key, kth_closest;
-  NodeContainer nc;
-  boost::mutex mutex;
-  FindNodesFunctor callback;
-  bool calledback;
-  int round, nodes_pending;
-};
-
-struct FindNodesRpcArgs {
-  FindNodesRpcArgs(const Contact &c, boost::shared_ptr<FindNodesArgs> fna)
-      : contact(c),
-        rpc_fna(fna),
-        round(0) {
-    boost::mutex::scoped_lock loch_lavittese(fna->mutex);
-    round = fna->round;
-  }
-  Contact contact;
-  boost::shared_ptr<FindNodesArgs> rpc_fna;
-  int round;
 };
 */
 }  // namespace kademlia
