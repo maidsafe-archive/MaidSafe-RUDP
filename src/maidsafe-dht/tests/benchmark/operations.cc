@@ -70,7 +70,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
     boost::shared_ptr<CallbackData> data(new CallbackData());
     boost::mutex::scoped_lock lock(data->mutex);
     for (size_t i = 0; i < nodes.size(); ++i) {
-      boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//     boost::uint64_t t = GetEpochMilliseconds();
 //      node_->GetNodeContactDetails(
 //            nodes[i],
 //            boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
@@ -100,7 +100,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//        boost::uint64_t t = GetEpochMilliseconds();
 //        node_->Ping(contacts[i], boost::bind(
 //            &Operations::PingCallback, this, _1, data));
         while (data->returned_count <= j)
@@ -127,7 +127,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
 }
 
 void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
-                                  const int &iterations, const bool &sign) {
+                                  const int &iterations, const bool &/*sign*/) {
   for (int val = 0; val < 4; ++val) {
     std::string size, value;
     switch (val) {
@@ -217,7 +217,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
       for (int j = 0; j < iterations; ++j) {
         kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-        boost::uint64_t t/* = GetEpochMilliseconds()*/;
+//        boost::uint64_t t = GetEpochMilliseconds();
 //        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
 //            &Operations::FindValueCallback, this, _1, data));
         while (data->returned_count <= j)
@@ -242,7 +242,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
 }
 
 
-void Operations::PingCallback(const std::string &result,
+void Operations::PingCallback(const std::string &/*result*/,
                               boost::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
@@ -253,7 +253,7 @@ void Operations::PingCallback(const std::string &result,
   data->condition.notify_one();
 }
 
-void Operations::GetNodeContactDetailsCallback(const std::string &result,
+void Operations::GetNodeContactDetailsCallback(const std::string &/*result*/,
                                   boost::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
@@ -266,7 +266,7 @@ void Operations::GetNodeContactDetailsCallback(const std::string &result,
   data->condition.notify_one();
 }
 
-void Operations::StoreCallback(const std::string &result,
+void Operations::StoreCallback(const std::string &/*result*/,
                                boost::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
@@ -277,7 +277,7 @@ void Operations::StoreCallback(const std::string &result,
   data->condition.notify_one();
 }
 
-void Operations::FindValueCallback(const std::string &result,
+void Operations::FindValueCallback(const std::string &/*result*/,
                                    boost::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
@@ -294,14 +294,14 @@ void Operations::FindValueCallback(const std::string &result,
  * with a unique value for each (positive) iteration number.
  */
 kademlia::NodeId Operations::GetModId(int iteration) {
-  int bits = kademlia::kKeySizeBits - 1;
+  boost::uint16_t bits = kademlia::kKeySizeBits - 1;
   kademlia::NodeId id;
   while (iteration > bits) {
     id = id ^ kademlia::NodeId(bits);
     iteration -= (bits + 1);
     --bits;
   }
-  return id ^ kademlia::NodeId(iteration);
+  return id ^ kademlia::NodeId(static_cast<uint16_t>(iteration));
 }
 
 void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {

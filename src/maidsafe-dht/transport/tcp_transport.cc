@@ -27,8 +27,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
 
-#include "google/protobuf/descriptor.h"
-
 #include "maidsafe-dht/transport/tcp_transport.h"
 #include "maidsafe/common/log.h"
 

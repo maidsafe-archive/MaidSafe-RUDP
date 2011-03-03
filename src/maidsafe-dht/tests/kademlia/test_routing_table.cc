@@ -52,7 +52,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
   RoutingTableTest()
     : rank_info_(),
       holder_id_(NodeId::kRandomId),
-      k_(GetParam()),
+      k_(static_cast<boost::uint16_t>(GetParam())),
       routing_table_(holder_id_, k_) {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
@@ -148,7 +148,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
   }
 
   void FillContactToRoutingTable() {
-    for (int i = 0; i < k_; ++i) {
+    for (boost::uint16_t i = 0; i < k_; ++i) {
       Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 6111);
       (i == (k_ -1) ) ? AddContact(contact_) :
           AddContact(contact);
@@ -265,7 +265,7 @@ TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   // Compose contact with random common_leading_bits
-  for (int i = 0; i < k_; ++i) {
+  for (boost::uint16_t i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_,
                                             511 - (RandomUint32() % 511));
     Contact contact = ComposeContact(node_id, 5111 + i);
@@ -276,7 +276,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   Contact contact = ComposeContact(node_id, 5113);
   AddContact(contact);
   boost::uint16_t num_of_contacts(0);
-  for (int i = 0; i < GetKBucketCount(); ++i) {
+  for (boost::uint16_t i = 0; i < GetKBucketCount(); ++i) {
     boost::uint16_t contacts_in_bucket = GetKBucketSizeForKey(i);
     EXPECT_GE(k_, contacts_in_bucket);
     num_of_contacts += contacts_in_bucket;
@@ -288,7 +288,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   // GenerateUniqueRandomId will flip the bit specified by the position
   // so the i=0 one will be the different to the holderId
-  for (int i = 0; i < k_; ++i) {
+  for (boost::uint16_t i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, i);
     Contact contact = ComposeContact(node_id, 5111 + i);
     AddContact(contact);
@@ -320,10 +320,9 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     RankInfoPtr rank_info;
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 507);
     Contact contact = ComposeContact(node_id, 5337);
-
-    boost::int16_t result =
-        routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info, upgrade_lock);
-    EXPECT_EQ(boost::int16_t(-3), result);
+    int result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
+                                                    upgrade_lock);
+    EXPECT_EQ(-3, result);
   }
   Clear();
   for (int i = 0; i < k_; ++i) {
@@ -342,9 +341,9 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 511);
     Contact contact = ComposeContact(node_id, 5678);
     RankInfoPtr rank_info;
-    boost::int16_t force_result =
-        routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info, upgrade_lock);
-    EXPECT_EQ(boost::int16_t(-2), force_result);
+    int force_result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
+                                                          upgrade_lock);
+    EXPECT_EQ(-2, force_result);
   }
   // When new contact not exist in brother_bucket
 
@@ -359,9 +358,9 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 511);
     Contact contact = ComposeContact(node_id, 5678);
     RankInfoPtr rank_info;
-    boost::int16_t force_result =
-        routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info, upgrade_lock);
-    EXPECT_EQ(boost::int16_t(-3), force_result);
+    int force_result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
+                                                          upgrade_lock);
+    EXPECT_EQ(-3, force_result);
   }
   boost::uint16_t retry(0);
   while (retry < 10000) {
@@ -376,13 +375,13 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     NodeId furthest_distance = (*it_end).distance_to_this_id;
     NodeId distance_to_node = routing_table_.kThisId_ ^ node_id;
     if (distance_to_node >= furthest_distance) {
-      boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(
-          contact, 1, rank_info, upgrade_lock);
-      EXPECT_EQ(boost::int16_t(-4), force_result);
+      int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
+                           rank_info, upgrade_lock);
+      EXPECT_EQ(-4, force_result);
     } else {
-      boost::int16_t force_result = routing_table_.ForceKAcceptNewPeer(
-        contact, 1, rank_info, upgrade_lock);
-      EXPECT_EQ(boost::int16_t(0), force_result);
+      int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
+                           rank_info, upgrade_lock);
+      EXPECT_EQ(0, force_result);
     }
     ++retry;
   }
@@ -475,7 +474,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     bool replaced(false);
     bool not_replaced(false);
     // To prevent test hanging
-    boost::uint32_t times_of_try(0);
+    boost::uint16_t times_of_try(0);
     while (((!not_replaced) || (!replaced)) && (times_of_try < 60000)) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
       Contact contact = ComposeContact(contact_id, (5000 + i + times_of_try));
@@ -517,7 +516,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_AddContactPerformance8000RandomFill) {
     AddContact(contact);
 
     boost::uint32_t contacts_in_table(0);
-    for (int i = 0; i < GetKBucketCount(); ++i) {
+    for (boost::uint16_t i = 0; i < GetKBucketCount(); ++i) {
       boost::uint32_t contacts_in_bucket = GetKBucketSizeForKey(i);
       ASSERT_GE(k_, contacts_in_bucket);
       contacts_in_table += contacts_in_bucket;
@@ -791,7 +790,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
       = target_routingtable.get<DistanceToThisIdTag>();
     boost::uint32_t counter(0);
     auto it = key_dist_indx.begin();
-    while ((counter < (k_ + 21)) && (it != key_dist_indx.end())) {
+    while ((counter < (k_ + 21u)) && (it != key_dist_indx.end())) {
       ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                                 close_contacts.end(),
                                                 (*it).contact));

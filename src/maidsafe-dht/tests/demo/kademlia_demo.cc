@@ -53,7 +53,7 @@ static const boost::uint16_t K = 16;
 class JoinCallback {
  public:
   JoinCallback() : result_arrived_(false), success_(false) {}
-  void Callback(const std::string &result) {
+  void Callback(const std::string &/*result*/) {
 //    GeneralResponse msg;
 //    if (!msg.ParseFromString(result))
       success_ = false;
@@ -85,7 +85,7 @@ void option_dependency(const po::variables_map& vm,
           + "' requires option '" + required_option + "'.");
 }
 
-bool kadconfig_empty(const std::string &path) {
+bool kadconfig_empty(const std::string &/*path*/) {
 //  KadConfig kadconfig;
 //  try {
 //    boost::filesystem::ifstream input(path.c_str(),
@@ -104,11 +104,11 @@ bool kadconfig_empty(const std::string &path) {
 }
 
 bool write_to_kadconfig(const std::string &path,
-                        const std::string &node_id,
-                        const std::string &ip,
-                        const boost::uint16_t &port,
-                        const std::string &local_ip,
-                        const boost::uint16_t &local_port) {
+                        const std::string &/*node_id*/,
+                        const std::string &/*ip*/,
+                        const boost::uint16_t &/*port*/,
+                        const std::string &/*local_ip*/,
+                        const boost::uint16_t &/*local_port*/) {
 //  KadConfig kadconfig;
 //  try {
 //    KadConfig::Contact *ctc = kadconfig.add_contact();
