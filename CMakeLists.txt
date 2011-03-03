@@ -686,17 +686,17 @@ MESSAGE("=======================================================================
 MESSAGE("")
 
 SET(MAIDSAFE_KAD_INSTALL_FILES
-      maidsafe-dht/kademlia/node-api.h
-      maidsafe-dht/kademlia/config.h
-      maidsafe-dht/kademlia/contact.h
-      maidsafe-dht/kademlia/node_id.h
-      maidsafe-dht/kademlia/message_handler.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node-api.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/config.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/contact.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node_id.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/message_handler.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
-      maidsafe-dht/maidsafe-dht.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/maidsafe-dht.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
-      maidsafe-dht/transport/transport.h
-      maidsafe-dht/transport/message_handler.h
-      maidsafe-dht/transport/tcp_transport.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/transport.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/message_handler.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_transport.h)
 
 IF(MSVC)
   INSTALL(TARGETS maidsafe_dht_static # maidsafe_dht
