@@ -155,13 +155,14 @@ void Service::FindValue(const transport::Info &info,
     return;
   }
 
-  protobuf::FindNodesRequest find_nodes_req;
-  find_nodes_req.set_key(key);
-  find_nodes_req.mutable_sender()->CopyFrom(request.sender());
-  protobuf::FindNodesResponse find_nodes_rsp;
-  FindNodes(info, find_nodes_req, &find_nodes_rsp);
-  response->mutable_closest_nodes()->MergeFrom(find_nodes_rsp.closest_nodes());
-  response->set_result(find_nodes_rsp.result());
+  std::vector<Contact> closest_contacts, exclude_contacts(1, sender);
+  routing_table_->GetCloseContacts(NodeId(key), k_, exclude_contacts,
+                                   &closest_contacts);
+  for (size_t i = 0; i < closest_contacts.size(); ++i) {
+    (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
+  }
+  response->set_result(true);
+  routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::FindNodes(const transport::Info &info,

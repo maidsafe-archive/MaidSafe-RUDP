@@ -320,8 +320,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     std::string message_sig_empty;
 
     protobuf::StoreResponse store_response;
-    service_->Store(info_, store_request, message_empty,
-                  message_sig_empty, &store_response);
+    service_->Store(info_, store_request, message_empty, message_sig_empty,
+                    &store_response);
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -396,8 +396,8 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
                                                              crypto_key_data);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig = crypto::AsymSign(delete_message,
-                                       crypto_key_data.private_key());
+  std::string delete_message_sig =
+      crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
 
@@ -602,10 +602,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
   {
     // Try to deleterefresh with empty message and mesaage_sig
     // from empty datastore and empty routingtable
-    std::string empty_string;
-    delete_refresh_request.set_serialised_delete_request(empty_string);
-    delete_refresh_request.
-        set_serialised_delete_request_signature(empty_string);
+    std::string empty;
+    delete_refresh_request.set_serialised_delete_request(empty);
+    delete_refresh_request.set_serialised_delete_request_signature(empty);
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
@@ -873,8 +872,11 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // with empty routing table
     // no alternative_store_
     PopulateDataStore(test::k);
-    EXPECT_TRUE(data_store_->StoreValue(target_kvt.key_value_signature, old_ttl,
-        target_kvt.request_and_signature, crypto_key.public_key(), false));
+    EXPECT_TRUE(data_store_->StoreValue(target_kvt.key_value_signature,
+                                        old_ttl,
+                                        target_kvt.request_and_signature,
+                                        crypto_key.public_key(),
+                                        false));
     ASSERT_EQ(test::k + 1, GetDataStoreSize());
 
     find_value_req.set_key(target_key);
@@ -961,7 +963,6 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
       AddContact(contact, rank_info_);
     }
     service_->Downlist(info_, downlist_request);
-    // boost::this_thread::sleep(boost::posix_time::milliseconds(100);
     ASSERT_EQ(test::k, num_of_pings_);
   }
   num_of_pings_ = 0;
@@ -971,7 +972,6 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
     downlist_request.add_node_ids(contact_id.String());
     service_->Downlist(info_, downlist_request);
-    // boost::this_thread::sleep(boost::posix_time::milliseconds(100);
     ASSERT_EQ(test::k, num_of_pings_);
   }
 }
@@ -987,8 +987,6 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
     ping_request.set_ping("doink");
     protobuf::PingResponse ping_response;
     service_->Ping(info_, ping_request, &ping_response);
-  //   while (!ping_response.IsInitialized())
-  //     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_FALSE(ping_response.IsInitialized());
     EXPECT_FALSE(ping_response.has_echo());
     EXPECT_EQ(0U, GetRoutingTableSize());
@@ -999,15 +997,12 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
     ping_request.set_ping("ping");
     protobuf::PingResponse ping_response;
     service_->Ping(info_, ping_request, &ping_response);
-  //   while (!ping_response.IsInitialized())
-  //     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(ping_response.IsInitialized());
     EXPECT_EQ("pong", ping_response.echo());
     EXPECT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
   }
 }
-
 
 }  // namespace test_service
 
