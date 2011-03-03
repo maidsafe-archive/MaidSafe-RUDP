@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
 
 #ifdef __MSVC__
 #pragma warning(push)
@@ -45,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
+#include "maidsafe-dht/kademlia/node_impl_structs.h"
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/contact.h"
@@ -139,29 +142,16 @@ class Node::Impl {
   Impl &operator=(const Impl&);
   void AddContactsToContainer(const std::vector<Contact> contacts,
                               std::shared_ptr<FindNodesArgs> find_nodes_args);
-  bool MarkResponse(const Contact &contact,
-                    std::shared_ptr<FindNodesArgs> find_nodes_args,
-                    SearchMarking mark,
-                    std::vector<Contact> *response_nodes);
-  int NodesPending(std::shared_ptr<FindNodesArgs> find_nodes_args);
-  void MarkAsAlpha(const std::vector<Contact> &contacts,
-                   boost::shared_ptr<FindNodesArgs> fna);
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<FindNodesArgs> find_nodes_args,
                                 int round,
-                                SearchMarking mark,
-                                std::vector<Contact> *nodes,
-                                bool *top_nodes_done,
-                                bool *calledback,
-                                int *nodes_pending);
-  void FindNodes(const FindNodesParams &find_nodes_params);
-  void IterativeSearch(std::shared_ptr<FindNodesArgs> find_nodes_args,
-                       bool top_nodes_done,
-                       bool calledback,
-                       std::vector<Contact> *contacts);
-  void IterativeSearchResponse(
-      bool,
-      const std::vector<Contact>&,
+                                kademlia::NodeSearchState mark,
+                                bool *cur_iteration_done,
+                                bool *calledback);
+  void IterativeSearch(std::shared_ptr<FindNodesArgs> find_nodes_args);
+  void IterativeSearchResponse(RankInfoPtr rank_info,
+      int result,
+      const std::vector<Contact> &contacts,
       std::shared_ptr<FindNodesRpcArgs> find_nodes_rpc_args);
   void PingOldestContact(const Contact &oldest_contact,
                          const Contact &replacement_contact,
