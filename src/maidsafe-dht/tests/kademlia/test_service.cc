@@ -66,12 +66,12 @@ class SecurifierValidateFalse: public Securifier {
                           const std::string &private_key) :
       Securifier(public_key_id, public_key, private_key) {}
 
-  bool Validate(const std::string &value,
-                const std::string &value_signature,
-                const std::string &public_key_id,
-                const std::string &public_key,
-                const std::string &public_key_validation,
-                const std::string &kademlia_key) const {
+  bool Validate(const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&) const {
     return false;
   }
 };
@@ -79,7 +79,7 @@ class SecurifierValidateFalse: public Securifier {
 class AlternativeStoreTrue: public AlternativeStore {
  public:
   virtual ~AlternativeStoreTrue() {}
-  virtual bool Has(const std::string &key) {
+  virtual bool Has(const std::string&) {
     return true;
   }
 };
@@ -87,7 +87,7 @@ class AlternativeStoreTrue: public AlternativeStore {
 class AlternativeStoreFalse: public AlternativeStore {
  public:
   virtual ~AlternativeStoreFalse() {}
-  virtual bool Has(const std::string &key) {
+  virtual bool Has(const std::string&) {
     return false;
   }
 };
