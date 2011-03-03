@@ -35,15 +35,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include "maidsafe-dht/kademlia/service.h"
+#include "maidsafe-dht/kademlia/alternative_store.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 
-#include "maidsafe-dht/common/alternative_store.h"
-#include "maidsafe-dht/common/securifier.h"
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/crypto.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/crypto.h"
 
 namespace maidsafe {
 

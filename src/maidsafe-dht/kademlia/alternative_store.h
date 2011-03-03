@@ -25,65 +25,23 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
+#ifndef MAIDSAFE_DHT_KADEMLIA_ALTERNATIVE_STORE_H_
+#define MAIDSAFE_DHT_KADEMLIA_ALTERNATIVE_STORE_H_
 
-#include "boost/asio/io_service.hpp"
-#include "boost/bind.hpp"
-#include "boost/shared_ptr.hpp"
-#include "boost/thread.hpp"
-
-#include "maidsafe-dht/nat-pmp/natpmp_client.h"
-#include "maidsafe/common/log.h"
+#include <string>
 
 namespace maidsafe {
 
-namespace natpmp {
+namespace kademlia {
 
-namespace test {
-
-class NATPMPTest : public testing::Test {
+class AlternativeStore {
  public:
-  NATPMPTest() {}
+  virtual ~AlternativeStore() {}
+  virtual bool Has(const std::string &key) = 0;
 };
 
-TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
-  boost::asio::io_service ios;
-
-  NatPmpClient client(&ios);
-
-  boost::uint16_t tcp_port = 33333;
-  boost::uint16_t udp_port = 33333;
-
-  DLOG(INFO) << "Starting NAT-PMP..." << std::endl;
-
-  DLOG(INFO) << "Requesting external ip address from gateway." << std::endl;
-
-  client.Start();
-
-  DLOG(INFO) << "Queueing mapping request for tcp port " << tcp_port << " to "
-             << tcp_port << std::endl;
-
-  client.MapPort(Protocol::kTcp, 33333, 33333, 3600);
-
-  DLOG(INFO) << "Queueing mapping request for udp port " << udp_port << " to "
-             << udp_port << std::endl;
-
-  client.MapPort(Protocol::kUdp, 33333, 33333, 3600);
-
-  boost::shared_ptr<boost::thread> thread(new boost::thread(
-      boost::bind(&boost::asio::io_service::run, &ios)));
-
-  DLOG(INFO) << "Sleeping for 64 seconds..." << std::endl;
-
-  boost::this_thread::sleep(boost::posix_time::seconds(64));
-
-  DLOG(INFO) << "Stopping NAT-PMP..." << std::endl;
-
-  client.Stop();
-}
-
-}  // namespace test
-
-}  // namespace natpmp
+}  // namespace kademlia
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_KADEMLIA_ALTERNATIVE_STORE_H_

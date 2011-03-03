@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/datastore.h"
 #include <algorithm>
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 
 namespace bptime = boost::posix_time;
 

@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread/thread.hpp"
 #include "boost/lexical_cast.hpp"
 
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/node-api.h"

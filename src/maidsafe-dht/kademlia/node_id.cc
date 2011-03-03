@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/node_id.h"
 #include <bitset>
-#include "maidsafe-dht/common/log.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 

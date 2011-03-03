@@ -38,9 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "gtest/gtest.h"
-#include "maidsafe-dht/common/platform_config.h"
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/utils.h"
+#include "maidsafe/common/platform_config.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 

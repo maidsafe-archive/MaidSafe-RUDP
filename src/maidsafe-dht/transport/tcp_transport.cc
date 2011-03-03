@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "google/protobuf/descriptor.h"
 
 #include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
