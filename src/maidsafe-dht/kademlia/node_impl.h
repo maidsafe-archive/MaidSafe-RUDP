@@ -62,9 +62,12 @@ class RoutingTable;
 class Rpcs;
 struct LookupContact;
 struct ContactAndTargetKey;
-struct FindNodesParams;
 struct FindNodesArgs;
 struct FindNodesRpcArgs;
+
+namespace test {
+class NodeImplTest;
+}  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
@@ -137,9 +140,12 @@ class Node::Impl {
   boost::uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
 
- private:
+  friend class test::NodeImplTest;
+  
   Impl(const Impl&);
   Impl &operator=(const Impl&);
+ private:
+
   void AddContactsToContainer(const std::vector<Contact> contacts,
                               std::shared_ptr<FindNodesArgs> find_nodes_args);
   bool HandleIterationStructure(const Contact &contact,

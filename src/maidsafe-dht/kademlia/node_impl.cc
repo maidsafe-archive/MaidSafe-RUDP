@@ -362,22 +362,34 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
 
   // If current iteration done, then go to check if the search shall be stopped
   // The rule to stop the search is:
+  //    there shall be no kSelectedAlpha (pending) contacts in the nc container
+  //    and then
   //      a, no kNew contacts in the nc container
-  // or   b, got k result and the last entry (the furthest one) has not been
+  // Or   b, got k result and the last entry (the furthest one) has not been
   //         been changed during the iteration
-  if (cur_iteration_done) {
-    auto pit = fna->nc.get<nc_state>().equal_range(kNew);
-    if (std::distance(pit.first, pit.second) == 0) {
-      *calledback = true;
-    } else {
-      NodeContainerByDistance dist_node_indx = fna->result.get<nc_distance>();
-      if (dist_node_indx.size() > 0) {
-        auto it_end = dist_node_indx.end();
-        --it_end;
-        if ((dist_node_indx.size() == k_) &&
-            ((*it_end).contact == fna->last_contact))
-          *calledback = true;
+  if (*cur_iteration_done) {
+    auto pit_pending = fna->nc.get<nc_state>().equal_range(kSelectedAlpha);
+    int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+    NodeContainerByDistance dist_node_indx = fna->result.get<nc_distance>();
+    if (num_of_pending == 0) {
+      auto pit_new = fna->nc.get<nc_state>().equal_range(kNew);
+      if (std::distance(pit_new.first, pit_new.second) == 0) {
+        *calledback = true;
+      } else {        
+        if (dist_node_indx.size() > 0) {
+          auto it_end = dist_node_indx.end();
+          --it_end;
+          if ((dist_node_indx.size() == k_) &&
+              ((*it_end).contact == fna->last_contact))
+            *calledback = true;
+        }
       }
+    } else {
+      // To prevent the situation that may keep requesting contacts if there
+      // is any pending contacts, the request will be halted once got k-closest
+      // contacted in the result (i.e. wait till all pending contacts cleared)
+      if (dist_node_indx.size() == k_)
+        *cur_iteration_done = false;
     }
   }
 
@@ -393,6 +405,9 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
     }
     fna->calledback = true;
     fna->callback(contacts.size(), contacts);
+    // the nc and result resource in fna shall be released here
+    fna->nc.clear();
+    fna->result.clear();
   }
 
   result = true;
@@ -456,12 +471,16 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
     key_node_indx.modify(it_tuple, ChangeRound(fna->round+1));
   }
   ++fna->round;
+  // The previous design assign fna->round to fnrpc's constructor,
+  // that requires a mutex lock in fnrpc's constructor,
+  // which will cause deadlock in this method
+  int round = fna->round;
   // Better to change the value in a bunch and then issue RPCs in a bunch
   // to avoid any possibilities of cross-interference
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
     std::shared_ptr<FindNodesRpcArgs> fnrpc(
-        new FindNodesRpcArgs((*it_tuple).contact, fna));
+        new FindNodesRpcArgs((*it_tuple).contact, fna, round));
 //     FindNodesFunctor cb = boost::bind(&Node::Impl::IterativeSearchResponse,
 //                                       this, _1, _2, _3, fnrpc);
     rpcs_->FindNodes(fna->key, default_securifier_, (*it_tuple).contact,
@@ -480,7 +499,7 @@ void Node::Impl::IterativeSearchResponse(RankInfoPtr rank_info, int result,
   }
   
   NodeSearchState mark(kContacted);
-  if (!result)
+  if (result < 0)
     mark = kDown;
 
   AddContactsToContainer(contacts, fnrpc->rpc_fna);
