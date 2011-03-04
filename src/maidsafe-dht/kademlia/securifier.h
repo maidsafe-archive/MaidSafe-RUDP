@@ -186,4 +186,4 @@ class Securifier {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_COMMON_SECURIFIER_H_
+#endif  // MAIDSAFE_DHT_KADEMLIA_SECURIFIER_H_
