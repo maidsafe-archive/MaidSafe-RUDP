@@ -468,20 +468,20 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManyMultiMessage) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
-  for (int i = 0; i < 15; ++i)
+  for (int i = 0; i < 5; ++i)
     this->SetupTransport(false, 0);
-  for (int i = 0; i < 20; ++i)
+  for (int i = 0; i < 10; ++i)
     this->SetupTransport(true, 0);
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2033));
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(10));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
   boost::uint8_t num_sender_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 10 + 5));
+      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
   boost::uint8_t num_listener_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 10 + 5));
+      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
   boost::uint8_t num_messages(
-      static_cast<boost::uint8_t>(RandomUint32() % 100 + 1));
+      static_cast<boost::uint8_t>(RandomUint32() % 10 + 1));
   for (boost::uint8_t i = 0; i < num_sender_transports; ++i)
     this->SetupTransport(false, 0);
   for (boost::uint8_t i = 0; i < num_listener_transports; ++i)
