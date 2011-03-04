@@ -30,6 +30,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
+#include "boost/thread/thread.hpp"
+#include "boost/thread/barrier.hpp"
+#include "boost/asio/io_service.hpp"
 
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
@@ -46,14 +49,15 @@ namespace kademlia {
 namespace test {
 
 static const boost::uint16_t k = 16;
-
+static const boost::uint16_t kThreadBarrierSize = 2;
 class RoutingTableTest : public testing::TestWithParam<int> {
  public:
   RoutingTableTest()
     : rank_info_(),
       holder_id_(NodeId::kRandomId),
       k_(static_cast<boost::uint16_t>(GetParam())),
-      routing_table_(holder_id_, k_) {
+      routing_table_(holder_id_, k_),
+      thread_barrier_(new boost::barrier(kThreadBarrierSize)) {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
 
@@ -85,6 +89,60 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     if (times_of_try == 1000)
       EXPECT_LT(1000, times_of_try);
     return new_node;
+  }
+  // Methods for multithreaded test
+  void doAddContact(Contact contact) {
+    thread_barrier_->wait();
+    routing_table_.AddContact(contact, rank_info_);
+    routing_table_.SetValidated(contact.node_id(), true);
+  }
+
+  void doGetContact(NodeId node_id) {
+    Contact contact;
+    thread_barrier_->wait();
+    routing_table_.GetContact(node_id, &contact);
+    EXPECT_EQ(node_id, contact.node_id());
+  }
+
+  void doGetCloseContacts(const size_t &count) {
+    NodeId target_id(GenerateUniqueRandomId(holder_id_, 500));
+    std::vector<Contact> close_contacts;
+    std::vector<Contact> exclude_contacts;
+    thread_barrier_->wait();
+    routing_table_.GetCloseContacts(target_id, count, exclude_contacts,
+                                    &close_contacts);
+    EXPECT_EQ(size_t(count), close_contacts.size());
+  }
+
+  void doGetContactsClosestToOwnId(const boost::uint32_t &count) {
+    std::vector<Contact> close_contacts;
+    std::vector<Contact> exclude_contacts;
+    thread_barrier_->wait();
+    routing_table_.GetContactsClosestToOwnId(count, exclude_contacts,
+                                             &close_contacts);
+    EXPECT_EQ(size_t(count), close_contacts.size());
+  }
+
+  void doSetPublicKey(NodeId node_id, std::string key) {
+    thread_barrier_->wait();
+    EXPECT_EQ(0, routing_table_.SetPublicKey(node_id, key));
+  }
+
+  void doUpdateRankInfo(NodeId node_id, RankInfoPtr rank_info) {
+    thread_barrier_->wait();
+    EXPECT_EQ(0, routing_table_.UpdateRankInfo(node_id, rank_info));
+  }
+
+  void doSetPreferredEndpoint(const NodeId node_id, IP ip) {
+    thread_barrier_->wait();
+    EXPECT_EQ(0, routing_table_.SetPreferredEndpoint(node_id, ip));
+  }
+
+  void doAddRemoveContact(Contact contact) {
+    routing_table_.AddContact(contact, rank_info_);
+    thread_barrier_->wait();
+    for (int i = 0; i <= kFailedRpcTolerance ; ++i)
+      routing_table_.IncrementFailedRpcCount(contact.node_id());
   }
 
  protected:
@@ -166,6 +224,7 @@ class RoutingTableTest : public testing::TestWithParam<int> {
   boost::uint16_t k_;
   RoutingTable routing_table_;
   Contact contact_;
+  std::shared_ptr<boost::barrier> thread_barrier_;
 };
 
 class RoutingTableSingleKTest : public RoutingTableTest {
@@ -924,6 +983,119 @@ TEST_P(RoutingTableTest, BEH_KAD_GetBootstrapContacts) {
   }
 }
 
+TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
+  const size_t kNumberOfThreads(10);
+  const boost::uint16_t kIterartorSize(10);
+  boost::shared_ptr<boost::asio::io_service> asio_service(
+      new boost::asio::io_service);
+  boost::thread_group asio_thread_group;
+  std::vector<NodeId> node_ids_stored, node_ids_to_be_stored;
+  std::vector<NodeId> node_ids_stored_then_deleted;
+  std::vector<boost::tuple<std::string, RankInfoPtr, IP>> stored_attrs;
+  std::set <NodeId> unique_node_ids;
+  bool unique(false);
+  for (boost::uint16_t i = 0; i < kIterartorSize; ++i) {
+    // Node ids stored
+    {
+      NodeId node_id;
+      do {
+        auto it = unique_node_ids.insert(GenerateUniqueRandomId(holder_id_,
+                                         510 - i));
+        unique = it.second;
+        if (unique)
+          node_id = *(it.first);
+      } while (!unique);
+      Contact contact = ComposeContact(node_id, 5001+i);
+      AddContact(contact);
+      node_ids_stored.push_back(node_id);
+    }
+    // Node ids to be stored
+    {
+      NodeId node_id;
+      do {
+        auto it = unique_node_ids.insert(GenerateUniqueRandomId(holder_id_,
+                                         510 - i));
+        unique = it.second;
+        if (unique)
+          node_id = (*it.first);
+      } while (!unique);
+      Contact contact = ComposeContact(node_id, 5001+(i + kIterartorSize));
+      node_ids_to_be_stored.push_back(node_id);
+    }
+    // Node ids stored then deleted
+    {
+      NodeId node_id;
+      do {
+        auto it = unique_node_ids.insert(GenerateUniqueRandomId(holder_id_,
+                                         510 - (i + kIterartorSize) ));
+        unique = it.second;
+        if (unique)
+          node_id = (*it.first);
+      } while (!unique);
+      Contact contact = ComposeContact(node_id, 5001+(i + 2 * kIterartorSize));
+      node_ids_stored_then_deleted.push_back(node_id);
+    }
+    // Constructing attributes vector
+    std::string public_key(RandomString(113));
+    RankInfoPtr new_rank_info(new(transport::Info));
+    new_rank_info->rtt = 13313 + i;
+    IP ip = IP::from_string("127.0.0.1");
+    stored_attrs.push_back(boost::make_tuple(public_key, new_rank_info, ip));
+  }
+  EXPECT_EQ(node_ids_stored.size(), GetSize());
+  // Posting all the jobs
+  for (boost::uint16_t i = 0; i < kIterartorSize; ++i) {
+    Contact contact = ComposeContact(node_ids_to_be_stored[i], 6001+i);
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doAddContact, this,
+                                   contact));
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doGetContact, this,
+                                   node_ids_stored[i]));
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doGetCloseContacts,
+                                   this, 10));
+    asio_service->
+        post(boost::bind(&RoutingTableSingleKTest::doGetContactsClosestToOwnId,
+                         this, 10));
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doSetPublicKey,
+                                   this, node_ids_stored[i],
+                                   stored_attrs[i].get<0>()));
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doUpdateRankInfo,
+                                   this, node_ids_stored[i],
+                                   stored_attrs[i].get<1>()));
+    asio_service->
+        post(boost::bind(&RoutingTableSingleKTest::doSetPreferredEndpoint,
+                         this, node_ids_stored[i], stored_attrs[i].get<2>()));
+    // Add and then remove contacts using IncrementFailedRpcCount()
+    Contact contact_1 = ComposeContact(node_ids_stored_then_deleted[i], 7001+i);
+    asio_service->post(boost::bind(&RoutingTableSingleKTest::doAddRemoveContact,
+                                   this, contact_1));
+  }
+  // Running the threads
+  for (size_t i = 0; i < kNumberOfThreads; ++i) {
+    asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
+                                                asio_service));
+  }
+  asio_thread_group.join_all();
+  node_ids_stored.insert(node_ids_stored.end(), node_ids_to_be_stored.begin(),
+                         node_ids_to_be_stored.end());
+  // Varifying results
+  ASSERT_EQ(node_ids_stored.size(), GetSize());
+  for (boost::uint16_t i = 0; i < node_ids_stored.size(); ++i) {
+    Contact result;
+    routing_table_.GetContact(node_ids_stored[i], &result);
+    EXPECT_EQ(node_ids_stored[i], result.node_id());
+  }
+  // Checking changed attributes
+  for (int i = 0; i < kIterartorSize; ++i) {
+    EXPECT_EQ(stored_attrs[i].get<0>(),
+      (*(GetContainer().get<NodeIdTag>().find(node_ids_stored[i]))).public_key);
+    EXPECT_EQ(stored_attrs[i].get<1>()->rtt,
+      (*(GetContainer().get<NodeIdTag>().find(node_ids_stored[i]))).
+          rank_info->rtt);
+    EXPECT_EQ(stored_attrs[i].get<2>(),
+      (*(GetContainer().get<NodeIdTag>().find(node_ids_stored[i]))).
+          contact.PreferredEndpoint().ip);
+  }
+}
 }  // namespace test
 
 }  // namespace kademlia
