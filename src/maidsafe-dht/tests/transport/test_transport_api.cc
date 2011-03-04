@@ -257,22 +257,12 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
   thread_group_2_.join_all();
   thread_group_3_.join_all();
   CheckMessages();
-  if (listening_message_handlers_.size() == 1) {
-    std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
-        sending_message_handlers_.begin());
-    while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
+  std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
+      sending_message_handlers_.begin());
+  while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
     ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
-                num_messages);
+      listening_message_handlers_.size() * num_messages);
     ++sending_msg_handlers_itr;
-    }
-  } else {
-    std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
-        sending_message_handlers_.begin());
-    while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
-      ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
-        listening_message_handlers_.size());
-      ++sending_msg_handlers_itr;
-    }
   }
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   for (auto itr = listening_transports_.begin();
