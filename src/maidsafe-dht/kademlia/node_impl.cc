@@ -320,7 +320,6 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
 
 bool Node::Impl::HandleIterationStructure(const Contact &contact,
                                         std::shared_ptr<FindNodesArgs> fna,
-                                        int round,
                                         NodeSearchState mark,
                                         bool *cur_iteration_done,
                                         bool *calledback) {
@@ -434,18 +433,12 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
     key_node_indx.modify(it_tuple, ChangeRound(fna->round+1));
   }
   ++fna->round;
-  // The previous design assign fna->round to fnrpc's constructor,
-  // that requires a mutex lock in fnrpc's constructor,
-  // which will cause deadlock in this method
-  int round = fna->round;
   // Better to change the value in a bunch and then issue RPCs in a bunch
   // to avoid any possibilities of cross-interference
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
     std::shared_ptr<FindNodesRpcArgs> fnrpc(
-        new FindNodesRpcArgs((*it_tuple).contact, fna, round));
-//     FindNodesFunctor cb = boost::bind(&Node::Impl::IterativeSearchResponse,
-//                                       this, _1, _2, _3, fnrpc);
+        new FindNodesRpcArgs((*it_tuple).contact, fna));
     rpcs_->FindNodes(fna->key, default_securifier_, (*it_tuple).contact,
                      boost::bind(&Node::Impl::IterativeSearchResponse,
                                       this, _1, _2, _3, fnrpc), kTcp);
@@ -468,7 +461,7 @@ void Node::Impl::IterativeSearchResponse(RankInfoPtr rank_info, int result,
   AddContactsToContainer(contacts, fnrpc->rpc_fna);
 
   bool curr_iteration_done(false), calledback(false);
-  if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna, fnrpc->round,
+  if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna,
                                 mark, &curr_iteration_done, &calledback)) {
     printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
   }

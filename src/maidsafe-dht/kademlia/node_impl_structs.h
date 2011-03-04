@@ -160,32 +160,24 @@ struct FindNodesArgs {
   FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
       : key(fna_key),
         nc(),
-        result(),
         mutex(),
-        last_contact(),
         callback(fna_callback),
         calledback(false),
         round(0) {}
   NodeId key;
   NodeContainer nc;
-  NodeContainer result;
   boost::mutex mutex;
-  Contact last_contact;
   FindNodesFunctor callback;
   bool calledback;
   int round;
 };
 
 struct FindNodesRpcArgs {
-  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna,
-                   int round)
-      : contact(c),
-        rpc_fna(fna),
-        round(round) {}
+  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna)
+      : contact(c), rpc_fna(fna) {}
         
   Contact contact;
   std::shared_ptr<FindNodesArgs> rpc_fna;
-  int round;
 };
 
 /*
