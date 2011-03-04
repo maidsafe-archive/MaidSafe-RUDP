@@ -114,14 +114,13 @@ Results TestMessageHandler::results() {
 template <typename T>
 TransportAPITest<T>::TransportAPITest()
     : asio_service_(new boost::asio::io_service),
-      work_(new boost::asio::io_service::work(*asio_service_)),
       asio_service_1_(new boost::asio::io_service),
-      work_1_(new boost::asio::io_service::work(*asio_service_1_)),
       asio_service_2_(new boost::asio::io_service),
-      work_2_(new boost::asio::io_service::work(*asio_service_2_)),
       asio_service_3_(new boost::asio::io_service),
+      work_(new boost::asio::io_service::work(*asio_service_)),
+      work_1_(new boost::asio::io_service::work(*asio_service_1_)),
+      work_2_(new boost::asio::io_service::work(*asio_service_2_)),
       work_3_(new boost::asio::io_service::work(*asio_service_3_)),
-      count_(0),
       listening_transports_(),
       listening_message_handlers_(),
       sending_transports_(),
@@ -129,7 +128,9 @@ TransportAPITest<T>::TransportAPITest()
       thread_group_(),
       thread_group_1_(),
       thread_group_2_(),
-      thread_group_3_() {
+      thread_group_3_(),
+      request_messages_(),
+      count_(0) {
   for (int i = 0; i < kThreadGroupSize; ++i)
     thread_group_.create_thread(std::bind(static_cast<
         std::size_t(boost::asio::io_service::*)()>
