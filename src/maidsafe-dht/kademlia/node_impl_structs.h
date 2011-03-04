@@ -177,13 +177,12 @@ struct FindNodesArgs {
 };
 
 struct FindNodesRpcArgs {
-  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna)
+  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna,
+                   int round)
       : contact(c),
         rpc_fna(fna),
-        round(0) {
-    boost::mutex::scoped_lock loch_lavittese(fna->mutex);
-    round = fna->round;
-  }
+        round(round) {}
+        
   Contact contact;
   std::shared_ptr<FindNodesArgs> rpc_fna;
   int round;
