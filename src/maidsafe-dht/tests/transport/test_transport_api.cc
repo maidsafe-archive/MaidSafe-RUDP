@@ -129,6 +129,7 @@ TransportAPITest<T>::TransportAPITest()
       thread_group_1_(),
       thread_group_2_(),
       thread_group_3_(),
+      mutex_(),
       request_messages_(),
       count_(0) {
   for (int i = 0; i < kThreadGroupSize; ++i)
@@ -288,7 +289,12 @@ void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
   std::string request(RandomString(11));
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
                   bptime::seconds(1));
-  (request_messages_).push_back(request);
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    (request_messages_).push_back(request);
+  }
+
   // std::string response = base::RandomString(10); need to change
   std::string response("Response");
   listener_pt->Send(response, Endpoint(kIP, sender_pt->listening_port()),
