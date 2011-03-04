@@ -205,7 +205,7 @@ void RoutingTable::GetCloseContacts(
 }
 
 void RoutingTable::GetContactsClosestToOwnId(
-    const boost::uint32_t &count,
+    const size_t &count,
     const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
   if (!close_contacts)
