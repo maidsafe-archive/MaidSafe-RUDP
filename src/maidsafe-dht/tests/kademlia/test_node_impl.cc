@@ -236,16 +236,15 @@ class MockRpcs : public Rpcs {
         node_list_mutex_(),
         node_list_(),
         backup_node_list_(),
-        rank_info_() {}
+        rank_info_(),
+        num_of_acquired_(0) {}
   MOCK_METHOD5(FindNodes, void(const NodeId &key,
                                const SecurifierPtr securifier,
                                const Contact &contact,
                                FindNodesFunctor callback,
                                TransportType type));
-  void FindNodeDummy(const Contact &c,
+  void FindNodeResponseClose(const Contact &c,
                      FindNodesFunctor callback) {
-    // printf("void FindNodeDummy(%s)\n",
-    //        c.node_id().ToStringEncoded(NodeId::kBase64).c_str());
     std::vector<Contact> response_list;
     {
       boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
@@ -259,15 +258,53 @@ class MockRpcs : public Rpcs {
         }
       }
     }
-    boost::thread th(boost::bind(&MockRpcs::FunctionForThread, this, callback,
+    boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
                                  response_list));
   }
-  void FunctionForThread(FindNodesFunctor callback,
+  
+  void FindNodeResponseNoClose(const Contact &c,
+                     FindNodesFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_list;
+    boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
+                                 response_list));
+  }
+
+  void FindNodeFirstNoResponse(const Contact &c,
+                     FindNodesFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);    
+    std::vector<Contact> response_list;
+    if (num_of_acquired_ == 0) {
+      boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
+                                   response_list));
+    } else {
+      boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
+                                   response_list));
+    }
+    ++num_of_acquired_;
+  }  
+
+  void FindNodeNoResponse(const Contact &c,
+                     FindNodesFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);    
+    std::vector<Contact> response_list;
+    boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
+                                 response_list));
+  }
+  
+  void ResponseThread(FindNodesFunctor callback,
                          std::vector<Contact> response_list) {
-    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, response_list.size(), response_list);
   }
+
+  void NoResponseThread(FindNodesFunctor callback,
+                         std::vector<Contact> response_list) {
+    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    callback(rank_info_, -1, response_list);
+  }  
 //   bool AllAlphasBack(boost::shared_ptr<FindNodesArgs> fna) {
 //     boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
 //     NodeContainerByState &index_state = fna->nc.get<nc_state>();
@@ -293,6 +330,8 @@ class MockRpcs : public Rpcs {
   }
   std::list<Contact> backup_node_list() { return backup_node_list_; }
 
+  boost::uint16_t num_of_acquired_;
+
  private:
   boost::mutex node_list_mutex_;
   std::list<Contact> node_list_, backup_node_list_;
@@ -300,26 +339,67 @@ class MockRpcs : public Rpcs {
 };
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
-  bool done(false);
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
   SetRpc(new_rpcs);
 
-  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
-                                   testing::_, testing::_))
-      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-          boost::bind(&MockRpcs::FindNodeDummy, new_rpcs.get(), _1, _2))));
-
   NodeId key = NodeId(NodeId::kRandomId);
-  std::vector<Contact> lcontacts;
-  node_->FindNodes(key,
-                   boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts));
-  while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(test::k, lcontacts.size());
 
+  new_rpcs->num_of_acquired_ = 0;
+  {
+    // The first of the k populated contacts giving no response
+    // all the others give response with an empty closest list
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeFirstNoResponse,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    node_->FindNodes(key,
+                     boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done,
+                                 &lcontacts));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(test::k - 1, lcontacts.size());
+  }
+
+  {
+    // All k populated contacts response with an empty closest list
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeResponseNoClose,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    node_->FindNodes(key,
+                     boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done,
+                                 &lcontacts));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(test::k, lcontacts.size());
+  }
+  {
+    // All k populated contacts giving no response
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    node_->FindNodes(key,
+                     boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done,
+                                 &lcontacts));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(0, lcontacts.size());
+  }
+
+  
 //   lcontacts.clear();
 //   done = false;
 //   FindNodesParams fnp2;

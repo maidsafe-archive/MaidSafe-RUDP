@@ -351,46 +351,46 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   // To tell if the current iteration is done or not, only need to test:
   //    if number of pending(waiting for response) contacts
   //    is not greater than (kAlpha_ - kBeta_)
-  // before that make sure we are working in the latest round
-  if (round == fna->round) {
-    auto pit = fna->nc.get<nc_state_round>().equal_range(
-        boost::make_tuple(kSelectedAlpha, fna->round));
-    int num_of_pending = std::distance(pit.first, pit.second);
-    if (num_of_pending <= (kAlpha_ - kBeta_))
-        *cur_iteration_done = true;
-  }
+  // always check with the latest round, no need to worry about the previous
+  auto pit = fna->nc.get<nc_state_round>().equal_range(
+      boost::make_tuple(kSelectedAlpha, fna->round));
+  int num_of_round_pending = std::distance(pit.first, pit.second);
+  if (num_of_round_pending <= (kAlpha_ - kBeta_))
+      *cur_iteration_done = true;
 
-  // If current iteration done, then go to check if the search shall be stopped
-  // The rule to stop the search is:
-  //    there shall be no kSelectedAlpha (pending) contacts in the nc container
-  //    and then
-  //      a, no kNew contacts in the nc container
-  // Or   b, got k result and the last entry (the furthest one) has not been
-  //         been changed during the iteration
-  if (*cur_iteration_done) {
-    auto pit_pending = fna->nc.get<nc_state>().equal_range(kSelectedAlpha);
-    int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
-    NodeContainerByDistance dist_node_indx = fna->result.get<nc_distance>();
-    if (num_of_pending == 0) {
-      auto pit_new = fna->nc.get<nc_state>().equal_range(kNew);
-      if (std::distance(pit_new.first, pit_new.second) == 0) {
-        *calledback = true;
-      } else {        
-        if (dist_node_indx.size() > 0) {
-          auto it_end = dist_node_indx.end();
-          --it_end;
-          if ((dist_node_indx.size() == k_) &&
-              ((*it_end).contact == fna->last_contact))
-            *calledback = true;
-        }
-      }
-    } else {
-      // To prevent the situation that may keep requesting contacts if there
-      // is any pending contacts, the request will be halted once got k-closest
-      // contacted in the result (i.e. wait till all pending contacts cleared)
-      if (dist_node_indx.size() == k_)
-        *cur_iteration_done = false;
+  auto pit_pending = fna->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+  auto pit_new = fna->nc.get<nc_state>().equal_range(kNew);
+  int num_of_new = std::distance(pit_new.first, pit_new.second);
+  NodeContainerByDistance result_indx = fna->result.get<nc_distance>();
+  int result_size = result_indx.size();
+  {
+    // no kSelectedAlpha (pending) contacts and no kNew contacts in the nc
+    // container, then shall stop the search (i.e. call back)
+    if ((num_of_pending == 0) && (num_of_new == 0)) {
+      *calledback = true;
     }
+  }
+  {
+    //     no kSelectedAlpha (pending) contacts in the nc container
+    // AND current iteration finished
+    // AND got k result
+    // AND the last entry (the furthest one)  in the result has not been
+    //      changed during the iteration
+    // Then shall stop the search (i.e. call back)
+    if ((num_of_pending == 0) && (*cur_iteration_done) && (result_size == k_)) {
+      auto it_end = result_indx.end();
+      --it_end;
+      if ((*it_end).contact == fna->last_contact)
+        *calledback = true;
+    }
+  }
+  {
+    // To prevent the situation that may keep requesting contacts if there
+    // is any pending contacts, the request will be halted once got k-closest
+    // contacted in the result (i.e. wait till all pending contacts cleared)
+    if ((result_size == k_) && (num_of_pending != 0))
+      *cur_iteration_done = false;
   }
 
   // If the search can be stopped, then we callback (report the result list)
