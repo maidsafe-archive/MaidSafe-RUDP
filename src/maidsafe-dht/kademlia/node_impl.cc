@@ -331,21 +331,21 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
-  
-  // Try to insert it into the result if it's live and among the k-closest
-  if (mark == kContacted) {
-    NodeContainerByDistance distance_node_indx = fna->result.get<nc_distance>();
-    NodeContainerTuple nct(contact, fna->key);
-    if (distance_node_indx.size() < k_) {
-      distance_node_indx.insert(nct);
-    } else {
-      auto it_end = distance_node_indx.end();
-      -- it_end;
-      if (nct.distance_to_target < (*it_end).distance_to_target) {
-        distance_node_indx.erase(it_end);
-        distance_node_indx.insert(nct);
-      }
-    }
+
+  NodeContainerByDistance distance_node_indx = fna->nc.get<nc_distance>();
+  auto it = distance_node_indx.begin();
+  auto it_end = distance_node_indx.end();
+  int num_pending_contacts(0);
+  int num_new_contacts(0);
+  std::vector<Contact> top_k_contacts;
+  while ((it != it_end) && (top_k_contacts.size() < k_)) {
+    if ((*it).state == kSelectedAlpha)
+      ++num_pending_contacts;
+    if ((*it).state == kNew)
+      ++num_new_contacts;
+    if ((*it).state != kDown)
+      top_k_contacts.push_back((*it).contact);
+    ++it;
   }
 
   // To tell if the current iteration is done or not, only need to test:
@@ -359,57 +359,31 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
       *cur_iteration_done = true;
 
   auto pit_pending = fna->nc.get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
-  auto pit_new = fna->nc.get<nc_state>().equal_range(kNew);
-  int num_of_new = std::distance(pit_new.first, pit_new.second);
-  NodeContainerByDistance result_indx = fna->result.get<nc_distance>();
-  int result_size = result_indx.size();
+  int num_of_total_pending = std::distance(pit_pending.first,
+                                           pit_pending.second);
   {
-    // no kSelectedAlpha (pending) contacts and no kNew contacts in the nc
-    // container, then shall stop the search (i.e. call back)
-    if ((num_of_pending == 0) && (num_of_new == 0)) {
+    //     no kSelectedAlpha (pending) contacts among the top
+    // And no kNew contacts among the top
+    // And no kSelectedAlpha (pending) contacts in total
+    if ((num_pending_contacts == 0) && (num_new_contacts == 0) &&
+        (num_of_total_pending == 0))
       *calledback = true;
-    }
-  }
-  {
-    //     no kSelectedAlpha (pending) contacts in the nc container
-    // AND current iteration finished
-    // AND got k result
-    // AND the last entry (the furthest one)  in the result has not been
-    //      changed during the iteration
-    // Then shall stop the search (i.e. call back)
-    if ((num_of_pending == 0) && (*cur_iteration_done) && (result_size == k_)) {
-      auto it_end = result_indx.end();
-      --it_end;
-      if ((*it_end).contact == fna->last_contact)
-        *calledback = true;
-    }
   }
   {
     // To prevent the situation that may keep requesting contacts if there
     // is any pending contacts, the request will be halted once got k-closest
     // contacted in the result (i.e. wait till all pending contacts cleared)
-    if ((result_size == k_) && (num_of_pending != 0))
+    if ((top_k_contacts.size() == k_) && (num_of_total_pending != 0))
       *cur_iteration_done = false;
   }
 
   // If the search can be stopped, then we callback (report the result list)
   if (*calledback) {
-    std::vector<Contact> contacts;
-    NodeContainerByDistance dist_node_indx = fna->result.get<nc_distance>();
-    auto it = dist_node_indx.begin();
-    auto it_end = dist_node_indx.end();
-    while (it != it_end) {
-      contacts.push_back((*it).contact);
-      ++it;
-    }
     fna->calledback = true;
-    fna->callback(contacts.size(), contacts);
-    // the nc and result resource in fna shall be released here
+    fna->callback(top_k_contacts.size(), top_k_contacts);
+    // part of memory resource in fna can be released here
     fna->nc.clear();
-    fna->result.clear();
   }
-
   result = true;
   return result;
 }
@@ -437,8 +411,8 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
     return;
   }
 
-  // find Alpha closest contacts to request
-  // all all the left contacts if less than Alpha contacts haven't been tried
+  // find Alpha closest contacts to enquire
+  // or all the left contacts if less than Alpha contacts haven't been tried
   boost::uint16_t counter = 0;
   auto it_begin = pit.first;
   auto it_end = pit.second;
@@ -453,17 +427,6 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
   }
 
   NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
-
-  // Record the furthest contact in the result before the iteration
-  // If the furthest contact in the result remains the same, it indicates the
-  // search can be stopped
-  NodeContainerByDistance dist_node_indx = fna->result.get<nc_distance>();
-  if (dist_node_indx.size() > 0) {
-    auto it_end = dist_node_indx.end();
-    --it_end;
-    fna->last_contact = (*it_end).contact;
-  }
-  
   // Update contacts' state
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
