@@ -150,7 +150,6 @@ class Node::Impl {
                               std::shared_ptr<FindNodesArgs> find_nodes_args);
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<FindNodesArgs> find_nodes_args,
-                                int round,
                                 kademlia::NodeSearchState mark,
                                 bool *cur_iteration_done,
                                 bool *calledback);
