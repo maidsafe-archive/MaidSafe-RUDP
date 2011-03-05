@@ -118,8 +118,7 @@ TEST(NodeIdTest, BEH_KAD_KadIdTypeCtr) {
   NodeId max_id(NodeId::kMaxId);
   ASSERT_EQ(kKeySizeBytes, max_id.String().size());
   for (int i = 0; i < kKeySizeBytes; ++i)
-    ASSERT_TRUE((max_id.String()[i] == static_cast<char>(255)) ||
-                (max_id.String()[i] == -1));
+    ASSERT_EQ(-1, max_id.String()[i]);
   NodeId rand_id(NodeId::kRandomId);
   ASSERT_EQ(kKeySizeBytes, rand_id.String().size());
   // TODO(Fraser#5#): 2010-06-06 - Test for randomness properly
@@ -249,7 +248,7 @@ TEST(NodeIdTest, BEH_KAD_CtrBetweenIds) {
         << std::max(id1, id2).ToStringEncoded(NodeId::kBinary) << std::endl;
   }
   NodeId min_range, max_range(NodeId::kMaxId);
-  for (int i = 0; i < kKeySizeBits - 1; ++i) {
+  for (boost::uint16_t i = 0; i < kKeySizeBits - 1; ++i) {
     min_range = NodeId(i);
     max_range = NodeId(i + 1);
     id = NodeId(min_range, max_range);

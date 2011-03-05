@@ -334,7 +334,7 @@ TEST(CryptoTest, BEH_COMMON_AsymSign) {
 
 TEST(CryptoTest, BEH_COMMON_Compress) {
   const size_t kTestDataSize(10000);
-  const size_t kTolerance(kTestDataSize * 0.005);
+  const size_t kTolerance(size_t(kTestDataSize * 0.005));
   std::string initial_data(kTestDataSize, 'A');
   initial_data.replace(0, kTestDataSize / 2, RandomString(kTestDataSize / 2));
   std::random_shuffle(initial_data.begin(), initial_data.end());

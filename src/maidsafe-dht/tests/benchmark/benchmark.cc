@@ -46,7 +46,7 @@ namespace test_benchmark {
 class JoinCallback {
  public:
   JoinCallback() : result_arrived_(false), success_(false) {}
-  void Callback(const std::string &result) {
+  void Callback(const std::string &/*result*/) {
 //    maidsafe::GeneralResponse msg;
 //    if (!msg.ParseFromString(result))
       success_ = false;
@@ -78,7 +78,7 @@ void option_dependency(const po::variables_map& vm,
           + "' requires option '" + required_option + "'.");
 }
 
-bool kadconfig_empty(const std::string &path) {
+bool kadconfig_empty(const std::string &/*path*/) {
 //  maidsafe::KadConfig kadconfig;
 //  try {
 //    boost::filesystem::ifstream input(path.c_str(),
@@ -96,9 +96,10 @@ bool kadconfig_empty(const std::string &path) {
   return false;
 }
 
-bool write_to_kadconfig(const std::string &path, const std::string &node_id,
-    const std::string &ip, const boost::uint16_t &port,
-    const std::string &local_ip, const boost::uint16_t &local_port) {
+bool write_to_kadconfig(const std::string & path,
+    const std::string &/*node_id*/, const std::string &/*ip*/,
+    const boost::uint16_t &/*port*/, const std::string &/*local_ip*/,
+    const boost::uint16_t &/*local_port*/) {
 //  maidsafe::KadConfig kadconfig;
 //  try {
 //    maidsafe::KadConfig::Contact *ctc = kadconfig.add_contact();
