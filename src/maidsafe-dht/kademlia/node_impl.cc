@@ -305,10 +305,10 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
 // }
 
 void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
-                                      std::shared_ptr<FindNodesArgs> fna) {
+                                        std::shared_ptr<FindNodesArgs> fna) {
   // Only insert the tuple when it not existed in the container
   boost::mutex::scoped_lock loch_lavitesse(fna->mutex);
-  NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();      
+  NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
   for (size_t n = 0; n < contacts.size(); ++n) {
     auto it_tuple = key_node_indx.find(contacts[n].node_id());
     if (it_tuple == key_node_indx.end()) {
@@ -319,13 +319,13 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
 }
 
 bool Node::Impl::HandleIterationStructure(const Contact &contact,
-                                        std::shared_ptr<FindNodesArgs> fna,
-                                        NodeSearchState mark,
-                                        bool *cur_iteration_done,
-                                        bool *calledback) {
+                                          std::shared_ptr<FindNodesArgs> fna,
+                                          NodeSearchState mark,
+                                          bool *cur_iteration_done,
+                                          bool *calledback) {
   bool result = false;
   boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
-  
+
   // Mark the requested contact
   NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
@@ -352,7 +352,7 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   //    is not greater than (kAlpha_ - kBeta_)
   // always check with the latest round, no need to worry about the previous
   auto pit = fna->nc.get<nc_state_round>().equal_range(
-      boost::make_tuple(kSelectedAlpha, fna->round));
+                 boost::make_tuple(kSelectedAlpha, fna->round));
   int num_of_round_pending = std::distance(pit.first, pit.second);
   if (num_of_round_pending <= (kAlpha_ - kBeta_))
       *cur_iteration_done = true;
@@ -445,15 +445,17 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
   }
 }
 
-void Node::Impl::IterativeSearchResponse(RankInfoPtr rank_info, int result,
-                                      const std::vector<Contact> &contacts,
-                               std::shared_ptr<FindNodesRpcArgs> fnrpc) {
+void Node::Impl::IterativeSearchResponse(
+    RankInfoPtr rank_info,
+    int result,
+    const std::vector<Contact> &contacts,
+    std::shared_ptr<FindNodesRpcArgs> fnrpc) {
   // If already calledback, i.e. result has already been reported
   // then do nothing, just return
   if (fnrpc->rpc_fna->calledback) {
     return;
   }
-  
+
   NodeSearchState mark(kContacted);
   if (result < 0)
     mark = kDown;
