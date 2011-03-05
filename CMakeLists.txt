@@ -623,6 +623,7 @@ IF(UNIX)
   SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/service.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
   SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_transport.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
   SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_connection.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+  SET_PROPERTY(SOURCE "${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/tests/transport/test_transport_api.cc" PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()
 
 
@@ -641,7 +642,7 @@ IF(PYTHONINTERP_FOUND)
   IF(UNIX)
     ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_KAD PROPERTY LABELS Functional Kademlia CodingStyle)
-    ADD_TEST(STYLE_CHECK_TRANSPORT python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${ALL_FILES_TRANSPORT_DIR} ${ALL_FILES_TEST_TRANSPORT_DIR})
+    ADD_TEST(STYLE_CHECK_TRANSPORT python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_TRANSPORT} ${ALL_FILES_TEST_TRANSPORT_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_TRANSPORT PROPERTY LABELS Functional Transport CodingStyle)
   ELSE()
     STRING(REPLACE "/" "\\\\" STYLE_CHECK_SOURCE ${${PROJECT_NAME}_ROOT})
@@ -686,17 +687,17 @@ MESSAGE("=======================================================================
 MESSAGE("")
 
 SET(MAIDSAFE_KAD_INSTALL_FILES
-      maidsafe-dht/kademlia/node-api.h
-      maidsafe-dht/kademlia/config.h
-      maidsafe-dht/kademlia/contact.h
-      maidsafe-dht/kademlia/node_id.h
-      maidsafe-dht/kademlia/message_handler.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node-api.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/config.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/contact.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/node_id.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/kademlia/message_handler.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
-      maidsafe-dht/maidsafe-dht.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/maidsafe-dht.h)
 SET(MAIDSAFE_TRANS_INSTALL_FILES
-      maidsafe-dht/transport/transport.h
-      maidsafe-dht/transport/message_handler.h
-      maidsafe-dht/transport/tcp_transport.h)
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/transport.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/message_handler.h
+      ${${PROJECT_NAME}_SOURCE_DIR}/maidsafe-dht/transport/tcp_transport.h)
 
 IF(MSVC)
   INSTALL(TARGETS maidsafe_dht_static # maidsafe_dht

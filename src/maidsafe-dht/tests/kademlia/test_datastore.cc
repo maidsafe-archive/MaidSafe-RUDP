@@ -1038,7 +1038,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   std::vector<KeyValueTuple> stored_then_deleted_kvts;
   stored_kvts.reserve(kSigners * kEntriesPerSigner * kValuesPerEntry);
   stored_then_deleted_kvts.reserve(
-      kSigners * kEntriesPerSigner * kValuesPerEntry * 0.2);
+      size_t(kSigners * kEntriesPerSigner * kValuesPerEntry * 0.2));
   // Use std::set of keys to ensure uniqueness of keys
   std::set<std::string> keys;
   bool unique(false);
