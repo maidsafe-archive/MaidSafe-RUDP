@@ -363,11 +363,7 @@ SET(MAIDSAFE_TRANS_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.h)
 
-IF(WIN32)
-  INSTALL(TARGETS maidsafe_dht_static EXPORT maidsafe_dht ARCHIVE DESTINATION lib/\${CMAKE_INSTALL_CONFIG_NAME})
-ELSE()
-  INSTALL(TARGETS maidsafe_dht_static EXPORT maidsafe_dht ARCHIVE DESTINATION lib)
-ENDIF()
+INSTALL(TARGETS maidsafe_dht_static EXPORT maidsafe_dht ARCHIVE DESTINATION lib)
 INSTALL(FILES ${MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/kademlia)
 INSTALL(FILES ${MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht)
 INSTALL(FILES ${MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/transport)
