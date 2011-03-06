@@ -75,6 +75,7 @@ class RoutingTableSingleKTest;
 class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
 class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
 class ServicesTest;
+class RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test;
 }  // namespace test
 
 class KBucket;
@@ -376,7 +377,7 @@ class RoutingTable {
   friend class test::RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
   friend class test::RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   friend class test::ServicesTest;
-
+  friend class test::RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test; // NOLINT
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
