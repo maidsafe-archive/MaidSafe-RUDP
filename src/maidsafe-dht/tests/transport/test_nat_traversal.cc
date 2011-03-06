@@ -138,7 +138,7 @@ class NatTraversalTest : public testing::Test {
   UdtTransport rendezvous_transport1_, rendezvous_transport2_;
 };
 
-TEST_F(DISABLED_NatTraversalTest, BEH_UDT_DirectlyConnected) {
+NatTraversalTest, BEH_UDT_DirectlyConnected) {
   UdtTransport udt_transport;
   udt_transport.DoNatDetection();
   EXPECT_EQ(kNotConnected, udt_transport.nat_details_.nat_type);
