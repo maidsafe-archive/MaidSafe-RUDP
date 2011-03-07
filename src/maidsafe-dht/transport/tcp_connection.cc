@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/tcp_connection.h"
 
 #include <algorithm>
-#include <array>
+#include <array>  // NOLINT
 #include <functional>
 
 #include "boost/asio/read.hpp"
