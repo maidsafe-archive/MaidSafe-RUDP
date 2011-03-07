@@ -113,70 +113,78 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[out] response To response. */
   void Ping(const transport::Info &info,
             const protobuf::PingRequest &request,
-            protobuf::PingResponse *response);
+            protobuf::PingResponse *response,
+            transport::Timeout *timeout);
   /** Handle FindValue request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response To response. */            
+   *  @param[out] response To response. */
   void FindValue(const transport::Info &info,
                  const protobuf::FindValueRequest &request,
-                 protobuf::FindValueResponse *response);
+                 protobuf::FindValueResponse *response,
+                 transport::Timeout *timeout);
   /** Handle FindNodes request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response To response. */                 
+   *  @param[out] response To response. */
   void FindNodes(const transport::Info &info,
                  const protobuf::FindNodesRequest &request,
-                 protobuf::FindNodesResponse *response);
+                 protobuf::FindNodesResponse *response,
+                 transport::Timeout *timeout);
   /** Handle Store request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to store.
    *  @param[in] message_signature The signature of the message to store.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
              const std::string &message,
              const std::string &message_signature,
-             protobuf::StoreResponse *response);
+             protobuf::StoreResponse *response,
+             transport::Timeout *timeout);
   /** Handle StoreRefresh request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void StoreRefresh(const transport::Info &info,
                     const protobuf::StoreRefreshRequest &request,
-                    protobuf::StoreRefreshResponse *response);
+                    protobuf::StoreRefreshResponse *response,
+                    transport::Timeout *timeout);
   /** Handle Delete request.
    *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to delete.
    *  @param[in] message_signature The signature of the message to delete.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
-              protobuf::DeleteResponse *response);
+              protobuf::DeleteResponse *response,
+              transport::Timeout *timeout);
   /** Handle DeleteRefresh request.
    *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void DeleteRefresh(const transport::Info &info,
                      const protobuf::DeleteRefreshRequest &request,
-                     protobuf::DeleteRefreshResponse *response);
+                     protobuf::DeleteRefreshResponse *response,
+                     transport::Timeout *timeout);
   /** Handle Downlist request.
    *  Try to ping the contacts in the downlist and then remove those no-response
    *  contacts from the routing table
    *  @param info The rank info.
    *  @param request The request. */
   void Downlist(const transport::Info &info,
-                const protobuf::DownlistNotification &request);
+                const protobuf::DownlistNotification &request,
+                transport::Timeout *timeout);
   /** Getter.
    *  @return The signal handler. */
   PingDownListContactsPtr GetPingDownListSignalHandler();
@@ -191,7 +199,7 @@ class Service : public boost::enable_shared_from_this<Service> {
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
  private:
   /** Copy Constructor.
-   *  @param Service The object to be copied. */   
+   *  @param Service The object to be copied. */
   Service(const Service&);
   /** Assignment overload */
   Service& operator = (const Service&);
@@ -214,7 +222,7 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
    *  @param[in] info The rank info.
-   *  @param[in] request_signature The request signature.   
+   *  @param[in] request_signature The request signature.
    *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */

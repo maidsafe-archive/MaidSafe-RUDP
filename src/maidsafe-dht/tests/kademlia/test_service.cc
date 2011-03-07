@@ -42,8 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.h"
 
-// #include "maidsafe-dht/tests/kademlia/fake_callbacks.h"
-
 namespace maidsafe {
 
 namespace kademlia {
@@ -51,6 +49,7 @@ namespace kademlia {
 namespace test {
 
 static const boost::uint16_t k = 16;
+boost::posix_time::time_duration time_out = transport::kDefaultInitialTimeout;
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
@@ -282,6 +281,10 @@ class ServicesTest: public testing::Test {
     return data_store_->key_value_index_->size();
   }
 
+  size_t CountPendingOperations () const {
+    return 0;
+  }
+
   Contact contact_;
   kademlia::NodeId node_id_;
   std::shared_ptr<DataStore> data_store_;
@@ -321,11 +324,12 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, message_empty, message_sig_empty,
-                    &store_response);
+                    &store_response, &time_out);
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
+    ASSERT_EQ(0U, CountPendingOperations());
   }
   Clear();
   {
@@ -338,7 +342,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     service.set_node_joined(true);
 
     protobuf::StoreResponse store_response;
-    service.Store(info_, store_request, message, message_sig, &store_response);
+    service.Store(info_, store_request, message, message_sig, &store_response,
+                  &time_out);
     EXPECT_FALSE(store_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -353,7 +358,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, message, message_sig,
-                    &store_response);
+                    &store_response, &time_out);
     EXPECT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
@@ -368,7 +373,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, message, message_sig,
-                    &store_response);
+                    &store_response, &time_out);
     EXPECT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     // the sender will be pushed into the unvalidated_contacts list
@@ -409,7 +414,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, message_empty,
-                     message_sig_empty, &delete_response);
+                     message_sig_empty, &delete_response, &time_out);
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -431,7 +436,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
     protobuf::DeleteResponse delete_response;
     service.Delete(info_, delete_request, delete_message,
-                   delete_message_sig, &delete_response);
+                   delete_message_sig, &delete_response, &time_out);
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -446,7 +451,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
-                     delete_message_sig, &delete_response);
+                     delete_message_sig, &delete_response, &time_out);
     EXPECT_FALSE(delete_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
@@ -458,13 +463,13 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     // with an empty routing table
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, store_message,
-                    store_message_sig, &store_response);
+                    store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
-                     delete_message_sig, &delete_response);
+                     delete_message_sig, &delete_response, &time_out);
     EXPECT_TRUE(delete_response.result());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
@@ -510,7 +515,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
 
     protobuf::StoreRefreshResponse store_refresh_response;
     service_->StoreRefresh(info_, store_refresh_request,
-                           &store_refresh_response);
+                           &store_refresh_response, &time_out);
     EXPECT_FALSE(store_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -529,7 +534,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     service.set_node_joined(true);
 
     protobuf::StoreRefreshResponse store_fresh_response;
-    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response,
+                         &time_out);
     EXPECT_FALSE(store_fresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -543,7 +549,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::StoreRefreshResponse store_fresh_response;
-    service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response,
+                           &time_out);
     EXPECT_TRUE(store_fresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
@@ -558,7 +565,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::StoreRefreshResponse store_fresh_response;
-    service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response);
+    service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response,
+                           &time_out);
     EXPECT_TRUE(store_fresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     // the sender will be pushed into the unvalidated_contacts list
@@ -608,7 +616,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
-                            &delete_refresh_response);
+                            &delete_refresh_response, &time_out);
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -633,7 +641,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service.DeleteRefresh(info_, delete_refresh_request,
-                          &delete_refresh_response);
+                          &delete_refresh_response, &time_out);
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -649,7 +657,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
-                            &delete_refresh_response);
+                            &delete_refresh_response, &time_out);
     EXPECT_FALSE(delete_refresh_response.result());
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
@@ -661,7 +669,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // containing it
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, store_message,
-                    store_message_sig, &store_response);
+                    store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -669,7 +677,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
-                            &delete_refresh_response);
+                            &delete_refresh_response, &time_out);
     // If the entry was not marked as deleted yet, trying to deleterefresh it
     // will fail, but the sender will be added into the routing table
     EXPECT_FALSE(delete_refresh_response.result());
@@ -683,7 +691,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // deleterefresh, to mark the entry to be deleted
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, store_message,
-                    store_message_sig, &store_response);
+                    store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -692,7 +700,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // delete the entry, mark it as "deleted"
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
-                     delete_message_sig, &delete_response);
+                     delete_message_sig, &delete_response, &time_out);
     EXPECT_TRUE(delete_response.result());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
@@ -701,7 +709,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
-                            &delete_refresh_response);
+                            &delete_refresh_response, &time_out);
     // If the entry was marked as deleted yet, trying to deleterefresh it
     // will refresh its ttl
     EXPECT_TRUE(delete_refresh_response.result());
@@ -723,7 +731,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   {
     // try to find a node from an empty routing table
     protobuf::FindNodesResponse find_nodes_rsp;
-    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(0U, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -737,7 +745,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     EXPECT_EQ(test::k / 2, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
-    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k / 2, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(test::k / 2, GetRoutingTableSize());
@@ -752,7 +760,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     EXPECT_EQ(2 * test::k, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
-    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * test::k, GetRoutingTableSize());
@@ -768,7 +776,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     EXPECT_EQ(2 * test::k, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
-    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * test::k, GetRoutingTableSize());
@@ -792,7 +800,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     EXPECT_EQ(2 * test::k + 1, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
-    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp);
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
     ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
@@ -813,7 +821,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in empty routing table and datastore
     // no alternative_store_
     protobuf::FindValueResponse find_value_rsp;
-    service_->FindValue(info_, find_value_req, &find_value_rsp);
+    service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -829,7 +837,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     AddContact(target, rank_info_);
 
     protobuf::FindValueResponse find_value_rsp;
-    service_->FindValue(info_, find_value_req, &find_value_rsp);
+    service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(test::k, find_value_rsp.closest_nodes_size());
     // the target must be contained in the response's closest_nodes
@@ -852,7 +860,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     ASSERT_EQ(test::k, GetDataStoreSize());
 
     protobuf::FindValueResponse find_value_rsp;
-    service_->FindValue(info_, find_value_req, &find_value_rsp);
+    service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -881,7 +889,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     find_value_req.set_key(target_key);
     protobuf::FindValueResponse find_value_rsp;
-    service_->FindValue(info_, find_value_req, &find_value_rsp);
+    service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(target_value, (*find_value_rsp.mutable_signed_values(0)).value());
     ASSERT_EQ(0U, find_value_rsp.closest_nodes_size());
@@ -904,7 +912,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     find_value_req.set_key(target_key);
     protobuf::FindValueResponse find_value_rsp;
-    service.FindValue(info_, find_value_req, &find_value_rsp);
+    service.FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.mutable_signed_values()->size());
     ASSERT_EQ(Contact(),
@@ -932,7 +940,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     find_value_req.set_key(target_key);
     protobuf::FindValueResponse find_value_rsp;
-    service.FindValue(info_, find_value_req, &find_value_rsp);
+    service.FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
     ASSERT_EQ(0U, find_value_rsp.mutable_signed_values()->size());
     ASSERT_EQ(node_contact,
@@ -951,7 +959,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
 
   {
     // given an empty downlist
-    service_->Downlist(info_, downlist_request);
+    service_->Downlist(info_, downlist_request, &time_out);
     ASSERT_EQ(0U, num_of_pings_);
   }
   {
@@ -962,7 +970,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
       downlist_request.add_node_ids(contact_id.String());
       AddContact(contact, rank_info_);
     }
-    service_->Downlist(info_, downlist_request);
+    service_->Downlist(info_, downlist_request, &time_out);
     ASSERT_EQ(test::k, num_of_pings_);
   }
   num_of_pings_ = 0;
@@ -971,7 +979,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     // with one node not in the routingtable
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
     downlist_request.add_node_ids(contact_id.String());
-    service_->Downlist(info_, downlist_request);
+    service_->Downlist(info_, downlist_request, &time_out);
     ASSERT_EQ(test::k, num_of_pings_);
   }
 }
@@ -986,7 +994,7 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
     // Check failure with ping set incorrectly.
     ping_request.set_ping("doink");
     protobuf::PingResponse ping_response;
-    service_->Ping(info_, ping_request, &ping_response);
+    service_->Ping(info_, ping_request, &ping_response, &time_out);
     EXPECT_FALSE(ping_response.IsInitialized());
     EXPECT_FALSE(ping_response.has_echo());
     EXPECT_EQ(0U, GetRoutingTableSize());
@@ -996,7 +1004,7 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
     // Check success.
     ping_request.set_ping("ping");
     protobuf::PingResponse ping_response;
-    service_->Ping(info_, ping_request, &ping_response);
+    service_->Ping(info_, ping_request, &ping_response, &time_out);
     EXPECT_TRUE(ping_response.IsInitialized());
     EXPECT_EQ("pong", ping_response.echo());
     EXPECT_EQ(0U, GetRoutingTableSize());
