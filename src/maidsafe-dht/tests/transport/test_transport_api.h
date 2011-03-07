@@ -109,6 +109,7 @@ class TransportAPITest: public testing::Test {
   boost::thread_group thread_group_1_;
   boost::thread_group thread_group_2_;
   boost::thread_group thread_group_3_;
+  boost::mutex mutex_;
   std::vector<std::string> request_messages_;
   boost::uint16_t count_;
 };

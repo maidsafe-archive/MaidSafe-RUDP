@@ -28,8 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/tcp_connection.h"
 
 #include <algorithm>
+#include <array>  // NOLINT
 #include <functional>
-#include <vector>
 
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
@@ -171,9 +171,9 @@ void TcpConnection::Send(const std::string &data,
         static_cast<boost::int64_t>(msg_size * kTimeoutFactor),
         kMinTimeout.total_milliseconds())));
     StartTimeout(tm_out);
-    std::vector<boost::asio::const_buffer> asio_buffer;
-    asio_buffer.push_back(boost::asio::buffer(size_buffer_));
-    asio_buffer.push_back(boost::asio::buffer(data_buffer_));
+    std::array<boost::asio::const_buffer, 2> asio_buffer;
+    asio_buffer[0] = boost::asio::buffer(size_buffer_);
+    asio_buffer[1] = boost::asio::buffer(data_buffer_);
     asio::async_write(socket_, asio_buffer,
                       std::bind(&TcpConnection::HandleWrite, shared_from_this(),
                                 arg::_1));
@@ -203,9 +203,9 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
       kMinTimeout.total_milliseconds())));
   StartTimeout(tm_out);
 
-  std::vector<boost::asio::const_buffer> asio_buffer;
-  asio_buffer.push_back(boost::asio::buffer(size_buffer_));
-  asio_buffer.push_back(boost::asio::buffer(data_buffer_));
+  std::array<boost::asio::const_buffer, 2> asio_buffer;
+  asio_buffer[0] = boost::asio::buffer(size_buffer_);
+  asio_buffer[1] = boost::asio::buffer(data_buffer_);
   asio::async_write(socket_, asio_buffer,
                     std::bind(&TcpConnection::HandleWrite, shared_from_this(),
                               arg::_1));

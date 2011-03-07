@@ -129,6 +129,7 @@ TransportAPITest<T>::TransportAPITest()
       thread_group_1_(),
       thread_group_2_(),
       thread_group_3_(),
+      mutex_(),
       request_messages_(),
       count_(0) {
   for (int i = 0; i < kThreadGroupSize; ++i)
@@ -256,22 +257,12 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
   thread_group_2_.join_all();
   thread_group_3_.join_all();
   CheckMessages();
-  if (listening_message_handlers_.size() == 1) {
-    std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
-        sending_message_handlers_.begin());
-    while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
+  std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
+      sending_message_handlers_.begin());
+  while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
     ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
-                num_messages);
+      listening_message_handlers_.size() * num_messages);
     ++sending_msg_handlers_itr;
-    }
-  } else {
-    std::vector<TestMessageHandlerPtr>::iterator sending_msg_handlers_itr(
-        sending_message_handlers_.begin());
-    while (sending_msg_handlers_itr != sending_message_handlers_.end()) {
-      ASSERT_EQ((*sending_msg_handlers_itr)->responses_received().size(),
-        listening_message_handlers_.size());
-      ++sending_msg_handlers_itr;
-    }
   }
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   for (auto itr = listening_transports_.begin();
@@ -288,7 +279,12 @@ void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
   std::string request(RandomString(11));
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
                   bptime::seconds(1));
-  (request_messages_).push_back(request);
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    (request_messages_).push_back(request);
+  }
+
   // std::string response = base::RandomString(10); need to change
   std::string response("Response");
   listener_pt->Send(response, Endpoint(kIP, sender_pt->listening_port()),
@@ -462,20 +458,20 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManyMultiMessage) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
-  for (int i = 0; i < 15; ++i)
+  for (int i = 0; i < 5; ++i)
     this->SetupTransport(false, 0);
-  for (int i = 0; i < 20; ++i)
+  for (int i = 0; i < 10; ++i)
     this->SetupTransport(true, 0);
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(2033));
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(10));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
   boost::uint8_t num_sender_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 10 + 5));
+      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
   boost::uint8_t num_listener_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 10 + 5));
+      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
   boost::uint8_t num_messages(
-      static_cast<boost::uint8_t>(RandomUint32() % 100 + 1));
+      static_cast<boost::uint8_t>(RandomUint32() % 10 + 1));
   for (boost::uint8_t i = 0; i < num_sender_transports; ++i)
     this->SetupTransport(false, 0);
   for (boost::uint8_t i = 0; i < num_listener_transports; ++i)
