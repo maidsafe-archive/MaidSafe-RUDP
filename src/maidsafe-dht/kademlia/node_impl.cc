@@ -334,16 +334,13 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   NodeContainerByDistance distance_node_indx = fna->nc.get<nc_distance>();
   auto it = distance_node_indx.begin();
   auto it_end = distance_node_indx.end();
-  int num_pending_contacts(0);
   int num_new_contacts(0);
-  std::vector<Contact> top_k_contacts;
-  while ((it != it_end) && (top_k_contacts.size() < k_)) {
-    if ((*it).state == kSelectedAlpha)
-      ++num_pending_contacts;
+  int num_candidates(0);
+  while ((it != it_end) && (num_candidates < k_)) {
     if ((*it).state == kNew)
       ++num_new_contacts;
     if ((*it).state != kDown)
-      top_k_contacts.push_back((*it).contact);
+      ++num_candidates;
     ++it;
   }
 
@@ -361,26 +358,32 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   int num_of_total_pending = std::distance(pit_pending.first,
                                            pit_pending.second);
   {
-    //     no kSelectedAlpha (pending) contacts among the top
-    // And no kNew contacts among the top
+    //     no kNew contacts among the top K
     // And no kSelectedAlpha (pending) contacts in total
-    if ((num_pending_contacts == 0) && (num_new_contacts == 0) &&
-        (num_of_total_pending == 0))
+    if ((num_new_contacts == 0) && (num_of_total_pending == 0))
       *calledback = true;
   }
   {
     // To prevent the situation that may keep requesting contacts if there
     // is any pending contacts, the request will be halted once got k-closest
     // contacted in the result (i.e. wait till all pending contacts cleared)
-    if ((top_k_contacts.size() == k_) && (num_of_total_pending != 0))
+    if ((num_candidates == k_) && (num_of_total_pending != 0))
       *cur_iteration_done = false;
   }
 
   // If the search can be stopped, then we callback (report the result list)
   if (*calledback) {
+    auto it = distance_node_indx.begin();
+    auto it_end = distance_node_indx.end();
+    std::vector<Contact> top_k_contacts;
+    while ((it != it_end) && (top_k_contacts.size() < k_)) {
+      if ((*it).state == kContacted)
+        top_k_contacts.push_back((*it).contact);
+      ++it;
+    }
     fna->calledback = true;
     fna->callback(top_k_contacts.size(), top_k_contacts);
-    // part of memory resource in fna can be released here
+    // main of memory resource in fna can be released here
     fna->nc.clear();
   }
   result = true;
