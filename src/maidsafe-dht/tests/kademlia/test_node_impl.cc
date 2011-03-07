@@ -52,6 +52,7 @@ namespace test {
 static const boost::uint16_t k = 8;
 static const boost::uint16_t alpha = 3;
 static const boost::uint16_t beta = 2;
+static const boost::uint16_t randomnoresponserate = 20; // in percentage
 
 void FindNodeCallback(RankInfoPtr rank_info,
                       int result_size,
@@ -253,6 +254,32 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 
   void FindNodeResponseClose(const Contact &c,
                      FindNodesFunctor callback) {
+    int response_factor = RandomUint32() % 100;
+    bool response(true);
+    if (response_factor < test::randomnoresponserate)
+      response = false;
+    std::vector<Contact> response_list;
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    if (response) {
+      int elements = RandomUint32() % test::k;
+      for (int n = 0; n < elements; ++n) {
+        int element = RandomUint32() % node_list_.size();
+        response_list.push_back(node_list_[element]);
+        respond_contacts_->AddContact(node_list_[element], rank_info_);
+        respond_contacts_->SetValidated(node_list_[element].node_id(), true);
+      }
+      boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
+                                   response_list));
+    } else {
+      respond_contacts_->SetValidated(c.node_id(), false);
+      respond_contacts_->SetValidated(c.node_id(), false);
+      boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
+                                   response_list));
+    }
+  }
+
+  void FindNodeRandomResponseClose(const Contact &c,
+                     FindNodesFunctor callback) {
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     int elements = RandomUint32() % test::k;
@@ -423,15 +450,49 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   int count = 10 * test::k;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
-  std::shared_ptr<RoutingTable> temp(new RoutingTable(target, count));
-  new_rpcs->respond_contacts_ = temp;
   {
     // All k populated contacts response with random closest list (not greater
     // than k)
+    std::shared_ptr<RoutingTable> temp(new RoutingTable(target, count));
+    new_rpcs->respond_contacts_ = temp;
     EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             boost::bind(&MockRpcs::FindNodeResponseClose,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    node_->FindNodes(target,
+                     boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done,
+                                 &lcontacts));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(test::k, lcontacts.size());
+    EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
+    EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
+
+    std::vector<Contact> close_contacts;
+    std::vector<Contact> exclude_contacts;
+    new_rpcs->respond_contacts_->GetCloseContacts(target,
+                                   test::k, exclude_contacts, &close_contacts);
+    EXPECT_EQ(test::k, close_contacts.size());
+
+    auto it = lcontacts.begin();
+    while (it != lcontacts.end()) {
+      EXPECT_NE(close_contacts.end(),
+                std::find(close_contacts.begin(), close_contacts.end(), (*it)));
+      ++it;
+    }
+  }
+  {
+    // All k populated contacts response with random closest list (not greater
+    // than k)
+    std::shared_ptr<RoutingTable> temp(new RoutingTable(target, count));
+    new_rpcs->respond_contacts_ = temp;
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeRandomResponseClose,
                         new_rpcs.get(), _1, _2))));
     std::vector<Contact> lcontacts;
     bool done(false);
