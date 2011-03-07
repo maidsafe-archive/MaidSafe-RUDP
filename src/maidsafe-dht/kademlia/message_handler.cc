@@ -367,12 +367,17 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::DownlistNotification request;
       if (request.ParseFromString(payload) && request.IsInitialized())
-        (*on_downlist_notification_)(info, request);
+        (*on_downlist_notification_)(info, request, timeout);
       break;
     }
     default:
-      transport::MessageHandler::ProcessSerialisedMessage(message_type, payload,
-          security_type, message_signature, info, message_response, timeout);
+      transport::MessageHandler::ProcessSerialisedMessage(message_type,
+                                                          payload,
+                                                          security_type,
+                                                          message_signature,
+                                                          info,
+                                                          message_response,
+                                                          timeout);
   }
 }
 
