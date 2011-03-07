@@ -354,7 +354,6 @@ INSTALL(TARGETS maidsafe_dht_static EXPORT maidsafe_dht ARCHIVE DESTINATION lib)
 INSTALL(FILES ${MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/kademlia)
 INSTALL(FILES ${MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht)
 INSTALL(FILES ${MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/transport)
-install(CODE "MESSAGE(\"Sample install message.\")")
 INSTALL(EXPORT maidsafe_dht DESTINATION share/maidsafe)
 
 IF(CMAKE_BUILD_TYPE MATCHES "Release")
