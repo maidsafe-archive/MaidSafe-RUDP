@@ -71,15 +71,6 @@ class NodeImplTest;
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
-//  bool CompareContact(const ContactAndTargetKey &first,
-//                      const ContactAndTargetKey &second);
-
-//  void SortContactGroup(const NodeId &target_key,
-//                        std::vector<Contact> *contact_group);
-
-//  void SortLookupContact(const NodeId &target_key,
-//                         std::vector<LookupContact> *contact_group);
-
 class Node::Impl {
  public:
   Impl(IoServicePtr asio_service,
@@ -141,11 +132,10 @@ class Node::Impl {
   boost::posix_time::time_duration mean_refresh_interval() const;
 
   friend class test::NodeImplTest;
-  
+
+ private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);
- private:
-
   void AddContactsToContainer(const std::vector<Contact> contacts,
                               std::shared_ptr<FindNodesArgs> find_nodes_args);
   bool HandleIterationStructure(const Contact &contact,
