@@ -104,12 +104,104 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
 }
 
-void Node::Impl::Store(const Key &/*key*/,
-                       const std::string &/*value*/,
-                       const std::string &/*signature*/,
-                       const boost::posix_time::time_duration &/*ttl*/,
-                       SecurifierPtr /*securifier*/,
-                       StoreFunctor /*callback*/) {
+void Node::Impl::Store(const Key &key,
+                       const std::string &value,
+                       const std::string &signature,
+                       const boost::posix_time::time_duration &ttl,
+                       SecurifierPtr securifier,
+                       StoreFunctor callback) {
+  if (!securifier->Validate(value,
+                            signature,
+                            ""/*request.signing_public_key_id()*/,
+                            ""/*public_key*/,
+                            ""/*public_key_validation*/,
+                            key.String())) {
+    callback(-1);
+  }
+  FindNodes(key, boost::bind(&Node::Impl::StoreFindNodesCallback,
+                             this, _1, _2,
+                             key, value, signature, ttl,
+                             securifier, callback));
+}
+
+void Node::Impl::StoreFindNodesCallback(int result_size,
+                               const std::vector<Contact> &cs,
+                               const Key &key,
+                               const std::string &value,
+                               const std::string &signature,
+                               const boost::posix_time::time_duration &ttl,
+                               SecurifierPtr securifier,
+                               StoreFunctor callback) {
+  if (result_size < 0) {
+    callback(-1);
+  } else {
+    boost::posix_time::seconds ttl_s(ttl.seconds());
+    std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
+    auto it = cs.begin();
+    auto it_end = cs.end();
+    
+    while (it != it_end) {
+        NodeContainerTuple nct((*it), key);
+        nct.state = kSelectedAlpha;
+        sa->nc.insert(nct);
+        ++it;
+    }
+    RankInfoPtr rank_info;
+    it = cs.begin();
+    while (it != it_end) {
+      std::shared_ptr<StoreRpcArgs> srpc(
+        new StoreRpcArgs((*it), sa));
+      rpcs_->Store(key, value, signature, ttl_s, securifier, (*it),
+                   boost::bind(&Node::Impl::StoreResponse,
+                               this, _1, _2, srpc), kTcp);
+      ++it;
+    }
+  }
+}
+
+void Node::Impl::StoreResponse(RankInfoPtr rank_info,
+                               int response_code,
+                               std::shared_ptr<StoreRpcArgs> srpc) {
+  if (srpc->rpc_sa->calledback)
+    return;
+  boost::mutex::scoped_lock loch_surlaplage(srpc->rpc_sa->mutex);
+  NodeSearchState mark(kContacted);
+  if (response_code < 0) {
+    mark = kDown;
+  } else {
+    ++srpc->rpc_sa->succeeded;
+  }
+  // Mark the enquired contact
+  NodeContainerByNodeId key_node_indx = srpc->rpc_sa->nc.get<nc_id>();
+  auto it_tuple = key_node_indx.find(srpc->contact.node_id());
+  key_node_indx.modify(it_tuple, ChangeState(mark));
+  
+  auto pit_pending = srpc->rpc_sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+
+  auto pit_contacted = srpc->rpc_sa->nc.get<nc_state>().equal_range(kContacted);
+  int num_of_contacted= std::distance(pit_contacted.first,
+                                      pit_contacted.second);
+  bool callback(false);
+  if (num_of_pending == 0) {
+    callback = true;    
+  }
+  int threshold(4);
+  if (threshold < (k_ / 2))
+    threshold = k_ / 2;
+  if (num_of_contacted >= threshold)
+    callback = true;
+  
+  if (callback) {
+    srpc->rpc_sa->calledback = true;
+    if (srpc->rpc_sa->succeeded >0) {
+      srpc->rpc_sa->callback(srpc->rpc_sa->succeeded);
+    } else {
+      srpc->rpc_sa->callback(-1);
+    }
+    // main part of memory resource in rpc_sa can be released here
+    srpc->rpc_sa->nc.clear();
+  }
 }
 
 void Node::Impl::Delete(const Key &/*key*/,
@@ -326,7 +418,7 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   bool result = false;
   boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
 
-  // Mark the requested contact
+  // Mark the enquired contact
   NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
@@ -383,7 +475,7 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
     }
     fna->calledback = true;
     fna->callback(top_k_contacts.size(), top_k_contacts);
-    // main of memory resource in fna can be released here
+    // main part of memory resource in fna can be released here
     fna->nc.clear();
   }
   result = true;
