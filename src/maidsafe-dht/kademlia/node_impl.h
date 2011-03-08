@@ -67,6 +67,7 @@ struct FindNodesRpcArgs;
 
 namespace test {
 class NodeImplTest;
+class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -132,6 +133,7 @@ class Node::Impl {
   boost::posix_time::time_duration mean_refresh_interval() const;
 
   friend class test::NodeImplTest;
+  friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 
  private:
   Impl(const Impl&);
