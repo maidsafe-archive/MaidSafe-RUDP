@@ -99,14 +99,14 @@ class Rpcs {
                          const Contact &peer,
                          FindNodesFunctor callback,
                          TransportType type);
-  void Store(const Key &key,
-             const std::string &value,
-             const std::string &signature,
-             const boost::posix_time::seconds &ttl,
-             SecurifierPtr securifier,
-             const Contact &peer,
-             StoreFunctor callback,
-             TransportType type);
+  virtual void Store(const Key &key,
+                     const std::string &value,
+                     const std::string &signature,
+                     const boost::posix_time::seconds &ttl,
+                     SecurifierPtr securifier,
+                     const Contact &peer,
+                     StoreFunctor callback,
+                     TransportType type);
   void StoreRefresh(const std::string &serialised_store_request,
                     const std::string &serialised_store_request_signature,
                     SecurifierPtr securifier,
