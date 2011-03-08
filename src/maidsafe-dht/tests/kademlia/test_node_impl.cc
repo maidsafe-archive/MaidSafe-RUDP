@@ -99,6 +99,47 @@ class CreateContactAndNodeId {
     return new_node;
   }
 
+  Contact GenerateUniqueContact(const NodeId& holder, const int& pos,
+                                RoutingTableContactsContainer& gnerated_nodes,
+                                NodeId target) {
+    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
+    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
+    NodeId new_node;
+    std::string new_node_string;
+    bool repeat(true);
+    boost::uint16_t times_of_try(0);
+    Contact new_contact;
+    // generate a random contact and make sure it has not been generated
+    // within the previously record
+    do {
+      new_node = NodeId(NodeId::kRandomId);
+      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
+      std::bitset<kKeySizeBits> binary_bitset(new_id);
+      for (int i = kKeySizeBits - 1; i >= pos; --i)
+        binary_bitset[i] = holder_id_binary_bitset[i];
+      binary_bitset[pos].flip();
+      new_node_string = binary_bitset.to_string();
+      new_node = NodeId(new_node_string, NodeId::kBinary);
+
+      // make sure the new one hasn't been set as down previously
+      ContactsById key_indx = gnerated_nodes.get<NodeIdTag>();
+      auto it = key_indx.find(new_node);
+      if (it == key_indx.end()) {
+        new_contact = ComposeContact(new_node, 5000);
+        RoutingTableContact new_routing_table_contact(new_contact,
+                                                      target,
+                                                      0);
+        gnerated_nodes.insert(new_routing_table_contact);
+        repeat = false;
+      }
+      ++times_of_try;
+    } while (repeat && (times_of_try < 1000));
+    // prevent deadlock, throw out an error message in case of deadlock
+    if (times_of_try == 1000)
+      EXPECT_LT(1000, times_of_try);
+    return new_contact;
+  }
+
   NodeId GenerateRandomId(const NodeId& holder, const int& pos) {
     std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
     std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
@@ -536,6 +577,218 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   }
 
   //SetRpc(old_rpcs);
+}
+
+TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
+  NodeId target = GenerateRandomId(node_id_, 497);
+  {
+    // test::k - 1 contacted, the last one respond as contacted
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+        boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
+
+    RoutingTableContactsContainer generated_nodes;
+    for (int i=0; i < (test::k - 1); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      nct.state = kContacted;
+      fna->nc.insert(nct);
+    }
+    NodeId contact_id = GenerateRandomId(node_id_, 498);
+    Contact contact = ComposeContact(contact_id, 5000);
+    NodeContainerTuple nct(contact, fna->key, (test::k-1) / alpha);
+    nct.state = kSelectedAlpha;
+    fna->nc.insert(nct);
+
+    fna->round = (test::k-1) / alpha;
+    NodeSearchState mark(kContacted);
+    bool curr_iteration_done(false), calledback(false);
+    node_->HandleIterationStructure(contact, fna,
+                                    mark, &curr_iteration_done, &calledback);
+    EXPECT_EQ(true, curr_iteration_done);
+    EXPECT_EQ(true, calledback);
+    EXPECT_EQ(true, done);
+    EXPECT_EQ(test::k, lcontacts.size());
+  }
+  {
+    // test::k - 2 contacted, the test::k -1 one pending
+    // the last one respond as contacted
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+        boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
+
+    RoutingTableContactsContainer generated_nodes;
+    for (int i=0; i < (test::k - 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      nct.state = kContacted;
+      fna->nc.insert(nct);
+    }
+    Contact pending_contact = GenerateUniqueContact(node_id_, 499,
+                                                    generated_nodes, target);
+    NodeContainerTuple pending_nct(pending_contact, fna->key, (test::k-2) / alpha);
+    pending_nct.state = kSelectedAlpha;
+    fna->nc.insert(pending_nct);
+    NodeId contact_id = GenerateRandomId(node_id_, 498);
+    Contact contact = ComposeContact(contact_id, 5000);
+    NodeContainerTuple nct(contact, fna->key, (test::k-1) / alpha);
+    nct.state = kSelectedAlpha;
+    fna->nc.insert(nct);
+
+    fna->round = (test::k-1) / alpha;
+    NodeSearchState mark(kContacted);
+    bool curr_iteration_done(false), calledback(false);
+    node_->HandleIterationStructure(contact, fna,
+                                    mark, &curr_iteration_done, &calledback);
+    EXPECT_EQ(false, curr_iteration_done);
+    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(0, lcontacts.size());
+  }
+  {
+    // test::k / 2 contacted, the last one respond as no-response
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+        boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
+
+    RoutingTableContactsContainer generated_nodes;
+    for (int i=0; i < (test::k / 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      nct.state = kContacted;
+      fna->nc.insert(nct);
+    }
+    NodeId contact_id = GenerateRandomId(node_id_, 498);
+    Contact contact = ComposeContact(contact_id, 5000);
+    NodeContainerTuple nct(contact, fna->key, (test::k / 2) / alpha);
+    nct.state = kSelectedAlpha;
+    fna->nc.insert(nct);
+
+    fna->round = (test::k / 2) / alpha;
+    NodeSearchState mark(kDown);
+    bool curr_iteration_done(false), calledback(false);
+    node_->HandleIterationStructure(contact, fna,
+                                    mark, &curr_iteration_done, &calledback);
+    EXPECT_EQ(true, curr_iteration_done);
+    EXPECT_EQ(true, calledback);
+    EXPECT_EQ(true, done);
+    EXPECT_EQ(test::k / 2, lcontacts.size());
+  }
+  {
+    // test::k candidates, for each previous round (alpha - beta) pending
+    // for the last round, all contacted
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+        boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
+
+    RoutingTableContactsContainer generated_nodes;
+    for (int i=0; i < (alpha * (test::k / alpha)); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      if ((i % alpha) < beta ) {
+        nct.state = kContacted;
+      } else {
+        nct.state = kSelectedAlpha;
+      }
+      fna->nc.insert(nct);
+    }
+    for (int i=0; i < (test::k % alpha - 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, test::k / alpha);
+      nct.state = kContacted;
+      fna->nc.insert(nct);
+    }
+    
+    Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                            target);
+    NodeContainerTuple nct(contact, fna->key, test::k / alpha);
+    nct.state = kSelectedAlpha;
+    fna->nc.insert(nct);
+    Contact last_contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                                 target);
+    NodeContainerTuple last_nct(last_contact, fna->key, test::k / alpha);
+    last_nct.state = kSelectedAlpha;
+    fna->nc.insert(last_nct);
+
+    fna->round = test::k / alpha;
+
+    NodeSearchState mark(kContacted);
+    bool curr_iteration_done(false), calledback(false);
+    node_->HandleIterationStructure(contact, fna,
+                                    mark, &curr_iteration_done, &calledback);
+    EXPECT_EQ(false, curr_iteration_done);
+    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(0, lcontacts.size());
+    
+    curr_iteration_done = false;
+    calledback = false;
+    node_->HandleIterationStructure(last_contact, fna,
+                                    mark, &curr_iteration_done,
+                                    &calledback);
+    EXPECT_EQ(false, curr_iteration_done);
+    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(0, lcontacts.size());
+  }
+  {
+    // k candidates, with (beta - 1) contacted, the next one respond with
+    // no response
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+        boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
+
+    RoutingTableContactsContainer generated_nodes;
+    Contact first_contact = GenerateUniqueContact(node_id_, 499,
+                                                  generated_nodes,
+                                                  target);
+    NodeContainerTuple first_nct(first_contact, fna->key, 0);
+    first_nct.state = kSelectedAlpha;
+    fna->nc.insert(first_nct);
+    Contact second_contact = GenerateUniqueContact(node_id_, 499,
+                                                   generated_nodes,
+                                                   target);
+    NodeContainerTuple second_nct(second_contact, fna->key, 0);
+    second_nct.state = kSelectedAlpha;
+    fna->nc.insert(second_nct);
+    
+    for (int i=2; i < test::k; ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
+                                              target);
+      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      nct.state = kNew;
+      fna->nc.insert(nct);
+    }
+
+    fna->round = 0;
+    NodeSearchState mark(kContacted);
+    bool curr_iteration_done(false), calledback(false);
+    node_->HandleIterationStructure(first_contact, fna,
+                                    mark, &curr_iteration_done, &calledback);
+    EXPECT_EQ(false, curr_iteration_done);
+    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(0, lcontacts.size());
+
+    mark = kDown;
+    node_->HandleIterationStructure(second_contact, fna,
+                                    mark, &curr_iteration_done,
+                                    &calledback);
+    EXPECT_EQ(true, curr_iteration_done);
+    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(0, lcontacts.size());
+  }
 }
 
 }  // namespace test_nodeimpl
