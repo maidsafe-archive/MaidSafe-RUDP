@@ -67,6 +67,11 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
   if (ec)
     return kInvalidAddress;
 
+  acceptor_->set_option(ip::tcp::acceptor::reuse_address(true), ec);
+
+  if (ec)
+    return kSetOptionFailure;
+
   acceptor_->bind(ep, ec);
 
   if (ec)
