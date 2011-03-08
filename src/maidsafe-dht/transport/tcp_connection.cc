@@ -47,11 +47,11 @@ namespace maidsafe {
 
 namespace transport {
 
-TcpConnection::TcpConnection(TcpTransport *tcp_transport,
+TcpConnection::TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
                              ip::tcp::endpoint const &remote)
   : transport_(tcp_transport),
-    socket_(*transport_->asio_service_),
-    timer_(*transport_->asio_service_),
+    socket_(tcp_transport->asio_service_),
+    timer_(tcp_transport->asio_service_),
     remote_endpoint_(remote),
     size_buffer_(sizeof(DataSize)),
     data_buffer_(),
@@ -62,9 +62,11 @@ TcpConnection::TcpConnection(TcpTransport *tcp_transport,
 TcpConnection::~TcpConnection() {}
 
 void TcpConnection::Close() {
-  socket_.close();
+  boost::system::error_code ec;
+  socket_.close(ec);
   timer_.cancel();
-  transport_->RemoveConnection(shared_from_this());
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+    transport->RemoveConnection(shared_from_this());
 }
 
 ip::tcp::socket &TcpConnection::Socket() {
@@ -95,12 +97,14 @@ void TcpConnection::HandleTimeout(const bs::error_code &ec) {
 void TcpConnection::HandleSize(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    (*transport_->on_error_)(kReceiveTimeout);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    (*transport_->on_error_)(kReceiveFailure);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kReceiveFailure);
     return Close();
   }
 
@@ -116,12 +120,14 @@ void TcpConnection::HandleSize(const bs::error_code &ec) {
 void TcpConnection::HandleRead(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    (*transport_->on_error_)(kReceiveTimeout);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kReceiveTimeout);
     return Close();
   }
 
   if (ec) {
-    (*transport_->on_error_)(kReceiveFailure);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kReceiveFailure);
     return Close();
   }
 
@@ -131,18 +137,20 @@ void TcpConnection::HandleRead(const bs::error_code &ec) {
 }
 
 void TcpConnection::DispatchMessage() {
-  // Signal message received and send response if applicable
-  std::string response;
-  Timeout response_timeout(kImmediateTimeout);
-  Info info;
-  // TODO(Fraser#5#): 2011-01-18 - Add info details.
-  (*transport_->on_message_received_)(
-      std::string(data_buffer_.begin(), data_buffer_.end()), info, &response,
-      &response_timeout);
-  if (response.empty())
-    return;
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
+    // Signal message received and send response if applicable
+    std::string response;
+    Timeout response_timeout(kImmediateTimeout);
+    Info info;
+    // TODO(Fraser#5#): 2011-01-18 - Add info details.
+    (*transport->on_message_received_)(
+        std::string(data_buffer_.begin(), data_buffer_.end()), info, &response,
+        &response_timeout);
+    if (response.empty())
+      return;
 
-  Send(response, response_timeout, true);
+    Send(response, response_timeout, true);
+  }
 }
 
 void TcpConnection::Send(const std::string &data,
@@ -154,7 +162,8 @@ void TcpConnection::Send(const std::string &data,
           static_cast<size_t>(kMaxTransportMessageSize)) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << kMaxTransportMessageSize << ")" << std::endl;
-    (*transport_->on_error_)(kMessageSizeTooLarge);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kMessageSizeTooLarge);
     return;
   }
 
@@ -189,12 +198,14 @@ void TcpConnection::Send(const std::string &data,
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    (*transport_->on_error_)(kSendTimeout);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    (*transport_->on_error_)(kSendFailure);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kSendFailure);
     return Close();
   }
 
@@ -214,12 +225,14 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    (*transport_->on_error_)(kSendTimeout);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kSendTimeout);
     return Close();
   }
 
   if (ec) {
-    (*transport_->on_error_)(kSendFailure);
+    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+      (*transport->on_error_)(kSendFailure);
     return Close();
   }
 
