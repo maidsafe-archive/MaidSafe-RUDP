@@ -162,7 +162,17 @@ class Node::Impl {
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
-
+  void StoreFindNodesCallback(int result_size,
+                     const std::vector<Contact> &cs,
+                     const Key &key,
+                     const std::string &value,
+                     const std::string &signature,
+                     const boost::posix_time::time_duration &ttl,
+                     SecurifierPtr securifier,
+                     StoreFunctor callback);
+  void StoreResponse(RankInfoPtr rank_info,
+                     int response_code,
+                     std::shared_ptr<StoreRpcArgs> srpc);
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;

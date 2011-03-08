@@ -180,6 +180,27 @@ struct FindNodesRpcArgs {
   std::shared_ptr<FindNodesArgs> rpc_fna;
 };
 
+struct StoreArgs {
+  StoreArgs(StoreFunctor sa_callback)
+      : nc(),
+        mutex(),
+        callback(sa_callback),
+        calledback(false),
+        succeeded(0) {}
+  NodeContainer nc;
+  boost::mutex mutex;
+  StoreFunctor callback;
+  bool calledback;
+  int succeeded;
+};
+
+struct StoreRpcArgs {
+  StoreRpcArgs(const Contact &c, std::shared_ptr<StoreArgs> sa)
+      : contact(c), rpc_sa(sa) {}
+  Contact contact;
+  std::shared_ptr<StoreArgs> rpc_sa;
+};
+
 /*
 struct ContactAndTargetKey {
   ContactAndTargetKey() : contact(), target_key(), contacted(false) {}
