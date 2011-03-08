@@ -74,6 +74,7 @@ Node::Impl::Impl(IoServicePtr asio_service,
       on_online_status_change_(new OnOnlineStatusChangePtr::element_type),
       client_only_node_(client_only_node),
       k_(k),
+      threshold_(4),
       kAlpha_(alpha),
       kBeta_(beta),
       kMeanRefreshInterval_(mean_refresh_interval.is_special() ? 3600 :
@@ -86,7 +87,10 @@ Node::Impl::Impl(IoServicePtr asio_service,
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false),
-      routing_table_connection_() {}
+      routing_table_connection_() {
+        if (threshold_ < (k_ / 2))
+          threshold_ = k_ / 2;
+      }
 
 Node::Impl::~Impl() {
   if (joined_)
@@ -186,10 +190,7 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   if (num_of_pending == 0) {
     callback = true;    
   }
-  int threshold(4);
-  if (threshold < (k_ / 2))
-    threshold = k_ / 2;
-  if (num_of_contacted >= threshold)
+  if (num_of_contacted >= threshold_)
     callback = true;
   
   if (callback) {

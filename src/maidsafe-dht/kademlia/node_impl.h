@@ -180,6 +180,7 @@ class Node::Impl {
   OnOnlineStatusChangePtr on_online_status_change_;
   bool client_only_node_;
   const boost::uint16_t k_;
+  int threshold_;
   const boost::uint16_t kAlpha_;
   const boost::uint16_t kBeta_;
   const boost::posix_time::seconds kMeanRefreshInterval_;
