@@ -44,7 +44,7 @@ namespace transport {
 class TcpTransport : public Transport,
                      public std::enable_shared_from_this<TcpTransport> {
  public:
-  explicit TcpTransport(boost::asio::io_service &asio_service);
+  explicit TcpTransport(boost::asio::io_service &asio_service);  // NOLINT
   ~TcpTransport();
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual void StopListening();
