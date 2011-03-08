@@ -113,23 +113,23 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingRequest) {
   
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string pub_key = kp.public_key();
-  std::string priv_key = kp.private_key();
  
-  std::string result_no_securifier = message_.WrapMessage(ping_rqst, pub_key);
+  std::string result_no_securifier = message_.WrapMessage(ping_rqst,
+							  kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   
-  std::string function_encrypt = msg_hndlr_.WrapMessage(ping_rqst, pub_key);  
+  std::string function_encrypt = msg_hndlr_.WrapMessage(ping_rqst,
+							kp.public_key());  
   std::string manual_encrypt = encrypt<protobuf::PingRequest>(ping_rqst,
-							      pub_key,
+							      kp.public_key(),
 							      kPingRequest);
   EXPECT_NE(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::PingRequest decrypted_function_ping =
-                get_wrapper<protobuf::PingRequest>(function_encrypt, priv_key);
+                get_wrapper<protobuf::PingRequest>(function_encrypt, kp.private_key());
   protobuf::PingRequest decrypted_manual_ping =
-                get_wrapper<protobuf::PingRequest>(manual_encrypt, priv_key);
+                get_wrapper<protobuf::PingRequest>(manual_encrypt, kp.private_key());
   ASSERT_EQ(decrypted_manual_ping.ping(), decrypted_function_ping.ping());
   ASSERT_EQ(decrypted_manual_ping.sender().node_id(),
 	    decrypted_function_ping.sender().node_id());
@@ -150,20 +150,21 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueRequest) {
   std::string priv_key = kp.private_key();
  
   std::string result_no_securifier = message_.WrapMessage(value_rqst,
-							  pub_key);
+							  kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   
-  std::string function_encrypt = msg_hndlr_.WrapMessage(value_rqst, pub_key);  
+  std::string function_encrypt = msg_hndlr_.WrapMessage(value_rqst,
+							kp.public_key());  
   std::string manual_encrypt = encrypt<protobuf::FindValueRequest>(value_rqst,
-							      pub_key,
+							      kp.public_key(),
 							      kFindValueRequest);
   EXPECT_NE(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::FindValueRequest decrypted_function_value =
-          get_wrapper<protobuf::FindValueRequest>(function_encrypt, priv_key);
+          get_wrapper<protobuf::FindValueRequest>(function_encrypt, kp.private_key());
   protobuf::FindValueRequest decrypted_manual_value =
-          get_wrapper<protobuf::FindValueRequest>(manual_encrypt, priv_key);
+          get_wrapper<protobuf::FindValueRequest>(manual_encrypt, kp.private_key());
   ASSERT_EQ(decrypted_manual_value.key(), decrypted_function_value.key());
   ASSERT_EQ(decrypted_manual_value.sender().node_id(),
 	    decrypted_function_value.sender().node_id());
@@ -179,24 +180,23 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesRequest) {
   
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string pub_key = kp.public_key();
-  std::string priv_key = kp.private_key();
  
   std::string result_no_securifier = message_.WrapMessage(nodes_rqst,
-							  pub_key);
+							  kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   
-  std::string function_encrypt = msg_hndlr_.WrapMessage(nodes_rqst, pub_key);  
+  std::string function_encrypt = msg_hndlr_.WrapMessage(nodes_rqst,
+							kp.public_key());  
   std::string manual_encrypt = encrypt<protobuf::FindNodesRequest>(nodes_rqst,
-							      pub_key,
+							      kp.public_key(),
 							      kFindNodesRequest);
   EXPECT_NE(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::FindNodesRequest decrypted_function_value =
-          get_wrapper<protobuf::FindNodesRequest>(function_encrypt, priv_key);
+          get_wrapper<protobuf::FindNodesRequest>(function_encrypt, kp.private_key());
   protobuf::FindNodesRequest decrypted_manual_value =
-          get_wrapper<protobuf::FindNodesRequest>(manual_encrypt, priv_key);
+          get_wrapper<protobuf::FindNodesRequest>(manual_encrypt, kp.private_key());
   ASSERT_EQ(decrypted_manual_value.key(), decrypted_function_value.key());
   ASSERT_EQ(decrypted_manual_value.sender().node_id(),
 	    decrypted_function_value.sender().node_id());
