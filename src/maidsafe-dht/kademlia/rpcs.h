@@ -113,13 +113,13 @@ class Rpcs {
                     const Contact &peer,
                     StoreFunctor callback,
                     TransportType type);
-  void Delete(const Key &key,
-              const std::string &value,
-              const std::string &signature,
-              SecurifierPtr securifier,
-              const Contact &peer,
-              DeleteFunctor callback,
-              TransportType type);
+  virtual void Delete(const Key &key,
+                      const std::string &value,
+                      const std::string &signature,
+                      SecurifierPtr securifier,
+                      const Contact &peer,
+                      DeleteFunctor callback,
+                      TransportType type);
   void DeleteRefresh(const std::string &serialised_delete_request,
                      const std::string &serialised_delete_request_signature,
                      SecurifierPtr securifier,
