@@ -72,6 +72,9 @@ class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
+    ReportDownContactPtr;
+
 class Node::Impl {
  public:
   Impl(IoServicePtr asio_service,
@@ -131,6 +134,10 @@ class Node::Impl {
   boost::uint16_t alpha() const;
   boost::uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
+
+  /** Getter.
+   *  @return The report_down_contact_ signal. */
+  ReportDownContactPtr report_down_contact();
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -198,6 +205,9 @@ class Node::Impl {
   Contact contact_;
   bool joined_, refresh_routine_started_, stopping_;
   boost::signals2::connection routing_table_connection_;
+  /** Signal to be fired when there is one contact detected as DOWN during any
+   *  operations */
+  ReportDownContactPtr report_down_contact_;
 };
 
 }  // namespace kademlia

@@ -87,12 +87,16 @@ Node::Impl::Impl(IoServicePtr asio_service,
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false),
-      routing_table_connection_() {
-      }
+      routing_table_connection_(),
+      report_down_contact_(new ReportDownContactPtr::element_type) {}
 
 Node::Impl::~Impl() {
   if (joined_)
     Leave(NULL);
+}
+
+ReportDownContactPtr Node::Impl::report_down_contact() {
+  return report_down_contact_;
 }
 
 void Node::Impl::Join(const NodeId &/*node_id*/,
@@ -165,10 +169,9 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   boost::mutex::scoped_lock loch_surlaplage(srpc->rpc_sa->mutex);
   NodeSearchState mark(kContacted);
   if (response_code < 0) {
-    mark = kDown;
-    
-    // ToDo: report the node to downlist here
-    
+    mark = kDown;   
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(srpc->contact);
   }
   // Mark the enquired contact
   NodeContainerByNodeId key_node_indx = srpc->rpc_sa->nc.get<nc_id>();
@@ -215,7 +218,8 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
                                 int response_code,
                                 const Contact &contact) {
   if (response_code < 0) {
-    // ToDo: report the node to downlist here
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(contact);
   }    
 }
 
@@ -556,10 +560,10 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
 }
 
 void Node::Impl::IterativeSearchResponse(
-    RankInfoPtr rank_info,
-    int result,
-    const std::vector<Contact> &contacts,
-    std::shared_ptr<FindNodesRpcArgs> fnrpc) {
+                                  RankInfoPtr rank_info,
+                                  int result,
+                                  const std::vector<Contact> &contacts,
+                                  std::shared_ptr<FindNodesRpcArgs> fnrpc) {
   // If already calledback, i.e. result has already been reported
   // then do nothing, just return
   if (fnrpc->rpc_fna->calledback) {
@@ -569,9 +573,8 @@ void Node::Impl::IterativeSearchResponse(
   NodeSearchState mark(kContacted);
   if (result < 0) {
     mark = kDown;
-
-    // ToDo: report the node to downlist here
-    
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(fnrpc->contact);
   } else {
     AddContactsToContainer(contacts, fnrpc->rpc_fna);
   }
