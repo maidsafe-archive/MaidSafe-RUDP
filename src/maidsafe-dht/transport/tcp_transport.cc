@@ -40,18 +40,15 @@ namespace maidsafe {
 namespace transport {
 
 TcpTransport::TcpTransport(
-    std::shared_ptr<boost::asio::io_service> asio_service)
+    boost::asio::io_service &asio_service)
         : Transport(asio_service),
           acceptor_(),
           connections_(),
           mutex_() {}
 
 TcpTransport::~TcpTransport() {
-  while (!connections_.empty())
-    (*connections_.begin())->Close();
-//  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-//    (*it)->Close();
-  StopListening();
+  for (auto it = connections_.begin(); it != connections_.end(); ++it)
+    (*it)->Close();
 }
 
 TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
@@ -62,13 +59,18 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
     return kInvalidPort;
 
   ip::tcp::endpoint ep(endpoint.ip, endpoint.port);
-  acceptor_.reset(new ip::tcp::acceptor(*asio_service_));
+  acceptor_.reset(new ip::tcp::acceptor(asio_service_));
 
   bs::error_code ec;
   acceptor_->open(ep.protocol(), ec);
 
   if (ec)
     return kInvalidAddress;
+
+  acceptor_->set_option(ip::tcp::acceptor::reuse_address(true), ec);
+
+  if (ec)
+    return kSetOptionFailure;
 
   acceptor_->bind(ep, ec);
 
@@ -81,13 +83,15 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
     return kListenError;
 
   ConnectionPtr new_connection(
-      std::make_shared<TcpConnection>(this, boost::asio::ip::tcp::endpoint()));
+      std::make_shared<TcpConnection>(shared_from_this(),
+                                      boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
   acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept, this,
+                          std::bind(&TcpTransport::HandleAccept,
+                                    shared_from_this(),
                                     new_connection, arg::_1));
   return kSuccess;
 }
@@ -111,12 +115,14 @@ void TcpTransport::HandleAccept(ConnectionPtr connection,
   }
 
   ConnectionPtr new_connection(
-      std::make_shared<TcpConnection>(this, boost::asio::ip::tcp::endpoint()));
+      std::make_shared<TcpConnection>(shared_from_this(),
+                                      boost::asio::ip::tcp::endpoint()));
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
   acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept, this,
+                          std::bind(&TcpTransport::HandleAccept,
+                                    shared_from_this(),
                                     new_connection, arg::_1));
 }
 
@@ -124,7 +130,8 @@ void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
-  ConnectionPtr connection(std::make_shared<TcpConnection>(this, tcp_endpoint));
+  ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
+                                                           tcp_endpoint));
 
   {
     boost::mutex::scoped_lock lock(mutex_);

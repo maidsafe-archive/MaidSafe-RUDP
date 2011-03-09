@@ -172,9 +172,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   if (listen) {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(asio_service_));
+      transport1 = TransportPtr(new T(*asio_service_));
     else
-      transport1 = TransportPtr(new T(asio_service_3_));
+      transport1 = TransportPtr(new T(*asio_service_3_));
 
     if (lport != Port(0)) {
       EXPECT_EQ(kSuccess,
@@ -187,9 +187,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   } else {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(asio_service_));
+      transport1 = TransportPtr(new T(*asio_service_));
     else
-      transport1 = TransportPtr(new T(asio_service_3_));
+      transport1 = TransportPtr(new T(*asio_service_3_));
     sending_transports_.push_back(transport1);
   }
 }
@@ -358,7 +358,7 @@ void TransportAPITest<T>::CheckMessages() {
 
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  TransportPtr transport(new TypeParam(this->asio_service_));
+  TransportPtr transport(new TypeParam(*this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 2277)));
@@ -375,8 +375,8 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
-  TransportPtr sender(new TypeParam(this->asio_service_));
-  TransportPtr listener(new TypeParam(this->asio_service_));
+  TransportPtr sender(new TypeParam(*this->asio_service_));
+  TransportPtr listener(new TypeParam(*this->asio_service_));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
