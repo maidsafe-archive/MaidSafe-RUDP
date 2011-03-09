@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
+#include "boost/asio/strand.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
@@ -62,6 +63,10 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
  private:
   TcpConnection(const TcpConnection&);
   TcpConnection &operator=(const TcpConnection&);
+  void DoClose();
+  void DoStartReceiving();
+  void StartConnect();
+  void StartWrite(DataSize msg_size);
   void StartTimeout(const Timeout &timeout);
 
   void HandleTimeout(const boost::system::error_code& ec);
@@ -73,6 +78,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   void DispatchMessage();
 
   std::weak_ptr<TcpTransport> transport_;
+  boost::asio::io_service::strand strand_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;

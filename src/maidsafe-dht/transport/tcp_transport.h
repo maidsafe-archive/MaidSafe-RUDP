@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include "boost/asio/io_service.hpp"
-#include "boost/thread/thread.hpp"
+#include "boost/asio/strand.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/tcp_connection.h"
 
@@ -58,10 +58,14 @@ class TcpTransport : public Transport,
   typedef std::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
   typedef std::shared_ptr<TcpConnection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
-  void HandleAccept(ConnectionPtr connection,
+  static void CloseAcceptor(AcceptorPtr acceptor);
+  void HandleAccept(AcceptorPtr acceptor, ConnectionPtr connection,
                     const boost::system::error_code &ec);
 
+  void InsertConnection(ConnectionPtr connection);
+  void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
+  void DoRemoveConnection(ConnectionPtr connection);
 
   AcceptorPtr acceptor_;
 
@@ -69,7 +73,7 @@ class TcpTransport : public Transport,
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.
   ConnectionSet connections_;
-  boost::mutex mutex_;
+  boost::asio::io_service::strand strand_;
 };
 
 }  // namespace transport

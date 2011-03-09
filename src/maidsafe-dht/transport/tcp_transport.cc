@@ -44,7 +44,7 @@ TcpTransport::TcpTransport(
         : Transport(asio_service),
           acceptor_(),
           connections_(),
-          mutex_() {}
+          strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -90,27 +90,34 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
   acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept,
-                                    shared_from_this(),
-                                    new_connection, arg::_1));
+                          strand_.wrap(std::bind(&TcpTransport::HandleAccept,
+                                                 shared_from_this(), acceptor_,
+                                                 new_connection, arg::_1)));
   return kSuccess;
 }
 
 void TcpTransport::StopListening() {
-  boost::system::error_code ec;
   if (acceptor_)
-    acceptor_->close(ec);
+    strand_.dispatch(std::bind(&TcpTransport::CloseAcceptor, acceptor_));
   listening_port_ = 0;
+  acceptor_.reset();
 }
 
-void TcpTransport::HandleAccept(ConnectionPtr connection,
+void TcpTransport::CloseAcceptor(AcceptorPtr acceptor) {
+  boost::system::error_code ec;
+  acceptor->close(ec);
+}
+
+void TcpTransport::HandleAccept(AcceptorPtr acceptor,
+                                ConnectionPtr connection,
                                 const bs::error_code &ec) {
-  if (listening_port_ == 0)
+  if (!acceptor->is_open())
     return;
 
   if (!ec) {
-    boost::mutex::scoped_lock lock(mutex_);
-    connections_.insert(connection);
+    // It is safe to call DoInsertConnection directly because HandleAccept() is
+    // already being called inside the strand.
+    DoInsertConnection(connection);
     connection->StartReceiving();
   }
 
@@ -120,10 +127,10 @@ void TcpTransport::HandleAccept(ConnectionPtr connection,
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
-  acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept,
-                                    shared_from_this(),
-                                    new_connection, arg::_1));
+  acceptor->async_accept(new_connection->Socket(),
+                         strand_.wrap(std::bind(&TcpTransport::HandleAccept,
+                                                shared_from_this(), acceptor,
+                                                new_connection, arg::_1)));
 }
 
 void TcpTransport::Send(const std::string &data,
@@ -132,17 +139,25 @@ void TcpTransport::Send(const std::string &data,
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
   ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
                                                            tcp_endpoint));
-
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    connections_.insert(connection);
-  }
-
+  InsertConnection(connection);
   connection->Send(data, timeout, false);
 }
 
+void TcpTransport::InsertConnection(ConnectionPtr connection) {
+  strand_.dispatch(std::bind(&TcpTransport::DoInsertConnection,
+                             shared_from_this(), connection));
+}
+
+void TcpTransport::DoInsertConnection(ConnectionPtr connection) {
+  connections_.insert(connection);
+}
+
 void TcpTransport::RemoveConnection(ConnectionPtr connection) {
-  boost::mutex::scoped_lock lock(mutex_);
+  strand_.dispatch(std::bind(&TcpTransport::DoRemoveConnection,
+                             shared_from_this(), connection));
+}
+
+void TcpTransport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
 }
 
