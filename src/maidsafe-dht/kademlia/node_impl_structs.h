@@ -185,13 +185,11 @@ struct StoreArgs {
       : nc(),
         mutex(),
         callback(sa_callback),
-        calledback(false),
-        succeeded(0) {}
+        calledback(false) {}
   NodeContainer nc;
   boost::mutex mutex;
   StoreFunctor callback;
   bool calledback;
-  int succeeded;
 };
 
 struct StoreRpcArgs {
