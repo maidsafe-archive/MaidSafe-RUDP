@@ -278,7 +278,7 @@ void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
                                TransportPtr listener_pt) {
   std::string request(RandomString(11));
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
-                  bptime::seconds(1));
+                  bptime::seconds(2));
 
   {
     boost::mutex::scoped_lock lock(mutex_);
