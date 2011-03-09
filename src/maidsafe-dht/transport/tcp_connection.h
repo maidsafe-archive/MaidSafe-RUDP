@@ -51,7 +51,7 @@ class TcpTransport;
 
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
  public:
-  TcpConnection(TcpTransport *tcp_transport,
+  TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);
   ~TcpConnection();
   void Close();
@@ -72,7 +72,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 
   void DispatchMessage();
 
-  TcpTransport *transport_;
+  std::weak_ptr<TcpTransport> transport_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
