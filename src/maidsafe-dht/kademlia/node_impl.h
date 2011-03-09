@@ -172,7 +172,14 @@ class Node::Impl {
                      StoreFunctor callback);
   void StoreResponse(RankInfoPtr rank_info,
                      int response_code,
-                     std::shared_ptr<StoreRpcArgs> srpc);
+                     std::shared_ptr<StoreRpcArgs> srpc,
+                     const Key &key,
+                     const std::string &value,
+                     const std::string &signature,
+                     SecurifierPtr securifier);
+  void DeleteResponse(RankInfoPtr rank_info,
+                      int response_code,
+                      const Contact &contact);
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
