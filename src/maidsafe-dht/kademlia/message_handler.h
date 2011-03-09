@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 #define MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 
+#include <boost/concept_check.hpp>
 #include <memory>
 #include <string>
 #include "boost/function.hpp"
@@ -61,6 +62,16 @@ class UpdateRequest;
 class UpdateResponse;
 class DownlistNotification;
 }  // namespace protobuf
+
+namespace test {
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForPingResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindValueResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindNodesResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreRefreshResponse_Test; // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteRefreshResponse_Test; // NOLINT
+}  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
 const int kMaxMessageType(transport::kMaxMessageType + 1000);
@@ -220,6 +231,13 @@ class MessageHandler : public transport::MessageHandler {
                                         std::string *message_response,
                                         transport::Timeout *timeout);
  private:
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForPingResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindValueResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindNodesResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreRefreshResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteRefreshResponse_Test; // NOLINT
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
