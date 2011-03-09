@@ -76,6 +76,24 @@ class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteRefreshResponse_Tes
 // Highest possible message type ID, use as offset for type extensions.
 const int kMaxMessageType(transport::kMaxMessageType + 1000);
 
+enum MessageType {
+  kPingRequest = transport::kMaxMessageType + 1,
+  kPingResponse,
+  kFindValueRequest,
+  kFindValueResponse,
+  kFindNodesRequest,
+  kFindNodesResponse,
+  kStoreRequest,
+  kStoreResponse,
+  kStoreRefreshRequest,
+  kStoreRefreshResponse,
+  kDeleteRequest,
+  kDeleteResponse,
+  kDeleteRefreshRequest,
+  kDeleteRefreshResponse,
+  kDownlistNotification
+};
+
 class MessageHandler : public transport::MessageHandler {
  public:
 
@@ -222,6 +240,7 @@ class MessageHandler : public transport::MessageHandler {
   DownlistNtfSigPtr on_downlist_notification() {
     return on_downlist_notification_;
   }
+
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
@@ -230,6 +249,7 @@ class MessageHandler : public transport::MessageHandler {
                                         const transport::Info &info,
                                         std::string *message_response,
                                         transport::Timeout *timeout);
+
  private:
   friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForPingResponse_Test; // NOLINT
   friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindValueResponse_Test; // NOLINT

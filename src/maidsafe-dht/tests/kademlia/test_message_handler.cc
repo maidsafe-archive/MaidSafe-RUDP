@@ -36,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe-dht/transport/transport.pb.h"
-#include "maidsafe-dht/kademlia/message_handler.cc"
 
 namespace maidsafe {
 
@@ -67,13 +66,13 @@ class KademliaMessageHandlerTest: public testing::Test {
                                    new SecurifierValidateFalse("", "", "")),
                                  msg_hndlr_(sec_ptr_),
                                  securifier_null_(),
-                                 message_(securifier_null_) {  }
+                                 msg_hndlr_no_securifier_(securifier_null_) {  }
   virtual void SetUp() { }
   virtual void TearDown() { }
 
   template<class T>
   T get_wrapper(std::string encrypted, std::string key) {
-    std::string amended(encrypted, 1, encrypted.size()-1);
+    std::string amended(encrypted, 1, encrypted.size() - 1);
     std::string decrypted = crypto::AsymDecrypt(amended, key);
     transport::protobuf::WrapperMessage decrypted_msg;
     decrypted_msg.ParseFromString(decrypted);
@@ -98,10 +97,10 @@ class KademliaMessageHandlerTest: public testing::Test {
   std::shared_ptr<Securifier> sec_ptr_;
   MessageHandler msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
-  MessageHandler message_;
+  MessageHandler msg_hndlr_no_securifier_;
 };
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingRequest) {
   protobuf::PingRequest ping_rqst;
   ping_rqst.set_ping("ping");
   protobuf::Contact contact;
@@ -110,8 +109,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingRequest) {
   ASSERT_TRUE(ping_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(ping_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(ping_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt = msg_hndlr_.WrapMessage(ping_rqst,
@@ -123,16 +122,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingRequest) {
 
   // decrypt for comparison test
   protobuf::PingRequest decrypted_function_ping =
-        get_wrapper<protobuf::PingRequest>(function_encrypt, kp.private_key());
+      get_wrapper<protobuf::PingRequest>(function_encrypt, kp.private_key());
   protobuf::PingRequest decrypted_manual_ping =
-        get_wrapper<protobuf::PingRequest>(manual_encrypt, kp.private_key());
+      get_wrapper<protobuf::PingRequest>(manual_encrypt, kp.private_key());
   ASSERT_EQ(decrypted_manual_ping.ping(), decrypted_function_ping.ping());
   ASSERT_EQ(decrypted_manual_ping.sender().node_id(),
             decrypted_function_ping.sender().node_id());
 }
 
-
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueRequest) {
   protobuf::FindValueRequest value_rqst;
   value_rqst.set_key("request_key");
   protobuf::Contact contact;
@@ -143,8 +141,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueRequest) {
   kp.GenerateKeys(4096);
   std::string pub_key = kp.public_key();
   std::string priv_key = kp.private_key();
-  std::string result_no_securifier = message_.WrapMessage(value_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(value_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt = msg_hndlr_.WrapMessage(value_rqst,
@@ -166,7 +164,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesRequest) {
   protobuf::FindNodesRequest nodes_rqst;
   nodes_rqst.set_key("node_request_key");
   protobuf::Contact contact;
@@ -175,8 +173,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesRequest) {
   ASSERT_TRUE(nodes_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(nodes_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(nodes_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt = msg_hndlr_.WrapMessage(nodes_rqst,
@@ -198,7 +196,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRequest) {
   protobuf::StoreRequest store_rqst;
   store_rqst.set_key("store_request_key");
   protobuf::Contact contact;
@@ -212,8 +210,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRequest) {
   ASSERT_TRUE(store_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(store_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(store_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt = msg_hndlr_.WrapMessage(store_rqst,
@@ -237,7 +235,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRequest) {
   ASSERT_EQ(decrypted_manual_value.ttl(), decrypted_function_value.ttl());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRefreshRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshRequest) {
   protobuf::StoreRefreshRequest refresh_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -245,8 +243,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRefreshRequest) {
   ASSERT_TRUE(refresh_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(refresh_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(refresh_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(refresh_rqst,
                                                         kp.public_key());
@@ -264,7 +262,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRefreshRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRequest) {
   protobuf::DeleteRequest delete_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -277,8 +275,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRequest) {
   ASSERT_TRUE(delete_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(delete_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(delete_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(delete_rqst,
                                                         kp.public_key());
@@ -301,7 +299,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRequest) {
             decrypted_function_value.signed_value().signature());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRefreshRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshRequest) {
   protobuf::DeleteRefreshRequest delrefresh_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -309,8 +307,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRefreshRequest) {
   ASSERT_TRUE(delrefresh_rqst.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(delrefresh_rqst,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(delrefresh_rqst, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(delrefresh_rqst,
                                                         kp.public_key());
@@ -329,7 +327,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRefreshRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDownlistNotification) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
   protobuf::DownlistNotification downlist;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -337,8 +335,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDownlistNotification) {
   ASSERT_TRUE(downlist.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(downlist,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(downlist, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(downlist,
                                                         kp.public_key());
@@ -358,14 +356,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDownlistNotification) {
 }
 
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingResponse) {
   protobuf::PingResponse response;
   response.set_echo("ping response echo");
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -383,14 +381,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForPingResponse) {
             decrypted_function_value.echo());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueResponse) {
   protobuf::FindValueResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -408,14 +406,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindValueResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesResponse) {
   protobuf::FindNodesResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -433,14 +431,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForFindNodesResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreResponse) {
   protobuf::StoreResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -458,14 +456,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRefreshResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshResponse) {
   protobuf::StoreRefreshResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -483,14 +481,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForStoreRefreshResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteResponse) {
   protobuf::DeleteResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -508,14 +506,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRefreshResponse) { // NOLINT
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshResponse) {
   protobuf::DeleteRefreshResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  std::string result_no_securifier = message_.WrapMessage(response,
-                                                          kp.public_key());
+  std::string result_no_securifier =
+      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
   ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt = msg_hndlr_.WrapMessage(response,
                                                         kp.public_key());
@@ -532,6 +530,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageForDeleteRefreshResponse) 
   ASSERT_TRUE(decrypted_manual_value.result());
   ASSERT_TRUE(decrypted_function_value.result());
 }
+
 }  // namespace test_service
 
 }  // namespace kademlia
