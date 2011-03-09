@@ -264,13 +264,6 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
       listening_message_handlers_.size() * num_messages);
     ++sending_msg_handlers_itr;
   }
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-  for (auto itr = listening_transports_.begin();
-      itr < listening_transports_.end(); ++itr)
-    (*itr)->StopListening();
-  for (auto itr = sending_transports_.begin();
-      itr < sending_transports_.end(); ++itr)
-    (*itr)->StopListening();
 }
 
 template <typename T>
@@ -371,7 +364,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123)));
   EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
-  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
@@ -423,7 +415,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   ASSERT_EQ(size_t(2), msgh_listener->responses_sent().size());
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
   listener->StopListening();
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 
@@ -437,7 +428,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
-  boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
