@@ -49,7 +49,7 @@ static const IP kIP(boost::asio::ip::address_v4::loopback());
 static const boost::uint16_t kThreadGroupSize = 8;
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
-typedef boost::shared_ptr<Transport> TransportPtr;
+typedef std::shared_ptr<Transport> TransportPtr;
 typedef boost::shared_ptr<TestMessageHandler> TestMessageHandlerPtr;
 typedef std::vector<std::string> Messages;
 
