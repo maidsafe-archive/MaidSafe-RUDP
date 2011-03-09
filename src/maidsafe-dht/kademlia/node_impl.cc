@@ -203,8 +203,8 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   // delete those succeeded contacts if a failure was report back
   // the response for the last responded contact shall be responsible to do it
   if ((num_of_pending == 0) && (num_of_contacted < threshold_)) {
-    auto it = pit_contacted.first;
-    while (it != pit_contacted.second) {
+    auto it = pit_down.first;
+    while (it != pit_down.second) {
       rpcs_->Delete(key, value, signature, securifier, (*it).contact,
                     boost::bind(&Node::Impl::DeleteResponse,
                                this, _1, _2, (*it).contact),
