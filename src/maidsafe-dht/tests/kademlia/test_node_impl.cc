@@ -621,7 +621,10 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
       ++step;
     }
   }
-
+  //  sleep for a while to prevent the situation that resources got destructed
+  //  before all call back from rpc completed. Which will cause "Segmentation
+  //  Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   //SetRpc(old_rpcs);
 }
 
@@ -835,6 +838,10 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(false, done);
     EXPECT_EQ(0, lcontacts.size());
   }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before call back completed. Which will cause "Segmentation Fault" in
+  // execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 TEST_F(NodeImplTest, BEH_KAD_Store) {
@@ -892,6 +899,10 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 
     EXPECT_EQ(threshold, response_code);
   }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
   //SetRpc(old_rpcs);
 }
