@@ -28,13 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
 
-#include "maidsafe-dht/kademlia/securifier.h"
-#include "maidsafe-dht/kademlia/message_handler.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe/common/crypto.h"
-#include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe-dht/kademlia/config.h"
+#include "maidsafe-dht/kademlia/message_handler.h"
+#include "maidsafe-dht/kademlia/rpcs.pb.h"
+#include "maidsafe-dht/kademlia/securifier.h"
+#include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.pb.h"
 
 namespace maidsafe {
@@ -50,14 +50,12 @@ class SecurifierValidateFalse: public Securifier {
                           const std::string &private_key) :
       Securifier(public_key_id, public_key, private_key) {}
 
-  bool Validate(const std::string &,
-                const std::string &,
-                const std::string &,
-                const std::string &,
-                const std::string &,
-                const std::string &) const {
-    return false;
-  }
+  bool Validate(const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&) const { return false; }
 };
 
 class KademliaMessageHandlerTest: public testing::Test {

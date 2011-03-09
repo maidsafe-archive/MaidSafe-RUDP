@@ -64,13 +64,13 @@ class DownlistNotification;
 }  // namespace protobuf
 
 namespace test {
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForPingResponse_Test;
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindValueResponse_Test;
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindNodesResponse_Test;
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreResponse_Test;
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreRefreshResponse_Test; // NOLINT
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteResponse_Test;
-class KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteRefreshResponse_Test; // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessagePingResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindValueResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindNodesResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreRefreshResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteRefreshResponse_Test;
 }  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -251,13 +251,13 @@ class MessageHandler : public transport::MessageHandler {
                                         transport::Timeout *timeout);
 
  private:
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForPingResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindValueResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForFindNodesResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForStoreRefreshResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteResponse_Test; // NOLINT
-  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageForDeleteRefreshResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessagePingResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindValueResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindNodesResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreRefreshResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteRefreshResponse_Test; // NOLINT
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
