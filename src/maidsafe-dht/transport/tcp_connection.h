@@ -75,9 +75,11 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   void StartConnect();
   void HandleConnect(const boost::system::error_code &ec);
 
-  void StartRead();
-  void HandleSize(const boost::system::error_code &ec);
-  void HandleRead(const boost::system::error_code &ec);
+  void StartReadSize();
+  void HandleReadSize(const boost::system::error_code &ec);
+
+  void StartReadData();
+  void HandleReadData(const boost::system::error_code &ec, size_t length);
 
   void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
@@ -92,6 +94,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   boost::asio::deadline_timer timer_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
   std::vector<unsigned char> size_buffer_, data_buffer_;
+  size_t data_size_, data_received_;
   Timeout timeout_for_response_;
 };
 

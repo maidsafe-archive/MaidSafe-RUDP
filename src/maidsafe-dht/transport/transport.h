@@ -136,6 +136,8 @@ struct Info {
 
 // In bytes
 const DataSize kMaxTransportMessageSize = 67108864;
+// Maximum number of bytes to read at a time
+const DataSize kMaxTransportChunkSize = 65536;
 // Default timeout for RPCs
 const Timeout kDefaultInitialTimeout(bptime::seconds(10));
 // Used to indicate timeout should be calculated by transport
