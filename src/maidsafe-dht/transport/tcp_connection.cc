@@ -56,6 +56,8 @@ TcpConnection::TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
     remote_endpoint_(remote),
     size_buffer_(sizeof(DataSize)),
     data_buffer_(),
+    data_size_(0),
+    data_received_(0),
     timeout_for_response_(kDefaultInitialTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
@@ -84,7 +86,7 @@ void TcpConnection::StartReceiving() {
 }
 
 void TcpConnection::DoStartReceiving() {
-  StartRead();
+  StartReadSize();
   CheckTimeout();
 }
 
@@ -117,17 +119,17 @@ void TcpConnection::CheckTimeout() {
   }
 }
 
-void TcpConnection::StartRead() {
-  // Start by receiving the message size.
-  // socket_.async_receive(...);
+void TcpConnection::StartReadSize() {
+  assert(socket_.is_open());
+
   asio::async_read(socket_, asio::buffer(size_buffer_, size_buffer_.size()),
-                   strand_.wrap(std::bind(&TcpConnection::HandleSize,
+                   strand_.wrap(std::bind(&TcpConnection::HandleReadSize,
                                           shared_from_this(), arg::_1)));
 
   timer_.expires_from_now(timeout_for_response_);
 }
 
-void TcpConnection::HandleSize(const bs::error_code &ec) {
+void TcpConnection::HandleReadSize(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
     return CloseOnError(kReceiveTimeout);
@@ -139,14 +141,29 @@ void TcpConnection::HandleSize(const bs::error_code &ec) {
 
   DataSize size = (((((size_buffer_.at(0) << 8) | size_buffer_.at(1)) << 8) |
                     size_buffer_.at(2)) << 8) | size_buffer_.at(3);
-  data_buffer_.resize(size);
 
-  asio::async_read(socket_, asio::buffer(data_buffer_, size),
-                   strand_.wrap(std::bind(&TcpConnection::HandleRead,
-                                shared_from_this(), arg::_1)));
+  data_size_ = size;
+  data_received_ = 0;
+
+  StartReadData();
 }
 
-void TcpConnection::HandleRead(const bs::error_code &ec) {
+void TcpConnection::StartReadData() {
+  assert(socket_.is_open());
+
+  size_t buffer_size = data_received_;
+  buffer_size += std::min(static_cast<size_t>(kMaxTransportChunkSize),
+                          data_size_ - data_received_);
+  data_buffer_.resize(buffer_size);
+
+  asio::mutable_buffer data_buffer = asio::buffer(data_buffer_) + data_received_;
+  asio::async_read(socket_, asio::buffer(data_buffer),
+                   strand_.wrap(std::bind(&TcpConnection::HandleReadData,
+                                          shared_from_this(),
+                                          arg::_1, arg::_2)));
+}
+
+void TcpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
     return CloseOnError(kReceiveTimeout);
@@ -156,12 +173,19 @@ void TcpConnection::HandleRead(const bs::error_code &ec) {
     return CloseOnError(kReceiveFailure);
   }
 
-  // No timeout applies while dispatching the message.
-  timer_.expires_at(boost::posix_time::pos_infin);
+  data_received_ += length;
 
-  // Dispatch the message outside the strand.
-  strand_.get_io_service().post(std::bind(&TcpConnection::DispatchMessage,
-                                          shared_from_this()));
+  if (data_received_ == data_size_) {
+    // No timeout applies while dispatching the message.
+    timer_.expires_at(boost::posix_time::pos_infin);
+
+    // Dispatch the message outside the strand.
+    strand_.get_io_service().post(std::bind(&TcpConnection::DispatchMessage,
+                                            shared_from_this()));
+  } else {
+    // Need more data to complete the message.
+    StartReadData();
+  }
 }
 
 void TcpConnection::DispatchMessage() {
@@ -256,7 +280,7 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 
   // Start receiving response
   if (timeout_for_response_ != kImmediateTimeout) {
-    StartRead();
+    StartReadSize();
   } else {
     DoClose();
   }
