@@ -324,6 +324,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                            const Contact &peer,
                            StoreFunctor callback,
                            TransportType type));
+  
   MOCK_METHOD7(Delete, void(const Key &key,
                             const std::string &value,
                             const std::string &signature,
@@ -339,7 +340,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                TransportType type));
 
   void FindNodeRandomResponseClose(const Contact &c,
-                     FindNodesFunctor callback) {
+                                   FindNodesFunctor callback) {
     int response_factor = RandomUint32() % 100;
     bool response(true);
     if (response_factor < test::randomnoresponserate)
@@ -361,8 +362,8 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
           respond_contacts_->insert(new_routing_table_contact);
         }
       }
-      boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                   this, callback, response_list));
     } else {
       ContactsById key_indx = respond_contacts_->get<NodeIdTag>();
       auto it = key_indx.find(c.node_id());
@@ -370,13 +371,13 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
         down_contacts_->insert((*it));
         respond_contacts_->erase(it);
       }
-      boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeNoResponseThread,
+                                   this, callback, response_list));
     }
   }
 
   void FindNodeResponseClose(const Contact &c,
-                     FindNodesFunctor callback) {
+                             FindNodesFunctor callback) {
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     int elements = RandomUint32() % test::k;
@@ -388,129 +389,96 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                                     0);
       respond_contacts_->insert(new_routing_table_contact);
     }
-    boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
-                                 response_list));
+    boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                 this, callback, response_list));
   }
 
   void FindNodeResponseNoClose(const Contact &c,
-                     FindNodesFunctor callback) {
+                               FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
-    boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
-                                 response_list));
+    boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                 this, callback, response_list));
   }
 
   void FindNodeFirstNoResponse(const Contact &c,
-                     FindNodesFunctor callback) {
+                               FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
     if (num_of_acquired_ == 0) {
-      boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeNoResponseThread,
+                                   this, callback, response_list));
     } else {
-      boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                   this, callback, response_list));
     }
     ++num_of_acquired_;
   }
 
   void FindNodeFirstAndLastNoResponse(const Contact &c,
-                     FindNodesFunctor callback) {
+                                      FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
     if ((num_of_acquired_ == (test::k - 1)) || (num_of_acquired_ == 0)) {
-      boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeNoResponseThread,
+                                   this, callback, response_list));
     } else {
-      boost::thread th(boost::bind(&MockRpcs::ResponseThread, this, callback,
-                                   response_list));
+      boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                   this, callback, response_list));
     }
     ++num_of_acquired_;
   }
 
   void FindNodeNoResponse(const Contact &c,
-                     FindNodesFunctor callback) {
+                          FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
-    boost::thread th(boost::bind(&MockRpcs::NoResponseThread, this, callback,
-                                 response_list));
+    boost::thread th(boost::bind(&MockRpcs::FindNodeNoResponseThread,
+                                 this, callback, response_list));
   }
 
-  void ResponseThread(FindNodesFunctor callback,
-                         std::vector<Contact> response_list) {
+  void FindNodeResponseThread(FindNodesFunctor callback,
+                              std::vector<Contact> response_list) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, response_list.size(), response_list);
   }
 
-  void NoResponseThread(FindNodesFunctor callback,
-                         std::vector<Contact> response_list) {
+  void FindNodeNoResponseThread(FindNodesFunctor callback,
+                                std::vector<Contact> response_list) {
     boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, -1, response_list);
   }
 
-  void StoreResponse(const Contact &c,
-                     StoreFunctor callback) {
-    boost::thread th(boost::bind(&MockRpcs::StoreResponseThread, this,
-                                 callback));
-  }
-
-  void StoreLastSeveralNoResponse(const Contact &c,
-                                  StoreFunctor callback) {
+  void SingleDeleteResponse(const Contact &c, Rpcs::DeleteFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
-    if (num_of_acquired_ < (threshold_ - 1)) {
-      boost::thread th(boost::bind(&MockRpcs::StoreResponseThread,
-                                    this, callback));
-    } else {
-      boost::thread th(boost::bind(&MockRpcs::StoreNoResponseThread,
-                                    this, callback));
-    }
-    ++num_of_acquired_;
+    ++num_of_deleted_;
+    boost::thread th(boost::bind(
+        &MockRpcs::CommonResponseThread<Rpcs::DeleteFunctor>, this, callback));
   }
 
-  void StoreFirstSeveralNoResponse(const Contact &c,
-                                   StoreFunctor callback) {
+  template <class T>
+  void Response(const Contact &c, T callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    ++respond_;
+    boost::thread th(boost::bind(&MockRpcs::CommonResponseThread<T>,
+                                 this, callback));
+  }
+
+  template <class T>
+  void FirstSeveralNoResponse(const Contact &c, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ > (test::k - threshold_)) {
-      boost::thread th(boost::bind(&MockRpcs::StoreResponseThread,
-                                    this, callback));
+      ++respond_;
+      boost::thread th(boost::bind(&MockRpcs::CommonResponseThread<T>,
+                                   this, callback));
     } else {
-      boost::thread th(boost::bind(&MockRpcs::StoreNoResponseThread,
-                                    this, callback));
+      ++no_respond_;
+      boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
+                                   this, callback));
     }
     ++num_of_acquired_;
-  }
-
-  void StoreLastLessNoResponse(const Contact &c,
-                               StoreFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
-    if (num_of_acquired_ < threshold_) {
-      boost::thread th(boost::bind(&MockRpcs::StoreResponseThread,
-                                    this, callback));
-    } else {
-      boost::thread th(boost::bind(&MockRpcs::StoreNoResponseThread,
-                                    this, callback));
-    }
-    ++num_of_acquired_;
-  }
-
-  void StoreResponseThread(StoreFunctor callback) {
-    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, RandomUint32() % test::k);
-  }
-
-  void StoreNoResponseThread(StoreFunctor callback) {
-    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, -1);
-  }
-
-  void DeleteResponse(const Contact &c,
-                      DeleteFunctor callback) {
-    boost::thread th(boost::bind(&MockRpcs::DeleteResponseThread, this,
-                                 callback));
   }
 
   template <class T>
@@ -529,6 +497,21 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
+  void LastLessNoResponse(const Contact &c, T callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    if (num_of_acquired_ < threshold_) {
+      ++respond_;
+      boost::thread th(boost::bind(&MockRpcs::CommonResponseThread<T>,
+                                   this, callback));
+    } else {
+      ++no_respond_;
+      boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
+                                   this, callback));
+    }
+    ++num_of_acquired_;
+  }
+
+  template <class T>
   void CommonResponseThread(T callback) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
@@ -542,13 +525,6 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     callback(rank_info_, -1);
   }
 
-  void DeleteResponseThread(DeleteFunctor callback) {
-    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
-    ++num_of_deleted_;
-    callback(rank_info_, RandomUint32() % test::k);
-  }
-
   void PopulateResponseCandidates(int count, const int& pos) {
     PopulateContactsVector(count, pos, &node_list_);
   }
@@ -556,6 +532,13 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   std::vector<Contact> node_list() {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     return node_list_;
+  }
+
+  void SetCountersToZero() {
+    num_of_acquired_ = 0;
+    num_of_deleted_ = 0;
+    respond_ = 0;
+    no_respond_ = 0;
   }
 //   std::list<Contact> backup_node_list() { return backup_node_list_; }
 
@@ -962,10 +945,6 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
-  NodeId key = NodeId(NodeId::kRandomId);
-
-  new_rpcs->num_of_acquired_ = 0;
-
   int count = 10 * test::k;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
@@ -973,6 +952,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   std::shared_ptr<RoutingTableContactsContainer> temp
       (new RoutingTableContactsContainer());
   new_rpcs->respond_contacts_ = temp;
+  new_rpcs->SetCountersToZero();
 
   std::shared_ptr<RoutingTableContactsContainer> down_list
       (new RoutingTableContactsContainer());
@@ -983,6 +963,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
           boost::bind(&MockRpcs::FindNodeResponseClose,
                       new_rpcs.get(), _1, _2))));
 
+  NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
@@ -997,7 +978,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
                                  testing::_, testing::_, testing::_,
                                  testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            boost::bind(&MockRpcs::StoreResponse,
+            boost::bind(&MockRpcs::Response<Rpcs::StoreFunctor>,
                         new_rpcs.get(), _1, _2))));
     int response_code(-2);
     bool done(false);
@@ -1010,13 +991,12 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     EXPECT_EQ(threshold, response_code);
   }
   new_rpcs->threshold_ = threshold;
-  new_rpcs->num_of_acquired_ = 0;
-  new_rpcs->num_of_deleted_ = 0;
+  new_rpcs->SetCountersToZero();
   EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
                                 testing::_, testing::_, testing::_,
                                 testing::_))
       .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
-          boost::bind(&MockRpcs::DeleteResponse,
+          boost::bind(&MockRpcs::SingleDeleteResponse,
                       new_rpcs.get(), _1, _2))));
   {
     // All k populated contacts response with random closest list
@@ -1027,7 +1007,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
                                  testing::_, testing::_, testing::_,
                                  testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            boost::bind(&MockRpcs::StoreLastSeveralNoResponse,
+            boost::bind(&MockRpcs::LastSeveralNoResponse<Rpcs::StoreFunctor>,
                         new_rpcs.get(), _1, _2))));
     int response_code(-2);
     bool done(false);
@@ -1042,8 +1022,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold + 1, new_rpcs->num_of_deleted_);
   }
-  new_rpcs->num_of_acquired_ = 0;
-  new_rpcs->num_of_deleted_ = 0;
+  new_rpcs->SetCountersToZero();
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
@@ -1053,7 +1032,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
                                  testing::_, testing::_, testing::_,
                                  testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            boost::bind(&MockRpcs::StoreFirstSeveralNoResponse,
+            boost::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::StoreFunctor>,
                         new_rpcs.get(), _1, _2))));
     int response_code(-2);
     bool done(false);
@@ -1069,8 +1048,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold + 1, new_rpcs->num_of_deleted_);
   }
-  new_rpcs->num_of_acquired_ = 0;
-  new_rpcs->num_of_deleted_ = 0;
+  new_rpcs->SetCountersToZero();
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
@@ -1080,7 +1058,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
                                  testing::_, testing::_, testing::_,
                                  testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            boost::bind(&MockRpcs::StoreLastLessNoResponse,
+            boost::bind(&MockRpcs::LastLessNoResponse<Rpcs::StoreFunctor>,
                         new_rpcs.get(), _1, _2))));
     int response_code(-2);
     bool done(false);
