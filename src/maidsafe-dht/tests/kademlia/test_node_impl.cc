@@ -997,8 +997,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&ErrorCodeCallback, _1, &done,
-                             &response_code));
+                 boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
@@ -1026,8 +1025,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&ErrorCodeCallback, _1, &done,
-                             &response_code));
+                 boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
@@ -1051,8 +1049,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&ErrorCodeCallback, _1, &done,
-                             &response_code));
+                 boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
@@ -1077,14 +1074,38 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&ErrorCodeCallback, _1, &done,
-                             &response_code));
+                 boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(threshold, response_code);
     // wait to ensure in case of wrong, the wrong deletion will be executed
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
+  }
+  new_rpcs->SetCountersToZero();
+  {
+    // Among k populated contacts, less than threshold contacts response with
+    // no closest list
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeSeveralResponseNoClose,
+                        new_rpcs.get(), _1, _2))));
+    EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
+                                 testing::_, testing::_, testing::_,
+                                 testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
+            boost::bind(&MockRpcs::LastLessNoResponse<Rpcs::StoreFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(-2);
+    bool done(false);
+    node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
+                 boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-3, response_code);
+    EXPECT_EQ(0, new_rpcs->respond_);
+    EXPECT_EQ(0, new_rpcs->no_respond_);
   }
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
