@@ -105,8 +105,8 @@ void RoutingTable::InsertContact(const Contact &contact,
       // try to apply ForceK, otherwise fire the signal
       if (ForceKAcceptNewPeer(contact, target_kbucket_index,
                               rank_info, upgrade_lock) != 0) {
-        // ForceK failed.  Find the oldest contact in the bucket
         Contact oldest_contact = GetLastSeenContact(target_kbucket_index);
+
         // fire a signal here to notify
         (*ping_oldest_contact_)(oldest_contact, contact, rank_info);
       }
@@ -415,7 +415,10 @@ int RoutingTable::ForceKAcceptNewPeer(
     RankInfoPtr rank_info,
     std::shared_ptr<UpgradeLock> upgrade_lock) {
   boost::uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
-  if (brother_bucket_of_holder != target_bucket) {
+  int kclosest_bucket_index = GetLeastCommonHeadingBitInKClosestContact();
+
+  if ((brother_bucket_of_holder != target_bucket) &&
+      (kclosest_bucket_index != target_bucket)) {
     DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
         << std::endl;
     return -3;
@@ -430,7 +433,7 @@ int RoutingTable::ForceKAcceptNewPeer(
 
   // sort the brother bucket based on contacts' distance to the holder
   auto pit = contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
-      boost::make_tuple(brother_bucket_of_holder));
+      boost::make_tuple(target_bucket));
   // check if the new contact is among the top v closest
   NodeId distance_to_target = kThisId_ ^ new_contact.node_id();
   // pit.second shall point to the furthest contact (need one step forward)
@@ -438,9 +441,10 @@ int RoutingTable::ForceKAcceptNewPeer(
   // while the least value of XOR distance means the nearest
   auto it_end = pit.second;
   --it_end;
-  // the result from the equal range will always points one step hehind
+  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
   NodeId furthest_distance = (*it_end).distance_to_this_id;
   NodeId furthest_node = (*it_end).node_id;
+  auto it_furthest = key_node_indx.find(furthest_node);
 
   if (furthest_distance <= distance_to_target) {
     // new peer isn't among the k closest neighbours
@@ -448,10 +452,6 @@ int RoutingTable::ForceKAcceptNewPeer(
                     "new peer isn't among the k closest" << std::endl;
     return -4;
   }
-  // new peer is among the k closest neighbours
-  // drop the peer which is the furthest
-  ContactsById key_node_indx = contacts_.get<NodeIdTag>();
-  auto it_furthest = key_node_indx.find(furthest_node);
   UpgradeToUniqueLock unique_lock(*upgrade_lock);
   contacts_.erase(it_furthest);
   RoutingTableContact new_local_contact(new_contact, kThisId_,
@@ -460,6 +460,20 @@ int RoutingTable::ForceKAcceptNewPeer(
   new_local_contact.kbucket_index = brother_bucket_of_holder;
   contacts_.insert(new_local_contact);
   return 0;
+}
+int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
+  std::vector<Contact> contacts, exclude_contacts;
+  GetCloseContacts(kThisId_, k_, exclude_contacts, &contacts);
+  ContactsById key_id_indx
+    = contacts_.get<NodeIdTag>();
+  auto it = key_id_indx.find(contacts[0].node_id());
+  int kclosest_bucket_index = (*it).common_leading_bits;
+  for (int i = 1; i < k_; ++i) {
+    it = key_id_indx.find(contacts[i].node_id());
+    if (kclosest_bucket_index > (*it).common_leading_bits)
+      kclosest_bucket_index = (*it).common_leading_bits;
+  }
+  return kclosest_bucket_index;
 }
 
 boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
