@@ -25,20 +25,6 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// #include <algorithm>
-// #include <vector>
-// #include <set>
-//
-// #include "boost/assert.hpp"
-// #include "boost/bind.hpp"
-// #include "boost/lexical_cast.hpp"
-//
-// #include "maidsafe/common/crypto.h"
-// #include "maidsafe/common/log.h"
-// #include "maidsafe/common/online.h"
-// #include "maidsafe/common/routing_table.h"
-// #include "maidsafe/common/utils.h"
-// #include "maidsafe/common/platform_config.h"
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/node_id.h"
@@ -47,10 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/utils.h"
-// #include "maidsafe-dht/kademlia/kademlia.pb.h"
-// #include "maidsafe-dht/kademlia/node_id.h"
-// #include "maidsafe-dht/transport/transport.h"
-// #include "maidsafe-dht/transport/utils.h"
 
 namespace maidsafe {
 
@@ -151,8 +133,7 @@ void Node::Impl::StoreFindNodesCallback(int result_size,
 
     it = cs.begin();
     while (it != it_end) {
-      std::shared_ptr<StoreRpcArgs> srpc(
-        new StoreRpcArgs((*it), sa));
+      std::shared_ptr<RpcArgs> srpc(new RpcArgs((*it), sa));
       rpcs_->Store(key, value, signature, ttl_s, securifier, (*it),
                    boost::bind(&Node::Impl::StoreResponse,
                                this, _1, _2, srpc, key, value,
@@ -165,12 +146,14 @@ void Node::Impl::StoreFindNodesCallback(int result_size,
 
 void Node::Impl::StoreResponse(RankInfoPtr rank_info,
                                int response_code,
-                               std::shared_ptr<StoreRpcArgs> srpc,
+                               std::shared_ptr<RpcArgs> srpc,
                                const Key &key,
                                const std::string &value,
                                const std::string &signature,
                                SecurifierPtr securifier) {
-  boost::mutex::scoped_lock loch_surlaplage(srpc->rpc_sa->mutex);
+  std::shared_ptr<StoreArgs> sa =
+      std::static_pointer_cast<StoreArgs> (srpc->rpc_a);
+  boost::mutex::scoped_lock loch_surlaplage(sa->mutex);
   NodeSearchState mark(kContacted);
   if (response_code < 0) {
     mark = kDown;   
@@ -178,30 +161,30 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
     (*report_down_contact_)(srpc->contact);
   }
   // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = srpc->rpc_sa->nc.get<nc_id>();
+  NodeContainerByNodeId key_node_indx = sa->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(srpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
   
-  auto pit_pending = srpc->rpc_sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
   int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
-  auto pit_contacted = srpc->rpc_sa->nc.get<nc_state>().equal_range(kContacted);
+  auto pit_contacted = sa->nc.get<nc_state>().equal_range(kContacted);
   int num_of_contacted= std::distance(pit_contacted.first,
                                       pit_contacted.second);
 
-  auto pit_down = srpc->rpc_sa->nc.get<nc_state>().equal_range(kDown);
+  auto pit_down = sa->nc.get<nc_state>().equal_range(kDown);
   int num_of_down= std::distance(pit_down.first, pit_down.second);
 
-  if (!srpc->rpc_sa->calledback) {
+  if (!sa->calledback) {
     if (num_of_down > (k_ - threshold_)) {
       // report back a failure once has more down contacts than the margin
-      srpc->rpc_sa->callback(-2);
-      srpc->rpc_sa->calledback = true;
+      sa->callback(-2);
+      sa->calledback = true;
     }
     if (num_of_contacted >= threshold_) {
       // report back once has enough succeed contacts
-      srpc->rpc_sa->callback(num_of_contacted);
-      srpc->rpc_sa->calledback = true;
+      sa->callback(num_of_contacted);
+      sa->calledback = true;
     }
   }
   // delete those succeeded contacts if a failure was report back
@@ -227,11 +210,96 @@ void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
   }    
 }
 
-void Node::Impl::Delete(const Key &/*key*/,
-                        const std::string &/*value*/,
-                        const std::string &/*signature*/,
-                        SecurifierPtr /*securifier*/,
-                        DeleteFunctor /*callback*/) {
+void Node::Impl::Delete(const Key &key,
+                        const std::string &value,
+                        const std::string &signature,
+                        SecurifierPtr securifier,
+                        DeleteFunctor callback) {
+  FindNodes(key, boost::bind(&Node::Impl::DeleteFindNodesCallback,
+                             this, _1, _2,
+                             key, value, signature,
+                             securifier, callback));
+}
+
+void Node::Impl::DeleteFindNodesCallback(int result_size,
+                               const std::vector<Contact> &cs,
+                               const Key &key,
+                               const std::string &value,
+                               const std::string &signature,
+                               SecurifierPtr securifier,
+                               DeleteFunctor callback) {
+  if (result_size < threshold_) {
+    if (result_size < 0) {
+      callback(-1);
+    } else {
+      callback(-3);
+    }
+  } else {
+    std::shared_ptr<DeleteArgs> da(new DeleteArgs(callback));
+    auto it = cs.begin();
+    auto it_end = cs.end();
+    while (it != it_end) {
+        NodeContainerTuple nct((*it), key);
+        nct.state = kSelectedAlpha;
+        da->nc.insert(nct);
+        ++it;
+    }
+
+    it = cs.begin();
+    while (it != it_end) {
+      std::shared_ptr<RpcArgs> drpc(new RpcArgs((*it), da));
+      rpcs_->Delete(key, value, signature, securifier, (*it),
+                    boost::bind(&Node::Impl::DeleteResponse,
+                                this, _1, _2, drpc),
+                    kTcp);
+      ++it;
+    }
+  }
+}
+
+void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
+                                int response_code,
+                                std::shared_ptr<RpcArgs> drpc) {
+  std::shared_ptr<DeleteArgs> da =
+      std::static_pointer_cast<DeleteArgs> (drpc->rpc_a);
+  if (da->calledback)
+    return;
+  
+  boost::mutex::scoped_lock loch_surlaplage(da->mutex);
+  NodeSearchState mark(kContacted);
+  if (response_code < 0) {
+    mark = kDown;
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(drpc->contact);
+  }
+  // Mark the enquired contact
+  NodeContainerByNodeId key_node_indx = da->nc.get<nc_id>();
+  auto it_tuple = key_node_indx.find(drpc->contact.node_id());
+  key_node_indx.modify(it_tuple, ChangeState(mark));
+
+  auto pit_pending = da->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+
+  auto pit_contacted = da->nc.get<nc_state>().equal_range(kContacted);
+  int num_of_contacted= std::distance(pit_contacted.first,
+                                      pit_contacted.second);
+
+  auto pit_down = da->nc.get<nc_state>().equal_range(kDown);
+  int num_of_down= std::distance(pit_down.first, pit_down.second);
+
+  if (num_of_down > (k_ - threshold_)) {
+    // report back a failure once has more down contacts than the margin
+    da->callback(-2);
+    da->calledback = true;
+  }
+  if (num_of_contacted >= threshold_) {
+    // report back once has enough succeed contacts
+    da->callback(num_of_contacted);
+    da->calledback = true;
+  }
+
+  // by far only report failure defined, unlike to what happens in Store,
+  // there is no restore (undo those success deleted) operation in delete
 }
 
 void Node::Impl::Update(const Key &/*key*/,
@@ -555,8 +623,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
   // to avoid any possibilities of cross-interference
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
-    std::shared_ptr<FindNodesRpcArgs> fnrpc(
-        new FindNodesRpcArgs((*it_tuple).contact, fna));
+    std::shared_ptr<RpcArgs> fnrpc(new RpcArgs((*it_tuple).contact, fna));
     rpcs_->FindNodes(fna->key, default_securifier_, (*it_tuple).contact,
                      boost::bind(&Node::Impl::IterativeSearchResponse,
                                       this, _1, _2, _3, fnrpc), kTcp);
@@ -567,10 +634,12 @@ void Node::Impl::IterativeSearchResponse(
                                   RankInfoPtr rank_info,
                                   int result,
                                   const std::vector<Contact> &contacts,
-                                  std::shared_ptr<FindNodesRpcArgs> fnrpc) {
+                                  std::shared_ptr<RpcArgs> fnrpc) {
   // If already calledback, i.e. result has already been reported
   // then do nothing, just return
-  if (fnrpc->rpc_fna->calledback) {
+  std::shared_ptr<FindNodesArgs> fna =
+      std::static_pointer_cast<FindNodesArgs> (fnrpc->rpc_a);
+  if (fna->calledback) {
     return;
   }
 
@@ -580,17 +649,17 @@ void Node::Impl::IterativeSearchResponse(
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(fnrpc->contact);
   } else {
-    AddContactsToContainer(contacts, fnrpc->rpc_fna);
+    AddContactsToContainer(contacts, fna);
   }
 
   bool curr_iteration_done(false), calledback(false);
-  if (!HandleIterationStructure(fnrpc->contact, fnrpc->rpc_fna,
+  if (!HandleIterationStructure(fnrpc->contact, fna,
                                 mark, &curr_iteration_done, &calledback)) {
     printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
   }
 
   if ((!calledback) && (curr_iteration_done))
-    IterativeSearch(fnrpc->rpc_fna);
+    IterativeSearch(fna);
 }
 
 void Node::Impl::PingOldestContact(const Contact &oldest_contact,

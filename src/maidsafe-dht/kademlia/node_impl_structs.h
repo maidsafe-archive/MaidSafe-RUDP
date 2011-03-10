@@ -158,6 +158,13 @@ struct Args {
   bool calledback;
 };
 
+struct RpcArgs {
+  RpcArgs(const Contact &c, std::shared_ptr<Args> a)
+      : contact(c), rpc_a(a) {}
+  Contact contact;
+  std::shared_ptr<Args> rpc_a;
+};
+
 struct FindNodesArgs : Args {
   FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
       : Args(), key(fna_key), callback(fna_callback), round(0) {}
@@ -166,24 +173,16 @@ struct FindNodesArgs : Args {
   int round;
 };
 
-struct FindNodesRpcArgs {
-  FindNodesRpcArgs(const Contact &c, std::shared_ptr<FindNodesArgs> fna)
-      : contact(c), rpc_fna(fna) {}        
-  Contact contact;
-  std::shared_ptr<FindNodesArgs> rpc_fna;
-};
-
-struct StoreArgs : Args{
+struct StoreArgs : Args {
   StoreArgs(StoreFunctor sa_callback)
       : Args(), callback(sa_callback) {}
   StoreFunctor callback;
 };
 
-struct StoreRpcArgs {
-  StoreRpcArgs(const Contact &c, std::shared_ptr<StoreArgs> sa)
-      : contact(c), rpc_sa(sa) {}
-  Contact contact;
-  std::shared_ptr<StoreArgs> rpc_sa;
+struct DeleteArgs : Args{
+  DeleteArgs(DeleteFunctor da_callback)
+      : Args(), callback(da_callback) {}
+  DeleteFunctor callback;
 };
 
 }  // namespace kademlia
