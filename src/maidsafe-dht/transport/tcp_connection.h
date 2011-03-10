@@ -55,27 +55,35 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);
   ~TcpConnection();
-  void Close();
+
   boost::asio::ip::tcp::socket &Socket();
+
+  void Close();
   void StartReceiving();
-  void Send(const std::string &data, const Timeout &timeout, bool is_response);
+  void StartSending(const std::string &data, const Timeout &timeout);
 
  private:
   TcpConnection(const TcpConnection&);
   TcpConnection &operator=(const TcpConnection&);
+
   void DoClose();
   void DoStartReceiving();
-  void StartConnect();
-  void StartRead();
-  void StartWrite(DataSize msg_size);
+  void DoStartSending();
 
-  void CheckTimeout(const boost::system::error_code& ec);
-  void HandleSize(const boost::system::error_code& ec);
-  void HandleRead(const boost::system::error_code& ec);
-  void HandleConnect(const boost::system::error_code& ec);
+  void CheckTimeout();
+
+  void StartConnect();
+  void HandleConnect(const boost::system::error_code &ec);
+
+  void StartRead();
+  void HandleSize(const boost::system::error_code &ec);
+  void HandleRead(const boost::system::error_code &ec);
+
+  void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
 
   void DispatchMessage();
+  void EncodeData(const std::string &data);
 
   std::weak_ptr<TcpTransport> transport_;
   boost::asio::io_service::strand strand_;
