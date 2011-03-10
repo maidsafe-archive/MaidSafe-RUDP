@@ -184,9 +184,9 @@ class Node::Impl {
                      const std::string &value,
                      const std::string &signature,
                      SecurifierPtr securifier);
-  void DeleteResponse(RankInfoPtr rank_info,
-                      int response_code,
-                      const Contact &contact);
+  void SingleDeleteResponse(RankInfoPtr rank_info,
+                            int response_code,
+                            const Contact &contact);
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
