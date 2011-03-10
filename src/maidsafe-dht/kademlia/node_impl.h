@@ -60,10 +60,6 @@ class DataStore;
 class Service;
 class RoutingTable;
 class Rpcs;
-struct LookupContact;
-struct ContactAndTargetKey;
-struct FindNodesArgs;
-struct FindNodesRpcArgs;
 
 namespace test {
 class NodeImplTest;
@@ -156,7 +152,7 @@ class Node::Impl {
   void IterativeSearchResponse(RankInfoPtr rank_info,
       int result,
       const std::vector<Contact> &contacts,
-      std::shared_ptr<FindNodesRpcArgs> find_nodes_rpc_args);
+      std::shared_ptr<RpcArgs> find_nodes_rpc_args);
   void PingOldestContact(const Contact &oldest_contact,
                          const Contact &replacement_contact,
                          RankInfoPtr replacement_rank_info);
@@ -179,11 +175,21 @@ class Node::Impl {
                      StoreFunctor callback);
   void StoreResponse(RankInfoPtr rank_info,
                      int response_code,
-                     std::shared_ptr<StoreRpcArgs> srpc,
+                     std::shared_ptr<RpcArgs> srpc,
                      const Key &key,
                      const std::string &value,
                      const std::string &signature,
                      SecurifierPtr securifier);
+  void DeleteFindNodesCallback(int result_size,
+                               const std::vector<Contact> &cs,
+                               const Key &key,
+                               const std::string &value,
+                               const std::string &signature,
+                               SecurifierPtr securifier,
+                               DeleteFunctor callback);
+  void DeleteResponse(RankInfoPtr rank_info,
+                      int response_code,
+                      std::shared_ptr<RpcArgs> drpc);
   void SingleDeleteResponse(RankInfoPtr rank_info,
                             int response_code,
                             const Contact &contact);
