@@ -429,6 +429,20 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
+  void FindNodeSeveralResponseNoClose(const Contact &c,
+                                      FindNodesFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_list;
+    if (num_of_acquired_ > (test::k - threshold_)) {
+      boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
+                                   this, callback, response_list));
+    } else {
+      boost::thread th(boost::bind(&MockRpcs::FindNodeNoResponseThread,
+                                   this, callback, response_list));
+    }
+    ++num_of_acquired_;
+  }
+
   void FindNodeNoResponse(const Contact &c,
                           FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
@@ -1108,30 +1122,27 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
 
   int threshold = (test::k * 3) / 4;
-//   {
-//     // All k populated contacts response with random closest list
-//     // (not greater than k)
-//     // all k closest contacts respond with success
-//     EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
-//                                   testing::_, testing::_, testing::_,
-//                                   testing::_))
-//         .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
-//             boost::bind(&MockRpcs::DeleteResponse,
-//                         new_rpcs.get(), _1, _2))));
-//     int response_code(-2);
-//     bool done(false);
-//     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-//                   boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
-//                               &response_code));
-//     while (!done)
-//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-// 
-//     EXPECT_EQ(threshold, response_code);
-//   }
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // all k closest contacts respond with success
+    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_, testing::_,
+                                  testing::_))
+        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+            boost::bind(&MockRpcs::Response<Rpcs::DeleteFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(-2);
+    bool done(false);
+    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+                  boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(threshold, response_code);
+  }
   new_rpcs->threshold_ = threshold;
-  new_rpcs->num_of_acquired_ = 0;
-  new_rpcs->respond_ = 0;
-  new_rpcs->no_respond_ = 0;
+  new_rpcs->SetCountersToZero();
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
@@ -1155,58 +1166,76 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold + 1, new_rpcs->no_respond_);
   }
-//   new_rpcs->num_of_acquired_ = 0;
-//   new_rpcs->num_of_deleted_ = 0;
-//   {
-//     // All k populated contacts response with random closest list
-//     // (not greater than k)
-//     // the first k - threshold closest contacts respond with DOWN, others
-//     // respond with success
-//     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
-//                                  testing::_, testing::_, testing::_,
-//                                  testing::_, testing::_))
-//         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-//             boost::bind(&MockRpcs::StoreFirstSeveralNoResponse,
-//                         new_rpcs.get(), _1, _2))));
-//     int response_code(-2);
-//     bool done(false);
-//     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-//                  boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
-//                              &response_code));
-//     while (!done)
-//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-//     EXPECT_EQ(-2, response_code);
-//     // wait for the delete processes to be completed
-//     // otherwise the counter might be incorrect
-//     // may not be necessary for this test
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-//     EXPECT_EQ(test::k - threshold + 1, new_rpcs->num_of_deleted_);
-//   }
-//   new_rpcs->num_of_acquired_ = 0;
-//   new_rpcs->num_of_deleted_ = 0;
-//   {
-//     // All k populated contacts response with random closest list
-//     // (not greater than k)
-//     // the first k - threshold -1 closest contacts respond with DOWN, others
-//     // respond with success
-//     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
-//                                  testing::_, testing::_, testing::_,
-//                                  testing::_, testing::_))
-//         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-//             boost::bind(&MockRpcs::StoreLastLessNoResponse,
-//                         new_rpcs.get(), _1, _2))));
-//     int response_code(-2);
-//     bool done(false);
-//     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-//                  boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
-//                              &response_code));
-//     while (!done)
-//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-//     EXPECT_EQ(threshold, response_code);
-//     // wait to ensure in case of wrong, the wrong deletion will be executed
-//     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-//     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
-//   }
+  new_rpcs->SetCountersToZero();
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // the first k - threshold closest contacts respond with DOWN, others
+    // respond with success
+    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_, testing::_,
+                                  testing::_))
+        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+            boost::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::DeleteFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(-2);
+    bool done(false);
+    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+                  boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-2, response_code);
+    // wait for the delete processes to be completed
+    // otherwise the counter might be incorrect
+    // may not be necessary for this test
+    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    EXPECT_EQ(test::k - threshold + 1, new_rpcs->no_respond_);
+  }
+  new_rpcs->SetCountersToZero();
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // the first k - threshold -1 closest contacts respond with DOWN, others
+    // respond with success
+    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_, testing::_,
+                                  testing::_))
+        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+            boost::bind(&MockRpcs::LastLessNoResponse<Rpcs::DeleteFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(-2);
+    bool done(false);
+    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+                  boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(threshold, response_code);
+  }
+  new_rpcs->SetCountersToZero();
+  {
+    // Among k populated contacts, less than threshold contacts response with
+    // no closest list
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeSeveralResponseNoClose,
+                        new_rpcs.get(), _1, _2))));
+    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_, testing::_,
+                                  testing::_))
+        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+            boost::bind(&MockRpcs::LastLessNoResponse<Rpcs::DeleteFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(-2);
+    bool done(false);
+    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+                  boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-3, response_code);
+    EXPECT_EQ(0, new_rpcs->respond_);
+    EXPECT_EQ(0, new_rpcs->no_respond_);
+  }
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
