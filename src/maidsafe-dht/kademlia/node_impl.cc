@@ -206,17 +206,17 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
     auto it = pit_down.first;
     while (it != pit_down.second) {
       rpcs_->Delete(key, value, signature, securifier, (*it).contact,
-                    boost::bind(&Node::Impl::DeleteResponse,
-                               this, _1, _2, (*it).contact),
+                    boost::bind(&Node::Impl::SingleDeleteResponse,
+                                this, _1, _2, (*it).contact),
                     kTcp);
       ++it;
     }
   }
 }
 
-void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
-                                int response_code,
-                                const Contact &contact) {
+void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
+                                      int response_code,
+                                      const Contact &contact) {
   if (response_code < 0) {
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(contact);
