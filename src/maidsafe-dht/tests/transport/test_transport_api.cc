@@ -187,9 +187,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   } else {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(*asio_service_));
+      transport1 = TransportPtr(new T(*asio_service_1_));
     else
-      transport1 = TransportPtr(new T(*asio_service_3_));
+      transport1 = TransportPtr(new T(*asio_service_2_));
     sending_transports_.push_back(transport1);
   }
 }
