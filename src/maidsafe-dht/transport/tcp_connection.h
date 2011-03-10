@@ -84,6 +84,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 
   void DispatchMessage();
   void EncodeData(const std::string &data);
+  void CloseOnError(const TransportCondition &error);
 
   std::weak_ptr<TcpTransport> transport_;
   boost::asio::io_service::strand strand_;

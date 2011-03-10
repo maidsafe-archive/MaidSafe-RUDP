@@ -129,15 +129,11 @@ void TcpConnection::StartRead() {
 void TcpConnection::HandleSize(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kReceiveTimeout);
-    return DoClose();
+    return CloseOnError(kReceiveTimeout);
   }
 
   if (ec) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kReceiveFailure);
-    return DoClose();
+    return CloseOnError(kReceiveFailure);
   }
 
   DataSize size = (((((size_buffer_.at(0) << 8) | size_buffer_.at(1)) << 8) |
@@ -152,15 +148,11 @@ void TcpConnection::HandleSize(const bs::error_code &ec) {
 void TcpConnection::HandleRead(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kReceiveTimeout);
-    return DoClose();
+    return CloseOnError(kReceiveTimeout);
   }
 
   if (ec) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kReceiveFailure);
-    return DoClose();
+    return CloseOnError(kReceiveFailure);
   }
 
   // No timeout applies while dispatching the message.
@@ -222,15 +214,11 @@ void TcpConnection::StartConnect() {
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kSendTimeout);
-    return DoClose();
+    return CloseOnError(kSendTimeout);
   }
 
   if (ec) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kSendFailure);
-    return DoClose();
+    return CloseOnError(kSendFailure);
   }
 
   StartWrite();
@@ -256,15 +244,11 @@ void TcpConnection::StartWrite() {
 void TcpConnection::HandleWrite(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kSendTimeout);
-    return DoClose();
+    return CloseOnError(kSendTimeout);
   }
 
   if (ec) {
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kSendFailure);
-    return DoClose();
+    return CloseOnError(kSendFailure);
   }
 
   // Start receiving response
@@ -273,6 +257,12 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
   } else {
     DoClose();
   }
+}
+
+void TcpConnection::CloseOnError(const TransportCondition &error) {
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock())
+    (*transport->on_error_)(error);
+  DoClose();
 }
 
 }  // namespace transport
