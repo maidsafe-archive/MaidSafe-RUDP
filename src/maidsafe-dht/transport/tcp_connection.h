@@ -66,10 +66,10 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   void DoClose();
   void DoStartReceiving();
   void StartConnect();
+  void StartRead();
   void StartWrite(DataSize msg_size);
-  void StartTimeout(const Timeout &timeout);
 
-  void HandleTimeout(const boost::system::error_code& ec);
+  void CheckTimeout(const boost::system::error_code& ec);
   void HandleSize(const boost::system::error_code& ec);
   void HandleRead(const boost::system::error_code& ec);
   void HandleConnect(const boost::system::error_code& ec);
