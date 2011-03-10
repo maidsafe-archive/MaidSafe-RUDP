@@ -53,6 +53,7 @@ TcpConnection::TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
     strand_(tcp_transport->asio_service_),
     socket_(tcp_transport->asio_service_),
     timer_(tcp_transport->asio_service_),
+    response_deadline_(),
     remote_endpoint_(remote),
     size_buffer_(sizeof(DataSize)),
     data_buffer_(),
@@ -126,7 +127,9 @@ void TcpConnection::StartReadSize() {
                    strand_.wrap(std::bind(&TcpConnection::HandleReadSize,
                                           shared_from_this(), arg::_1)));
 
-  timer_.expires_from_now(timeout_for_response_);
+  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
+  response_deadline_ = now + timeout_for_response_;
+  timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
 }
 
 void TcpConnection::HandleReadSize(const bs::error_code &ec) {
@@ -161,6 +164,9 @@ void TcpConnection::StartReadData() {
                    strand_.wrap(std::bind(&TcpConnection::HandleReadData,
                                           shared_from_this(),
                                           arg::_1, arg::_2)));
+
+  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
+  timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
 }
 
 void TcpConnection::HandleReadData(const bs::error_code &ec, size_t length) {

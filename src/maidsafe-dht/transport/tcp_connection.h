@@ -92,6 +92,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   boost::asio::io_service::strand strand_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
+  boost::posix_time::ptime response_deadline_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
   std::vector<unsigned char> size_buffer_, data_buffer_;
   size_t data_size_, data_received_;
