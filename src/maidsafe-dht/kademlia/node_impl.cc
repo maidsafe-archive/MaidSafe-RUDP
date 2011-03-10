@@ -262,10 +262,11 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
                                 std::shared_ptr<RpcArgs> drpc) {
   std::shared_ptr<DeleteArgs> da =
       std::static_pointer_cast<DeleteArgs> (drpc->rpc_a);
+  // calledback flag needs to be protected by the mutex lock
+  boost::mutex::scoped_lock loch_surlaplage(da->mutex);
   if (da->calledback)
     return;
-  
-  boost::mutex::scoped_lock loch_surlaplage(da->mutex);
+
   NodeSearchState mark(kContacted);
   if (response_code < 0) {
     mark = kDown;
