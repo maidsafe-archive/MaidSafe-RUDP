@@ -123,7 +123,7 @@ void TcpConnection::CheckTimeout() {
 void TcpConnection::StartReadSize() {
   assert(socket_.is_open());
 
-  asio::async_read(socket_, asio::buffer(size_buffer_, size_buffer_.size()),
+  asio::async_read(socket_, asio::buffer(size_buffer_),
                    strand_.wrap(std::bind(&TcpConnection::HandleReadSize,
                                           shared_from_this(), arg::_1)));
 
