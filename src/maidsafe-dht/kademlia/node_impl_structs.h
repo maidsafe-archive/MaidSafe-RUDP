@@ -174,14 +174,12 @@ struct FindNodesArgs : Args {
 };
 
 struct StoreArgs : Args {
-  StoreArgs(StoreFunctor sa_callback)
-      : Args(), callback(sa_callback) {}
+  StoreArgs(StoreFunctor sa_callback) : Args(), callback(sa_callback) {}
   StoreFunctor callback;
 };
 
-struct DeleteArgs : Args{
-  DeleteArgs(DeleteFunctor da_callback)
-      : Args(), callback(da_callback) {}
+struct DeleteArgs : Args {
+  DeleteArgs(DeleteFunctor da_callback) : Args(), callback(da_callback) {}
   DeleteFunctor callback;
 };
 
