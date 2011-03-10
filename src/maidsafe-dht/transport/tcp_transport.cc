@@ -140,7 +140,7 @@ void TcpTransport::Send(const std::string &data,
   ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
                                                            tcp_endpoint));
   InsertConnection(connection);
-  connection->Send(data, timeout, false);
+  connection->StartSending(data, timeout);
 }
 
 void TcpTransport::InsertConnection(ConnectionPtr connection) {

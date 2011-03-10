@@ -62,6 +62,10 @@ TcpConnection::TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
 
 TcpConnection::~TcpConnection() {}
 
+ip::tcp::socket &TcpConnection::Socket() {
+  return socket_;
+}
+
 void TcpConnection::Close() {
   strand_.dispatch(std::bind(&TcpConnection::DoClose, shared_from_this()));
 }
@@ -74,10 +78,6 @@ void TcpConnection::DoClose() {
     transport->RemoveConnection(shared_from_this());
 }
 
-ip::tcp::socket &TcpConnection::Socket() {
-  return socket_;
-}
-
 void TcpConnection::StartReceiving() {
   strand_.dispatch(std::bind(&TcpConnection::DoStartReceiving,
                              shared_from_this()));
@@ -85,19 +85,35 @@ void TcpConnection::StartReceiving() {
 
 void TcpConnection::DoStartReceiving() {
   StartRead();
-  CheckTimeout(bs::error_code());
+  CheckTimeout();
 }
 
-void TcpConnection::CheckTimeout(const bs::error_code &ec) {
+void TcpConnection::StartSending(const std::string &data,
+                                 const Timeout &timeout) {
+  EncodeData(data);
+  timeout_for_response_ = timeout;
+  strand_.dispatch(std::bind(&TcpConnection::DoStartSending,
+                             shared_from_this()));
+}
+
+void TcpConnection::DoStartSending() {
+  StartConnect();
+  CheckTimeout();
+}
+
+void TcpConnection::CheckTimeout() {
+  // If the socket is closed, it means the connection has been shut down.
   if (!socket_.is_open())
     return;
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
+    // Time has run out. Close the socket to cancel outstanding operations.
     bs::error_code ignored_ec;
     socket_.close(ignored_ec);
   } else {
+    // Timeout not yet reached. Go back to sleep.
     timer_.async_wait(strand_.wrap(std::bind(&TcpConnection::CheckTimeout,
-                                             shared_from_this(), arg::_1)));
+                                             shared_from_this())));
   }
 }
 
@@ -165,16 +181,19 @@ void TcpConnection::DispatchMessage() {
     (*transport->on_message_received_)(
         std::string(data_buffer_.begin(), data_buffer_.end()), info, &response,
         &response_timeout);
-    if (response.empty())
+    if (response.empty()) {
+      Close();
       return;
+    }
 
-    Send(response, response_timeout, true);
+    EncodeData(response);
+    timeout_for_response_ = response_timeout;
+    strand_.dispatch(std::bind(&TcpConnection::StartWrite,
+                               shared_from_this()));
   }
 }
 
-void TcpConnection::Send(const std::string &data,
-                         const Timeout &timeout,
-                         bool is_response) {
+void TcpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = data.size();
   if (static_cast<size_t>(msg_size) >
@@ -189,25 +208,15 @@ void TcpConnection::Send(const std::string &data,
   for (int i = 0; i != 4; ++i)
     size_buffer_.at(i) = static_cast<char>(msg_size >> (8 * (3 - i)));
   data_buffer_.assign(data.begin(), data.end());
-
-  // TODO(Fraser#5#): 2011-01-18 - Check timeout logic
-  timeout_for_response_ = timeout;
-  if (is_response) {
-    strand_.dispatch(std::bind(&TcpConnection::StartWrite,
-                               shared_from_this(), msg_size));
-  } else {
-    strand_.dispatch(std::bind(&TcpConnection::StartConnect,
-                               shared_from_this()));
-  }
 }
 
 void TcpConnection::StartConnect() {
   assert(!socket_.is_open());
+
   timer_.expires_from_now(kDefaultInitialTimeout);
   socket_.async_connect(remote_endpoint_,
                         strand_.wrap(std::bind(&TcpConnection::HandleConnect,
                                                shared_from_this(), arg::_1)));
-  CheckTimeout(bs::error_code());
 }
 
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
@@ -224,26 +233,18 @@ void TcpConnection::HandleConnect(const bs::error_code &ec) {
     return DoClose();
   }
 
+  StartWrite();
+}
+
+void TcpConnection::StartWrite() {
+  assert(socket_.is_open());
+
+//  timeout_for_response_ = kImmediateTimeout;
   Timeout tm_out(bptime::milliseconds(std::max(
       static_cast<boost::int64_t>(data_buffer_.size() * kTimeoutFactor),
       kMinTimeout.total_milliseconds())));
   timer_.expires_from_now(tm_out);
 
-  std::array<boost::asio::const_buffer, 2> asio_buffer;
-  asio_buffer[0] = boost::asio::buffer(size_buffer_);
-  asio_buffer[1] = boost::asio::buffer(data_buffer_);
-  asio::async_write(socket_, asio_buffer,
-                    strand_.wrap(std::bind(&TcpConnection::HandleWrite,
-                                           shared_from_this(), arg::_1)));
-}
-
-void TcpConnection::StartWrite(DataSize msg_size) {
-  assert(socket_.is_open());
-//  timeout_for_response_ = kImmediateTimeout;
-  Timeout tm_out(bptime::milliseconds(std::max(
-      static_cast<boost::int64_t>(msg_size * kTimeoutFactor),
-      kMinTimeout.total_milliseconds())));
-  timer_.expires_from_now(tm_out);
   std::array<boost::asio::const_buffer, 2> asio_buffer;
   asio_buffer[0] = boost::asio::buffer(size_buffer_);
   asio_buffer[1] = boost::asio::buffer(data_buffer_);
