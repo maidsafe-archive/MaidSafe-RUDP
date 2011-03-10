@@ -64,10 +64,9 @@ void FindNodeCallback(RankInfoPtr rank_info,
   *done = true;
 }
 
-void StoreCallback(RankInfoPtr rank_info,
-                   int error_code,
-                   bool *done,
-                   int *response_code) {
+void ErrorCodeCallback(int error_code,
+                       bool *done,
+                       int *response_code) {
   *done = true;
   *response_code = error_code;
 }
@@ -312,6 +311,8 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
         rank_info_(),
         num_of_acquired_(0),
         num_of_deleted_(0),
+        respond_(0),
+        no_respond_(0),
         respond_contacts_(),
         target_id_(),
         threshold_(0) {}
@@ -512,6 +513,35 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                  callback));
   }
 
+  template <class T>
+  void LastSeveralNoResponse(const Contact &c, T callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    if (num_of_acquired_ < (threshold_ - 1)) {
+      boost::thread th(boost::bind(&MockRpcs::CommonResponseThread<T>,
+                                   this, callback));
+      ++respond_;
+    } else {
+      boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
+                                   this, callback));
+      ++no_respond_;
+    }
+    ++num_of_acquired_;
+  }
+
+  template <class T>
+  void CommonResponseThread(T callback) {
+    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    callback(rank_info_, RandomUint32() % test::k);
+  }
+
+  template <class T>
+  void CommonNoResponseThread(T callback) {
+    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    callback(rank_info_, -1);
+  }
+
   void DeleteResponseThread(DeleteFunctor callback) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
@@ -536,6 +566,8 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   
   boost::uint16_t num_of_acquired_;
   boost::uint16_t num_of_deleted_;
+  boost::uint16_t respond_;
+  boost::uint16_t no_respond_;
   
   std::shared_ptr<RoutingTableContactsContainer> respond_contacts_;
   std::shared_ptr<RoutingTableContactsContainer> down_contacts_;
@@ -970,7 +1002,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&StoreCallback, rank_info_, _1, &done,
+                 boost::bind(&ErrorCodeCallback, _1, &done,
                              &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1000,7 +1032,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&StoreCallback, rank_info_, _1, &done,
+                 boost::bind(&ErrorCodeCallback, _1, &done,
                              &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1026,7 +1058,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&StoreCallback, rank_info_, _1, &done,
+                 boost::bind(&ErrorCodeCallback, _1, &done,
                              &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1053,7 +1085,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     int response_code(-2);
     bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 boost::bind(&StoreCallback, rank_info_, _1, &done,
+                 boost::bind(&ErrorCodeCallback, _1, &done,
                              &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1062,6 +1094,141 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
   }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+
+  //SetRpc(old_rpcs);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_Delete) {
+  PopulateRoutingTable(test::k, 500);
+
+  std::shared_ptr<Rpcs> old_rpcs = GetRpc();
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  NodeId target = GenerateRandomId(node_id_, 498);
+  new_rpcs->target_id_ = target;
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_, testing::_))
+      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeResponseClose,
+                      new_rpcs.get(), _1, _2))));
+
+  NodeId key = NodeId(NodeId::kRandomId);
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(1024);
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
+
+  int threshold = (test::k * 3) / 4;
+//   {
+//     // All k populated contacts response with random closest list
+//     // (not greater than k)
+//     // all k closest contacts respond with success
+//     EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+//                                   testing::_, testing::_, testing::_,
+//                                   testing::_))
+//         .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+//             boost::bind(&MockRpcs::DeleteResponse,
+//                         new_rpcs.get(), _1, _2))));
+//     int response_code(-2);
+//     bool done(false);
+//     node_->Delete(key, kvs.value, kvs.signature, securifier_,
+//                   boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
+//                               &response_code));
+//     while (!done)
+//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+// 
+//     EXPECT_EQ(threshold, response_code);
+//   }
+  new_rpcs->threshold_ = threshold;
+  new_rpcs->num_of_acquired_ = 0;
+  new_rpcs->respond_ = 0;
+  new_rpcs->no_respond_ = 0;
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // the last k - threshold closest contacts respond with DOWN, others respond
+    // with success
+    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_, testing::_,
+                                  testing::_))
+        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+            boost::bind(&MockRpcs::LastSeveralNoResponse<Rpcs::DeleteFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    int response_code(0);
+    bool done(false);
+    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+                  boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-2, response_code);
+    // wait for the all delete processes to be completed
+    // otherwise the counter might be incorrect
+    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    EXPECT_EQ(test::k - threshold + 1, new_rpcs->no_respond_);
+  }
+//   new_rpcs->num_of_acquired_ = 0;
+//   new_rpcs->num_of_deleted_ = 0;
+//   {
+//     // All k populated contacts response with random closest list
+//     // (not greater than k)
+//     // the first k - threshold closest contacts respond with DOWN, others
+//     // respond with success
+//     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_))
+//         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
+//             boost::bind(&MockRpcs::StoreFirstSeveralNoResponse,
+//                         new_rpcs.get(), _1, _2))));
+//     int response_code(-2);
+//     bool done(false);
+//     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
+//                  boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
+//                              &response_code));
+//     while (!done)
+//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+//     EXPECT_EQ(-2, response_code);
+//     // wait for the delete processes to be completed
+//     // otherwise the counter might be incorrect
+//     // may not be necessary for this test
+//     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+//     EXPECT_EQ(test::k - threshold + 1, new_rpcs->num_of_deleted_);
+//   }
+//   new_rpcs->num_of_acquired_ = 0;
+//   new_rpcs->num_of_deleted_ = 0;
+//   {
+//     // All k populated contacts response with random closest list
+//     // (not greater than k)
+//     // the first k - threshold -1 closest contacts respond with DOWN, others
+//     // respond with success
+//     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_))
+//         .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
+//             boost::bind(&MockRpcs::StoreLastLessNoResponse,
+//                         new_rpcs.get(), _1, _2))));
+//     int response_code(-2);
+//     bool done(false);
+//     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
+//                  boost::bind(&ErrorCodeCallback, rank_info_, _1, &done,
+//                              &response_code));
+//     while (!done)
+//       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+//     EXPECT_EQ(threshold, response_code);
+//     // wait to ensure in case of wrong, the wrong deletion will be executed
+//     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+//     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
+//   }
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
