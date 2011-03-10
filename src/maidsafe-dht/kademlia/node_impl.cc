@@ -130,8 +130,12 @@ void Node::Impl::StoreFindNodesCallback(int result_size,
                                const boost::posix_time::time_duration &ttl,
                                SecurifierPtr securifier,
                                StoreFunctor callback) {
-  if (result_size <= 0) {
-    callback(-1);
+  if (result_size < threshold_) {
+    if (result_size < 0) {
+      callback(-1);
+    } else {
+      callback(-3);
+    }
   } else {
     boost::posix_time::seconds ttl_s(ttl.seconds());
     std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
