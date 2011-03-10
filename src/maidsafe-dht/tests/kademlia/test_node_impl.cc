@@ -941,7 +941,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-          boost::bind(&MockRpcs::FindNodeRandomResponseClose,
+          boost::bind(&MockRpcs::FindNodeResponseClose,
                       new_rpcs.get(), _1, _2))));
 
   crypto::RsaKeyPair crypto_key_data;
