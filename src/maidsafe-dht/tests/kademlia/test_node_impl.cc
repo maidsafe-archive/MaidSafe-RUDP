@@ -677,19 +677,26 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
                                  &lcontacts));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(test::k, lcontacts.size());
-    EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
-    EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
 
-    ContactsByDistanceToThisId key_dist_indx
-      = new_rpcs->respond_contacts_->get<DistanceToThisIdTag>();
-    auto it = key_dist_indx.begin();
-    int step(0);
-    while ((it != key_dist_indx.end()) && (step < test::k)) {
-      EXPECT_NE(lcontacts.end(),
-                std::find(lcontacts.begin(), lcontacts.end(), (*it).contact));
-      ++it;
-      ++step;
+    if (new_rpcs->respond_contacts_->size() >= test::k) {
+      EXPECT_EQ(test::k, lcontacts.size());
+      EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
+      EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
+
+      ContactsByDistanceToThisId key_dist_indx
+        = new_rpcs->respond_contacts_->get<DistanceToThisIdTag>();
+      auto it = key_dist_indx.begin();
+      int step(0);
+      while ((it != key_dist_indx.end()) && (step < test::k)) {
+        EXPECT_NE(lcontacts.end(),
+                  std::find(lcontacts.begin(), lcontacts.end(), (*it).contact));
+        ++it;
+        ++step;
+      }
+    } else {
+      // if really unlucky, some of the original seeds might be pushed into the
+      // result (the chance is very small).
+      EXPECT_LE(new_rpcs->respond_contacts_->size(), lcontacts.size());
     }
   }
   //  sleep for a while to prevent the situation that resources got destructed
@@ -951,7 +958,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 
   int threshold = (test::k * 3) / 4;
   {
-    // All k populated contacts randomly response with random closest list
+    // All k populated contacts response with random closest list
     // (not greater than k)
     // all k closest contacts respond with success
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
@@ -1008,8 +1015,8 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
-    // the first k - threshold closest contacts respond with DOWN, others respond
-    // with success
+    // the first k - threshold closest contacts respond with DOWN, others
+    // respond with success
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_, testing::_))
@@ -1051,14 +1058,10 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(threshold, response_code);
-    // make sure in case of wrong, the wrong deletion will be executed
+    // wait to ensure in case of wrong, the wrong deletion will be executed
     boost::this_thread::sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
   }
-  // sleep for a while to prevent the situation that resources got destructed
-  // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
