@@ -274,7 +274,6 @@ int RoutingTable::SetPreferredEndpoint(const NodeId &node_id,
 int RoutingTable::SetValidated(const NodeId &node_id,
                                bool validated) {
   std::shared_ptr<UpgradeLock> upgrade_lock(new UpgradeLock(shared_mutex_));
-
   UnValidatedContactsById contact_indx =
       unvalidated_contacts_.get<NodeIdTag>();
   auto it_contact = contact_indx.find(node_id);
@@ -416,7 +415,6 @@ int RoutingTable::ForceKAcceptNewPeer(
     std::shared_ptr<UpgradeLock> upgrade_lock) {
   boost::uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
   int kclosest_bucket_index = GetLeastCommonHeadingBitInKClosestContact();
-
   if ((brother_bucket_of_holder != target_bucket) &&
       (kclosest_bucket_index != target_bucket)) {
     DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
@@ -468,7 +466,7 @@ int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
     = contacts_.get<NodeIdTag>();
   auto it = key_id_indx.find(contacts[0].node_id());
   int kclosest_bucket_index = (*it).common_leading_bits;
-  for (int i = 1; i < k_; ++i) {
+  for (int i = 1; i < contacts.size(); ++i) {
     it = key_id_indx.find(contacts[i].node_id());
     if (kclosest_bucket_index > (*it).common_leading_bits)
       kclosest_bucket_index = (*it).common_leading_bits;
