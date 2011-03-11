@@ -398,12 +398,12 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     }
 
     // remove contact from bucket with common_heading_bit(507, 506)
-    for (int i = 0; i < k_ - (k_ / 2 - 2 ); ++i) {
+    for (int i = 0; i < k_ - (k_ / 2 - 2); ++i) {
       auto pit_2 = routing_table_.contacts_.get<KBucketTag>().equal_range(4);
       routing_table_.SetValidated((*pit_2.first).node_id, false);
       pit_2 = routing_table_.contacts_.get<KBucketTag>().equal_range(5);
       routing_table_.SetValidated((*pit_2.first).node_id, false);
-    } 
+    }
     // Adding contact to bucket having kclosest contact
     bool fail_check(false);
     bool pass_check(false);
@@ -412,8 +412,8 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
       Contact contact = ComposeContact(node_id, 5678);
       RankInfoPtr rank_info;
       auto pit =
-          routing_table_.contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
-          boost::make_tuple(3));
+          routing_table_.contacts_.get<KBucketDistanceToThisIdTag>().equal_range
+          (boost::make_tuple(3));
       auto it_end = pit.second;
       --it_end;
       NodeId furthest_distance = (*it_end).distance_to_this_id;
@@ -433,6 +433,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
         break;
       ++retry;
     }
+    EXPECT_EQ(k_, routing_table_.contacts_.get<KBucketTag>().count(3));
   }
   Clear();
   for (int i = 0; i < k_; ++i) {
@@ -497,7 +498,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     }
     ++retry;
   }
-}  
+}
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
   {

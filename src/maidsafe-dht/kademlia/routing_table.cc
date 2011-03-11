@@ -455,17 +455,16 @@ int RoutingTable::ForceKAcceptNewPeer(
   RoutingTableContact new_local_contact(new_contact, kThisId_,
                                         rank_info,
                                         KDistanceTo(new_contact.node_id()));
-  new_local_contact.kbucket_index = brother_bucket_of_holder;
+  new_local_contact.kbucket_index = target_bucket;
   contacts_.insert(new_local_contact);
   return 0;
 }
 int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
   std::vector<Contact> contacts, exclude_contacts;
   GetCloseContacts(kThisId_, k_, exclude_contacts, &contacts);
-  ContactsById key_id_indx
-    = contacts_.get<NodeIdTag>();
+  ContactsById key_id_indx = contacts_.get<NodeIdTag>();
   auto it = key_id_indx.find(contacts[0].node_id());
-  int kclosest_bucket_index = (*it).common_leading_bits;
+  boost::uint16_t kclosest_bucket_index = (*it).common_leading_bits;
   for (int i = 1; i < contacts.size(); ++i) {
     it = key_id_indx.find(contacts[i].node_id());
     if (kclosest_bucket_index > (*it).common_leading_bits)
