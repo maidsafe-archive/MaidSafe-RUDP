@@ -207,7 +207,7 @@ void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
   if (response_code < 0) {
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(contact);
-  }    
+  }
 }
 
 void Node::Impl::Delete(const Key &key,
@@ -303,14 +303,129 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
   // there is no restore (undo those success deleted) operation in delete
 }
 
-void Node::Impl::Update(const Key &/*key*/,
-                        const std::string &/*new_value*/,
-                        const std::string &/*new_signature*/,
-                        const std::string &/*old_value*/,
-                        const std::string &/*old_signature*/,
-                        SecurifierPtr /*securifier*/,
-                        const boost::posix_time::time_duration &/*ttl*/,
-                        UpdateFunctor /*callback*/) {
+void Node::Impl::Update(const Key &key,
+                        const std::string &new_value,
+                        const std::string &new_signature,
+                        const std::string &old_value,
+                        const std::string &old_signature,
+                        SecurifierPtr securifier,
+                        const boost::posix_time::time_duration &ttl,
+                        UpdateFunctor callback) {
+  std::shared_ptr<UpdateArgs> ua (new UpdateArgs(new_value, new_signature,
+                                                 old_value, old_signature,
+                                                 callback));
+  FindNodes(key, boost::bind(&Node::Impl::UpdateFindNodesCallback,
+                             this, _1, _2, key, securifier, ttl, ua, callback));
+}
+
+void Node::Impl::UpdateFindNodesCallback(int result_size,
+                               const std::vector<Contact> &cs,
+                               const Key &key,
+                               SecurifierPtr securifier,
+                               const boost::posix_time::time_duration &ttl,
+                               std::shared_ptr<UpdateArgs> ua,
+                               UpdateFunctor callback) {
+  if (result_size < threshold_) {
+    if (result_size < 0) {
+      callback(-1);
+    } else {
+      callback(-3);
+    }
+  } else {
+    boost::posix_time::seconds ttl_s(ttl.seconds());
+    auto it = cs.begin();
+    auto it_end = cs.end();
+
+    while (it != it_end) {
+        NodeContainerTuple nct((*it), key);
+        nct.state = kSelectedAlpha;
+        ua->nc.insert(nct);
+        ++it;
+    }
+
+    it = cs.begin();
+    while (it != it_end) {
+      std::shared_ptr<RpcArgs> urpc(new RpcArgs((*it), ua));
+      rpcs_->Store(key, ua->new_value, ua->new_signature, ttl_s,
+                   securifier, (*it),
+                   boost::bind(&Node::Impl::UpdateStoreResponse,
+                               this, _1, _2, urpc, key, securifier),
+                   kTcp);
+      ++it;
+    }
+  }
+}
+
+void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
+                                     int response_code,
+                                     std::shared_ptr<RpcArgs> urpc,
+                                     const Key &key,
+                                     SecurifierPtr securifier) {
+  std::shared_ptr<UpdateArgs> ua =
+      std::static_pointer_cast<UpdateArgs> (urpc->rpc_a);
+  boost::mutex::scoped_lock loch_surlaplage(ua->mutex);
+  if (response_code < 0) {
+    // once store operation failed, the contact will be marked as DOWN
+    // and no DELETE operation for that contact will be executed
+    NodeContainerByNodeId key_node_indx = ua->nc.get<nc_id>();
+    auto it_tuple = key_node_indx.find(urpc->contact.node_id());
+    key_node_indx.modify(it_tuple, ChangeState(kDown));
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(urpc->contact);
+  } else {
+    rpcs_->Delete(key, ua->old_value, ua->old_signature,
+                  securifier, urpc->contact,
+                  boost::bind(&Node::Impl::UpdateDeleteResponse,
+                              this, _1, _2, urpc),
+                  kTcp);
+  }
+}
+
+void Node::Impl::UpdateDeleteResponse(RankInfoPtr rank_info,
+                                      int response_code,
+                                      std::shared_ptr<RpcArgs> drpc) {
+  std::shared_ptr<UpdateArgs> da =
+      std::static_pointer_cast<UpdateArgs> (drpc->rpc_a);
+  // calledback flag needs to be protected by the mutex lock
+  boost::mutex::scoped_lock loch_surlaplage(da->mutex);
+  if (da->calledback)
+    return;
+
+  NodeSearchState mark(kContacted);
+  if (response_code < 0) {
+    mark = kDown;
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(drpc->contact);
+  }
+  // Mark the enquired contact
+  NodeContainerByNodeId key_node_indx = da->nc.get<nc_id>();
+  auto it_tuple = key_node_indx.find(drpc->contact.node_id());
+  key_node_indx.modify(it_tuple, ChangeState(mark));
+
+  auto pit_pending = da->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+
+  auto pit_contacted = da->nc.get<nc_state>().equal_range(kContacted);
+  int num_of_contacted= std::distance(pit_contacted.first,
+                                      pit_contacted.second);
+
+  auto pit_down = da->nc.get<nc_state>().equal_range(kDown);
+  int num_of_down= std::distance(pit_down.first, pit_down.second);
+
+  if (num_of_down > (k_ - threshold_)) {
+    // report back a failure once has more down contacts than the margin
+    da->callback(-2);
+    da->calledback = true;
+  }
+  if (num_of_contacted >= threshold_) {
+    // report back once has enough succeed contacts
+    da->callback(num_of_contacted);
+    da->calledback = true;
+  }
+
+  // by far only report failure defined, unlike to what happens in Store,
+  // there is no restore (undo those success stored/deleted) operations in
+  // update
 }
 
 void Node::Impl::FindValue(const Key &/*key*/,
