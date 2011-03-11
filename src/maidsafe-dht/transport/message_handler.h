@@ -54,6 +54,7 @@ const SecurityType kNone(0x0);
 const SecurityType kSign(0x1);
 const SecurityType kSignWithParameters(0x2);
 const SecurityType kAsymmetricEncrypt(0x4);
+const SecurityType kSignAndAsymEncrypt(0x5);
 
 namespace transport {
 
