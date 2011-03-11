@@ -183,6 +183,20 @@ struct DeleteArgs : Args {
   DeleteFunctor callback;
 };
 
+struct UpdateArgs : Args {
+  UpdateArgs(const std::string &new_value, const std::string &new_signature,
+             const std::string &old_value, const std::string &old_signature,
+             UpdateFunctor ua_callback)
+      :  Args(), callback(ua_callback),
+         new_value(new_value), new_signature(new_signature),
+         old_value(old_value), old_signature(old_signature) {}
+  UpdateFunctor callback;
+  std::string new_value;
+  std::string new_signature;
+  std::string old_value;
+  std::string old_signature;
+};
+
 }  // namespace kademlia
 
 }  // namespace maidsafe

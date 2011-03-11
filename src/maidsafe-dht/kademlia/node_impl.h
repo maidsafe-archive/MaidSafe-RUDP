@@ -193,6 +193,21 @@ class Node::Impl {
   void SingleDeleteResponse(RankInfoPtr rank_info,
                             int response_code,
                             const Contact &contact);
+  void UpdateFindNodesCallback(int result_size,
+                               const std::vector<Contact> &cs,
+                               const Key &key,
+                               SecurifierPtr securifier,
+                               const boost::posix_time::time_duration &ttl,
+                               std::shared_ptr<UpdateArgs> ua,
+                               UpdateFunctor callback);
+  void UpdateStoreResponse(RankInfoPtr rank_info,
+                           int response_code,
+                           std::shared_ptr<RpcArgs> urpc,
+                           const Key &key,
+                           SecurifierPtr securifier);
+  void UpdateDeleteResponse(RankInfoPtr rank_info,
+                            int response_code,
+                            std::shared_ptr<RpcArgs> drpc);
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
