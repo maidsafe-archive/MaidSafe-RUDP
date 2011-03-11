@@ -210,7 +210,7 @@ void Node::Impl::OperationFindNodesCB(int result_size,
                                const boost::posix_time::time_duration &ttl,
                                SecurifierPtr securifier,
                                std::shared_ptr<T> args) {
-  boost::mutex::scoped_lock loch_surlaplage(args->mutex);
+//  boost::mutex::scoped_lock loch_surlaplage(args->mutex);
   if (result_size < threshold_) {
     if (result_size < 0) {
       args->callback(-1);
@@ -316,13 +316,22 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
                                      SecurifierPtr securifier) {
   std::shared_ptr<UpdateArgs> ua =
       std::static_pointer_cast<UpdateArgs> (urpc->rpc_a);
-  boost::mutex::scoped_lock loch_surlaplage(ua->mutex);
   if (response_code < 0) {
+    boost::mutex::scoped_lock loch_surlaplage(ua->mutex);
     // once store operation failed, the contact will be marked as DOWN
     // and no DELETE operation for that contact will be executed
     NodeContainerByNodeId key_node_indx = ua->nc.get<nc_id>();
     auto it_tuple = key_node_indx.find(urpc->contact.node_id());
     key_node_indx.modify(it_tuple, ChangeState(kDown));
+
+    // ensure this down contact is not the last one, prevent a deadend
+    auto pit_pending = ua->nc.get<nc_state>().equal_range(kSelectedAlpha);
+    int num_of_total_pending = std::distance(pit_pending.first,
+                                             pit_pending.second);
+    if (num_of_total_pending == 0) {
+      ua->callback(-2);
+      ua->calledback = true;
+    }
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(urpc->contact);
   } else {
