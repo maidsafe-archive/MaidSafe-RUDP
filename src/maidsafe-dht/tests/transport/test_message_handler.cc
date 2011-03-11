@@ -83,6 +83,35 @@ class TransportMessageHandlerTest : public testing::Test {
     return result;
   }
 
+  void ManagedEndpointSlot(const protobuf::ManagedEndpointMessage&,
+                           protobuf::ManagedEndpointMessage*,
+                           transport::Timeout*) {}
+  void NatDetectionReqSlot(const protobuf::NatDetectionRequest&,
+                           protobuf::NatDetectionResponse*,
+                           transport::Timeout*) {}
+  void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {}
+  void  ProxyConnectReqSlot(const protobuf::ProxyConnectRequest&,
+                       protobuf::ProxyConnectResponse*,
+                       transport::Timeout*) {}
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ProxyConnectResponse&)>>
+          ProxyConnectRspSlot;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ForwardRendezvousRequest&,
+                       protobuf::ForwardRendezvousResponse*,
+                       transport::Timeout*)>> ForwardRendezvousReqSlot;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ForwardRendezvousResponse&)>>
+          ForwardRendezvousRspSlot;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::RendezvousRequest&)>>
+          RendezvousReqSlot;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
+          RendezvousAckSlot;
+  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>>
+          ErrorSlot;
+
  protected:
   std::shared_ptr<Securifier> sec_ptr_;
   MessageHandler msg_hndlr_;
@@ -90,7 +119,7 @@ class TransportMessageHandlerTest : public testing::Test {
   MessageHandler msg_hndlr_no_securifier_;
 };
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageManagedEndpointMessage) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage) {  // NOLINT
   protobuf::ManagedEndpointMessage managed_endpoint_message;
   ASSERT_TRUE(managed_endpoint_message.IsInitialized());
 
@@ -100,7 +129,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageManagedEndpointMessage) {
   EXPECT_EQ(manual, function);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionRequest) {
   protobuf::NatDetectionRequest nat_detection_rqst;
   nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
   nat_detection_rqst.set_local_port(12345);
@@ -113,7 +142,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectRequest) {
   protobuf::ProxyConnectRequest proxy_connect_rqst;
   protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -128,7 +157,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousRequest) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousRequest) {  // NOLINT
   protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
   protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -141,7 +170,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousRequest)
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousRequest) {
   protobuf::RendezvousRequest rdvz_rqst;
   protobuf::Endpoint *ep = rdvz_rqst.mutable_originator_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -154,7 +183,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionResponse) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionResponse) {
   protobuf::NatDetectionResponse nat_detection_resp;
   nat_detection_resp.set_nat_type(12345);
   ASSERT_TRUE(nat_detection_resp.IsInitialized());
@@ -166,7 +195,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectResponse) {
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectResponse) {
   protobuf::ProxyConnectResponse proxy_connect_resp;
   proxy_connect_resp.set_result(true);
   ASSERT_TRUE(proxy_connect_resp.IsInitialized());
@@ -178,7 +207,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousResponse) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousResponse) {  // NOLINT
   protobuf::ForwardRendezvousResponse forward_rdvz_resp;
   protobuf::Endpoint *ep =
       forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
@@ -193,7 +222,7 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousResponse
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousAcknowledgement) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgement) {  // NOLINT
   protobuf::RendezvousAcknowledgement rdvz_ack_message;
   protobuf::Endpoint *ep =
       rdvz_ack_message.mutable_originator_endpoint();
@@ -205,6 +234,10 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousAcknowledgement
   std::string manual(EncryptMessage<protobuf::RendezvousAcknowledgement>(
                          rdvz_ack_message, kRendezvousAcknowledgement));
   EXPECT_EQ(manual, function);
+}
+
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
+
 }
 
 }  // namespace test
