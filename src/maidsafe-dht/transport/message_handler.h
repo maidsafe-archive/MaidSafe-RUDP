@@ -201,6 +201,11 @@ class MessageHandler {
   std::shared_ptr<Securifier> securifier_;
 
  private:
+  friend class test::TransportMessageHandlerTest_BEH_KAD_WrapMessageNatDetectionResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_KAD_WrapMessageProxyConnectResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_KAD_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_KAD_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
+
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 

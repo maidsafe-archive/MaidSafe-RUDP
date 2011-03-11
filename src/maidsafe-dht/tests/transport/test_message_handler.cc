@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/transport/message_handler.h"
 #include "maidsafe-dht/transport/transport.pb.h"
-#include "maidsafe-dht/transport/transport.pb.h"
 
 namespace maidsafe {
 
@@ -56,9 +55,9 @@ class TestSecurifier : public Securifier {
 class TransportMessageHandlerTest : public testing::Test {
  public:
   TransportMessageHandlerTest() : sec_ptr_(new TestSecurifier("", "", "")),
-                                 msg_hndlr_(sec_ptr_),
-                                 securifier_null_(),
-                                 msg_hndlr_no_securifier_(securifier_null_) {  }
+                                  msg_hndlr_(sec_ptr_),
+                                  securifier_null_(),
+                                  msg_hndlr_no_securifier_(securifier_null_) {}
   virtual void SetUp() { }
   virtual void TearDown() { }
 
@@ -92,30 +91,13 @@ class TransportMessageHandlerTest : public testing::Test {
 };
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageManagedEndpointMessage) {
-//  protobuf::NatDetectionRequest nat_detection_rqst;
-//  nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
-//  nat_detection_rqst.set_local_port(12345);
-//  ASSERT_TRUE(nat_detection_rqst.IsInitialized());
-////  crypto::RsaKeyPair kp;
-////  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(nat_detection_rqst);
-//  ASSERT_EQ("", result_no_securifier);
-//
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(nat_detection_rqst);
-//  std::string manual_encrypt =
-//      EncryptMessage<protobuf::NatDetectionRequest>(nat_detection_rqst,
-//                                                   "", kNatDetectionRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//
-//  // decrypt for comparison test
-//  protobuf::NatDetectionRequest decrypted_function_nat_detection =
-//      GetWrapper<protobuf::NatDetectionRequest>(function_encrypt, "");
-//  protobuf::NatDetectionRequest decrypted_manual_nat_detection =
-//      GetWrapper<protobuf::NatDetectionRequest>(manual_encrypt, "");
-//  ASSERT_EQ(decrypted_manual_nat_detection.ping(), decrypted_function_nat_detection.ping());
-//  ASSERT_EQ(decrypted_manual_nat_detection.sender().node_id(),
-//            decrypted_function_nat_detection.sender().node_id());
+  protobuf::ManagedEndpointMessage managed_endpoint_message;
+  ASSERT_TRUE(managed_endpoint_message.IsInitialized());
+
+  std::string function(msg_hndlr_.WrapMessage(managed_endpoint_message));
+  std::string manual(EncryptMessage<protobuf::ManagedEndpointMessage>(
+                         managed_endpoint_message, kManagedEndpointMessage));
+  EXPECT_EQ(manual, function);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionRequest) {
@@ -124,209 +106,105 @@ TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionRequest) {
   nat_detection_rqst.set_local_port(12345);
   ASSERT_TRUE(nat_detection_rqst.IsInitialized());
 
-  std::string function_encrypt = msg_hndlr_.WrapMessage(nat_detection_rqst);
-  std::string manual_encrypt =
+  std::string function_encrypt(msg_hndlr_.WrapMessage(nat_detection_rqst));
+  std::string manual_encrypt(
       EncryptMessage<protobuf::NatDetectionRequest>(nat_detection_rqst,
-                                                    kNatDetectionRequest);
+                                                    kNatDetectionRequest));
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectRequest) {
-//  protobuf::FindNodesRequest nodes_rqst;
-//  nodes_rqst.set_key("node_request_key");
-//  protobuf::Contact contact;
-//  contact.set_node_id("node_id_test");
-//  nodes_rqst.mutable_sender()->CopyFrom(contact);
-//  ASSERT_TRUE(nodes_rqst.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(nodes_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(nodes_rqst,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//              EncryptMessage<protobuf::FindNodesRequest>(nodes_rqst, kp.public_key(),
-//                                                  kFindNodesRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//
-//  // decrypt for comparison test
-//  protobuf::FindNodesRequest decrypted_function_value =
-//                     GetWrapper<protobuf::FindNodesRequest>(function_encrypt,
-//                                                             kp.private_key());
-//  protobuf::FindNodesRequest decrypted_manual_value =
-//                     GetWrapper<protobuf::FindNodesRequest>(manual_encrypt,
-//                                                             kp.private_key());
-//  ASSERT_EQ(decrypted_manual_value.key(), decrypted_function_value.key());
-//  ASSERT_EQ(decrypted_manual_value.sender().node_id(),
-//            decrypted_function_value.sender().node_id());
+  protobuf::ProxyConnectRequest proxy_connect_rqst;
+  protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
+  ep->set_ip(std::string("192.168.1.1"));
+  ep->set_port(12345);
+  proxy_connect_rqst.set_rendezvous_connect(true);
+  ASSERT_TRUE(proxy_connect_rqst.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(proxy_connect_rqst));
+  std::string manual_encrypt(
+      EncryptMessage<protobuf::ProxyConnectRequest>(proxy_connect_rqst,
+                                                    kProxyConnectRequest));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousRequest) {  // NOLINT
-//  protobuf::StoreRequest store_rqst;
-//  store_rqst.set_key("store_request_key");
-//  protobuf::Contact contact;
-//  contact.set_node_id("node_id_test");
-//  store_rqst.mutable_sender()->CopyFrom(contact);
-//  protobuf::SignedValue s_val;
-//  s_val.set_value("signed_value");
-//  s_val.set_signature("store_signature");
-//  store_rqst.mutable_signed_value()->CopyFrom(s_val);
-//  store_rqst.set_ttl(1234);
-//  ASSERT_TRUE(store_rqst.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(store_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(store_rqst,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//                   EncryptMessage<protobuf::StoreRequest>(store_rqst, kp.public_key(),
-//                                                   kStoreRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//
-//  protobuf::StoreRequest decrypted_function_value =
-//       GetWrapper<protobuf::StoreRequest>(function_encrypt, kp.private_key());
-//  protobuf::StoreRequest decrypted_manual_value =
-//        GetWrapper<protobuf::StoreRequest>(manual_encrypt, kp.private_key());
-//  ASSERT_EQ(decrypted_manual_value.key(), decrypted_function_value.key());
-//  ASSERT_EQ(decrypted_manual_value.sender().node_id(),
-//            decrypted_function_value.sender().node_id());
-//  ASSERT_EQ(decrypted_manual_value.signed_value().value(),
-//            decrypted_function_value.signed_value().value());
-//  ASSERT_EQ(decrypted_manual_value.signed_value().signature(),
-//            decrypted_function_value.signed_value().signature());
-//  ASSERT_EQ(decrypted_manual_value.ttl(), decrypted_function_value.ttl());
+  protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
+  protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
+  ep->set_ip(std::string("192.168.1.1"));
+  ep->set_port(12345);
+  ASSERT_TRUE(forward_rdvz_rqst.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(forward_rdvz_rqst));
+  std::string manual_encrypt(EncryptMessage<protobuf::ForwardRendezvousRequest>(
+                                 forward_rdvz_rqst, kForwardRendezvousRequest));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousRequest) {
-//  protobuf::StoreRefreshRequest refresh_rqst;
-//  protobuf::Contact contact;
-//  contact.set_node_id("node_id_test");
-//  refresh_rqst.mutable_sender()->CopyFrom(contact);
-//  ASSERT_TRUE(refresh_rqst.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(refresh_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(refresh_rqst,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//          EncryptMessage<protobuf::StoreRefreshRequest>(refresh_rqst, kp.public_key(),
-//                                                 kStoreRefreshRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//  protobuf::StoreRefreshRequest decrypted_function_value =
-//          GetWrapper<protobuf::StoreRefreshRequest>(function_encrypt,
-//                                                     kp.private_key());
-//  protobuf::StoreRefreshRequest decrypted_manual_value =
-//          GetWrapper<protobuf::StoreRefreshRequest>(manual_encrypt,
-//                                                     kp.private_key());
-//  ASSERT_EQ(decrypted_manual_value.sender().node_id(),
-//            decrypted_function_value.sender().node_id());
+  protobuf::RendezvousRequest rdvz_rqst;
+  protobuf::Endpoint *ep = rdvz_rqst.mutable_originator_endpoint();
+  ep->set_ip(std::string("192.168.1.1"));
+  ep->set_port(12345);
+  ASSERT_TRUE(rdvz_rqst.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(rdvz_rqst));
+  std::string manual_encrypt(EncryptMessage<protobuf::RendezvousRequest>(
+                                 rdvz_rqst, kRendezvousRequest));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageNatDetectionResponse) {
-//  protobuf::PingResponse response;
-//  response.set_echo("ping response echo");
-//  ASSERT_TRUE(response.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(response,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//               EncryptMessage<protobuf::PingResponse>(response, kp.public_key(),
-//                                               kPingResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//  protobuf::PingResponse decrypted_function_value =
-//                         GetWrapper<protobuf::PingResponse>(function_encrypt,
-//                                                             kp.private_key());
-//  protobuf::PingResponse decrypted_manual_value =
-//                         GetWrapper<protobuf::PingResponse>(manual_encrypt,
-//                                                             kp.private_key());
-//  ASSERT_EQ(decrypted_manual_value.echo(),
-//            decrypted_function_value.echo());
+  protobuf::NatDetectionResponse nat_detection_resp;
+  nat_detection_resp.set_nat_type(12345);
+  ASSERT_TRUE(nat_detection_resp.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(nat_detection_resp));
+  std::string manual_encrypt(
+      EncryptMessage<protobuf::NatDetectionResponse>(nat_detection_resp,
+                                                    kNatDetectionResponse));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageProxyConnectResponse) {
-//  protobuf::FindValueResponse response;
-//  response.set_result(1);
-//  ASSERT_TRUE(response.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(response,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//               EncryptMessage<protobuf::FindValueResponse>(response, kp.public_key(),
-//                                                    kFindValueResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//  protobuf::FindValueResponse decrypted_function_value =
-//                     GetWrapper<protobuf::FindValueResponse>(function_encrypt,
-//                                                             kp.private_key());
-//  protobuf::FindValueResponse decrypted_manual_value =
-//                       GetWrapper<protobuf::FindValueResponse>(manual_encrypt,
-//                                                             kp.private_key());
-//  ASSERT_TRUE(decrypted_manual_value.result());
-//  ASSERT_TRUE(decrypted_function_value.result());
+  protobuf::ProxyConnectResponse proxy_connect_resp;
+  proxy_connect_resp.set_result(true);
+  ASSERT_TRUE(proxy_connect_resp.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(proxy_connect_resp));
+  std::string manual_encrypt(
+      EncryptMessage<protobuf::ProxyConnectResponse>(proxy_connect_resp,
+                                                     kProxyConnectResponse));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageForwardRendezvousResponse) {  // NOLINT
-//  protobuf::FindNodesResponse response;
-//  response.set_result(1);
-//  ASSERT_TRUE(response.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(response,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//               EncryptMessage<protobuf::FindNodesResponse>(response, kp.public_key(),
-//                                                    kFindNodesResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//  protobuf::FindNodesResponse decrypted_function_value =
-//                     GetWrapper<protobuf::FindNodesResponse>(function_encrypt,
-//                                                             kp.private_key());
-//  protobuf::FindNodesResponse decrypted_manual_value =
-//                       GetWrapper<protobuf::FindNodesResponse>(manual_encrypt,
-//                                                             kp.private_key());
-//  ASSERT_TRUE(decrypted_manual_value.result());
-//  ASSERT_TRUE(decrypted_function_value.result());
+  protobuf::ForwardRendezvousResponse forward_rdvz_resp;
+  protobuf::Endpoint *ep =
+      forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
+  ep->set_ip(std::string("192.168.1.1"));
+  ep->set_port(12345);
+  ASSERT_TRUE(forward_rdvz_resp.IsInitialized());
+
+  std::string function_encrypt(msg_hndlr_.WrapMessage(forward_rdvz_resp));
+  std::string manual_encrypt(
+      EncryptMessage<protobuf::ForwardRendezvousResponse>(
+          forward_rdvz_resp, kForwardRendezvousResponse));
+  EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_KAD_WrapMessageRendezvousAcknowledgement) {  // NOLINT
-//  protobuf::StoreResponse response;
-//  response.set_result(1);
-//  ASSERT_TRUE(response.IsInitialized());
-//  crypto::RsaKeyPair kp;
-//  kp.GenerateKeys(4096);
-//  std::string result_no_securifier =
-//      msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
-//  std::string function_encrypt = msg_hndlr_.WrapMessage(response,
-//                                                        kp.public_key());
-//  std::string manual_encrypt =
-//               EncryptMessage<protobuf::StoreResponse>(response, kp.public_key(),
-//                                                kStoreResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-//  protobuf::StoreResponse decrypted_function_value =
-//                     GetWrapper<protobuf::StoreResponse>(function_encrypt,
-//                                                          kp.private_key());
-//  protobuf::StoreResponse decrypted_manual_value =
-//                       GetWrapper<protobuf::StoreResponse>(manual_encrypt,
-//                                                            kp.private_key());
-//  ASSERT_TRUE(decrypted_manual_value.result());
-//  ASSERT_TRUE(decrypted_function_value.result());
+  protobuf::RendezvousAcknowledgement rdvz_ack_message;
+  protobuf::Endpoint *ep =
+      rdvz_ack_message.mutable_originator_endpoint();
+  ep->set_ip(std::string("192.168.1.1"));
+  ep->set_port(12345);
+  ASSERT_TRUE(rdvz_ack_message.IsInitialized());
+
+  std::string function(msg_hndlr_.WrapMessage(rdvz_ack_message));
+  std::string manual(EncryptMessage<protobuf::RendezvousAcknowledgement>(
+                         rdvz_ack_message, kRendezvousAcknowledgement));
+  EXPECT_EQ(manual, function);
 }
 
 }  // namespace test
