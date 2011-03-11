@@ -57,7 +57,8 @@ class TransportMessageHandlerTest : public testing::Test {
   TransportMessageHandlerTest() : sec_ptr_(new TestSecurifier("", "", "")),
                                   msg_hndlr_(sec_ptr_),
                                   securifier_null_(),
-                                  msg_hndlr_no_securifier_(securifier_null_) {}
+                                  msg_hndlr_no_securifier_(securifier_null_),
+                                  invoked_slots_() {}
   virtual void SetUp() { }
   virtual void TearDown() { }
 
@@ -85,38 +86,105 @@ class TransportMessageHandlerTest : public testing::Test {
 
   void ManagedEndpointSlot(const protobuf::ManagedEndpointMessage&,
                            protobuf::ManagedEndpointMessage*,
-                           transport::Timeout*) {}
+                           transport::Timeout*) {
+    auto it = invoked_slots_->find(kManagedEndpointMessage);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
   void NatDetectionReqSlot(const protobuf::NatDetectionRequest&,
                            protobuf::NatDetectionResponse*,
-                           transport::Timeout*) {}
-  void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {}
+                           transport::Timeout*) {
+    auto it = invoked_slots_->find(kNatDetectionRequest);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {
+    auto it = invoked_slots_->find(kNatDetectionResponse);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
   void  ProxyConnectReqSlot(const protobuf::ProxyConnectRequest&,
-                       protobuf::ProxyConnectResponse*,
-                       transport::Timeout*) {}
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ProxyConnectResponse&)>>
-          ProxyConnectRspSlot;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ForwardRendezvousRequest&,
-                       protobuf::ForwardRendezvousResponse*,
-                       transport::Timeout*)>> ForwardRendezvousReqSlot;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ForwardRendezvousResponse&)>>
-          ForwardRendezvousRspSlot;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::RendezvousRequest&)>>
-          RendezvousReqSlot;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
-          RendezvousAckSlot;
-  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>>
-          ErrorSlot;
+                            protobuf::ProxyConnectResponse*,
+                            transport::Timeout*) {
+    auto it = invoked_slots_->find(kProxyConnectRequest);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void ProxyConnectRspSlot(const protobuf::ProxyConnectResponse&) {
+    auto it = invoked_slots_->find(kProxyConnectResponse);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void ForwardRendezvousReqSlot(const protobuf::ForwardRendezvousRequest&,
+                               protobuf::ForwardRendezvousResponse*,
+                               transport::Timeout*) {
+    auto it = invoked_slots_->find(kForwardRendezvousRequest);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void ForwardRendezvousRspSlot(const protobuf::ForwardRendezvousResponse&) {
+    auto it = invoked_slots_->find(kForwardRendezvousResponse);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void RendezvousReqSlot(const protobuf::RendezvousRequest&) {
+    auto it = invoked_slots_->find(kRendezvousRequest);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void RendezvousAckSlot(const protobuf::RendezvousAcknowledgement&) {
+    auto it = invoked_slots_->find(kRendezvousAcknowledgement);
+    if (it != invoked_slots_->end())
+      ++((*it).second);
+  }
+  void ErrorSlot(const TransportCondition&) {}
 
+  void ConnectToHandlerSignals() {
+    msg_hndlr_.on_managed_endpoint_message()->connect(boost::bind(
+        &TransportMessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
+    msg_hndlr_.on_nat_detection_request()->connect(boost::bind(
+        &TransportMessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3));
+    msg_hndlr_.on_nat_detection_response()->connect(boost::bind(
+        &TransportMessageHandlerTest::NatDetectionRspSlot, this, _1));
+    msg_hndlr_.on_proxy_connect_request()->connect(boost::bind(
+        &TransportMessageHandlerTest::ProxyConnectReqSlot, this, _1, _2, _3));
+    msg_hndlr_.on_proxy_connect_response()->connect(boost::bind(
+        &TransportMessageHandlerTest::ProxyConnectRspSlot, this, _1));
+    msg_hndlr_.on_forward_rendezvous_request()->connect(boost::bind(
+        &TransportMessageHandlerTest::ForwardRendezvousReqSlot,
+        this, _1, _2, _3));
+    msg_hndlr_.on_forward_rendezvous_response()->connect(boost::bind(
+        &TransportMessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
+    msg_hndlr_.on_rendezvous_request()->connect(boost::bind(
+        &TransportMessageHandlerTest::RendezvousReqSlot, this, _1));
+    msg_hndlr_.on_rendezvous_acknowledgement()->connect(boost::bind(
+        &TransportMessageHandlerTest::RendezvousAckSlot, this, _1));
+    msg_hndlr_.on_error()->connect(boost::bind(
+        &TransportMessageHandlerTest::ErrorSlot, this, _1));
+  }
+  void InitialiseMap() {
+    invoked_slots_.reset(new std::map<MessageType, boost::uint8_t>);
+    for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement; ++n)
+      invoked_slots_->insert(std::pair<MessageType, boost::uint8_t>(
+                                       MessageType(n), 0));
+  }
+  void CreateMesages() {
+    ManagedEndpointMessage me_msg;
+    NatDetectionRequest nd_req;
+    ProxyConnectRequest pc_req;
+    ForwardRendezvousRequest fr_req;
+    RendezvousRequest r_req;
+    NatDetectionResponse nd_res;
+    ProxyConnectResponse pc_res;
+    ForwardRendezvousResponse fr_res;
+    RendezvousAcknowledgement ra_msg;
+  }
  protected:
   std::shared_ptr<Securifier> sec_ptr_;
   MessageHandler msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
   MessageHandler msg_hndlr_no_securifier_;
+  std::shared_ptr<std::map<MessageType, boost::uint8_t>> invoked_slots_;
 };
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage) {  // NOLINT
@@ -237,7 +305,9 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgeme
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
-
+  ConnectToHandlerSignals();
+  InitialiseMap();
+  CreateMessages();
 }
 
 }  // namespace test
