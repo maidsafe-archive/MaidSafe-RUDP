@@ -92,58 +92,6 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
 }
 
-void Node::Impl::Store(const Key &key,
-                       const std::string &value,
-                       const std::string &signature,
-                       const boost::posix_time::time_duration &ttl,
-                       SecurifierPtr securifier,
-                       StoreFunctor callback) {
-  FindNodes(key, boost::bind(&Node::Impl::StoreFindNodesCallback,
-                             this, _1, _2,
-                             key, value, signature, ttl,
-                             securifier, callback));
-}
-
-void Node::Impl::StoreFindNodesCallback(int result_size,
-                               const std::vector<Contact> &cs,
-                               const Key &key,
-                               const std::string &value,
-                               const std::string &signature,
-                               const boost::posix_time::time_duration &ttl,
-                               SecurifierPtr securifier,
-                               StoreFunctor callback) {
-  if (result_size < threshold_) {
-    if (result_size < 0) {
-      callback(-1);
-    } else {
-      callback(-3);
-    }
-  } else {
-    boost::posix_time::seconds ttl_s(ttl.seconds());
-    std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
-    auto it = cs.begin();
-    auto it_end = cs.end();
-    
-    while (it != it_end) {
-        NodeContainerTuple nct((*it), key);
-        nct.state = kSelectedAlpha;
-        sa->nc.insert(nct);
-        ++it;
-    }
-
-    it = cs.begin();
-    while (it != it_end) {
-      std::shared_ptr<RpcArgs> srpc(new RpcArgs((*it), sa));
-      rpcs_->Store(key, value, signature, ttl_s, securifier, (*it),
-                   boost::bind(&Node::Impl::StoreResponse,
-                               this, _1, _2, srpc, key, value,
-                               signature, securifier),
-                   kTcp);
-      ++it;
-    }
-  }
-}
-
 void Node::Impl::StoreResponse(RankInfoPtr rank_info,
                                int response_code,
                                std::shared_ptr<RpcArgs> srpc,
@@ -210,58 +158,116 @@ void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
   }
 }
 
+void Node::Impl::Store(const Key &key,
+                       const std::string &value,
+                       const std::string &signature,
+                       const boost::posix_time::time_duration &ttl,
+                       SecurifierPtr securifier,
+                       StoreFunctor callback) {
+  std::shared_ptr<StoreArgs> sa (new StoreArgs(callback));
+  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<StoreArgs>,
+                             this, _1, _2,
+                             key, value, signature, ttl,
+                             securifier, sa));
+}
+
 void Node::Impl::Delete(const Key &key,
                         const std::string &value,
                         const std::string &signature,
                         SecurifierPtr securifier,
                         DeleteFunctor callback) {
-  FindNodes(key, boost::bind(&Node::Impl::DeleteFindNodesCallback,
+  std::shared_ptr<DeleteArgs> da (new DeleteArgs(callback));
+  boost::posix_time::time_duration ttl;
+  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<DeleteArgs>,
                              this, _1, _2,
-                             key, value, signature,
-                             securifier, callback));
+                             key, value, signature, ttl,
+                             securifier, da));
 }
 
-void Node::Impl::DeleteFindNodesCallback(int result_size,
+void Node::Impl::Update(const Key &key,
+                        const std::string &new_value,
+                        const std::string &new_signature,
+                        const std::string &old_value,
+                        const std::string &old_signature,
+                        SecurifierPtr securifier,
+                        const boost::posix_time::time_duration &ttl,
+                        UpdateFunctor callback) {
+  std::shared_ptr<UpdateArgs> ua (new UpdateArgs(new_value, new_signature,
+                                                 old_value, old_signature,
+                                                 callback));
+  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<UpdateArgs>,
+                             this, _1, _2,
+                             key, "", "", ttl,
+                             securifier, ua));
+}
+
+template <class T>
+void Node::Impl::OperationFindNodesCB(int result_size,
                                const std::vector<Contact> &cs,
                                const Key &key,
                                const std::string &value,
                                const std::string &signature,
+                               const boost::posix_time::time_duration &ttl,
                                SecurifierPtr securifier,
-                               DeleteFunctor callback) {
+                               std::shared_ptr<T> args) {
+  boost::mutex::scoped_lock loch_surlaplage(args->mutex);
   if (result_size < threshold_) {
     if (result_size < 0) {
-      callback(-1);
+      args->callback(-1);
     } else {
-      callback(-3);
+      args->callback(-3);
     }
   } else {
-    std::shared_ptr<DeleteArgs> da(new DeleteArgs(callback));
     auto it = cs.begin();
     auto it_end = cs.end();
     while (it != it_end) {
         NodeContainerTuple nct((*it), key);
         nct.state = kSelectedAlpha;
-        da->nc.insert(nct);
+        args->nc.insert(nct);
         ++it;
     }
 
     it = cs.begin();
     while (it != it_end) {
-      std::shared_ptr<RpcArgs> drpc(new RpcArgs((*it), da));
-      rpcs_->Delete(key, value, signature, securifier, (*it),
-                    boost::bind(&Node::Impl::DeleteResponse,
-                                this, _1, _2, drpc),
-                    kTcp);
+      std::shared_ptr<RpcArgs> rpc(new RpcArgs((*it), args));
+      switch (args->operation_type) {
+        case kOpDelete:
+          rpcs_->Delete(key, value, signature, securifier, (*it),
+                        boost::bind(&Node::Impl::DeleteResponse<DeleteArgs>,
+                                    this, _1, _2, rpc),
+                        kTcp);
+          break;
+        case kOpStore: {
+          boost::posix_time::seconds ttl_s(ttl.seconds());
+          rpcs_->Store(key, value, signature, ttl_s, securifier, (*it),
+                       boost::bind(&Node::Impl::StoreResponse,
+                                   this, _1, _2, rpc, key, value,
+                                   signature, securifier),
+                       kTcp);
+        }
+          break;
+        case kOpUpdate: {
+          std::shared_ptr<UpdateArgs> ua =
+            std::dynamic_pointer_cast<UpdateArgs> (args);
+          boost::posix_time::seconds ttl_s(ttl.seconds());
+          rpcs_->Store(key, ua->new_value, ua->new_signature, ttl_s,
+                      securifier, (*it),
+                      boost::bind(&Node::Impl::UpdateStoreResponse,
+                                  this, _1, _2, rpc, key, securifier),
+                      kTcp);
+        }
+          break;
+      }
       ++it;
     }
   }
 }
 
+template <class T>
 void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
                                 int response_code,
                                 std::shared_ptr<RpcArgs> drpc) {
-  std::shared_ptr<DeleteArgs> da =
-      std::static_pointer_cast<DeleteArgs> (drpc->rpc_a);
+  std::shared_ptr<T> da = std::static_pointer_cast<T> (drpc->rpc_a);
   // calledback flag needs to be protected by the mutex lock
   boost::mutex::scoped_lock loch_surlaplage(da->mutex);
   if (da->calledback)
@@ -274,18 +280,18 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
     (*report_down_contact_)(drpc->contact);
   }
   // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = da->nc.get<nc_id>();
+  NodeContainerByNodeId key_node_indx = drpc->rpc_a->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(drpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  auto pit_pending = da->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  auto pit_pending = drpc->rpc_a->nc.get<nc_state>().equal_range(kSelectedAlpha);
   int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
-  auto pit_contacted = da->nc.get<nc_state>().equal_range(kContacted);
+  auto pit_contacted = drpc->rpc_a->nc.get<nc_state>().equal_range(kContacted);
   int num_of_contacted= std::distance(pit_contacted.first,
                                       pit_contacted.second);
 
-  auto pit_down = da->nc.get<nc_state>().equal_range(kDown);
+  auto pit_down = drpc->rpc_a->nc.get<nc_state>().equal_range(kDown);
   int num_of_down= std::distance(pit_down.first, pit_down.second);
 
   if (num_of_down > (k_ - threshold_)) {
@@ -301,59 +307,6 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
 
   // by far only report failure defined, unlike to what happens in Store,
   // there is no restore (undo those success deleted) operation in delete
-}
-
-void Node::Impl::Update(const Key &key,
-                        const std::string &new_value,
-                        const std::string &new_signature,
-                        const std::string &old_value,
-                        const std::string &old_signature,
-                        SecurifierPtr securifier,
-                        const boost::posix_time::time_duration &ttl,
-                        UpdateFunctor callback) {
-  std::shared_ptr<UpdateArgs> ua (new UpdateArgs(new_value, new_signature,
-                                                 old_value, old_signature,
-                                                 callback));
-  FindNodes(key, boost::bind(&Node::Impl::UpdateFindNodesCallback,
-                             this, _1, _2, key, securifier, ttl, ua, callback));
-}
-
-void Node::Impl::UpdateFindNodesCallback(int result_size,
-                               const std::vector<Contact> &cs,
-                               const Key &key,
-                               SecurifierPtr securifier,
-                               const boost::posix_time::time_duration &ttl,
-                               std::shared_ptr<UpdateArgs> ua,
-                               UpdateFunctor callback) {
-  if (result_size < threshold_) {
-    if (result_size < 0) {
-      callback(-1);
-    } else {
-      callback(-3);
-    }
-  } else {
-    boost::posix_time::seconds ttl_s(ttl.seconds());
-    auto it = cs.begin();
-    auto it_end = cs.end();
-
-    while (it != it_end) {
-        NodeContainerTuple nct((*it), key);
-        nct.state = kSelectedAlpha;
-        ua->nc.insert(nct);
-        ++it;
-    }
-
-    it = cs.begin();
-    while (it != it_end) {
-      std::shared_ptr<RpcArgs> urpc(new RpcArgs((*it), ua));
-      rpcs_->Store(key, ua->new_value, ua->new_signature, ttl_s,
-                   securifier, (*it),
-                   boost::bind(&Node::Impl::UpdateStoreResponse,
-                               this, _1, _2, urpc, key, securifier),
-                   kTcp);
-      ++it;
-    }
-  }
 }
 
 void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
@@ -375,57 +328,10 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
   } else {
     rpcs_->Delete(key, ua->old_value, ua->old_signature,
                   securifier, urpc->contact,
-                  boost::bind(&Node::Impl::UpdateDeleteResponse,
+                  boost::bind(&Node::Impl::DeleteResponse<UpdateArgs>,
                               this, _1, _2, urpc),
                   kTcp);
   }
-}
-
-void Node::Impl::UpdateDeleteResponse(RankInfoPtr rank_info,
-                                      int response_code,
-                                      std::shared_ptr<RpcArgs> drpc) {
-  std::shared_ptr<UpdateArgs> da =
-      std::static_pointer_cast<UpdateArgs> (drpc->rpc_a);
-  // calledback flag needs to be protected by the mutex lock
-  boost::mutex::scoped_lock loch_surlaplage(da->mutex);
-  if (da->calledback)
-    return;
-
-  NodeSearchState mark(kContacted);
-  if (response_code < 0) {
-    mark = kDown;
-    // fire a signal here to notify this contact is down
-    (*report_down_contact_)(drpc->contact);
-  }
-  // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = da->nc.get<nc_id>();
-  auto it_tuple = key_node_indx.find(drpc->contact.node_id());
-  key_node_indx.modify(it_tuple, ChangeState(mark));
-
-  auto pit_pending = da->nc.get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
-
-  auto pit_contacted = da->nc.get<nc_state>().equal_range(kContacted);
-  int num_of_contacted= std::distance(pit_contacted.first,
-                                      pit_contacted.second);
-
-  auto pit_down = da->nc.get<nc_state>().equal_range(kDown);
-  int num_of_down= std::distance(pit_down.first, pit_down.second);
-
-  if (num_of_down > (k_ - threshold_)) {
-    // report back a failure once has more down contacts than the margin
-    da->callback(-2);
-    da->calledback = true;
-  }
-  if (num_of_contacted >= threshold_) {
-    // report back once has enough succeed contacts
-    da->callback(num_of_contacted);
-    da->calledback = true;
-  }
-
-  // by far only report failure defined, unlike to what happens in Store,
-  // there is no restore (undo those success stored/deleted) operations in
-  // update
 }
 
 void Node::Impl::FindValue(const Key &/*key*/,

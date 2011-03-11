@@ -165,14 +165,17 @@ class Node::Impl {
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
-  void StoreFindNodesCallback(int result_size,
-                     const std::vector<Contact> &cs,
-                     const Key &key,
-                     const std::string &value,
-                     const std::string &signature,
-                     const boost::posix_time::time_duration &ttl,
-                     SecurifierPtr securifier,
-                     StoreFunctor callback);
+  
+  template <class T>
+  void OperationFindNodesCB(int result_size,
+                            const std::vector<Contact> &cs,
+                            const Key &key,
+                            const std::string &value,
+                            const std::string &signature,
+                            const boost::posix_time::time_duration &ttl,
+                            SecurifierPtr securifier,
+                            std::shared_ptr<T> args);
+  
   void StoreResponse(RankInfoPtr rank_info,
                      int response_code,
                      std::shared_ptr<RpcArgs> srpc,
@@ -180,34 +183,21 @@ class Node::Impl {
                      const std::string &value,
                      const std::string &signature,
                      SecurifierPtr securifier);
-  void DeleteFindNodesCallback(int result_size,
-                               const std::vector<Contact> &cs,
-                               const Key &key,
-                               const std::string &value,
-                               const std::string &signature,
-                               SecurifierPtr securifier,
-                               DeleteFunctor callback);
-  void DeleteResponse(RankInfoPtr rank_info,
-                      int response_code,
-                      std::shared_ptr<RpcArgs> drpc);
-  void SingleDeleteResponse(RankInfoPtr rank_info,
-                            int response_code,
-                            const Contact &contact);
-  void UpdateFindNodesCallback(int result_size,
-                               const std::vector<Contact> &cs,
-                               const Key &key,
-                               SecurifierPtr securifier,
-                               const boost::posix_time::time_duration &ttl,
-                               std::shared_ptr<UpdateArgs> ua,
-                               UpdateFunctor callback);
   void UpdateStoreResponse(RankInfoPtr rank_info,
                            int response_code,
                            std::shared_ptr<RpcArgs> urpc,
                            const Key &key,
                            SecurifierPtr securifier);
-  void UpdateDeleteResponse(RankInfoPtr rank_info,
+
+  template <class T>
+  void DeleteResponse(RankInfoPtr rank_info,
+                      int response_code,
+                      std::shared_ptr<RpcArgs> drpc);
+  
+  void SingleDeleteResponse(RankInfoPtr rank_info,
                             int response_code,
-                            std::shared_ptr<RpcArgs> drpc);
+                            const Contact &contact);
+
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
