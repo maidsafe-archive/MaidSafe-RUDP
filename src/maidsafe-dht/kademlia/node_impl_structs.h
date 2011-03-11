@@ -52,6 +52,8 @@ enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
 
 enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
 
+enum OperationMethod { kOpDelete, kOpStore, kOpUpdate, kOpFindNode };
+
 struct NodeContainerTuple {
   explicit NodeContainerTuple(const Contact &cont, const NodeId &target_id)
       : contact(cont),
@@ -151,11 +153,13 @@ typedef NodeContainer::index<nc_state_distance>::type&
             NodeContainerByStateDistance;
 
 struct Args {
-  Args() : nc(), mutex(), calledback(false) {}
+  Args(OperationMethod operation_type) : nc(), mutex(), calledback(false),
+                                         operation_type(operation_type) {}
   virtual ~Args() {}
   NodeContainer nc;
   boost::mutex mutex;
   bool calledback;
+  OperationMethod operation_type;
 };
 
 struct RpcArgs {
@@ -167,19 +171,21 @@ struct RpcArgs {
 
 struct FindNodesArgs : Args {
   FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
-      : Args(), key(fna_key), callback(fna_callback), round(0) {}
+      : Args(kOpFindNode), key(fna_key), callback(fna_callback), round(0) {}
   NodeId key;
   FindNodesFunctor callback;
   int round;
 };
 
 struct StoreArgs : Args {
-  StoreArgs(StoreFunctor sa_callback) : Args(), callback(sa_callback) {}
+  StoreArgs(StoreFunctor sa_callback) : Args(kOpStore),
+                                        callback(sa_callback) {}
   StoreFunctor callback;
 };
 
 struct DeleteArgs : Args {
-  DeleteArgs(DeleteFunctor da_callback) : Args(), callback(da_callback) {}
+  DeleteArgs(DeleteFunctor da_callback) : Args(kOpDelete),
+                                          callback(da_callback) {}
   DeleteFunctor callback;
 };
 
@@ -187,7 +193,7 @@ struct UpdateArgs : Args {
   UpdateArgs(const std::string &new_value, const std::string &new_signature,
              const std::string &old_value, const std::string &old_signature,
              UpdateFunctor ua_callback)
-      :  Args(), callback(ua_callback),
+      :  Args(kOpUpdate), callback(ua_callback),
          new_value(new_value), new_signature(new_signature),
          old_value(old_value), old_signature(old_signature) {}
   UpdateFunctor callback;
