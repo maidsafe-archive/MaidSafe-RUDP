@@ -41,18 +41,6 @@ namespace maidsafe {
 
 namespace transport {
 
-enum MessageType {
-  kManagedEndpointMessage = 1,
-  kNatDetectionRequest,
-  kNatDetectionResponse,
-  kProxyConnectRequest,
-  kProxyConnectResponse,
-  kForwardRendezvousRequest,
-  kForwardRendezvousResponse,
-  kRendezvousRequest,
-  kRendezvousAcknowledgement
-};
-
 void MessageHandler::OnMessageReceived(const std::string &request,
                                        const Info &info,
                                        std::string *response,
@@ -83,55 +71,73 @@ void MessageHandler::OnError(const TransportCondition &transport_condition) {
 std::string MessageHandler::WrapMessage(
     const protobuf::ManagedEndpointMessage &msg) {
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionRequest &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionResponse &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectRequest &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectResponse &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousResponse &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousAcknowledgement &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 void MessageHandler::ProcessSerialisedMessage(
