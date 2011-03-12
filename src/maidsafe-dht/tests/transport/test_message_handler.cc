@@ -168,16 +168,94 @@ class TransportMessageHandlerTest : public testing::Test {
       invoked_slots_->insert(std::pair<MessageType, boost::uint8_t>(
                                        MessageType(n), 0));
   }
-  void CreateMesages() {
-    ManagedEndpointMessage me_msg;
-    NatDetectionRequest nd_req;
-    ProxyConnectRequest pc_req;
-    ForwardRendezvousRequest fr_req;
-    RendezvousRequest r_req;
-    NatDetectionResponse nd_res;
-    ProxyConnectResponse pc_res;
-    ForwardRendezvousResponse fr_res;
-    RendezvousAcknowledgement ra_msg;
+  std::vector<std::string> CreateMessages() {
+    protobuf::ManagedEndpointMessage me_msg;
+    protobuf::NatDetectionRequest nd_req;
+    protobuf::ProxyConnectRequest pc_req;
+    protobuf::ForwardRendezvousRequest fr_req;
+    protobuf::RendezvousRequest r_req;
+    protobuf::NatDetectionResponse nd_res;
+    protobuf::ProxyConnectResponse pc_res;
+    protobuf::ForwardRendezvousResponse fr_res;
+    protobuf::RendezvousAcknowledgement ra_msg;
+
+    protobuf::Endpoint ep;
+    ep.set_ip(std::string("192.168.1.1"));
+    ep.set_port(12345);
+    me_msg.mutable_endpoint()->CopyFrom(ep);
+    pc_req.mutable_endpoint()->CopyFrom(ep);
+    fr_req.mutable_receiver_endpoint()->CopyFrom(ep);
+    r_req.mutable_originator_endpoint()->CopyFrom(ep);
+    nd_res.mutable_endpoint()->CopyFrom(ep);
+    fr_res.mutable_receiver_rendezvous_endpoint()->CopyFrom(ep);
+    ra_msg.mutable_originator_endpoint()->CopyFrom(ep);
+
+    nd_req.set_local_port(12021);
+    nd_res.set_nat_type(0);
+    pc_req.set_rendezvous_connect(true);
+    pc_res.set_result(true);
+
+
+    EXPECT_TRUE(me_msg.IsInitialized());
+    EXPECT_TRUE(nd_req.IsInitialized());
+    EXPECT_TRUE(pc_req.IsInitialized());
+    EXPECT_TRUE(fr_req.IsInitialized());
+    EXPECT_TRUE(r_req.IsInitialized());
+    EXPECT_TRUE(nd_res.IsInitialized());
+    EXPECT_TRUE(pc_res.IsInitialized());
+    EXPECT_TRUE(fr_res.IsInitialized());
+    EXPECT_TRUE(ra_msg.IsInitialized());
+
+    std::vector<std::string> messages;
+    transport::protobuf::WrapperMessage wrap;
+    wrap.set_msg_type(kManagedEndpointMessage);
+    wrap.set_payload(me_msg.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kNatDetectionRequest);
+    wrap.set_payload(nd_req.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kProxyConnectRequest);
+    wrap.set_payload(pc_req.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kForwardRendezvousRequest);
+    wrap.set_payload(pc_req.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kRendezvousRequest);
+    wrap.set_payload(r_req.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kNatDetectionResponse);
+    wrap.set_payload(nd_res.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kProxyConnectResponse);
+    wrap.set_payload(pc_res.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kForwardRendezvousResponse);
+    wrap.set_payload(fr_res.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+
+    wrap.Clear();
+    wrap.set_msg_type(kRendezvousAcknowledgement);
+    wrap.set_payload(ra_msg.SerializeAsString());
+    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
+    return messages;
+  }
+
+  std::shared_ptr<std::map<MessageType, boost::uint8_t>> invoked_slots() {
+    return invoked_slots_;
   }
  protected:
   std::shared_ptr<Securifier> sec_ptr_;
@@ -307,7 +385,18 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgeme
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
   ConnectToHandlerSignals();
   InitialiseMap();
-  CreateMessages();
+  std::vector<std::string> messages(CreateMessages());
+
+  Info info;
+  std::string response;
+  Timeout timeout;
+  for (size_t n = 0; n < messages.size(); ++n)
+    msg_hndlr_.OnMessageReceived(messages[n], info, &response, &timeout);
+
+  std::shared_ptr<std::map<MessageType,
+                  boost::uint8_t>> slots = invoked_slots();
+  for (auto it = slots->begin(); it != slots->end(); ++it)
+    ASSERT_EQ(boost::uint8_t(1), (*it).second);
 }
 
 }  // namespace test
