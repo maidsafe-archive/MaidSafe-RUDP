@@ -97,73 +97,73 @@ class KademliaMessageHandlerTest: public testing::Test {
     ++message_count_;
   }
 
-  void ping_response(const transport::Info&, 
+  void ping_response(const transport::Info&,
                      const protobuf::PingResponse&) {
     ++message_count_;
   }
 
-  void find_value_rqst(const transport::Info&, 
+  void find_value_rqst(const transport::Info&,
                        const protobuf::FindValueRequest&,
                        protobuf::FindValueResponse*, transport::Timeout*) {
     ++message_count_;
   }
 
-  void find_value_response(const transport::Info&, 
+  void find_value_response(const transport::Info&,
                            const protobuf::FindValueResponse&) {
     ++message_count_;
   }
 
-  void find_nodes_rqst(const transport::Info&, 
+  void find_nodes_rqst(const transport::Info&,
                        const protobuf::FindNodesRequest&,
                        protobuf::FindNodesResponse*, transport::Timeout*) {
     ++message_count_;
   }
 
-  void find_nodes_response(const transport::Info&, 
+  void find_nodes_response(const transport::Info&,
                            const protobuf::FindNodesResponse&) {
     ++message_count_;
   }
 
-  void store_rqst(const transport::Info&, 
+  void store_rqst(const transport::Info&,
                      const protobuf::StoreRequest&,
                      const std::string&, const std::string&,
                      protobuf::StoreResponse*, transport::Timeout*) {
     ++message_count_;
   }
 
-  void store_response(const transport::Info&, 
+  void store_response(const transport::Info&,
                       const protobuf::StoreResponse&) {
     ++message_count_;
   }
 
-  void store_ref_rqst(const transport::Info&, 
+  void store_ref_rqst(const transport::Info&,
                       const protobuf::StoreRefreshRequest&,
                       protobuf::StoreRefreshResponse*, transport::Timeout*) {
     ++message_count_;
   }
 
-  void store_ref_response(const transport::Info&, 
+  void store_ref_response(const transport::Info&,
                           const protobuf::StoreRefreshResponse&) {
     ++message_count_;
   }
 
-  void delete_response(const transport::Info&, 
+  void delete_response(const transport::Info&,
                        const protobuf::DeleteResponse&) {
     ++message_count_;
   }
 
-  void delete_ref_rqst(const transport::Info&, 
+  void delete_ref_rqst(const transport::Info&,
                       const protobuf::DeleteRefreshRequest&,
                       protobuf::DeleteRefreshResponse*, transport::Timeout*) {
     ++message_count_;
   }
 
-  void delete_ref_response(const transport::Info&, 
+  void delete_ref_response(const transport::Info&,
                            const protobuf::DeleteRefreshResponse&) {
     ++message_count_;
   }
 
-  void downlist(const transport::Info&, 
+  void downlist(const transport::Info&,
                 const protobuf::DownlistNotification&) {
     ++message_count_;
   }
@@ -431,7 +431,6 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
             decrypted_function_value.sender().node_id());
 }
 
-
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingResponse) {
   protobuf::PingResponse response;
   response.set_echo("ping response echo");
@@ -635,20 +634,20 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRqst) {
                                       kAsymmetricEncrypt,
                                       message_signature, info,
                                       message_response, timeout);
-  ASSERT_EQ(1U, message_count_); 
+  ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) { 
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) {
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
-  
+
   int message_type = kPingResponse;
   protobuf::PingResponse response;
   response.set_echo("ping_echo");
@@ -675,7 +674,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
@@ -683,7 +682,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
   protobuf::FindValueRequest request;
   request.set_key("FindValue_key");
   request.mutable_sender()->CopyFrom(contact);
-  std::string payload = request.SerializeAsString(); 
+  std::string payload = request.SerializeAsString();
   ASSERT_TRUE(request.IsInitialized());
   msg_hndlr_.on_find_value_request()->connect(
       MessageHandler::FindValueReqSigPtr::element_type::slot_type(
@@ -699,7 +698,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) { 
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
@@ -713,7 +712,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
   int message_type = kFindValueResponse;
   protobuf::FindValueResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_find_value_response()->connect(
       MessageHandler::FindValueRspSigPtr::element_type::slot_type(
@@ -729,14 +728,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) { 
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
@@ -744,7 +743,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
   protobuf::FindNodesRequest request;
   request.set_key("FindNodes_key");
   request.mutable_sender()->CopyFrom(contact);
-  std::string payload = request.SerializeAsString(); 
+  std::string payload = request.SerializeAsString();
   ASSERT_TRUE(request.IsInitialized());
   msg_hndlr_.on_find_nodes_request()->connect(
       MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
@@ -760,7 +759,6 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
   ASSERT_EQ(1U, message_count_);
 }
 
-
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
@@ -768,14 +766,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kFindNodesResponse;
   protobuf::FindNodesResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_find_nodes_response()->connect(
       MessageHandler::FindNodesRspSigPtr::element_type::slot_type(
@@ -801,14 +799,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kStoreResponse;
   protobuf::StoreResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_store_response()->connect(
       MessageHandler::StoreRspSigPtr::element_type::slot_type(
@@ -824,21 +822,21 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst) {  // NOLINT
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kStoreRefreshRequest;
   protobuf::StoreRefreshRequest request;
   request.mutable_sender()->CopyFrom(contact);
-  std::string payload = request.SerializeAsString(); 
+  std::string payload = request.SerializeAsString();
   ASSERT_TRUE(request.IsInitialized());
   msg_hndlr_.on_store_refresh_request()->connect(
       MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
@@ -854,21 +852,21 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst)
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) {  // NOLINT
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kStoreRefreshResponse;
   protobuf::StoreRefreshResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_store_refresh_response()->connect(
       MessageHandler::StoreRefreshRspSigPtr::element_type::slot_type(
@@ -894,14 +892,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kDeleteResponse;
   protobuf::DeleteResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_delete_response()->connect(
       MessageHandler::DeleteRspSigPtr::element_type::slot_type(
@@ -917,21 +915,21 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst) {  // NOLINT
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kDeleteRefreshRequest;
   protobuf::DeleteRefreshRequest request;
   request.mutable_sender()->CopyFrom(contact);
-  std::string payload = request.SerializeAsString(); 
+  std::string payload = request.SerializeAsString();
   ASSERT_TRUE(request.IsInitialized());
   msg_hndlr_.on_delete_refresh_request()->connect(
       MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
@@ -947,21 +945,21 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst
   ASSERT_EQ(1U, message_count_);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp) {  // NOLINT
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kDeleteRefreshResponse;
   protobuf::DeleteRefreshResponse response;
   response.set_result(1);
-  std::string payload = response.SerializeAsString(); 
+  std::string payload = response.SerializeAsString();
   ASSERT_TRUE(response.IsInitialized());
   msg_hndlr_.on_delete_refresh_response()->connect(
       MessageHandler::DeleteRefreshRspSigPtr::element_type::slot_type(
@@ -984,14 +982,14 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
   protobuf::Contact contact;
   contact.set_node_id("test");
   contact.set_public_key(kp.public_key());
-  std::string message_signature;  
+  std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
 
   int message_type = kDownlistNotification;
   protobuf::DownlistNotification notification;
   notification.mutable_sender()->CopyFrom(contact);
-  std::string payload = notification.SerializeAsString(); 
+  std::string payload = notification.SerializeAsString();
   ASSERT_TRUE(notification.IsInitialized());
   msg_hndlr_.on_downlist_notification()->connect(
       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
@@ -1006,6 +1004,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
                                       message_response, timeout);
   ASSERT_EQ(1U, message_count_);
 }
+
 }  // namespace test_service
 
 }  // namespace kademlia

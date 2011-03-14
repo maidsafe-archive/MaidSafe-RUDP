@@ -79,12 +79,12 @@ class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRqst_Test;
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRsp_Test;
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRqst_Test;
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRsp_Test;
-class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRqst_Test;
-class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRsp_Test;
-class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRqst_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRqst_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRsp_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRqst_Test;  // NOLINT
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRsp_Test;
-class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test;
-class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test;  // NOLINT
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test;
 }  // namespace test
 
@@ -288,7 +288,7 @@ class MessageHandler : public transport::MessageHandler {
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test; // NOLINT
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test; // NOLINT
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test; // NOLINT
-  
+
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 

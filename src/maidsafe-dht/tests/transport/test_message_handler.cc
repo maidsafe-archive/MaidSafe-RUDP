@@ -27,6 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/thread.hpp"
 
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
@@ -58,7 +60,9 @@ class TransportMessageHandlerTest : public testing::Test {
                                   msg_hndlr_(sec_ptr_),
                                   securifier_null_(),
                                   msg_hndlr_no_securifier_(securifier_null_),
-                                  invoked_slots_() {}
+                                  invoked_slots_(),
+                                  slots_mutex_(),
+                                  error_count_(0) {}
   virtual void SetUp() { }
   virtual void TearDown() { }
 
@@ -72,7 +76,6 @@ class TransportMessageHandlerTest : public testing::Test {
     result.ParseFromString(decrypted_msg.payload());
     return result;
   }
-
   template<class T>
   std::string EncryptMessage(T request,
                              maidsafe::transport::MessageType request_type) {
@@ -87,6 +90,7 @@ class TransportMessageHandlerTest : public testing::Test {
   void ManagedEndpointSlot(const protobuf::ManagedEndpointMessage&,
                            protobuf::ManagedEndpointMessage*,
                            transport::Timeout*) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kManagedEndpointMessage);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -94,11 +98,13 @@ class TransportMessageHandlerTest : public testing::Test {
   void NatDetectionReqSlot(const protobuf::NatDetectionRequest&,
                            protobuf::NatDetectionResponse*,
                            transport::Timeout*) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kNatDetectionRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kNatDetectionResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -106,11 +112,13 @@ class TransportMessageHandlerTest : public testing::Test {
   void  ProxyConnectReqSlot(const protobuf::ProxyConnectRequest&,
                             protobuf::ProxyConnectResponse*,
                             transport::Timeout*) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kProxyConnectRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void ProxyConnectRspSlot(const protobuf::ProxyConnectResponse&) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kProxyConnectResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -118,26 +126,30 @@ class TransportMessageHandlerTest : public testing::Test {
   void ForwardRendezvousReqSlot(const protobuf::ForwardRendezvousRequest&,
                                protobuf::ForwardRendezvousResponse*,
                                transport::Timeout*) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kForwardRendezvousRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void ForwardRendezvousRspSlot(const protobuf::ForwardRendezvousResponse&) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kForwardRendezvousResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void RendezvousReqSlot(const protobuf::RendezvousRequest&) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kRendezvousRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void RendezvousAckSlot(const protobuf::RendezvousAcknowledgement&) {
+    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kRendezvousAcknowledgement);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
-  void ErrorSlot(const TransportCondition&) {}
+  void ErrorSlot(const TransportCondition &tc) { error_count_ += tc; }
 
   void ConnectToHandlerSignals() {
     msg_hndlr_.on_managed_endpoint_message()->connect(boost::bind(
@@ -163,9 +175,9 @@ class TransportMessageHandlerTest : public testing::Test {
         &TransportMessageHandlerTest::ErrorSlot, this, _1));
   }
   void InitialiseMap() {
-    invoked_slots_.reset(new std::map<MessageType, boost::uint8_t>);
+    invoked_slots_.reset(new std::map<MessageType, boost::uint16_t>);
     for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement; ++n)
-      invoked_slots_->insert(std::pair<MessageType, boost::uint8_t>(
+      invoked_slots_->insert(std::pair<MessageType, boost::uint16_t>(
                                        MessageType(n), 0));
   }
   std::vector<std::string> CreateMessages() {
@@ -253,17 +265,81 @@ class TransportMessageHandlerTest : public testing::Test {
     messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
     return messages;
   }
+  void ExecuteThread(std::vector<std::string> messages_copy, int rounds) {
+    Info info;
+    std::string response;
+    Timeout timeout;
 
-  std::shared_ptr<std::map<MessageType, boost::uint8_t>> invoked_slots() {
+    boost::uint32_t random_sleep((RandomUint32() % 100) + 100);
+    for (int a = 0; a < rounds; ++a) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(random_sleep));
+      for (size_t n = 0; n < messages_copy.size(); ++n)
+        msg_hndlr_.OnMessageReceived(messages_copy[n], info, &response,
+                                     &timeout);
+    }
+  }
+
+  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots() {
     return invoked_slots_;
   }
+  int error_count() { return error_count_; }
+
  protected:
   std::shared_ptr<Securifier> sec_ptr_;
   MessageHandler msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
   MessageHandler msg_hndlr_no_securifier_;
-  std::shared_ptr<std::map<MessageType, boost::uint8_t>> invoked_slots_;
+  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots_;
+  boost::mutex slots_mutex_;
+  int error_count_;
 };
+
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnError) {
+  ConnectToHandlerSignals();
+
+  int errors(0);
+  for (int tc = transport::kError;
+       tc != transport::kMessageSizeTooLarge; --tc) {
+    errors += tc;
+    msg_hndlr_.OnError(transport::TransportCondition(tc));
+  }
+
+  ASSERT_EQ(errors, error_count());
+}
+
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
+  ConnectToHandlerSignals();
+  InitialiseMap();
+  std::vector<std::string> messages(CreateMessages());
+
+  Info info;
+  std::string response;
+  Timeout timeout;
+  for (size_t n = 0; n < messages.size(); ++n)
+    msg_hndlr_no_securifier_.OnMessageReceived(
+        std::string(1, kAsymmetricEncrypt) + messages[n],
+        info, &response, &timeout);
+  std::shared_ptr<std::map<MessageType,
+                  boost::uint16_t>> slots = invoked_slots();
+  for (auto it = slots->begin(); it != slots->end(); ++it)
+    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+
+  slots->clear();
+  InitialiseMap();
+  for (size_t n = 0; n < messages.size(); ++n)
+    msg_hndlr_.OnMessageReceived(
+        std::string(1, kAsymmetricEncrypt) + messages[n],
+        info, &response, &timeout);
+  for (auto it = slots->begin(); it != slots->end(); ++it)
+    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+
+  slots->clear();
+  InitialiseMap();
+  for (size_t n = 0; n < messages.size(); ++n)
+    msg_hndlr_.OnMessageReceived("", info, &response, &timeout);
+  for (auto it = slots->begin(); it != slots->end(); ++it)
+    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+}
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage) {  // NOLINT
   protobuf::ManagedEndpointMessage managed_endpoint_message;
@@ -394,9 +470,31 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
     msg_hndlr_.OnMessageReceived(messages[n], info, &response, &timeout);
 
   std::shared_ptr<std::map<MessageType,
-                  boost::uint8_t>> slots = invoked_slots();
+                  boost::uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint8_t(1), (*it).second);
+    ASSERT_EQ(boost::uint16_t(1), (*it).second);
+}
+
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
+  ConnectToHandlerSignals();
+  InitialiseMap();
+  std::vector<std::string> messages(CreateMessages());
+
+  boost::uint8_t thread_count((RandomUint32() % 5) + 4);
+  boost::uint16_t total_messages(0);
+  boost::thread_group thg;
+  for (boost::uint8_t n = 0; n < thread_count; ++n) {
+    int rounds((RandomUint32() % 5) + 4);
+    thg.create_thread(std::bind(&TransportMessageHandlerTest::ExecuteThread,
+                                this, messages, rounds));
+    total_messages += rounds;
+  }
+
+  thg.join_all();
+  std::shared_ptr<std::map<MessageType,
+                  boost::uint16_t>> slots = invoked_slots();
+  for (auto it = slots->begin(); it != slots->end(); ++it)
+    ASSERT_EQ(boost::uint16_t(total_messages), (*it).second);
 }
 
 }  // namespace test
