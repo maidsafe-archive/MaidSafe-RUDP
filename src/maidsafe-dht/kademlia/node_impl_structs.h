@@ -52,7 +52,8 @@ enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
 
 enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
 
-enum OperationMethod { kOpDelete, kOpStore, kOpUpdate, kOpFindNode };
+enum OperationMethod { kOpDelete, kOpStore, kOpUpdate,
+                       kOpFindNode, kOpFindValue };
 
 struct NodeContainerTuple {
   explicit NodeContainerTuple(const Contact &cont, const NodeId &target_id)
@@ -174,6 +175,17 @@ struct FindNodesArgs : Args {
       : Args(kOpFindNode), key(fna_key), callback(fna_callback), round(0) {}
   NodeId key;
   FindNodesFunctor callback;
+  int round;
+};
+
+struct FindValueArgs : Args {
+  FindValueArgs(const NodeId &fva_key, SecurifierPtr securifier,
+                FindValueFunctor fva_callback)
+      : Args(kOpFindValue), key(fva_key), securifier(securifier),
+        callback(fva_callback), round(0) {}
+  NodeId key;
+  SecurifierPtr securifier;
+  FindValueFunctor callback;
   int round;
 };
 
