@@ -445,6 +445,8 @@ class RoutingTable {
    *  @param[in] rhs NodeId to which this is XOR
    *  @return the number of common bits from the beginning */
   boost::uint16_t KDistanceTo(const NodeId &rhs) const;
+  int GetLeastCommonHeadingBitInKClosestContact();
+
   /** Getter.
    *  @return Num of contacts in the routing table. */
   size_t Size();

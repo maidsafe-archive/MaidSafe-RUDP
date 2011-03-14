@@ -341,7 +341,8 @@ SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/config.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/contact.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_id.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/message_handler.h)
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/message_handler.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/securifier.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/maidsafe-dht.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/version.h)
