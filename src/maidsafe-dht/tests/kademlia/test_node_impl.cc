@@ -64,6 +64,28 @@ void FindNodeCallback(RankInfoPtr rank_info,
   *done = true;
 }
 
+struct FindValueResults {
+  FindValueResults() : response_code(-3), values(), contacts() {}
+  int response_code;
+  std::vector<std::string> values;
+  std::vector<Contact> contacts;
+};
+
+void FindValueCallback(int return_code,
+                       const std::vector<std::string> &vs,
+                       const std::vector<Contact> &cs,
+                       const Contact &alternative_store_contact,
+                       const Contact &cache_contact,
+                       bool *done,
+                       FindValueResults *results) {
+  results->values.clear();
+  results->values = vs;
+  results->contacts.clear();
+  results->contacts = cs;
+  *done = true;
+  results->response_code = return_code;
+}
+
 void ErrorCodeCallback(int error_code,
                        bool *done,
                        int *response_code) {
@@ -304,6 +326,12 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                FindNodesFunctor callback,
                                TransportType type));
 
+  MOCK_METHOD5(FindValue, void(const NodeId &key,
+                               const SecurifierPtr securifier,
+                               const Contact &contact,
+                               FindValueFunctor callback,
+                               TransportType type));
+
   void FindNodeRandomResponseClose(const Contact &c,
                                    FindNodesFunctor callback) {
     int response_factor = RandomUint32() % 100;
@@ -430,6 +458,26 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     callback(rank_info_, -1, response_list);
   }
 
+  void FindValueNoResponse(const Contact &c,
+                           Rpcs::FindValueFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_contact_list;
+    std::vector<std::string> response_value_list;
+    boost::thread th(boost::bind(&MockRpcs::FindValueNoResponseThread,
+                                 this, callback,
+                                 response_value_list, response_contact_list));
+  }
+
+  void FindValueNoResponseThread(Rpcs::FindValueFunctor callback,
+                                 std::vector<std::string> response_value_list,
+                                 std::vector<Contact> response_contact_list) {
+    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Contact alternative_store;
+    callback(rank_info_, -1, response_value_list, response_contact_list,
+             alternative_store);
+  }
+
   void SingleDeleteResponse(const Contact &c, Rpcs::DeleteFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     ++num_of_deleted_;
@@ -537,7 +585,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 }; //class MockRpcs
-
+/*
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
 
@@ -1442,6 +1490,37 @@ TEST_F(NodeImplTest, BEH_KAD_Update) {
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(500));
 }
+*/
+TEST_F(NodeImplTest, BEH_KAD_FindValue) {
+  PopulateRoutingTable(test::k, 500);
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+  NodeId key = NodeId(NodeId::kRandomId);
+  {
+    // All k populated contacts giving no response
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindValueNoResponse,
+                        new_rpcs.get(), _1, _2))));
+    FindValueResults results;
+    bool done(false);
+    node_->FindValue(key, securifier_,
+                     boost::bind(&FindValueCallback,
+                                 _1, _2, _3, _4, _5,
+                                 &done, &results));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(0, results.values.size());
+    EXPECT_EQ(0, results.contacts.size());
+  }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+} // FindValue test
 }  // namespace test_nodeimpl
 
 }  // namespace kademlia

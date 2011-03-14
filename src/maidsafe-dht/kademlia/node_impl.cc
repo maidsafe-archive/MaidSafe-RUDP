@@ -524,6 +524,10 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
 //    stopping_ = false;
 //  }
 // }
+
+// TODO(qi.ma@maidsafe.net):the info of the node reporting these k-closest
+// contacts will need to be recorded during the FindValue process once the
+// CACHE methodology is decided
 template <class T>
 void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
                                         std::shared_ptr<T> fa) {
@@ -663,24 +667,24 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
     std::shared_ptr<RpcArgs> frpc(new RpcArgs((*it_tuple).contact, fa));
-      switch (fa->operation_type) {
-        case kOpFindNode: {
-          rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
-                           boost::bind(&Node::Impl::IterativeSearchResponse,
-                                       this, _1, _2, _3, frpc),
-                           kTcp);
-          }
-          break;
-        case kOpFindValue: {
-          std::shared_ptr<FindValueArgs> fva =
-            std::dynamic_pointer_cast<FindValueArgs> (fa);
-          rpcs_->FindValue(fa->key, fva->securifier, (*it_tuple).contact,
-                    boost::bind(&Node::Impl::IterativeSearchValueResponse,
-                                this, _1, _2, _3, _4, _5, frpc),
-                    kTcp);
-          }
-          break;
-      }
+    switch (fa->operation_type) {
+      case kOpFindNode: {
+        rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
+                         boost::bind(&Node::Impl::IterativeSearchResponse,
+                                     this, _1, _2, _3, frpc),
+                         kTcp);
+        }
+        break;
+      case kOpFindValue: {
+        std::shared_ptr<FindValueArgs> fva =
+          std::dynamic_pointer_cast<FindValueArgs> (fa);
+        rpcs_->FindValue(fa->key, fva->securifier, (*it_tuple).contact,
+                  boost::bind(&Node::Impl::IterativeSearchValueResponse,
+                              this, _1, _2, _3, _4, _5, frpc),
+                  kTcp);
+        }
+        break;
+    }
   }
 }
 
@@ -702,10 +706,11 @@ void Node::Impl::IterativeSearchValueResponse(
   // report back once got a node response with some data
   if (values.size() > 0) {
     std::vector<Contact> closest_contacts;
-    Contact alternative_store_contact;
+    // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
+    // methodology of CACHE is decided
     Contact cache_contact;
     fa->callback(values.size(), values, closest_contacts,
-                 alternative_store_contact, cache_contact);
+                 alternative_store, cache_contact);
     fa->calledback = true;
   } else {
     NodeSearchState mark(kContacted);
@@ -731,19 +736,10 @@ void Node::Impl::IterativeSearchValueResponse(
     // value and the k-closest contacts
     if ((num_of_total_pending == 0) && (num_of_total_new == 0)) {
       std::vector<Contact> closest_contacts;
-      auto pit = fa->nc.get<nc_state_distance>().equal_range(
-                                boost::make_tuple(kContacted));
-      auto it = pit.first;
-      auto it_end = pit.second;
-      int num_candidates(0);
-      while ((it != it_end) && (num_candidates < k_)) {
-        closest_contacts.push_back((*it).contact);
-        ++num_candidates;
-        ++it;
-      }
+
       Contact alternative_store_contact;
       Contact cache_contact;
-      fa->callback(values.size(), values, closest_contacts,
+      fa->callback(-2, values, closest_contacts,
                    alternative_store_contact, cache_contact);
       fa->calledback = true;
     } else {
@@ -755,8 +751,10 @@ void Node::Impl::IterativeSearchValueResponse(
       auto pit = fa->nc.get<nc_state_round>().equal_range(
                     boost::make_tuple(kSelectedAlpha, fa->round));
       int num_of_round_pending = std::distance(pit.first, pit.second);
-      if (num_of_round_pending <= (kAlpha_ - kBeta_))
-          IterativeSearch<FindValueArgs>(fa);
+      if (num_of_round_pending <= (kAlpha_ - kBeta_)) {
+        loch_surlaplage.unlock();
+        IterativeSearch<FindValueArgs>(fa);
+      }
     }
   }
 }

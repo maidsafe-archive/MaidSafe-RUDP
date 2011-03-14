@@ -89,11 +89,11 @@ class Rpcs {
             const Contact &peer,
             PingFunctor callback,
             TransportType type);
-  void FindValue(const Key &key,
-                 SecurifierPtr securifier,
-                 const Contact &peer,
-                 FindValueFunctor callback,
-                 TransportType type);
+  virtual void FindValue(const Key &key,
+                         SecurifierPtr securifier,
+                         const Contact &peer,
+                         FindValueFunctor callback,
+                         TransportType type);
   virtual void FindNodes(const Key &key,
                          SecurifierPtr securifier,
                          const Contact &peer,
