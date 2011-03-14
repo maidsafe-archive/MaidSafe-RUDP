@@ -343,9 +343,16 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
   }
 }
 
-void Node::Impl::FindValue(const Key &/*key*/,
-                           SecurifierPtr /*securifier*/,
-                           FindValueFunctor /*callback*/) {
+void Node::Impl::FindValue(const Key &key,
+                           SecurifierPtr securifier,
+                           FindValueFunctor callback) {
+  std::shared_ptr<FindValueArgs> fva(new FindValueArgs(key, securifier,
+                                                       callback));
+  // initialize with local k closest as a seed
+  std::vector<Contact> close_nodes, excludes;
+  routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
+  AddContactsToContainer<FindValueArgs>(close_nodes, fva);
+  IterativeSearch<FindValueArgs>(fva);
 }
 
 void Node::Impl::GetContact(const NodeId &/*node_id*/,
@@ -517,17 +524,17 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
 //    stopping_ = false;
 //  }
 // }
-
+template <class T>
 void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
-                                        std::shared_ptr<FindNodesArgs> fna) {
-  // Only insert the tuple when it not existed in the container
-  boost::mutex::scoped_lock loch_lavitesse(fna->mutex);
-  NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
+                                        std::shared_ptr<T> fa) {
+  // Only insert the tuple when it does not existed in the container
+  boost::mutex::scoped_lock loch_lavitesse(fa->mutex);
+  NodeContainerByNodeId key_node_indx = fa->nc.template get<nc_id>();
   for (size_t n = 0; n < contacts.size(); ++n) {
     auto it_tuple = key_node_indx.find(contacts[n].node_id());
     if (it_tuple == key_node_indx.end()) {
-      NodeContainerTuple nct(contacts[n], fna->key);
-      fna->nc.insert(nct);
+      NodeContainerTuple nct(contacts[n], fa->key);
+      fa->nc.insert(nct);
     }
   }
 }
@@ -610,15 +617,16 @@ void Node::Impl::FindNodes(const Key &key, FindNodesFunctor callback) {
 
   // initialize with local k closest as a seed
   routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
-  AddContactsToContainer(close_nodes, fna);
+  AddContactsToContainer<FindNodesArgs>(close_nodes, fna);
 
-  IterativeSearch(fna);
+  IterativeSearch<FindNodesArgs>(fna);
 }
 
-void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
-  boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
+template <class T>
+void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
+  boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
 
-  auto pit = fna->nc.get<nc_state_distance>().equal_range(
+  auto pit = fa->nc. template get<nc_state_distance>().equal_range(
       boost::make_tuple(kNew));
   int num_of_candidates = std::distance(pit.first, pit.second);
 
@@ -642,22 +650,114 @@ void Node::Impl::IterativeSearch(std::shared_ptr<FindNodesArgs> fna) {
     ++counter;
   }
 
-  NodeContainerByNodeId key_node_indx = fna->nc.get<nc_id>();
+  NodeContainerByNodeId key_node_indx = fa->nc.template get<nc_id>();
   // Update contacts' state
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
     key_node_indx.modify(it_tuple, ChangeState(kSelectedAlpha));
-    key_node_indx.modify(it_tuple, ChangeRound(fna->round+1));
+    key_node_indx.modify(it_tuple, ChangeRound(fa->round+1));
   }
-  ++fna->round;
+  ++fa->round;
   // Better to change the value in a bunch and then issue RPCs in a bunch
   // to avoid any possibilities of cross-interference
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
-    std::shared_ptr<RpcArgs> fnrpc(new RpcArgs((*it_tuple).contact, fna));
-    rpcs_->FindNodes(fna->key, default_securifier_, (*it_tuple).contact,
-                     boost::bind(&Node::Impl::IterativeSearchResponse,
-                                      this, _1, _2, _3, fnrpc), kTcp);
+    std::shared_ptr<RpcArgs> frpc(new RpcArgs((*it_tuple).contact, fa));
+      switch (fa->operation_type) {
+        case kOpFindNode: {
+          rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
+                           boost::bind(&Node::Impl::IterativeSearchResponse,
+                                       this, _1, _2, _3, frpc),
+                           kTcp);
+          }
+          break;
+        case kOpFindValue: {
+          std::shared_ptr<FindValueArgs> fva =
+            std::dynamic_pointer_cast<FindValueArgs> (fa);
+          rpcs_->FindValue(fa->key, fva->securifier, (*it_tuple).contact,
+                    boost::bind(&Node::Impl::IterativeSearchValueResponse,
+                                this, _1, _2, _3, _4, _5, frpc),
+                    kTcp);
+          }
+          break;
+      }
+  }
+}
+
+void Node::Impl::IterativeSearchValueResponse(
+                                  RankInfoPtr rank_info,
+                                  int result,
+                                  const std::vector<std::string> &values,
+                                  const std::vector<Contact> &contacts,
+                                  const Contact &alternative_store,
+                                  std::shared_ptr<RpcArgs> frpc) {
+  std::shared_ptr<FindValueArgs> fa =
+      std::static_pointer_cast<FindValueArgs> (frpc->rpc_a);
+  boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
+  // If already calledback, i.e. result has already been reported
+  // then do nothing, just return
+  if (fa->calledback) {
+    return;
+  }
+  // report back once got a node response with some data
+  if (values.size() > 0) {
+    std::vector<Contact> closest_contacts;
+    Contact alternative_store_contact;
+    Contact cache_contact;
+    fa->callback(values.size(), values, closest_contacts,
+                 alternative_store_contact, cache_contact);
+    fa->calledback = true;
+  } else {
+    NodeSearchState mark(kContacted);
+    if (result < 0) {
+      mark = kDown;
+      // fire a signal here to notify this contact is down
+      (*report_down_contact_)(frpc->contact);
+    } else {
+      AddContactsToContainer<FindValueArgs>(contacts, fa);
+    }
+
+    // Mark the enquired contact
+    NodeContainerByNodeId key_node_indx = fa->nc.get<nc_id>();
+    auto it_tuple = key_node_indx.find(frpc->contact.node_id());
+    key_node_indx.modify(it_tuple, ChangeState(mark));
+
+    auto pit_pending = fa->nc.get<nc_state>().equal_range(kSelectedAlpha);
+    int num_of_total_pending = std::distance(pit_pending.first,
+                                             pit_pending.second);
+    auto pit_new = fa->nc.get<nc_state>().equal_range(kNew);
+    int num_of_total_new = std::distance(pit_new.first, pit_new.second);
+    // if all contacted but still got no result, then report back with empty
+    // value and the k-closest contacts
+    if ((num_of_total_pending == 0) && (num_of_total_new == 0)) {
+      std::vector<Contact> closest_contacts;
+      auto pit = fa->nc.get<nc_state_distance>().equal_range(
+                                boost::make_tuple(kContacted));
+      auto it = pit.first;
+      auto it_end = pit.second;
+      int num_candidates(0);
+      while ((it != it_end) && (num_candidates < k_)) {
+        closest_contacts.push_back((*it).contact);
+        ++num_candidates;
+        ++it;
+      }
+      Contact alternative_store_contact;
+      Contact cache_contact;
+      fa->callback(values.size(), values, closest_contacts,
+                   alternative_store_contact, cache_contact);
+      fa->calledback = true;
+    } else {
+      // Start a new iteration search if the current one was done.
+      // To tell if the current iteration is done or not, only need to test:
+      //    if number of pending(waiting for response) contacts
+      //    is not greater than (kAlpha_ - kBeta_)
+      // always check with the latest round, no need to worry about the previous
+      auto pit = fa->nc.get<nc_state_round>().equal_range(
+                    boost::make_tuple(kSelectedAlpha, fa->round));
+      int num_of_round_pending = std::distance(pit.first, pit.second);
+      if (num_of_round_pending <= (kAlpha_ - kBeta_))
+          IterativeSearch<FindValueArgs>(fa);
+    }
   }
 }
 
@@ -666,10 +766,10 @@ void Node::Impl::IterativeSearchResponse(
                                   int result,
                                   const std::vector<Contact> &contacts,
                                   std::shared_ptr<RpcArgs> fnrpc) {
-  // If already calledback, i.e. result has already been reported
-  // then do nothing, just return
   std::shared_ptr<FindNodesArgs> fna =
       std::static_pointer_cast<FindNodesArgs> (fnrpc->rpc_a);
+  // If already calledback, i.e. result has already been reported
+  // then do nothing, just return
   if (fna->calledback) {
     return;
   }
@@ -680,7 +780,7 @@ void Node::Impl::IterativeSearchResponse(
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(fnrpc->contact);
   } else {
-    AddContactsToContainer(contacts, fna);
+    AddContactsToContainer<FindNodesArgs>(contacts, fna);
   }
 
   bool curr_iteration_done(false), calledback(false);
@@ -690,7 +790,7 @@ void Node::Impl::IterativeSearchResponse(
   }
 
   if ((!calledback) && (curr_iteration_done))
-    IterativeSearch(fna);
+    IterativeSearch<FindNodesArgs>(fna);
 }
 
 void Node::Impl::PingOldestContact(const Contact &oldest_contact,

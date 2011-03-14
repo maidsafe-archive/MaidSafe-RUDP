@@ -141,18 +141,30 @@ class Node::Impl {
  private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);
+
+  template <class T>
   void AddContactsToContainer(const std::vector<Contact> contacts,
-                              std::shared_ptr<FindNodesArgs> find_nodes_args);
+                              std::shared_ptr<T> find_args);
+
+  template <class T>
+  void IterativeSearch(std::shared_ptr<T> find_args);
+
+  void IterativeSearchValueResponse(RankInfoPtr rank_info,
+                                    int result,
+                                    const std::vector<std::string> &values,
+                                    const std::vector<Contact> &contacts,
+                                    const Contact &alternative_store,
+                                    std::shared_ptr<RpcArgs> fvrpc);
+  void IterativeSearchResponse(RankInfoPtr rank_info,
+      int result,
+      const std::vector<Contact> &contacts,
+      std::shared_ptr<RpcArgs> find_nodes_rpc_args);
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<FindNodesArgs> find_nodes_args,
                                 kademlia::NodeSearchState mark,
                                 bool *cur_iteration_done,
                                 bool *calledback);
-  void IterativeSearch(std::shared_ptr<FindNodesArgs> find_nodes_args);
-  void IterativeSearchResponse(RankInfoPtr rank_info,
-      int result,
-      const std::vector<Contact> &contacts,
-      std::shared_ptr<RpcArgs> find_nodes_rpc_args);
+
   void PingOldestContact(const Contact &oldest_contact,
                          const Contact &replacement_contact,
                          RankInfoPtr replacement_rank_info);
