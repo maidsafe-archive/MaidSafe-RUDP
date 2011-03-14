@@ -370,7 +370,6 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
   boost::shared_mutex shared_mutex;
   std::shared_ptr<boost::upgrade_lock<boost::shared_mutex>> upgrade_lock(
       new boost::upgrade_lock<boost::shared_mutex>(shared_mutex));
-
   for (int i = 0; i < k_ - 1; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 507);
     Contact contact = ComposeContact(node_id, 5333);
@@ -383,6 +382,58 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     int result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
                                                     upgrade_lock);
     EXPECT_EQ(-3, result);
+    AddContact(contact);
+  }
+  int retry(0);
+  if (k_ > 2) {
+    for (int i = 0; i < k_; ++i) {
+      NodeId node_id = GenerateUniqueRandomId(holder_id_, 508);
+      Contact contact = ComposeContact(node_id, 5333);
+      AddContact(contact);
+    }
+    for (int i = 0; i < k_; ++i) {
+      NodeId node_id = GenerateUniqueRandomId(holder_id_, 506);
+      Contact contact = ComposeContact(node_id, 5333);
+      AddContact(contact);
+    }
+
+    // remove contact from bucket with common_heading_bit(507, 506)
+    for (int i = 0; i < k_ - (k_ / 2 - 2); ++i) {
+      auto pit_2 = routing_table_.contacts_.get<KBucketTag>().equal_range(4);
+      routing_table_.SetValidated((*pit_2.first).node_id, false);
+      pit_2 = routing_table_.contacts_.get<KBucketTag>().equal_range(5);
+      routing_table_.SetValidated((*pit_2.first).node_id, false);
+    }
+    // Adding contact to bucket having kclosest contact
+    bool fail_check(false);
+    bool pass_check(false);
+    while (retry < 1000) {
+      NodeId node_id = GenerateUniqueRandomId(holder_id_, 508);
+      Contact contact = ComposeContact(node_id, 5678);
+      RankInfoPtr rank_info;
+      auto pit =
+          routing_table_.contacts_.get<KBucketDistanceToThisIdTag>().equal_range
+          (boost::make_tuple(3));
+      auto it_end = pit.second;
+      --it_end;
+      NodeId furthest_distance = (*it_end).distance_to_this_id;
+      NodeId distance_to_node = routing_table_.kThisId_ ^ node_id;
+      if (distance_to_node >= furthest_distance) {
+        int force_result = routing_table_.ForceKAcceptNewPeer(contact, 3,
+                              rank_info, upgrade_lock);
+        EXPECT_EQ(-4, force_result);
+        fail_check = true;
+      } else {
+        int force_result = routing_table_.ForceKAcceptNewPeer(contact, 3,
+                              rank_info, upgrade_lock);
+        EXPECT_EQ(0, force_result);
+        pass_check = true;
+      }
+      if (fail_check && pass_check)
+        break;
+      ++retry;
+    }
+    EXPECT_EQ(k_, routing_table_.contacts_.get<KBucketTag>().count(3));
   }
   Clear();
   for (int i = 0; i < k_; ++i) {
@@ -422,8 +473,10 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
                                                           upgrade_lock);
     EXPECT_EQ(-3, force_result);
   }
-  boost::uint16_t retry(0);
+
+  retry = 0;
   while (retry < 10000) {
+    // Adding new contact to brother bucket
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 510);
     Contact contact = ComposeContact(node_id, 5678);
     RankInfoPtr rank_info;
@@ -436,11 +489,11 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     NodeId distance_to_node = routing_table_.kThisId_ ^ node_id;
     if (distance_to_node >= furthest_distance) {
       int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
-                           rank_info, upgrade_lock);
+                            rank_info, upgrade_lock);
       EXPECT_EQ(-4, force_result);
     } else {
       int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
-                           rank_info, upgrade_lock);
+                            rank_info, upgrade_lock);
       EXPECT_EQ(0, force_result);
     }
     ++retry;
