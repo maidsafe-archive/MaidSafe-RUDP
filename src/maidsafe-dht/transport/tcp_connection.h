@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
+#include "boost/asio/strand.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
@@ -51,32 +52,50 @@ class TcpTransport;
 
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
  public:
-  TcpConnection(TcpTransport *tcp_transport,
+  TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);
   ~TcpConnection();
-  void Close();
+
   boost::asio::ip::tcp::socket &Socket();
+
+  void Close();
   void StartReceiving();
-  void Send(const std::string &data, const Timeout &timeout, bool is_response);
+  void StartSending(const std::string &data, const Timeout &timeout);
 
  private:
   TcpConnection(const TcpConnection&);
   TcpConnection &operator=(const TcpConnection&);
-  void StartTimeout(const Timeout &timeout);
 
-  void HandleTimeout(const boost::system::error_code& ec);
-  void HandleSize(const boost::system::error_code& ec);
-  void HandleRead(const boost::system::error_code& ec);
-  void HandleConnect(const boost::system::error_code& ec);
+  void DoClose();
+  void DoStartReceiving();
+  void DoStartSending();
+
+  void CheckTimeout();
+
+  void StartConnect();
+  void HandleConnect(const boost::system::error_code &ec);
+
+  void StartReadSize();
+  void HandleReadSize(const boost::system::error_code &ec);
+
+  void StartReadData();
+  void HandleReadData(const boost::system::error_code &ec, size_t length);
+
+  void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
 
   void DispatchMessage();
+  void EncodeData(const std::string &data);
+  void CloseOnError(const TransportCondition &error);
 
-  TcpTransport *transport_;
+  std::weak_ptr<TcpTransport> transport_;
+  boost::asio::io_service::strand strand_;
   boost::asio::ip::tcp::socket socket_;
   boost::asio::deadline_timer timer_;
+  boost::posix_time::ptime response_deadline_;
   boost::asio::ip::tcp::endpoint remote_endpoint_;
   std::vector<unsigned char> size_buffer_, data_buffer_;
+  size_t data_size_, data_received_;
   Timeout timeout_for_response_;
 };
 

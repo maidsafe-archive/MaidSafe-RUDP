@@ -40,18 +40,15 @@ namespace maidsafe {
 namespace transport {
 
 TcpTransport::TcpTransport(
-    std::shared_ptr<boost::asio::io_service> asio_service)
+    boost::asio::io_service &asio_service)
         : Transport(asio_service),
           acceptor_(),
           connections_(),
-          mutex_() {}
+          strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
-  while (!connections_.empty())
-    (*connections_.begin())->Close();
-//  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-//    (*it)->Close();
-  StopListening();
+  for (auto it = connections_.begin(); it != connections_.end(); ++it)
+    (*it)->Close();
 }
 
 TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
@@ -62,13 +59,18 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
     return kInvalidPort;
 
   ip::tcp::endpoint ep(endpoint.ip, endpoint.port);
-  acceptor_.reset(new ip::tcp::acceptor(*asio_service_));
+  acceptor_.reset(new ip::tcp::acceptor(asio_service_));
 
   bs::error_code ec;
   acceptor_->open(ep.protocol(), ec);
 
   if (ec)
     return kInvalidAddress;
+
+  acceptor_->set_option(ip::tcp::acceptor::reuse_address(true), ec);
+
+  if (ec)
+    return kSetOptionFailure;
 
   acceptor_->bind(ep, ec);
 
@@ -81,61 +83,81 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
     return kListenError;
 
   ConnectionPtr new_connection(
-      std::make_shared<TcpConnection>(this, boost::asio::ip::tcp::endpoint()));
+      std::make_shared<TcpConnection>(shared_from_this(),
+                                      boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
   acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept, this,
-                                    new_connection, arg::_1));
+                          strand_.wrap(std::bind(&TcpTransport::HandleAccept,
+                                                 shared_from_this(), acceptor_,
+                                                 new_connection, arg::_1)));
   return kSuccess;
 }
 
 void TcpTransport::StopListening() {
-  boost::system::error_code ec;
   if (acceptor_)
-    acceptor_->close(ec);
+    strand_.dispatch(std::bind(&TcpTransport::CloseAcceptor, acceptor_));
   listening_port_ = 0;
+  acceptor_.reset();
 }
 
-void TcpTransport::HandleAccept(ConnectionPtr connection,
+void TcpTransport::CloseAcceptor(AcceptorPtr acceptor) {
+  boost::system::error_code ec;
+  acceptor->close(ec);
+}
+
+void TcpTransport::HandleAccept(AcceptorPtr acceptor,
+                                ConnectionPtr connection,
                                 const bs::error_code &ec) {
-  if (listening_port_ == 0)
+  if (!acceptor->is_open())
     return;
 
   if (!ec) {
-    boost::mutex::scoped_lock lock(mutex_);
-    connections_.insert(connection);
+    // It is safe to call DoInsertConnection directly because HandleAccept() is
+    // already being called inside the strand.
+    DoInsertConnection(connection);
     connection->StartReceiving();
   }
 
   ConnectionPtr new_connection(
-      std::make_shared<TcpConnection>(this, boost::asio::ip::tcp::endpoint()));
+      std::make_shared<TcpConnection>(shared_from_this(),
+                                      boost::asio::ip::tcp::endpoint()));
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
-  acceptor_->async_accept(new_connection->Socket(),
-                          std::bind(&TcpTransport::HandleAccept, this,
-                                    new_connection, arg::_1));
+  acceptor->async_accept(new_connection->Socket(),
+                         strand_.wrap(std::bind(&TcpTransport::HandleAccept,
+                                                shared_from_this(), acceptor,
+                                                new_connection, arg::_1)));
 }
 
 void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
-  ConnectionPtr connection(std::make_shared<TcpConnection>(this, tcp_endpoint));
+  ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
+                                                           tcp_endpoint));
+  InsertConnection(connection);
+  connection->StartSending(data, timeout);
+}
 
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    connections_.insert(connection);
-  }
+void TcpTransport::InsertConnection(ConnectionPtr connection) {
+  strand_.dispatch(std::bind(&TcpTransport::DoInsertConnection,
+                             shared_from_this(), connection));
+}
 
-  connection->Send(data, timeout, false);
+void TcpTransport::DoInsertConnection(ConnectionPtr connection) {
+  connections_.insert(connection);
 }
 
 void TcpTransport::RemoveConnection(ConnectionPtr connection) {
-  boost::mutex::scoped_lock lock(mutex_);
+  strand_.dispatch(std::bind(&TcpTransport::DoRemoveConnection,
+                             shared_from_this(), connection));
+}
+
+void TcpTransport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
 }
 

@@ -172,9 +172,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   if (listen) {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(asio_service_));
+      transport1 = TransportPtr(new T(*asio_service_));
     else
-      transport1 = TransportPtr(new T(asio_service_3_));
+      transport1 = TransportPtr(new T(*asio_service_3_));
 
     if (lport != Port(0)) {
       EXPECT_EQ(kSuccess,
@@ -187,9 +187,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   } else {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(asio_service_));
+      transport1 = TransportPtr(new T(*asio_service_1_));
     else
-      transport1 = TransportPtr(new T(asio_service_3_));
+      transport1 = TransportPtr(new T(*asio_service_2_));
     sending_transports_.push_back(transport1);
   }
 }
@@ -264,13 +264,6 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
       listening_message_handlers_.size() * num_messages);
     ++sending_msg_handlers_itr;
   }
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-  for (auto itr = listening_transports_.begin();
-      itr < listening_transports_.end(); ++itr)
-    (*itr)->StopListening();
-  for (auto itr = sending_transports_.begin();
-      itr < sending_transports_.end(); ++itr)
-    (*itr)->StopListening();
 }
 
 template <typename T>
@@ -278,17 +271,10 @@ void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
                                TransportPtr listener_pt) {
   std::string request(RandomString(11));
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
-                  bptime::seconds(1));
+                  bptime::seconds(2));
 
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    (request_messages_).push_back(request);
-  }
-
-  // std::string response = base::RandomString(10); need to change
-  std::string response("Response");
-  listener_pt->Send(response, Endpoint(kIP, sender_pt->listening_port()),
-                    bptime::seconds(1));
+  boost::mutex::scoped_lock lock(mutex_);
+  (request_messages_).push_back(request);
 }
 
 template <typename T>
@@ -358,7 +344,7 @@ void TransportAPITest<T>::CheckMessages() {
 
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  TransportPtr transport(new TypeParam(this->asio_service_));
+  TransportPtr transport(new TypeParam(*this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 2277)));
@@ -371,12 +357,11 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123)));
   EXPECT_EQ(Port(55123), transport->listening_port());
   transport->StopListening();
-  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
-  TransportPtr sender(new TypeParam(this->asio_service_));
-  TransportPtr listener(new TypeParam(this->asio_service_));
+  TransportPtr sender(new TypeParam(*this->asio_service_));
+  TransportPtr listener(new TypeParam(*this->asio_service_));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
@@ -423,7 +408,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   ASSERT_EQ(size_t(2), msgh_listener->responses_sent().size());
   ASSERT_EQ(size_t(1), msgh_sender->responses_received().size());
   listener->StopListening();
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }
 
 
@@ -437,7 +421,6 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
-  boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {

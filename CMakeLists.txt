@@ -187,15 +187,15 @@ IF(Mysqlpp_FOUND)
 ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
-RENAME_TEST_EXECUTABLE(TESTkademlia)
-RENAME_TEST_EXECUTABLE(TESTnode)
-RENAME_TEST_EXECUTABLE(TESTtransport)
-RENAME_TEST_EXECUTABLE(TESTnatpmp)
-RENAME_TEST_EXECUTABLE(TESTupnp)
-RENAME_TEST_EXECUTABLE(KademliaDemo)
-RENAME_TEST_EXECUTABLE(benchmark_static)
+RENAME_EXECUTABLE(TESTkademlia)
+RENAME_EXECUTABLE(TESTnode)
+RENAME_EXECUTABLE(TESTtransport)
+RENAME_EXECUTABLE(TESTnatpmp)
+RENAME_EXECUTABLE(TESTupnp)
+RENAME_EXECUTABLE(KademliaDemo)
+RENAME_EXECUTABLE(benchmark_static)
 IF(Mysqlpp_FOUND)
-  RENAME_TEST_EXECUTABLE(distributed_net_clients)
+  RENAME_EXECUTABLE(distributed_net_clients)
 ENDIF()
 
 SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
@@ -341,7 +341,8 @@ SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/config.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/contact.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_id.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/message_handler.h)
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/message_handler.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/securifier.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/maidsafe-dht.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/version.h)
