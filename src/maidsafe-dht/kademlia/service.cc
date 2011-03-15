@@ -61,7 +61,8 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       node_joined_(false),
       node_contact_(),
       k_(k),
-      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type),
+      sender_task_(new SenderTask) {}
 
 Service::Service(std::shared_ptr<RoutingTable> routing_table,
                  std::shared_ptr<DataStore> data_store,
@@ -74,7 +75,8 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       node_joined_(false),
       node_contact_(),
       k_(16U),
-      ping_down_list_contacts_(new PingDownListContactsPtr::element_type) {}
+      ping_down_list_contacts_(new PingDownListContactsPtr::element_type),
+      sender_task_(new SenderTask) {}
 
 Service::~Service() {}
 
@@ -206,10 +208,21 @@ void Service::Store(const transport::Info &info,
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
   RequestAndSignature request_signature(message, message_signature);
-  GetPublicKeyAndValidationCallback cb = boost::bind(
-      &Service::StoreCallback, this, key_value_signature, request, info,
-      request_signature, response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
+  TaskCallback store_cb = boost::bind(&Service::StoreCallback, this, _1,
+                                      request, _2, _3, _4, _5);
+  bool is_new_id = true;
+  if (sender_task_->AddTask(key_value_signature, info, request_signature,
+                            request.sender().public_key_id(), store_cb,
+                            is_new_id)) {
+    if (is_new_id) {  // If public_key_id is new
+      GetPublicKeyAndValidationCallback cb =
+          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                      request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
+                                             cb);
+    }
+    response->set_result(true);
+  }
 }
 
 void Service::StoreRefresh(const transport::Info &info,
@@ -230,24 +243,34 @@ void Service::StoreRefresh(const transport::Info &info,
                         ori_store_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_store_request(),
                           request.serialised_store_request_signature());
-  GetPublicKeyAndValidationCallback cb = boost::bind(
-      &Service::StoreRefreshCallback, this, key_value_signature, request, info,
-      request_signature, response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(
-                  ori_store_request.sender().public_key_id(), cb);
+  TaskCallback store_refresh_cb = boost::bind(&Service::StoreRefreshCallback,
+                                              this, _1, request, _2, _3,
+                                              _4, _5);
+  bool is_new_id = true;
+  if (sender_task_->AddTask(key_value_signature, info, request_signature,
+                            request.sender().public_key_id(), store_refresh_cb,
+                            is_new_id)) {
+    if (is_new_id) {
+      GetPublicKeyAndValidationCallback cb =
+          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                      request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
+                                             cb);
+    }
+    response->set_result(true);
+  }
 }
 
 void Service::StoreCallback(KeyValueSignature key_value_signature,
                             protobuf::StoreRequest request,
                             transport::Info info,
                             RequestAndSignature request_signature,
-                            protobuf::StoreResponse *response,
                             std::string public_key,
                             std::string public_key_validation) {
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
-      response, public_key, public_key_validation, false))
+      public_key, public_key_validation, false))
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
 }
@@ -256,31 +279,22 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
                                    protobuf::StoreRefreshRequest request,
                                    transport::Info info,
                                    RequestAndSignature request_signature,
-                                   protobuf::StoreRefreshResponse *response,
                                    std::string public_key,
                                    std::string public_key_validation) {
-  response->set_result(false);
-  protobuf::StoreResponse *store_response(new protobuf::StoreResponse());
-  store_response->set_result(false);
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, ori_store_request, info,
-      request_signature, store_response, public_key,
-      public_key_validation, true)) {
-    if (store_response->result())
-      response->set_result(true);
+      request_signature, public_key, public_key_validation, true))
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
-  }
 }
 
 bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                                const protobuf::StoreRequest &request,
                                const transport::Info &/*info*/,
                                const RequestAndSignature &request_signature,
-                               protobuf::StoreResponse *response,
                                const std::string &public_key,
                                const std::string &public_key_validation,
                                const bool is_refresh) {
@@ -295,13 +309,10 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                   << std::endl;
     return false;
   }
-  if (datastore_->StoreValue(key_value_signature,
-      boost::posix_time::seconds(request.ttl()), request_signature,
-      public_key, is_refresh)) {
-    response->set_result(true);
-  } else {
+  if (!datastore_->StoreValue(key_value_signature,
+                              boost::posix_time::seconds(request.ttl()),
+                              request_signature, public_key, is_refresh))
     DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
-  }
   return true;
 }
 
@@ -328,10 +339,21 @@ void Service::Delete(const transport::Info &info,
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
   RequestAndSignature request_signature(message, message_signature);
-  GetPublicKeyAndValidationCallback cb = boost::bind(
-      &Service::DeleteCallback, this, key_value_signature, request, info,
-      request_signature, response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
+  TaskCallback delete_cb = boost::bind(&Service::DeleteCallback, this, _1,
+                                       request, _2, _3, _4, _5);
+  bool is_new_id = true;
+  if (sender_task_->AddTask(key_value_signature, info, request_signature,
+                            request.sender().public_key_id(), delete_cb,
+                            is_new_id)) {
+    if (is_new_id) {
+      GetPublicKeyAndValidationCallback cb =
+          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                      request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
+                                             cb);
+    }
+    response->set_result(true);
+  }
 }
 
 void Service::DeleteRefresh(const transport::Info &info,
@@ -355,23 +377,34 @@ void Service::DeleteRefresh(const transport::Info &info,
                         ori_delete_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
-  GetPublicKeyAndValidationCallback cb = boost::bind(
-      &Service::DeleteRefreshCallback, this, key_value_signature, request, info,
-      request_signature, response, _1, _2);
-  securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(), cb);
+  TaskCallback delete_refresh_cb = boost::bind(&Service::DeleteRefreshCallback,
+                                               this, _1, request, _2, _3, _4,
+                                               _5);
+  bool is_new_id = true;
+  if (sender_task_->AddTask(key_value_signature, info, request_signature,
+                            request.sender().public_key_id(), delete_refresh_cb,
+                            is_new_id)) {
+    if (is_new_id) {
+      GetPublicKeyAndValidationCallback cb =
+          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                      request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
+                                             cb);
+    }
+    response->set_result(true);
+  }
 }
 
 void Service::DeleteCallback(KeyValueSignature key_value_signature,
                              protobuf::DeleteRequest request,
                              transport::Info info,
                              RequestAndSignature request_signature,
-                             protobuf::DeleteResponse *response,
                              std::string public_key,
                              std::string public_key_validation) {
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, request, info, request_signature,
-      response, public_key, public_key_validation, false))
+                        public_key, public_key_validation, false))
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
 }
@@ -380,21 +413,15 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                     protobuf::DeleteRefreshRequest request,
                                     transport::Info info,
                                     RequestAndSignature request_signature,
-                                    protobuf::DeleteRefreshResponse *response,
                                     std::string public_key,
                                     std::string public_key_validation) {
-  response->set_result(false);
-  protobuf::DeleteResponse *delete_response(new protobuf::DeleteResponse());
-  delete_response->set_result(false);
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
-      request_signature, delete_response, public_key,
-      public_key_validation, true)) {
-    if (delete_response->result())
-      response->set_result(true);
+                        request_signature, public_key, public_key_validation,
+                        true)) {
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
   }
@@ -404,7 +431,6 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                                 const protobuf::DeleteRequest &request,
                                 const transport::Info &/*info*/,
                                 const RequestAndSignature &request_signature,
-                                protobuf::DeleteResponse *response,
                                 const std::string &public_key,
                                 const std::string &public_key_validation,
                                 const bool is_refresh) {
@@ -420,12 +446,9 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
     return false;
   }
 
-  if (datastore_->DeleteValue(key_value_signature,
-                              request_signature, is_refresh)) {
-    response->set_result(true);
-  } else {
+  if (!datastore_->DeleteValue(key_value_signature,
+                               request_signature, is_refresh))
     DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
-  }
   return true;
 }
 

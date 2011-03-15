@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/datastore.h"
-
+#include "maidsafe-dht/kademlia/sender_task.h"
 namespace maidsafe {
 
 namespace kademlia {
@@ -207,7 +207,7 @@ class Service : public boost::enable_shared_from_this<Service> {
                      protobuf::StoreRequest request,
                      transport::Info info,
                      RequestAndSignature request_signature,
-                     protobuf::StoreResponse *response,
+                     /*protobuf::StoreResponse *response,*/
                      std::string public_key,
                      std::string public_key_validation);
   /** Store Refresh Callback.
@@ -222,7 +222,7 @@ class Service : public boost::enable_shared_from_this<Service> {
                             protobuf::StoreRefreshRequest request,
                             transport::Info info,
                             RequestAndSignature request_signature,
-                            protobuf::StoreRefreshResponse *response,
+                            /*protobuf::StoreRefreshResponse *response,*/
                             std::string public_key,
                             std::string public_key_validation);
   /** Validate the request and then store the tuple.
@@ -240,7 +240,7 @@ class Service : public boost::enable_shared_from_this<Service> {
                         const protobuf::StoreRequest &request,
                         const transport::Info &info,
                         const RequestAndSignature &request_signature,
-                        protobuf::StoreResponse *response,
+                        /*protobuf::StoreResponse *response,*/
                         const std::string &public_key,
                         const std::string &public_key_validation,
                         const bool is_refresh);
@@ -256,7 +256,6 @@ class Service : public boost::enable_shared_from_this<Service> {
                       protobuf::DeleteRequest request,
                       transport::Info info,
                       RequestAndSignature request_signature,
-                      protobuf::DeleteResponse *response,
                       std::string public_key,
                       std::string public_key_validation);
   /** Delete Refresh Callback.
@@ -271,7 +270,6 @@ class Service : public boost::enable_shared_from_this<Service> {
                              protobuf::DeleteRefreshRequest request,
                              transport::Info info,
                              RequestAndSignature request_signature,
-                             protobuf::DeleteRefreshResponse *response,
                              std::string public_key,
                              std::string public_key_validation);
   /** Validate the request and then delete the tuple.
@@ -289,7 +287,6 @@ class Service : public boost::enable_shared_from_this<Service> {
                          const protobuf::DeleteRequest &request,
                          const transport::Info &info,
                          const RequestAndSignature &request_signature,
-                         protobuf::DeleteResponse *response,
                          const std::string &public_key,
                          const std::string &public_key_validation,
                          const bool is_refresh);
@@ -309,6 +306,8 @@ class Service : public boost::enable_shared_from_this<Service> {
   const boost::uint16_t k_;
   /** Singal handler */
   PingDownListContactsPtr ping_down_list_contacts_;
+  /** sender task */
+  boost::shared_ptr<SenderTask> sender_task_;
 };
 
 }  // namespace kademlia
