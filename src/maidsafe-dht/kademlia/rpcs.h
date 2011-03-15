@@ -70,6 +70,12 @@ class DeleteRefreshResponse;
 class UpdateResponse;
 }  // namespace protobuf
 
+struct RpcsFailurePeer {
+public: RpcsFailurePeer()
+    : peer(), rpcs_failure() {}
+  Contact peer;
+  boost::uint16_t rpcs_failure;
+};
 class Rpcs {
  public:
   typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
@@ -142,41 +148,62 @@ class Rpcs {
                     const transport::Info &info,
                     const protobuf::PingResponse &response,
                     ConnectedObjects connected_objects,
-                    PingFunctor callback);
+                    PingFunctor callback,
+                    const std::string &message,
+                    RpcsFailurePeer *rpcs_failure_peer);
+
   void FindValueCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindValueResponse &response,
       ConnectedObjects connected_objects,
-      FindValueFunctor callback);
+      FindValueFunctor callback,
+      const std::string &message,
+      RpcsFailurePeer *rpcs_failure_peer);
+
   void FindNodesCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindNodesResponse &response,
       ConnectedObjects connected_objects,
-      FindNodesFunctor callback);
+      FindNodesFunctor callback,
+      const std::string &message,
+      RpcsFailurePeer *rpcs_failure_peer);
+
   void StoreCallback(const transport::TransportCondition &transport_condition,
                      const transport::Info &info,
                      const protobuf::StoreResponse &response,
                      ConnectedObjects connected_objects,
-                     StoreFunctor callback);
+                     StoreFunctor callback,
+                     const std::string &message,
+                     RpcsFailurePeer *rpcs_failure_peer);
+
   void StoreRefreshCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::StoreRefreshResponse &response,
       ConnectedObjects connected_objects,
-      StoreRefreshFunctor callback);
+      StoreRefreshFunctor callback,
+      const std::string &message,
+      RpcsFailurePeer *rpcs_failure_peer);
+
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
                       const protobuf::DeleteResponse &response,
                       ConnectedObjects connected_objects,
-                      DeleteFunctor callback);
+                      DeleteFunctor callback,
+                      const std::string &message,
+                      RpcsFailurePeer *rpcs_failure_peer);
+
   void DeleteRefreshCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::DeleteRefreshResponse &response,
       ConnectedObjects connected_objects,
-      DeleteRefreshFunctor callback);
+      DeleteRefreshFunctor callback,
+      const std::string &message,
+      RpcsFailurePeer *rpcs_failure_peer);
+
   ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
   Contact contact_;
   IoServicePtr asio_service_;
