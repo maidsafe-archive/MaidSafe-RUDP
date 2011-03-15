@@ -86,6 +86,7 @@ class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRsp_Test;
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test;  // NOLINT
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test;  // NOLINT
 class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test;
+class KademliaMessageHandlerTest;
 }  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -288,6 +289,7 @@ class MessageHandler : public transport::MessageHandler {
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test; // NOLINT
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test; // NOLINT
   friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest;
 
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
