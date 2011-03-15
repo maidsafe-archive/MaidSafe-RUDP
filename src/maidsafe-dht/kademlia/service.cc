@@ -91,35 +91,38 @@ void Service::ConnectToSignals(TransportPtr transport,
   // Connect service to message handler for incoming parsed requests
   message_handler->on_ping_request()->connect(
       MessageHandler::PingReqSigPtr::element_type::slot_type(
-          &Service::Ping, this, _1, _2, _3).track(shared_from_this()));
+          &Service::Ping, this, _1, _2, _3, _4).track(shared_from_this()));
   message_handler->on_find_value_request()->connect(
       MessageHandler::FindValueReqSigPtr::element_type::slot_type(
-          &Service::FindValue, this, _1, _2, _3).track(shared_from_this()));
+          &Service::FindValue, this, _1, _2, _3, _4).track(shared_from_this()));
   message_handler->on_find_nodes_request()->connect(
       MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
-          &Service::FindNodes, this, _1, _2, _3).track(shared_from_this()));
+          &Service::FindNodes, this, _1, _2, _3, _4).track(shared_from_this()));
   message_handler->on_store_request()->connect(
       MessageHandler::StoreReqSigPtr::element_type::slot_type(
-          &Service::Store, this, _1, _2, _3, _4, _5).track(shared_from_this()));
+          &Service::Store, this, _1, _2, _3, _4, _5, _6).track(
+              shared_from_this()));
   message_handler->on_store_refresh_request()->connect(
       MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
-          &Service::StoreRefresh, this, _1, _2, _3).track(shared_from_this()));
+          &Service::StoreRefresh, this, _1, _2, _3, _4).track(
+              shared_from_this()));
   message_handler->on_delete_request()->connect(
       MessageHandler::DeleteReqSigPtr::element_type::slot_type(
-          &Service::Delete, this, _1, _2, _3, _4, _5).track(
+          &Service::Delete, this, _1, _2, _3, _4, _5, _6).track(
               shared_from_this()));
   message_handler->on_delete_refresh_request()->connect(
       MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
-          &Service::DeleteRefresh, this, _1, _2, _3).track(
+          &Service::DeleteRefresh, this, _1, _2, _3, _4).track(
               shared_from_this()));
   message_handler->on_downlist_notification()->connect(
       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
-          &Service::Downlist, this, _1, _2).track(shared_from_this()));
+          &Service::Downlist, this, _1, _2, _3).track(shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
-                   protobuf::PingResponse *response) {
+                   protobuf::PingResponse *response,
+                   transport::Timeout*) {
   if (request.ping() != "ping")
     return;
   response->set_echo("pong");
@@ -129,7 +132,8 @@ void Service::Ping(const transport::Info &info,
 
 void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
-                        protobuf::FindValueResponse *response) {
+                        protobuf::FindValueResponse *response,
+                        transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -169,7 +173,8 @@ void Service::FindValue(const transport::Info &info,
 
 void Service::FindNodes(const transport::Info &info,
                         const protobuf::FindNodesRequest &request,
-                        protobuf::FindNodesResponse *response) {
+                        protobuf::FindNodesResponse *response,
+                        transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -196,7 +201,8 @@ void Service::Store(const transport::Info &info,
                     const protobuf::StoreRequest &request,
                     const std::string &message,
                     const std::string &message_signature,
-                    protobuf::StoreResponse *response) {
+                    protobuf::StoreResponse *response,
+                    transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -227,7 +233,8 @@ void Service::Store(const transport::Info &info,
 
 void Service::StoreRefresh(const transport::Info &info,
                            const protobuf::StoreRefreshRequest &request,
-                           protobuf::StoreRefreshResponse *response) {
+                           protobuf::StoreRefreshResponse *response,
+                           transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -320,7 +327,8 @@ void Service::Delete(const transport::Info &info,
                      const protobuf::DeleteRequest &request,
                      const std::string &message,
                      const std::string &message_signature,
-                     protobuf::DeleteResponse *response) {
+                     protobuf::DeleteResponse *response,
+                     transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_ || !securifier_)
     return;
@@ -358,7 +366,8 @@ void Service::Delete(const transport::Info &info,
 
 void Service::DeleteRefresh(const transport::Info &info,
                             const protobuf::DeleteRefreshRequest &request,
-                            protobuf::DeleteRefreshResponse *response) {
+                            protobuf::DeleteRefreshResponse *response,
+                            transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_ || !securifier_)
     return;
@@ -453,7 +462,8 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
 }
 
 void Service::Downlist(const transport::Info &/*info*/,
-                       const protobuf::DownlistNotification &request) {
+                       const protobuf::DownlistNotification &request,
+                       transport::Timeout*) {
   if (!node_joined_)
     return;
   // A sophisticated attacker possibly sent a random downlist. We only verify
