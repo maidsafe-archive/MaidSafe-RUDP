@@ -678,7 +678,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
       case kOpFindValue: {
         std::shared_ptr<FindValueArgs> fva =
           std::dynamic_pointer_cast<FindValueArgs> (fa);
-        rpcs_->FindValue(fa->key, fva->securifier, (*it_tuple).contact,
+        rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
                   boost::bind(&Node::Impl::IterativeSearchValueResponse,
                               this, _1, _2, _3, _4, _5, frpc),
                   kTcp);
@@ -719,7 +719,9 @@ void Node::Impl::IterativeSearchValueResponse(
       // fire a signal here to notify this contact is down
       (*report_down_contact_)(frpc->contact);
     } else {
+      loch_surlaplage.unlock();
       AddContactsToContainer<FindValueArgs>(contacts, fa);
+      loch_surlaplage.lock();
     }
 
     // Mark the enquired contact
@@ -734,9 +736,21 @@ void Node::Impl::IterativeSearchValueResponse(
     int num_of_total_new = std::distance(pit_new.first, pit_new.second);
     // if all contacted but still got no result, then report back with empty
     // value and the k-closest contacts
-    if ((num_of_total_pending == 0) && (num_of_total_new == 0)) {
+    // also need to prevent the search crawling the whole network in case of
+    // the key doesn't exist at all
+    if (((num_of_total_pending == 0) && (num_of_total_new == 0)) ||
+        (fa->round > (2 * 10 * (k_ / kAlpha_ + 1)))) {
       std::vector<Contact> closest_contacts;
-
+      auto pit = fa->nc.get<nc_state_distance>().equal_range(
+                                boost::make_tuple(kContacted));
+      auto it = pit.first;
+      auto it_end = pit.second;
+      int num_candidates(0);
+      while ((it != it_end) && (num_candidates < k_)) {
+        closest_contacts.push_back((*it).contact);
+        ++num_candidates;
+        ++it;
+      }
       Contact alternative_store_contact;
       Contact cache_contact;
       fa->callback(-2, values, closest_contacts,

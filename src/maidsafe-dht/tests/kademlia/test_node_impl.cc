@@ -468,6 +468,70 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                  response_value_list, response_contact_list));
   }
 
+  void FindValueResponseCloseOnly(const Contact &c,
+                                  Rpcs::FindValueFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_contact_list;
+    int elements = RandomUint32() % test::k;
+    for (int n = 0; n < elements; ++n) {
+      int element = RandomUint32() % node_list_.size();
+      response_contact_list.push_back(node_list_[element]);
+    }
+    std::vector<std::string> response_value_list;
+    boost::thread th(boost::bind(&MockRpcs::FindValueResponseThread,
+                                 this, callback,
+                                 response_value_list, response_contact_list));
+  }
+
+  void FindValueNthResponse(const Contact &c,
+                            Rpcs::FindValueFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_contact_list;
+    std::vector<std::string> response_value_list;
+    ++num_of_acquired_;
+    if (respond_ != num_of_acquired_) {
+      int elements = RandomUint32() % test::k;
+      for (int n = 0; n < elements; ++n) {
+        int element = RandomUint32() % node_list_.size();
+        response_contact_list.push_back(node_list_[element]);
+      }
+    } else {
+      response_value_list.push_back("FIND");
+    }
+    boost::thread th(boost::bind(&MockRpcs::FindValueResponseThread,
+                                 this, callback,
+                                 response_value_list, response_contact_list));
+  }
+
+  void FindValueNoValueResponse(const Contact &c,
+                                Rpcs::FindValueFunctor callback) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    std::vector<Contact> response_contact_list;
+    std::vector<std::string> response_value_list;
+    ++num_of_acquired_;
+    int elements = RandomUint32() % test::k;
+    NodeId contact_id = GenerateRandomId(node_id_, 12 + RandomUint32() % 500);
+    Contact contact = ComposeContact(contact_id, 5000);
+    for (int n = 0; n < elements; ++n) {
+      NodeId contact_id = GenerateRandomId(node_id_, 12 + RandomUint32() % 500);
+      Contact contact = ComposeContact(contact_id, 5000);
+      response_contact_list.push_back(contact);
+    }
+    boost::thread th(boost::bind(&MockRpcs::FindValueResponseThread,
+                                 this, callback,
+                                 response_value_list, response_contact_list));
+  }
+
+  void FindValueResponseThread(Rpcs::FindValueFunctor callback,
+                               std::vector<std::string> response_value_list,
+                               std::vector<Contact> response_contact_list) {
+    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Contact alternative_store;
+    callback(rank_info_, 0, response_value_list,
+             response_contact_list, alternative_store);
+  }
+
   void FindValueNoResponseThread(Rpcs::FindValueFunctor callback,
                                  std::vector<std::string> response_value_list,
                                  std::vector<Contact> response_contact_list) {
@@ -1515,6 +1579,78 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
     EXPECT_EQ(-2, results.response_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(0, results.contacts.size());
+  }
+  new_rpcs->SetCountersToZero();
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  NodeId target = GenerateRandomId(node_id_, 498);
+  new_rpcs->target_id_ = target;
+  {
+    // All k populated contacts giving no data find, but response with some
+    // closest contacts
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindValueResponseCloseOnly,
+                        new_rpcs.get(), _1, _2))));
+    FindValueResults results;
+    bool done(false);
+    node_->FindValue(key, securifier_,
+                     boost::bind(&FindValueCallback,
+                                 _1, _2, _3, _4, _5,
+                                 &done, &results));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(0, results.values.size());
+    EXPECT_EQ(test::k, results.contacts.size());
+  }
+  new_rpcs->SetCountersToZero();
+  {
+    // the Nth enquired contact will response the value
+    new_rpcs->respond_ = RandomUint32() % (10 * test::k);
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindValueNthResponse,
+                        new_rpcs.get(), _1, _2))));
+    FindValueResults results;
+    bool done(false);
+    node_->FindValue(key, securifier_,
+                     boost::bind(&FindValueCallback,
+                                 _1, _2, _3, _4, _5,
+                                 &done, &results));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(1, results.response_code);
+    EXPECT_EQ(0, results.contacts.size());
+    EXPECT_EQ(1, results.values.size());
+    EXPECT_EQ("FIND", results.values[0]);
+    EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
+  }
+  new_rpcs->SetCountersToZero();
+  {
+    // value not existed, search shall stop after 20 * (k_ / kAlpha_ + 1))
+    // rounds
+    new_rpcs->respond_ = RandomUint32() % (10 * test::k);
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindValueNoValueResponse,
+                        new_rpcs.get(), _1, _2))));
+    FindValueResults results;
+    bool done(false);
+    node_->FindValue(key, securifier_,
+                     boost::bind(&FindValueCallback,
+                                 _1, _2, _3, _4, _5,
+                                 &done, &results));
+    // Prevent deadlock
+    while ((!done) && (new_rpcs->num_of_acquired_ < (40 * test::k)))
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(0, results.values.size());
+    EXPECT_EQ(test::k, results.contacts.size());
+    EXPECT_GT(40 * test::k, new_rpcs->num_of_acquired_);
   }
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
