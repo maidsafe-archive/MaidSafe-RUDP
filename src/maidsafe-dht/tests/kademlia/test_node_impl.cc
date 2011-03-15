@@ -349,10 +349,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
         auto it = key_indx.find(node_list_[element].node_id());
         if (it == key_indx.end()) {
           response_list.push_back(node_list_[element]);
-          RoutingTableContact new_routing_table_contact(node_list_[element],
-                                                        target_id_,
-                                                        0);
-          respond_contacts_->insert(new_routing_table_contact);
+          ContactsById key_indx = respond_contacts_->get<NodeIdTag>();
+          auto it = key_indx.find(node_list_[element].node_id());
+          if (it == key_indx.end()) {
+            RoutingTableContact new_routing_table_contact(node_list_[element],
+                                                          target_id_,
+                                                          0);
+            respond_contacts_->insert(new_routing_table_contact);
+          }
         }
       }
       boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
@@ -490,10 +494,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
     if (respond_ != num_of_acquired_) {
-      int elements = RandomUint32() % test::k;
+      int elements = RandomUint32() % test::k + 1;
       for (int n = 0; n < elements; ++n) {
         int element = RandomUint32() % node_list_.size();
         response_contact_list.push_back(node_list_[element]);
+        RoutingTableContact new_routing_table_contact(node_list_[element],
+                                                      target_id_,
+                                                      0);
+        respond_contacts_->insert(new_routing_table_contact);
       }
     } else {
       response_value_list.push_back("FIND");
@@ -510,12 +518,9 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
     int elements = RandomUint32() % test::k;
-    NodeId contact_id = GenerateRandomId(node_id_, 12 + RandomUint32() % 500);
-    Contact contact = ComposeContact(contact_id, 5000);
     for (int n = 0; n < elements; ++n) {
-      NodeId contact_id = GenerateRandomId(node_id_, 12 + RandomUint32() % 500);
-      Contact contact = ComposeContact(contact_id, 5000);
-      response_contact_list.push_back(contact);
+      int element = RandomUint32() % node_list_.size();
+      response_contact_list.push_back(node_list_[element]);
     }
     boost::thread th(boost::bind(&MockRpcs::FindValueResponseThread,
                                  this, callback,
@@ -649,7 +654,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 }; //class MockRpcs
-/*
+
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
 
@@ -838,12 +843,17 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (test::k-1) / alpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), calledback(false);
-    node_->HandleIterationStructure(contact, fna,
-                                    mark, &curr_iteration_done, &calledback);
+    int response_code;
+    std::vector<Contact> closest_contacts;
+    node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(true, curr_iteration_done);
     EXPECT_EQ(true, calledback);
-    EXPECT_EQ(true, done);
-    EXPECT_EQ(test::k, lcontacts.size());
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(test::k, closest_contacts.size());
   }
   {
     // test::k - 2 contacted, the test::k -1 one pending
@@ -875,12 +885,17 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (test::k-1) / alpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), calledback(false);
-    node_->HandleIterationStructure(contact, fna,
-                                    mark, &curr_iteration_done, &calledback);
+    int response_code;
+    std::vector<Contact> closest_contacts;
+    node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(false, curr_iteration_done);
     EXPECT_EQ(false, calledback);
     EXPECT_EQ(false, done);
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_EQ(0, closest_contacts.size());
   }
   {
     // test::k / 2 contacted, the last one respond as no-response
@@ -906,12 +921,17 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (test::k / 2) / alpha;
     NodeSearchState mark(kDown);
     bool curr_iteration_done(false), calledback(false);
-    node_->HandleIterationStructure(contact, fna,
-                                    mark, &curr_iteration_done, &calledback);
+    int response_code;
+    std::vector<Contact> closest_contacts;
+    node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(true, curr_iteration_done);
     EXPECT_EQ(true, calledback);
-    EXPECT_EQ(true, done);
-    EXPECT_EQ(test::k / 2, lcontacts.size());
+    EXPECT_EQ(false, done);
+    EXPECT_EQ(test::k / 2, closest_contacts.size());
   }
   {
     // test::k candidates, for each previous round (alpha - beta) pending
@@ -956,22 +976,28 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
 
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), calledback(false);
-    node_->HandleIterationStructure(contact, fna,
-                                    mark, &curr_iteration_done, &calledback);
+    int response_code;
+    std::vector<Contact> closest_contacts;
+    node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(false, curr_iteration_done);
     EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_EQ(0, closest_contacts.size());
 
     curr_iteration_done = false;
     calledback = false;
-    node_->HandleIterationStructure(last_contact, fna,
-                                    mark, &curr_iteration_done,
-                                    &calledback);
+    closest_contacts.clear();;
+    node_->HandleIterationStructure<FindNodesArgs>(last_contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(false, curr_iteration_done);
     EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_EQ(0, closest_contacts.size());
   }
   {
     // k candidates, with (beta - 1) contacted, the next one respond with
@@ -1006,21 +1032,29 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = 0;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), calledback(false);
-    node_->HandleIterationStructure(first_contact, fna,
-                                    mark, &curr_iteration_done, &calledback);
+    int response_code;
+    std::vector<Contact> closest_contacts;
+    node_->HandleIterationStructure<FindNodesArgs>(first_contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(false, curr_iteration_done);
     EXPECT_EQ(false, calledback);
     EXPECT_EQ(false, done);
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_EQ(0, closest_contacts.size());
 
     mark = kDown;
-    node_->HandleIterationStructure(second_contact, fna,
-                                    mark, &curr_iteration_done,
-                                    &calledback);
+    closest_contacts.clear();
+    node_->HandleIterationStructure<FindNodesArgs>(second_contact, fna, mark,
+                                                   &response_code,
+                                                   &closest_contacts,
+                                                   &curr_iteration_done,
+                                                   &calledback);
     EXPECT_EQ(true, curr_iteration_done);
     EXPECT_EQ(false, calledback);
     EXPECT_EQ(false, done);
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_EQ(0, closest_contacts.size());
   }
   // sleep for a while to prevent the situation that resources got destructed
   // before call back completed. Which will cause "Segmentation Fault" in
@@ -1554,13 +1588,13 @@ TEST_F(NodeImplTest, BEH_KAD_Update) {
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(500));
 }
-*/
+
 TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   PopulateRoutingTable(test::k, 500);
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
-  NodeId key = NodeId(NodeId::kRandomId);
+  NodeId key = GenerateRandomId(node_id_, 498);
   {
     // All k populated contacts giving no response
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
@@ -1583,8 +1617,6 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   new_rpcs->SetCountersToZero();
   int count = 10 * test::k;
   new_rpcs->PopulateResponseCandidates(count, 499);
-  NodeId target = GenerateRandomId(node_id_, 498);
-  new_rpcs->target_id_ = target;
   {
     // All k populated contacts giving no data find, but response with some
     // closest contacts
@@ -1606,9 +1638,15 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
     EXPECT_EQ(test::k, results.contacts.size());
   }
   new_rpcs->SetCountersToZero();
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+  new_rpcs->target_id_ = key;
   {
     // the Nth enquired contact will response the value
-    new_rpcs->respond_ = RandomUint32() % (10 * test::k);
+    // note: there is high chance that search value will stopped after just
+    // (alpha + K) tries -- get k-closest extreme fast.
+    new_rpcs->respond_ = node_->alpha() + RandomUint32() % test::k + 1;
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
@@ -1622,6 +1660,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
                                  &done, &results));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
     EXPECT_EQ(1, results.response_code);
     EXPECT_EQ(0, results.contacts.size());
     EXPECT_EQ(1, results.values.size());
@@ -1630,9 +1669,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   }
   new_rpcs->SetCountersToZero();
   {
-    // value not existed, search shall stop after 20 * (k_ / kAlpha_ + 1))
-    // rounds
-    new_rpcs->respond_ = RandomUint32() % (10 * test::k);
+    // value not existed, search shall stop once top-k-closest achieved
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
