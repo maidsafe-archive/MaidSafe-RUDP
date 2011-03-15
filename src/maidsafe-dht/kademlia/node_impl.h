@@ -155,13 +155,17 @@ class Node::Impl {
                                     const std::vector<Contact> &contacts,
                                     const Contact &alternative_store,
                                     std::shared_ptr<RpcArgs> fvrpc);
-  void IterativeSearchResponse(RankInfoPtr rank_info,
-      int result,
-      const std::vector<Contact> &contacts,
-      std::shared_ptr<RpcArgs> find_nodes_rpc_args);
+  void IterativeSearchNodeResponse(RankInfoPtr rank_info,
+                              int result,
+                              const std::vector<Contact> &contacts,
+                              std::shared_ptr<RpcArgs> find_nodes_rpc_args);
+
+  template <class T>
   bool HandleIterationStructure(const Contact &contact,
-                                std::shared_ptr<FindNodesArgs> find_nodes_args,
-                                kademlia::NodeSearchState mark,
+                                std::shared_ptr<T> fa,
+                                NodeSearchState mark,
+                                int *response_code,
+                                std::vector<Contact> *closest_contacts,
                                 bool *cur_iteration_done,
                                 bool *calledback);
 
