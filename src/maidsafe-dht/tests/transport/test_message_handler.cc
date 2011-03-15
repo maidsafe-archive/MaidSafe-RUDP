@@ -236,7 +236,7 @@ class TransportMessageHandlerTest : public testing::Test {
 
     wrap.Clear();
     wrap.set_msg_type(kForwardRendezvousRequest);
-    wrap.set_payload(pc_req.SerializeAsString());
+    wrap.set_payload(fr_req.SerializeAsString());
     messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
 
     wrap.Clear();
