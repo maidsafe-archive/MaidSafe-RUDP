@@ -136,6 +136,8 @@ struct Info {
 
 // In bytes
 const DataSize kMaxTransportMessageSize = 67108864;
+// Maximum number of bytes to read at a time
+const DataSize kMaxTransportChunkSize = 65536;
 // Default timeout for RPCs
 const Timeout kDefaultInitialTimeout(bptime::seconds(10));
 // Used to indicate timeout should be calculated by transport
@@ -161,7 +163,6 @@ typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
 // Base class for all transport types.
 class Transport {
  public:
-  virtual ~Transport() {}
   /**
    * Enables the transport to accept incoming communication. Fails if already
    * listening or the requested endpoint is unavailable.
@@ -192,12 +193,16 @@ class Transport {
   OnMessageReceived on_message_received() { return on_message_received_; }
   OnError on_error() { return on_error_; }
  protected:
-  explicit Transport(std::shared_ptr<boost::asio::io_service> asio_service)
+  /**
+   * Protected destructor to prevent deletion through this type.
+   */
+  virtual ~Transport() {}
+  explicit Transport(boost::asio::io_service &asio_service)  // NOLINT
       : asio_service_(asio_service),
         listening_port_(0),
         on_message_received_(new OnMessageReceived::element_type),
         on_error_(new OnError::element_type) {}
-  std::shared_ptr<boost::asio::io_service> asio_service_;
+  boost::asio::io_service &asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;
   OnError on_error_;
