@@ -37,6 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
+#include "boost/thread.hpp"
+#include "boost/enable_shared_from_this.hpp"
 
 #ifdef __MSVC__
 #pragma warning(push)
@@ -214,6 +216,10 @@ class Node::Impl {
                             int response_code,
                             const Contact &contact);
 
+  void ReportDownContact(const Contact &down_contact);
+
+  void MonitoringDownlistThread(bool start);
+
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
@@ -235,6 +241,9 @@ class Node::Impl {
   /** Signal to be fired when there is one contact detected as DOWN during any
    *  operations */
   ReportDownContactPtr report_down_contact_;
+  boost::mutex mutex_;
+  boost::condition_variable condition_downlist_;
+  std::vector<NodeId> down_contacts_;
 };
 
 }  // namespace kademlia

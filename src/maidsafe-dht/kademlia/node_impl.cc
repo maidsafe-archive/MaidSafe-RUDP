@@ -70,7 +70,16 @@ Node::Impl::Impl(IoServicePtr asio_service,
       refresh_routine_started_(false),
       stopping_(false),
       routing_table_connection_(),
-      report_down_contact_(new ReportDownContactPtr::element_type) {}
+      report_down_contact_(new ReportDownContactPtr::element_type),
+      mutex_(),
+      condition_downlist_(),
+      down_contacts_() {
+        report_down_contact_->connect(
+            ReportDownContactPtr::element_type::slot_type(
+                &Node::Impl::ReportDownContact, this, _1));
+        boost::thread th(boost::bind(&Node::Impl::MonitoringDownlistThread,
+                                     this, true));
+      }
 
 Node::Impl::~Impl() {
   if (joined_)
@@ -807,6 +816,35 @@ void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
 //    remove old contact
 //      add new contact
 //  }
+}
+
+void Node::Impl::ReportDownContact(const Contact &down_contact)
+{
+  boost::mutex::scoped_lock loch_surlaplage(mutex_);
+  down_contacts_.push_back(down_contact.node_id());
+  condition_downlist_.notify_one();
+}
+
+void Node::Impl::MonitoringDownlistThread(bool start) {
+  while (start) {
+    boost::mutex::scoped_lock loch_surlaplage(mutex_);
+    while (down_contacts_.empty())
+      condition_downlist_.wait(loch_surlaplage);
+
+    // report the downlist to local k-closest contacts
+    std::vector<Contact> close_nodes, excludes;
+    excludes.push_back(contact_);
+    // routing_table_->GetContactsClosestToOwnId() will be much quicker
+    routing_table_->GetCloseContacts(contact_.node_id(), k_,
+                                     excludes, &close_nodes);
+    auto it = close_nodes.begin();
+    auto it_end = close_nodes.end();
+    while (it != it_end) {
+      rpcs_->Downlist(down_contacts_, default_securifier_, (*it), kTcp);
+      ++it;
+    }
+    down_contacts_.clear();
+  }
 }
 
 void Node::Impl::ValidateContact(const Contact &contact) {
