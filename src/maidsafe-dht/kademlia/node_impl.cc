@@ -559,7 +559,8 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  NodeContainerByDistance distance_node_indx = fa->nc.template get<nc_distance>();
+  NodeContainerByDistance distance_node_indx =
+                                    fa->nc.template get<nc_distance>();
   auto it = distance_node_indx.begin();
   auto it_end = distance_node_indx.end();
   int num_new_contacts(0);
@@ -742,91 +743,6 @@ void Node::Impl::IterativeSearchValueResponse(
     fva->calledback = true;
   }
 }
-
-// void Node::Impl::IterativeSearchValueResponse(
-//                                   RankInfoPtr rank_info,
-//                                   int result,
-//                                   const std::vector<std::string> &values,
-//                                   const std::vector<Contact> &contacts,
-//                                   const Contact &alternative_store,
-//                                   std::shared_ptr<RpcArgs> frpc) {
-//   std::shared_ptr<FindValueArgs> fa =
-//       std::static_pointer_cast<FindValueArgs> (frpc->rpc_a);
-//   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
-//   // If already calledback, i.e. result has already been reported
-//   // then do nothing, just return
-//   if (fa->calledback) {
-//     return;
-//   }
-//   // report back once got a node response with some data
-//   if (values.size() > 0) {
-//     std::vector<Contact> closest_contacts;
-//     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
-//     // methodology of CACHE is decided
-//     Contact cache_contact;
-//     fa->callback(values.size(), values, closest_contacts,
-//                  alternative_store, cache_contact);
-//     fa->calledback = true;
-//   } else {
-//     NodeSearchState mark(kContacted);
-//     if (result < 0) {
-//       mark = kDown;
-//       // fire a signal here to notify this contact is down
-//       (*report_down_contact_)(frpc->contact);
-//     } else {
-//       loch_surlaplage.unlock();
-//       AddContactsToContainer<FindValueArgs>(contacts, fa);
-//       loch_surlaplage.lock();
-//     }
-// 
-//     // Mark the enquired contact
-//     NodeContainerByNodeId key_node_indx = fa->nc.get<nc_id>();
-//     auto it_tuple = key_node_indx.find(frpc->contact.node_id());
-//     key_node_indx.modify(it_tuple, ChangeState(mark));
-// 
-//     auto pit_pending = fa->nc.get<nc_state>().equal_range(kSelectedAlpha);
-//     int num_of_total_pending = std::distance(pit_pending.first,
-//                                              pit_pending.second);
-//     auto pit_new = fa->nc.get<nc_state>().equal_range(kNew);
-//     int num_of_total_new = std::distance(pit_new.first, pit_new.second);
-//     // if all contacted but still got no result, then report back with empty
-//     // value and the k-closest contacts
-//     // also need to prevent the search crawling the whole network in case of
-//     // the key doesn't exist at all
-//     if (((num_of_total_pending == 0) && (num_of_total_new == 0)) ||
-//         (fa->round > (2 * 10 * (k_ / kAlpha_ + 1)))) {
-//       std::vector<Contact> closest_contacts;
-//       auto pit = fa->nc.get<nc_state_distance>().equal_range(
-//                                 boost::make_tuple(kContacted));
-//       auto it = pit.first;
-//       auto it_end = pit.second;
-//       int num_candidates(0);
-//       while ((it != it_end) && (num_candidates < k_)) {
-//         closest_contacts.push_back((*it).contact);
-//         ++num_candidates;
-//         ++it;
-//       }
-//       Contact alternative_store_contact;
-//       Contact cache_contact;
-//       fa->callback(-2, values, closest_contacts,
-//                    alternative_store_contact, cache_contact);
-//       fa->calledback = true;
-//     } else {
-//       // Start a new iteration search if the current one was done.
-//       // To tell if the current iteration is done or not, only need to test:
-//       //    if number of pending(waiting for response) contacts
-//       //    is not greater than (kAlpha_ - kBeta_)
-//       // always check with the latest round, no need to worry about the previous
-//       auto pit = fa->nc.get<nc_state_round>().equal_range(
-//                     boost::make_tuple(kSelectedAlpha, fa->round));
-//       int num_of_round_pending = std::distance(pit.first, pit.second);
-//       if (num_of_round_pending <= (kAlpha_ - kBeta_)) {
-//         loch_surlaplage.unlock();
-//         IterativeSearch<FindValueArgs>(fa);
-//       }
-//     }
-//   }
-// }
 
 void Node::Impl::IterativeSearchNodeResponse(
                                   RankInfoPtr rank_info,
