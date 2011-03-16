@@ -67,6 +67,10 @@ class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
+namespace test {
+  class ServicesTest;
+}  // namespace test
+
 typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
     const Contact&)>> PingDownListContactsPtr;
 
@@ -208,14 +212,12 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreCallback(KeyValueSignature key_value_signature,
                      protobuf::StoreRequest request,
                      transport::Info info,
                      RequestAndSignature request_signature,
-                     /*protobuf::StoreResponse *response,*/
                      std::string public_key,
                      std::string public_key_validation);
   /** Store Refresh Callback.
@@ -223,14 +225,12 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreRefreshCallback(KeyValueSignature key_value_signature,
                             protobuf::StoreRefreshRequest request,
                             transport::Info info,
                             RequestAndSignature request_signature,
-                            /*protobuf::StoreRefreshResponse *response,*/
                             std::string public_key,
                             std::string public_key_validation);
   /** Validate the request and then store the tuple.
@@ -238,7 +238,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation
    *  @param[in] is_refresh Indicating a publish or a refresh
@@ -248,7 +247,6 @@ class Service : public boost::enable_shared_from_this<Service> {
                         const protobuf::StoreRequest &request,
                         const transport::Info &info,
                         const RequestAndSignature &request_signature,
-                        /*protobuf::StoreResponse *response,*/
                         const std::string &public_key,
                         const std::string &public_key_validation,
                         const bool is_refresh);
@@ -257,7 +255,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteCallback(KeyValueSignature key_value_signature,
@@ -271,7 +268,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteRefreshCallback(KeyValueSignature key_value_signature,
@@ -285,7 +281,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation
    *  @param[in] is_refresh Indicating a publish or a refresh
@@ -298,6 +293,8 @@ class Service : public boost::enable_shared_from_this<Service> {
                          const std::string &public_key,
                          const std::string &public_key_validation,
                          const bool is_refresh);
+  friend class test::ServicesTest;
+
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */

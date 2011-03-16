@@ -87,16 +87,6 @@ void SenderTask::SenderTaskCallback(std::string public_key_id,
   if (public_key_id.empty())
     return;
   UpgradeLock upgrade_lock(shared_mutex_);
-  // Reject invalid entries and drop all requests for that id
-  /*if(public_key.empty() || public_key_validation.empty()) { //Todo: @Prakash uncomment 
-    TaskIndex::index<TagPublicKeyId>::type& index_by_public_key_id =
-        task_index_->get<TagPublicKeyId>();
-    auto itr_pair = index_by_public_key_id.equal_range(public_key_id);
-    UpgradeToUniqueLock unique_lock(upgrade_lock);
-    while (itr_pair.first != itr_pair.second)
-      index_by_public_key_id.erase(itr_pair.first++);
-    return;
-  }*/
   TaskIndex::index<TagPublicKeyId>::type& index_by_public_key_id =
       task_index_->get<TagPublicKeyId>();
   auto itr_pair = index_by_public_key_id.equal_range(public_key_id);

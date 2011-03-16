@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
+#include "boost/thread.hpp"
 
 #include "maidsafe-dht/kademlia/alternative_store.h"
 #include "maidsafe/common/crypto.h"
@@ -50,6 +51,7 @@ namespace test {
 
 static const boost::uint16_t k = 16;
 boost::posix_time::time_duration time_out = transport::kDefaultInitialTimeout;
+const boost::posix_time::milliseconds kNetworkDelay(200);
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
@@ -58,12 +60,40 @@ inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   *priv_key = kp.private_key();
 }
 
-class SecurifierValidateFalse: public Securifier {
+class SecurifierGetPublicKeyAndValidation: public Securifier {
+ public:
+  SecurifierGetPublicKeyAndValidation(const std::string &public_key_id,
+                                      const std::string &public_key,
+                                      const std::string &private_key)
+      :    Securifier(public_key_id, public_key, private_key) {}
+  // Immitating a non-blocking function
+  void GetPublicKeyAndValidation(const std::string &,
+                                 GetPublicKeyAndValidationCallback callback) {
+    thread_ = boost::thread(
+                boost::bind(&SecurifierGetPublicKeyAndValidation::DummyFind,
+                            this, callback));
+  }
+
+  void Join() {
+    thread_.join();
+  }
+ private:
+  void DummyFind(GetPublicKeyAndValidationCallback callback) {
+    // Imitating delay in lookup for kNetworkDelay seconds
+    boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
+    callback("", "");
+  }
+
+  boost::thread thread_;
+};
+
+class SecurifierValidateFalse: public SecurifierGetPublicKeyAndValidation {
  public:
   SecurifierValidateFalse(const std::string &public_key_id,
                           const std::string &public_key,
-                          const std::string &private_key) :
-      Securifier(public_key_id, public_key, private_key) {}
+                          const std::string &private_key)
+      : SecurifierGetPublicKeyAndValidation(public_key_id, public_key,
+                                            private_key) {}
 
   bool Validate(const std::string&,
                 const std::string&,
@@ -100,7 +130,8 @@ class ServicesTest: public testing::Test {
                    data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                    routing_table_(new RoutingTable(node_id_, test::k)),
                    alternative_store_(),
-                   securifier_(new Securifier("", "", "")),
+                   securifier_(new SecurifierGetPublicKeyAndValidation("", "",
+                                                                       "")),
                    info_(), rank_info_(),
                    service_(new Service(routing_table_, data_store_,
                    alternative_store_, securifier_)),
@@ -214,6 +245,20 @@ class ServicesTest: public testing::Test {
     num_of_pings_ = 0;
   }
 
+  void JoinNetworkLookup(SecurifierPtr securifier) {
+    SecurifierGPKPtr securifier_gpkv = std::static_pointer_cast
+        <SecurifierGetPublicKeyAndValidation>(securifier);
+    securifier_gpkv->Join();
+  }
+
+  size_t GetSenderTaskSize() {
+    return service_->sender_task_->task_index_->size();
+  }
+
+  size_t GetSenderTaskSize(const Service &service) {
+    return service.sender_task_->task_index_->size();
+  }
+
   virtual void TearDown() {}
 
  protected:
@@ -281,9 +326,11 @@ class ServicesTest: public testing::Test {
     return data_store_->key_value_index_->size();
   }
 
-  size_t CountPendingOperations () const {
+  size_t CountPendingOperations() const {
     return 0;
   }
+
+  typedef std::shared_ptr<SecurifierGetPublicKeyAndValidation> SecurifierGPKPtr;
 
   Contact contact_;
   kademlia::NodeId node_id_;
@@ -326,6 +373,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     service_->Store(info_, store_request, message_empty, message_sig_empty,
                     &store_response, &time_out);
     EXPECT_FALSE(store_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -344,7 +393,10 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     protobuf::StoreResponse store_response;
     service.Store(info_, store_request, message, message_sig, &store_response,
                   &time_out);
-    EXPECT_FALSE(store_response.result());
+    EXPECT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize(service));
+    JoinNetworkLookup(securifier_local);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -360,6 +412,9 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     service_->Store(info_, store_request, message, message_sig,
                     &store_response, &time_out);
     EXPECT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -375,7 +430,10 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     service_->Store(info_, store_request, message, message_sig,
                     &store_response, &time_out);
     EXPECT_TRUE(store_response.result());
-    ASSERT_EQ(1U, GetDataStoreSize());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    EXPECT_EQ(1U, GetDataStoreSize());
     // the sender will be pushed into the unvalidated_contacts list
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
@@ -416,6 +474,8 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     service_->Delete(info_, delete_request, message_empty,
                      message_sig_empty, &delete_response, &time_out);
     EXPECT_FALSE(delete_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -437,7 +497,10 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     protobuf::DeleteResponse delete_response;
     service.Delete(info_, delete_request, delete_message,
                    delete_message_sig, &delete_response, &time_out);
-    EXPECT_FALSE(delete_response.result());
+    EXPECT_TRUE(delete_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize(service));
+    JoinNetworkLookup(securifier_local);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -453,6 +516,8 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
     EXPECT_FALSE(delete_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -465,12 +530,18 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     service_->Store(info_, store_request, store_message,
                     store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
     EXPECT_TRUE(delete_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
     // the sender will be pushed into the unvalidated_contacts list
@@ -517,6 +588,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     service_->StoreRefresh(info_, store_refresh_request,
                            &store_refresh_response, &time_out);
     EXPECT_FALSE(store_refresh_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -533,10 +606,13 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
 
-    protobuf::StoreRefreshResponse store_fresh_response;
-    service.StoreRefresh(info_, store_refresh_request, &store_fresh_response,
+    protobuf::StoreRefreshResponse store_refresh_response;
+    service.StoreRefresh(info_, store_refresh_request, &store_refresh_response,
                          &time_out);
-    EXPECT_FALSE(store_fresh_response.result());
+    EXPECT_TRUE(store_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize(service));
+    JoinNetworkLookup(securifier_local);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -548,10 +624,13 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     AddContact(new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
-    protobuf::StoreRefreshResponse store_fresh_response;
-    service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response,
-                           &time_out);
-    EXPECT_TRUE(store_fresh_response.result());
+    protobuf::StoreRefreshResponse store_refresh_response;
+    service_->StoreRefresh(info_, store_refresh_request,
+                           &store_refresh_response, &time_out);
+    EXPECT_TRUE(store_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -568,6 +647,9 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     service_->StoreRefresh(info_, store_refresh_request, &store_fresh_response,
                            &time_out);
     EXPECT_TRUE(store_fresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     // the sender will be pushed into the unvalidated_contacts list
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -618,6 +700,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     service_->DeleteRefresh(info_, delete_refresh_request,
                             &delete_refresh_response, &time_out);
     EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -642,7 +726,10 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service.DeleteRefresh(info_, delete_refresh_request,
                           &delete_refresh_response, &time_out);
-    EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize(service));
+    JoinNetworkLookup(securifier_local);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -659,6 +746,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     service_->DeleteRefresh(info_, delete_refresh_request,
                             &delete_refresh_response, &time_out);
     EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
@@ -671,6 +760,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     service_->Store(info_, store_request, store_message,
                     store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
@@ -680,7 +772,10 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
                             &delete_refresh_response, &time_out);
     // If the entry was not marked as deleted yet, trying to deleterefresh it
     // will fail, but the sender will be added into the routing table
-    EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(2U, CountUnValidatedContacts());
@@ -693,6 +788,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     service_->Store(info_, store_request, store_message,
                     store_message_sig, &store_response, &time_out);
     ASSERT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
@@ -702,6 +800,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
     EXPECT_TRUE(delete_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     // data_store_ will only mark the entry as deleted, but still keep it
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
@@ -713,6 +814,9 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // If the entry was marked as deleted yet, trying to deleterefresh it
     // will refresh its ttl
     EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
     ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(2U, CountUnValidatedContacts());
