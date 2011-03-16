@@ -91,51 +91,49 @@ class Rpcs {
         asio_service_(asio_service),
         default_securifier_(default_securifier) {}
   virtual ~Rpcs() {}
-  void Ping(SecurifierPtr securifier,
-            const Contact &peer,
-            PingFunctor callback,
-            TransportType type);
-  void FindValue(const Key &key,
-                 SecurifierPtr securifier,
-                 const Contact &peer,
-                 FindValueFunctor callback,
-                 TransportType type);
+  virtual void Ping(SecurifierPtr securifier,
+                    const Contact &peer,
+                    PingFunctor callback,
+                    TransportType type);
+  virtual void FindValue(const Key &key,
+                         SecurifierPtr securifier,
+                         const Contact &peer,
+                         FindValueFunctor callback,
+                         TransportType type);
   virtual void FindNodes(const Key &key,
                          SecurifierPtr securifier,
                          const Contact &peer,
                          FindNodesFunctor callback,
                          TransportType type);
-  void Store(const Key &key,
-             const std::string &value,
-             const std::string &signature,
-             const boost::posix_time::seconds &ttl,
-             SecurifierPtr securifier,
-             const Contact &peer,
-             StoreFunctor callback,
-             TransportType type);
-  void StoreRefresh(const std::string &serialised_store_request,
-                    const std::string &serialised_store_request_signature,
-                    SecurifierPtr securifier,
-                    const Contact &peer,
-                    StoreFunctor callback,
-                    TransportType type);
-  void Delete(const Key &key,
-              const std::string &value,
-              const std::string &signature,
-              SecurifierPtr securifier,
-              const Contact &peer,
-              DeleteFunctor callback,
-              TransportType type);
-  void DeleteRefresh(const std::string &serialised_delete_request,
-                     const std::string &serialised_delete_request_signature,
+  virtual void Store(const Key &key,
+                     const std::string &value,
+                     const std::string &signature,
+                     const boost::posix_time::seconds &ttl,
                      SecurifierPtr securifier,
                      const Contact &peer,
-                     DeleteFunctor callback,
+                     StoreFunctor callback,
                      TransportType type);
-  void Downlist(const std::vector<NodeId> &node_ids,
-                SecurifierPtr securifier,
-                const Contact &peer,
-                TransportType type);
+  virtual void StoreRefresh(
+      const std::string &serialised_store_request,
+      const std::string &serialised_store_request_signature,
+      SecurifierPtr securifier, const Contact &peer, StoreFunctor callback,
+      TransportType type);
+  virtual void Delete(const Key &key,
+                      const std::string &value,
+                      const std::string &signature,
+                      SecurifierPtr securifier,
+                      const Contact &peer,
+                      DeleteFunctor callback,
+                      TransportType type);
+  virtual void DeleteRefresh(
+      const std::string &serialised_delete_request,
+      const std::string &serialised_delete_request_signature,
+      SecurifierPtr securifier, const Contact &peer, DeleteFunctor callback,
+      TransportType type);
+  virtual void Downlist(const std::vector<NodeId> &node_ids,
+                        SecurifierPtr securifier,
+                        const Contact &peer,
+                        TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
 
  private:
