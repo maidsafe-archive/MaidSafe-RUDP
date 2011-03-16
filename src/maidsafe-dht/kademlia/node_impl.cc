@@ -73,27 +73,11 @@ Node::Impl::Impl(IoServicePtr asio_service,
       report_down_contact_(new ReportDownContactPtr::element_type),
       mutex_(),
       condition_downlist_(),
-      down_contacts_() {
-        report_down_contact_->connect(
-            ReportDownContactPtr::element_type::slot_type(
-                &Node::Impl::ReportDownContact, this, _1));
-        boost::thread th(boost::bind(&Node::Impl::MonitoringDownlistThread,
-                                     this, true));
-      }
+      down_contacts_() {}
 
 Node::Impl::~Impl() {
   if (joined_)
     Leave(NULL);
-}
-
-ReportDownContactPtr Node::Impl::report_down_contact() {
-  return report_down_contact_;
-}
-
-void Node::Impl::Join(const NodeId &/*node_id*/,
-                      const Port &/*port*/,
-                      const std::vector<Contact> &/*bootstrap_contacts*/,
-                      JoinFunctor /*callback*/) {
 }
 
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
@@ -428,6 +412,16 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
   return kMeanRefreshInterval_;
 }
 
+void Node::Impl::Join(const NodeId &node_id,
+          const Port &port,
+          const std::vector<Contact> &bootstrap_contacts,
+          JoinFunctor callback){
+  joined_ = true;
+  report_down_contact_->connect(
+      ReportDownContactPtr::element_type::slot_type(
+          &Node::Impl::ReportDownContact, this, _1));
+  boost::thread th(boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+}
 
 // void Node::Impl::JoinFirstNode(const NodeId &node_id,
 //                             const std::string &kad_config_file,
@@ -500,7 +494,7 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
 //  local_result.set_result(true);
 //  local_result.SerializeToString(&local_result_str);
 //  callback(local_result_str);
-// }
+//}
 //
 // void Node::Impl::JoinFirstNode(const std::string &kad_config_file,
 //                             const IP &ip, const Port &port,
@@ -825,8 +819,8 @@ void Node::Impl::ReportDownContact(const Contact &down_contact)
   condition_downlist_.notify_one();
 }
 
-void Node::Impl::MonitoringDownlistThread(bool start) {
-  while (start) {
+void Node::Impl::MonitoringDownlistThread() {
+  while (joined_) {
     boost::mutex::scoped_lock loch_surlaplage(mutex_);
     while (down_contacts_.empty())
       condition_downlist_.wait(loch_surlaplage);
@@ -834,9 +828,9 @@ void Node::Impl::MonitoringDownlistThread(bool start) {
     // report the downlist to local k-closest contacts
     std::vector<Contact> close_nodes, excludes;
     excludes.push_back(contact_);
-    // routing_table_->GetContactsClosestToOwnId() will be much quicker
-    routing_table_->GetCloseContacts(contact_.node_id(), k_,
-                                     excludes, &close_nodes);
+    routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);
+//     routing_table_->GetCloseContacts(contact_.node_id(), k_,
+//                                      excludes, &close_nodes);
     auto it = close_nodes.begin();
     auto it_end = close_nodes.end();
     while (it != it_end) {
