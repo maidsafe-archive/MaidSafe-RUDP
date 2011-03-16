@@ -41,6 +41,7 @@ namespace kademlia {
 
 namespace test {
   class Sender_TaskTest;
+  class ServicesTest;
 }
 
 typedef boost::function<void(const KeyValueSignature,  transport::Info,
@@ -115,6 +116,7 @@ class SenderTask  {
 
  private:
   friend class test::Sender_TaskTest;
+  friend class test::ServicesTest;
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;

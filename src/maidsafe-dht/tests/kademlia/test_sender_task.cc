@@ -236,8 +236,6 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
   ASSERT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
                                     "public_key_id_1", task_cb_1, is_new_id));
   sender_task_->SenderTaskCallback("", "", "");
-  // Todo: @Prakash uncomment later
-  // sender_task_->SenderTaskCallback("public_key_id_1", "", "");
   EXPECT_EQ(size_t(1), GetSenderTaskSize());
   EXPECT_EQ(0u , count_callback_1_);
   // Valid data
@@ -329,7 +327,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallbackMulthiThreaded) {
   EXPECT_EQ(20u , count_callback_1_);
   EXPECT_EQ(20u , count_callback_2_);
   ASSERT_EQ(size_t(i * 2), kvs_vector.size());
-  for (int i = 0; i < kvs_vector.size(); ++i) {
+  for (size_t i = 0; i < kvs_vector.size(); ++i) {
     EXPECT_TRUE(HasDataInIndex(kvs_vector[i], request_signature,
                                "public_key_id_3") ||
                 HasDataInIndex(kvs_vector[i], request_signature,
