@@ -332,6 +332,11 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                FindValueFunctor callback,
                                TransportType type));
 
+  MOCK_METHOD4(Downlist, void(const std::vector<NodeId> &node_ids,
+                              SecurifierPtr securifier,
+                              const Contact &peer,
+                              TransportType type));
+
   void FindNodeRandomResponseClose(const Contact &c,
                                    FindNodesFunctor callback) {
     int response_factor = RandomUint32() % 100;
@@ -547,6 +552,40 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
              alternative_store);
   }
 
+  void DownlistRecord(const std::vector<NodeId> &node_ids,
+                      const Contact &contact) {
+    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    ContactsById key_indx = down_contacts_->get<NodeIdTag>();
+//     auto it = key_indx.find(contact.node_id());
+//     if (it == key_indx.end()) {
+//       RoutingTableContact new_routing_table_contact(contact,
+//                                                     target_id_,
+//                                                     0);
+//       new_routing_table_contact.num_failed_rpcs = 1;
+//       down_contacts_->insert(new_routing_table_contact);
+//     } else {
+//       boost::uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;
+//       key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs));
+//     }
+    auto it_node = node_ids.begin();
+    auto it_end = node_ids.end();
+    while (it_node != it_end){
+      auto itr = key_indx.find((*it_node));
+      if (itr == key_indx.end()) {
+        Contact temp_contact = ComposeContact((*it_node), 5000);
+        RoutingTableContact new_routing_table_contact(temp_contact,
+                                                      target_id_,
+                                                      0);
+        new_routing_table_contact.num_failed_rpcs = 1;
+        down_contacts_->insert(new_routing_table_contact);
+      } else {
+        boost::uint16_t num_failed_rpcs = (*itr).num_failed_rpcs + 1;
+        key_indx.modify(itr, ChangeNumFailedRpc(num_failed_rpcs));
+      }
+      ++it_node;
+    }
+  }
+
   void SingleDeleteResponse(const Contact &c, Rpcs::DeleteFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     ++num_of_deleted_;
@@ -654,7 +693,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 }; //class MockRpcs
-
+/*
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
 
@@ -1694,6 +1733,59 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 } // FindValue test
+*/
+TEST_F(NodeImplTest, FUN_KAD_Downlist) {
+  PopulateRoutingTable(test::k, 500);
+
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+
+  EXPECT_CALL(*new_rpcs, Downlist(testing::_, testing::_, testing::_,
+                                  testing::_))
+      .WillRepeatedly(testing::WithArgs<0, 2>(testing::Invoke(
+          boost::bind(&MockRpcs::DownlistRecord,
+                      new_rpcs.get(), _1, _2))));
+
+  NodeId key = NodeId(NodeId::kRandomId);
+  std::vector<Contact> booststrap_contacts;
+  node_->Join(key, 5000, booststrap_contacts, NULL);
+  std::shared_ptr<RoutingTableContactsContainer> down_list
+      (new RoutingTableContactsContainer());
+  new_rpcs->down_contacts_ = down_list;
+  {
+    // All k populated contacts giving no response
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> lcontacts;
+    bool done(false);
+    node_->FindNodes(key,
+                     boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done,
+                                 &lcontacts));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(0, lcontacts.size());
+    // wait for the all processes to be completed
+    // otherwise the counter might be incorrect
+    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
+    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+    auto it = key_indx.begin();
+    auto it_end = key_indx.end();
+    while (it != it_end) {
+      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+      ++it;
+    }    
+  }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+} // DownList test
+
 }  // namespace test_nodeimpl
 
 }  // namespace kademlia
