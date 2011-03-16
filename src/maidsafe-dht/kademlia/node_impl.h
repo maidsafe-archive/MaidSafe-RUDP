@@ -92,17 +92,44 @@ class Node::Impl {
             const std::vector<Contact> &bootstrap_contacts,
             JoinFunctor callback);
   void Leave(std::vector<Contact> *bootstrap_contacts);
+  /** Function to STORE data to the Kademlia network.
+   *  @param[in] Key The key to find
+   *  @param[in] value The value to store.
+   *  @param[in] signature The signature to store.
+   *  @param[in] ttl The ttl for the new data.
+   *  @param[in] securifier The securifier to pass further.
+   *  @param[in] callback The callback to report the results. */
   void Store(const Key &key,
              const std::string &value,
              const std::string &signature,
              const boost::posix_time::time_duration &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
+  /** Function to UPDATE the content of a <key, value> in the Kademlia network.
+   *  The operation will delete the original one then store the new one.
+   *  @param[in] Key The key to find
+   *  @param[in] new_value The new_value to store.
+   *  @param[in] new_signature The new_signature to store.
+   *  @param[in] old_value The old_value to delete.
+   *  @param[in] old_signature The old_signature to delete.
+   *  @param[in] securifier The securifier to pass further.
+   *  @param[in] ttl The ttl for the new data.
+   *  @param[in] callback The callback to report the results. */
   void Delete(const Key &key,
               const std::string &value,
               const std::string &signature,
               SecurifierPtr securifier,
               DeleteFunctor callback);
+  /** Function to DELETE the content of a <key, value> in the Kademlia network.
+   *  The operation will delete the original one then store the new one.
+   *  @param[in] Key The key to find
+   *  @param[in] new_value The new_value to store.
+   *  @param[in] new_signature The new_signature to store.
+   *  @param[in] old_value The old_value to delete.
+   *  @param[in] old_signature The old_signature to delete.
+   *  @param[in] securifier The securifier to pass further.
+   *  @param[in] ttl The ttl for the new data.
+   *  @param[in] callback The callback to report the results. */
   void Update(const Key &key,
               const std::string &new_value,
               const std::string &new_signature,
@@ -111,10 +138,18 @@ class Node::Impl {
               SecurifierPtr securifier,
               const boost::posix_time::time_duration &ttl,
               UpdateFunctor callback);
+  /** Function to FIND VALUES of the Key from the Kademlia network.
+   *  @param[in] Key The key to find
+   *  @param[in] securifier The securifier to pass further.
+   *  @param[in] callback The callback to report the results. */
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback);
+  /** Function to FIND k-closest NODES to the Key from the Kademlia network.
+   *  @param[in] Key The key to locate
+   *  @param[in] callback The callback to report the results. */
   void FindNodes(const Key &key, FindNodesFunctor callback);
+  
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
   void SetLastSeenToNow(const Contact &contact);
   void IncrementFailedRpcs(const Contact &contact);
@@ -122,20 +157,32 @@ class Node::Impl {
   RankInfoPtr GetLocalRankInfo(const Contact &contact);
   void GetAllContacts(std::vector<Contact> *contacts);
   void GetBootstrapContacts(std::vector<Contact> *contacts);
+  /** Getter.
+   *  @return The contact_ */
   Contact contact() const;
+  /** Getter.
+   *  @return The joined_ */
   bool joined() const;
+  /** Getter.
+   *  @return The asio_service_ */
   IoServicePtr asio_service();
+  /** Getter.
+   *  @return The alternative_store_ */
   AlternativeStorePtr alternative_store();
   OnOnlineStatusChangePtr on_online_status_change();
+  /** Getter.
+   *  @return The client_only_node flag. */
   bool client_only_node() const;
+  /** Getter.
+   *  @return The k_ */
   boost::uint16_t k() const;
+  /** Getter.
+   *  @return The kAlpha_ */
   boost::uint16_t alpha() const;
+  /** Getter.
+   *  @return The kBeta_ */
   boost::uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
-
-  /** Getter.
-   *  @return The report_down_contact_ signal. */
-  ReportDownContactPtr report_down_contact();
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -144,24 +191,61 @@ class Node::Impl {
   Impl(const Impl&);
   Impl &operator=(const Impl&);
 
+  /** Function to add acquired closest contacts into shared struct info, during
+   *  the execution of iterative search.
+   *  Used by: FindNodes, FindValue
+   *  @param[in] T FindNodesArgs, FindValueArgs
+   *  @param[in] find_args The closest contacts.
+   *  @param[in] find_args The arguments struct holding all shared info. */
   template <class T>
   void AddContactsToContainer(const std::vector<Contact> contacts,
                               std::shared_ptr<T> find_args);
 
+  /** Function to execute iterative rpc->findnode requests.
+   *  Used by: FindNodes, FindValue
+   *  @param[in] T FindNodesArgs, FindValueArgs
+   *  @param[in] find_args The arguments struct holding all shared info. */
   template <class T>
   void IterativeSearch(std::shared_ptr<T> find_args);
 
+  /** Callback from the rpc->findvalue requests, during the FindValue operation.
+   *  @param[in] rank_info rank info
+   *  @param[in] result Indicator from the rpc->findvalue. Any negative
+   *  value shall be considered as the enquired contact got some problems.
+   *  @param[in] values The values of the key.
+   *  @param[in] contacts The closest contacts.
+   *  @param[in] alternative_store The alternative store contact.
+   *  @param[in] fvrpc The arguments struct holding all shared info. */
   void IterativeSearchValueResponse(RankInfoPtr rank_info,
                                     int result,
                                     const std::vector<std::string> &values,
                                     const std::vector<Contact> &contacts,
                                     const Contact &alternative_store,
                                     std::shared_ptr<RpcArgs> fvrpc);
+  /** Callback from the rpc->findnodes requests, during the FindNodes operation.
+   *  @param[in] rank_info rank info
+   *  @param[in] result Indicator from the rpc->findnodes. Any negative
+   *  value shall be considered as the enquired contact got some problems.
+   *  @param[in] contacts The closest contacts.
+   *  @param[in] fnrpc The arguments struct holding all shared info. */
   void IterativeSearchNodeResponse(RankInfoPtr rank_info,
                               int result,
                               const std::vector<Contact> &contacts,
-                              std::shared_ptr<RpcArgs> find_nodes_rpc_args);
+                              std::shared_ptr<RpcArgs> fnrpc);
 
+  /** Function to handle the iteration search structure.
+   *  Used by: FindNodes, FindValue
+   *  @param[in] T FindNodesArgs, FindValueArgs
+   *  @param[in] contact The current responding contact
+   *  @param[in] fa The arguments struct holding all shared info.
+   *  @param[in] mark Indicate if the current responding contact is down or not
+   *  @param[out] response_code The response_code in case of search can be
+   *  stopped.
+   *  @param[out] closest_contacts The closest contacts in case of search can be
+   *  stopped.
+   *  @param[out] cur_iteration_done Indicates if a new iteration can be
+   *  started.
+   *  @param[out] calledback Indicates if a the search can be stopped. */
   template <class T>
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<T> fa,
@@ -183,7 +267,17 @@ class Node::Impl {
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
-  
+
+  /** Template Callback from the rpc->findnode requests.
+   *  Used by: Store, Delete, Update
+   *  @param[in] T StoreArgs, UpdateArgs, DeleteArgs
+   *  @param[in] cs the k-closest nodes to the key
+   *  @param[in] Key The key to be passed further.
+   *  @param[in] value The value to be passed further.
+   *  @param[in] signature The signature to be passed further.
+   *  @param[in] ttl The ttl to be passed further.
+   *  @param[in] securifier The securifier to be passed further.
+   *  @param[in] args The arguments struct holding all shared info. */
   template <class T>
   void OperationFindNodesCB(int result_size,
                             const std::vector<Contact> &cs,
@@ -193,7 +287,16 @@ class Node::Impl {
                             const boost::posix_time::time_duration &ttl,
                             SecurifierPtr securifier,
                             std::shared_ptr<T> args);
-  
+
+  /** Callback from the rpc->store requests, during the Store operation.
+   *  @param[in] rank_info rank info
+   *  @param[in] response_code Indicator from the rpc->store. Any negative
+   *  value shall be considered as the enquired contact got some problems.
+   *  @param[in] srpc The arguments struct holding all shared info.
+   *  @param[in] Key The key to be passed further.
+   *  @param[in] value The value to be passed further.
+   *  @param[in] signature The signature to be passed further.
+   *  @param[in] securifier The securifier to be passed further. */
   void StoreResponse(RankInfoPtr rank_info,
                      int response_code,
                      std::shared_ptr<RpcArgs> srpc,
@@ -201,48 +304,89 @@ class Node::Impl {
                      const std::string &value,
                      const std::string &signature,
                      SecurifierPtr securifier);
+
+  /** Callback from the rpc->store requests, during the Update operation.
+   *  @param[in] rank_info rank info
+   *  @param[in] response_code Indicator from the rpc->store. Any negative
+   *  value shall be considered as the enquired contact got some problems.
+   *  @param[in] urpc The arguments struct holding all shared info.
+   *  @param[in] Key The key to be passed further.
+   *  @param[in] securifier The securifier to be passed further. */
   void UpdateStoreResponse(RankInfoPtr rank_info,
                            int response_code,
                            std::shared_ptr<RpcArgs> urpc,
                            const Key &key,
                            SecurifierPtr securifier);
 
+  /** Template Callback from the rpc->delete requests. Need to calculate number
+   *  of success and report back the final result.
+   *  Used by: Delete, Update
+   *  @param[in] T UpdateArgs, DeleteArgs
+   *  @param[in] rank_info rank info
+   *  @param[in] response_code Indicator from the rpc->delete. Any negative
+   *  value shall be considered as the enquired contact got some problems.
+   *  @param[in] drpc The arguments struct holding all shared info. */
   template <class T>
   void DeleteResponse(RankInfoPtr rank_info,
                       int response_code,
                       std::shared_ptr<RpcArgs> drpc);
-  
+
+  /** Callback from the single rpc->delete request. Just report the contact as
+   *  down if necessary. Nothing else needs to be undertaken.
+   *  Used only during the Store process in case of failure to delete the
+   *  previous stored data. */
   void SingleDeleteResponse(RankInfoPtr rank_info,
                             int response_code,
                             const Contact &contact);
 
+  /** Function bound to the slot of report_down_contact_ to collect any
+   *  emitted signal. Any down_contact captured from signals will be pushed into
+   *  the down_contacts_ queue.
+   *  @param[in] down_contact The contact detected as down during any operation,
+   *  reported via a signal. */
   void ReportDownContact(const Contact &down_contact);
 
-  void MonitoringDownlistThread(bool start);
+  /** Thread function keeps monitoring the down_contacts_, once detect any
+   *  entries in the queue, notify the k-closest in the routingtable about
+   *  the downlist */
+  void MonitoringDownlistThread();
 
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
   OnOnlineStatusChangePtr on_online_status_change_;
+  /** If the node is Client Only, then it shall not put anything into its local
+   *  routing table. Only Vault is allowed to do so. */
   bool client_only_node_;
+  /** Global K parameter */
   const boost::uint16_t k_;
+  /** Global threshold to define the number of succeed required to consider a
+   *  Store, Delete or Update to be success */
   int threshold_;
+  /** Alpha parameter to define how many contacts to be enquired during one
+   *  iteration */
   const boost::uint16_t kAlpha_;
+  /** Beta parameter to define how many contacted contacts required in one
+   *  iteration before starting a new iteration */
   const boost::uint16_t kBeta_;
   const boost::posix_time::seconds kMeanRefreshInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs> rpcs_;
+  /** Own info of nodeid, ip and port */
   Contact contact_;
   bool joined_, refresh_routine_started_, stopping_;
   boost::signals2::connection routing_table_connection_;
   /** Signal to be fired when there is one contact detected as DOWN during any
    *  operations */
   ReportDownContactPtr report_down_contact_;
+  /** Mutex lock to protect down_contacts_ */
   boost::mutex mutex_;
+  /** Conditional Variable to wait/notify the thread monitoring down_contacts_*/
   boost::condition_variable condition_downlist_;
+  /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
 };
 
