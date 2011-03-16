@@ -388,6 +388,7 @@ class Node::Impl {
   boost::condition_variable condition_downlist_;
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
+  boost::thread_group thread_group_;
 };
 
 }  // namespace kademlia
