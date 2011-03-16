@@ -126,10 +126,10 @@ class Rpcs {
                      const Contact &peer,
                      DeleteFunctor callback,
                      TransportType type);
-  void Downlist(const std::vector<NodeId> &node_ids,
-                SecurifierPtr securifier,
-                const Contact &peer,
-                TransportType type);
+  virtual void Downlist(const std::vector<NodeId> &node_ids,
+                        SecurifierPtr securifier,
+                        const Contact &peer,
+                        TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
 
  private:
