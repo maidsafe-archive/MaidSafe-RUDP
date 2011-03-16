@@ -73,7 +73,8 @@ Node::Impl::Impl(IoServicePtr asio_service,
       report_down_contact_(new ReportDownContactPtr::element_type),
       mutex_(),
       condition_downlist_(),
-      down_contacts_() {}
+      down_contacts_(),
+      thread_group_() {}
 
 Node::Impl::~Impl() {
   if (joined_)
@@ -81,8 +82,11 @@ Node::Impl::~Impl() {
 }
 
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
+  thread_group_.interrupt_all();
+  thread_group_.join_all();
   routing_table_connection_.disconnect();
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
+  joined_ = false;
 }
 
 void Node::Impl::StoreResponse(RankInfoPtr rank_info,
@@ -420,7 +424,8 @@ void Node::Impl::Join(const NodeId &node_id,
   report_down_contact_->connect(
       ReportDownContactPtr::element_type::slot_type(
           &Node::Impl::ReportDownContact, this, _1));
-  boost::thread th(boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+  thread_group_.create_thread(
+                    boost::bind(&Node::Impl::MonitoringDownlistThread, this));
 }
 
 // void Node::Impl::JoinFirstNode(const NodeId &node_id,
@@ -827,7 +832,6 @@ void Node::Impl::MonitoringDownlistThread() {
 
     // report the downlist to local k-closest contacts
     std::vector<Contact> close_nodes, excludes;
-    excludes.push_back(contact_);
     routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);
 //     routing_table_->GetCloseContacts(contact_.node_id(), k_,
 //                                      excludes, &close_nodes);
