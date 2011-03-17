@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 
 #include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/transport/utils.h"
 #include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
@@ -39,12 +40,11 @@ namespace maidsafe {
 
 namespace transport {
 
-TcpTransport::TcpTransport(
-    boost::asio::io_service &asio_service)
-        : Transport(asio_service),
-          acceptor_(),
-          connections_(),
-          strand_(asio_service) {}
+TcpTransport::TcpTransport(boost::asio::io_service &asio_service)
+    : Transport(asio_service),
+      acceptor_(),
+      connections_(),
+      strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -86,6 +86,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
       std::make_shared<TcpConnection>(shared_from_this(),
                                       boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
+  transport_details_.endpoint.port = listening_port_;
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
@@ -94,6 +95,21 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
                                                  shared_from_this(), acceptor_,
                                                  new_connection, arg::_1)));
   return kSuccess;
+}
+
+TransportCondition TcpTransport::Bootstrap(
+    const std::vector<Endpoint> &candidates) {
+  protobuf::NatDetectionRequest msg;
+  msg.set_local_port(listening_port_);
+  std::vector<IP> local_addresses = GetLocalAddresses();
+  for (size_t n = 0; n < local_addresses.size(); ++n)
+    msg.add_local_ips(local_addresses[n].to_string());
+  protobuf::WrapperMessage wrapper_message;
+  wrapper_message.set_msg_type(msg.SerializeAsString());
+  wrapper_message.set_payload(payload);
+
+  std::string data(1, security_type);
+  data += wrapper_message.SerializeAsString();
 }
 
 void TcpTransport::StopListening() {
