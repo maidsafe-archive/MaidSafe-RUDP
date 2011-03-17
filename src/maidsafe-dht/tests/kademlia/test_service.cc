@@ -601,7 +601,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     // Try to storefresh an in-valid tuple
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
-    sender.public_key_id(), sender.public_key(), sender.other_info()));
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
     Service service(routing_table_, data_store_,
                     alternative_store_, securifier_local);
     service.set_node_joined(true);
