@@ -50,13 +50,11 @@ namespace maidsafe {
 
 class Securifier;
 
-
 namespace transport {
 class Transport;
 struct Endpoint;
 struct Info;
 }  // namespace transport
-
 
 namespace kademlia {
 
