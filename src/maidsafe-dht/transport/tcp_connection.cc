@@ -159,7 +159,8 @@ void TcpConnection::StartReadData() {
                           data_size_ - data_received_);
   data_buffer_.resize(buffer_size);
 
-  asio::mutable_buffer data_buffer = asio::buffer(data_buffer_) + data_received_;
+  asio::mutable_buffer data_buffer = asio::buffer(data_buffer_) +
+                                     data_received_;
   asio::async_read(socket_, asio::buffer(data_buffer),
                    strand_.wrap(std::bind(&TcpConnection::HandleReadData,
                                           shared_from_this(),
