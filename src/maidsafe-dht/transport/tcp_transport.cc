@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 
 #include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/transport/transport.pb.h"
 #include "maidsafe-dht/transport/utils.h"
 #include "maidsafe/common/log.h"
 
@@ -105,10 +106,10 @@ TransportCondition TcpTransport::Bootstrap(
   for (size_t n = 0; n < local_addresses.size(); ++n)
     msg.add_local_ips(local_addresses[n].to_string());
   protobuf::WrapperMessage wrapper_message;
-  wrapper_message.set_msg_type(msg.SerializeAsString());
-  wrapper_message.set_payload(payload);
+  wrapper_message.set_msg_type(2);
+  wrapper_message.set_payload(msg.SerializeAsString());
 
-  std::string data(1, security_type);
+  std::string data(1, '\0');
   data += wrapper_message.SerializeAsString();
 }
 

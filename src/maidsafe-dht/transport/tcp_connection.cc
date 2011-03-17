@@ -227,7 +227,8 @@ void TcpConnection::EncodeData(const std::string &data) {
       DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                   << transport->kMaxTransportMessageSize() << ")"
                   << std::endl;
-      (*transport->on_error_)(kMessageSizeTooLarge);
+      Endpoint ep;
+      (*transport->on_error_)(kMessageSizeTooLarge, ep);
       return;
     }
   } else {
@@ -299,8 +300,10 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void TcpConnection::CloseOnError(const TransportCondition &error) {
-  if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-    (*transport->on_error_)(error);
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
+    Endpoint ep;
+    (*transport->on_error_)(error, ep);
+  }
   DoClose();
 }
 

@@ -381,7 +381,7 @@ Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
       boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
                   _1, _2, _3, _4));
   bs2::connection on_err_con = transport->on_error()->connect(
-      boost::bind(&MessageHandler::OnError, message_handler.get(), _1));
+      boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
   return boost::make_tuple(transport, message_handler, on_recv_con, on_err_con);
 }
 
