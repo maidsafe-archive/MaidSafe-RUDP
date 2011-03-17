@@ -53,10 +53,10 @@ UdpTransport::UdpTransport(asio::io_service &asio_service)
   // If a UdpTransport is restarted and listens on the same port number as
   // before, it may receive late replies intended for the previous incarnation.
   // To avoid this, we use a random number as the first request id.
-  bptime::time_duration time = maidsafe::GetDurationSinceEpoch();
-  next_request_id_ = time.total_microseconds() & 0xffffffff;
+  next_request_id_ = maidsafe::SRandomUint32();
   next_request_id_ <<= 32;
-  next_request_id_ |= maidsafe::SRandomUint32();
+  bptime::time_duration time = maidsafe::GetDurationSinceEpoch();
+  next_request_id_ |= time.total_microseconds() & 0xffffffff;
   if (next_request_id_ == 0)
     ++next_request_id_;
 }
