@@ -46,8 +46,8 @@ const boost::posix_time::seconds kNetworkDelay(2);
 class Sender_TaskTest: public testing::Test {
  public:
   Sender_TaskTest()
-      : sender_task_(new SenderTask),
-        info_(),
+      : info_(),
+        sender_task_(new SenderTask),
         count_callback_1_(0),
         count_callback_2_(0),
         asio_service_(new boost::asio::io_service),
@@ -92,23 +92,23 @@ class Sender_TaskTest: public testing::Test {
             ((*itr).public_key_id == public_key_id));
   }
 
-  void TestTaskCallBack1(KeyValueSignature key_value_signature,
-                         std::string request,
-                         transport::Info info,
-                         RequestAndSignature request_signature,
-                         std::string response,
-                         std::string public_key,
-                         std::string public_key_validation) {
+  void TestTaskCallBack1(KeyValueSignature,
+                         std::string,
+                         transport::Info,
+                         RequestAndSignature,
+                         std::string,
+                         std::string,
+                         std::string) {
     ++count_callback_1_;
   }
 
-  void TestTaskCallBack2(KeyValueSignature key_value_signature,
-                            std::string request,
-                            transport::Info info,
-                            RequestAndSignature request_signature,
-                            std::string response,
-                            std::string public_key,
-                            std::string public_key_validation) {
+  void TestTaskCallBack2(KeyValueSignature,
+                         std::string,
+                         transport::Info,
+                         RequestAndSignature,
+                         std::string,
+                         std::string,
+                         std::string) {
     ++count_callback_2_;
   }
 
@@ -319,7 +319,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallbackMulthiThreaded) {
   asio_service_->post(boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
                                   "public_key_id_2", "public_key",
                                   "public_key_validation"));
-  for (int i = 0; i < 8; ++i)
+  for (int j = 0; j < 8; ++j)
     asio_thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
                                      asio_service_));
 
@@ -327,10 +327,10 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallbackMulthiThreaded) {
   EXPECT_EQ(20u , count_callback_1_);
   EXPECT_EQ(20u , count_callback_2_);
   ASSERT_EQ(size_t(i * 2), kvs_vector.size());
-  for (size_t i = 0; i < kvs_vector.size(); ++i) {
-    EXPECT_TRUE(HasDataInIndex(kvs_vector[i], request_signature,
+  for (size_t k = 0; k < kvs_vector.size(); ++k) {
+    EXPECT_TRUE(HasDataInIndex(kvs_vector[k], request_signature,
                                "public_key_id_3") ||
-                HasDataInIndex(kvs_vector[i], request_signature,
+                HasDataInIndex(kvs_vector[k], request_signature,
                                "public_key_id_4"));
   }
   EXPECT_EQ(size_t(i * 2), GetSenderTaskSize());
