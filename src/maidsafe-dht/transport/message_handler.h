@@ -102,8 +102,8 @@ class MessageHandler {
       const protobuf::RendezvousRequest&)>> RendezvousReqSigPtr;
   typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
       const protobuf::RendezvousAcknowledgement&)>> RendezvousAckSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>>
-      ErrorSigPtr;
+  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
+                                           const Endpoint&)>> ErrorSigPtr;
 
   explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : securifier_(securifier),
@@ -124,7 +124,8 @@ class MessageHandler {
                          const Info &info,
                          std::string *response,
                          Timeout *timeout);
-  void OnError(const TransportCondition &transport_condition);
+  void OnError(const TransportCondition &transport_condition,
+               const Endpoint &remote_endpoint);
 
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);

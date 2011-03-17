@@ -166,7 +166,8 @@ typedef std::shared_ptr<bs2::signal<void(const std::string&,
                                          const Info&,
                                          std::string*,
                                          Timeout*)>> OnMessageReceived;
-typedef std::shared_ptr<bs2::signal<void(const TransportCondition&)>> OnError;
+typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
+                                         const Endpoint&)>> OnError;
 
 // Base class for all transport types.
 class Transport {

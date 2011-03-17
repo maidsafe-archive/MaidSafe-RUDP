@@ -76,8 +76,9 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   }
 }
 
-void MessageHandler::OnError(const TransportCondition &transport_condition) {
-  (*on_error_)(transport_condition);
+void MessageHandler::OnError(const TransportCondition &transport_condition,
+                             const Endpoint &remote_endpoint) {
+  (*on_error_)(transport_condition, remote_endpoint);
 }
 
 std::string MessageHandler::WrapMessage(
