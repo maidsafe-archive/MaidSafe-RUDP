@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 #include <iostream>  // NOLINT
+#include <vector>
+
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
@@ -52,7 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* #if MAIDSAFE_DHT_VERSION < 25
    #error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
-   #endif 
+   #endif
 */
 namespace bs2 = boost::signals2;
 namespace bptime = boost::posix_time;
@@ -98,7 +100,8 @@ enum TransportCondition {
   kAddManagedEndpointTimedOut = -28,
   kManagedEndpointLost = -29,
   kSetOptionFailure = -30,
-  kMessageSizeTooLarge = -31
+  kMessageSizeTooLarge = -31,
+  kWrongIpVersion = -32
 };
 
 enum NatType { kManualPortMapped,  // behind manually port-mapped router.
@@ -134,8 +137,13 @@ struct Info {
   boost::uint32_t rtt;
 };
 
-// In bytes
-const DataSize kMaxTransportMessageSize = 67108864;
+struct TransportDetails {
+  TransportDetails() : endpoint(), local_endpoints(), rendezvous_endpoint() {}
+  transport::Endpoint endpoint;
+  std::vector<transport::Endpoint> local_endpoints;
+  transport::Endpoint rendezvous_endpoint;
+};
+
 // Maximum number of bytes to read at a time
 const DataSize kMaxTransportChunkSize = 65536;
 // Default timeout for RPCs
@@ -171,6 +179,14 @@ class Transport {
    */
   virtual TransportCondition StartListening(const Endpoint &endpoint) = 0;
   /**
+   * Enables the transport to accept incoming communication. Fails if already
+   * listening or the requested endpoint is unavailable.
+   * @param candidates The vector of candidate Endpoints for bootstrapping.
+   * @return Success or an appropriate error code.
+   */
+  virtual TransportCondition Bootstrap(
+      const std::vector<Endpoint> &candidates) = 0;
+  /**
    * Stops the transport from accepting incoming communication.
    */
   virtual void StopListening() = 0;
@@ -192,20 +208,32 @@ class Transport {
   Port listening_port() const { return listening_port_; }
   OnMessageReceived on_message_received() { return on_message_received_; }
   OnError on_error() { return on_error_; }
+  DataSize kMaxTransportMessageSize() const {
+    return kMaxTransportMessageSize_;
+  }
+  TransportDetails transport_details() const { return transport_details_; }
+
  protected:
   /**
    * Protected destructor to prevent deletion through this type.
    */
   virtual ~Transport() {}
-  explicit Transport(boost::asio::io_service &asio_service)  // NOLINT
+  Transport(boost::asio::io_service &asio_service,  // NOLINT
+            const DataSize &data_size = 67108864)
       : asio_service_(asio_service),
         listening_port_(0),
         on_message_received_(new OnMessageReceived::element_type),
-        on_error_(new OnError::element_type) {}
+        on_error_(new OnError::element_type),
+        kMaxTransportMessageSize_(data_size),
+        transport_details_() {}
   boost::asio::io_service &asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;
   OnError on_error_;
+  // In bytes
+  const DataSize kMaxTransportMessageSize_;
+  TransportDetails transport_details_;
+
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);

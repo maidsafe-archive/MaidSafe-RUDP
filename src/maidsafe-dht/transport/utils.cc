@@ -129,8 +129,7 @@ std::vector<IP> GetLocalAddresses() {
   std::vector<NetworkInterface> net_interfaces;
   net_interfaces = NetworkInterface::LocalList(ec);
   if (!ec) {
-    for (std::vector<NetworkInterface>::iterator it = net_interfaces.begin();
-         it != net_interfaces.end(); ++it) {
+    for (auto it = net_interfaces.begin(); it != net_interfaces.end(); ++it) {
       if (!NetworkInterface::IsLoopback(it->destination) &&
           !NetworkInterface::IsMulticast(it->destination) &&
           !NetworkInterface::IsAny(it->destination)) {
