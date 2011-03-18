@@ -34,18 +34,6 @@ namespace transport {
 
 namespace test {
 
-TEST(TcpTransportTest, TheTest) {
-  boost::asio::io_service ios;
-  std::shared_ptr<TcpTransport> tcp(new TcpTransport(ios));
-  Endpoint ep("0.0.0.0", 12345);
-  ASSERT_EQ(kSuccess, tcp->StartListening(ep));
-  TransportDetails td = tcp->transport_details();
-  std::cout << td.endpoint.ip << ":" << td.endpoint.port << std::endl;
-
-  std::string s;
-  std::cin >> s;
-}
-
 }  // namespace test
 
 }  // namespace transport
