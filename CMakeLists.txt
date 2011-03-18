@@ -303,6 +303,8 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_multiplexer.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_socket.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc"
                         PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()
