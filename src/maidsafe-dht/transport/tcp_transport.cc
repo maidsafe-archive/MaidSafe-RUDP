@@ -111,6 +111,7 @@ TransportCondition TcpTransport::Bootstrap(
 
   std::string data(1, '\0');
   data += wrapper_message.SerializeAsString();
+  return kSuccess;
 }
 
 void TcpTransport::StopListening() {
