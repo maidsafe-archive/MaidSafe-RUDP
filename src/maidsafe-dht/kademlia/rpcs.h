@@ -71,11 +71,12 @@ class UpdateResponse;
 }  // namespace protobuf
 
 struct RpcsFailurePeer {
-public: RpcsFailurePeer()
-    : peer(), rpcs_failure() {}
+ public:
+  RpcsFailurePeer() : peer(), rpcs_failure(1) {}
   Contact peer;
   boost::uint16_t rpcs_failure;
 };
+
 class Rpcs {
  public:
   typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
@@ -85,10 +86,12 @@ class Rpcs {
       const Contact&)> FindValueFunctor;
   typedef boost::function<void(RankInfoPtr, const int&,
       const std::vector<Contact>&)> FindNodesFunctor;
+  typedef boost::tuple<TransportPtr, MessageHandlerPtr, bs2::connection,
+                       bs2::connection> ConnectedObjects;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
-      : contact_(),
-        asio_service_(asio_service),
+      : asio_service_(asio_service),
+        contact_(),
         default_securifier_(default_securifier) {}
   virtual ~Rpcs() {}
   virtual void Ping(SecurifierPtr securifier,
@@ -135,10 +138,13 @@ class Rpcs {
                         const Contact &peer,
                         TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
+  virtual ConnectedObjects Prepare(TransportType type,
+                                   SecurifierPtr securifier);
+
+ protected:
+  IoServicePtr asio_service_;
 
  private:
-  typedef boost::tuple<TransportPtr, MessageHandlerPtr, bs2::connection,
-                       bs2::connection> ConnectedObjects;
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   void PingCallback(const std::string &random_data,
@@ -148,7 +154,7 @@ class Rpcs {
                     ConnectedObjects connected_objects,
                     PingFunctor callback,
                     const std::string &message,
-                    RpcsFailurePeer *rpcs_failure_peer);
+                    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void FindValueCallback(
       const transport::TransportCondition &transport_condition,
@@ -157,7 +163,7 @@ class Rpcs {
       ConnectedObjects connected_objects,
       FindValueFunctor callback,
       const std::string &message,
-      RpcsFailurePeer *rpcs_failure_peer);
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void FindNodesCallback(
       const transport::TransportCondition &transport_condition,
@@ -166,7 +172,7 @@ class Rpcs {
       ConnectedObjects connected_objects,
       FindNodesFunctor callback,
       const std::string &message,
-      RpcsFailurePeer *rpcs_failure_peer);
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void StoreCallback(const transport::TransportCondition &transport_condition,
                      const transport::Info &info,
@@ -174,7 +180,7 @@ class Rpcs {
                      ConnectedObjects connected_objects,
                      StoreFunctor callback,
                      const std::string &message,
-                     RpcsFailurePeer *rpcs_failure_peer);
+                     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void StoreRefreshCallback(
       const transport::TransportCondition &transport_condition,
@@ -183,7 +189,7 @@ class Rpcs {
       ConnectedObjects connected_objects,
       StoreRefreshFunctor callback,
       const std::string &message,
-      RpcsFailurePeer *rpcs_failure_peer);
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
@@ -191,7 +197,7 @@ class Rpcs {
                       ConnectedObjects connected_objects,
                       DeleteFunctor callback,
                       const std::string &message,
-                      RpcsFailurePeer *rpcs_failure_peer);
+                      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   void DeleteRefreshCallback(
       const transport::TransportCondition &transport_condition,
@@ -200,11 +206,9 @@ class Rpcs {
       ConnectedObjects connected_objects,
       DeleteRefreshFunctor callback,
       const std::string &message,
-      RpcsFailurePeer *rpcs_failure_peer);
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
-  ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
   Contact contact_;
-  IoServicePtr asio_service_;
   SecurifierPtr default_securifier_;
 };
 
