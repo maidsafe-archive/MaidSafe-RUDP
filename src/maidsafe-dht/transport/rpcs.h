@@ -24,114 +24,41 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-/*
+
 #ifndef MAIDSAFE_DHT_TRANSPORT_RPCS_H_
 #define MAIDSAFE_DHT_TRANSPORT_RPCS_H_
 
-#include <string>
 #include <vector>
 
-#include "boost/cstdint.hpp"
 #include "boost/function.hpp"
-#include "boost/shared_ptr.hpp"
 
-#include "maidsafe/common/platform_config.h"
-#include "maidsafe-dht/kademlia/config.h"
-#include "maidsafe-dht/kademlia/kademlia.pb.h"
-#include "maidsafe-dht/kademlia/rpcs.pb.h"
-#include "maidsafe-dht/transport/udt_transport.h"
-#include "maidsafe-dht/transport/tcptransport2.h"
+#include "maidsafe-dht/transport/transport.pb.h"
 
 namespace maidsafe {
 
 namespace transport {
 
- class NodeId;
- typedef boost::function<void(bool, const std::vector<Contact>&)>
-                              FindNodesFunctor;
- typedef boost::function<void(bool, const std::vector<Contact>&)>
-                              FindValueFunctor;
- typedef boost::function<void(bool, std::string)> PingFunctor;
- typedef boost::function<void(bool)> StoreFunctor;
- typedef boost::function<void(bool, protobuf::SignedRequest)> StoreSigFunctor;
- typedef boost::function<void(bool)> DownlistFunctor;
- typedef boost::function<void(bool)> DeleteFunctor;
- typedef boost::function<void(bool)> UpdateFunctor;
+class Transport;
+struct Endpoint;
+struct TransportDetails;
 
-template <class T>
 class Rpcs {
+  typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
+
  public:
-  Rpcs() {}
- 
-  void FindNodes(const NodeId &key,
-                 const Endpoint &ep,
-                 FindNodesFunctor callback);
-  void FindValue(const NodeId &key,
-                 const Endpoint &ep,
-                 FindValueFunctor callback);
-  void Ping(const Endpoint &ep,
-            PingFunctor callback);
-  void Store(const NodeId &key,
-             const protobuf::SignedValue &value,
-             const protobuf::SignedRequest &sig_req,
-             const Endpoint &ep,
-             const boost::int32_t &ttl,
-             const bool &publish,
-             StoreSigFunctor callback );
-  void Store(const NodeId &key,
-             const std::string &value,
-             const Endpoint &ep,
-             const boost::int32_t &ttl,
-             const bool &publish,
-             StoreFunctor callback);
-  void Downlist(const std::vector<std::string> downlist,
-                const Endpoint &ep,
-                DownlistFunctor callback);
-  void Delete(const NodeId &key,
-              const protobuf::SignedValue &value,
-              const protobuf::SignedRequest &sig_req,
-              const Endpoint &ep,
-              DeleteFunctor callback);
-  void Update(const NodeId &key,
-              const protobuf::SignedValue &new_value,
-              const protobuf::SignedValue &old_value,
-              const boost::int32_t &ttl,
-              const protobuf::SignedRequest &sig_req,
-              const Endpoint &ep,
-              UpdateFunctor callback);
-  inline void set_info(const protobuf::Contact &info) { info_ = info; }
-private:
-  void FindNodesCallback(const protobuf::FindNodesResponse &response,
-                       FindNodesFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
-  void FindValueCallback(const protobuf::FindValueResponse &response,
-                       FindValueFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
-  void PingCallback(const protobuf::PingResponse &response,
-                       PingFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport> transport);
-  void StoreSigCallback(const protobuf::StoreResponse &response,
-                       StoreSigFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler,
-                       boost::shared_ptr<transport::Transport>transport);
-  void StoreCallback(const protobuf::StoreResponse &response,
-                       StoreFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
-  void DownlistCallback(const protobuf::DownlistResponse &response,
-                       DownlistFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
-  void DeleteCallback(const protobuf::DeleteResponse &response,
-                       DeleteFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
-  void UpdateCallback(const protobuf::UpdateResponse &response,
-                       UpdateFunctor callback,
-                       boost::shared_ptr<MessageHandler> message_handler);
-  Rpcs(const Rpcs&);
-  Rpcs& operator=(const Rpcs&);
-  protobuf::Contact info_;
+  void NatDetection(const std::vector<Endpoint> &candidates,
+                    bool full,
+                    NatResultFunctor nrf);
+  void NatDetection(const std::vector<Endpoint> &candidates,
+                    std::shared_ptr<Transport> listening_transport,
+                    bool full,
+                    NatResultFunctor nrf);
+
+ private:
+  void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
+                            const std::vector<Endpoint> &candidates,
+                            NatResultFunctor nrf,
+                            int index);
 };
 
 }  // namespace transport
@@ -139,4 +66,3 @@ private:
 }  // namespace maidsafe
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_RPCS_H_
-*/

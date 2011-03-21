@@ -51,6 +51,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
+#include "maidsafe-dht/transport/service.h"
+
 /* #if MAIDSAFE_DHT_VERSION < 25
    #error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
@@ -67,6 +69,9 @@ typedef boost::asio::ip::address IP;
 typedef boost::uint16_t Port;
 typedef boost::int32_t DataSize;
 typedef bptime::time_duration Timeout;
+
+class MessageHandler;
+class Service;
 
 enum TransportCondition {
   kSuccess = 0,
@@ -213,6 +218,8 @@ class Transport {
     return kMaxTransportMessageSize_;
   }
   TransportDetails transport_details() const { return transport_details_; }
+  int bootstrap_status() { return bootstrap_status_; }
+//  std::shared_ptr<Service> transport_service() { return transport_service_; }
 
  protected:
   /**
@@ -226,14 +233,18 @@ class Transport {
         on_message_received_(new OnMessageReceived::element_type),
         on_error_(new OnError::element_type),
         kMaxTransportMessageSize_(data_size),
-        transport_details_() {}
+        transport_details_(),
+        bootstrap_status_(-2) {}
+//        transport_service_(new Service) {}
   boost::asio::io_service &asio_service_;
   Port listening_port_;
   OnMessageReceived on_message_received_;
   OnError on_error_;
-  // In bytes
-  const DataSize kMaxTransportMessageSize_;
+
+  const DataSize kMaxTransportMessageSize_;  // In bytes
   TransportDetails transport_details_;
+  int bootstrap_status_;
+//  std::shared_ptr<Service> transport_service_;
 
  private:
   Transport(const Transport&);
