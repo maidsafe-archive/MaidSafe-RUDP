@@ -160,27 +160,7 @@ void MessageHandler::ProcessSerialisedMessage(
       protobuf::NatDetectionRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::NatDetectionResponse response;
-        if (!request.full_detection()) {
-          protobuf::Endpoint *ep = response.mutable_endpoint();
-          ep->set_ip(info.endpoint.ip.to_string());
-          ep->set_port(info.endpoint.port);
-          response.set_nat_type(5);
-          for (int n = 0; n < request.local_ips_size(); ++n) {
-            if (ep->ip() == request.local_ips(n)) {
-              response.set_nat_type(0);
-              n = request.local_ips_size();
-            }
-          }
-        } else {
-//         NatDetectionReqSigPtr::element_type::result_type
-//             (NatDetectionReqSigPtr::element_type::*sig)
-//             (NatDetectionReqSigPtr::element_type::arg<0>::type,
-//              NatDetectionReqSigPtr::element_type::arg<1>::type) =
-//             &NatDetectionReqSigPtr::element_type::operator();
-//         asio_service_->post(boost::bind(sig, on_nat_detection_, request,
-//                                         conversation_id));
-          (*on_nat_detection_request_)(request, &response, timeout);
-        }
+        (*on_nat_detection_request_)(request, &response, timeout);
         *message_response = WrapMessage(response);
       }
       break;

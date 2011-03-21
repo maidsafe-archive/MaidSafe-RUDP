@@ -368,9 +368,6 @@ Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
     case kTcp:
       transport.reset(new transport::TcpTransport(*asio_service_));
       break;
-//    case kOther:
-//      transport.reset(new transport::UdtTransport(*asio_service_));
-//      break;
     default:
       break;
   }

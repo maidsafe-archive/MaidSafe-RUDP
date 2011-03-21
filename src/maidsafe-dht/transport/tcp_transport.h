@@ -41,6 +41,8 @@ namespace maidsafe {
 
 namespace transport {
 
+class MessageHandler;
+
 class TcpTransport : public Transport,
                      public std::enable_shared_from_this<TcpTransport> {
  public:

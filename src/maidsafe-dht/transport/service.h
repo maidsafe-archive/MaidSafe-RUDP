@@ -28,12 +28,36 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_SERVICE_H_
 #define MAIDSAFE_DHT_TRANSPORT_SERVICE_H_
 
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
+
+#include "maidsafe-dht/transport/transport.pb.h"
+
+namespace bptime = boost::posix_time;
+
 namespace maidsafe {
 
 namespace transport {
 
+typedef bptime::time_duration Timeout;
+struct Info;
+
 class Service {
  public:
+  void ManagedEndpoint(const protobuf::ManagedEndpointMessage &request,
+                       protobuf::ManagedEndpointMessage *response,
+                       transport::Timeout *timeout);
+  void NatDetection(const protobuf::NatDetectionRequest &request,
+                    const Info &info,
+                    protobuf::NatDetectionResponse *response,
+                    transport::Timeout *timeout);
+  void ProxyConnect(const protobuf::ProxyConnectRequest &request,
+                    protobuf::ProxyConnectResponse *response,
+                    transport::Timeout *timeout);
+  void ForwardRendezvous(const protobuf::ForwardRendezvousRequest &request,
+                         protobuf::ForwardRendezvousResponse *response,
+                         transport::Timeout *timeout);
+  void Rendezvous(const protobuf::RendezvousRequest &request);
+
  private:
 };
 

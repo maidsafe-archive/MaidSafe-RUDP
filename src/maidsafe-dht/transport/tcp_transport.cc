@@ -28,9 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 
 #include "maidsafe-dht/transport/tcp_transport.h"
+
+#include "maidsafe/common/log.h"
+
+#include "maidsafe-dht/transport/message_handler.h"
 #include "maidsafe-dht/transport/transport.pb.h"
 #include "maidsafe-dht/transport/utils.h"
-#include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -41,7 +44,7 @@ namespace maidsafe {
 
 namespace transport {
 
-TcpTransport::TcpTransport(boost::asio::io_service &asio_service)
+TcpTransport::TcpTransport(boost::asio::io_service &asio_service)  // NOLINT
     : Transport(asio_service),
       acceptor_(),
       connections_(),
@@ -100,17 +103,6 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
 
 TransportCondition TcpTransport::Bootstrap(
     const std::vector<Endpoint> &candidates) {
-  protobuf::NatDetectionRequest msg;
-  msg.set_local_port(listening_port_);
-  std::vector<IP> local_addresses = GetLocalAddresses();
-  for (size_t n = 0; n < local_addresses.size(); ++n)
-    msg.add_local_ips(local_addresses[n].to_string());
-  protobuf::WrapperMessage wrapper_message;
-  wrapper_message.set_msg_type(2);
-  wrapper_message.set_payload(msg.SerializeAsString());
-
-  std::string data(1, '\0');
-  data += wrapper_message.SerializeAsString();
   return kSuccess;
 }
 
