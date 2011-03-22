@@ -55,6 +55,10 @@ namespace maidsafe {
 
 namespace kademlia {
 
+namespace test {
+class NodeImplTest;
+}  // namespace test
+
 // This class represents a kademlia node providing the API to join the network,
 // find nodes and values, store, delete and update values, as well as the
 // methods to access the local storage of the node and its routing table.
@@ -214,6 +218,7 @@ class Node {
   boost::uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
 
+  friend class test::NodeImplTest;
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;
