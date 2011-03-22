@@ -52,7 +52,7 @@ namespace test {
 static const boost::uint16_t k = 8;
 static const boost::uint16_t alpha = 3;
 static const boost::uint16_t beta = 2;
-static const boost::uint16_t randomnoresponserate = 20; // in percentage
+static const boost::uint16_t randomnoresponserate = 20;  // in percentage
 
 void FindNodeCallback(RankInfoPtr rank_info,
                       int result_size,
@@ -234,7 +234,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   }
 
   static void SetUpTestCase() {}
-  
+
   static void TearDownTestCase() {}
 
   void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
@@ -285,7 +285,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   std::shared_ptr<boost::asio::io_service> asio_service_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
-}; // NodeImplTest
+};  // NodeImplTest
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
  public:
@@ -311,7 +311,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                            const Contact &peer,
                            StoreFunctor callback,
                            TransportType type));
-  
+
   MOCK_METHOD7(Delete, void(const Key &key,
                             const std::string &value,
                             const std::string &signature,
@@ -319,7 +319,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                             const Contact &peer,
                             DeleteFunctor callback,
                             TransportType type));
-  
+
   MOCK_METHOD5(FindNodes, void(const NodeId &key,
                                const SecurifierPtr securifier,
                                const Contact &contact,
@@ -569,7 +569,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 //     }
     auto it_node = node_ids.begin();
     auto it_end = node_ids.end();
-    while (it_node != it_end){
+    while (it_node != it_end) {
       auto itr = key_indx.find((*it_node));
       if (itr == key_indx.end()) {
         Contact temp_contact = ComposeContact((*it_node), 5000);
@@ -627,7 +627,6 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
       ++no_respond_;
       boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
                                    this, callback));
-
     }
     ++num_of_acquired_;
   }
@@ -682,23 +681,23 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   boost::mutex node_list_mutex_;
   std::vector<Contact> node_list_;
   RankInfoPtr rank_info_;
-  
+
   boost::uint16_t num_of_acquired_;
   boost::uint16_t num_of_deleted_;
   boost::uint16_t respond_;
   boost::uint16_t no_respond_;
-  
+
   std::shared_ptr<RoutingTableContactsContainer> respond_contacts_;
   std::shared_ptr<RoutingTableContactsContainer> down_contacts_;
   NodeId target_id_;
   int threshold_;
-}; //class MockRpcs
+};  // class MockRpcs
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
@@ -853,7 +852,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   //  before all call back from rpc completed. Which will cause "Segmentation
   //  Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-  //SetRpc(old_rpcs);
+  // SetRpc(old_rpcs);
 }
 
 TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
@@ -866,7 +865,7 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
         boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i=0; i < (test::k - 1); ++i) {
+    for (int i = 0; i < (test::k - 1); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, i / alpha);
@@ -903,7 +902,7 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
         boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i=0; i < (test::k - 2); ++i) {
+    for (int i = 0; i < (test::k - 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, i / alpha);
@@ -912,7 +911,8 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     }
     Contact pending_contact = GenerateUniqueContact(node_id_, 499,
                                                     generated_nodes, target);
-    NodeContainerTuple pending_nct(pending_contact, fna->key, (test::k-2) / alpha);
+    NodeContainerTuple pending_nct(pending_contact, fna->key,
+                                   (test::k-2) / alpha);
     pending_nct.state = kSelectedAlpha;
     fna->nc.insert(pending_nct);
     NodeId contact_id = GenerateRandomId(node_id_, 498);
@@ -944,7 +944,7 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
         boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i=0; i < (test::k / 2); ++i) {
+    for (int i = 0; i < (test::k / 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, i / alpha);
@@ -981,18 +981,18 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
         boost::bind(&FindNodeCallback, rank_info_, _1, _2, &done, &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i=0; i < (alpha * (test::k / alpha)); ++i) {
+    for (int i = 0; i < (alpha * (test::k / alpha)); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, i / alpha);
-      if ((i % alpha) < beta ) {
+      if ((i % alpha) < beta) {
         nct.state = kContacted;
       } else {
         nct.state = kSelectedAlpha;
       }
       fna->nc.insert(nct);
     }
-    for (int i=0; i < (test::k % alpha - 2); ++i) {
+    for (int i = 0; i < (test::k % alpha - 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, test::k / alpha);
@@ -1028,7 +1028,7 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
 
     curr_iteration_done = false;
     calledback = false;
-    closest_contacts.clear();;
+    closest_contacts.clear();
     node_->HandleIterationStructure<FindNodesArgs>(last_contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
@@ -1060,7 +1060,7 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
     second_nct.state = kSelectedAlpha;
     fna->nc.insert(second_nct);
 
-    for (int i=2; i < test::k; ++i) {
+    for (int i = 2; i < test::k; ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
       NodeContainerTuple nct(contact, fna->key, i / alpha);
@@ -1105,7 +1105,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
@@ -1259,14 +1259,14 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
-  //SetRpc(old_rpcs);
+  // SetRpc(old_rpcs);
 }
 
 TEST_F(NodeImplTest, BEH_KAD_Delete) {
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
@@ -1406,13 +1406,13 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
-  //SetRpc(old_rpcs);
+  // SetRpc(old_rpcs);
 }
 
 TEST_F(NodeImplTest, BEH_KAD_Update) {
   PopulateRoutingTable(test::k, 500);
 
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
@@ -1630,7 +1630,7 @@ TEST_F(NodeImplTest, BEH_KAD_Update) {
 
 TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   PopulateRoutingTable(test::k, 500);
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
   NodeId key = GenerateRandomId(node_id_, 498);
@@ -1732,12 +1732,12 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-} // FindValue test
+}  // FindValue test
 
-TEST_F(NodeImplTest, FUN_KAD_Downlist) {
+TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   PopulateRoutingTable(test::k, 500);
 
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_ ));
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
@@ -1778,7 +1778,7 @@ TEST_F(NodeImplTest, FUN_KAD_Downlist) {
     while (it != it_end) {
       EXPECT_EQ(test::k, (*it).num_failed_rpcs);
       ++it;
-    }    
+    }
   }
   std::shared_ptr<RoutingTableContactsContainer> temp
       (new RoutingTableContactsContainer());
@@ -1786,7 +1786,7 @@ TEST_F(NodeImplTest, FUN_KAD_Downlist) {
 
   int count = 10 * test::k;
   new_rpcs->PopulateResponseCandidates(count, 499);
-  
+
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
@@ -1868,7 +1868,7 @@ TEST_F(NodeImplTest, FUN_KAD_Downlist) {
     }
   }
   KeyValueSignature kvs_new = MakeKVS(crypto_key_data, 1024, key.String(), "");
-  
+
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
   {
@@ -1945,7 +1945,7 @@ TEST_F(NodeImplTest, FUN_KAD_Downlist) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-} // DownList test
+}  // DownList test
 
 }  // namespace test_nodeimpl
 

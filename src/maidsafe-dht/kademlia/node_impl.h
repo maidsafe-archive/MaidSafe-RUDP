@@ -149,7 +149,7 @@ class Node::Impl {
    *  @param[in] Key The key to locate
    *  @param[in] callback The callback to report the results. */
   void FindNodes(const Key &key, FindNodesFunctor callback);
-  
+
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
   void SetLastSeenToNow(const Contact &contact);
   void IncrementFailedRpcs(const Contact &contact);

@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 
+#include <string>
+
 #include "boost/thread/mutex.hpp"
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/composite_key.hpp"
@@ -133,10 +135,10 @@ typedef boost::multi_index_container<
       boost::multi_index::tag<nc_state_distance>,
       boost::multi_index::composite_key<
         NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),        
+        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
         BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, distance_to_target)
       >
-    >    
+    >
   >
 > NodeContainer;
 
@@ -154,8 +156,11 @@ typedef NodeContainer::index<nc_state_distance>::type&
             NodeContainerByStateDistance;
 
 struct Args {
-  Args(OperationMethod operation_type) : nc(), mutex(), calledback(false),
-                                         operation_type(operation_type) {}
+  explicit Args(OperationMethod operation_type)
+      : nc(),
+        mutex(),
+        calledback(false),
+        operation_type(operation_type) {}
   virtual ~Args() {}
   NodeContainer nc;
   boost::mutex mutex;
@@ -165,14 +170,18 @@ struct Args {
 
 struct RpcArgs {
   RpcArgs(const Contact &c, std::shared_ptr<Args> a)
-      : contact(c), rpc_a(a) {}
+      : contact(c),
+        rpc_a(a) {}
   Contact contact;
   std::shared_ptr<Args> rpc_a;
 };
 
 struct FindNodesArgs : Args {
   FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
-      : Args(kOpFindNode), key(fna_key), callback(fna_callback), round(0) {}
+      : Args(kOpFindNode),
+        key(fna_key),
+        callback(fna_callback),
+        round(0) {}
   NodeId key;
   FindNodesFunctor callback;
   int round;
@@ -190,14 +199,16 @@ struct FindValueArgs : Args {
 };
 
 struct StoreArgs : Args {
-  StoreArgs(StoreFunctor sa_callback) : Args(kOpStore),
-                                        callback(sa_callback) {}
+  explicit StoreArgs(StoreFunctor sa_callback)
+      : Args(kOpStore),
+        callback(sa_callback) {}
   StoreFunctor callback;
 };
 
 struct DeleteArgs : Args {
-  DeleteArgs(DeleteFunctor da_callback) : Args(kOpDelete),
-                                          callback(da_callback) {}
+  explicit DeleteArgs(DeleteFunctor da_callback)
+    : Args(kOpDelete),
+      callback(da_callback) {}
   DeleteFunctor callback;
 };
 
@@ -205,9 +216,12 @@ struct UpdateArgs : Args {
   UpdateArgs(const std::string &new_value, const std::string &new_signature,
              const std::string &old_value, const std::string &old_signature,
              UpdateFunctor ua_callback)
-      :  Args(kOpUpdate), callback(ua_callback),
-         new_value(new_value), new_signature(new_signature),
-         old_value(old_value), old_signature(old_signature) {}
+      : Args(kOpUpdate),
+        callback(ua_callback),
+        new_value(new_value),
+        new_signature(new_signature),
+        old_value(old_value),
+        old_signature(old_signature) {}
   UpdateFunctor callback;
   std::string new_value;
   std::string new_signature;
