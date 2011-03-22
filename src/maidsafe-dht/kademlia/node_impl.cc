@@ -101,7 +101,7 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   boost::mutex::scoped_lock loch_surlaplage(sa->mutex);
   NodeSearchState mark(kContacted);
   if (response_code < 0) {
-    mark = kDown;   
+    mark = kDown;
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(srpc->contact);
   }
@@ -109,7 +109,7 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   NodeContainerByNodeId key_node_indx = sa->nc.get<nc_id>();
   auto it_tuple = key_node_indx.find(srpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
-  
+
   auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
   int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
@@ -161,7 +161,7 @@ void Node::Impl::Store(const Key &key,
                        const boost::posix_time::time_duration &ttl,
                        SecurifierPtr securifier,
                        StoreFunctor callback) {
-  std::shared_ptr<StoreArgs> sa (new StoreArgs(callback));
+  std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
   FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<StoreArgs>,
                              this, _1, _2,
                              key, value, signature, ttl,
@@ -173,7 +173,7 @@ void Node::Impl::Delete(const Key &key,
                         const std::string &signature,
                         SecurifierPtr securifier,
                         DeleteFunctor callback) {
-  std::shared_ptr<DeleteArgs> da (new DeleteArgs(callback));
+  std::shared_ptr<DeleteArgs> da(new DeleteArgs(callback));
   boost::posix_time::time_duration ttl;
   FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<DeleteArgs>,
                              this, _1, _2,
@@ -189,7 +189,7 @@ void Node::Impl::Update(const Key &key,
                         SecurifierPtr securifier,
                         const boost::posix_time::time_duration &ttl,
                         UpdateFunctor callback) {
-  std::shared_ptr<UpdateArgs> ua (new UpdateArgs(new_value, new_signature,
+  std::shared_ptr<UpdateArgs> ua(new UpdateArgs(new_value, new_signature,
                                                  old_value, old_signature,
                                                  callback));
   FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<UpdateArgs>,
@@ -281,7 +281,8 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
   auto it_tuple = key_node_indx.find(drpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  auto pit_pending = drpc->rpc_a->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  auto pit_pending =
+      drpc->rpc_a->nc.get<nc_state>().equal_range(kSelectedAlpha);
   int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
   auto pit_contacted = drpc->rpc_a->nc.get<nc_state>().equal_range(kContacted);
@@ -419,7 +420,7 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
 void Node::Impl::Join(const NodeId &node_id,
           const Port &port,
           const std::vector<Contact> &bootstrap_contacts,
-          JoinFunctor callback){
+          JoinFunctor callback) {
   joined_ = true;
   report_down_contact_->connect(
       ReportDownContactPtr::element_type::slot_type(
@@ -428,112 +429,7 @@ void Node::Impl::Join(const NodeId &node_id,
                     boost::bind(&Node::Impl::MonitoringDownlistThread, this));
 }
 
-// void Node::Impl::JoinFirstNode(const NodeId &node_id,
-//                             const std::string &kad_config_file,
-//                             const IP &ip, const Port &port,
-//                             VoidFunctorOneString callback) {
-//  protobuf::GeneralResponse local_result;
-//  std::string local_result_str;
-//  if (joined_ || !node_id.IsValid()) {
-//    if (joined_) {
-//      local_result.set_result(true);
-//    } else {
-//      local_result.set_result(false);
-//    }
-//    local_result.SerializeToString(&local_result_str);
-//    callback(local_result_str);
-//    return;
-//  }
-//
-////  RegisterService();
-//
-//  node_id_ = node_id;
-//  if (type_ == CLIENT || type_ == CLIENT_PORT_MAPPED) {
-//    // Client nodes can not start a network on their own
-//    local_result.set_result(false);
-//    local_result.SerializeToString(&local_result_str);
-//    callback(local_result_str);
-//    return;
-//  }
-//
-//  local_port_ = port;
-//  if (use_upnp_) {
-////    UPnPMap(local_port_);
-////    if (upnp_mapped_port_ != 0) {
-////      port_ = upnp_mapped_port_;
-////      // It is now directly connected
-////    } else {
-////      local_result.set_result(false);
-////      local_result.SerializeToString(&local_result_str);
-////      callback(local_result_str);
-////      return;
-////    }
-//  } else if (/*ip.empty() || */port == 0) {
-//    local_result.set_result(false);
-//    local_result.SerializeToString(&local_result_str);
-//    callback(local_result_str);
-//    return;
-//  } else {
-//    ip_ = ip;
-//    port_ = port;
-//  }
-//
-//  // Set kad_config_path_
-//  routing_table_.reset(new RoutingTable(node_id_, K_));
-//  routing_table_connection_ =
-//               routing_table_->on_ping_oldest_contact()->connect(
-//      boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
-//
-//  joined_ = true;
-////  service_->set_node_joined(true);
-//
-//  addcontacts_routine_.reset(new boost::thread(&Node::Impl::CheckAddContacts,
-////                                               this));
-//  if (!refresh_routine_started_) {
-////    ptimer_->AddCallLater(kRefreshTime * 1000,
-////                          boost::bind(&Node::Impl::RefreshRoutine, this));
-//    ptimer_->AddCallLater(2000, boost::bind(&Node::Impl::RefreshValuesRoutine,
-////                                            this));
-//    refresh_routine_started_ = true;
-//  }
-//  local_result.set_result(true);
-//  local_result.SerializeToString(&local_result_str);
-//  callback(local_result_str);
-//}
-//
-// void Node::Impl::JoinFirstNode(const std::string &kad_config_file,
-//                             const IP &ip, const Port &port,
-//                             VoidFunctorOneString callback) {
-//  JoinFirstNode(NodeId(NodeId::kRandomId),
-//                  kad_config_file, ip, port, callback);
-// }
-//
-// void Node::Impl::Leave() {
-//  if (joined_) {
-//    if (upnp_mapped_port_ != 0) {
-////      UnMapUPnP();
-//    }
-//    stopping_ = true;
-//    {
-//      boost::mutex::scoped_lock lock(leave_mutex_);
-//      joined_ = false;
-////      service_->set_node_joined(false);
-//      ptimer_->CancelAll();
-////      pchannel_manager_->ClearCallLaters();
-////      UnRegisterService();
-//      data_store_->Clear();
-//      add_ctc_cond_.notify_one();
-////      addcontacts_routine_->join();
-////      SaveBootstrapContacts();
-//      exclude_bs_contacts_.clear();
-//      routing_table_->Clear();
-//      prth_->Clear();
-//    }
-//    stopping_ = false;
-//  }
-// }
-
-// TODO(qi.ma@maidsafe.net):the info of the node reporting these k-closest
+// TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest
 // contacts will need to be recorded during the FindValue process once the
 // CACHE methodology is decided
 template <class T>
@@ -739,9 +635,8 @@ void Node::Impl::IterativeSearchValueResponse(
     if ((!calledback) && (curr_iteration_done))
       IterativeSearch<FindValueArgs>(fva);
   }
-  
-  if (calledback)
-  {
+
+  if (calledback) {
     boost::mutex::scoped_lock loch_surlaplage(fva->mutex);
     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
     // methodology of CACHE is decided
@@ -817,8 +712,7 @@ void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
 //  }
 }
 
-void Node::Impl::ReportDownContact(const Contact &down_contact)
-{
+void Node::Impl::ReportDownContact(const Contact &down_contact) {
   boost::mutex::scoped_lock loch_surlaplage(mutex_);
   down_contacts_.push_back(down_contact.node_id());
   condition_downlist_.notify_one();
