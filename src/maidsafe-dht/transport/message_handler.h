@@ -54,8 +54,21 @@ const SecurityType kNone(0x0);
 const SecurityType kSign(0x1);
 const SecurityType kSignWithParameters(0x2);
 const SecurityType kAsymmetricEncrypt(0x4);
+const SecurityType kSignAndAsymEncrypt(0x5);
 
 namespace transport {
+
+enum MessageType {
+  kManagedEndpointMessage = 1,
+  kNatDetectionRequest,
+  kNatDetectionResponse,
+  kProxyConnectRequest,
+  kProxyConnectResponse,
+  kForwardRendezvousRequest,
+  kForwardRendezvousResponse,
+  kRendezvousRequest,
+  kRendezvousAcknowledgement
+};
 
 namespace protobuf {
 class Endpoint;
@@ -71,39 +84,52 @@ class RendezvousRequest;
 class RendezvousAcknowledgement;
 }  // namespace protobuf
 
+namespace test {
+class TransportMessageHandlerTest_BEH_TRANS_WrapMessageNatDetectionResponse_Test;  // NOLINT
+class TransportMessageHandlerTest_BEH_TRANS_WrapMessageProxyConnectResponse_Test;  // NOLINT
+class TransportMessageHandlerTest_BEH_TRANS_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
+class TransportMessageHandlerTest_BEH_TRANS_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
+}  // namespace test
+
 // Highest possible message type ID, use as offset for type extensions.
 const int kMaxMessageType(1000);
 
 class MessageHandler {
  public:
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::ManagedEndpointMessage&,
-      protobuf::ManagedEndpointMessage*,
-      transport::Timeout*)>> ManagedEndpointMsgSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::NatDetectionRequest&,
-      protobuf::NatDetectionResponse*,
-      transport::Timeout*)>> NatDetectionReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::NatDetectionResponse&)>> NatDetectionRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::ProxyConnectRequest&,
-      protobuf::ProxyConnectResponse*,
-      transport::Timeout*)>> ProxyConnectReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::ProxyConnectResponse&)>> ProxyConnectRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::ForwardRendezvousRequest&,
-      protobuf::ForwardRendezvousResponse*,
-      transport::Timeout*)>> ForwardRendezvousReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::ForwardRendezvousResponse&)>> ForwardRendezvousRspSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::RendezvousRequest&)>> RendezvousReqSigPtr;
-  typedef std::shared_ptr<bs2::signal<void(                   // NOLINT (Fraser)
-      const protobuf::RendezvousAcknowledgement&)>> RendezvousAckSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ManagedEndpointMessage&,
+                       protobuf::ManagedEndpointMessage*,
+                       transport::Timeout*)>> ManagedEndpointMsgSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::NatDetectionRequest&,
+                       protobuf::NatDetectionResponse*,
+                       transport::Timeout*)>> NatDetectionReqSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::NatDetectionResponse&)>>
+          NatDetectionRspSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ProxyConnectRequest&,
+                       protobuf::ProxyConnectResponse*,
+                       transport::Timeout*)>> ProxyConnectReqSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ProxyConnectResponse&)>>
+          ProxyConnectRspSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ForwardRendezvousRequest&,
+                       protobuf::ForwardRendezvousResponse*,
+                       transport::Timeout*)>> ForwardRendezvousReqSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ForwardRendezvousResponse&)>>
+          ForwardRendezvousRspSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::RendezvousRequest&)>>
+          RendezvousReqSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
+          RendezvousAckSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
-                                           const Endpoint&)>> ErrorSigPtr;
+                                           const Endpoint&)>>
+          ErrorSigPtr;
 
   explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : securifier_(securifier),
@@ -178,6 +204,11 @@ class MessageHandler {
   std::shared_ptr<Securifier> securifier_;
 
  private:
+  friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageNatDetectionResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageProxyConnectResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
+
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
@@ -203,3 +234,4 @@ class MessageHandler {
 }  // namespace maidsafe
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_MESSAGE_HANDLER_H_
+
