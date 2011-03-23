@@ -55,7 +55,6 @@ struct Task {
        TaskCallback ops_callback);
 
   const std::string& key() const;
-  const std::string& value() const;
   const std::string& get_public_key_id() const;
 
   KeyValueSignature key_value_signature;
@@ -65,19 +64,15 @@ struct Task {
   TaskCallback ops_callback;
 };
 
-struct TagKeyValuePair {};
 struct TagPublicKeyId {};
+struct TagTaskKey {};
 
 typedef boost::multi_index::multi_index_container<
   Task,
   boost::multi_index::indexed_by<
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<TagKeyValuePair>,
-      boost::multi_index::composite_key<
-        Task,
-        BOOST_MULTI_INDEX_CONST_MEM_FUN(Task, const std::string&, key),
-        BOOST_MULTI_INDEX_CONST_MEM_FUN(Task, const std::string&, value)
-      >
+    boost::multi_index::ordered_non_unique<
+      boost::multi_index::tag<TagTaskKey>,
+      BOOST_MULTI_INDEX_CONST_MEM_FUN(Task, const std::string&, key)
     >,
     boost::multi_index::ordered_non_unique<
       boost::multi_index::tag<TagPublicKeyId>,
@@ -87,16 +82,19 @@ typedef boost::multi_index::multi_index_container<
   >
 > TaskIndex;
 // This class temporarily holds the tasks of Service and reduces the number of
-// network lookup for same sender.
+// network lookup for same requester.
 class SenderTask  {
  public:
   SenderTask();
 
   ~SenderTask();
-  // Adds a task into the multi index and executed it when
+  // Adds a task into the multi index and executes it when the
   // SenderTaskCallback() is called after network lookup for a given sender.
+  // Dosen't store task if provided key is already stored and is associated
+  // with different public_key_id.
   // Modifies is_new_id to true if it is a task by the sender whose
   // public_key_id is not present in the  multi index.
+  // Returns false if stored key is associated with different public_key_id.
   // Returns true if successfully added into the multi index or false otherwise.
   bool AddTask(KeyValueSignature key_value_signature,
                 const transport::Info info,
@@ -107,8 +105,6 @@ class SenderTask  {
 
   // Executes all the tasks present in the multi index under given
   // public_key_id and delete them from the multi index after the execution.
-  // Drop all the tasks for a given public_key_id if it receives empty
-  // public_key or public_key_validation.
   // Does nothing if the public_key_id is empty or task for given public_key_id
   // is not present in the multi index.
   void SenderTaskCallback(std::string public_key_id, std::string public_key,
@@ -117,6 +113,7 @@ class SenderTask  {
  private:
   friend class test::Sender_TaskTest;
   friend class test::ServicesTest;
+
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;

@@ -45,9 +45,6 @@ Task::Task(KeyValueSignature key_value_signature,
 const std::string& Task::key() const {
   return key_value_signature.key;
 }
-const std::string& Task::value() const {
-  return key_value_signature.value;
-}
 
 const std::string& Task::get_public_key_id() const {
   return public_key_id;
@@ -74,16 +71,26 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
   UpgradeLock upgrade_lock(shared_mutex_);
   TaskIndex::index<TagPublicKeyId>::type& index_by_public_key_id =
       task_index_->get<TagPublicKeyId>();
-  UpgradeToUniqueLock unique_lock(upgrade_lock);
+
   auto it = index_by_public_key_id.find(public_key_id);
   is_new_id = (it == index_by_public_key_id.end());
-  auto itr = index_by_public_key_id.insert(task);
-  return itr.second;
+
+  // Rejecting if stored key is associated with different public_key_id
+  TaskIndex::index<TagTaskKey>::type& index_by_key =
+      task_index_->get<TagTaskKey>();
+  auto itr = index_by_key.find(key_value_signature.key);
+  if (itr != index_by_key.end()) {
+    if ((*itr).public_key_id != public_key_id)
+      return false;
+  }
+  UpgradeToUniqueLock unique_lock(upgrade_lock);
+  auto itr_return = index_by_public_key_id.insert(task);
+  return itr_return.second;
 }
 
 void SenderTask::SenderTaskCallback(std::string public_key_id,
-                                 std::string public_key,
-                                 std::string public_key_validation) {
+                                    std::string public_key,
+                                    std::string public_key_validation) {
   if (public_key_id.empty())
     return;
   UpgradeLock upgrade_lock(shared_mutex_);
