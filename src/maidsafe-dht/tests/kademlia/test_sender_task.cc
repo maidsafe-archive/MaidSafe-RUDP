@@ -41,7 +41,7 @@ namespace kademlia {
 
 namespace test {
 
-const boost::posix_time::seconds kNetworkDelay(2);
+const boost::posix_time::milliseconds kNetworkDelay(200);
 
 class Sender_TaskTest: public testing::Test {
  public:
@@ -77,19 +77,20 @@ class Sender_TaskTest: public testing::Test {
   bool HasDataInIndex(KeyValueSignature key_value_signature,
                       const RequestAndSignature request_signature,
                       const std::string public_key_id) {
-    if (key_value_signature.key.empty() || key_value_signature.value.empty())
+    if (key_value_signature.key.empty())
       return false;
-    TaskIndex::index<TagKeyValuePair>::type& index_by_key_value =
-      sender_task_->task_index_->get<TagKeyValuePair>();
-    auto itr = index_by_key_value.
-                   find(boost::make_tuple(key_value_signature.key,
-                                          key_value_signature.value));
-    if (itr == index_by_key_value.end())
-      return false;
-    return (((*itr).key_value_signature.signature ==
-                key_value_signature.signature) &&
-            ((*itr).request_signature == request_signature) &&
-            ((*itr).public_key_id == public_key_id));
+    TaskIndex::index<TagTaskKey>::type& index_by_key =
+        sender_task_->task_index_->get<TagTaskKey>();
+    auto itr = index_by_key.equal_range(key_value_signature.key);
+    for ( ; itr.first != itr.second; ++itr.first) {
+      if ((*itr.first).key_value_signature.value == key_value_signature.value) {
+        return (((*itr.first).key_value_signature.signature ==
+                    key_value_signature.signature) &&
+                ((*itr.first).request_signature == request_signature) &&
+                ((*itr.first).public_key_id == public_key_id));
+      }
+    }
+    return false;
   }
 
   void TestTaskCallBack1(KeyValueSignature,
@@ -134,7 +135,7 @@ class Sender_TaskTest: public testing::Test {
   void DummyFind(const std::string &,
       GetPublicKeyAndValidationCallback callback) {
     // Imitating delay in lookup for kNetworkDelay seconds
-    boost::this_thread::sleep(boost::posix_time::seconds(kNetworkDelay));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
     callback("", "");
   }
 
@@ -174,17 +175,17 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
   EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
   EXPECT_EQ(size_t(1), GetSenderTaskSize());
   // Adding same task again
-  EXPECT_FALSE(sender_task_->AddTask(kvs, info_, request_signature,
-                                     "public_key_id_1", task_cb, is_new_id));
+  EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
+                                    "public_key_id_1", task_cb, is_new_id));
   EXPECT_FALSE(is_new_id);
-  EXPECT_EQ(size_t(1), GetSenderTaskSize());
+  EXPECT_EQ(size_t(2), GetSenderTaskSize());
 
-  // Adding new task with same key-value
+  // Adding new task with same key-value different public_key_id
   EXPECT_FALSE(sender_task_->AddTask(kvs, info_, request_signature,
                                      "public_key_id_2", task_cb, is_new_id));
   EXPECT_TRUE(is_new_id);
   EXPECT_FALSE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
-  EXPECT_EQ(size_t(1), GetSenderTaskSize());
+  EXPECT_EQ(size_t(2), GetSenderTaskSize());
 
   { // Adding new task with same public key id
     crypto_key_data.GenerateKeys(1024);
@@ -193,7 +194,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
                                       "public_key_id_1", task_cb, is_new_id));
     EXPECT_FALSE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
-    EXPECT_EQ(size_t(2), GetSenderTaskSize());
+    EXPECT_EQ(size_t(3), GetSenderTaskSize());
   }
   // Adding new task with new public key id
   {
@@ -203,7 +204,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
                                       "public_key_id_2", task_cb, is_new_id));
     EXPECT_TRUE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
-    EXPECT_EQ(size_t(3), GetSenderTaskSize());
+    EXPECT_EQ(size_t(4), GetSenderTaskSize());
   }
   // Adding new task with different callback
   {
@@ -216,7 +217,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
                                       "public_key_id_1", task_cb, is_new_id));
     EXPECT_FALSE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
-    EXPECT_EQ(size_t(4), GetSenderTaskSize());
+    EXPECT_EQ(size_t(5), GetSenderTaskSize());
   }
 }
 
@@ -238,7 +239,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
   sender_task_->SenderTaskCallback("", "", "");
   EXPECT_EQ(size_t(1), GetSenderTaskSize());
   EXPECT_EQ(0u , count_callback_1_);
-  // Valid data
+  // Valid data (public_key_id)
   sender_task_->SenderTaskCallback("public_key_id_1", "public_key",
                                    "public_key_validation");
   EXPECT_EQ(size_t(0), GetSenderTaskSize());
@@ -272,7 +273,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallbackMulthiThreaded) {
                                        _4, _5);
   bool is_new_id(true);
   boost::uint16_t i(0);
-  // Tasks to be removed
+  // Tasks to be executed and removed
   for (i = 0; i < 10; ++i) {
     crypto_key_data.GenerateKeys(1024);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
@@ -297,7 +298,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallbackMulthiThreaded) {
   }
   EXPECT_EQ(size_t(i * 4), GetSenderTaskSize());
   std::vector<KeyValueSignature> kvs_vector;
-  // Tasks added and not removed
+  // Tasks added and not executed and removed
   for (i = 0; i < 3; ++i) {
     crypto_key_data.GenerateKeys(1024);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");

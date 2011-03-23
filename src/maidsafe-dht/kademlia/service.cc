@@ -211,8 +211,21 @@ void Service::Store(const transport::Info &info,
     DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                             request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(request.key(),
-      request.signed_value().value(), request.signed_value().signature());
+                                        request.signed_value().value(),
+                                        request.signed_value().signature());
+
   RequestAndSignature request_signature(message, message_signature);
   TaskCallback store_cb = boost::bind(&Service::StoreCallback, this, _1,
                                       request, _2, _3, _4, _5);
@@ -243,8 +256,21 @@ void Service::StoreRefresh(const transport::Info &info,
     DLOG(WARNING) << "StoreFresh Input Error" << std::endl;
     return;
   }
+
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
+
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(ori_store_request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                             ori_store_request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(ori_store_request.key(),
                         ori_store_request.signed_value().value(),
                         ori_store_request.signed_value().signature());
@@ -255,14 +281,14 @@ void Service::StoreRefresh(const transport::Info &info,
                                               _4, _5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
-                            request.sender().public_key_id(), store_refresh_cb,
-                            is_new_id)) {
+                            ori_store_request.sender().public_key_id(),
+                            store_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
-      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
-                                             cb);
+                      ori_store_request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(
+          ori_store_request.sender().public_key_id(), cb);
     }
     response->set_result(true);
   }
@@ -277,7 +303,7 @@ void Service::StoreCallback(KeyValueSignature key_value_signature,
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
-      public_key, public_key_validation, false))
+                       public_key, public_key_validation, false))
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
 }
@@ -336,9 +362,20 @@ void Service::Delete(const transport::Info &info,
     DLOG(WARNING) << "Delete Input Error" << std::endl;
     return;
   }
+
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
     return;
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                             request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
     // Only the signer of the value can delete it.
     // this will be done in message_handler, no need to do it here
 //   if (!crypto::AsymCheckSig(message, message_signature,
@@ -378,12 +415,24 @@ void Service::DeleteRefresh(const transport::Info &info,
   }
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(ori_delete_request.key()))
     return;
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(ori_delete_request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                             ori_delete_request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(ori_delete_request.key(),
                         ori_delete_request.signed_value().value(),
-                        ori_delete_request.signed_value().signature());
+                            ori_delete_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
   TaskCallback delete_refresh_cb = boost::bind(&Service::DeleteRefreshCallback,
@@ -391,14 +440,14 @@ void Service::DeleteRefresh(const transport::Info &info,
                                                _5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
-                            request.sender().public_key_id(), delete_refresh_cb,
-                            is_new_id)) {
+                            ori_delete_request.sender().public_key_id(),
+                            delete_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
-      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
-                                             cb);
+                      ori_delete_request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(
+          ori_delete_request.sender().public_key_id(), cb);
     }
     response->set_result(true);
   }
