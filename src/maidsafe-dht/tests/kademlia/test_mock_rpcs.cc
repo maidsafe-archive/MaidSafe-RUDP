@@ -192,8 +192,19 @@ class MockMessageHandler : public MessageHandler {
     }
     case kDeleteRefreshRequest: {
       protobuf::DeleteRefreshResponse response;
-      if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_delete_refresh_response())(info, response);
+      switch (result_type_) {
+        case 1: {
+          response.set_result(true);
+          break;
+        }
+        case 2: {
+          response.set_result(false);
+          break;
+        }
+        default:
+          break;
+      }
+      (*on_delete_refresh_response())(info, response);
       break;
     }
     case kDownlistNotification: {
@@ -418,6 +429,62 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
                                          &b, &m, &result);
     boost::thread t1(&Rpcs::Delete, rpcs_, NodeId(NodeId::kRandomId), "",
                      "", securifier_, peer_, df, kTcp);
+    while (!b2) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      boost::mutex::scoped_lock loch_lomond(m);
+      b2 = b;
+    }
+    switch (i) {
+      case 0: {
+        ASSERT_EQ(transport::kSuccess, result);
+        result_type = 2;
+        break;
+      }
+      case 1: {
+        ASSERT_EQ(transport::kError, result);
+        result_type = 1;
+        repeat_factor = mock_rpcs::kFailureTolerance;
+        break;
+      }
+      case 2: {
+        ASSERT_EQ(transport::kSuccess, result);
+        repeat_factor = 0;
+        break;
+      }
+      case 3: {
+        ASSERT_EQ(transport::kError, result);
+        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        break;
+      }
+      case 4: {
+        ASSERT_EQ(transport::kSuccess, result);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+
+TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
+  int repeat_factor(1);
+  int result_type(1);
+  for (int i = 0; i < 5; ++i) {
+    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
+                                                   kDeleteRefreshRequest,
+                                                   repeat_factor,
+                                                   result_type));
+    bool b(false), b2(false);
+    int result(999);
+    boost::mutex m;
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+
+    Rpcs::DeleteRefreshFunctor drf = boost::bind(&MockRpcsTest::Callback, this,
+                                                 _1, _2, &b, &m, &result);
+    boost::thread t1(&Rpcs::DeleteRefresh, rpcs_, "", "", securifier_, peer_,
+                     drf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
