@@ -197,11 +197,12 @@ class MockMessageHandler : public MessageHandler {
       break;
     }
     case kDownlistNotification: {
-      /*if (security_type != kAsymmetricEncrypt)
-        return;
       protobuf::DownlistNotification request;
-      if (request.ParseFromString(payload) && request.IsInitialized())
-        (*on_downlist_notification_)(info, request, timeout); */
+      transport::protobuf::WrapperMessage wrapper;
+      std::string serialised_message(payload.substr(1));
+      wrapper.ParseFromString(serialised_message);
+      if (request.ParseFromString(wrapper.payload()))
+        ASSERT_EQ(size_t(1), request.node_ids_size());
       break;
     }
     default:
@@ -511,24 +512,23 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
   }
 }
 
-/*TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
+TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
   bool b(false), b2(false);
   int result(999);
   boost::mutex m;
+  std::vector<NodeId> node_ids;
+  NodeId node_id(NodeId::kRandomId);
+  node_ids.push_back(node_id);
+  boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
+                                                 kDownlistNotification,
+                                                 mock_rpcs::kFailureTolerance,
+                                                 1));
   EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
       .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
       &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
 
-  Rpcs::PingFunctor pf = boost::bind(&MockRpcsTest::callback, this, _1, _2, &b,
-                                     &m, &result);
-  boost::thread t1(&Rpcs::Ping, rpcs_, securifier_, peer_, pf, kTcp);
-  while (!b2) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    boost::mutex::scoped_lock loch_lomond(m);
-    b2 = b;
-  } 
-  ASSERT_EQ(transport::kError, result);
-}*/
+  boost::thread t1(&Rpcs::Downlist, rpcs_, node_ids, securifier_, peer_, kTcp);
+}
 
 }   // namespace maidsafe
 
