@@ -127,8 +127,27 @@ class MockMessageHandler : public MessageHandler {
     }
     case kFindValueRequest: {
       protobuf::FindValueResponse response;
-      if (response.ParseFromString(payload) && response.IsInitialized())
-        (*on_find_value_response())(info, response);
+      switch (result_type_) {
+        case 1: {
+          protobuf::SignedValue value;
+          value.set_value("value");
+          value.set_signature("signature");
+          Contact contact, alternative_value_holder;
+          response.set_result(true);
+          *response.add_closest_nodes() = ToProtobuf(contact);
+          *response.add_signed_values() = value;
+          *response.mutable_alternative_value_holder() =
+              ToProtobuf(alternative_value_holder);
+          break;
+        }
+        case 2: {
+          response.set_result(false);
+          break;
+        }
+        default:
+          break;
+      }
+      (*on_find_value_response())(info, response);
       break;
     }
     case kFindNodesRequest: {
@@ -147,7 +166,7 @@ class MockMessageHandler : public MessageHandler {
         default:
           break;
       }
-        (*on_find_nodes_response())(info, response);
+      (*on_find_nodes_response())(info, response);
       break;
     }
     case kStoreRequest: {
@@ -274,9 +293,8 @@ class MockRpcsTest : public testing::Test {
   MockRpcsTest()
           : asio_service_(new boost::asio::io_service),
             securifier_(),
-            peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)),
-            rsa_kp_() {
-     securifier_.reset(new Securifier("", "", ""));
+            peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)) {
+    securifier_.reset(new Securifier("", "", ""));
   }
 
   ~MockRpcsTest() {}
@@ -304,14 +322,20 @@ class MockRpcsTest : public testing::Test {
                          boost::mutex *m, int *query_result) {
     Callback(rank_info, result, b, m, query_result);
   }
+  void FindValueCallback(RankInfoPtr rank_info, const int &result,
+                         const std::vector<std::string> &values,
+                         const std::vector<Contact> &contacts, const Contact
+                         &contact, bool *b, boost::mutex *m,
+                         int *query_result) {
+    Callback(rank_info, result, b, m, query_result);
+  }
   protected:
   IoServicePtr asio_service_;
   SecurifierPtr securifier_;
   Contact peer_;
-  crypto::RsaKeyPair rsa_kp_;
 };
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_ping) {
+TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -616,6 +640,64 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
     switch (i) {
       case 0: {
         ASSERT_EQ(transport::kSuccess, result);
+        result_type = 2;
+        break;
+      }
+      case 1: {
+        ASSERT_EQ(transport::kError, result);
+        result_type = 1;
+        repeat_factor = mock_rpcs::kFailureTolerance;
+        break;
+      }
+      case 2: {
+        ASSERT_EQ(transport::kSuccess, result);
+        repeat_factor = 0;
+        break;
+      }
+      case 3: {
+        ASSERT_EQ(transport::kError, result);
+        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        break;
+      }
+      case 4: {
+        ASSERT_EQ(transport::kSuccess, result);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+
+TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
+  int repeat_factor(1);
+  int result_type(1);
+  for (int i = 0; i < 5; ++i) {
+    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
+                                                   kFindValueRequest,
+                                                   repeat_factor,
+                                                   result_type));
+    bool b(false), b2(false);
+    int result(999);
+    boost::mutex m;
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+
+    Rpcs::FindValueFunctor fvf = boost::bind(&MockRpcsTest::FindValueCallback,
+                                             this, _1, _2, _3, _4, _5, &b, &m,
+                                             &result);
+
+    boost::thread t1(&Rpcs::FindValue, rpcs_, NodeId(NodeId::kRandomId),
+                     securifier_, peer_, fvf, kTcp);
+    while (!b2) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      boost::mutex::scoped_lock loch_lomond(m);
+      b2 = b;
+    }
+    switch (i) {
+      case 0: {
+        ASSERT_EQ(transport::kSuccess, result) << i;
         result_type = 2;
         break;
       }
