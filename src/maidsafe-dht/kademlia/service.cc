@@ -333,7 +333,7 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                                const bool is_refresh) {
   if (!securifier_->Validate(key_value_signature.value,
                              key_value_signature.signature,
-                             request.signing_public_key_id(),
+                             request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
                              request.key() ) ) {
@@ -494,7 +494,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                                 const bool is_refresh) {
   if (!securifier_->Validate(key_value_signature.value,
                              key_value_signature.signature,
-                             request.signing_public_key_id(),
+                             request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
                              request.key() ) ) {
