@@ -81,6 +81,7 @@ FILE(GLOB PROTO_FILES_KADEMLIA RELATIVE ${PROTO_SOURCE_DIR} "${PROTO_SOURCE_DIR}
 FILE(GLOB PROTO_FILES_TRANSPORT RELATIVE ${PROTO_SOURCE_DIR} "${PROTO_SOURCE_DIR}/maidsafe-dht/transport/*.proto")
 SET(PROTO_FILES "${PROTO_FILES_KADEMLIA};${PROTO_FILES_TRANSPORT}")
 INCLUDE(maidsafe_standard_setup)
+HANDLE_VERSIONS(${PROJECT_SOURCE_DIR}/src/maidsafe-dht/version.h)
 
 ###################################################################################################
 # Set up all files as GLOBs                                                                       #
@@ -334,7 +335,7 @@ TEST_SUMMARY_OUTPUT()
 ###################################################################################################
 # Install details                                                                                 #
 ###################################################################################################
-INCLUDE(maidsafe_standard_completion)
+FINAL_MESSAGE()
 
 SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node-api.h
@@ -351,11 +352,13 @@ SET(MAIDSAFE_TRANS_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.h)
 
-INSTALL(TARGETS maidsafe_dht_static EXPORT maidsafe_dht ARCHIVE DESTINATION lib)
+SET(EXPORT_NAME maidsafe_dht)
+INSTALL(TARGETS maidsafe_dht_static EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
 INSTALL(FILES ${MAIDSAFE_KAD_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/kademlia)
 INSTALL(FILES ${MAIDSAFE_MAIN_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht)
 INSTALL(FILES ${MAIDSAFE_TRANS_INSTALL_FILES} DESTINATION include/maidsafe/maidsafe-dht/transport)
-INSTALL(EXPORT maidsafe_dht DESTINATION share/maidsafe)
+INSTALL(EXPORT ${EXPORT_NAME} DESTINATION share/maidsafe)
+ADD_VERSION_INFO_TO_INSTALLED_FILE()
 
 IF(CMAKE_BUILD_TYPE MATCHES "Release")
   SET(CPACK_PACKAGE_VERSION_MAJOR "0")

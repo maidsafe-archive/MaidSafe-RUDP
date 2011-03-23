@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 #define MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 
+#include <boost/concept_check.hpp>
 #include <memory>
 #include <string>
 #include "boost/function.hpp"
@@ -62,8 +63,52 @@ class UpdateResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
+namespace test {
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessagePingResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindValueResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindNodesResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreRefreshResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteRefreshResponse_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessagePingRqst_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessagePingRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFValRqst_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFValRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRqst_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRqst_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRqst_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRsp_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRqst_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRsp_Test;
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test;  // NOLINT
+class KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test;
+class KademliaMessageHandlerTest;
+}  // namespace test
+
 // Highest possible message type ID, use as offset for type extensions.
 const int kMaxMessageType(transport::kMaxMessageType + 1000);
+
+enum MessageType {
+  kPingRequest = transport::kMaxMessageType + 1,
+  kPingResponse,
+  kFindValueRequest,
+  kFindValueResponse,
+  kFindNodesRequest,
+  kFindNodesResponse,
+  kStoreRequest,
+  kStoreResponse,
+  kStoreRefreshRequest,
+  kStoreRefreshResponse,
+  kDeleteRequest,
+  kDeleteResponse,
+  kDeleteRefreshRequest,
+  kDeleteRefreshResponse,
+  kDownlistNotification
+};
 
 class MessageHandler : public transport::MessageHandler {
  public:
@@ -212,6 +257,7 @@ class MessageHandler : public transport::MessageHandler {
   DownlistNtfSigPtr on_downlist_notification() {
     return on_downlist_notification_;
   }
+
  protected:
   virtual void ProcessSerialisedMessage(const int &message_type,
                                         const std::string &payload,
@@ -220,7 +266,32 @@ class MessageHandler : public transport::MessageHandler {
                                         const transport::Info &info,
                                         std::string *message_response,
                                         transport::Timeout *timeout);
+
  private:
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessagePingResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindValueResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageFindNodesResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageStoreRefreshResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_WrapMessageDeleteRefreshResponse_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessagePingRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessagePingRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFValRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFValRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageFNodeRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageStoreRefRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRqst_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDeleteRefRsp_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest_BEH_KAD_ProcessSerialisedMessageDownlist_Test; // NOLINT
+  friend class test::KademliaMessageHandlerTest;
+
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
