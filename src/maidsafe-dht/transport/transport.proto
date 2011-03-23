@@ -24,6 +24,7 @@ message ManagedEndpointMessage {
 message NatDetectionRequest {
   repeated bytes local_ips = 1;
   required int32 local_port = 2;
+  optional bool full_detection = 3;
 }
 
 message NatDetectionResponse {
@@ -51,6 +52,8 @@ message ForwardRendezvousResponse {
 message RendezvousRequest {
   required Endpoint originator_endpoint = 1;
 }
+
 message RendezvousAcknowledgement {
   required Endpoint originator_endpoint = 1;
 }
+
