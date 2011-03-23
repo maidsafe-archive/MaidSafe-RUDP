@@ -54,8 +54,6 @@ void Rpcs::Ping(SecurifierPtr securifier,
   rpcs_failure_peer->peer = peer;
   std::string message =
       connected_objects.get<1>()->WrapMessage(request, peer.public_key());
-
-  // Connect callback to message handler for incoming parsed response or error
   connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
       &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
       connected_objects, callback, message, rpcs_failure_peer));
@@ -269,41 +267,23 @@ void Rpcs::PingCallback(
     PingFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
-//  std::cout << "Rpcs::PingCallback - AAAA: " << rpcs_failure_peer->rpcs_failure
-//            << " < " << kFailureTolerance << "?" << std::endl;
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
-//    std::cout << "Rpcs::PingCallback - Retry" << std::endl;
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
-        &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
-        connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::PingCallback, this, "", _1, transport::Info(),
-        protobuf::PingResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
   } else {
-//    if (transport_condition != transport::kSuccess)
-//      std::cout << "Rpcs::PingCallback - AAAA: " << std::endl;
-//    if (rpcs_failure_peer->rpcs_failure < kFailureTolerance)
-//      std::cout << "Rpcs::PingCallback - BBBB: " << std::endl;
     if (transport_condition != transport::kSuccess) {
-//      std::cout << "Rpcs::PingCallback - Failed" << std::endl;
       callback(RankInfoPtr(new transport::Info(info)), transport_condition);
       return;
     }
     if (response.IsInitialized() && response.echo() == "pong") {
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-      std::cout << "Rpcs::PingCallback - Success" << std::endl;
     } else {
       callback(RankInfoPtr(new transport::Info(info)), -1);
-      std::cout << "Rpcs::PingCallback - Other" << std::endl;
     }
   }
-// callback(RankInfoPtr(new transport::Info(info)), transport_condition);
 }
 
 void Rpcs::FindValueCallback(
@@ -318,13 +298,6 @@ void Rpcs::FindValueCallback(
   if ((transport_condition != transport::kSuccess) &&
     (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_find_value_response()->connect(boost::bind(
-        &Rpcs::FindValueCallback, this, transport::kSuccess, _1, _2,
-        connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::FindValueCallback, this, _1, transport::Info(),
-        protobuf::FindValueResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
@@ -369,13 +342,6 @@ void Rpcs::FindNodesCallback(
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_find_nodes_response()->connect(boost::bind(
-        &Rpcs::FindNodesCallback, this, transport::kSuccess, _1, _2,
-        connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::FindNodesCallback, this, _1, transport::Info(),
-        protobuf::FindNodesResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
@@ -411,13 +377,6 @@ void Rpcs::StoreCallback(
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_store_response()->connect(boost::bind(
-        &Rpcs::StoreCallback, this, transport::kSuccess, _1, _2,
-        connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::StoreCallback, this, _1, transport::Info(),
-        protobuf::StoreResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
@@ -444,13 +403,6 @@ void Rpcs::StoreRefreshCallback(
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_store_refresh_response()->connect(
-        boost::bind(&Rpcs::StoreRefreshCallback, this, transport::kSuccess, _1,
-        _2, connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::StoreRefreshCallback, this, _1, transport::Info(),
-        protobuf::StoreRefreshResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
@@ -477,13 +429,6 @@ void Rpcs::DeleteCallback(
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_delete_response()->connect(boost::bind(
-      &Rpcs::DeleteCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback, message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::DeleteCallback, this, _1, transport::Info(),
-        protobuf::DeleteResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
@@ -510,14 +455,6 @@ void Rpcs::DeleteRefreshCallback(
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
-    connected_objects.get<1>()->on_delete_refresh_response()->connect(
-        boost::bind(&Rpcs::DeleteRefreshCallback, this,
-                    transport::kSuccess, _1, _2, connected_objects, callback,
-                    message, rpcs_failure_peer));
-    connected_objects.get<1>()->on_error()->connect(boost::bind(
-        &Rpcs::DeleteRefreshCallback, this, _1, transport::Info(),
-        protobuf::DeleteRefreshResponse(), connected_objects, callback, message,
-        rpcs_failure_peer));
     connected_objects.get<0>()->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
