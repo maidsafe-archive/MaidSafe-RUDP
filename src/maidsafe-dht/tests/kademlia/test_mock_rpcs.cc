@@ -743,6 +743,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
       &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
 
   boost::thread t1(&Rpcs::Downlist, rpcs_, node_ids, securifier_, peer_, kTcp);
+  t1.join();
 }
 
 }   // namespace maidsafe
