@@ -122,7 +122,6 @@ void Rpcs::Store(const Key &key,
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
-  request.set_signing_public_key_id(securifier->kSigningKeyId());
   std::string message =
       connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
@@ -176,7 +175,6 @@ void Rpcs::Delete(const Key &key,
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
-  request.set_signing_public_key_id(securifier->kSigningKeyId());
   std::string message =
       connected_objects.get<1>()->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error

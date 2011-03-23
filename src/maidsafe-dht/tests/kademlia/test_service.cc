@@ -225,33 +225,23 @@ class ServicesTest: public testing::Test {
   }
 
   protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-                            const KeyValueSignature& kvs,
-                            const crypto::RsaKeyPair& crypto_key_data) {
+                            const KeyValueSignature& kvs) {
     protobuf::StoreRequest store_request;
     store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     store_request.set_key(kvs.key);
     store_request.mutable_signed_value()->set_signature(kvs.signature);
     store_request.mutable_signed_value()->set_value(kvs.value);
     store_request.set_ttl(3600*24);
-    store_request.set_signing_public_key_id(
-        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-            crypto::AsymSign(crypto_key_data.public_key(),
-                             crypto_key_data.private_key())));
     return store_request;
   }
 
   protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                            const KeyValueSignature& kvs,
-                            const crypto::RsaKeyPair& crypto_key_data) {
+                            const KeyValueSignature& kvs) {
     protobuf::DeleteRequest delete_request;
     delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     delete_request.set_key(kvs.key);
     delete_request.mutable_signed_value()->set_signature(kvs.signature);
     delete_request.mutable_signed_value()->set_value(kvs.value);
-    delete_request.set_signing_public_key_id(
-        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-            crypto::AsymSign(crypto_key_data.public_key(),
-                            crypto_key_data.private_key())));
     return delete_request;
   }
 
@@ -289,8 +279,7 @@ class ServicesTest: public testing::Test {
   bool DoStore(NodeId sender_id, KeyValueSignature kvs,
                crypto::RsaKeyPair& crypto_key_data) {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
-    protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
-                                                            crypto_key_data);
+    protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
     std::string message = store_request.SerializeAsString();
     std::string message_sig = crypto::AsymSign(message,
                                                crypto_key_data.private_key());
@@ -303,8 +292,7 @@ class ServicesTest: public testing::Test {
   bool DoDelete(NodeId sender_id, KeyValueSignature kvs,
                 crypto::RsaKeyPair& crypto_key_data) {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
-    protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
-                                                               crypto_key_data);
+    protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
     std::string delete_message = delete_request.SerializeAsString();
     std::string delete_message_sig =
         crypto::AsymSign(delete_message, crypto_key_data.private_key());
@@ -321,8 +309,7 @@ class ServicesTest: public testing::Test {
                       crypto::RsaKeyPair& crypto_key_data) {
     Contact sender_orig = ComposeContactWithKey(sender_id_orig_req, 5001,
                                                 crypto_key_data);
-    protobuf::StoreRequest store_request = MakeStoreRequest(sender_orig, kvs,
-                                                            crypto_key_data);
+    protobuf::StoreRequest store_request = MakeStoreRequest(sender_orig, kvs);
     std::string message = store_request.SerializeAsString();
     std::string message_sig = crypto::AsymSign(message,
                                                crypto_key_data.private_key());
@@ -346,8 +333,8 @@ class ServicesTest: public testing::Test {
                        crypto::RsaKeyPair& crypto_key_data) {
     Contact sender_orig = ComposeContactWithKey(sender_id_orig_req, 5001,
                                                 crypto_key_data);
-    protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender_orig, kvs,
-                                                               crypto_key_data);
+    protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender_orig,
+                                                               kvs);
     std::string delete_message = delete_request.SerializeAsString();
     std::string delete_message_sig = crypto::AsymSign(delete_message,
                                          crypto_key_data.private_key());
@@ -483,8 +470,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
-                                                          crypto_key_data);
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
   std::string message_sig = crypto::AsymSign(message,
@@ -579,14 +565,12 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
-                                                          crypto_key_data);
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
   std::string store_message_sig = crypto::AsymSign(store_message,
                                       crypto_key_data.private_key());
 
-  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
-                                                             crypto_key_data);
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
   std::string delete_message_sig =
       crypto::AsymSign(delete_message, crypto_key_data.private_key());
@@ -687,8 +671,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
 
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
-                                                          crypto_key_data);
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
   std::string message_sig = crypto::AsymSign(message,
@@ -796,14 +779,12 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
 
-  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs,
-                                                          crypto_key_data);
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
   std::string store_message_sig = crypto::AsymSign(store_message,
                                       crypto_key_data.private_key());
 
-  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
-                                                             crypto_key_data);
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
   std::string delete_message_sig = crypto::AsymSign(delete_message,
                                        crypto_key_data.private_key());
