@@ -95,11 +95,12 @@ class KademliaMessageHandlerTest: public testing::Test {
   }
 
   void PingRequestSlot(const transport::Info&, const protobuf::PingRequest&,
-                       protobuf::PingResponse*, transport::Timeout*) {
+                       protobuf::PingResponse* response, transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kPingRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_echo("pong");
   }
 
   void PingResponseSlot(const transport::Info&,
@@ -112,12 +113,13 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void FindValueRequestSlot(const transport::Info&,
                             const protobuf::FindValueRequest&,
-                            protobuf::FindValueResponse*,
+                            protobuf::FindValueResponse* response,
                             transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kFindValueRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void FindValueResponseSlot(const transport::Info&,
@@ -130,12 +132,13 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void FindNodesRequestSlot(const transport::Info&,
                             const protobuf::FindNodesRequest&,
-                            protobuf::FindNodesResponse*,
+                            protobuf::FindNodesResponse* response,
                             transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kFindNodesRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void FindNodesResponseSlot(const transport::Info&,
@@ -149,11 +152,13 @@ class KademliaMessageHandlerTest: public testing::Test {
   void StoreRequestSlot(const transport::Info&,
                         const protobuf::StoreRequest&,
                         const std::string&, const std::string&,
-                        protobuf::StoreResponse*, transport::Timeout*) {
+                        protobuf::StoreResponse* response,
+                        transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kStoreRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void StoreResponseSlot(const transport::Info&,
@@ -166,12 +171,13 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void StoreRefreshRequestSlot(const transport::Info&,
                                const protobuf::StoreRefreshRequest&,
-                               protobuf::StoreRefreshResponse*,
+                               protobuf::StoreRefreshResponse* response,
                                transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kStoreRefreshRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void StoreRefreshResponseSlot(const transport::Info&,
@@ -185,11 +191,13 @@ class KademliaMessageHandlerTest: public testing::Test {
   void DeleteRequestSlot(const transport::Info&,
                          const protobuf::DeleteRequest&,
                          const std::string&, const std::string&,
-                         protobuf::DeleteResponse*, transport::Timeout*) {
+                         protobuf::DeleteResponse* response,
+                         transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void DeleteResponseSlot(const transport::Info&,
@@ -202,12 +210,13 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void DeleteRefreshRequestSlot(const transport::Info&,
                                 const protobuf::DeleteRefreshRequest&,
-                                protobuf::DeleteRefreshResponse*,
+                                protobuf::DeleteRefreshResponse* response,
                                 transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteRefreshRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
+    response->set_result(true);
   }
 
   void DeleteRefreshResponseSlot(const transport::Info&,
