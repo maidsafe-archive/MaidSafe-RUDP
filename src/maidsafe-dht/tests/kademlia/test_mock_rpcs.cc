@@ -268,21 +268,22 @@ class MockRpcs : public Rpcs {
       Rpcs(asio_service, securifier),
       result_type_(result_type), repeat_factor_(repeat_factor) {}
   ~MockRpcs() {}
-  MOCK_METHOD2(Prepare, Rpcs::ConnectedObjects(TransportType type,
-                                               SecurifierPtr securifier));
-  ConnectedObjects MockPrepare(TransportType type,
-                               SecurifierPtr securifier) {
-    std::shared_ptr<MockTransport> transport;
+  MOCK_METHOD4(Prepare, void(TransportType type,
+                             SecurifierPtr securifier,
+                             TransportPtr &transport,
+                             MessageHandlerPtr &message_handler));
+  void MockPrepare(TransportType type,
+                   SecurifierPtr securifier,
+                   TransportPtr &transport,
+                   MessageHandlerPtr &message_handler) {
     transport.reset(new MockTransport(*asio_service_, repeat_factor_));
-    MockMessageHandlerPtr message_handler(new MockMessageHandler(
+    message_handler.reset(new MockMessageHandler(
         securifier, request_type_, result_type_));
-    bs2::connection on_recv_con = transport->on_message_received()->connect(
-        boost::bind(&MockMessageHandler::OnMessageReceived,
+    transport->on_message_received()->connect(
+        boost::bind(&MessageHandler::OnMessageReceived,
                     message_handler.get(), _1, _2, _3, _4));
-    bs2::connection on_err_con = transport->on_error()->connect(
-        boost::bind(&MockMessageHandler::OnError, message_handler.get(), _1));
-    return boost::make_tuple(transport, message_handler, on_recv_con,
-                             on_err_con);
+    transport->on_error()->connect(
+        boost::bind(&MessageHandler::OnError, message_handler.get(), _1));
   }
  protected:
   IoServicePtr asio_service_;
@@ -347,9 +348,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::PingFunctor pf = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                        &b, &m, &result);
@@ -401,9 +402,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::StoreFunctor sf = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                        &b, &m, &result);
@@ -458,9 +459,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::StoreRefreshFunctor srf = boost::bind(&MockRpcsTest::Callback, this,
                                                 _1, _2, &b, &m, &result);
@@ -514,9 +515,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::DeleteFunctor df = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                          &b, &m, &result);
@@ -570,9 +571,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::DeleteRefreshFunctor drf = boost::bind(&MockRpcsTest::Callback, this,
                                                  _1, _2, &b, &m, &result);
@@ -626,9 +627,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::FindNodesFunctor fnf = boost::bind(&MockRpcsTest::FindNodesCallback,
                                              this, _1, _2, _3, &b, &m, &result);
@@ -683,9 +684,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
     Rpcs::FindValueFunctor fvf = boost::bind(&MockRpcsTest::FindValueCallback,
                                              this, _1, _2, _3, _4, _5, &b, &m,
@@ -741,9 +742,9 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
                                                  kDownlistNotification,
                                                  mock_rpcs::kFailureTolerance,
                                                  1));
-  EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_))
-      .WillOnce(testing::WithArgs<0, 1>(testing::Invoke(boost::bind(
-      &MockRpcs::MockPrepare, rpcs_.get(), _1, _2))));
+  EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+      .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
+      &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
 
   boost::thread t1(&Rpcs::Downlist, rpcs_, node_ids, securifier_, peer_, kTcp);
   t1.join();
