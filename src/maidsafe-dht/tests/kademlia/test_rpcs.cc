@@ -206,36 +206,46 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
                data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                alternative_store_(),
                asio_service_(new boost::asio::io_service()),
-               local_asio_(new boost::asio::io_service()) { }
+               local_asio_(new boost::asio::io_service())
+               { }
 
-  static void SetUpTestCase() {
-    sender_crypto_key_id_.GenerateKeys(4096);
-    receiver_crypto_key_id_.GenerateKeys(4096);
-  }
+//   static void SetUpTestCase() {
+//     sender_crypto_key_id_.GenerateKeys(4096);
+//     receiver_crypto_key_id_.GenerateKeys(4096);
+//   }
 
   virtual void SetUp() {
     // rpcs setup
-    rpcs_securifier_ = std::shared_ptr<Securifier>(
-        new Securifier("", sender_crypto_key_id_.public_key(),
-                        sender_crypto_key_id_.private_key()));
+    rpcs_securifier_ = std::shared_ptr<Securifier>(new Securifier("", "", ""));
+//     rpcs_= std::shared_ptr<Rpcs>(new Rpcs(asio_service_, rpcs_securifier_));
+//     NodeId rpcs_node_id = GenerateRandomId(node_id_, 502);
+//     rpcs_contact_ = ComposeContact(rpcs_node_id, 5010);
+//     rpcs_->set_contact(rpcs_contact_);
+//     rpcs_securifier_ = std::shared_ptr<Securifier>(
+//         new Securifier("", sender_crypto_key_id_.public_key(),
+//                         sender_crypto_key_id_.private_key()));
     rpcs_= std::shared_ptr<Rpcs>(new Rpcs(asio_service_, rpcs_securifier_));
     NodeId rpcs_node_id = GenerateRandomId(node_id_, 502);
-    Contact rpcs_contact_ = ComposeContactWithKey(rpcs_node_id,
-                                                  5010,
-                                                  sender_crypto_key_id_);
+//     rpcs_contact_ = ComposeContactWithKey(rpcs_node_id,
+//                                                   5010,
+//                                                   sender_crypto_key_id_);
+    rpcs_contact_ = ComposeContact(rpcs_node_id, 5010);
     rpcs_->set_contact(rpcs_contact_);
     // service setup
+//     service_securifier_ = std::shared_ptr<Securifier>(
+//         new Securifier("", receiver_crypto_key_id_.public_key(),
+//                        receiver_crypto_key_id_.private_key()));
     service_securifier_ = std::shared_ptr<Securifier>(
-        new Securifier("", receiver_crypto_key_id_.public_key(),
-                       receiver_crypto_key_id_.private_key()));
+        new Securifier("", "", ""));
     service_ = std::shared_ptr<Service>(new Service(routing_table_,
                                                     data_store_,
                                                     alternative_store_,
                                                     service_securifier_));
     NodeId service_node_id = GenerateRandomId(node_id_, 503);
-    service_contact_ = ComposeContactWithKey(service_node_id,
-                                             5011,
-                                             receiver_crypto_key_id_);
+//     service_contact_ = ComposeContactWithKey(service_node_id,
+//                                              5011,
+//                                              receiver_crypto_key_id_);
+    service_contact_ = ComposeContact(service_node_id, 5011);
     service_->set_node_contact(service_contact_);
   }
   virtual void TearDown() { }
@@ -257,12 +267,12 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
   std::shared_ptr<Rpcs> rpcs_;
   Contact rpcs_contact_;
   Contact service_contact_;
-  static crypto::RsaKeyPair sender_crypto_key_id_;
-  static crypto::RsaKeyPair receiver_crypto_key_id_;
+//   static crypto::RsaKeyPair sender_crypto_key_id_;
+//   static crypto::RsaKeyPair receiver_crypto_key_id_;
 };
 
-crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
-crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
+// crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
+// crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
 
 TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
   bool done(false);
@@ -274,6 +284,10 @@ TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_GT(0, response_code);
+  asio_service_->stop();
+  // prevent application got destructed before asio_service got destructed
+  // which will cause memory leak error in valgrind
+  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 TEST_F(RpcsTest, BEH_KAD_PingTarget) {
@@ -294,6 +308,9 @@ TEST_F(RpcsTest, BEH_KAD_PingTarget) {
   ASSERT_EQ(0, response_code);
   asio_service_->stop();
   local_asio_->stop();
+  // prevent application got destructed before asio_service got destructed
+  // which will cause memory leak error in valgrind
+  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
 }  // namespace test

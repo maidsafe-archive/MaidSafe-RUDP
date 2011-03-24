@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/kademlia/rpcs_objects.h"
 
 namespace bs2 = boost::signals2;
 
@@ -86,13 +87,12 @@ class Rpcs {
       const Contact&)> FindValueFunctor;
   typedef boost::function<void(RankInfoPtr, const int&,
       const std::vector<Contact>&)> FindNodesFunctor;
-  typedef boost::tuple<TransportPtr, MessageHandlerPtr, bs2::connection,
-                       bs2::connection> ConnectedObjects;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
       : asio_service_(asio_service),
         contact_(),
-        default_securifier_(default_securifier) {}
+        default_securifier_(default_securifier),
+        connected_objects_() {}
   virtual ~Rpcs() {}
   virtual void Ping(SecurifierPtr securifier,
                     const Contact &peer,
@@ -138,8 +138,11 @@ class Rpcs {
                         const Contact &peer,
                         TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
-  virtual ConnectedObjects Prepare(TransportType type,
-                                   SecurifierPtr securifier);
+
+  void Prepare(TransportType type,
+               SecurifierPtr securifier,
+               TransportPtr &transport,
+               MessageHandlerPtr &message_handler);
 
  protected:
   IoServicePtr asio_service_;
@@ -151,7 +154,7 @@ class Rpcs {
                     const transport::TransportCondition &transport_condition,
                     const transport::Info &info,
                     const protobuf::PingResponse &response,
-                    ConnectedObjects connected_objects,
+                    const boost::uint32_t &index,
                     PingFunctor callback,
                     const std::string &message,
                     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -160,7 +163,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindValueResponse &response,
-      ConnectedObjects connected_objects,
+      const boost::uint32_t &index,
       FindValueFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -169,7 +172,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindNodesResponse &response,
-      ConnectedObjects connected_objects,
+      const boost::uint32_t &index,
       FindNodesFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -177,7 +180,7 @@ class Rpcs {
   void StoreCallback(const transport::TransportCondition &transport_condition,
                      const transport::Info &info,
                      const protobuf::StoreResponse &response,
-                     ConnectedObjects connected_objects,
+                     const boost::uint32_t &index,
                      StoreFunctor callback,
                      const std::string &message,
                      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -186,7 +189,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::StoreRefreshResponse &response,
-      ConnectedObjects connected_objects,
+      const boost::uint32_t &index,
       StoreRefreshFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -194,7 +197,7 @@ class Rpcs {
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
                       const protobuf::DeleteResponse &response,
-                      ConnectedObjects connected_objects,
+                      const boost::uint32_t &index,
                       DeleteFunctor callback,
                       const std::string &message,
                       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -203,13 +206,14 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::DeleteRefreshResponse &response,
-      ConnectedObjects connected_objects,
+      const boost::uint32_t &index,
       DeleteRefreshFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
 
   Contact contact_;
   SecurifierPtr default_securifier_;
+  ConnectedObjectsList connected_objects_;
 };
 
 }  // namespace kademlia

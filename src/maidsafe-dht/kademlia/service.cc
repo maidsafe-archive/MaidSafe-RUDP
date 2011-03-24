@@ -90,33 +90,35 @@ void Service::ConnectToSignals(TransportPtr transport,
           _1, _2, _3, _4).track_foreign(message_handler));
   // Connect service to message handler for incoming parsed requests
   message_handler->on_ping_request()->connect(
-      MessageHandler::PingReqSigPtr::element_type::slot_type(
-          &Service::Ping, this, _1, _2, _3, _4).track(shared_from_this()));
-  message_handler->on_find_value_request()->connect(
-      MessageHandler::FindValueReqSigPtr::element_type::slot_type(
-          &Service::FindValue, this, _1, _2, _3, _4).track(shared_from_this()));
-  message_handler->on_find_nodes_request()->connect(
-      MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
-          &Service::FindNodes, this, _1, _2, _3, _4).track(shared_from_this()));
-  message_handler->on_store_request()->connect(
-      MessageHandler::StoreReqSigPtr::element_type::slot_type(
-          &Service::Store, this, _1, _2, _3, _4, _5, _6).track(
-              shared_from_this()));
-  message_handler->on_store_refresh_request()->connect(
-      MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
-          &Service::StoreRefresh, this, _1, _2, _3, _4).track(
-              shared_from_this()));
-  message_handler->on_delete_request()->connect(
-      MessageHandler::DeleteReqSigPtr::element_type::slot_type(
-          &Service::Delete, this, _1, _2, _3, _4, _5, _6).track(
-              shared_from_this()));
-  message_handler->on_delete_refresh_request()->connect(
-      MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
-          &Service::DeleteRefresh, this, _1, _2, _3, _4).track(
-              shared_from_this()));
-  message_handler->on_downlist_notification()->connect(
-      MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
-          &Service::Downlist, this, _1, _2, _3).track(shared_from_this()));
+      boost::bind(&Service::Ping, this, _1, _2, _3, _4));
+//   message_handler->on_ping_request()->connect(
+//       MessageHandler::PingReqSigPtr::element_type::slot_type(
+//           &Service::Ping, this, _1, _2, _3, _4).track(shared_from_this()));
+//   message_handler->on_find_value_request()->connect(
+//       MessageHandler::FindValueReqSigPtr::element_type::slot_type(
+//           &Service::FindValue, this, _1, _2, _3, _4).track(shared_from_this()));
+//   message_handler->on_find_nodes_request()->connect(
+//       MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
+//           &Service::FindNodes, this, _1, _2, _3, _4).track(shared_from_this()));
+//   message_handler->on_store_request()->connect(
+//       MessageHandler::StoreReqSigPtr::element_type::slot_type(
+//           &Service::Store, this, _1, _2, _3, _4, _5, _6).track(
+//               shared_from_this()));
+//   message_handler->on_store_refresh_request()->connect(
+//       MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
+//           &Service::StoreRefresh, this, _1, _2, _3, _4).track(
+//               shared_from_this()));
+//   message_handler->on_delete_request()->connect(
+//       MessageHandler::DeleteReqSigPtr::element_type::slot_type(
+//           &Service::Delete, this, _1, _2, _3, _4, _5, _6).track(
+//               shared_from_this()));
+//   message_handler->on_delete_refresh_request()->connect(
+//       MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
+//           &Service::DeleteRefresh, this, _1, _2, _3, _4).track(
+//               shared_from_this()));
+//   message_handler->on_downlist_notification()->connect(
+//       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
+//           &Service::Downlist, this, _1, _2, _3).track(shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
