@@ -149,8 +149,11 @@ class Node::Impl {
    *  @param[in] Key The key to locate
    *  @param[in] callback The callback to report the results. */
   void FindNodes(const Key &key, FindNodesFunctor callback);
-
+  /** Function to Geta contact info from the Kademlia network.
+   *  @param[in] node_id The node_id to locate
+   *  @param[in] callback The callback to report the results. */
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
+
   void SetLastSeenToNow(const Contact &contact);
   void IncrementFailedRpcs(const Contact &contact);
   void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
@@ -191,11 +194,20 @@ class Node::Impl {
   Impl(const Impl&);
   Impl &operator=(const Impl&);
 
+  /** Callback from the rpc->findnode request for GetContact.
+   *  @param[in] result_size The number of closest contacts find.
+   *  @param[in] cs the k-closest contacts to the node_id
+   *  @param[in] node_id The node_id of the contact to search.
+   *  @param[in] callback The callback to report the results. */
+  void GetContactCallBack(int result_size,
+                          const std::vector<Contact> &cs,
+                          const NodeId &node_id,
+                          GetContactFunctor callback);
   /** Function to add acquired closest contacts into shared struct info, during
    *  the execution of iterative search.
    *  Used by: FindNodes, FindValue
    *  @param[in] T FindNodesArgs, FindValueArgs
-   *  @param[in] find_args The closest contacts.
+   *  @param[in] contacts The closest contacts.
    *  @param[in] find_args The arguments struct holding all shared info. */
   template <class T>
   void AddContactsToContainer(const std::vector<Contact> contacts,
