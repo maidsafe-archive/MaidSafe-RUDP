@@ -34,8 +34,6 @@ namespace transport {
 
 namespace test {
 
-
-
 }  // namespace test
 
 }  // namespace transport

@@ -43,7 +43,7 @@ namespace maidsafe {
 
 namespace transport {
 
-UdpTransport::UdpTransport(asio::io_service &asio_service)
+UdpTransport::UdpTransport(asio::io_service &asio_service)  // NOLINT
   : Transport(asio_service),
     strand_(asio_service),
     socket_(),
@@ -99,6 +99,11 @@ TransportCondition UdpTransport::StartListening(const Endpoint &endpoint) {
   return kSuccess;
 }
 
+TransportCondition UdpTransport::Bootstrap(
+    const std::vector<Endpoint> &candidates) {
+  return kSuccess;
+}
+
 void UdpTransport::StopListening() {
   if (socket_)
     strand_.dispatch(std::bind(&UdpTransport::CloseSocket, socket_));
@@ -125,7 +130,8 @@ void UdpTransport::DoSend(RequestPtr request) {
     socket_->open(request->Endpoint().protocol(), ec);
     if (ec) {
       socket_.reset();
-      (*on_error_)(kInvalidAddress);
+      (*on_error_)(kInvalidAddress, Endpoint(request->Endpoint().address(),
+                                             request->Endpoint().port()));
       return;
     }
 
@@ -133,7 +139,8 @@ void UdpTransport::DoSend(RequestPtr request) {
     socket_->bind(ip::udp::endpoint(request->Endpoint().protocol(), 0), ec);
     if (ec) {
       socket_.reset();
-      (*on_error_)(kBindError);
+      (*on_error_)(kBindError, Endpoint(request->Endpoint().address(),
+                                        request->Endpoint().port()));
       return;
     }
 
@@ -167,7 +174,8 @@ void UdpTransport::DoSend(RequestPtr request) {
   bs::error_code ec;
   socket_->send_to(asio_buffer, request->Endpoint(), 0, ec);
   if (ec) {
-    (*on_error_)(kSendFailure);
+    (*on_error_)(kSendFailure, Endpoint(request->Endpoint().address(),
+                                        request->Endpoint().port()));
     return;
   }
 
@@ -210,7 +218,6 @@ void UdpTransport::HandleRead(SocketPtr socket,
   const size_t size_length = 4;
   const size_t ids_length = 2 * sizeof(boost::uint64_t);
   if (!ec && bytes_transferred >= size_length + ids_length) {
-
     DataSize size = (((((read_buffer->at(0) << 8) |
                       read_buffer->at(1)) << 8) |
                       read_buffer->at(2)) << 8) |
@@ -218,7 +225,6 @@ void UdpTransport::HandleRead(SocketPtr socket,
 
     // Check the size matches the actual amount of data received.
     if (size_length + ids_length + size == bytes_transferred) {
-
       // There's no need to decode the ids as they treated as opaque values.
       std::array<boost::uint64_t, 2> ids;
       std::memcpy(ids.data(), &(*read_buffer)[size_length], ids_length);
@@ -230,7 +236,7 @@ void UdpTransport::HandleRead(SocketPtr socket,
       if (reply_to_id != 0) {
         RequestMap::iterator request = outstanding_requests_.find(reply_to_id);
         if (request == outstanding_requests_.end())
-          return; // Late or unexpected reply is ignored.
+          return;  // Late or unexpected reply is ignored.
         outstanding_requests_.erase(request);
       }
 
@@ -275,8 +281,10 @@ void UdpTransport::HandleTimeout(boost::uint64_t request_id,
   if (!ec) {
     RequestMap::iterator request = outstanding_requests_.find(request_id);
     if (request != outstanding_requests_.end()) {
+      Endpoint peer_endpoint((*request).second->Endpoint().address(),
+                             (*request).second->Endpoint().port());
       outstanding_requests_.erase(request);
-      (*on_error_)(kReceiveTimeout);
+      (*on_error_)(kReceiveTimeout, peer_endpoint);
     }
   }
 }

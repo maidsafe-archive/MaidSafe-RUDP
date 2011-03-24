@@ -28,9 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
 
+#include <unordered_map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -50,6 +50,7 @@ class UdpTransport : public Transport,
   ~UdpTransport();
 
   virtual TransportCondition StartListening(const Endpoint &endpoint);
+  virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
   virtual void StopListening();
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
