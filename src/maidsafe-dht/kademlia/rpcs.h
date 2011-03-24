@@ -139,10 +139,10 @@ class Rpcs {
                         TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
 
-  void Prepare(TransportType type,
-               SecurifierPtr securifier,
-               TransportPtr &transport,
-               MessageHandlerPtr &message_handler);
+  virtual void Prepare(TransportType type,
+                       SecurifierPtr securifier,
+                       TransportPtr &transport,
+                       MessageHandlerPtr &message_handler);
 
  protected:
   IoServicePtr asio_service_;
