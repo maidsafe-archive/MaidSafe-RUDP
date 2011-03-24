@@ -30,8 +30,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <functional>
 
+#include "maidsafe-dht/transport/udt_acceptor.h"
+#include "maidsafe-dht/transport/udt_packet.h"
 #include "maidsafe-dht/transport/udt_socket.h"
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -45,9 +48,7 @@ namespace transport {
 
 UdtMultiplexer::UdtMultiplexer(asio::io_service &asio_service)
   : socket_(asio_service),
-    waiting_op_(asio_service),
     receive_buffer_(kMaxPacketSize) {
-  waiting_op_.expires_at(boost::posix_time::pos_infin);
 }
 
 UdtMultiplexer::~UdtMultiplexer() {
@@ -80,26 +81,45 @@ TransportCondition UdtMultiplexer::Open(const Endpoint &endpoint) {
 void UdtMultiplexer::Close() {
   bs::error_code ec;
   socket_.close(ec);
-  accept_queue_ = SocketQueue();
-  waiting_op_.cancel();
+  udt_acceptor_.reset();
+  udt_sockets_.clear();
+}
+
+std::shared_ptr<UdtAcceptor> UdtMultiplexer::NewAcceptor() {
+  // No lazy open for acceptors.
+  if (!socket_.is_open())
+    return std::shared_ptr<UdtAcceptor>();
+
+  // There can be only one.
+  if (!udt_acceptor_.expired())
+    return std::shared_ptr<UdtAcceptor>();
+
+  std::shared_ptr<UdtAcceptor> a(new UdtAcceptor(shared_from_this(),
+                                                 socket_.get_io_service()));
+  udt_acceptor_ = a;
+  return a;
 }
 
 std::shared_ptr<UdtSocket> UdtMultiplexer::NewClient(const Endpoint &endpoint) {
+  // Lazy open as the multiplexer might be used only for outbound connections.
   if (!socket_.is_open()) {
     bs::error_code ec;
     ip::udp::endpoint ep(endpoint.ip, endpoint.port);
     if (socket_.open(ep.protocol(), ec))
       return std::shared_ptr<UdtSocket>();
+    StartReceive();
   }
 
-  return std::shared_ptr<UdtSocket>(new UdtSocket(shared_from_this(),
-                                                  socket_.get_io_service(),
-                                                  endpoint));
-}
+  // Generate a new unique id for the socket.
+  boost::uint32_t id = 0;
+  while (id == 0 || udt_sockets_.count(id) != 0)
+    id = SRandomUint32();
 
-void UdtMultiplexer::StartAccept() {
-  if (!accept_queue_.empty())
-    waiting_op_.cancel();
+  std::shared_ptr<UdtSocket> c(new UdtSocket(shared_from_this(),
+                                             socket_.get_io_service(),
+                                             id, endpoint));
+  udt_sockets_[id] = c;
+  return c;
 }
 
 void UdtMultiplexer::StartReceive() {
@@ -118,10 +138,48 @@ void UdtMultiplexer::HandleReceive(const boost::system::error_code &ec,
     return;
 
   if (!ec) {
-    // Parse packet here.
+    boost::uint32_t id = 0;
+    asio::const_buffer data = asio::buffer(receive_buffer_, bytes_transferred);
+    if (UdtPacket::DecodeDestinationSocketId(&id, data)) {
+      if (id == 0) {
+        // This packet is intended for the acceptor.
+        if (std::shared_ptr<UdtAcceptor> acceptor = udt_acceptor_.lock()) {
+          acceptor->HandleReceiveFrom(data, sender_endpoint_);
+        } else {
+          DLOG(ERROR) << "Received a request for a new connection from "
+                      << sender_endpoint_ << " but there is no acceptor"
+                      << std::endl;
+        }
+      } else {
+        // This packet is intended for a specific connection.
+        SocketMap::iterator socket_iter = udt_sockets_.find(id);
+        if (socket_iter != udt_sockets_.end()) {
+          if (std::shared_ptr<UdtSocket> socket = socket_iter->second.lock()) {
+            socket->HandleReceiveFrom(data, sender_endpoint_);
+          } else {
+            DLOG(ERROR) << "Received a packet for defunct connection "
+                        << id << " from " << sender_endpoint_ << std::endl;
+            udt_sockets_.erase(socket_iter);
+          }
+        } else {
+          DLOG(ERROR) << "Received a packet for unknown connection "
+                      << id << " from " << sender_endpoint_ << std::endl;
+        }
+      }
+    }
   }
 
   StartReceive();
+}
+
+bool UdtMultiplexer::SendTo(const asio::const_buffer &data,
+                            const asio::ip::udp::endpoint &endpoint) {
+  if (!socket_.is_open())
+    return false;
+
+  bs::error_code ec;
+  socket_.send_to(asio::buffer(data), endpoint, 0, ec);
+  return !ec;
 }
 
 }  // namespace transport

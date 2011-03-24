@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_
 
 #ifdef __MSVC__
 #pragma warning(disable:4996)
@@ -36,8 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(default:4996)
 #endif
 
-#include <unordered_map>
-#include <vector>
+#include <queue>
+#include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -48,62 +48,52 @@ namespace maidsafe {
 
 namespace transport {
 
-class UdtAcceptor;
 class UdtSocket;
 
-class UdtMultiplexer : public std::enable_shared_from_this<UdtMultiplexer> {
+class UdtAcceptor : public std::enable_shared_from_this<UdtAcceptor> {
  public:
-  UdtMultiplexer(boost::asio::io_service &asio_service);
-  ~UdtMultiplexer();
+  ~UdtAcceptor();
 
-  // Open the multiplexer as a server on the specified endpoint.
-  TransportCondition Open(const Endpoint &endpoint);
-
-  // Stop listening for incoming connections and terminate all connections.
-  void Close();
-
-  // Create a new acceptor. Only one is allowed at a time.
-  std::shared_ptr<UdtAcceptor> NewAcceptor();
-
-  // Create a new client-side connection.
-  std::shared_ptr<UdtSocket> NewClient(const Endpoint &endpoint);
+  // Initiate an asynchronous operation to accept a new server-side connection.
+  template <typename AcceptHandler>
+  void AsyncAccept(AcceptHandler handler) {
+    UdtAcceptOp<AcceptHandler> op(handler, &accept_queue_);
+    waiting_accept_.async_wait(op);
+    StartAccept();
+  }
 
  private:
-  friend class UdtAcceptor;
-  friend class UdtSocket;
+  friend class UdtMultiplexer;
+
+  typedef std::shared_ptr<UdtSocket> SocketPtr;
+  typedef std::queue<SocketPtr> SocketQueue;
+
+  // Only the multiplexer can create acceptor instances.
+  UdtAcceptor(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
+              boost::asio::io_service &asio_service);
 
   // Disallow copying and assignment.
-  UdtMultiplexer(const UdtMultiplexer&);
-  UdtMultiplexer &operator=(const UdtMultiplexer&);
+  UdtAcceptor(const UdtAcceptor&);
+  UdtAcceptor &operator=(const UdtAcceptor&);
 
-  void StartReceive();
-  void HandleReceive(const boost::system::error_code &ec,
-                     size_t bytes_transferred);
+  void StartAccept();
 
-  // Called by the acceptor or socket objects to send a packet. Returns true if
-  // the data was sent successfully, false otherwise.
-  bool SendTo(const boost::asio::const_buffer &data,
-              const boost::asio::ip::udp::endpoint &endpoint);
+  // Called by the UdtMultiplexer when a new packet arrives for the acceptor.
+  void HandleReceiveFrom(const boost::asio::const_buffer &data,
+                         const boost::asio::ip::udp::endpoint &endpoint);
 
-  // The UDP socket used for all UDT protocol communication.
-  boost::asio::ip::udp::socket socket_;
+  // The multiplexer used to send and receive UDP packets.
+  std::shared_ptr<UdtMultiplexer> multiplexer_;
 
-  // Data members used to receive information about incoming packets.
-  static const size_t kMaxPacketSize = 1500;
-  std::vector<unsigned char> receive_buffer_;
-  boost::asio::ip::udp::endpoint sender_endpoint_;
+  // A timer is used to "store" the pending asynchronous accept operations.
+  boost::asio::deadline_timer waiting_accept_;
 
-  // The one-and-only acceptor.
-  std::weak_ptr<UdtAcceptor> udt_acceptor_;
-
-  // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t,
-                             std::weak_ptr<UdtSocket>> SocketMap;
-  SocketMap udt_sockets_;
+  // The queue of incoming connections waiting to be accepted.
+  SocketQueue accept_queue_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_

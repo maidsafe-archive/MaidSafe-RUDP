@@ -303,6 +303,7 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_acceptor.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_control_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_data_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_handshake_packet.cc"

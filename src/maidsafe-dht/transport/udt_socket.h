@@ -36,10 +36,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(default:4996)
 #endif
 
+#include <deque>
+
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
+#include "boost/asio/ip/udp.hpp"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/transport/udt_connect_op.h"
+#include "maidsafe-dht/transport/udt_data_packet.h"
+#include "maidsafe-dht/transport/udt_read_op.h"
+#include "maidsafe-dht/transport/udt_write_op.h"
 
 namespace maidsafe {
 
@@ -51,91 +58,91 @@ class UdtSocket : public std::enable_shared_from_this<UdtSocket> {
  public:
   ~UdtSocket();
 
-  // Initiate an asynchronous connect operation.
-  template <typename ConnectHandler>
-  void AsyncConnect(ConnectHandler handler) {
-    waiting_op_.async_wait(ConnectOp<ConnectHandler>(handler, &waiting_op_ec_));
-    StartConnect();
-  }
-
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 
-  // Enqueue bytes to be sent. Returns without blocking.
-  void Send(const boost::asio::const_buffer &data);
+  // Initiate an asynchronous connect operation.
+  template <typename ConnectHandler>
+  void AsyncConnect(ConnectHandler handler) {
+    UdtConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
+    waiting_connect_.async_wait(op);
+    StartConnect();
+  }
 
-  // Initiate an asynchronous operation to receive data.
+  // Initiate an asynchronous operatio to write data. The operation will
+  // generally complete immediately unless congestion has caused the internal
+  // buffer for unprocessed send data to fill up.
+  template <typename WriteHandler>
+  void AsyncWrite(const boost::asio::const_buffer &data,
+                  WriteHandler handler) {
+    UdtWriteOp<WriteHandler> op(handler, &waiting_write_ec_,
+                                &waiting_write_bytes_transferred_);
+    waiting_write_.async_wait(op);
+    StartWrite(data);
+  }
+
+  // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
-  void AsyncReceive(const boost::asio::mutable_buffer &data,
-                    ReadHandler handler) {
-    waiting_op_.async_wait(ReadOp<ReadHandler>(handler, &waiting_op_ec_,
-                                               &waiting_op_bytes_transferred_));
-    StartReceive(data);
+  void AsyncRead(const boost::asio::mutable_buffer &data,
+                 ReadHandler handler) {
+    UdtReadOp<ReadHandler> op(handler, &waiting_read_ec_,
+                              &waiting_read_bytes_transferred_);
+    waiting_read_.async_wait(op);
+    StartRead(data);
   }
 
  private:
-  // Only the multiplexer can create socket instances.
   friend class UdtMultiplexer;
+
+  // Only the multiplexer can create socket instances.
   UdtSocket(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
-            boost::asio::io_service &asio_service, const Endpoint& endpoint);
+            boost::asio::io_service &asio_service,
+            boost::uint32_t id, const Endpoint& endpoint);
 
   // Disallow copying and assignment.
   UdtSocket(const UdtSocket&);
   UdtSocket &operator=(const UdtSocket&);
 
   void StartConnect();
-  void StartReceive(const boost::asio::mutable_buffer &data);
+  void StartWrite(const boost::asio::const_buffer &data);
+  void ProcessWrite();
+  void StartRead(const boost::asio::mutable_buffer &data);
+  void ProcessRead();
+
+  // Called by the UdtMultiplexer when a new packet arrives for the socket.
+  void HandleReceiveFrom(const boost::asio::const_buffer &data,
+                         const boost::asio::ip::udp::endpoint &endpoint);
 
   std::weak_ptr<UdtMultiplexer> multiplexer_;
   Endpoint remote_endpoint_;
 
-  // The class allows only one outstanding asynchronous operation at a time.
-  // The following data members store that pending operation and the result
+  // This class allows for a single asynchronous connect operation. The
+  // following data members store the pending connect, and the result that is
+  // intended for its completion handler.
+  boost::asio::deadline_timer waiting_connect_;
+  boost::system::error_code waiting_connect_ec_;
+
+  // The buffer used to store application data that is waiting to be sent.
+  // Asynchronous write operations will complete immediately as long as the
+  // buffer size remains below the maximum.
+  static const int kMaxWriteBufferSize = 65536;
+  std::deque<unsigned char> write_buffer_;
+
+  // This class allows only one outstanding asynchronous write operation at a
+  // time. The following data members store the pending write, and the result
   // that is intended for its completion handler.
-  boost::asio::deadline_timer waiting_op_;
-  boost::system::error_code waiting_op_ec_;
-  size_t waiting_op_bytes_transferred_;
+  boost::asio::deadline_timer waiting_write_;
+  boost::asio::const_buffer waiting_write_buffer_;
+  boost::system::error_code waiting_write_ec_;
+  size_t waiting_write_bytes_transferred_;
 
-  // Helper class to adapt a connect handler into a waiting operation.
-  template <typename ConnectHandler>
-  class ConnectOp {
-   public:
-    ConnectOp(ConnectHandler handler,
-              const boost::system::error_code *ec)
-      : handler_(handler),
-        ec_(ec) {
-    }
-
-    void operator()(boost::system::error_code) {
-      handler_(*ec_);
-    }
-
-   private:
-    ConnectHandler handler_;
-    const boost::system::error_code *ec_;
-  };
-
-  // Helper class to adapt a read handler into a waiting operation.
-  template <typename ReadHandler>
-  class ReadOp {
-   public:
-    ReadOp(ReadHandler handler,
-           const boost::system::error_code *ec,
-           const size_t *bytes_transferred)
-      : handler_(handler),
-        ec_(ec),
-        bytes_transferred_(bytes_transferred) {
-    }
-
-    void operator()(boost::system::error_code) {
-      handler_(*ec_, *bytes_transferred_);
-    }
-
-   private:
-    ReadHandler handler_;
-    const boost::system::error_code *ec_;
-    const size_t *bytes_transferred_;
-  };
+  // This class allows only one outstanding asynchronous read operation at a
+  // time. The following data members store the pending read, its associated
+  // buffer, and the result that is intended for its completion handler.
+  boost::asio::deadline_timer waiting_read_;
+  boost::asio::mutable_buffer waiting_read_buffer_;
+  boost::system::error_code waiting_read_ec_;
+  size_t waiting_read_bytes_transferred_;
 };
 
 }  // namespace transport
