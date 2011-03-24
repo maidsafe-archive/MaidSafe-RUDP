@@ -255,7 +255,9 @@ class MockMessageHandler : public MessageHandler {
   int request_type_;
   int result_type_;
 };
+
 typedef std::shared_ptr<MockMessageHandler> MockMessageHandlerPtr;
+
 class MockRpcs : public Rpcs {
  public:
   MockRpcs(IoServicePtr asio_service, SecurifierPtr securifier,
@@ -444,6 +446,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
     }
   }
 }
+
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
   int repeat_factor(1);
   int result_type(1);
