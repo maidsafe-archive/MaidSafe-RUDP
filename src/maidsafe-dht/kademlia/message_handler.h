@@ -163,8 +163,7 @@ class MessageHandler : public transport::MessageHandler {
       on_delete_refresh_request_(new DeleteRefreshReqSigPtr::element_type),
       on_delete_refresh_response_(new DeleteRefreshRspSigPtr::element_type),
       on_downlist_notification_(new DownlistNtfSigPtr::element_type) {}
-  virtual ~MessageHandler()
-    { std::cout << "kademlia::message handler destructed" << std::endl;}
+  virtual ~MessageHandler() {}
 
   std::string WrapMessage(const protobuf::PingRequest &msg,
                           const std::string &recipient_public_key);

@@ -63,9 +63,7 @@ TcpConnection::TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
-TcpConnection::~TcpConnection() {
-  std::cout<< "transport::tcp_connection destructed" << std::endl;
-}
+TcpConnection::~TcpConnection() {}
 
 ip::tcp::socket &TcpConnection::Socket() {
   return socket_;
