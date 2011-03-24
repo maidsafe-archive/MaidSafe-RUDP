@@ -47,6 +47,7 @@ TcpTransport::TcpTransport(
           strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
+  std::cout<< "transport::tcp_transport destructed" << std::endl;
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     (*it)->Close();
 }

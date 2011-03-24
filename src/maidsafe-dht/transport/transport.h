@@ -196,7 +196,9 @@ class Transport {
   /**
    * Protected destructor to prevent deletion through this type.
    */
-  virtual ~Transport() {}
+  virtual ~Transport() {
+    std::cout<< "transport::transport destructed" << std::endl;
+  }
   explicit Transport(boost::asio::io_service &asio_service)  // NOLINT
       : asio_service_(asio_service),
         listening_port_(0),

@@ -119,7 +119,9 @@ class MessageHandler {
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
       on_error_(new ErrorSigPtr::element_type) {}
-  virtual ~MessageHandler() {}
+  virtual ~MessageHandler()
+    { std::cout << "transport::message handler destructed" << std::endl;}
+    
   void OnMessageReceived(const std::string &request,
                          const Info &info,
                          std::string *response,
