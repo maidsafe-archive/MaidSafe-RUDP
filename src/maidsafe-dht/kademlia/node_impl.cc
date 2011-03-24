@@ -353,8 +353,27 @@ void Node::Impl::FindValue(const Key &key,
   IterativeSearch<FindValueArgs>(fva);
 }
 
-void Node::Impl::GetContact(const NodeId &/*node_id*/,
-                            GetContactFunctor /*callback*/) {
+void Node::Impl::GetContact(const NodeId &node_id,
+                            GetContactFunctor callback) {
+  FindNodes(node_id,
+            boost::bind(&Node::Impl::GetContactCallBack,
+                        this, _1, _2, node_id, callback));
+}
+
+void Node::Impl::GetContactCallBack(int result_size,
+                                    const std::vector<Contact> &cs,
+                                    const NodeId &node_id,
+                                    GetContactFunctor callback) {
+  auto it = cs.begin();
+  auto it_end = cs.end();
+  while (it != it_end) {
+    if ((*it).node_id() == node_id) {
+      callback(1, (*it));
+      return;
+    }
+    ++it;
+  }
+  callback(-1, Contact());
 }
 
 void Node::Impl::SetLastSeenToNow(const Contact &/*contact*/) {
