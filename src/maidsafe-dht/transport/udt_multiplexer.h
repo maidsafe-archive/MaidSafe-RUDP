@@ -28,45 +28,43 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
 
-#ifdef __MSVC__
-#pragma warning(disable:4996)
-#endif
-#include <memory>
-#ifdef __MSVC__
-#pragma warning(default:4996)
-#endif
-
-#include <unordered_map>
 #include <vector>
-#include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/udt_accept_op.h"
+#include "maidsafe-dht/transport/udt_dispatch_op.h"
+#include "maidsafe-dht/transport/udt_dispatcher.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class UdtAcceptor;
-class UdtSocket;
-
-class UdtMultiplexer : public std::enable_shared_from_this<UdtMultiplexer> {
+class UdtMultiplexer {
  public:
-  UdtMultiplexer(boost::asio::io_service &asio_service);
+  explicit UdtMultiplexer(boost::asio::io_service &asio_service);
   ~UdtMultiplexer();
 
-  // Open the multiplexer as a server on the specified endpoint.
-  TransportCondition Open(const Endpoint &endpoint);
+  // Open the multiplexer as a client for the specified protocol.
+  TransportCondition Open(const boost::asio::ip::udp &protocol);
 
-  // Stop listening for incoming connections and terminate all connections.
+  // Open the multiplexer as a server on the specified endpoint.
+  TransportCondition Open(const boost::asio::ip::udp::endpoint &endpoint);
+
+  // Whether the multiplexer is open.
+  bool IsOpen() const;
+
+  // Close the multiplexer.
   void Close();
 
-  // Create a new acceptor. Only one is allowed at a time.
-  std::shared_ptr<UdtAcceptor> NewAcceptor();
-
-  // Create a new client-side connection.
-  std::shared_ptr<UdtSocket> NewClient(const Endpoint &endpoint);
+  // Asynchronously receive a single packet and dispatch it.
+  template <typename DispatchHandler>
+  void AsyncDispatch(DispatchHandler handler) {
+    UdtDispatchOp<DispatchHandler> op(handler,
+                                      boost::asio::buffer(receive_buffer_),
+                                      &sender_endpoint_, &dispatcher_);
+    socket_.async_receive_from(boost::asio::buffer(receive_buffer_),
+                               sender_endpoint_, 0, op);
+  }
 
  private:
   friend class UdtAcceptor;
@@ -75,10 +73,6 @@ class UdtMultiplexer : public std::enable_shared_from_this<UdtMultiplexer> {
   // Disallow copying and assignment.
   UdtMultiplexer(const UdtMultiplexer&);
   UdtMultiplexer &operator=(const UdtMultiplexer&);
-
-  void StartReceive();
-  void HandleReceive(const boost::system::error_code &ec,
-                     size_t bytes_transferred);
 
   // Called by the acceptor or socket objects to send a packet. Returns true if
   // the data was sent successfully, false otherwise.
@@ -89,17 +83,11 @@ class UdtMultiplexer : public std::enable_shared_from_this<UdtMultiplexer> {
   boost::asio::ip::udp::socket socket_;
 
   // Data members used to receive information about incoming packets.
-  static const size_t kMaxPacketSize = 1500;
   std::vector<unsigned char> receive_buffer_;
   boost::asio::ip::udp::endpoint sender_endpoint_;
 
-  // The one-and-only acceptor.
-  std::weak_ptr<UdtAcceptor> udt_acceptor_;
-
-  // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t,
-                             std::weak_ptr<UdtSocket>> SocketMap;
-  SocketMap udt_sockets_;
+  // Dispatcher keeps track of the active sockets and the acceptor.
+  UdtDispatcher dispatcher_;
 };
 
 }  // namespace transport

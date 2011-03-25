@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/udt_connect_op.h"
 #include "maidsafe-dht/transport/udt_data_packet.h"
@@ -52,16 +53,41 @@ namespace maidsafe {
 
 namespace transport {
 
+class UdtAcceptor;
 class UdtMultiplexer;
 
-class UdtSocket : public std::enable_shared_from_this<UdtSocket> {
+class UdtSocket {
  public:
+  explicit UdtSocket(UdtMultiplexer &multiplexer);
   ~UdtSocket();
+
+  // Get the unique identifier that has been assigned to the socket.
+  boost::uint32_t Id() const;
+
+  // Get the remote endpoint to which the socket is connected.
+  boost::asio::ip::udp::endpoint RemoteEndpoint() const;
+
+  // Get the remote socket identifier to which the socket is connected.
+  boost::uint32_t RemoteId() const;
+
+  // Returns whether the connection is open.
+  bool IsOpen() const;
 
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 
-  // Initiate an asynchronous connect operation.
+  // Initiate an asynchronous connect operation for the client side.
+  template <typename ConnectHandler>
+  void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
+                    ConnectHandler handler) {
+    UdtConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
+    waiting_connect_.async_wait(op);
+    StartConnect(remote);
+  }
+
+  // Initiate an asynchronous connect operation for the server side. This
+  // function performs UDT handshaking after a socket has been accepted to
+  // complete the connection establishment.
   template <typename ConnectHandler>
   void AsyncConnect(ConnectHandler handler) {
     UdtConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
@@ -84,37 +110,45 @@ class UdtSocket : public std::enable_shared_from_this<UdtSocket> {
   // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
   void AsyncRead(const boost::asio::mutable_buffer &data,
-                 ReadHandler handler) {
+                 size_t transfer_at_least, ReadHandler handler) {
     UdtReadOp<ReadHandler> op(handler, &waiting_read_ec_,
                               &waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
-    StartRead(data);
+    StartRead(data, transfer_at_least);
   }
 
  private:
-  friend class UdtMultiplexer;
-
-  // Only the multiplexer can create socket instances.
-  UdtSocket(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
-            boost::asio::io_service &asio_service,
-            boost::uint32_t id, const Endpoint& endpoint);
+  friend class UdtAcceptor;
+  friend class UdtDispatcher;
 
   // Disallow copying and assignment.
   UdtSocket(const UdtSocket&);
   UdtSocket &operator=(const UdtSocket&);
 
+  void StartConnect(const boost::asio::ip::udp::endpoint &remote);
   void StartConnect();
   void StartWrite(const boost::asio::const_buffer &data);
   void ProcessWrite();
-  void StartRead(const boost::asio::mutable_buffer &data);
+  void StartRead(const boost::asio::mutable_buffer &data,
+                 size_t transfer_at_least);
   void ProcessRead();
 
-  // Called by the UdtMultiplexer when a new packet arrives for the socket.
+  // Called by the UdtDispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
-  std::weak_ptr<UdtMultiplexer> multiplexer_;
-  Endpoint remote_endpoint_;
+  // The multiplexer used to send and receive UDP packets.
+  UdtMultiplexer &multiplexer_;
+
+  // The unique socket identifier assigned by the dispatcher.
+  boost::uint32_t id_;
+
+  // The remote socket's endpoint and identifier.
+  boost::asio::ip::udp::endpoint remote_endpoint_;
+  boost::uint32_t remote_id_;
+
+  // The sequence number to be used for the next outbound packet.
+  boost::uint32_t next_packet_sequence_number_;
 
   // This class allows for a single asynchronous connect operation. The
   // following data members store the pending connect, and the result that is
@@ -141,6 +175,7 @@ class UdtSocket : public std::enable_shared_from_this<UdtSocket> {
   // buffer, and the result that is intended for its completion handler.
   boost::asio::deadline_timer waiting_read_;
   boost::asio::mutable_buffer waiting_read_buffer_;
+  size_t waiting_read_transfer_at_least_;
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
 };

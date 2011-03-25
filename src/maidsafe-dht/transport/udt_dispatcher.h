@@ -25,40 +25,57 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCHER_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCHER_H_
 
-#include "boost/system/error_code.hpp"
+#include <unordered_map>
+#include "boost/asio/buffer.hpp"
+#include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/udt_socket.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class UdtAcceptOp {
- public:
-  UdtAcceptOp(AcceptHandler handler, UdtSocket &socket)
-    : handler_(handler),
-      socket_(socket) {
-  }
+class UdtAcceptor;
+class UdtSocket;
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.Id() == 0)
-      ec = boost::asio::error::operation_aborted;
-    handler_(ec);
-  }
+class UdtDispatcher {
+ public:
+  UdtDispatcher();
+
+  // Get the one-and-only acceptor.
+  UdtAcceptor *GetAcceptor() const;
+
+  // Set the one-and-only acceptor.
+  void SetAcceptor(UdtAcceptor *acceptor);
+
+  // Add a socket. Returns a new unique id for the socket.
+  boost::uint32_t AddSocket(UdtSocket *socket);
+
+  // Remove the socket corresponding to the given id.
+  void RemoveSocket(boost::uint32_t id);
+
+  // Handle a new packet by dispatching to the appropriate socket or acceptor.
+  void HandleReceiveFrom(const boost::asio::const_buffer &data,
+                         const boost::asio::ip::udp::endpoint &endpoint);
 
  private:
-  AcceptHandler handler_;
-  UdtSocket &socket_;
+  // Disallow copying and assignment.
+  UdtDispatcher(const UdtDispatcher&);
+  UdtDispatcher &operator=(const UdtDispatcher&);
+
+  // The one-and-only acceptor.
+  UdtAcceptor* acceptor_;
+
+  // Map of destination socket id to corresponding socket object.
+  typedef std::unordered_map<boost::uint32_t, UdtSocket*> SocketMap;
+  SocketMap sockets_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCHER_H_

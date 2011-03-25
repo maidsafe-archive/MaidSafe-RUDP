@@ -27,7 +27,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/udt_acceptor.h"
 
+#include <cassert>
+
 #include "maidsafe-dht/transport/udt_socket.h"
+#include "maidsafe-dht/transport/udt_handshake_packet.h"
+#include "maidsafe-dht/transport/udt_multiplexer.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
@@ -40,23 +45,65 @@ namespace maidsafe {
 
 namespace transport {
 
-UdtAcceptor::UdtAcceptor(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
-                         boost::asio::io_service &asio_service)
-  : multiplexer_(udt_multiplexer),
-    waiting_accept_(asio_service) {
+UdtAcceptor::UdtAcceptor(UdtMultiplexer &multiplexer)
+  : multiplexer_(multiplexer),
+    waiting_accept_(multiplexer.socket_.get_io_service()),
+    waiting_accept_socket_(0) {
   waiting_accept_.expires_at(boost::posix_time::pos_infin);
+  multiplexer_.dispatcher_.SetAcceptor(this);
 }
 
 UdtAcceptor::~UdtAcceptor() {
+  if (IsOpen())
+    multiplexer_.dispatcher_.SetAcceptor(0);
 }
 
-void UdtAcceptor::StartAccept() {
-  if (!accept_queue_.empty())
+bool UdtAcceptor::IsOpen() const {
+  return multiplexer_.dispatcher_.GetAcceptor() == this;
+}
+
+void UdtAcceptor::Close() {
+  pending_requests_.clear();
+  waiting_accept_.cancel();
+  if (IsOpen())
+    multiplexer_.dispatcher_.SetAcceptor(0);
+}
+
+void UdtAcceptor::StartAccept(UdtSocket &socket) {
+  assert(waiting_accept_socket_ == 0); // Only one accept operation at a time.
+
+  if (!pending_requests_.empty()) {
+    socket.remote_id_ = pending_requests_.front().remote_id;
+    socket.remote_endpoint_ = pending_requests_.front().remote_endpoint;
+    socket.id_ = multiplexer_.dispatcher_.AddSocket(&socket);
+    pending_requests_.pop_front();
     waiting_accept_.cancel();
+  } else {
+    waiting_accept_socket_ = &socket;
+  }
 }
 
 void UdtAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
                                     const asio::ip::udp::endpoint &endpoint) {
+  UdtHandshakePacket packet;
+  if (packet.Decode(data)) {
+    if (UdtSocket* socket = waiting_accept_socket_) {
+      // A socket is ready and waiting to accept the new connection.
+      socket->remote_id_ = packet.SocketId();
+      socket->remote_endpoint_ = endpoint;
+      socket->id_ = multiplexer_.dispatcher_.AddSocket(socket);
+      waiting_accept_socket_ = 0;
+      waiting_accept_.cancel();
+    } else {
+      // There's no socket waiting, queue it for later.
+      PendingRequest pending_request;
+      pending_request.remote_id = packet.SocketId();
+      pending_request.remote_endpoint = endpoint;
+      pending_requests_.push_back(pending_request);
+    }
+  } else {
+    DLOG(ERROR) << "Acceptor ignoring invalid packet from " << endpoint << std::endl;
+  }
 }
 
 }  // namespace transport

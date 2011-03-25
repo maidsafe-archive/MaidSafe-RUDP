@@ -25,40 +25,52 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCH_OP_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCH_OP_H_
 
+#include "boost/asio/buffer.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/udt_socket.h"
+#include "maidsafe-dht/transport/udt_dispatcher.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class UdtAcceptOp {
+// Helper class to perform an asynchronous dispatch operation.
+template <typename DispatchHandler>
+class UdtDispatchOp {
  public:
-  UdtAcceptOp(AcceptHandler handler, UdtSocket &socket)
+  UdtDispatchOp(DispatchHandler handler,
+                const boost::asio::const_buffer &buffer,
+                const boost::asio::ip::udp::endpoint *sender_endpoint,
+                UdtDispatcher *dispatcher)
     : handler_(handler),
-      socket_(socket) {
+      buffer_(buffer),
+      sender_endpoint_(sender_endpoint),
+      dispatcher_(dispatcher) {
   }
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.Id() == 0)
-      ec = boost::asio::error::operation_aborted;
+  void operator()(const boost::system::error_code &ec,
+                  size_t bytes_transferred) {
+    if (!ec) {
+      dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_,
+                                                         bytes_transferred),
+                                     *sender_endpoint_);
+    }
+
     handler_(ec);
   }
 
  private:
-  AcceptHandler handler_;
-  UdtSocket &socket_;
+  DispatchHandler handler_;
+  boost::asio::const_buffer buffer_;
+  const boost::asio::ip::udp::endpoint *sender_endpoint_;
+  UdtDispatcher *dispatcher_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_DISPATCH_OP_H_

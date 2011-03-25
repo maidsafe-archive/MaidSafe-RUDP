@@ -27,11 +27,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/udt_socket.h"
 
+#include <array>  // NOLINT
 #include <utility>
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe-dht/transport/udt_handshake_packet.h"
+#include "maidsafe-dht/transport/udt_multiplexer.h"
 
 namespace asio = boost::asio;
+namespace ip = asio::ip;
 namespace bs = boost::system;
 namespace bptime = boost::posix_time;
 namespace arg = std::placeholders;
@@ -40,18 +45,19 @@ namespace maidsafe {
 
 namespace transport {
 
-UdtSocket::UdtSocket(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
-                     asio::io_service &asio_service,
-                     boost::uint32_t id,
-                     const Endpoint &remote_endpoint)
-  : multiplexer_(udt_multiplexer),
-    remote_endpoint_(remote_endpoint),
-    waiting_connect_(asio_service),
+UdtSocket::UdtSocket(UdtMultiplexer &multiplexer)
+  : multiplexer_(multiplexer),
+    id_(0),
+    remote_endpoint_(),
+    remote_id_(0),
+    next_packet_sequence_number_(SRandomUint32()),
+    waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
-    waiting_write_(asio_service),
+    waiting_write_(multiplexer.socket_.get_io_service()),
     waiting_write_ec_(),
     waiting_write_bytes_transferred_(0),
-    waiting_read_(asio_service),
+    waiting_read_(multiplexer.socket_.get_io_service()),
+    waiting_read_transfer_at_least_(0),
     waiting_read_ec_(),
     waiting_read_bytes_transferred_(0) {
   waiting_connect_.expires_at(boost::posix_time::pos_infin);
@@ -62,7 +68,26 @@ UdtSocket::UdtSocket(const std::shared_ptr<UdtMultiplexer> &udt_multiplexer,
 UdtSocket::~UdtSocket() {
 }
 
+boost::uint32_t UdtSocket::Id() const {
+  return id_;
+}
+
+boost::asio::ip::udp::endpoint UdtSocket::RemoteEndpoint() const {
+  return remote_endpoint_;
+}
+
+boost::uint32_t UdtSocket::RemoteId() const {
+  return remote_id_;
+}
+
+bool UdtSocket::IsOpen() const {
+  return id_ != 0;
+}
+
 void UdtSocket::Close() {
+  id_ = 0;
+  remote_endpoint_ = ip::udp::endpoint();
+  remote_id_ = 0;
   waiting_connect_ec_ = asio::error::operation_aborted;
   waiting_connect_.cancel();
   waiting_write_ec_ = asio::error::operation_aborted;
@@ -74,6 +99,29 @@ void UdtSocket::Close() {
 }
 
 void UdtSocket::StartConnect() {
+  UdtHandshakePacket packet;
+  packet.SetUdtVersion(4);
+  packet.SetSocketType(UdtHandshakePacket::kStreamSocketType);
+  packet.SetInitialPacketSequenceNumber(next_packet_sequence_number_);
+  packet.SetMaximumPacketSize(UdtDataPacket::kMaxSize);
+  packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(remote_endpoint_.address());
+
+  if (remote_id_ == 0) {
+    // This is a client initiating the handshake.
+    packet.SetDestinationSocketId(0);
+    packet.SetConnectionType(1);
+  } else {
+    // This is a server responding to a connection request.
+    packet.SetDestinationSocketId(remote_id_);
+    packet.SetConnectionType(0xffffffff);
+    packet.SetSynCookie(0); // TODO calculate cookie
+  }
+
+  std::array<unsigned char, UdtPacket::kMaxSize> buffer;
+  size_t length = packet.Encode(asio::buffer(&buffer[0], UdtPacket::kMaxSize));
+  multiplexer_.SendTo(asio::buffer(&buffer[0], length), remote_endpoint_);
 }
 
 void UdtSocket::StartWrite(const asio::const_buffer &data) {
@@ -101,7 +149,6 @@ void UdtSocket::ProcessWrite() {
   if (write_buffer_.size() == kMaxWriteBufferSize)
     return;
 
-
   // Copy whatever data we can into the write buffer.
   size_t length = std::min(kMaxWriteBufferSize - write_buffer_.size(),
                            asio::buffer_size(waiting_write_buffer_));
@@ -113,15 +160,15 @@ void UdtSocket::ProcessWrite() {
 
   // If we have finished writing all of the data then it's time to trigger the
   // write's completion handler.
-  if (asio::buffer_size(waiting_write_buffer_) == 0)
-  {
+  if (asio::buffer_size(waiting_write_buffer_) == 0) {
     // The write is done. Trigger the write's completion handler.
     waiting_write_ec_.clear();
     waiting_write_.cancel();
   }
 }
 
-void UdtSocket::StartRead(const asio::mutable_buffer &data) {
+void UdtSocket::StartRead(const asio::mutable_buffer &data,
+                          size_t transfer_at_least) {
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -133,6 +180,7 @@ void UdtSocket::StartRead(const asio::mutable_buffer &data) {
   // operation will complete immediately. Otherwise it will wait until the next
   // data packet arrives.
   waiting_read_buffer_ = data;
+  waiting_read_transfer_at_least_ = transfer_at_least;
   waiting_read_bytes_transferred_ = 0;
   ProcessRead();
 }

@@ -25,83 +25,76 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/udt_multiplexer.h"
+#include "maidsafe-dht/transport/udt_dispatcher.h"
 
 #include <cassert>
 
+#include "maidsafe-dht/transport/udt_acceptor.h"
 #include "maidsafe-dht/transport/udt_packet.h"
+#include "maidsafe-dht/transport/udt_socket.h"
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
-namespace ip = boost::asio::ip;
-namespace bs = boost::system;
+namespace ip = asio::ip;
 
 namespace maidsafe {
 
 namespace transport {
 
-UdtMultiplexer::UdtMultiplexer(asio::io_service &asio_service)
-  : socket_(asio_service),
-    receive_buffer_(UdtPacket::kMaxSize) {
+UdtDispatcher::UdtDispatcher()
+  : acceptor_(0) {
 }
 
-UdtMultiplexer::~UdtMultiplexer() {
+UdtAcceptor *UdtDispatcher::GetAcceptor() const {
+  return acceptor_;
 }
 
-TransportCondition UdtMultiplexer::Open(const ip::udp &protocol) {
-  if (socket_.is_open())
-    return kAlreadyStarted;
-
-  bs::error_code ec;
-  socket_.open(protocol, ec);
-
-  if (ec)
-    return kInvalidAddress;
-
-  return kSuccess;
+void UdtDispatcher::SetAcceptor(UdtAcceptor *acceptor) {
+  assert(acceptor == 0 || acceptor_ == 0);
+  acceptor_ = acceptor;
 }
 
-TransportCondition UdtMultiplexer::Open(const ip::udp::endpoint &endpoint) {
-  if (socket_.is_open())
-    return kAlreadyStarted;
+boost::uint32_t UdtDispatcher::AddSocket(UdtSocket *socket) {
+  // Generate a new unique id for the socket.
+  boost::uint32_t id = 0;
+  while (id == 0 || sockets_.count(id) != 0)
+    id = SRandomUint32();
 
-  if (endpoint.port() == 0)
-    return kInvalidPort;
-
-  bs::error_code ec;
-  socket_.open(endpoint.protocol(), ec);
-
-  if (ec)
-    return kInvalidAddress;
-
-  socket_.bind(endpoint, ec);
-
-  if (ec)
-    return kBindError;
-
-  return kSuccess;
+  sockets_[id] = socket;
+  return id;
 }
 
-bool UdtMultiplexer::IsOpen() const {
-  return socket_.is_open();
+void UdtDispatcher::RemoveSocket(boost::uint32_t id) {
+  if (id)
+    sockets_.erase(id);
 }
 
-void UdtMultiplexer::Close() {
-  bs::error_code ec;
-  socket_.close(ec);
-}
-
-bool UdtMultiplexer::SendTo(const asio::const_buffer &data,
-                            const ip::udp::endpoint &endpoint) {
-  if (!socket_.is_open())
-    return false;
-
-  bs::error_code ec;
-  socket_.send_to(asio::buffer(data), endpoint, 0, ec);
-  return !ec;
+void UdtDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
+                                      const ip::udp::endpoint &endpoint) {
+  boost::uint32_t id = 0;
+  if (UdtPacket::DecodeDestinationSocketId(&id, data)) {
+    if (id == 0) {
+      // This packet is intended for the acceptor.
+      if (acceptor_) {
+        acceptor_->HandleReceiveFrom(data, endpoint);
+      } else {
+        DLOG(ERROR) << "Received a request for a new connection from "
+                    << endpoint << " but there is no acceptor" << std::endl;
+      }
+    } else {
+      // This packet is intended for a specific connection.
+      SocketMap::iterator socket_iter = sockets_.find(id);
+      if (socket_iter != sockets_.end()) {
+        socket_iter->second->HandleReceiveFrom(data, endpoint);
+      } else {
+        DLOG(ERROR) << "Received a packet for unknown connection "
+                    << id << " from " << endpoint << std::endl;
+      }
+    }
+  }
 }
 
 }  // namespace transport
 
 }  // namespace maidsafe
-

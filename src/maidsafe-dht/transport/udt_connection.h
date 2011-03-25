@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_CONNECTION_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDT_CONNECTION_H_
 
 #ifdef __MSVC__
 #pragma warning(disable:4996)
@@ -36,75 +36,77 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(default:4996)
 #endif
 
-#include <deque>
-#include "boost/asio/buffer.hpp"
+#include <string>
+#include <vector>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "boost/asio/strand.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/udt_accept_op.h"
+#include "maidsafe-dht/transport/udt_socket.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class UdtDispatcher;
 class UdtMultiplexer;
 class UdtSocket;
+class UdtTransport;
 
-class UdtAcceptor {
+class UdtConnection : public std::enable_shared_from_this<UdtConnection> {
  public:
-  explicit UdtAcceptor(UdtMultiplexer &multiplexer);
-  ~UdtAcceptor();
+  UdtConnection(const std::shared_ptr<UdtTransport> &transport,
+                const boost::asio::io_service::strand &strand,
+                const std::shared_ptr<UdtMultiplexer> &multiplexer,
+                const boost::asio::ip::udp::endpoint &remote);
+  ~UdtConnection();
 
-  // Returns whether the acceptor is open.
-  bool IsOpen() const;
+  UdtSocket &Socket();
 
-  // Close the acceptor and cancel pending asynchronous operations.
   void Close();
-
-  // Initiate an asynchronous operation to accept a new server-side connection.
-  template <typename AcceptHandler>
-  void AsyncAccept(UdtSocket &socket, AcceptHandler handler) {
-    UdtAcceptOp<AcceptHandler> op(handler, socket);
-    waiting_accept_.async_wait(op);
-    StartAccept(socket);
-  }
+  void StartReceiving();
+  void StartSending(const std::string &data, const Timeout &timeout);
 
  private:
-  // Disallow copying and assignment.
-  UdtAcceptor(const UdtAcceptor&);
-  UdtAcceptor &operator=(const UdtAcceptor&);
+  UdtConnection(const UdtConnection&);
+  UdtConnection &operator=(const UdtConnection&);
 
-  void StartAccept(UdtSocket &socket);
+  void DoClose();
+  void DoStartReceiving();
+  void DoStartSending();
 
-  // Called by the UdtDispatcher when a new packet arrives for the acceptor.
-  friend class UdtDispatcher;
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &endpoint);
+  void CheckTimeout();
 
-  // The multiplexer used to send and receive UDP packets.
-  UdtMultiplexer &multiplexer_;
+  void StartConnect();
+  void HandleConnect(const boost::system::error_code &ec);
 
-  // This class allows only one outstanding asynchronous accept operation at a
-  // time. The following data members store the pending accept, and the socket
-  // object that is waiting to be accepted.
-  boost::asio::deadline_timer waiting_accept_;
-  UdtSocket *waiting_accept_socket_;
+  void StartReadSize();
+  void HandleReadSize(const boost::system::error_code &ec);
 
-  // A connection request that is yet to be processed by the acceptor.
-  struct PendingRequest {
-    boost::uint32_t remote_id;
-    boost::asio::ip::udp::endpoint remote_endpoint;
-  };
+  void StartReadData();
+  void HandleReadData(const boost::system::error_code &ec, size_t length);
 
-  // A queue of the connections that are pending accept processing.
-  typedef std::deque<PendingRequest> PendingRequestQueue;
-  PendingRequestQueue pending_requests_;
+  void StartWrite();
+  void HandleWrite(const boost::system::error_code &ec);
+
+  void DispatchMessage();
+  void EncodeData(const std::string &data);
+  void CloseOnError(const TransportCondition &error);
+
+  std::weak_ptr<UdtTransport> transport_;
+  boost::asio::io_service::strand strand_;
+  std::shared_ptr<UdtMultiplexer> multiplexer_;
+  UdtSocket socket_;
+  boost::asio::deadline_timer timer_;
+  boost::posix_time::ptime response_deadline_;
+  boost::asio::ip::udp::endpoint remote_endpoint_;
+  std::vector<unsigned char> buffer_;
+  size_t data_size_, data_received_;
+  Timeout timeout_for_response_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPTOR_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_CONNECTION_H_

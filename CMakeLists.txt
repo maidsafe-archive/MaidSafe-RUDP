@@ -296,6 +296,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udt_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   SET_PROPERTY(SOURCE "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc"
@@ -304,12 +305,15 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_acceptor.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_connection.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_control_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_data_packet.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_dispatcher.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_handshake_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_multiplexer.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_socket.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udt_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc"
                         PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()

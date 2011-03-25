@@ -25,40 +25,19 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
-
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/udt_socket.h"
+#include "maidsafe-dht/transport/udt_transport.h"
+#include "maidsafe-dht/tests/transport/test_transport_api.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class UdtAcceptOp {
- public:
-  UdtAcceptOp(AcceptHandler handler, UdtSocket &socket)
-    : handler_(handler),
-      socket_(socket) {
-  }
+namespace test {
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.Id() == 0)
-      ec = boost::asio::error::operation_aborted;
-    handler_(ec);
-  }
 
- private:
-  AcceptHandler handler_;
-  UdtSocket &socket_;
-};
+
+}  // namespace test
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_ACCEPT_OP_H_
