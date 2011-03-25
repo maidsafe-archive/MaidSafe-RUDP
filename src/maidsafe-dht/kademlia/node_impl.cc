@@ -395,14 +395,16 @@ void Node::Impl::UpdateRankInfo(const Contact &contact,
   routing_table_->UpdateRankInfo(contact.node_id(), rank_info);
 }
 
-RankInfoPtr Node::Impl::GetLocalRankInfo(const Contact &/*contact*/) {
-  return RankInfoPtr();
+RankInfoPtr Node::Impl::GetLocalRankInfo(const Contact &contact) const {
+  return routing_table_->GetLocalRankInfo(contact);
 }
 
-void Node::Impl::GetAllContacts(std::vector<Contact> * /*contacts*/) {
+void Node::Impl::GetAllContacts(std::vector<Contact> *contacts) {
+  routing_table_->GetAllContacts(contacts);
 }
 
-void Node::Impl::GetBootstrapContacts(std::vector<Contact> * /*contacts*/) {
+void Node::Impl::GetBootstrapContacts(std::vector<Contact> *contacts) {
+  routing_table_->GetBootstrapContacts(contacts);
 }
 
 Contact Node::Impl::contact() const {
