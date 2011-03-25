@@ -1127,6 +1127,14 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
   find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
   find_value_req.set_key(target_id.String());
   {
+    service_->set_node_joined(false);
+    protobuf::FindValueResponse find_value_rsp;
+    service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
+    ASSERT_FALSE(find_value_rsp.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
+  {
     // Search in empty routing table and datastore
     // no alternative_store_
     protobuf::FindValueResponse find_value_rsp;
@@ -1290,6 +1298,15 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     downlist_request.add_node_ids(contact_id.String());
     service_->Downlist(info_, downlist_request, &time_out);
     ASSERT_EQ(test::k, num_of_pings_);
+  }
+  num_of_pings_ = 0;
+  { // Node not joined
+    service_->set_node_joined(false);
+    NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
+    downlist_request.add_node_ids(contact_id.String());
+    service_->Downlist(info_, downlist_request, &time_out);
+    EXPECT_NE(test::k, num_of_pings_);
+    service_->set_node_joined(true);
   }
 }
 
