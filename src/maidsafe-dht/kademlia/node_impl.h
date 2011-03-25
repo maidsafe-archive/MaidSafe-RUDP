@@ -206,6 +206,10 @@ class Node::Impl {
   /** Setter. Will connect the signal in service as well.
    *  @param[in] service The service to connect */
   void SetService(std::shared_ptr<Service> service);
+  /** Setter. Will connect the ping_oldest_contact signal in routing table. */
+  void EnablePingOldestContact();
+  /** Setter. Will connect the validate_contact signal in routing table. */
+  void EnableValidateContact();
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;

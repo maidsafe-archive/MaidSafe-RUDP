@@ -82,6 +82,7 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
       UnValidatedContact new_entry(contact, rank_info);
       unvalidated_contacts_.insert(new_entry);
       // fire the signal to validate the contact
+      upgrade_lock->unlock();
       (*validate_contact_)(contact);
     }
   }

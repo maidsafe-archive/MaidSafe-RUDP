@@ -85,10 +85,10 @@ class Rpcs {
         asio_service_(asio_service),
         default_securifier_(default_securifier) {}
   virtual ~Rpcs() {}
-  void Ping(SecurifierPtr securifier,
-            const Contact &peer,
-            PingFunctor callback,
-            TransportType type);
+  virtual void Ping(SecurifierPtr securifier,
+                    const Contact &peer,
+                    PingFunctor callback,
+                    TransportType type);
   virtual void FindValue(const Key &key,
                          SecurifierPtr securifier,
                          const Contact &peer,

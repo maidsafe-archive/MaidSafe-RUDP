@@ -54,6 +54,23 @@ static const boost::uint16_t alpha = 3;
 static const boost::uint16_t beta = 2;
 static const boost::uint16_t randomnoresponserate = 20;  // in percentage
 
+class SecurifierValidateTrue: public Securifier {
+ public:
+  SecurifierValidateTrue(const std::string &public_key_id,
+                          const std::string &public_key,
+                          const std::string &private_key) :
+      Securifier(public_key_id, public_key, private_key) {}
+
+  bool Validate(const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&) const {
+    return true;
+  }
+};
+
 void FindNodeCallback(RankInfoPtr rank_info,
                       int result_size,
                       const std::vector<Contact> &cs,
@@ -238,9 +255,15 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
                    node_(new Node::Impl(asio_service_, info_,
                          securifier_, alternative_store_, true, test::k,
                          test::alpha, test::beta, bptime::seconds(3600))),
-                   threshold_((test::k * 3) / 4) {
+                   threshold_((test::k * 3) / 4),
+                   local_node_(new Node::Impl(asio_service_, info_,
+                       SecurifierPtr(new SecurifierValidateTrue("", "", "")),
+                       alternative_store_, true, test::k,
+                       test::alpha, test::beta,
+                       bptime::seconds(3600))) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
+    local_node_->routing_table_ = routing_table_;
   }
 
   static void SetUpTestCase() {}
@@ -270,6 +293,10 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     node_->rpcs_ = rpc;
   }
 
+  void SetLocalRpc(std::shared_ptr<Rpcs> rpc) {
+    local_node_->rpcs_ = rpc;
+  }
+
   KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
                             const size_t &value_size,
                             std::string key,
@@ -295,6 +322,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   std::shared_ptr<boost::asio::io_service> asio_service_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
+  std::shared_ptr<Node::Impl> local_node_;
 };  // NodeImplTest
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
@@ -346,6 +374,11 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                               SecurifierPtr securifier,
                               const Contact &peer,
                               TransportType type));
+
+  MOCK_METHOD4(Ping, void(SecurifierPtr securifier,
+                          const Contact &peer,
+                          PingFunctor callback,
+                          TransportType type));
 
   void FindNodeRandomResponseClose(const Contact &c,
                                    FindNodesFunctor callback) {
@@ -612,6 +645,12 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
+  void NoResponse(const Contact &c, T callback) {
+    boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
+                                 this, callback));
+  }
+
+  template <class T>
   void FirstSeveralNoResponse(const Contact &c, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ > (test::k - threshold_)) {
@@ -774,6 +813,65 @@ TEST_F(NodeImplTest, BEH_KAD_GetContact) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+}
+
+TEST_F(NodeImplTest, BEH_KAD_ValidateContact) {
+  NodeId contact_id = GenerateRandomId(node_id_, 501);
+  Contact contact = ComposeContact(contact_id, 5000);
+  local_node_->EnableValidateContact();
+  {
+    routing_table_->AddContact(contact, rank_info_);
+    // need to sleep for a while
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Contact result;
+    routing_table_->GetContact(contact.node_id(), &result);
+    EXPECT_EQ(contact, result);
+  }
+}
+
+TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
+  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(test::k, 501);
+
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetLocalRpc(new_rpcs);
+
+  NodeId new_id = GenerateUniqueRandomId(node_id_, 501);
+  Contact new_contact = ComposeContact(new_id, 5000);
+
+  local_node_->EnablePingOldestContact();
+  local_node_->EnableValidateContact();
+  {
+    // Ping success
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    AddContact(new_contact, rank_info_);
+    // need to sleep for a while
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    Contact result_new;
+    routing_table_->GetContact(new_contact.node_id(), &result_new);
+    EXPECT_EQ(Contact(), result_new);
+  }
+  {
+    // Ping failed
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    AddContact(new_contact, rank_info_);
+
+    Contact result_new;
+    // may need to put a timer to prevent deadlock
+    do {
+      routing_table_->GetContact(new_contact.node_id(), &result_new);
+      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+    } while (result_new == Contact());
+    EXPECT_EQ(new_contact, result_new);
+  }
 }
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
