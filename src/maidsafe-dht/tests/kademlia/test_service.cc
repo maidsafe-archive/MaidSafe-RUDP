@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/service.h"
+#include "maidsafe-dht/kademlia/message_handler.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
@@ -59,6 +60,22 @@ inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   *pub_key =  kp.public_key();
   *priv_key = kp.private_key();
 }
+
+class MockTransport : public transport::Transport {
+ public:
+  explicit MockTransport(boost::asio::io_service &asio_service)  // NOLINT
+      : transport::Transport(asio_service) {}
+  virtual transport::TransportCondition StartListening(
+      const transport::Endpoint &) { return transport::kSuccess; }
+  virtual transport::TransportCondition Bootstrap(
+      const std::vector<transport::Endpoint> &) {
+    return transport::kSuccess;
+  }
+  virtual void StopListening() {}
+  virtual void Send(const std::string &,
+                    const transport::Endpoint &,
+                    const transport::Timeout &) {}
+};
 
 class SecurifierGetPublicKeyAndValidation: public Securifier {
  public:
@@ -276,6 +293,15 @@ class ServicesTest: public testing::Test {
     return service.sender_task_->task_index_->size();
   }
 
+  void CheckServiceConstructAttributes(const Service& service,
+                                       boost::uint16_t k) {
+    EXPECT_EQ(0U, service.routing_table_->Size());
+    EXPECT_EQ(0U, service.datastore_->key_value_index_->size());
+    EXPECT_FALSE(service.node_joined_);
+    EXPECT_EQ(k, service.k_);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
+  }
+
   bool DoStore(NodeId sender_id, KeyValueSignature kvs,
                crypto::RsaKeyPair& crypto_key_data) {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
@@ -462,6 +488,16 @@ class ServicesTest: public testing::Test {
   int num_of_pings_;
 };
 
+
+TEST_F(ServicesTest, BEH_KAD_Constructor) {
+  Service service(routing_table_, data_store_, alternative_store_, securifier_);
+  CheckServiceConstructAttributes(service, 16U);
+
+  Service service_k(routing_table_, data_store_, alternative_store_,
+                    securifier_, 2U);
+  CheckServiceConstructAttributes(service_k, 2U);
+}
+
 TEST_F(ServicesTest, BEH_KAD_Store) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
@@ -477,7 +513,15 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
                                              crypto_key_data.private_key());
   RequestAndSignature request_signature(message, message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
-
+  {
+    protobuf::StoreResponse store_response;
+    service_->set_node_joined(false);
+    service_->Store(info_, store_request, message, message_sig,
+                    &store_response, &time_out);
+    EXPECT_FALSE(store_response.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
   {
     // Try to store with empty message and mesaage_sig
     // into empty datastore and empty routingtable
@@ -515,6 +559,20 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     ASSERT_EQ(0U, GetDataStoreSize());
     ASSERT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
+  }
+  Clear();
+  {
+    // Try to store a validated tuple with invalid ttl
+    store_request.set_ttl(0);
+    protobuf::StoreResponse store_response;
+    service_->Store(info_, store_request, message, message_sig,
+                    &store_response, &time_out);
+    EXPECT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    ASSERT_EQ(0U, GetDataStoreSize());
+    store_request.set_ttl(3600*24);
   }
   Clear();
   {
@@ -576,7 +634,15 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
       crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
-
+  {
+    service_->set_node_joined(false);
+    protobuf::DeleteResponse delete_response;
+    service_->Delete(info_, delete_request, delete_message,
+                     delete_message_sig, &delete_response, &time_out);
+    EXPECT_FALSE(delete_response.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
   {
     // Try to delete with empty message and mesaage_sig
     // from empty datastore and empty routingtable
@@ -686,7 +752,15 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
                                              new_crypto_key_id);
   protobuf::StoreRefreshRequest store_refresh_request;
   store_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(new_sender));
-
+  {
+    service_->set_node_joined(false);
+    protobuf::StoreRefreshResponse store_refresh_response;
+    service_->StoreRefresh(info_, store_refresh_request,
+                           &store_refresh_response, &time_out);
+    EXPECT_FALSE(store_refresh_response.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
   {
     // Try to storerefresh with empty message and mesaage_sig
     // into empty datastore and empty routingtable
@@ -798,7 +872,15 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
                                              new_crypto_key_id);
   protobuf::DeleteRefreshRequest delete_refresh_request;
   delete_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(new_sender));
-
+  {
+    service_->set_node_joined(false);
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    EXPECT_FALSE(delete_refresh_response.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
   {
     // Try to deleterefresh with empty message and mesaage_sig
     // from empty datastore and empty routingtable
@@ -948,6 +1030,13 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   protobuf::FindNodesRequest find_nodes_req;
   find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
   find_nodes_req.set_key(target_id.String());
+  {
+    service_->set_node_joined(false);
+    protobuf::FindNodesResponse find_nodes_rsp;
+    service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
+    EXPECT_FALSE(find_nodes_rsp.result());
+    service_->set_node_joined(true);
+  }
   {
     // try to find a node from an empty routing table
     protobuf::FindNodesResponse find_nodes_rsp;
@@ -1450,7 +1539,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
     EXPECT_TRUE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
                                k1_v1, crypto_key_data_1));
     EXPECT_TRUE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
@@ -1461,8 +1550,8 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_EQ(1U, GetDataStoreSize());
     EXPECT_EQ(2U, CountUnValidatedContacts());
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v1));
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
   }
   Clear();
   // Store refresh requests for same key different value from same sender
@@ -1470,9 +1559,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
     EXPECT_TRUE(DoStore(sender_id_1, k1_v2, crypto_key_data_1));
     EXPECT_TRUE(DoStore(sender_id_1, k1_v3, crypto_key_data_1));
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__old_k1_v2 = GetRefreshTime(k1_v2);
-    bptime::ptime refresh_time__old_k1_v3 = GetRefreshTime(k1_v3);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k1_v2 = GetRefreshTime(k1_v2);
+    bptime::ptime refresh_time_old_k1_v3 = GetRefreshTime(k1_v3);
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(3U, GetDataStoreSize());
     EXPECT_TRUE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
@@ -1488,12 +1577,12 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v2));
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v3));
 
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__new_k1_v2 = GetRefreshTime(k1_v2);
-    bptime::ptime refresh_time__new_k1_v3 = GetRefreshTime(k1_v3);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
-    EXPECT_GT(refresh_time__new_k1_v2, refresh_time__old_k1_v2);
-    EXPECT_GT(refresh_time__new_k1_v3, refresh_time__old_k1_v3);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_new_k1_v2 = GetRefreshTime(k1_v2);
+    bptime::ptime refresh_time_new_k1_v3 = GetRefreshTime(k1_v3);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v2, refresh_time_old_k1_v2);
+    EXPECT_GT(refresh_time_new_k1_v3, refresh_time_old_k1_v3);
   }
   Clear();
   // Store refresh request for same key from different requester
@@ -1502,7 +1591,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
-    bptime::ptime  refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
     EXPECT_FALSE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
                                 k1_v1, crypto_key_data_2));
     EXPECT_TRUE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
@@ -1511,8 +1600,8 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_EQ(1U, GetDataStoreSize());
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v1));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
-    bptime::ptime  refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
   }
   Clear();
   // Store refresh request for same key from different requester
@@ -1546,9 +1635,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
     EXPECT_TRUE(DoStore(sender_id_2, k2_v1, crypto_key_data_2));
     EXPECT_TRUE(DoStore(sender_id_3, k3_v1, crypto_key_data_3));
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__old_k2_v1 = GetRefreshTime(k2_v1);
-    bptime::ptime refresh_time__old_k3_v1 = GetRefreshTime(k3_v1);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k2_v1 = GetRefreshTime(k2_v1);
+    bptime::ptime refresh_time_old_k3_v1 = GetRefreshTime(k3_v1);
 
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(3U, GetDataStoreSize());
@@ -1562,12 +1651,12 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(3U, GetDataStoreSize());
 
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__new_k2_v1 = GetRefreshTime(k2_v1);
-    bptime::ptime refresh_time__new_k3_v1 = GetRefreshTime(k3_v1);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
-    EXPECT_GT(refresh_time__new_k2_v1, refresh_time__old_k2_v1);
-    EXPECT_GT(refresh_time__new_k3_v1, refresh_time__old_k3_v1);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_new_k2_v1 = GetRefreshTime(k2_v1);
+    bptime::ptime refresh_time_new_k3_v1 = GetRefreshTime(k3_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k2_v1, refresh_time_old_k2_v1);
+    EXPECT_GT(refresh_time_new_k3_v1, refresh_time_old_k3_v1);
   }
   Clear();
 }
@@ -1607,7 +1696,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
     EXPECT_TRUE(DoDelete(sender_id_1, k1_v1, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
     EXPECT_TRUE(DoDeleteRefresh(sender_id_2, crypto_key_data_2,
                                 sender_id_1, k1_v1, crypto_key_data_1));
     EXPECT_TRUE(DoDeleteRefresh(sender_id_3, crypto_key_data_3,
@@ -1616,8 +1705,8 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
                                 sender_id_1, k1_v1, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
     EXPECT_EQ(3U, CountUnValidatedContacts());
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v1));
   }
@@ -1632,9 +1721,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
     EXPECT_TRUE(DoDelete(sender_id_1, k1_v3, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(3U, GetDataStoreSize());
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__old_k1_v2 = GetRefreshTime(k1_v2);
-    bptime::ptime refresh_time__old_k1_v3 = GetRefreshTime(k1_v3);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k1_v2 = GetRefreshTime(k1_v2);
+    bptime::ptime refresh_time_old_k1_v3 = GetRefreshTime(k1_v3);
 
     EXPECT_TRUE(DoDeleteRefresh(sender_id_2, crypto_key_data_2,
                                 sender_id_1, k1_v1, crypto_key_data_1));
@@ -1649,12 +1738,24 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v3));
 
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__new_k1_v2 = GetRefreshTime(k1_v2);
-    bptime::ptime refresh_time__new_k1_v3 = GetRefreshTime(k1_v3);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
-    EXPECT_GT(refresh_time__new_k1_v2, refresh_time__old_k1_v2);
-    EXPECT_GT(refresh_time__new_k1_v3, refresh_time__old_k1_v3);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_new_k1_v2 = GetRefreshTime(k1_v2);
+    bptime::ptime refresh_time_new_k1_v3 = GetRefreshTime(k1_v3);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v2, refresh_time_old_k1_v2);
+    EXPECT_GT(refresh_time_new_k1_v3, refresh_time_old_k1_v3);
+  }
+  Clear();
+  // Delete Refresh requests for existing key from different sender
+  {
+    EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+    JoinNetworkLookup(securifier_);
+    EXPECT_FALSE(DoDeleteRefresh(sender_id_2, crypto_key_data_2,
+                                 sender_id_3, k1_v2, crypto_key_data_3));
+    EXPECT_FALSE(DoDeleteRefresh(sender_id_3, crypto_key_data_3,
+                                 sender_id_3, k1_v3, crypto_key_data_3));
+    EXPECT_EQ(3U, CountUnValidatedContacts());
+    EXPECT_EQ(1U, GetDataStoreSize());
   }
   Clear();
   // Delete Refresh requests for different key value from different sender
@@ -1668,9 +1769,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
     EXPECT_TRUE(DoDelete(sender_id_3, k3_v1, crypto_key_data_3));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(3U, GetDataStoreSize());
-    bptime::ptime refresh_time__old_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__old_k2_v1 = GetRefreshTime(k2_v1);
-    bptime::ptime refresh_time__old_k3_v1 = GetRefreshTime(k3_v1);
+    bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_old_k2_v1 = GetRefreshTime(k2_v1);
+    bptime::ptime refresh_time_old_k3_v1 = GetRefreshTime(k3_v1);
 
     EXPECT_TRUE(DoDeleteRefresh(sender_id_2, crypto_key_data_2,
                                 sender_id_1, k1_v1, crypto_key_data_1));
@@ -1685,12 +1786,12 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v3));
 
-    bptime::ptime refresh_time__new_k1_v1 = GetRefreshTime(k1_v1);
-    bptime::ptime refresh_time__new_k2_v1 = GetRefreshTime(k2_v1);
-    bptime::ptime refresh_time__new_k3_v1 = GetRefreshTime(k3_v1);
-    EXPECT_GT(refresh_time__new_k1_v1, refresh_time__old_k1_v1);
-    EXPECT_GT(refresh_time__new_k2_v1, refresh_time__old_k2_v1);
-    EXPECT_GT(refresh_time__new_k3_v1, refresh_time__old_k3_v1);
+    bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
+    bptime::ptime refresh_time_new_k2_v1 = GetRefreshTime(k2_v1);
+    bptime::ptime refresh_time_new_k3_v1 = GetRefreshTime(k3_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k2_v1, refresh_time_old_k2_v1);
+    EXPECT_GT(refresh_time_new_k3_v1, refresh_time_old_k3_v1);
   }
 }
 
@@ -1735,8 +1836,8 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_TRUE(DoStore(sender_id_2, k2_v1, crypto_key_data_2));
   EXPECT_TRUE(DoStore(sender_id_2, k2_v2, crypto_key_data_2));
   JoinNetworkLookup(securifier_);
-  bptime::ptime refresh_time__old_k2_v1 = GetRefreshTime(k2_v1);
-  bptime::ptime refresh_time__old_k2_v2 = GetRefreshTime(k2_v2);
+  bptime::ptime refresh_time_old_k2_v1 = GetRefreshTime(k2_v1);
+  bptime::ptime refresh_time_old_k2_v2 = GetRefreshTime(k2_v2);
   // Data for Delete
   EXPECT_TRUE(DoStore(sender_id_3, k3_v1, crypto_key_data_3));
   EXPECT_TRUE(DoStore(sender_id_3, k3_v2, crypto_key_data_3));
@@ -1747,8 +1848,8 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_TRUE(DoDelete(sender_id_4, k4_v1, crypto_key_data_4));
   EXPECT_TRUE(DoDelete(sender_id_4, k4_v2, crypto_key_data_4));
   JoinNetworkLookup(securifier_);
-  bptime::ptime refresh_time__old_k4_v1 = GetRefreshTime(k4_v1);
-  bptime::ptime refresh_time__old_k4_v2 = GetRefreshTime(k4_v2);
+  bptime::ptime refresh_time_old_k4_v1 = GetRefreshTime(k4_v1);
+  bptime::ptime refresh_time_old_k4_v2 = GetRefreshTime(k4_v2);
 
   EXPECT_EQ(6U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
@@ -1808,10 +1909,10 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   {
     EXPECT_TRUE(IsKeyValueInDataStore(k2_v1));
     EXPECT_TRUE(IsKeyValueInDataStore(k2_v2));
-    bptime::ptime refresh_time__new_k2_v1 = GetRefreshTime(k2_v1);
-    bptime::ptime refresh_time__new_k2_v2 = GetRefreshTime(k2_v2);
-    EXPECT_GT(refresh_time__new_k2_v1, refresh_time__old_k2_v1);
-    EXPECT_GT(refresh_time__new_k2_v2, refresh_time__old_k2_v2);
+    bptime::ptime refresh_time_new_k2_v1 = GetRefreshTime(k2_v1);
+    bptime::ptime refresh_time_new_k2_v2 = GetRefreshTime(k2_v2);
+    EXPECT_GT(refresh_time_new_k2_v1, refresh_time_old_k2_v1);
+    EXPECT_GT(refresh_time_new_k2_v2, refresh_time_old_k2_v2);
   }
   // Delete
   EXPECT_FALSE(IsKeyValueInDataStore(k3_v1));
@@ -1820,13 +1921,106 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   {
     EXPECT_FALSE(IsKeyValueInDataStore(k4_v1));
     EXPECT_FALSE(IsKeyValueInDataStore(k4_v2));
-    bptime::ptime refresh_time__new_k4_v1 = GetRefreshTime(k4_v1);
-    bptime::ptime refresh_time__new_k4_v2 = GetRefreshTime(k4_v2);
-    EXPECT_GT(refresh_time__new_k4_v1, refresh_time__old_k4_v1);
-    EXPECT_GT(refresh_time__new_k4_v2, refresh_time__old_k4_v2);
+    bptime::ptime refresh_time_new_k4_v1 = GetRefreshTime(k4_v1);
+    bptime::ptime refresh_time_new_k4_v2 = GetRefreshTime(k4_v2);
+    EXPECT_GT(refresh_time_new_k4_v1, refresh_time_old_k4_v1);
+    EXPECT_GT(refresh_time_new_k4_v2, refresh_time_old_k4_v2);
   }
   EXPECT_EQ(4U, CountUnValidatedContacts());
   EXPECT_EQ(8U, GetDataStoreSize());
+}
+
+TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
+  MessageHandlerPtr message_handler_ptr(new MessageHandler(securifier_));
+  boost::asio::io_service ioservice;
+  TransportPtr transport_ptr(new MockTransport(ioservice));
+  // Connecting to Signals
+  service_->ConnectToSignals(transport_ptr, message_handler_ptr);
+  // Data
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(1024);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
+
+  // Signal PingRequest
+  protobuf::PingRequest ping_request;
+  ping_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  ping_request.set_ping("ping");
+  protobuf::PingResponse ping_response;
+  (*message_handler_ptr->on_ping_request())(info_, ping_request, &ping_response,
+                                            &time_out);
+  EXPECT_TRUE(ping_response.IsInitialized());
+  EXPECT_EQ("pong", ping_response.echo());
+
+  // Signal FindValueRequest
+  protobuf::FindValueRequest find_value_req;
+  find_value_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  find_value_req.set_key(sender_id.String());
+  protobuf::FindValueResponse find_value_rsp;
+  (*message_handler_ptr->on_find_value_request())(info_, find_value_req,
+                                                  &find_value_rsp, &time_out);
+  ASSERT_TRUE(find_value_rsp.result());
+
+  // Signal FindNodeRequest
+  protobuf::FindNodesRequest find_nodes_req;
+  find_nodes_req.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  find_nodes_req.set_key(sender_id.String());
+  protobuf::FindNodesResponse find_nodes_rsp;
+  (*message_handler_ptr->on_find_nodes_request())(info_, find_nodes_req,
+                                                  &find_nodes_rsp, &time_out);
+  ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
+  ASSERT_EQ(0U, find_nodes_rsp.closest_nodes_size());
+
+  // Signal StoreRequest
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
+  std::string message = store_request.SerializeAsString();
+  std::string message_sig = crypto::AsymSign(message,
+                                             crypto_key_data.private_key());
+  protobuf::StoreResponse store_response;
+  (*message_handler_ptr->on_store_request())(info_, store_request, message,
+      message_sig, &store_response, &time_out);
+  EXPECT_TRUE(store_response.result());
+
+  // Signal StoreRefresh
+  protobuf::StoreRefreshRequest store_refresh_request;
+  store_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  store_refresh_request.set_serialised_store_request(message);
+  store_refresh_request.set_serialised_store_request_signature(message_sig);
+  protobuf::StoreRefreshResponse store_refresh_response;
+  (*message_handler_ptr->on_store_refresh_request())(info_,
+      store_refresh_request, &store_refresh_response, &time_out);
+  EXPECT_TRUE(store_refresh_response.result());
+  JoinNetworkLookup(securifier_);
+
+  // Signal DeleteRequest
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
+  std::string delete_message = delete_request.SerializeAsString();
+  std::string delete_message_sig =
+      crypto::AsymSign(delete_message, crypto_key_data.private_key());
+  protobuf::DeleteResponse delete_response;
+  (*message_handler_ptr->on_delete_request())(info_, delete_request,
+      delete_message, delete_message_sig, &delete_response, &time_out);
+  EXPECT_TRUE(delete_response.result());
+
+  // Signal DeleteRefreshRequest
+  protobuf::DeleteRefreshRequest delete_refresh_request;
+  delete_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+  delete_refresh_request.set_serialised_delete_request(delete_message);
+  delete_refresh_request.
+      set_serialised_delete_request_signature(delete_message_sig);
+  protobuf::DeleteRefreshResponse delete_refresh_response;
+  (*message_handler_ptr->on_delete_refresh_request())(info_,
+      delete_refresh_request, &delete_refresh_response, &time_out);
+  EXPECT_TRUE(delete_refresh_response.result());
+
+  // Signal DownlistNotification
+  protobuf::DownlistNotification downlist_request;
+  service_->Downlist(info_, downlist_request, &time_out);
+  (*message_handler_ptr->on_downlist_notification())(info_, downlist_request,
+                                                     &time_out);
+  EXPECT_EQ(0U, num_of_pings_);
+  JoinNetworkLookup(securifier_);
 }
 
 }  // namespace test_service
