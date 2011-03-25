@@ -459,9 +459,15 @@ void Node::Impl::Join(const NodeId &node_id,
   // Startup the thread to monitor the downlist queue
   thread_group_.create_thread(
                     boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+}
+
+void Node::Impl::EnablePingOldestContact() {
   // Connect the ping_oldest_contact signal in the routing table
   routing_table_->ping_oldest_contact()->connect(boost::bind(
                       &Node::Impl::PingOldestContact, this, _1, _2, _3));
+}
+
+void Node::Impl::EnableValidateContact() {
   // Connect the validate_contact signal in the routing table
   routing_table_->validate_contact()->connect(boost::bind(
                       &Node::Impl::ValidateContact, this, _1));
