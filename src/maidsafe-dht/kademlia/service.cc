@@ -91,32 +91,36 @@ void Service::ConnectToSignals(TransportPtr transport,
   // Connect service to message handler for incoming parsed requests
   message_handler->on_ping_request()->connect(
       MessageHandler::PingReqSigPtr::element_type::slot_type(
-          &Service::Ping, this, _1, _2, _3, _4).track(shared_from_this()));
+          &Service::Ping, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
   message_handler->on_find_value_request()->connect(
       MessageHandler::FindValueReqSigPtr::element_type::slot_type(
-          &Service::FindValue, this, _1, _2, _3, _4).track(shared_from_this()));
+          &Service::FindValue, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
   message_handler->on_find_nodes_request()->connect(
       MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
-          &Service::FindNodes, this, _1, _2, _3, _4).track(shared_from_this()));
+          &Service::FindNodes, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
   message_handler->on_store_request()->connect(
       MessageHandler::StoreReqSigPtr::element_type::slot_type(
-          &Service::Store, this, _1, _2, _3, _4, _5, _6).track(
+          &Service::Store, this, _1, _2, _3, _4, _5, _6).track_foreign(
               shared_from_this()));
   message_handler->on_store_refresh_request()->connect(
       MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
-          &Service::StoreRefresh, this, _1, _2, _3, _4).track(
+          &Service::StoreRefresh, this, _1, _2, _3, _4).track_foreign(
               shared_from_this()));
   message_handler->on_delete_request()->connect(
       MessageHandler::DeleteReqSigPtr::element_type::slot_type(
-          &Service::Delete, this, _1, _2, _3, _4, _5, _6).track(
+          &Service::Delete, this, _1, _2, _3, _4, _5, _6).track_foreign(
               shared_from_this()));
   message_handler->on_delete_refresh_request()->connect(
       MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
-          &Service::DeleteRefresh, this, _1, _2, _3, _4).track(
+          &Service::DeleteRefresh, this, _1, _2, _3, _4).track_foreign(
               shared_from_this()));
   message_handler->on_downlist_notification()->connect(
       MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
-          &Service::Downlist, this, _1, _2, _3).track(shared_from_this()));
+          &Service::Downlist, this, _1, _2, _3).track_foreign(
+              shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
@@ -215,7 +219,7 @@ void Service::Store(const transport::Info &info,
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(request.key(), &values)) {
     if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                             request.sender().public_key())) {
+                              request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
       return;
@@ -264,7 +268,7 @@ void Service::StoreRefresh(const transport::Info &info,
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(ori_store_request.key(), &values)) {
     if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                             ori_store_request.sender().public_key())) {
+                              ori_store_request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
       return;
@@ -370,7 +374,7 @@ void Service::Delete(const transport::Info &info,
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(request.key(), &values)) {
     if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                             request.sender().public_key())) {
+                              request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
       return;
@@ -423,7 +427,7 @@ void Service::DeleteRefresh(const transport::Info &info,
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(ori_delete_request.key(), &values)) {
     if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                             ori_delete_request.sender().public_key())) {
+                              ori_delete_request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
       return;
