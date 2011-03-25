@@ -161,10 +161,17 @@ class Node::Impl {
   void IncrementFailedRpcs(const Contact &contact);
   /** Function to update the contact's rank_info.
    *  @param[in] contact The contact to update
-   *  @param[in] rank_info The rank info to update*/
+   *  @param[in] rank_info The rank info to update */
   void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
-  RankInfoPtr GetLocalRankInfo(const Contact &contact);
+  /** Get the local RankInfo of the contact
+   *  @param[in] contact The contact to find
+   *  @return The localRankInfo of the contact */
+  RankInfoPtr GetLocalRankInfo(const Contact &contact) const;
+  /** Get all contacts in the routing table
+   *  @param[out] contacts All contacts in the routing table */
   void GetAllContacts(std::vector<Contact> *contacts);
+  /** Get Bootstrap contacts in the routing table
+   *  @param[out] contacts Bootstrap contacts in the routing table */
   void GetBootstrapContacts(std::vector<Contact> *contacts);
   /** Getter.
    *  @return The contact_ */

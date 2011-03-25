@@ -335,6 +335,31 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
     contacts->push_back((*it.first++).contact);
 }
 
+RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {
+  SharedLock shared_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.find(contact.node_id());
+  if (it != key_indx.end())
+    return (*it).rank_info;
+  else
+    return RankInfoPtr();
+}
+
+void RoutingTable::GetAllContacts(std::vector<Contact> *contacts) {
+  if (!contacts)
+    return;
+  SharedLock shared_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.begin();
+  auto it_end = key_indx.end();
+  contacts->clear();
+  contacts->reserve(distance(it, it_end));
+  while (it != it_end) {
+    contacts->push_back((*it).contact);
+    ++it;
+  }
+}
+
 PingOldestContactPtr RoutingTable::ping_oldest_contact() {
   return ping_oldest_contact_;
 }
