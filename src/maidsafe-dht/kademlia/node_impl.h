@@ -149,13 +149,19 @@ class Node::Impl {
    *  @param[in] Key The key to locate
    *  @param[in] callback The callback to report the results. */
   void FindNodes(const Key &key, FindNodesFunctor callback);
-  /** Function to Geta contact info from the Kademlia network.
+  /** Function to get a contact info from the Kademlia network.
    *  @param[in] node_id The node_id to locate
    *  @param[in] callback The callback to report the results. */
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
-
+  /** Function to set the contact's last_seen to now.
+   *  @param[in] contact The contact to set */
   void SetLastSeenToNow(const Contact &contact);
+  /** Function to set the contact's last_seen to now.
+   *  @param[in] contact The contact to set */
   void IncrementFailedRpcs(const Contact &contact);
+  /** Function to update the contact's rank_info.
+   *  @param[in] contact The contact to update
+   *  @param[in] rank_info The rank info to update*/
   void UpdateRankInfo(const Contact &contact, RankInfoPtr rank_info);
   RankInfoPtr GetLocalRankInfo(const Contact &contact);
   void GetAllContacts(std::vector<Contact> *contacts);
@@ -172,6 +178,8 @@ class Node::Impl {
   /** Getter.
    *  @return The alternative_store_ */
   AlternativeStorePtr alternative_store();
+  /** Getter.
+   *  @return The on_online_status_change_ */
   OnOnlineStatusChangePtr on_online_status_change();
   /** Getter.
    *  @return The client_only_node flag. */
@@ -185,6 +193,8 @@ class Node::Impl {
   /** Getter.
    *  @return The kBeta_ */
   boost::uint16_t beta() const;
+  /** Getter.
+   *  @return The kMeanRefreshInterval_ */
   boost::posix_time::time_duration mean_refresh_interval() const;
 
   friend class test::NodeImplTest;
@@ -266,16 +276,35 @@ class Node::Impl {
                                 std::vector<Contact> *closest_contacts,
                                 bool *cur_iteration_done,
                                 bool *calledback);
-
+  /** Function to be connected with the ping_oldest_contact signal in routing
+   *  table. Will try to ping the report in oldest contact
+   *  @param[in] oldest_contact The report in oldest_contact
+   *  @param[in] replacement_contact The contact trying to replace the oldest
+   *  @param[in] replacement_rank_info Rank info of the replacement contact */
   void PingOldestContact(const Contact &oldest_contact,
                          const Contact &replacement_contact,
                          RankInfoPtr replacement_rank_info);
+  /** Callback Function of the PingOldestContact
+   *  Will try to replace the oldest with the new one if no response from the
+   *  oldest
+   *  @param[in] oldest_contact The report in oldest_contact
+   *  @param[in] oldest_rank_info Rank info of the oldest contact
+   *  @param[in] result Result from the Ping. Any negative value indicates fail
+   *  @param[in] replacement_contact The contact trying to replace the oldest
+   *  @param[in] replacement_rank_info Rank info of the replacement contact */
   void PingOldestContactCallback(Contact oldest_contact,
                                  RankInfoPtr oldest_rank_info,
                                  const int &result,
                                  Contact replacement_contact,
                                  RankInfoPtr replacement_rank_info);
+  /** Function to be connected with the validate_contact signal in routing
+   *  table. Will try to validate the contact
+   *  @param[in] contact The contact needs to be validated */
   void ValidateContact(const Contact &contact);
+  /** Callback Functionof the ValidateContact
+   *  @param[in] contact The contact needs to be validated
+   *  @param[in] public_key The public_key of the contact
+   *  @param[in] public_key_validation The contact's public_key_validation */
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
@@ -390,7 +419,7 @@ class Node::Impl {
   /** Own info of nodeid, ip and port */
   Contact contact_;
   bool joined_, refresh_routine_started_, stopping_;
-  boost::signals2::connection routing_table_connection_;
+//   boost::signals2::connection routing_table_connection_;
   /** Signal to be fired when there is one contact detected as DOWN during any
    *  operations */
   ReportDownContactPtr report_down_contact_;
@@ -400,6 +429,8 @@ class Node::Impl {
   boost::condition_variable condition_downlist_;
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
+  /** The thread group to hold all monitoring treads
+   *  Used by: MonitoringDownlistThread */
   boost::thread_group thread_group_;
 };
 
