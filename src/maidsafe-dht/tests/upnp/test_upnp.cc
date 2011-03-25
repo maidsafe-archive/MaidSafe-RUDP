@@ -71,7 +71,7 @@ void UpnpTest::OnFailedMapping(const int &port,
              << std::endl;
 }
 
-TEST_F(UpnpTest, FUNC_UPNP_PortMappingTest) {
+TEST_F(UpnpTest, DISABLED_FUNC_UPNP_PortMappingTest) {
   UpnpIgdClient upnp;
 
   DLOG(INFO) << "Initialising UPnP..." << std::endl;

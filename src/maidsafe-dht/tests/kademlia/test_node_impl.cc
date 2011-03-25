@@ -1129,7 +1129,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -1286,7 +1286,7 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   {
     // All k populated contacts response with random closest list
@@ -1432,7 +1432,7 @@ TEST_F(NodeImplTest, BEH_KAD_Update) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   KeyValueSignature kvs_new = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
@@ -1788,7 +1788,7 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   new_rpcs->PopulateResponseCandidates(count, 499);
 
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
 

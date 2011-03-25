@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/sender_task.h"
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -67,7 +68,7 @@ class DownlistNotification;
 }  // namespace protobuf
 
 namespace test {
-  class ServicesTest;
+class ServicesTest;
 }  // namespace test
 
 typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
