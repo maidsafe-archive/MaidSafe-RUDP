@@ -187,6 +187,9 @@ Contact::Impl& Contact::Impl::operator=(const Contact::Impl &other) {
     tcp443_ = other.tcp443_;
     tcp80_ = other.tcp80_;
     prefer_local_ = other.prefer_local_;
+    public_key_ = other.public_key_;
+    public_key_id_= other.public_key_id_;
+    other_info_ = other.other_info_;
   }
   return *this;
 }
