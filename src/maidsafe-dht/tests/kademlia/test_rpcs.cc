@@ -239,6 +239,9 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
     service_securifier_ = std::shared_ptr<Securifier>(
         new Securifier("", receiver_crypto_key_id_.public_key(),
                        receiver_crypto_key_id_.private_key()));
+    service_securifier_ = std::shared_ptr<Securifier>(
+        new Securifier("", receiver_crypto_key_id_.public_key(),
+                       receiver_crypto_key_id_.private_key()));
     NodeId service_node_id = GenerateRandomId(node_id_, 503);
     service_contact_ = ComposeContactWithKey(service_node_id,
                                              5011,
@@ -303,6 +306,7 @@ TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   ASSERT_GT(0, response_code);
+  asio_service_->stop();
 }
 
 TEST_F(RpcsTest, BEH_KAD_PingTarget) {

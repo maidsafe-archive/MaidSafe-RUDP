@@ -120,6 +120,7 @@ class MessageHandler {
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
       on_error_(new ErrorSigPtr::element_type) {}
   virtual ~MessageHandler() {}
+    
   void OnMessageReceived(const std::string &request,
                          const Info &info,
                          std::string *response,

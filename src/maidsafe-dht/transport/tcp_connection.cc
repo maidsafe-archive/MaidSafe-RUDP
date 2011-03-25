@@ -166,8 +166,9 @@ void TcpConnection::StartReadData() {
                                           shared_from_this(),
                                           arg::_1, arg::_2)));
 
-  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-  timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
+//   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
+//   timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
+  timer_.expires_from_now(kDefaultInitialTimeout);
 }
 
 void TcpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
