@@ -297,6 +297,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
                                 PROPERTIES COMPILE_FLAGS "-w")
   SET_PROPERTY(SOURCE "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc"
@@ -304,6 +305,8 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_request.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc"
                         PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()
@@ -350,7 +353,8 @@ SET(MAIDSAFE_MAIN_INSTALL_FILES
 SET(MAIDSAFE_TRANS_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/transport.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/message_handler.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.h)
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.h)
 
 SET(EXPORT_NAME maidsafe_dht)
 INSTALL(TARGETS maidsafe_dht_static EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
