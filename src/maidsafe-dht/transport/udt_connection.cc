@@ -89,7 +89,7 @@ void UdtConnection::StartReceiving() {
 }
 
 void UdtConnection::DoStartReceiving() {
-  StartReadSize();
+  StartServerConnect();
   CheckTimeout();
 }
 
@@ -102,7 +102,7 @@ void UdtConnection::StartSending(const std::string &data,
 }
 
 void UdtConnection::DoStartSending() {
-  StartConnect();
+  StartClientConnect();
   CheckTimeout();
 }
 
@@ -119,6 +119,48 @@ void UdtConnection::CheckTimeout() {
     timer_.async_wait(strand_.wrap(std::bind(&UdtConnection::CheckTimeout,
                                              shared_from_this())));
   }
+}
+
+void UdtConnection::StartServerConnect() {
+  auto handler = strand_.wrap(std::bind(&UdtConnection::HandleServerConnect,
+                                        shared_from_this(), arg::_1));
+  socket_.AsyncConnect(handler);
+
+  timer_.expires_from_now(kDefaultInitialTimeout);
+}
+
+void UdtConnection::HandleServerConnect(const bs::error_code &ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.IsOpen()) {
+    return CloseOnError(kReceiveTimeout);
+  }
+
+  if (ec) {
+    return CloseOnError(kReceiveFailure);
+  }
+
+  StartReadSize();
+}
+
+void UdtConnection::StartClientConnect() {
+  auto handler = strand_.wrap(std::bind(&UdtConnection::HandleClientConnect,
+                                        shared_from_this(), arg::_1));
+  socket_.AsyncConnect(remote_endpoint_, handler);
+
+  timer_.expires_from_now(kDefaultInitialTimeout);
+}
+
+void UdtConnection::HandleClientConnect(const bs::error_code &ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.IsOpen()) {
+    return CloseOnError(kSendTimeout);
+  }
+
+  if (ec) {
+    return CloseOnError(kSendFailure);
+  }
+
+  StartWrite();
 }
 
 void UdtConnection::StartReadSize() {
@@ -235,26 +277,6 @@ void UdtConnection::EncodeData(const std::string &data) {
   for (int i = 0; i != 4; ++i)
     buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
   buffer_.insert(buffer_.end(), data.begin(), data.end());
-}
-
-void UdtConnection::StartConnect() {
-  socket_.AsyncConnect(strand_.wrap(std::bind(&UdtConnection::HandleConnect,
-                                              shared_from_this(), arg::_1)));
-
-  timer_.expires_from_now(kDefaultInitialTimeout);
-}
-
-void UdtConnection::HandleConnect(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kSendTimeout);
-  }
-
-  if (ec) {
-    return CloseOnError(kSendFailure);
-  }
-
-  StartWrite();
 }
 
 void UdtConnection::StartWrite() {

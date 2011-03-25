@@ -77,8 +77,11 @@ class UdtConnection : public std::enable_shared_from_this<UdtConnection> {
 
   void CheckTimeout();
 
-  void StartConnect();
-  void HandleConnect(const boost::system::error_code &ec);
+  void StartServerConnect();
+  void HandleServerConnect(const boost::system::error_code &ec);
+
+  void StartClientConnect();
+  void HandleClientConnect(const boost::system::error_code &ec);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);

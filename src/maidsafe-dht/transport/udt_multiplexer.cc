@@ -91,16 +91,6 @@ void UdtMultiplexer::Close() {
   socket_.close(ec);
 }
 
-bool UdtMultiplexer::SendTo(const asio::const_buffer &data,
-                            const ip::udp::endpoint &endpoint) {
-  if (!socket_.is_open())
-    return false;
-
-  bs::error_code ec;
-  socket_.send_to(asio::buffer(data), endpoint, 0, ec);
-  return !ec;
-}
-
 }  // namespace transport
 
 }  // namespace maidsafe

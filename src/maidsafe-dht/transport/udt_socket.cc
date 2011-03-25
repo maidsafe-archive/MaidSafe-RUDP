@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/udt_socket.h"
 
-#include <array>  // NOLINT
+#include <algorithm>
 #include <utility>
 
 #include "maidsafe/common/log.h"
@@ -50,7 +50,8 @@ UdtSocket::UdtSocket(UdtMultiplexer &multiplexer)
     id_(0),
     remote_endpoint_(),
     remote_id_(0),
-    next_packet_sequence_number_(SRandomUint32()),
+    state_(kNotYetOpen),
+    next_packet_sequence_number_(SRandomUint32() & 0x7fffffff),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -66,6 +67,8 @@ UdtSocket::UdtSocket(UdtMultiplexer &multiplexer)
 }
 
 UdtSocket::~UdtSocket() {
+  if (IsOpen())
+    multiplexer_.dispatcher_.RemoveSocket(id_);
 }
 
 boost::uint32_t UdtSocket::Id() const {
@@ -85,6 +88,8 @@ bool UdtSocket::IsOpen() const {
 }
 
 void UdtSocket::Close() {
+  if (IsOpen())
+    multiplexer_.dispatcher_.RemoveSocket(id_);
   id_ = 0;
   remote_endpoint_ = ip::udp::endpoint();
   remote_id_ = 0;
@@ -98,7 +103,11 @@ void UdtSocket::Close() {
   waiting_read_.cancel();
 }
 
-void UdtSocket::StartConnect() {
+void UdtSocket::StartConnect(const ip::udp::endpoint &remote) {
+  id_ = multiplexer_.dispatcher_.AddSocket(this);
+  remote_endpoint_ = remote;
+  remote_id_ = 0; // Assigned when handshake response is received.
+
   UdtHandshakePacket packet;
   packet.SetUdtVersion(4);
   packet.SetSocketType(UdtHandshakePacket::kStreamSocketType);
@@ -107,21 +116,32 @@ void UdtSocket::StartConnect() {
   packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
   packet.SetSocketId(id_);
   packet.SetIpAddress(remote_endpoint_.address());
+  packet.SetDestinationSocketId(0);
+  packet.SetConnectionType(1);
 
-  if (remote_id_ == 0) {
-    // This is a client initiating the handshake.
-    packet.SetDestinationSocketId(0);
-    packet.SetConnectionType(1);
-  } else {
-    // This is a server responding to a connection request.
-    packet.SetDestinationSocketId(remote_id_);
-    packet.SetConnectionType(0xffffffff);
-    packet.SetSynCookie(0); // TODO calculate cookie
-  }
+  multiplexer_.SendTo(packet, remote_endpoint_);
+  state_ = kClientAwaitingHandshakeResponse;
+}
 
-  std::array<unsigned char, UdtPacket::kMaxSize> buffer;
-  size_t length = packet.Encode(asio::buffer(&buffer[0], UdtPacket::kMaxSize));
-  multiplexer_.SendTo(asio::buffer(&buffer[0], length), remote_endpoint_);
+void UdtSocket::StartConnect() {
+  assert(IsOpen()); // Socket must already have been accepted.
+  assert(remote_endpoint_ != ip::udp::endpoint());
+  assert(remote_id_ != 0);
+
+  UdtHandshakePacket packet;
+  packet.SetUdtVersion(4);
+  packet.SetSocketType(UdtHandshakePacket::kStreamSocketType);
+  packet.SetInitialPacketSequenceNumber(next_packet_sequence_number_);
+  packet.SetMaximumPacketSize(UdtDataPacket::kMaxSize);
+  packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(remote_endpoint_.address());
+  packet.SetDestinationSocketId(remote_id_);
+  packet.SetConnectionType(0xffffffff);
+  packet.SetSynCookie(0); // TODO calculate cookie
+
+  multiplexer_.SendTo(packet, remote_endpoint_);
+  state_ = kServerAwaitingHandshakeResponse;
 }
 
 void UdtSocket::StartWrite(const asio::const_buffer &data) {
@@ -165,6 +185,22 @@ void UdtSocket::ProcessWrite() {
     waiting_write_ec_.clear();
     waiting_write_.cancel();
   }
+
+  // Send the data we've got. (TODO This is a temporary hack only.)
+  UdtDataPacket packet;
+  packet.SetPacketSequenceNumber(next_packet_sequence_number_);
+  packet.SetFirstPacketInMessage(true);
+  packet.SetLastPacketInMessage(true);
+  packet.SetInOrder(true);
+  packet.SetMessageNumber(0);
+  packet.SetTimeStamp(0);
+  packet.SetDestinationSocketId(remote_id_);
+  packet.SetData(std::string(write_buffer_.begin(), write_buffer_.end()));
+  multiplexer_.SendTo(packet, remote_endpoint_);
+
+  ++next_packet_sequence_number_;
+  if (next_packet_sequence_number_ > 0x7fffffff);
+    next_packet_sequence_number_ = 0;
 }
 
 void UdtSocket::StartRead(const asio::mutable_buffer &data,
@@ -190,14 +226,85 @@ void UdtSocket::ProcessRead() {
   if (asio::buffer_size(waiting_read_buffer_) == 0)
     return;
 
-  // TODO check for data and trigger read handler.
+  // If the read buffer is empty then the read is going to have to wait.
+  if (read_buffer_.empty())
+    return;
+
+  // Copy whatever data we can into the read buffer.
+  size_t length = std::min(read_buffer_.size(),
+                           asio::buffer_size(waiting_read_buffer_));
+  unsigned char* data = asio::buffer_cast<unsigned char*>(waiting_read_buffer_);
+  std::copy(read_buffer_.begin(), read_buffer_.begin() + length, data);
+  read_buffer_.erase(read_buffer_.begin(), read_buffer_.begin() + length);
+  waiting_read_buffer_ = waiting_read_buffer_ + length;
+  waiting_read_bytes_transferred_ += length;
+
+  // If we have filled the buffer, or read more than the minimum number of
+  // bytes required, then it's time to trigger the read's completion handler.
+  if (asio::buffer_size(waiting_read_buffer_) == 0 ||
+      waiting_read_bytes_transferred_ >= waiting_read_transfer_at_least_) {
+    // the read is done. Trigger the read's completion handler.
+    waiting_read_ec_.clear();
+    waiting_read_.cancel();
+  }
 }
 
 void UdtSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                   const asio::ip::udp::endpoint &endpoint) {
+  UdtHandshakePacket handshake_packet;
+  UdtDataPacket data_packet;
+  if (handshake_packet.Decode(data)) {
+    HandleHandshake(handshake_packet, endpoint);
+  } else if (data_packet.Decode(data)) {
+    HandleData(data_packet, endpoint);
+  } else {
+    DLOG(ERROR) << "Socket " << id_
+                << " ignoring invalid packet from "
+                << endpoint << std::endl;
+  }
+}
+
+void UdtSocket::HandleHandshake(const UdtHandshakePacket &packet,
+                                const ip::udp::endpoint &endpoint) {
+  switch (state_) {
+  case kClientAwaitingHandshakeResponse:
+    remote_id_ = packet.SocketId();
+    state_ = kConnected;
+    waiting_connect_ec_.clear();
+    waiting_connect_.cancel();
+    {
+      UdtHandshakePacket response_packet(packet);
+      response_packet.SetSocketId(id_);
+      response_packet.SetIpAddress(remote_endpoint_.address());
+      response_packet.SetDestinationSocketId(remote_id_);
+      response_packet.SetConnectionType(0xffffffff);
+      multiplexer_.SendTo(response_packet, remote_endpoint_);
+    }
+    break;
+  case kServerAwaitingHandshakeResponse:
+    state_ = kConnected;
+    waiting_connect_ec_.clear();
+    waiting_connect_.cancel();
+    break;
+  default:
+    break;
+  }
+}
+
+void UdtSocket::HandleData(const UdtDataPacket &packet,
+                           const ip::udp::endpoint &endpoint) {
+  if (state_ == kConnected) {
+    if (read_buffer_.size() + packet.Data().size() < kMaxReadBufferSize) {
+      read_buffer_.insert(read_buffer_.end(),
+                          packet.Data().begin(),
+                          packet.Data().end());
+      ProcessRead();
+    } else {
+      // Packet is dropped because we have nowhere to store it.
+    }
+  }
 }
 
 }  // namespace transport
 
 }  // namespace maidsafe
-

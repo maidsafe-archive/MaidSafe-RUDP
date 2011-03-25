@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/udt_connect_op.h"
 #include "maidsafe-dht/transport/udt_data_packet.h"
+#include "maidsafe-dht/transport/udt_handshake_packet.h"
 #include "maidsafe-dht/transport/udt_read_op.h"
 #include "maidsafe-dht/transport/udt_write_op.h"
 
@@ -137,6 +138,14 @@ class UdtSocket {
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
+  // Called to process a newly received handshake packet.
+  void HandleHandshake(const UdtHandshakePacket &packet,
+                       const boost::asio::ip::udp::endpoint &endpoint);
+
+  // Called to process a newly received data packet.
+  void HandleData(const UdtDataPacket &packet,
+                  const boost::asio::ip::udp::endpoint &endpoint);
+
   // The multiplexer used to send and receive UDP packets.
   UdtMultiplexer &multiplexer_;
 
@@ -146,6 +155,14 @@ class UdtSocket {
   // The remote socket's endpoint and identifier.
   boost::asio::ip::udp::endpoint remote_endpoint_;
   boost::uint32_t remote_id_;
+
+  // The current state of the connection.
+  enum State {
+    kNotYetOpen,
+    kClientAwaitingHandshakeResponse,
+    kServerAwaitingHandshakeResponse,
+    kConnected
+  } state_;
 
   // The sequence number to be used for the next outbound packet.
   boost::uint32_t next_packet_sequence_number_;
@@ -161,6 +178,12 @@ class UdtSocket {
   // buffer size remains below the maximum.
   static const int kMaxWriteBufferSize = 65536;
   std::deque<unsigned char> write_buffer_;
+
+  // The buffer used to store application data that is waiting to be sent.
+  // Asynchronous read operations will complete immediately as long as there is
+  // sufficient data to complete the read.
+  static const int kMaxReadBufferSize = 65536;
+  std::deque<unsigned char> read_buffer_;
 
   // This class allows only one outstanding asynchronous write operation at a
   // time. The following data members store the pending write, and the result

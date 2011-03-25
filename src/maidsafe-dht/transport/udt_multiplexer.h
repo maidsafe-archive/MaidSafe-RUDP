@@ -28,12 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDT_MULTIPLEXER_H_
 
+#include <array>  // NOLINT
 #include <vector>
+
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/udt_dispatch_op.h"
 #include "maidsafe-dht/transport/udt_dispatcher.h"
+#include "maidsafe-dht/transport/udt_packet.h"
 
 namespace maidsafe {
 
@@ -76,8 +79,18 @@ class UdtMultiplexer {
 
   // Called by the acceptor or socket objects to send a packet. Returns true if
   // the data was sent successfully, false otherwise.
-  bool SendTo(const boost::asio::const_buffer &data,
-              const boost::asio::ip::udp::endpoint &endpoint);
+  template <typename Packet>
+  TransportCondition SendTo(const Packet &packet,
+              const boost::asio::ip::udp::endpoint &endpoint) {
+    std::array<unsigned char, UdtPacket::kMaxSize> data;
+    auto buffer = boost::asio::buffer(&data[0], UdtPacket::kMaxSize);
+    if (size_t length = packet.Encode(buffer)) {
+      boost::system::error_code ec;
+      socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
+      return ec ? kSendFailure : kSuccess;
+    }
+    return kSendFailure;
+  }
 
   // The UDP socket used for all UDT protocol communication.
   boost::asio::ip::udp::socket socket_;

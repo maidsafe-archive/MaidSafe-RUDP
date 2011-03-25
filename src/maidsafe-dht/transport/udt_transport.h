@@ -77,6 +77,10 @@ class UdtTransport : public Transport,
                     ConnectionPtr connection,
                     const boost::system::error_code &ec);
 
+  void DoSend(const std::string &data,
+              const Endpoint &endpoint,
+              const Timeout &timeout);
+
   friend class UdtConnection;
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);

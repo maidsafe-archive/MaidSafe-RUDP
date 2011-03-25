@@ -141,12 +141,27 @@ void UdtTransport::HandleAccept(AcceptorPtr acceptor,
 void UdtTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
+  strand_.dispatch(std::bind(&UdtTransport::DoSend,
+                             shared_from_this(),
+                             data, endpoint, timeout));
+}
+
+void UdtTransport::DoSend(const std::string &data,
+                        const Endpoint &endpoint,
+                        const Timeout &timeout) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+
+  if (!multiplexer_->IsOpen()) {
+    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    // TODO error
+    StartDispatch();
+  }
+
   ConnectionPtr connection(std::make_shared<UdtConnection>(shared_from_this(),
                                                            strand_,
                                                            multiplexer_, ep));
 
-  InsertConnection(connection);
+  DoInsertConnection(connection);
   connection->StartSending(data, timeout);
 }
 
