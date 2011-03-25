@@ -203,6 +203,9 @@ class Node::Impl {
   /** Getter.
    *  @return The kMeanRefreshInterval_ */
   boost::posix_time::time_duration mean_refresh_interval() const;
+  /** Setter. Will connect the signal in service as well.
+   *  @param[in] service The service to connect */
+  void SetService(std::shared_ptr<Service> service);
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -315,6 +318,19 @@ class Node::Impl {
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
+  /** Function to be connected with the ping_downlist_contact signal in service.
+   *  Will try to ping the report in down contact.
+   *  @param[in] contact The report in down_contact */
+  void PingDownlistContact(const Contact &contact) ;
+  /** Callback Function of the PingDownlistContact
+   *  Will increase the RpcFailure of the contact by one if got no response
+   *  @param[in] contact The report in down_contact
+   *  @param[in] rank_info Rank info of the down contact
+   *  @param[in] result Result from the Ping. Any negative value indicates a
+   *             failure */
+  void PingDownlistContactCallback(Contact contact,
+                                   RankInfoPtr rank_info,
+                                   const int &result);
 
   /** Template Callback from the rpc->findnode requests.
    *  Used by: Store, Delete, Update

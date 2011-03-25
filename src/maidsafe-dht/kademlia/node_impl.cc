@@ -754,6 +754,7 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
 }
 
 void Node::Impl::ReportDownContact(const Contact &down_contact) {
+  routing_table_->IncrementFailedRpcCount(down_contact.node_id());
   boost::mutex::scoped_lock loch_surlaplage(mutex_);
   down_contacts_.push_back(down_contact.node_id());
   condition_downlist_.notify_one();
@@ -794,6 +795,31 @@ void Node::Impl::ValidateContactCallback(Contact contact,
                                              public_key, public_key_validation,
                                              contact.node_id().String());
   routing_table_->SetValidated(contact.node_id(), valid);
+}
+
+void Node::Impl::SetService(std::shared_ptr<Service> service) {
+  service_ = service;
+  service_->GetPingDownListSignalHandler()->connect(boost::bind(
+                      &Node::Impl::PingDownlistContact, this, _1));
+}
+
+void Node::Impl::PingDownlistContact(const Contact &contact) {
+  Rpcs::PingFunctor callback(boost::bind(
+                                &Node::Impl::PingDownlistContactCallback,
+                                this, contact, _1, _2));
+  rpcs_->Ping(SecurifierPtr(), contact, callback, kTcp);
+}
+
+void Node::Impl::PingDownlistContactCallback(Contact contact,
+                                             RankInfoPtr rank_info,
+                                             const int &result) {
+  if (result < 0) {
+    // Increase the RPCfailure of the downlist contact by one
+    routing_table_->IncrementFailedRpcCount(contact.node_id());
+  } else {
+    // Add the oldest_contact again to update its last_seen to now
+    routing_table_->AddContact(contact, rank_info);
+  }
 }
 
 }  // namespace kademlia
