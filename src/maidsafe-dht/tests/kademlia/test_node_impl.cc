@@ -93,6 +93,16 @@ void ErrorCodeCallback(int error_code,
   *response_code = error_code;
 }
 
+void GetContactCallback(int error_code,
+                        Contact contact,
+                        Contact *result,
+                        bool *done,
+                        int *response_code) {
+  *done = true;
+  *response_code = error_code;
+  *result = contact;
+}
+
 class CreateContactAndNodeId {
  public:
   CreateContactAndNodeId() : contact_(), node_id_(NodeId::kRandomId),
@@ -692,6 +702,79 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 };  // class MockRpcs
+
+TEST_F(NodeImplTest, BEH_KAD_GetAllContacts) {
+  PopulateRoutingTable(test::k, 500);
+  std::vector<Contact> contacts;
+  node_->GetAllContacts(&contacts);
+  EXPECT_EQ(test::k, contacts.size());
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetBootstrapContacts) {
+  PopulateRoutingTable(test::k, 500);
+  std::vector<Contact> contacts;
+  node_->GetBootstrapContacts(&contacts);
+  EXPECT_EQ(test::k, contacts.size());
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetContact) {
+  PopulateRoutingTable(test::k, 500);
+
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_, testing::_))
+      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeResponseClose,
+                      new_rpcs.get(), _1, _2))));
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // Looking for a non-exist contact
+    Contact result;
+    bool done(false);
+    int response_code(0);
+    node_->GetContact(target_id,
+                  boost::bind(&GetContactCallback, _1, _2,
+                              &result, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(-1, response_code);
+    EXPECT_EQ(Contact(), result);
+  }
+  Contact target = ComposeContact(target_id, 5000);
+  AddContact(target, rank_info_);
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // Looking for an exist contact
+    Contact result;
+    bool done(false);
+    int response_code(0);
+    node_->GetContact(target_id,
+                  boost::bind(&GetContactCallback, _1, _2,
+                              &result, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(1, response_code);
+    EXPECT_EQ(target, result);
+  }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+}
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
