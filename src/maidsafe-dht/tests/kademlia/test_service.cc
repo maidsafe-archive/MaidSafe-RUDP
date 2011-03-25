@@ -408,7 +408,7 @@ class ServicesTest: public testing::Test {
   void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
     crypto::RsaKeyPair crypto_key;
-    crypto_key.GenerateKeys(1024);
+    crypto_key.GenerateKeys(4096);
     for (int i = 0; i < count; ++i) {
       KeyValueTuple cur_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
       EXPECT_TRUE(data_store_->StoreValue(cur_kvt.key_value_signature, old_ttl,
@@ -500,7 +500,7 @@ TEST_F(ServicesTest, BEH_KAD_Constructor) {
 
 TEST_F(ServicesTest, BEH_KAD_Store) {
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
 
@@ -617,7 +617,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
 
 TEST_F(ServicesTest, BEH_KAD_Delete) {
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
 
@@ -731,7 +731,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
 TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
 
@@ -746,7 +746,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   bptime::time_duration old_ttl(bptime::pos_infin);
 
   crypto::RsaKeyPair new_crypto_key_id;
-  new_crypto_key_id.GenerateKeys(1024);
+  new_crypto_key_id.GenerateKeys(4096);
   NodeId new_sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact new_sender = ComposeContactWithKey(new_sender_id, 5001,
                                              new_crypto_key_id);
@@ -847,7 +847,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
 
 TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
 
@@ -866,7 +866,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
   bptime::time_duration old_ttl(bptime::pos_infin);
 
   crypto::RsaKeyPair new_crypto_key_id;
-  new_crypto_key_id.GenerateKeys(1024);
+  new_crypto_key_id.GenerateKeys(4096);
   NodeId new_sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact new_sender = ComposeContactWithKey(new_sender_id, 5001,
                                              new_crypto_key_id);
@@ -1186,7 +1186,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
   Clear();
 
   crypto::RsaKeyPair crypto_key;
-  crypto_key.GenerateKeys(1024);
+  crypto_key.GenerateKeys(4096);
   bptime::time_duration old_ttl(bptime::pos_infin), new_ttl(bptime::hours(24));
   KeyValueTuple target_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
   std::string target_key = target_kvt.key_value_signature.key;
@@ -1347,9 +1347,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRequests) {
   crypto::RsaKeyPair crypto_key_data_2;
   crypto::RsaKeyPair crypto_key_data_3;
 
-  crypto_key_data_1.GenerateKeys(1024);
-  crypto_key_data_2.GenerateKeys(1024);
-  crypto_key_data_3.GenerateKeys(1024);
+  crypto_key_data_1.GenerateKeys(4096);
+  crypto_key_data_2.GenerateKeys(4096);
+  crypto_key_data_3.GenerateKeys(4096);
 
   KeyValueSignature k1_v1 = MakeKVS(crypto_key_data_1, 1024, "", "");
   KeyValueSignature k1_v2 = MakeKVS(crypto_key_data_1, 1024, k1_v1.key, "");
@@ -1446,9 +1446,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRequests) {
   crypto::RsaKeyPair crypto_key_data_2;
   crypto::RsaKeyPair crypto_key_data_3;
 
-  crypto_key_data_1.GenerateKeys(1024);
-  crypto_key_data_2.GenerateKeys(1024);
-  crypto_key_data_3.GenerateKeys(1024);
+  crypto_key_data_1.GenerateKeys(4096);
+  crypto_key_data_2.GenerateKeys(4096);
+  crypto_key_data_3.GenerateKeys(4096);
 
   KeyValueSignature k1_v1 = MakeKVS(crypto_key_data_1, 1024, "", "");
   KeyValueSignature k1_v2 = MakeKVS(crypto_key_data_1, 1024, k1_v1.key, "");
@@ -1532,9 +1532,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
   crypto::RsaKeyPair crypto_key_data_2;
   crypto::RsaKeyPair crypto_key_data_3;
 
-  crypto_key_data_1.GenerateKeys(1024);
-  crypto_key_data_2.GenerateKeys(1024);
-  crypto_key_data_3.GenerateKeys(1024);
+  crypto_key_data_1.GenerateKeys(4096);
+  crypto_key_data_2.GenerateKeys(4096);
+  crypto_key_data_3.GenerateKeys(4096);
 
   KeyValueSignature k1_v1 = MakeKVS(crypto_key_data_1, 1024, "", "");
   KeyValueSignature k1_v2 = MakeKVS(crypto_key_data_1, 1024, k1_v1.key, "");
@@ -1687,9 +1687,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
   crypto::RsaKeyPair crypto_key_data_2;
   crypto::RsaKeyPair crypto_key_data_3;
 
-  crypto_key_data_1.GenerateKeys(1024);
-  crypto_key_data_2.GenerateKeys(1024);
-  crypto_key_data_3.GenerateKeys(1024);
+  crypto_key_data_1.GenerateKeys(4096);
+  crypto_key_data_2.GenerateKeys(4096);
+  crypto_key_data_3.GenerateKeys(4096);
 
   KeyValueSignature k1_v1 = MakeKVS(crypto_key_data_1, 1024, "", "");
   KeyValueSignature k1_v2 = MakeKVS(crypto_key_data_1, 1024, k1_v1.key, "");
@@ -1825,10 +1825,10 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   crypto::RsaKeyPair crypto_key_data_3;
   crypto::RsaKeyPair crypto_key_data_4;
 
-  crypto_key_data_1.GenerateKeys(1024);
-  crypto_key_data_2.GenerateKeys(1024);
-  crypto_key_data_3.GenerateKeys(1024);
-  crypto_key_data_4.GenerateKeys(1024);
+  crypto_key_data_1.GenerateKeys(4096);
+  crypto_key_data_2.GenerateKeys(4096);
+  crypto_key_data_3.GenerateKeys(4096);
+  crypto_key_data_4.GenerateKeys(4096);
 
   KeyValueSignature k1_v1 = MakeKVS(crypto_key_data_1, 1024, "", "");
   KeyValueSignature k1_v2 = MakeKVS(crypto_key_data_1, 1024, k1_v1.key, "");
@@ -1955,7 +1955,7 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   service_->ConnectToSignals(transport_ptr, message_handler_ptr);
   // Data
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
