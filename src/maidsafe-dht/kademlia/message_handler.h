@@ -67,7 +67,6 @@ const int kMaxMessageType(transport::kMaxMessageType + 1000);
 
 class MessageHandler : public transport::MessageHandler {
  public:
-
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
            const protobuf::PingRequest&,
