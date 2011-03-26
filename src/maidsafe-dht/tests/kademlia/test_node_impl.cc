@@ -42,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/kademlia/service.h"
+#include "maidsafe-dht/kademlia/rpcs.pb.h"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
@@ -1915,7 +1918,9 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }  // FindValue test
 
-TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
+// This test will test the Downlist client handling in node_impl
+// Covered part is: ReportDownContact, MonitoringDownlistThread
+TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
@@ -2126,7 +2131,63 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-}  // DownList test
+}  // DownListClient test
+
+// This test will test the Downlist server handling in node_impl
+// Covered parts are: Connect to Service signal, Catch signal from Service,
+//                    PingDownlistContact, PingDownlistContactCallback
+TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+  
+  std::shared_ptr<Service> local_service(new Service(routing_table_,
+      data_store_, alternative_store_, securifier_));
+  local_service->set_node_joined(true);
+  node_->SetService(local_service);
+  // given a downlist contains k nodes in the routingtable
+  protobuf::DownlistNotification downlist_request;
+  for (int i = 0; i < test::k; ++i) {
+    NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
+    Contact contact = ComposeContact(contact_id, 5000);
+    downlist_request.add_node_ids(contact_id.String());
+    AddContact(contact, rank_info_);
+  }
+  transport::Info info;
+  {
+    // Ping down contacts will success
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+      local_service->Downlist(info, downlist_request);
+    // wait a reasonable time
+    boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+  }
+  {
+    // Ping down contacts will failed
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+      local_service->Downlist(info, downlist_request);
+    // may need to put a timer to prevent deadlock
+    do {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+      routing_table_->GetAllContacts(&contacts);
+    } while (contacts.size() != 0);
+  }
+}  // DownListServer test
 
 }  // namespace test_nodeimpl
 
