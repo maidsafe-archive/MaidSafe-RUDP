@@ -281,12 +281,17 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     }
   }
 
+  void SetAllNumRpcsFailureToZero() {
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    std::for_each(contacts.begin(), contacts.end(),
+                  boost::bind(&NodeImplTest::AddContact, this, _1, rank_info_));
+  }
+
   void AddContact(const Contact& contact, const RankInfoPtr rank_info) {
     routing_table_->AddContact(contact, rank_info);
     routing_table_->SetValidated(contact.node_id(), true);
   }
-
-  void GenericCallback(const std::string&, bool *done) { *done = true; }
 
   std::shared_ptr<Rpcs> GetRpc() {
     return node_->rpcs_;
@@ -1980,6 +1985,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
 
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
 
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
@@ -2023,6 +2029,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
   }
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // Delete : the first (k-threshold+1) closest contacts respond with DOWN
     // FindNodes : All k populated contacts giving response
@@ -2057,6 +2064,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
 
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // Update Store: the first (k-threshold+1) contacts respond with DOWN
     // Update Delete: all response
@@ -2097,6 +2105,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
   }
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // FindValue : All k populated contacts giving no response
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
