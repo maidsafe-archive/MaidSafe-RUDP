@@ -43,7 +43,7 @@ UdtHandshakePacket::UdtHandshakePacket()
     maximum_packet_size_(0),
     maximum_flow_window_size_(0),
     connection_type_(0) {
-  SetType(0);
+  SetType(kPacketType);
 }
 
 boost::uint32_t UdtHandshakePacket::UdtVersion() const {
@@ -130,15 +130,17 @@ void UdtHandshakePacket::SetIpAddress(const asio::ip::address &address)
 }
 
 bool UdtHandshakePacket::IsValid(const asio::const_buffer &buffer) {
-  return (IsValidBase(buffer) &&
-          (asio::buffer_size(buffer) == kPacketSize) &&
-          ((asio::buffer_cast<const unsigned char *>(buffer)[0] & 0x7f) == 0) &&
-          (asio::buffer_cast<const unsigned char *>(buffer)[1] == 0));
+  return (IsValidBase(buffer, kPacketType) &&
+          (asio::buffer_size(buffer) == kPacketSize));
 }
 
 bool UdtHandshakePacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
+    return false;
+
+  // Decode the common parts of the control packet.
+  if (!DecodeBase(buffer, kPacketType))
     return false;
 
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);

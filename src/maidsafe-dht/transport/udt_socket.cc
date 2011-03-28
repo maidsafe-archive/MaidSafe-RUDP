@@ -251,12 +251,12 @@ void UdtSocket::ProcessRead() {
 
 void UdtSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                   const asio::ip::udp::endpoint &endpoint) {
-  UdtHandshakePacket handshake_packet;
   UdtDataPacket data_packet;
-  if (handshake_packet.Decode(data)) {
-    HandleHandshake(handshake_packet, endpoint);
-  } else if (data_packet.Decode(data)) {
+  UdtHandshakePacket handshake_packet;
+  if (data_packet.Decode(data)) {
     HandleData(data_packet, endpoint);
+  } else if (handshake_packet.Decode(data)) {
+    HandleHandshake(handshake_packet, endpoint);
   } else {
     DLOG(ERROR) << "Socket " << id_
                 << " ignoring invalid packet from "

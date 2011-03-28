@@ -25,37 +25,32 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_UDT_PACKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_UDT_PACKET_H_
+#include "maidsafe-dht/transport/udt_keepalive_packet.h"
 
-#include "boost/asio/buffer.hpp"
-#include "boost/cstdint.hpp"
-#include "maidsafe-dht/transport/transport.h"
+namespace asio = boost::asio;
 
 namespace maidsafe {
 
 namespace transport {
 
-class UdtPacket {
- public:
-  // Maximum packet size permitted in this implementation.
-  static const size_t kMaxSize = 1500;
+UdtKeepalivePacket::UdtKeepalivePacket() {
+  SetType(kPacketType);
+}
 
-  // Get the destination socket id from an encoded packet.
-  static bool DecodeDestinationSocketId(boost::uint32_t *id,
-                                        const boost::asio::const_buffer &data);
+bool UdtKeepalivePacket::IsValid(const asio::const_buffer &buffer) {
+  return (IsValidBase(buffer, kPacketType) &&
+          (asio::buffer_size(buffer) == kPacketSize));
+}
 
- protected:
-  // Prevent deletion through this type.
-  ~UdtPacket();
+bool UdtKeepalivePacket::Decode(const asio::const_buffer &buffer) {
+  return DecodeBase(buffer, kPacketType);
+}
 
-  // Helper functions for encoding and decoding integers.
-  static void DecodeUint32(boost::uint32_t *n, const unsigned char *p);
-  static void EncodeUint32(boost::uint32_t n, unsigned char *p);
-};
+size_t UdtKeepalivePacket::Encode(const asio::mutable_buffer &buffer) const {
+  return EncodeBase(buffer);
+}
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_UDT_PACKET_H_

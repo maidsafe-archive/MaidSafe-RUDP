@@ -19,7 +19,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, CONTROL, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -46,9 +46,6 @@ class UdtControlPacket : public UdtPacket {
 
   boost::uint16_t Type() const;
 
-  boost::uint32_t AdditionalInfo() const;
-  void SetAdditionalInfo(boost::uint32_t n);
-
   boost::uint32_t TimeStamp() const;
   void SetTimeStamp(boost::uint32_t n);
 
@@ -58,8 +55,13 @@ class UdtControlPacket : public UdtPacket {
  protected:
   void SetType(boost::uint16_t n);
 
-  static bool IsValidBase(const boost::asio::const_buffer &buffer);
-  bool DecodeBase(const boost::asio::const_buffer &buffer);
+  boost::uint32_t AdditionalInfo() const;
+  void SetAdditionalInfo(boost::uint32_t n);
+
+  static bool IsValidBase(const boost::asio::const_buffer &buffer,
+                          boost::uint16_t expected_packet_type);
+  bool DecodeBase(const boost::asio::const_buffer &buffer,
+                  boost::uint16_t expected_packet_type);
   size_t EncodeBase(const boost::asio::mutable_buffer &buffer) const;
 
   // Prevent deletion through this type.
