@@ -25,17 +25,44 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_DETAIL_H_
-#define MAIDSAFE_DHT_TRANSPORT_DETAIL_H_
+#include "maidsafe-dht/transport/udp_request.h"
+
+namespace asio = boost::asio;
+namespace ip = asio::ip;
 
 namespace maidsafe {
 
 namespace transport {
 
-typedef int SocketId;
+UdpRequest::UdpRequest(const std::string &data,
+                       const ip::udp::endpoint &endpoint,
+                       asio::io_service &asio_service,
+                       const Timeout &timeout,
+                       boost::uint64_t reply_to_id)
+  : data_(data),
+    endpoint_(endpoint),
+    timer_(asio_service, timeout),
+    reply_timeout_(timeout),
+    reply_to_id_(reply_to_id) {
+}
+
+const std::string &UdpRequest::Data() const {
+  return data_;
+}
+
+const boost::asio::ip::udp::endpoint& UdpRequest::Endpoint() const {
+  return endpoint_;
+}
+
+const Timeout& UdpRequest::ReplyTimeout() const {
+  return reply_timeout_;
+}
+
+boost::uint64_t UdpRequest::ReplyToId() const {
+  return reply_to_id_;
+}
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_DETAIL_H_

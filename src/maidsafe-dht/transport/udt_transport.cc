@@ -76,6 +76,11 @@ TransportCondition UdtTransport::StartListening(const Endpoint &endpoint) {
   return kSuccess;
 }
 
+TransportCondition UdtTransport::Bootstrap(
+    const std::vector<Endpoint> &candidates) {
+  return kSuccess;
+}
+
 void UdtTransport::StopListening() {
   if (acceptor_)
     strand_.dispatch(std::bind(&UdtTransport::CloseAcceptor, acceptor_));

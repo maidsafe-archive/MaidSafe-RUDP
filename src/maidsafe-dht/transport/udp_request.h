@@ -25,44 +25,51 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RPCS_H_
-#define MAIDSAFE_DHT_TRANSPORT_RPCS_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
 
-#include <vector>
-
-#include "boost/function.hpp"
-
-#include "maidsafe-dht/transport/transport.pb.h"
+#include <string>
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/asio/io_service.hpp"
+#include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class Transport;
-struct Endpoint;
-struct TransportDetails;
-
-class Rpcs {
-  typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
-
+class UdpRequest {
  public:
-  void NatDetection(const std::vector<Endpoint> &candidates,
-                    bool full,
-                    NatResultFunctor nrf);
-  void NatDetection(const std::vector<Endpoint> &candidates,
-                    std::shared_ptr<Transport> listening_transport,
-                    bool full,
-                    NatResultFunctor nrf);
+  UdpRequest(const std::string &data,
+             const boost::asio::ip::udp::endpoint &endpoint,
+             boost::asio::io_service &asio_service,
+             const Timeout &timeout,
+             boost::uint64_t reply_to_id = 0);
+
+  const std::string &Data() const;
+  const boost::asio::ip::udp::endpoint& Endpoint() const;
+  const Timeout& ReplyTimeout() const;
+  boost::uint64_t ReplyToId() const;
+
+  template <typename WaitHandler>
+  void WaitForTimeout(WaitHandler handler) {
+    timer_.async_wait(handler);
+  }
 
  private:
-  void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
-                            const std::vector<Endpoint> &candidates,
-                            NatResultFunctor nrf,
-                            int index);
+  UdpRequest(const UdpRequest&);
+  UdpRequest &operator=(const UdpRequest&);
+
+  std::string data_;
+  boost::asio::ip::udp::endpoint endpoint_;
+  boost::asio::deadline_timer timer_;
+  Timeout reply_timeout_;
+  boost::uint64_t reply_to_id_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RPCS_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_

@@ -265,11 +265,13 @@ void UdtConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = data.size();
   if (static_cast<size_t>(msg_size) >
-          static_cast<size_t>(kMaxTransportMessageSize)) {
+          static_cast<size_t>(UdtTransport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << kMaxTransportMessageSize << ")" << std::endl;
-    if (std::shared_ptr<UdtTransport> transport = transport_.lock())
-      (*transport->on_error_)(kMessageSizeTooLarge);
+                << UdtTransport::kMaxTransportMessageSize() << ")" << std::endl;
+    if (std::shared_ptr<UdtTransport> transport = transport_.lock()) {
+      Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
+      (*transport->on_error_)(kMessageSizeTooLarge, ep);
+    }
     return;
   }
 
@@ -313,8 +315,10 @@ void UdtConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void UdtConnection::CloseOnError(const TransportCondition &error) {
-  if (std::shared_ptr<UdtTransport> transport = transport_.lock())
-    (*transport->on_error_)(error);
+  if (std::shared_ptr<UdtTransport> transport = transport_.lock()) {
+    Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
+    (*transport->on_error_)(error, ep);
+  }
   DoClose();
 }
 
