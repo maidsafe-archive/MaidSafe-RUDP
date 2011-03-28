@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/contact.h"
+#include "maidsafe-dht/kademlia/datastore.h"
 
 namespace maidsafe {
 
@@ -72,11 +73,13 @@ enum SearchMarking { kSearchDown, kSearchContacted };
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
     ReportDownContactPtr;
+typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
 class Node::Impl {
  public:
   Impl(IoServicePtr asio_service,
        TransportPtr listening_transport,
+       MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
@@ -351,8 +354,19 @@ class Node::Impl {
    *  the downlist */
   void MonitoringDownlistThread();
 
+  bool SortByDistance(Contact contact_1, Contact contact_2);
+  void JoinFindNodesCallback(const int &result,
+                             const std::vector<Contact> &contacts,
+                             std::vector<Contact> bootstrap_contacts,
+                             const NodeId &node_id,
+                             JoinFunctor callback);
+  void RefreshDataStore();
+  void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
+  void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
+
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
+  MessageHandlerPtr message_handler_;
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
   OnOnlineStatusChangePtr on_online_status_change_;
