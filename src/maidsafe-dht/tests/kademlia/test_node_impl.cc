@@ -2198,6 +2198,95 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
   }
 }  // DownListServer test
 
+TEST_F(NodeImplTest, BEH_KAD_SetLastSeenToNow) {
+  // Try to set a non-existing contact
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  node_->SetLastSeenToNow(target);
+  Contact result;
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(Contact(), result);
+  // Try to set an existing contact
+  AddContact(target, rank_info_);
+  node_->SetLastSeenToNow(target);
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(target, result);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_IncrementFailedRpcs) {
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  // Keep increasing the num_of_failed_rpcs of the target contact, till it got
+  // removed from the routing table
+  AddContact(target, rank_info_);
+  for (int i = 0; i <= kFailedRpcTolerance; ++i)
+    node_->IncrementFailedRpcs(target);
+  Contact result;
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(Contact(), result);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  AddContact(target, rank_info_);
+  // Update the rank_info of the target contact
+  RankInfoPtr new_rank_info(new(transport::Info));
+  new_rank_info->rtt = 13313;
+  node_->UpdateRankInfo(target, new_rank_info);
+  // Get the rank_info of the target contact  
+  EXPECT_EQ(new_rank_info->rtt, node_->GetLocalRankInfo(target)->rtt);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_Getters) {
+  {
+    // contact()
+    EXPECT_EQ(Contact(), node_->contact());
+  }
+  {
+    // joined()
+    EXPECT_FALSE(node_->joined());
+    NodeId key = NodeId(NodeId::kRandomId);
+    std::vector<Contact> booststrap_contacts;
+    node_->Join(key, 5000, booststrap_contacts, NULL);
+    EXPECT_TRUE(node_->joined());
+  }
+  {
+    // asio_service()
+    EXPECT_EQ(asio_service_, node_->asio_service());
+  }
+  {
+    // alternative_store()
+    EXPECT_EQ(alternative_store_, node_->alternative_store());
+  }
+  {
+    // on_online_status_change()
+    OnOnlineStatusChangePtr result = node_->on_online_status_change();
+    if (!result)
+      EXPECT_TRUE(false);
+  }
+  {
+    // client_only_node()()
+    EXPECT_TRUE(node_->client_only_node());
+  }
+  {
+    // k()
+    EXPECT_EQ(test::k, node_->k());
+  }
+  {
+    // alpha()
+    EXPECT_EQ(test::alpha, node_->alpha());
+  }
+  {
+    // beta()
+    EXPECT_EQ(test::beta, node_->beta());
+  }
+  {
+    // mean_refresh_interval()
+    EXPECT_EQ(bptime::seconds(3600), node_->mean_refresh_interval());
+  }
+}
+
 }  // namespace test_nodeimpl
 
 }  // namespace kademlia
