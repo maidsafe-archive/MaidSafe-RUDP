@@ -325,7 +325,7 @@ class Node::Impl {
   /** Function to be connected with the ping_downlist_contact signal in service.
    *  Will try to ping the report in down contact.
    *  @param[in] contact The report in down_contact */
-  void PingDownlistContact(const Contact &contact) ;
+  void PingDownlistContact(const Contact &contact);
   /** Callback Function of the PingDownlistContact
    *  Will increase the RpcFailure of the contact by one if got no response
    *  @param[in] contact The report in down_contact

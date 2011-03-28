@@ -2149,7 +2149,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
-  
+
   std::shared_ptr<Service> local_service(new Service(routing_table_,
       data_store_, alternative_store_, securifier_));
   local_service->set_node_joined(true);
@@ -2234,7 +2234,7 @@ TEST_F(NodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
   RankInfoPtr new_rank_info(new(transport::Info));
   new_rank_info->rtt = 13313;
   node_->UpdateRankInfo(target, new_rank_info);
-  // Get the rank_info of the target contact  
+  // Get the rank_info of the target contact
   EXPECT_EQ(new_rank_info->rtt, node_->GetLocalRankInfo(target)->rtt);
 }
 
