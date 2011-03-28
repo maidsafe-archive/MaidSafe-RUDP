@@ -241,7 +241,7 @@ void Node::Impl::OperationFindNodesCB(int result_size,
                                    this, _1, _2, rpc, key, value,
                                    signature, securifier),
                        kTcp);
-        }
+          }
           break;
         case kOpUpdate: {
           std::shared_ptr<UpdateArgs> ua =
@@ -252,8 +252,9 @@ void Node::Impl::OperationFindNodesCB(int result_size,
                       boost::bind(&Node::Impl::UpdateStoreResponse,
                                   this, _1, _2, rpc, key, securifier),
                       kTcp);
-        }
+          }
           break;
+          default: break;
       }
       ++it;
     }
@@ -591,6 +592,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
                   kTcp);
         }
         break;
+      default: break;
     }
   }
 }

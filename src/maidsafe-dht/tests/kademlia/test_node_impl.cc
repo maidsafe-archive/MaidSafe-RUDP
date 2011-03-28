@@ -857,6 +857,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
 
 TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
   NodeId target = GenerateRandomId(node_id_, 497);
+  bool verdad(true), falso(false);
   {
     // test::k - 1 contacted, the last one respond as contacted
     std::vector<Contact> lcontacts;
@@ -888,9 +889,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(true, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k, closest_contacts.size());
   }
   {
@@ -931,9 +932,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
   {
@@ -967,9 +968,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(true, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k / 2, closest_contacts.size());
   }
   {
@@ -1022,8 +1023,8 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
     EXPECT_EQ(0, closest_contacts.size());
 
     curr_iteration_done = false;
@@ -1034,8 +1035,8 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
     EXPECT_EQ(0, closest_contacts.size());
   }
   {
@@ -1078,9 +1079,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
 
     mark = kDown;
@@ -1090,9 +1091,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
   // sleep for a while to prevent the situation that resources got destructed

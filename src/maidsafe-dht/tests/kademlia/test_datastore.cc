@@ -1035,7 +1035,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   boost::shared_ptr<boost::asio::io_service> asio_service(
       new boost::asio::io_service);
 
-  for (int i = 0; i != kSigners; ++i) {
+  for (size_t i = 0; i != kSigners; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
   }
