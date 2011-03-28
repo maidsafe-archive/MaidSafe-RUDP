@@ -94,6 +94,7 @@ class Node {
   // refresh values.
   Node(IoServicePtr asio_service,
        TransportPtr listening_transport,
+       MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
