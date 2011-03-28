@@ -2173,8 +2173,9 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
     std::vector<Contact> contacts;
     routing_table_->GetAllContacts(&contacts);
     EXPECT_EQ(test::k, contacts.size());
+    transport::Timeout time_out;
     for (int i = 0; i <= kFailedRpcTolerance; ++i)
-      local_service->Downlist(info, downlist_request);
+      local_service->Downlist(info, downlist_request, &time_out);
     // wait a reasonable time
     boost::this_thread::sleep(boost::posix_time::milliseconds(200));
     routing_table_->GetAllContacts(&contacts);
@@ -2189,8 +2190,9 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
     std::vector<Contact> contacts;
     routing_table_->GetAllContacts(&contacts);
     EXPECT_EQ(test::k, contacts.size());
+    transport::Timeout time_out;
     for (int i = 0; i <= kFailedRpcTolerance; ++i)
-      local_service->Downlist(info, downlist_request);
+      local_service->Downlist(info, downlist_request, &time_out);
     // may need to put a timer to prevent deadlock
     do {
       boost::this_thread::sleep(boost::posix_time::milliseconds(200));
