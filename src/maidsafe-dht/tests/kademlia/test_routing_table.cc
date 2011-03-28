@@ -1037,6 +1037,45 @@ TEST_P(RoutingTableTest, BEH_KAD_GetBootstrapContacts) {
   }
 }
 
+TEST_P(RoutingTableTest, BEH_KAD_GetAllContacts) {
+  {
+    std::vector<Contact> contacts;
+    routing_table_.GetAllContacts(&contacts);
+    EXPECT_EQ(0, contacts.size());
+  }
+  {
+    this->FillContactToRoutingTable();
+    std::vector<Contact> contacts;
+    routing_table_.GetAllContacts(&contacts);
+    EXPECT_EQ(k_, contacts.size());
+    EXPECT_EQ(contact_.node_id(),
+        (std::find(contacts.begin(), contacts.end(), contact_))->node_id());
+  }
+}
+
+TEST_P(RoutingTableTest, BEH_KAD_GetLocalRankInfo) {
+  {
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    EXPECT_EQ(RankInfoPtr(), routing_table_.GetLocalRankInfo(contact));
+  }
+  {
+    for (int num_contact = 0; num_contact < (k_ / 2); ++num_contact) {
+      NodeId contact_id(NodeId::kRandomId);
+      Contact contact = ComposeContact(contact_id, 5000);
+      AddContact(contact);
+    }
+    NodeId contact_id(NodeId::kRandomId);
+    Contact contact = ComposeContact(contact_id, 5000);
+    RankInfoPtr new_rank_info(new(transport::Info));
+    new_rank_info->rtt = 13313;
+    routing_table_.AddContact(contact, new_rank_info);
+    routing_table_.SetValidated(contact.node_id(), true);
+    EXPECT_EQ(new_rank_info->rtt,
+              routing_table_.GetLocalRankInfo(contact)->rtt);
+  }
+}
+
 TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
   const size_t kNumberOfThreads(10);
   const boost::uint16_t kIterartorSize(10);

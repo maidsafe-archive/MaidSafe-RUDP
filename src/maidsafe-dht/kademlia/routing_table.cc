@@ -82,6 +82,7 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
       UnValidatedContact new_entry(contact, rank_info);
       unvalidated_contacts_.insert(new_entry);
       // fire the signal to validate the contact
+      upgrade_lock->unlock();
       (*validate_contact_)(contact);
     }
   }
@@ -333,6 +334,31 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
   contacts->reserve(distance(it.first, it.second));
   while (it.first != it.second)
     contacts->push_back((*it.first++).contact);
+}
+
+RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {
+  SharedLock shared_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.find(contact.node_id());
+  if (it != key_indx.end())
+    return (*it).rank_info;
+  else
+    return RankInfoPtr();
+}
+
+void RoutingTable::GetAllContacts(std::vector<Contact> *contacts) {
+  if (!contacts)
+    return;
+  SharedLock shared_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.begin();
+  auto it_end = key_indx.end();
+  contacts->clear();
+  contacts->reserve(distance(it, it_end));
+  while (it != it_end) {
+    contacts->push_back((*it).contact);
+    ++it;
+  }
 }
 
 PingOldestContactPtr RoutingTable::ping_oldest_contact() {

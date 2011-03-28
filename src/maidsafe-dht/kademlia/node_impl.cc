@@ -69,7 +69,7 @@ Node::Impl::Impl(IoServicePtr asio_service,
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false),
-      routing_table_connection_(),
+//       routing_table_connection_(),
       report_down_contact_(new ReportDownContactPtr::element_type),
       mutex_(),
       condition_downlist_(),
@@ -84,7 +84,7 @@ Node::Impl::~Impl() {
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   thread_group_.interrupt_all();
   thread_group_.join_all();
-  routing_table_connection_.disconnect();
+//   routing_table_connection_.disconnect();
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
   joined_ = false;
 }
@@ -354,28 +354,58 @@ void Node::Impl::FindValue(const Key &key,
   IterativeSearch<FindValueArgs>(fva);
 }
 
-void Node::Impl::GetContact(const NodeId &/*node_id*/,
-                            GetContactFunctor /*callback*/) {
+void Node::Impl::GetContact(const NodeId &node_id,
+                            GetContactFunctor callback) {
+  FindNodes(node_id,
+            boost::bind(&Node::Impl::GetContactCallBack,
+                        this, _1, _2, node_id, callback));
 }
 
-void Node::Impl::SetLastSeenToNow(const Contact &/*contact*/) {
+void Node::Impl::GetContactCallBack(int result_size,
+                                    const std::vector<Contact> &cs,
+                                    const NodeId &node_id,
+                                    GetContactFunctor callback) {
+  auto it = cs.begin();
+  auto it_end = cs.end();
+  while (it != it_end) {
+    if ((*it).node_id() == node_id) {
+      callback(1, (*it));
+      return;
+    }
+    ++it;
+  }
+  callback(-1, Contact());
 }
 
-void Node::Impl::IncrementFailedRpcs(const Contact &/*contact*/) {
+void Node::Impl::SetLastSeenToNow(const Contact &contact) {
+  Contact result;
+  routing_table_->GetContact(contact.node_id(), &result);
+  if (result == Contact())
+    return;
+  // If the contact exists in the routing table, add it again will set its
+  // last_seen to now
+  routing_table_->AddContact(contact, RankInfoPtr());
 }
 
-void Node::Impl::UpdateRankInfo(const Contact &/*contact*/,
-                                RankInfoPtr /*rank_info*/) {
+void Node::Impl::IncrementFailedRpcs(const Contact &contact) {
+  routing_table_->IncrementFailedRpcCount(contact.node_id());
 }
 
-RankInfoPtr Node::Impl::GetLocalRankInfo(const Contact &/*contact*/) {
-  return RankInfoPtr();
+void Node::Impl::UpdateRankInfo(const Contact &contact,
+                                RankInfoPtr rank_info) {
+  routing_table_->UpdateRankInfo(contact.node_id(), rank_info);
 }
 
-void Node::Impl::GetAllContacts(std::vector<Contact> * /*contacts*/) {
+RankInfoPtr Node::Impl::GetLocalRankInfo(const Contact &contact) const {
+  return routing_table_->GetLocalRankInfo(contact);
 }
 
-void Node::Impl::GetBootstrapContacts(std::vector<Contact> * /*contacts*/) {
+void Node::Impl::GetAllContacts(std::vector<Contact> *contacts) {
+  routing_table_->GetAllContacts(contacts);
+}
+
+void Node::Impl::GetBootstrapContacts(std::vector<Contact> *contacts) {
+  routing_table_->GetBootstrapContacts(contacts);
 }
 
 Contact Node::Impl::contact() const {
@@ -423,11 +453,25 @@ void Node::Impl::Join(const NodeId &node_id,
           const std::vector<Contact> &bootstrap_contacts,
           JoinFunctor callback) {
   joined_ = true;
+  // Connect the ReportDown Signal
   report_down_contact_->connect(
       ReportDownContactPtr::element_type::slot_type(
           &Node::Impl::ReportDownContact, this, _1));
+  // Startup the thread to monitor the downlist queue
   thread_group_.create_thread(
                     boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+}
+
+void Node::Impl::EnablePingOldestContact() {
+  // Connect the ping_oldest_contact signal in the routing table
+  routing_table_->ping_oldest_contact()->connect(boost::bind(
+                      &Node::Impl::PingOldestContact, this, _1, _2, _3));
+}
+
+void Node::Impl::EnableValidateContact() {
+  // Connect the validate_contact signal in the routing table
+  routing_table_->validate_contact()->connect(boost::bind(
+                      &Node::Impl::ValidateContact, this, _1));
 }
 
 // TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest
@@ -700,21 +744,25 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
   rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kTcp);
 }
 
-void Node::Impl::PingOldestContactCallback(Contact /*oldest_contact*/,
-                                           RankInfoPtr /*oldest_rank_info*/,
-                                           const int &/*result*/,
-                                           Contact /*replacement_contact*/,
+void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
+                                           RankInfoPtr oldest_rank_info,
+                                           const int &result,
+                                           Contact replacement_contact,
                                            RankInfoPtr
-                                             /*replacement_rank_info*/) {
-//  if(result == 0) {
-//    add new contact - or ++ failed count?
-//  } else {
-//    remove old contact
-//      add new contact
-//  }
+                                             replacement_rank_info) {
+  if (result < 0) {
+    // Increase the RPCfailure of the oldest_contact by one, and then try to
+    // add the new contact again
+    routing_table_->IncrementFailedRpcCount(oldest_contact.node_id());
+    routing_table_->AddContact(replacement_contact, replacement_rank_info);
+  } else {
+    // Add the oldest_contact again to update its last_seen to now
+    routing_table_->AddContact(oldest_contact, oldest_rank_info);
+  }
 }
 
 void Node::Impl::ReportDownContact(const Contact &down_contact) {
+  routing_table_->IncrementFailedRpcCount(down_contact.node_id());
   boost::mutex::scoped_lock loch_surlaplage(mutex_);
   down_contacts_.push_back(down_contact.node_id());
   condition_downlist_.notify_one();
@@ -755,6 +803,31 @@ void Node::Impl::ValidateContactCallback(Contact contact,
                                              public_key, public_key_validation,
                                              contact.node_id().String());
   routing_table_->SetValidated(contact.node_id(), valid);
+}
+
+void Node::Impl::SetService(std::shared_ptr<Service> service) {
+  service_ = service;
+  service_->GetPingDownListSignalHandler()->connect(boost::bind(
+                      &Node::Impl::PingDownlistContact, this, _1));
+}
+
+void Node::Impl::PingDownlistContact(const Contact &contact) {
+  Rpcs::PingFunctor callback(boost::bind(
+                                &Node::Impl::PingDownlistContactCallback,
+                                this, contact, _1, _2));
+  rpcs_->Ping(SecurifierPtr(), contact, callback, kTcp);
+}
+
+void Node::Impl::PingDownlistContactCallback(Contact contact,
+                                             RankInfoPtr rank_info,
+                                             const int &result) {
+  if (result < 0) {
+    // Increase the RPCfailure of the downlist contact by one
+    routing_table_->IncrementFailedRpcCount(contact.node_id());
+  } else {
+    // Add the oldest_contact again to update its last_seen to now
+    routing_table_->AddContact(contact, rank_info);
+  }
 }
 
 }  // namespace kademlia
