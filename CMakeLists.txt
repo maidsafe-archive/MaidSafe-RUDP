@@ -284,11 +284,11 @@ IF(MSVC)
 
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ELSEIF(UNIX)
-  ADD_DEFINITIONS(-Wno-effc++)
+  #ADD_DEFINITIONS(-Wno-effc++)
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
-  SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
+  SET_SOURCE_FILES_PROPERTIES(
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/main.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_node_id.cc
@@ -299,17 +299,17 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
-                                PROPERTIES COMPILE_FLAGS "-w")
-  SET_PROPERTY(SOURCE "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_impl.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_request.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc"
-                        PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
+ 			      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_impl.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_request.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc PROPERTIES COMPILE_FLAGS "-Wno-effc++")
+SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 ENDIF()
 
 
