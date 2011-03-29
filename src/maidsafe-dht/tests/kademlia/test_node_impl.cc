@@ -42,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/kademlia/message_handler.h"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
@@ -225,7 +228,8 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
                    alternative_store_(),
                    securifier_(new Securifier("", "", "")),
                    info_(), rank_info_(), asio_service_(),
-                   node_(new Node::Impl(asio_service_, info_,
+                   message_handler_(),
+                   node_(new Node::Impl(asio_service_, info_, message_handler_,
                          securifier_, alternative_store_, true, test::k,
                          test::alpha, test::beta, bptime::seconds(3600))),
                    threshold_((test::k * 3) / 4) {
@@ -252,6 +256,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
   void GenericCallback(const std::string&, bool *done) { *done = true; }
 
+  
   std::shared_ptr<Rpcs> GetRpc() {
     return node_->rpcs_;
   }
@@ -281,10 +286,17 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   AlternativeStorePtr alternative_store_;
   SecurifierPtr securifier_;
   TransportPtr info_;
+  MessageHandlerPtr message_handler_;
   RankInfoPtr rank_info_;
   std::shared_ptr<boost::asio::io_service> asio_service_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
+public:
+  void NodeImplJoinCallback(int output, int* result, bool *done) {
+    *result = output;
+    *done = true;
+  }
+
 };  // NodeImplTest
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
@@ -336,6 +348,24 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                               SecurifierPtr securifier,
                               const Contact &peer,
                               TransportType type));
+  MOCK_METHOD6(StoreRefresh, void(
+      const std::string &serialised_store_request,
+      const std::string &serialised_store_request_signature,
+      SecurifierPtr securifier,
+      const Contact &peer,
+      StoreRefreshFunctor callback,
+      TransportType type));
+
+  void StoreRefreshThread(StoreRefreshFunctor callback) {
+    RankInfoPtr rank_info;
+    callback(rank_info, transport::kSuccess);
+  }
+  void StoreRefreshCallback(StoreRefreshFunctor callback) {
+
+    boost::thread th(boost::bind(&MockRpcs::StoreRefreshThread, this,
+                                 callback));
+  }
+  
 
   void FindNodeRandomResponseClose(const Contact &c,
                                    FindNodesFunctor callback) {
@@ -380,6 +410,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 
   void FindNodeResponseClose(const Contact &c,
                              FindNodesFunctor callback) {
+    //std::cout<<"\nFindNodeResponseClose\n";
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     int elements = RandomUint32() % test::k;
@@ -393,6 +424,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     }
     boost::thread th(boost::bind(&MockRpcs::FindNodeResponseThread,
                                  this, callback, response_list));
+    //std::cout<<"\nFindNodeResponseClose End\n";
   }
 
   void FindNodeResponseNoClose(const Contact &c,
@@ -455,8 +487,10 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 
   void FindNodeResponseThread(FindNodesFunctor callback,
                               std::vector<Contact> response_list) {
+    //std::cout<<"\nIn response thread\n";
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    //std::cout<<"\nresponse_size::"<<response_list.size();
     callback(rank_info_, response_list.size(), response_list);
   }
 
@@ -692,6 +726,175 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 };  // class MockRpcs
+
+TEST_F(NodeImplTest, BEH_KAD_Join) {
+  asio_service_.reset(new boost::asio::io_service);
+  info_.reset(new transport::TcpTransport(*asio_service_));
+  ASSERT_EQ(0, info_->StartListening(transport::Endpoint("127.0.0.1",
+                                            6700)));
+  message_handler_.reset(new MessageHandler(securifier_));
+  node_.reset(new Node::Impl(asio_service_, info_, message_handler_,
+                         securifier_, alternative_store_, false, test::k,
+                         test::alpha, test::beta, bptime::seconds(3600)));
+  
+  std::vector<Contact> bootstrap_contacts;
+  std::shared_ptr<Rpcs> old_rpcs = GetRpc();
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  SetRpc(new_rpcs);
+
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  NodeId target = GenerateRandomId(node_id_, 480);
+  new_rpcs->target_id_ = target;
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+  new_rpcs->SetCountersToZero();
+
+  // create bootstrap_contacts
+  //NodeId target = GenerateRandomId(node_id_, 497);
+  // When last contact in bootstrap_contacts is valid
+  {
+    int result(1);
+    bool done(false);
+    JoinFunctor callback = boost::bind(&NodeImplTest::NodeImplJoinCallback,
+                                       this, _1, &result, &done);
+    Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
+                                     5600);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 495)), 5700);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(target, 6400);
+    bootstrap_contacts.push_back(contact);
+  
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillOnce(testing::WithArgs<2,3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
+                        _2))))
+        .WillOnce(testing::WithArgs<2,3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
+                        _2))))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeResponseClose,
+                        new_rpcs.get(), _1, _2))));
+    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    while(!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    ASSERT_LT(0U, result);
+    bootstrap_contacts.clear();
+  }
+  // When first contact in bootstrap_contacts is valid
+  {
+    int result(1);
+    bool done(false);
+    JoinFunctor callback = boost::bind(&NodeImplTest::NodeImplJoinCallback,
+                                       this, _1, &result, &done);
+    Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
+                                     5600);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 495)), 5700);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(target, 6400);
+    bootstrap_contacts.push_back(contact);
+  
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeResponseClose,
+                        new_rpcs.get(), _1, _2))));
+    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    while(!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    ASSERT_LT(0U, result);
+    bootstrap_contacts.clear();
+  }
+  // When none of contact is valid
+  {
+    int result(1);
+    bool done(false);
+    JoinFunctor callback = boost::bind(&NodeImplTest::NodeImplJoinCallback,
+                                       this, _1, &result, &done);
+    Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
+                                     5600);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 495)), 5700);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(target, 6400);
+    bootstrap_contacts.push_back(contact);
+  
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillOnce(testing::WithArgs<2,3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
+                        _2))))
+        .WillOnce(testing::WithArgs<2,3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
+                        _2))))
+        .WillOnce(testing::WithArgs<2,3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
+                        _2))));
+    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    while(!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    ASSERT_EQ(transport::kError, result);
+    bootstrap_contacts.clear();
+  }
+  // Test for refreshing data_store entry
+  {
+    boost::posix_time::time_duration ttl(bptime::pos_infin);
+    RequestAndSignature request_signature = std::make_pair("request",
+                                                           "signature");
+    
+    node_->data_store_.reset(new DataStore(boost::posix_time::seconds(1)));
+    ASSERT_TRUE(node_->data_store_->StoreValue(KeyValueSignature("key1",
+                                                                 "value1",
+                                                                 "sig1"),
+                                               ttl, request_signature, "",
+                                               false));
+    int result(1);
+    bool done(false);
+    JoinFunctor callback = boost::bind(&NodeImplTest::NodeImplJoinCallback,
+                                       this, _1, &result, &done);
+    Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
+                                     5600);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 495)), 5700);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(target, 6400);
+    bootstrap_contacts.push_back(contact);
+  
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeResponseClose,
+                        new_rpcs.get(), _1, _2))));
+    EXPECT_CALL(*new_rpcs, StoreRefresh(testing::_, testing::_, testing::_,
+                                       testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
+            boost::bind(&MockRpcs::StoreRefreshCallback,
+                        new_rpcs.get(), _1))));
+    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    while(!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    ASSERT_LT(0U, result);
+    bootstrap_contacts.clear();
+    int count(0);
+    /*while (count < 10000000) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      count += 1000;
+    }*/
+    ASSERT_LT(size_t(0), node_->thread_group_.size());
+  }
+}
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);

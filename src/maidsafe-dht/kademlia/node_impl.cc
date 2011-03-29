@@ -446,11 +446,12 @@ void Node::Impl::Join(const NodeId &node_id,
                                  bootstrap_contacts.end());
   std::sort(temp_bootstrap_contacts.begin(), temp_bootstrap_contacts.end(),
             boost::bind(&Node::Impl::SortByDistance, this, _1, _2));
-  fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
-                           _1, _2, bootstrap_contacts, node_id, callback);
-  std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
   std::vector<Contact> search_contact;
   search_contact.push_back(temp_bootstrap_contacts.front());
+  temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
+  fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
+                           _1, _2, temp_bootstrap_contacts, node_id, callback);
+  std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
   AddContactsToContainer<FindNodesArgs>(search_contact, fna);
   IterativeSearch<FindNodesArgs>(fna);
 }
@@ -461,15 +462,18 @@ void Node::Impl::JoinFindNodesCallback(
     std::vector<Contact> bootstrap_contacts,
     const NodeId &node_id,
     JoinFunctor callback) {
-
   if (result < 0) {
+    if (bootstrap_contacts.empty()) {
+      callback(result);
+      return;
+    }
+    std::vector<Contact> search_contact;
+    search_contact.push_back(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindNodesFunctor fncallback;
     fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
                              _1, _2, bootstrap_contacts, node_id, callback);
     std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
-    std::vector<Contact> search_contact;
-    search_contact.push_back(bootstrap_contacts.front());
     AddContactsToContainer<FindNodesArgs>(search_contact, fna);
     IterativeSearch<FindNodesArgs>(fna);
   } else {
@@ -477,16 +481,16 @@ void Node::Impl::JoinFindNodesCallback(
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
       service_->ConnectToSignals(listening_transport_, message_handler_);
+      thread_group_.create_thread(boost::bind(&Node::Impl::RefreshDataStore,
+                                              this));
     }
-    thread_group_.create_thread(boost::bind(&Node::Impl::RefreshDataStore,
-                                            this));
     callback(result);
   }
 }
 
 void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
                                       const int &result) {
-  // if result is not success then make downlist
+  //  if result is not success then make downlist
 }
 
 void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
@@ -511,7 +515,6 @@ void Node::Impl::RefreshDataStore() {
     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   boost::bind(&Node::Impl::PostStoreRefresh, this, _1));
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   }
 }
 
@@ -623,7 +626,6 @@ void Node::Impl::FindNodes(const Key &key, FindNodesFunctor callback) {
 template <class T>
 void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
-
   auto pit = fa->nc. template get<nc_state_distance>().equal_range(
       boost::make_tuple(kNew));
   int num_of_candidates = std::distance(pit.first, pit.second);
@@ -632,7 +634,6 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     // All contacted or in waitingresponse state, then just do nothing here
     return;
   }
-
   // find Alpha closest contacts to enquire
   // or all the left contacts if less than Alpha contacts haven't been tried
   boost::uint16_t counter = 0;
@@ -741,6 +742,7 @@ void Node::Impl::IterativeSearchNodeResponse(
                                   std::shared_ptr<RpcArgs> fnrpc) {
   std::shared_ptr<FindNodesArgs> fna =
       std::static_pointer_cast<FindNodesArgs> (fnrpc->rpc_a);
+
   // If already calledback, i.e. result has already been reported
   // then do nothing, just return
   if (fna->calledback) {
@@ -754,6 +756,12 @@ void Node::Impl::IterativeSearchNodeResponse(
     mark = kDown;
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(fnrpc->contact);
+    boost::mutex::scoped_lock loch_surlaplage(fna->mutex);
+    if (fna->nc.size() == 1) {
+      fna->callback(-1, closest_contacts);
+      fna->nc.clear();
+      return;
+    }
   } else {
     AddContactsToContainer<FindNodesArgs>(contacts, fna);
   }
