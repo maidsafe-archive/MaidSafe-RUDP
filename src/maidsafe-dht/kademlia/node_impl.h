@@ -71,7 +71,7 @@ class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 enum SearchMarking { kSearchDown, kSearchContacted };
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
-    ReportDownContactPtr;
+        ReportDownContactPtr;
 
 class Node::Impl {
  public:
