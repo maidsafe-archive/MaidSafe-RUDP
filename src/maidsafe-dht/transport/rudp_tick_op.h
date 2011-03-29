@@ -25,60 +25,57 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
 
-#include <unordered_map>
-#include "boost/asio/buffer.hpp"
-#include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/transport/rudp_dispatcher.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpAcceptor;
-class RudpSocket;
-
-class RudpDispatcher {
+// Helper class to perform an asynchronous dispatch operation.
+template <typename TickHandler>
+class RudpTickOp {
  public:
-  RudpDispatcher();
+  RudpTickOp(TickHandler handler, RudpDispatcher *dispatcher)
+    : handler_(handler),
+      dispatcher_(dispatcher) {
+  }
 
-  // Get the one-and-only acceptor.
-  RudpAcceptor *GetAcceptor() const;
+  void operator()(const boost::system::error_code &ec) {
+    if (!ec) {
+      dispatcher_->HandleTick();
+    }
 
-  // Set the one-and-only acceptor.
-  void SetAcceptor(RudpAcceptor *acceptor);
+    handler_(ec);
+  }
 
-  // Add a socket. Returns a new unique id for the socket.
-  boost::uint32_t AddSocket(RudpSocket *socket);
+  friend void *asio_handler_allocate(size_t n, RudpTickOp *op) {
+    using boost::asio::asio_handler_allocate;
+    return asio_handler_allocate(n, &op->handler_);
+  }
 
-  // Remove the socket corresponding to the given id.
-  void RemoveSocket(boost::uint32_t id);
+  friend void asio_handler_deallocate(void *p, size_t n, RudpTickOp *op) {
+    using boost::asio::asio_handler_deallocate;
+    asio_handler_deallocate(p, n, &op->handler_);
+  }
 
-  // Handle a new packet by dispatching to the appropriate socket or acceptor.
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &endpoint);
-
-  // Handle a tick by dispatching to all sockets.
-  void HandleTick();
+  template <typename Function>
+  friend void asio_handler_invoke(const Function &f, RudpTickOp *op) {
+    using boost::asio::asio_handler_invoke;
+    asio_handler_invoke(f, &op->handler_);
+  }
 
  private:
-  // Disallow copying and assignment.
-  RudpDispatcher(const RudpDispatcher&);
-  RudpDispatcher &operator=(const RudpDispatcher&);
-
-  // The one-and-only acceptor.
-  RudpAcceptor* acceptor_;
-
-  // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t, RudpSocket*> SocketMap;
-  SocketMap sockets_;
+  TickHandler handler_;
+  RudpDispatcher *dispatcher_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_

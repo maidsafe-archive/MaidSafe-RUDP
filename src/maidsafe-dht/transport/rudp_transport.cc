@@ -72,6 +72,7 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 
   StartAccept();
   StartDispatch();
+  StartTick();
 
   return kSuccess;
 }
@@ -112,6 +113,21 @@ void RudpTransport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
 
   StartDispatch();
+}
+
+void RudpTransport::StartTick() {
+  auto handler = strand_.wrap(std::bind(&RudpTransport::HandleTick,
+                                        shared_from_this(),
+                                        multiplexer_, arg::_1));
+  multiplexer_->AsyncTick(handler);
+}
+
+void RudpTransport::HandleTick(MultiplexerPtr multiplexer,
+                               const bs::error_code &ec) {
+  if (!multiplexer->IsOpen())
+    return;
+
+  StartTick();
 }
 
 void RudpTransport::StartAccept() {
@@ -160,6 +176,7 @@ void RudpTransport::DoSend(const std::string &data,
     TransportCondition condition = multiplexer_->Open(ep.protocol());
     // TODO error
     StartDispatch();
+    StartTick();
   }
 
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),

@@ -76,6 +76,10 @@ class RudpTransport : public Transport,
   void HandleDispatch(MultiplexerPtr multiplexer,
                       const boost::system::error_code &ec);
 
+  void StartTick();
+  void HandleTick(MultiplexerPtr multiplexer,
+                  const boost::system::error_code &ec);
+
   void StartAccept();
   void HandleAccept(AcceptorPtr acceptor,
                     ConnectionPtr connection,

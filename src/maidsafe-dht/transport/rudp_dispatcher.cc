@@ -95,6 +95,10 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
+void RudpDispatcher::HandleTick()
+{
+}
+
 }  // namespace transport
 
 }  // namespace maidsafe
