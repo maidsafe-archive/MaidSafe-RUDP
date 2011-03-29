@@ -43,34 +43,41 @@ namespace test {
 
 const boost::posix_time::milliseconds kNetworkDelay(200);
 
-class Sender_TaskTest: public testing::Test {
+class SenderTaskTest: public testing::Test {
  public:
-  Sender_TaskTest()
+  SenderTaskTest()
       : info_(),
         sender_task_(new SenderTask),
         count_callback_1_(0),
         count_callback_2_(0),
-        asio_service_(new boost::asio::io_service),
+//        asio_service_(new boost::asio::io_service),
         asio_thread_group_() {
   }
 
-  virtual void SetUp() {
-  }
+  virtual void SetUp() {}
 
   KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
                             const size_t &value_size,
                             std::string key,
                             std::string value) {
-    if (key.empty())
+    while (key.empty()) {
       key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    if (value.empty()) {
+//      std::cout << "A key has been made" << std::endl;
+    }
+    while (value.empty()) {
       value.reserve(value_size);
       std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
       while (value.size() < value_size)
         value += temp;
       value = value.substr(0, value_size);
+//      std::cout << "A value has been made" << std::endl;
     }
-    std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    std::string signature;
+    while (signature.empty()) {
+      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+//      std::cout << "A signature has been made" << std::endl;
+    }
+//    std::cout << std::endl;
     return KeyValueSignature(key, value, signature);
   }
 
@@ -99,9 +106,7 @@ class Sender_TaskTest: public testing::Test {
                          RequestAndSignature,
                          std::string,
                          std::string,
-                         std::string) {
-    ++count_callback_1_;
-  }
+                         std::string) { ++count_callback_1_; }
 
   void TestTaskCallBack2(KeyValueSignature,
                          std::string,
@@ -109,9 +114,7 @@ class Sender_TaskTest: public testing::Test {
                          RequestAndSignature,
                          std::string,
                          std::string,
-                         std::string) {
-    ++count_callback_2_;
-  }
+                         std::string) { ++count_callback_2_; }
 
   size_t GetSenderTaskSize() {
     return sender_task_->task_index_->size();
@@ -125,15 +128,14 @@ class Sender_TaskTest: public testing::Test {
  protected:
   // Dummy function to imitate Securifier::GetPublicKeyAndValidation
   void GetPublicKeyAndValidation(const std::string & public_key_id,
-      GetPublicKeyAndValidationCallback callback) {
-    asio_thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
-                                                 asio_service_));
-    asio_service_->dispatch(boost::bind(&Sender_TaskTest::DummyFind,
-                                        this, public_key_id, callback));
+                                 GetPublicKeyAndValidationCallback callback) {
+    asio_thread_group_.create_thread(boost::bind(&SenderTaskTest::DummyFind,
+                                                 this, public_key_id,
+                                                 callback));
   }
 
-  void DummyFind(const std::string &,
-      GetPublicKeyAndValidationCallback callback) {
+  void DummyFind(const std::string&,
+                 GetPublicKeyAndValidationCallback callback) {
     // Imitating delay in lookup for kNetworkDelay seconds
     boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
     callback("", "");
@@ -141,17 +143,17 @@ class Sender_TaskTest: public testing::Test {
 
   transport::Info info_;
   boost::shared_ptr<SenderTask> sender_task_;
-  boost::uint16_t count_callback_1_, count_callback_2_;
-  boost::shared_ptr<boost::asio::io_service> asio_service_;
+  volatile boost::uint16_t count_callback_1_, count_callback_2_;
+//  boost::shared_ptr<boost::asio::io_service> asio_service_;
   boost::thread_group asio_thread_group_;
 };
 
-TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
+TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb = boost::bind(&Sender_TaskTest::TestTaskCallBack1, this,
+  TaskCallback task_cb = boost::bind(&SenderTaskTest::TestTaskCallBack1, this,
                                      _1, "request", _2, _3, "response", _4, _5);
   bool is_new_id(true);
   // Invalid tasks
@@ -208,7 +210,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
   }
   // Adding new task with different callback
   {
-    TaskCallback task_cb = boost::bind(&Sender_TaskTest::TestTaskCallBack2,
+    TaskCallback task_cb = boost::bind(&SenderTaskTest::TestTaskCallBack2,
                                        this, _1, "request", _2, _3, "response",
                                        _4, _5);
     crypto_key_data.GenerateKeys(4096);
@@ -221,10 +223,10 @@ TEST_F(Sender_TaskTest, BEH_KAD_AddTask) {
   }
 }
 
-TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
+TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb_1 = boost::bind(&Sender_TaskTest::TestTaskCallBack1,
+  TaskCallback task_cb_1 = boost::bind(&SenderTaskTest::TestTaskCallBack1,
                                        this, _1, "request", _2, _3, "response",
                                        _4, _5);
   bool is_new_id(true);
@@ -233,7 +235,7 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
                   "public_key_id_1", _1, _2);
   // Invalid data
   crypto_key_data.GenerateKeys(4096);
-    KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
   ASSERT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
                                     "public_key_id_1", task_cb_1, is_new_id));
   sender_task_->SenderTaskCallback("", "", "");
@@ -246,11 +248,11 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
   EXPECT_EQ(1u , count_callback_1_);
   ResetCallbackCount();
   // Adding multiple task
-  for (int i = 1; i <= 10; ++i) {
+  for (int i = 1; i < 11; ++i) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                              "public_key_id_1", task_cb_1, is_new_id));
+                                      "public_key_id_1", task_cb_1, is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     EXPECT_EQ(size_t(i), GetSenderTaskSize());
   }
@@ -262,13 +264,13 @@ TEST_F(Sender_TaskTest, BEH_KAD_SenderTaskCallback) {
   EXPECT_EQ(size_t(0), GetSenderTaskSize());
 }
 
-TEST_F(Sender_TaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
+TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb_1 = boost::bind(&Sender_TaskTest::TestTaskCallBack1,
+  TaskCallback task_cb_1 = boost::bind(&SenderTaskTest::TestTaskCallBack1,
                                        this, _1, "request", _2, _3, "response",
                                        _4, _5);
-  TaskCallback task_cb_2 = boost::bind(&Sender_TaskTest::TestTaskCallBack2,
+  TaskCallback task_cb_2 = boost::bind(&SenderTaskTest::TestTaskCallBack2,
                                        this, _1, "request", _2, _3, "response",
                                        _4, _5);
   bool is_new_id(true);
@@ -303,28 +305,35 @@ TEST_F(Sender_TaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     kvs_vector.push_back(kvs);
-    asio_service_->post(boost::bind(&SenderTask::AddTask, sender_task_, kvs,
-                                    info_, request_signature, "public_key_id_3",
-                                    task_cb_1, is_new_id));
+    asio_thread_group_.create_thread(boost::bind(&SenderTask::AddTask,
+                                                 sender_task_, kvs,
+                                                 info_, request_signature,
+                                                 "public_key_id_3", task_cb_1,
+                                                 is_new_id));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     kvs_vector.push_back(kvs);
-    asio_service_->post(boost::bind(&SenderTask::AddTask, sender_task_, kvs,
-                                    info_, request_signature, "public_key_id_4",
-                                    task_cb_2, is_new_id));
+    asio_thread_group_.create_thread(boost::bind(&SenderTask::AddTask,
+                                                 sender_task_, kvs,
+                                                 info_, request_signature,
+                                                 "public_key_id_4", task_cb_2,
+                                                 is_new_id));
   }
-  // Calling SenderTaskCallback
-  asio_service_->post(boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                                  "public_key_id_1", "public_key",
-                                  "public_key_validation"));
-  asio_service_->post(boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                                  "public_key_id_2", "public_key",
-                                  "public_key_validation"));
-  for (int j = 0; j < 8; ++j)
-    asio_thread_group_.create_thread(boost::bind(&boost::asio::io_service::run,
-                                     asio_service_));
-
   asio_thread_group_.join_all();
+
+  // Calling SenderTaskCallback
+  asio_thread_group_.create_thread(boost::bind(&SenderTask::SenderTaskCallback,
+                                               sender_task_,
+                                               "public_key_id_1",
+                                               "public_key",
+                                               "public_key_validation"));
+  asio_thread_group_.create_thread(boost::bind(&SenderTask::SenderTaskCallback,
+                                               sender_task_,
+                                               "public_key_id_2",
+                                               "public_key",
+                                               "public_key_validation"));
+  asio_thread_group_.join_all();
+
   EXPECT_EQ(20u , count_callback_1_);
   EXPECT_EQ(20u , count_callback_2_);
   ASSERT_EQ(size_t(i * 2), kvs_vector.size());

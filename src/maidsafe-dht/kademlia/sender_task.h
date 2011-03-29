@@ -40,12 +40,18 @@ namespace maidsafe  {
 namespace kademlia {
 
 namespace test {
-  class Sender_TaskTest;
-  class ServicesTest;
+class SenderTaskTest;
+class ServicesTest;
+class SenderTaskTest_BEH_KAD_AddTask_Test;
+class SenderTaskTest_BEH_KAD_SenderTaskCallback_Test;
+class SenderTaskTest_FUNC_KAD_SenderTaskCallbackMulthiThreaded_Test;
 }
 
-typedef boost::function<void(const KeyValueSignature,  transport::Info,
-    RequestAndSignature, std::string, std::string)> TaskCallback;
+class Service;
+
+typedef boost::function<void(const KeyValueSignature, transport::Info,
+                             RequestAndSignature, std::string, std::string)>
+        TaskCallback;
 
 struct Task {
   Task(KeyValueSignature key_value_signature,
@@ -97,28 +103,34 @@ class SenderTask  {
   // Returns false if stored key is associated with different public_key_id.
   // Returns true if successfully added into the multi index or false otherwise.
   bool AddTask(KeyValueSignature key_value_signature,
-                const transport::Info info,
-                const RequestAndSignature request_signature,
-                const std::string public_key_id,
-                TaskCallback ops_callback,
-                bool & is_new_id);
-
-  // Executes all the tasks present in the multi index under given
-  // public_key_id and delete them from the multi index after the execution.
-  // Does nothing if the public_key_id is empty or task for given public_key_id
-  // is not present in the multi index.
-  void SenderTaskCallback(std::string public_key_id, std::string public_key,
-                          std::string public_key_validation);
+               const transport::Info info,
+               const RequestAndSignature request_signature,
+               const std::string public_key_id,
+               TaskCallback ops_callback,
+               bool & is_new_id);
 
  private:
-  friend class test::Sender_TaskTest;
+  friend class Service;
+  friend class test::SenderTaskTest;
   friend class test::ServicesTest;
+  friend class test::SenderTaskTest_BEH_KAD_AddTask_Test;
+  friend class test::SenderTaskTest_BEH_KAD_SenderTaskCallback_Test;
+  friend class
+      test::SenderTaskTest_FUNC_KAD_SenderTaskCallbackMulthiThreaded_Test;
 
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
   typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
-      UpgradeToUniqueLock;
+          UpgradeToUniqueLock;
+
+  // Executes all the tasks present in the multi index under given
+  // public_key_id and delete them from the multi index after the execution.
+  // Does nothing if the public_key_id is empty or task for given public_key_id
+  // is not present in the multi index.
+  void SenderTaskCallback(std::string public_key_id,
+                          std::string public_key,
+                          std::string public_key_validation);
 
   /**  Multi_index container of sender tasks */
   std::shared_ptr<TaskIndex> task_index_;
