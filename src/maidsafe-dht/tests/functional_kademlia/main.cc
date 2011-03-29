@@ -40,7 +40,8 @@ int main(int argc, char **argv) {
   FLAGS_minloglevel = 3;
   testing::InitGoogleTest(&argc, argv);
 //   ::testing::FLAGS_gtest_filter = "NodeTest*";
-  ::testing::AddGlobalTestEnvironment(new EnvironmentNodes(2, 2, 1, 1));
+  ::testing::AddGlobalTestEnvironment(
+        new EnvironmentNodes(2, 2, 1, 1, 1, bptime::seconds(3600)));
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
   return (test_count == 0) ? -1 : result;

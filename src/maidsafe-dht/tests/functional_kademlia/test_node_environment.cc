@@ -31,6 +31,8 @@ boost::uint16_t kNetworkSize;
 boost::uint16_t kK_;
 boost::uint16_t kAlpha_;
 boost::uint16_t kBeta_;
+boost::uint16_t kNumServers_;
+boost::posix_time::time_duration kMeanRefresh_;
 
 std::string test_dir_;
 std::string kad_config_file_;
@@ -111,18 +113,30 @@ std::string get_app_directory() {
 }
 
 EnvironmentNodes::EnvironmentNodes(boost::uint16_t num_of_nodes,
-                                   boost::uint16_t k,
-                                   boost::uint16_t alpha,
-                                   boost::uint16_t beta) {
+    boost::uint16_t k,
+    boost::uint16_t alpha,
+    boost::uint16_t beta,
+    boost::uint16_t num_of_servers,
+    const boost::posix_time::time_duration &mean_refresh_interval) {
   kNetworkSize = num_of_nodes;
   kK_ = k;
+  if (kK_ > kNetworkSize)
+    kK_ = kNetworkSize;
   kAlpha_ = alpha;
+  if (kAlpha_ > kK_)
+    kAlpha_ = kK_;
   kBeta_ = beta;
+  if (kBeta_ > kAlpha_)
+    kBeta_ = kAlpha_;
+  kNumServers_ = num_of_servers;
+  if (kNumServers_ > kNetworkSize)
+    kNumServers_ = kNetworkSize;
+  kMeanRefresh_ = mean_refresh_interval;
 }
 
 void EnvironmentNodes::SetUp() {
-  test_dir_ = std::string("temp/NodeTest") +
-              boost::lexical_cast<std::string>(RandomUint32());
+  test_dir_ = fs::path(fs::unique_path(fs::temp_directory_path() /
+                       "MaidSafe_Test_Kad_API_%%%%-%%%%-%%%%")).string();
   kad_config_file_ = test_dir_ + std::string("/.kadconfig");
   try {
     if (fs::exists(test_dir_))
@@ -154,7 +168,7 @@ void EnvironmentNodes::SetUp() {
     ports_.push_back(5000 + i);
     GenerateUniqueRandomId(seed_id, 511 - i);
     bool client_only_node(true);
-    if ((i % 4) == 0) {
+    if (i < kNumServers_) {
       client_only_node = false;
 //       boost::asio::ip::address local_ip;
 //       ASSERT_TRUE(base::GetLocalAddress(&local_ip));
@@ -171,7 +185,7 @@ void EnvironmentNodes::SetUp() {
                                             alternative_store,
                                             client_only_node,
                                             kK_, kAlpha_, kBeta_,
-                                            bptime::seconds(3600)));
+                                            kMeanRefresh_));
     nodes_.push_back(cur_node);
     std::string db_local(test_dir_ + std::string("/datastore") +
                          boost::lexical_cast<std::string>(i));

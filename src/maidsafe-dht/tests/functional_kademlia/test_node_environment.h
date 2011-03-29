@@ -57,9 +57,11 @@ namespace fs = boost::filesystem;
 class EnvironmentNodes : public ::testing::Environment {
  public:
   EnvironmentNodes(boost::uint16_t num_of_nodes,
-                   boost::uint16_t k,
-                   boost::uint16_t alpha,
-                   boost::uint16_t beta);
+      boost::uint16_t k,
+      boost::uint16_t alpha,
+      boost::uint16_t beta,
+      boost::uint16_t num_of_servers,
+      const boost::posix_time::time_duration &mean_refresh_interval);
  protected:
   virtual void SetUp();
 
