@@ -84,8 +84,9 @@ Node::Impl::~Impl() {
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   thread_group_.interrupt_all();
   thread_group_.join_all();
-  routing_table_connection_.disconnect();
-  routing_table_->GetBootstrapContacts(bootstrap_contacts);
+//  routing_table_connection_.disconnect();
+  if (routing_table_)
+    routing_table_->GetBootstrapContacts(bootstrap_contacts);
   joined_ = false;
 }
 
@@ -427,6 +428,8 @@ void Node::Impl::Join(const NodeId &node_id,
           &Node::Impl::ReportDownContact, this, _1));
   thread_group_.create_thread(
                     boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+  if (callback)
+    callback(1);
 }
 
 // TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest

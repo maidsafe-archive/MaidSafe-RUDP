@@ -155,7 +155,8 @@ FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/demo/*.h")
 FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.cc"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.h")
-LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/testnodefunctional.cc")
+LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_functional.cc")
+LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.h")
 FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.cc"
@@ -174,7 +175,8 @@ ENDIF()
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTkademlia_api ${ALL_FILES_TEST_NODE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+#### ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -189,7 +191,8 @@ ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 RENAME_EXECUTABLE(TESTkademlia)
-RENAME_EXECUTABLE(TESTnode)
+RENAME_EXECUTABLE(TESTkademlia_api)
+#### RENAME_EXECUTABLE(TESTnode)
 RENAME_EXECUTABLE(TESTtransport)
 RENAME_EXECUTABLE(TESTnatpmp)
 RENAME_EXECUTABLE(TESTupnp)
@@ -199,7 +202,7 @@ IF(Mysqlpp_FOUND)
   RENAME_EXECUTABLE(distributed_net_clients)
 ENDIF()
 
-SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
+SET(TEST_TARGETS TESTupnp TESTnatpmp TESTkademlia TESTkademlia_api TESTtransport)
 SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static PROPERTIES FOLDER "Tests")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
@@ -229,7 +232,8 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gmock_static)
-TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTkademlia_api maidsafe_dht_static gtest_static)
+#### TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(KademliaDemo maidsafe_dht_static boost_program_options)
@@ -267,7 +271,7 @@ IF(MSVC)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.pb.cc
                                 PROPERTIES COMPILE_FLAGS "/W0")
 
-  SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
+  SET_TARGET_PROPERTIES(TESTkademlia TESTkademlia_api TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
