@@ -42,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/kademlia/service.h"
+#include "maidsafe-dht/kademlia/rpcs.pb.h"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
@@ -53,6 +56,23 @@ static const boost::uint16_t k = 8;
 static const boost::uint16_t alpha = 3;
 static const boost::uint16_t beta = 2;
 static const boost::uint16_t randomnoresponserate = 20;  // in percentage
+
+class SecurifierValidateTrue: public Securifier {
+ public:
+  SecurifierValidateTrue(const std::string &public_key_id,
+                          const std::string &public_key,
+                          const std::string &private_key) :
+      Securifier(public_key_id, public_key, private_key) {}
+
+  bool Validate(const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&,
+                const std::string&) const {
+    return true;
+  }
+};
 
 void FindNodeCallback(RankInfoPtr rank_info,
                       int result_size,
@@ -91,6 +111,16 @@ void ErrorCodeCallback(int error_code,
                        int *response_code) {
   *done = true;
   *response_code = error_code;
+}
+
+void GetContactCallback(int error_code,
+                        Contact contact,
+                        Contact *result,
+                        bool *done,
+                        int *response_code) {
+  *done = true;
+  *response_code = error_code;
+  *result = contact;
 }
 
 class CreateContactAndNodeId {
@@ -228,9 +258,15 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
                    node_(new Node::Impl(asio_service_, info_,
                          securifier_, alternative_store_, true, test::k,
                          test::alpha, test::beta, bptime::seconds(3600))),
-                   threshold_((test::k * 3) / 4) {
+                   threshold_((test::k * 3) / 4),
+                   local_node_(new Node::Impl(asio_service_, info_,
+                       SecurifierPtr(new SecurifierValidateTrue("", "", "")),
+                       alternative_store_, true, test::k,
+                       test::alpha, test::beta,
+                       bptime::seconds(3600))) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
+    local_node_->routing_table_ = routing_table_;
   }
 
   static void SetUpTestCase() {}
@@ -245,12 +281,17 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     }
   }
 
+  void SetAllNumRpcsFailureToZero() {
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    std::for_each(contacts.begin(), contacts.end(),
+                  boost::bind(&NodeImplTest::AddContact, this, _1, rank_info_));
+  }
+
   void AddContact(const Contact& contact, const RankInfoPtr rank_info) {
     routing_table_->AddContact(contact, rank_info);
     routing_table_->SetValidated(contact.node_id(), true);
   }
-
-  void GenericCallback(const std::string&, bool *done) { *done = true; }
 
   std::shared_ptr<Rpcs> GetRpc() {
     return node_->rpcs_;
@@ -258,6 +299,10 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
   void SetRpc(std::shared_ptr<Rpcs> rpc) {
     node_->rpcs_ = rpc;
+  }
+
+  void SetLocalRpc(std::shared_ptr<Rpcs> rpc) {
+    local_node_->rpcs_ = rpc;
   }
 
   KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
@@ -285,6 +330,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   std::shared_ptr<boost::asio::io_service> asio_service_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
+  std::shared_ptr<Node::Impl> local_node_;
 };  // NodeImplTest
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
@@ -336,6 +382,11 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                               SecurifierPtr securifier,
                               const Contact &peer,
                               TransportType type));
+
+  MOCK_METHOD4(Ping, void(SecurifierPtr securifier,
+                          const Contact &peer,
+                          PingFunctor callback,
+                          TransportType type));
 
   void FindNodeRandomResponseClose(const Contact &c,
                                    FindNodesFunctor callback) {
@@ -602,6 +653,12 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
+  void NoResponse(const Contact &c, T callback) {
+    boost::thread th(boost::bind(&MockRpcs::CommonNoResponseThread<T>,
+                                 this, callback));
+  }
+
+  template <class T>
   void FirstSeveralNoResponse(const Contact &c, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ > (test::k - threshold_)) {
@@ -692,6 +749,138 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   NodeId target_id_;
   int threshold_;
 };  // class MockRpcs
+
+TEST_F(NodeImplTest, BEH_KAD_GetAllContacts) {
+  PopulateRoutingTable(test::k, 500);
+  std::vector<Contact> contacts;
+  node_->GetAllContacts(&contacts);
+  EXPECT_EQ(test::k, contacts.size());
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetBootstrapContacts) {
+  PopulateRoutingTable(test::k, 500);
+  std::vector<Contact> contacts;
+  node_->GetBootstrapContacts(&contacts);
+  EXPECT_EQ(test::k, contacts.size());
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetContact) {
+  PopulateRoutingTable(test::k, 500);
+
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+
+  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                   testing::_, testing::_))
+      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+          boost::bind(&MockRpcs::FindNodeResponseClose,
+                      new_rpcs.get(), _1, _2))));
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // Looking for a non-exist contact
+    Contact result;
+    bool done(false);
+    int response_code(0);
+    node_->GetContact(target_id,
+                  boost::bind(&GetContactCallback, _1, _2,
+                              &result, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(-1, response_code);
+    EXPECT_EQ(Contact(), result);
+  }
+  Contact target = ComposeContact(target_id, 5000);
+  AddContact(target, rank_info_);
+  {
+    // All k populated contacts response with random closest list
+    // (not greater than k)
+    // Looking for an exist contact
+    Contact result;
+    bool done(false);
+    int response_code(0);
+    node_->GetContact(target_id,
+                  boost::bind(&GetContactCallback, _1, _2,
+                              &result, &done, &response_code));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(1, response_code);
+    EXPECT_EQ(target, result);
+  }
+  // sleep for a while to prevent the situation that resources got destructed
+  // before all call back from rpc completed. Which will cause "Segmentation
+  // Fault" in execution.
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+}
+
+TEST_F(NodeImplTest, BEH_KAD_ValidateContact) {
+  NodeId contact_id = GenerateRandomId(node_id_, 501);
+  Contact contact = ComposeContact(contact_id, 5000);
+  local_node_->EnableValidateContact();
+  {
+    routing_table_->AddContact(contact, rank_info_);
+    // need to sleep for a while
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Contact result;
+    routing_table_->GetContact(contact.node_id(), &result);
+    EXPECT_EQ(contact, result);
+  }
+}
+
+TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
+  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(test::k, 501);
+
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetLocalRpc(new_rpcs);
+
+  NodeId new_id = GenerateUniqueRandomId(node_id_, 501);
+  Contact new_contact = ComposeContact(new_id, 5000);
+
+  local_node_->EnablePingOldestContact();
+  local_node_->EnableValidateContact();
+  {
+    // Ping success
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    AddContact(new_contact, rank_info_);
+    // need to sleep for a while
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    Contact result_new;
+    routing_table_->GetContact(new_contact.node_id(), &result_new);
+    EXPECT_EQ(Contact(), result_new);
+  }
+  {
+    // Ping failed
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    AddContact(new_contact, rank_info_);
+
+    Contact result_new;
+    // may need to put a timer to prevent deadlock
+    do {
+      routing_table_->GetContact(new_contact.node_id(), &result_new);
+      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+    } while (result_new == Contact());
+    EXPECT_EQ(new_contact, result_new);
+  }
+}
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   PopulateRoutingTable(test::k, 500);
@@ -857,6 +1046,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
 
 TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
   NodeId target = GenerateRandomId(node_id_, 497);
+  bool verdad(true), falso(false);
   {
     // test::k - 1 contacted, the last one respond as contacted
     std::vector<Contact> lcontacts;
@@ -888,9 +1078,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(true, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k, closest_contacts.size());
   }
   {
@@ -931,9 +1121,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
   {
@@ -967,9 +1157,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(true, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k / 2, closest_contacts.size());
   }
   {
@@ -1022,8 +1212,8 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
     EXPECT_EQ(0, closest_contacts.size());
 
     curr_iteration_done = false;
@@ -1034,8 +1224,8 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
     EXPECT_EQ(0, closest_contacts.size());
   }
   {
@@ -1078,9 +1268,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(false, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(falso, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
 
     mark = kDown;
@@ -1090,9 +1280,9 @@ TEST_F(NodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &calledback);
-    EXPECT_EQ(true, curr_iteration_done);
-    EXPECT_EQ(false, calledback);
-    EXPECT_EQ(false, done);
+    EXPECT_EQ(verdad, curr_iteration_done);
+    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
   // sleep for a while to prevent the situation that resources got destructed
@@ -1129,7 +1319,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -1286,7 +1476,7 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   {
     // All k populated contacts response with random closest list
@@ -1432,7 +1622,7 @@ TEST_F(NodeImplTest, BEH_KAD_Update) {
 
   NodeId key = NodeId(NodeId::kRandomId);
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   KeyValueSignature kvs_new = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
@@ -1734,7 +1924,9 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 }  // FindValue test
 
-TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
+// This test will test the Downlist client handling in node_impl
+// Covered part is: ReportDownContact, MonitoringDownlistThread
+TEST_F(NodeImplTest, BEH_KAD_DownlistClient) {
   PopulateRoutingTable(test::k, 500);
 
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
@@ -1788,12 +1980,13 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   new_rpcs->PopulateResponseCandidates(count, 499);
 
   crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(1024);
+  crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   bptime::time_duration old_ttl(bptime::pos_infin);
 
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
 
   EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
@@ -1837,6 +2030,7 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   }
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // Delete : the first (k-threshold+1) closest contacts respond with DOWN
     // FindNodes : All k populated contacts giving response
@@ -1871,6 +2065,7 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
 
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // Update Store: the first (k-threshold+1) contacts respond with DOWN
     // Update Delete: all response
@@ -1911,6 +2106,7 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   }
   new_rpcs->SetCountersToZero();
   new_rpcs->down_contacts_->clear();
+  SetAllNumRpcsFailureToZero();
   {
     // FindValue : All k populated contacts giving no response
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
@@ -1945,7 +2141,154 @@ TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-}  // DownList test
+}  // DownListClient test
+
+// This test will test the Downlist server handling in node_impl
+// Covered parts are: Connect to Service signal, Catch signal from Service,
+//                    PingDownlistContact, PingDownlistContactCallback
+TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
+  SetRpc(new_rpcs);
+
+  std::shared_ptr<Service> local_service(new Service(routing_table_,
+      data_store_, alternative_store_, securifier_));
+  local_service->set_node_joined(true);
+  node_->SetService(local_service);
+  // given a downlist contains k nodes in the routingtable
+  protobuf::DownlistNotification downlist_request;
+  for (int i = 0; i < test::k; ++i) {
+    NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
+    Contact contact = ComposeContact(contact_id, 5000);
+    downlist_request.add_node_ids(contact_id.String());
+    AddContact(contact, rank_info_);
+  }
+  transport::Info info;
+  {
+    // Ping down contacts will success
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+    transport::Timeout time_out;
+    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+      local_service->Downlist(info, downlist_request, &time_out);
+    // wait a reasonable time
+    boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+  }
+  {
+    // Ping down contacts will failed
+    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+            boost::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>,
+                        new_rpcs.get(), _1, _2))));
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    EXPECT_EQ(test::k, contacts.size());
+    transport::Timeout time_out;
+    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+      local_service->Downlist(info, downlist_request, &time_out);
+    // may need to put a timer to prevent deadlock
+    do {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+      routing_table_->GetAllContacts(&contacts);
+    } while (contacts.size() != 0);
+  }
+}  // DownListServer test
+
+TEST_F(NodeImplTest, BEH_KAD_SetLastSeenToNow) {
+  // Try to set a non-existing contact
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  node_->SetLastSeenToNow(target);
+  Contact result;
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(Contact(), result);
+  // Try to set an existing contact
+  AddContact(target, rank_info_);
+  node_->SetLastSeenToNow(target);
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(target, result);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_IncrementFailedRpcs) {
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  // Keep increasing the num_of_failed_rpcs of the target contact, till it got
+  // removed from the routing table
+  AddContact(target, rank_info_);
+  for (int i = 0; i <= kFailedRpcTolerance; ++i)
+    node_->IncrementFailedRpcs(target);
+  Contact result;
+  routing_table_->GetContact(target_id, &result);
+  EXPECT_EQ(Contact(), result);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
+  NodeId target_id = GenerateRandomId(node_id_, 498);
+  Contact target = ComposeContact(target_id, 5000);
+  AddContact(target, rank_info_);
+  // Update the rank_info of the target contact
+  RankInfoPtr new_rank_info(new(transport::Info));
+  new_rank_info->rtt = 13313;
+  node_->UpdateRankInfo(target, new_rank_info);
+  // Get the rank_info of the target contact
+  EXPECT_EQ(new_rank_info->rtt, node_->GetLocalRankInfo(target)->rtt);
+}
+
+TEST_F(NodeImplTest, BEH_KAD_Getters) {
+  {
+    // contact()
+    EXPECT_EQ(Contact(), node_->contact());
+  }
+  {
+    // joined()
+    EXPECT_FALSE(node_->joined());
+    NodeId key = NodeId(NodeId::kRandomId);
+    std::vector<Contact> booststrap_contacts;
+    node_->Join(key, 5000, booststrap_contacts, NULL);
+    EXPECT_TRUE(node_->joined());
+  }
+  {
+    // asio_service()
+    EXPECT_EQ(asio_service_, node_->asio_service());
+  }
+  {
+    // alternative_store()
+    EXPECT_EQ(alternative_store_, node_->alternative_store());
+  }
+  {
+    // on_online_status_change()
+    OnOnlineStatusChangePtr result = node_->on_online_status_change();
+    if (!result)
+      EXPECT_TRUE(false);
+  }
+  {
+    // client_only_node()()
+    EXPECT_TRUE(node_->client_only_node());
+  }
+  {
+    // k()
+    EXPECT_EQ(test::k, node_->k());
+  }
+  {
+    // alpha()
+    EXPECT_EQ(test::alpha, node_->alpha());
+  }
+  {
+    // beta()
+    EXPECT_EQ(test::beta, node_->beta());
+  }
+  {
+    // mean_refresh_interval()
+    EXPECT_EQ(bptime::seconds(3600), node_->mean_refresh_interval());
+  }
+}
 
 }  // namespace test_nodeimpl
 

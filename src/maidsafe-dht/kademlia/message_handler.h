@@ -189,7 +189,8 @@ class MessageHandler : public transport::MessageHandler {
 
   typedef std::shared_ptr<bs2::signal<  // NOLINT
       void(const transport::Info&,
-           const protobuf::DownlistNotification&)>> DownlistNtfSigPtr;
+           const protobuf::DownlistNotification&,
+           transport::Timeout*)>> DownlistNtfSigPtr;
 
   explicit MessageHandler(std::shared_ptr<Securifier> securifier)
     : transport::MessageHandler(securifier),

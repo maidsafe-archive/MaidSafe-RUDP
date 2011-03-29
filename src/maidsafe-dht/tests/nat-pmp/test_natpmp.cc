@@ -46,7 +46,7 @@ class NATPMPTest : public testing::Test {
   NATPMPTest() {}
 };
 
-TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
+TEST_F(NATPMPTest, DISABLED_FUNC_NATPMP_Test) {
   boost::asio::io_service ios;
 
   NatPmpClient client(&ios);

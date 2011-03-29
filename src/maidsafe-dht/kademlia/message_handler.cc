@@ -370,7 +370,7 @@ void MessageHandler::ProcessSerialisedMessage(
         return;
       protobuf::DownlistNotification request;
       if (request.ParseFromString(payload) && request.IsInitialized())
-        (*on_downlist_notification_)(info, request);
+        (*on_downlist_notification_)(info, request, timeout);
       break;
     }
     default:
