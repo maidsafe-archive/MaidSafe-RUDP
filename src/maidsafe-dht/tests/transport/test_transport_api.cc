@@ -30,8 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/thread.hpp"
 #include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/transport/rudp_transport.h"
 #include "maidsafe-dht/transport/udp_transport.h"
-#include "maidsafe-dht/transport/udt_transport.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
@@ -475,8 +475,8 @@ REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
                            BEH_TRANS_Random);
 
 INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
+INSTANTIATE_TYPED_TEST_CASE_P(RUDP, TransportAPITest, RudpTransport);
 INSTANTIATE_TYPED_TEST_CASE_P(UDP, TransportAPITest, UdpTransport);
-INSTANTIATE_TYPED_TEST_CASE_P(UDT, TransportAPITest, UdtTransport);
 
 }  // namespace test
 
