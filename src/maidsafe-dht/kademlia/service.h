@@ -33,12 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/cstdint.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "boost/function.hpp"
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/kademlia/sender_task.h"
 
 namespace maidsafe {
 
@@ -67,13 +67,17 @@ class DeleteResponse;
 class DownlistNotification;
 }  // namespace protobuf
 
+namespace test {
+class ServicesTest;
+}  // namespace test
+
 typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
     const Contact&)>> PingDownListContactsPtr;
 
 /** Object handling service requests on a node.
  *  Contains tables of the routing contacts and <value,sig,key> tuples
  *  @class Service */
-class Service : public boost::enable_shared_from_this<Service> {
+class Service : public std::enable_shared_from_this<Service> {
  public:
   /** Constructor.  To create a Service, in all cases the routing_table and
    * data_store must be provided.
@@ -113,70 +117,78 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[out] response To response. */
   void Ping(const transport::Info &info,
             const protobuf::PingRequest &request,
-            protobuf::PingResponse *response);
+            protobuf::PingResponse *response,
+            transport::Timeout *timeout);
   /** Handle FindValue request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response To response. */            
+   *  @param[out] response To response. */
   void FindValue(const transport::Info &info,
                  const protobuf::FindValueRequest &request,
-                 protobuf::FindValueResponse *response);
+                 protobuf::FindValueResponse *response,
+                 transport::Timeout *timeout);
   /** Handle FindNodes request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response To response. */                 
+   *  @param[out] response To response. */
   void FindNodes(const transport::Info &info,
                  const protobuf::FindNodesRequest &request,
-                 protobuf::FindNodesResponse *response);
+                 protobuf::FindNodesResponse *response,
+                 transport::Timeout *timeout);
   /** Handle Store request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to store.
    *  @param[in] message_signature The signature of the message to store.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void Store(const transport::Info &info,
              const protobuf::StoreRequest &request,
              const std::string &message,
              const std::string &message_signature,
-             protobuf::StoreResponse *response);
+             protobuf::StoreResponse *response,
+             transport::Timeout *timeout);
   /** Handle StoreRefresh request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void StoreRefresh(const transport::Info &info,
                     const protobuf::StoreRefreshRequest &request,
-                    protobuf::StoreRefreshResponse *response);
+                    protobuf::StoreRefreshResponse *response,
+                    transport::Timeout *timeout);
   /** Handle Delete request.
    *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
    *  @param[in] message The message to delete.
    *  @param[in] message_signature The signature of the message to delete.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void Delete(const transport::Info &info,
               const protobuf::DeleteRequest &request,
               const std::string &message,
               const std::string &message_signature,
-              protobuf::DeleteResponse *response);
+              protobuf::DeleteResponse *response,
+              transport::Timeout *timeout);
   /** Handle DeleteRefresh request.
    *  The request sender will be added into the routing table.
    *  @param[in] info The rank info.
    *  @param[in] request The request.
-   *  @param[out] response The response. */                 
+   *  @param[out] response The response. */
   void DeleteRefresh(const transport::Info &info,
                      const protobuf::DeleteRefreshRequest &request,
-                     protobuf::DeleteRefreshResponse *response);
+                     protobuf::DeleteRefreshResponse *response,
+                     transport::Timeout *timeout);
   /** Handle Downlist request.
    *  Try to ping the contacts in the downlist and then remove those no-response
    *  contacts from the routing table
    *  @param info The rank info.
    *  @param request The request. */
   void Downlist(const transport::Info &info,
-                const protobuf::DownlistNotification &request);
+                const protobuf::DownlistNotification &request,
+                transport::Timeout *timeout);
   /** Getter.
    *  @return The signal handler. */
   PingDownListContactsPtr GetPingDownListSignalHandler();
@@ -191,7 +203,7 @@ class Service : public boost::enable_shared_from_this<Service> {
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
  private:
   /** Copy Constructor.
-   *  @param Service The object to be copied. */   
+   *  @param Service The object to be copied. */
   Service(const Service&);
   /** Assignment overload */
   Service& operator = (const Service&);
@@ -200,29 +212,25 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreCallback(KeyValueSignature key_value_signature,
                      protobuf::StoreRequest request,
                      transport::Info info,
                      RequestAndSignature request_signature,
-                     protobuf::StoreResponse *response,
                      std::string public_key,
                      std::string public_key_validation);
   /** Store Refresh Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
    *  @param[in] info The rank info.
-   *  @param[in] request_signature The request signature.   
-   *  @param[out] response The response.
+   *  @param[in] request_signature The request signature.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void StoreRefreshCallback(KeyValueSignature key_value_signature,
                             protobuf::StoreRefreshRequest request,
                             transport::Info info,
                             RequestAndSignature request_signature,
-                            protobuf::StoreRefreshResponse *response,
                             std::string public_key,
                             std::string public_key_validation);
   /** Validate the request and then store the tuple.
@@ -230,7 +238,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation
    *  @param[in] is_refresh Indicating a publish or a refresh
@@ -240,7 +247,6 @@ class Service : public boost::enable_shared_from_this<Service> {
                         const protobuf::StoreRequest &request,
                         const transport::Info &info,
                         const RequestAndSignature &request_signature,
-                        protobuf::StoreResponse *response,
                         const std::string &public_key,
                         const std::string &public_key_validation,
                         const bool is_refresh);
@@ -249,14 +255,12 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteCallback(KeyValueSignature key_value_signature,
                       protobuf::DeleteRequest request,
                       transport::Info info,
                       RequestAndSignature request_signature,
-                      protobuf::DeleteResponse *response,
                       std::string public_key,
                       std::string public_key_validation);
   /** Delete Refresh Callback.
@@ -264,14 +268,12 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation */
   void DeleteRefreshCallback(KeyValueSignature key_value_signature,
                              protobuf::DeleteRefreshRequest request,
                              transport::Info info,
                              RequestAndSignature request_signature,
-                             protobuf::DeleteRefreshResponse *response,
                              std::string public_key,
                              std::string public_key_validation);
   /** Validate the request and then delete the tuple.
@@ -279,7 +281,6 @@ class Service : public boost::enable_shared_from_this<Service> {
    *  @param[in] request The request.
    *  @param[in] info The rank info.
    *  @param[in] request_signature The request signature.
-   *  @param[out] response The response.
    *  @param[in] public_key public key
    *  @param[in] public_key_validation public key validation
    *  @param[in] is_refresh Indicating a publish or a refresh
@@ -289,10 +290,11 @@ class Service : public boost::enable_shared_from_this<Service> {
                          const protobuf::DeleteRequest &request,
                          const transport::Info &info,
                          const RequestAndSignature &request_signature,
-                         protobuf::DeleteResponse *response,
                          const std::string &public_key,
                          const std::string &public_key_validation,
                          const bool is_refresh);
+  friend class test::ServicesTest;
+
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
   /** data store */
@@ -309,6 +311,8 @@ class Service : public boost::enable_shared_from_this<Service> {
   const boost::uint16_t k_;
   /** Singal handler */
   PingDownListContactsPtr ping_down_list_contacts_;
+  /** sender task */
+  boost::shared_ptr<SenderTask> sender_task_;
 };
 
 }  // namespace kademlia

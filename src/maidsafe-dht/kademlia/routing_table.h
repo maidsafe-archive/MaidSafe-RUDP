@@ -373,6 +373,13 @@ class RoutingTable {
    *  but either of tcp443 or tcp80 may be true.
    *  @param[out] contacts The result of all directly connected contacts. */
   void GetBootstrapContacts(std::vector<Contact> *contacts);
+  /** Get the local RankInfo of the contact
+   *  @param[in] contact The contact to find
+   *  @return The localRankInfo of the contact */
+  RankInfoPtr GetLocalRankInfo(const Contact &contact);
+  /** Get all contacts in the routing table
+   *  @param[out] contacts All contacts in the routing table */
+  void GetAllContacts(std::vector<Contact> *contacts);
   /** Getter.
    *  @return The ping_oldest_contact_ signal. */
   PingOldestContactPtr ping_oldest_contact();

@@ -44,7 +44,6 @@ message StoreRequest {
   required bytes key = 2;
   required SignedValue signed_value = 3;
   required int32 ttl = 4;
-  optional bytes signing_public_key_id = 5;
 }
 
 message StoreResponse {
@@ -65,7 +64,6 @@ message DeleteRequest {
   required Contact sender = 1;
   required bytes key = 2;
   required SignedValue signed_value = 3;
-  optional bytes signing_public_key_id = 4;
 }
 
 message DeleteResponse {
