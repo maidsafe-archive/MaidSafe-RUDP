@@ -42,7 +42,7 @@ namespace transport {
 
 class RudpDataPacket : public RudpPacket {
  public:
-  static const size_t kHeaderSize = 16;
+  enum { kHeaderSize = 16 };
 
   RudpDataPacket();
 
@@ -69,6 +69,11 @@ class RudpDataPacket : public RudpPacket {
 
   const std::string &Data() const;
   void SetData(const std::string &data);
+
+  template <typename Iterator>
+  void SetData(Iterator begin, Iterator end) {
+    data_.assign(begin, end);
+  }
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);

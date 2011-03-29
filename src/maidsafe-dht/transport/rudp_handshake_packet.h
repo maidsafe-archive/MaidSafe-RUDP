@@ -43,8 +43,8 @@ namespace transport {
 
 class RudpHandshakePacket : public RudpControlPacket {
  public:
-  static const size_t kPacketSize = RudpControlPacket::kHeaderSize + 48;
-  static const boost::uint16_t kPacketType = 0;
+  enum { kPacketSize = RudpControlPacket::kHeaderSize + 48 };
+  enum { kPacketType = 0 };
 
   RudpHandshakePacket();
 

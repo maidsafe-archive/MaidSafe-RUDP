@@ -95,8 +95,7 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
-void RudpDispatcher::HandleTick()
-{
+void RudpDispatcher::HandleTick() {
 }
 
 }  // namespace transport

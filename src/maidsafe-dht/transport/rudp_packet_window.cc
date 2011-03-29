@@ -25,37 +25,67 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_
+#include "maidsafe-dht/transport/rudp_packet_window.h"
 
-#include "boost/asio/buffer.hpp"
-#include "boost/cstdint.hpp"
-#include "maidsafe-dht/transport/transport.h"
+#include <cassert>
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpPacket {
- public:
-  // Maximum packet size permitted in this implementation.
-  enum { kMaxSize = 1500 };
+RudpPacketWindow::RudpPacketWindow(boost::uint32_t initial_sequence_number)
+  : begin_(initial_sequence_number),
+    end_(initial_sequence_number) {
+  assert(initial_sequence_number <= kMaxSequenceNumber);
+}
 
-  // Get the destination socket id from an encoded packet.
-  static bool DecodeDestinationSocketId(boost::uint32_t *id,
-                                        const boost::asio::const_buffer &data);
+boost::uint32_t RudpPacketWindow::Begin() const {
+  return begin_;
+}
 
- protected:
-  // Prevent deletion through this type.
-  ~RudpPacket();
+boost::uint32_t RudpPacketWindow::End() const {
+  return end_;
+}
 
-  // Helper functions for encoding and decoding integers.
-  static void DecodeUint32(boost::uint32_t *n, const unsigned char *p);
-  static void EncodeUint32(boost::uint32_t n, unsigned char *p);
-};
+bool RudpPacketWindow::Contains(boost::uint32_t n) const {
+  if (begin_ <= end_)
+    return (begin_ <= n) && (n < end_);
+  else
+    return (n < end_) || ((n >= begin_) && (n <= kMaxSequenceNumber));
+}
+
+bool RudpPacketWindow::IsEmpty() const {
+  return packets_.empty();
+}
+
+bool RudpPacketWindow::IsFull() const {
+  return packets_.size() == kMaxWindowSize;
+}
+
+boost::uint32_t RudpPacketWindow::Append() {
+  assert(!IsFull());
+  packets_.push_back(RudpDataPacket());
+  boost::uint32_t n = end_;
+  end_ = (end_ == kMaxSequenceNumber) ? 0 : end_ + 1;
+  return n;
+}
+
+void RudpPacketWindow::Remove() {
+  assert(!IsEmpty());
+  packets_.erase(packets_.begin());
+  begin_ = (begin_ == kMaxSequenceNumber) ? 0 : begin_ + 1;
+}
+
+RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
+  assert(Contains(n));
+  if (begin_ <= end_)
+    return packets_[n - begin_];
+  else if (n < end_)
+    return packets_[kMaxSequenceNumber - begin_ + n + 1];
+  else
+    return packets_[n - begin_];
+}
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_

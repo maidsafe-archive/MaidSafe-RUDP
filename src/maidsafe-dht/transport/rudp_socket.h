@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
+#include "maidsafe-dht/transport/rudp_sender.h"
 #include "maidsafe-dht/transport/rudp_write_op.h"
 
 namespace maidsafe {
@@ -164,8 +165,8 @@ class RudpSocket {
     kConnected
   } state_;
 
-  // The sequence number to be used for the next outbound packet.
-  boost::uint32_t next_packet_sequence_number_;
+  // The send side of the connection.
+  RudpSender sender_;
 
   // This class allows for a single asynchronous connect operation. The
   // following data members store the pending connect, and the result that is
@@ -174,15 +175,9 @@ class RudpSocket {
   boost::system::error_code waiting_connect_ec_;
 
   // The buffer used to store application data that is waiting to be sent.
-  // Asynchronous write operations will complete immediately as long as the
-  // buffer size remains below the maximum.
-  static const int kMaxWriteBufferSize = 65536;
-  std::deque<unsigned char> write_buffer_;
-
-  // The buffer used to store application data that is waiting to be sent.
   // Asynchronous read operations will complete immediately as long as there is
   // sufficient data to complete the read.
-  static const int kMaxReadBufferSize = 65536;
+  enum { kMaxReadBufferSize = 65536 };
   std::deque<unsigned char> read_buffer_;
 
   // This class allows only one outstanding asynchronous write operation at a

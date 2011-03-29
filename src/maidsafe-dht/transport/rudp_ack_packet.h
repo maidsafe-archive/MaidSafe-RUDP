@@ -43,9 +43,9 @@ namespace transport {
 
 class RudpAckPacket : public RudpControlPacket {
  public:
-  static const size_t kPacketSize = RudpControlPacket::kHeaderSize + 4;
-  static const size_t kOptionalPacketSize = RudpControlPacket::kHeaderSize + 24;
-  static const boost::uint16_t kPacketType = 2;
+  enum { kPacketSize = RudpControlPacket::kHeaderSize + 4 };
+  enum { kOptionalPacketSize = RudpControlPacket::kHeaderSize + 24 };
+  enum { kPacketType = 2 };
 
   RudpAckPacket();
 

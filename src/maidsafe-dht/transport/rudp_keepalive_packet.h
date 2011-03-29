@@ -37,8 +37,8 @@ namespace transport {
 
 class RudpKeepalivePacket : public RudpControlPacket {
  public:
-  static const size_t kPacketSize = RudpControlPacket::kHeaderSize;
-  static const boost::uint16_t kPacketType = 1;
+  enum { kPacketSize = RudpControlPacket::kHeaderSize };
+  enum { kPacketType = 1 };
 
   RudpKeepalivePacket();
 

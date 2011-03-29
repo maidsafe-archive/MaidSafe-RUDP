@@ -40,7 +40,7 @@ namespace transport {
 
 class RudpControlPacket : public RudpPacket {
  public:
-  static const size_t kHeaderSize = 16;
+  enum { kHeaderSize = 16 };
 
   RudpControlPacket();
 

@@ -51,7 +51,7 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     remote_endpoint_(),
     remote_id_(0),
     state_(kNotYetOpen),
-    next_packet_sequence_number_(SRandomUint32() & 0x7fffffff),
+    sender_(multiplexer),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -111,7 +111,7 @@ void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(next_packet_sequence_number_);
+  packet.SetInitialPacketSequenceNumber(sender_.GetNextPacketSequenceNumber());
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
   packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
   packet.SetSocketId(id_);
@@ -131,7 +131,7 @@ void RudpSocket::StartConnect() {
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(next_packet_sequence_number_);
+  packet.SetInitialPacketSequenceNumber(sender_.GetNextPacketSequenceNumber());
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
   packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
   packet.SetSocketId(id_);
@@ -166,15 +166,11 @@ void RudpSocket::ProcessWrite() {
     return;
 
   // If the write buffer is full then the write is going to have to wait.
-  if (write_buffer_.size() == kMaxWriteBufferSize)
+  if (sender_.GetFreeSpace() == 0)
     return;
 
   // Copy whatever data we can into the write buffer.
-  size_t length = std::min(kMaxWriteBufferSize - write_buffer_.size(),
-                           asio::buffer_size(waiting_write_buffer_));
-  const unsigned char* data =
-    asio::buffer_cast<const unsigned char*>(waiting_write_buffer_);
-  write_buffer_.insert(write_buffer_.end(), data, data + length);
+  size_t length = sender_.AddData(waiting_write_buffer_);
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
 
@@ -185,22 +181,6 @@ void RudpSocket::ProcessWrite() {
     waiting_write_ec_.clear();
     waiting_write_.cancel();
   }
-
-  // Send the data we've got. (TODO This is a temporary hack only.)
-  RudpDataPacket packet;
-  packet.SetPacketSequenceNumber(next_packet_sequence_number_);
-  packet.SetFirstPacketInMessage(true);
-  packet.SetLastPacketInMessage(true);
-  packet.SetInOrder(true);
-  packet.SetMessageNumber(0);
-  packet.SetTimeStamp(0);
-  packet.SetDestinationSocketId(remote_id_);
-  packet.SetData(std::string(write_buffer_.begin(), write_buffer_.end()));
-  multiplexer_.SendTo(packet, remote_endpoint_);
-
-  ++next_packet_sequence_number_;
-  if (next_packet_sequence_number_ > 0x7fffffff);
-    next_packet_sequence_number_ = 0;
 }
 
 void RudpSocket::StartRead(const asio::mutable_buffer &data,
@@ -270,6 +250,7 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet,
   case kClientAwaitingHandshakeResponse:
     remote_id_ = packet.SocketId();
     state_ = kConnected;
+    sender_.SetPeer(remote_endpoint_, remote_id_);
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
     {
@@ -283,6 +264,7 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet,
     break;
   case kServerAwaitingHandshakeResponse:
     state_ = kConnected;
+    sender_.SetPeer(remote_endpoint_, remote_id_);
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
     break;

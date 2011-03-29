@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,37 +25,55 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_
-
-#include "boost/asio/buffer.hpp"
-#include "boost/cstdint.hpp"
-#include "maidsafe-dht/transport/transport.h"
+#include "gtest/gtest.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe-dht/transport/rudp_packet_window.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpPacket {
- public:
-  // Maximum packet size permitted in this implementation.
-  enum { kMaxSize = 1500 };
+namespace test {
 
-  // Get the destination socket id from an encoded packet.
-  static bool DecodeDestinationSocketId(boost::uint32_t *id,
-                                        const boost::asio::const_buffer &data);
+static const size_t kTestPacketCount = 100000;
 
- protected:
-  // Prevent deletion through this type.
-  ~RudpPacket();
+static void TestWindowRange(boost::uint32_t first_sequence_number) {
+  RudpPacketWindow window(first_sequence_number);
 
-  // Helper functions for encoding and decoding integers.
-  static void DecodeUint32(boost::uint32_t *n, const unsigned char *p);
-  static void EncodeUint32(boost::uint32_t n, unsigned char *p);
-};
+  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
+    boost::uint32_t n = window.Append();
+    window.Packet(n).SetPacketSequenceNumber(n);
+  }
+
+  for (int i = 0; i < kTestPacketCount; ++i) {
+    ASSERT_EQ(window.Begin(),
+              window.Packet(window.Begin()).PacketSequenceNumber());
+    window.Remove();
+    boost::uint32_t n = window.Append();
+    window.Packet(n).SetPacketSequenceNumber(n);
+  }
+
+  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
+    ASSERT_EQ(window.Begin(),
+              window.Packet(window.Begin()).PacketSequenceNumber());
+    window.Remove();
+  }
+}
+
+TEST(RudpPacketWindowTest, BEH_FromZero) {
+  TestWindowRange(0);
+}
+
+TEST(RudpPacketWindowTest, BEH_FromN) {
+  TestWindowRange(123456);
+}
+
+TEST(RudpPacketWindowTest, BEH_Wraparound) {
+  TestWindowRange(RudpPacketWindow::kMaxSequenceNumber - kTestPacketCount / 2);
+}
+
+}  // namespace test
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_PACKET_H_

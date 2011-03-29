@@ -37,8 +37,8 @@ namespace transport {
 
 class RudpAckOfAckPacket : public RudpControlPacket {
  public:
-  static const size_t kPacketSize = RudpControlPacket::kHeaderSize;
-  static const boost::uint16_t kPacketType = 6;
+  enum { kPacketSize = RudpControlPacket::kHeaderSize };
+  enum { kPacketType = 6 };
 
   RudpAckOfAckPacket();
 

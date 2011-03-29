@@ -79,14 +79,6 @@ class RudpMultiplexer {
     tick_timer_.async_wait(op);
   }
 
- private:
-  friend class RudpAcceptor;
-  friend class RudpSocket;
-
-  // Disallow copying and assignment.
-  RudpMultiplexer(const RudpMultiplexer&);
-  RudpMultiplexer &operator=(const RudpMultiplexer&);
-
   // Called by the acceptor or socket objects to send a packet. Returns true if
   // the data was sent successfully, false otherwise.
   template <typename Packet>
@@ -101,6 +93,14 @@ class RudpMultiplexer {
     }
     return kSendFailure;
   }
+
+ private:
+  friend class RudpAcceptor;
+  friend class RudpSocket;
+
+  // Disallow copying and assignment.
+  RudpMultiplexer(const RudpMultiplexer&);
+  RudpMultiplexer &operator=(const RudpMultiplexer&);
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;
