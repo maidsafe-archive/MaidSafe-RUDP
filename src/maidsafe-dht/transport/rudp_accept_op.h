@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
 
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_socket.h"
@@ -50,6 +52,22 @@ class RudpAcceptOp {
     if (socket_.Id() == 0)
       ec = boost::asio::error::operation_aborted;
     handler_(ec);
+  }
+
+  friend void *asio_handler_allocate(size_t n, RudpAcceptOp *op) {
+    using boost::asio::asio_handler_allocate;
+    return asio_handler_allocate(n, &op->handler_);
+  }
+
+  friend void asio_handler_deallocate(void *p, size_t n, RudpAcceptOp *op) {
+    using boost::asio::asio_handler_deallocate;
+    asio_handler_deallocate(p, n, &op->handler_);
+  }
+
+  template <typename Function>
+  friend void asio_handler_invoke(const Function &f, RudpAcceptOp *op) {
+    using boost::asio::asio_handler_invoke;
+    asio_handler_invoke(f, &op->handler_);
   }
 
  private:

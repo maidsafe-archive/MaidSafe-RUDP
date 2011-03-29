@@ -49,6 +49,22 @@ class RudpConnectOp {
     handler_(*ec_);
   }
 
+  friend void *asio_handler_allocate(size_t n, RudpConnectOp *op) {
+    using boost::asio::asio_handler_allocate;
+    return asio_handler_allocate(n, &op->handler_);
+  }
+
+  friend void asio_handler_deallocate(void *p, size_t n, RudpConnectOp *op) {
+    using boost::asio::asio_handler_deallocate;
+    asio_handler_deallocate(p, n, &op->handler_);
+  }
+
+  template <typename Function>
+  friend void asio_handler_invoke(const Function &f, RudpConnectOp *op) {
+    using boost::asio::asio_handler_invoke;
+    asio_handler_invoke(f, &op->handler_);
+  }
+
  private:
   ConnectHandler handler_;
   const boost::system::error_code *ec_;

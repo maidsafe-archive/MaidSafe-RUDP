@@ -51,6 +51,22 @@ class RudpWriteOp {
     handler_(*ec_, *bytes_transferred_);
   }
 
+  friend void *asio_handler_allocate(size_t n, RudpWriteOp *op) {
+    using boost::asio::asio_handler_allocate;
+    return asio_handler_allocate(n, &op->handler_);
+  }
+
+  friend void asio_handler_deallocate(void *p, size_t n, RudpWriteOp *op) {
+    using boost::asio::asio_handler_deallocate;
+    asio_handler_deallocate(p, n, &op->handler_);
+  }
+
+  template <typename Function>
+  friend void asio_handler_invoke(const Function &f, RudpWriteOp *op) {
+    using boost::asio::asio_handler_invoke;
+    asio_handler_invoke(f, &op->handler_);
+  }
+
  private:
   WriteHandler handler_;
   const boost::system::error_code *ec_;
