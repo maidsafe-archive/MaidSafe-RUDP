@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
@@ -140,12 +141,13 @@ class RudpSocket {
                          const boost::asio::ip::udp::endpoint &endpoint);
 
   // Called to process a newly received handshake packet.
-  void HandleHandshake(const RudpHandshakePacket &packet,
-                       const boost::asio::ip::udp::endpoint &endpoint);
+  void HandleHandshake(const RudpHandshakePacket &packet);
 
   // Called to process a newly received data packet.
-  void HandleData(const RudpDataPacket &packet,
-                  const boost::asio::ip::udp::endpoint &endpoint);
+  void HandleData(const RudpDataPacket &packet);
+
+  // Called to process a newly received acknowledgement packet.
+  void HandleAck(const RudpAckPacket &packet);
 
   // The multiplexer used to send and receive UDP packets.
   RudpMultiplexer &multiplexer_;

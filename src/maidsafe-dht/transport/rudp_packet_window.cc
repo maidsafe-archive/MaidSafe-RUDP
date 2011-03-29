@@ -66,14 +66,14 @@ boost::uint32_t RudpPacketWindow::Append() {
   assert(!IsFull());
   packets_.push_back(RudpDataPacket());
   boost::uint32_t n = end_;
-  end_ = (end_ == kMaxSequenceNumber) ? 0 : end_ + 1;
+  end_ = Next(end_);
   return n;
 }
 
 void RudpPacketWindow::Remove() {
   assert(!IsEmpty());
   packets_.erase(packets_.begin());
-  begin_ = (begin_ == kMaxSequenceNumber) ? 0 : begin_ + 1;
+  begin_ = Next(begin_);
 }
 
 RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
@@ -84,6 +84,10 @@ RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
     return packets_[kMaxSequenceNumber - begin_ + n + 1];
   else
     return packets_[n - begin_];
+}
+
+boost::uint32 RudpPacketWindow::Next(boost::uint32 n) {
+  return (n == kMaxSequenceNumber) ? 0 : n + 1;
 }
 
 }  // namespace transport

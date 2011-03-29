@@ -75,6 +75,9 @@ class RudpPacketWindow {
   // Precondition: Contains(sequence_number).
   RudpDataPacket &Packet(boost::uint32_t n);
 
+  // Get the sequence number that follows a given number.
+  static boost::uint32 Next(boost::uint32 n);
+
  private:
   // Disallow copying and assignment.
   RudpPacketWindow(const RudpPacketWindow&);

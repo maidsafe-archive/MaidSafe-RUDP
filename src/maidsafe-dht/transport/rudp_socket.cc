@@ -230,13 +230,16 @@ void RudpSocket::ProcessRead() {
 }
 
 void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
-                                  const asio::ip::udp::endpoint &endpoint) {
+                                   const ip::udp::endpoint &endpoint) {
   RudpDataPacket data_packet;
+  RudpAckPacket ack_packet;
   RudpHandshakePacket handshake_packet;
   if (data_packet.Decode(data)) {
-    HandleData(data_packet, endpoint);
+    HandleData(data_packet);
+  } else if (ack_packet.Decode(data)) {
+    HandleAck(ack_packet);
   } else if (handshake_packet.Decode(data)) {
-    HandleHandshake(handshake_packet, endpoint);
+    HandleHandshake(handshake_packet);
   } else {
     DLOG(ERROR) << "Socket " << id_
                 << " ignoring invalid packet from "
@@ -244,8 +247,7 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
-void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet,
-                                const ip::udp::endpoint &endpoint) {
+void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   switch (state_) {
   case kClientAwaitingHandshakeResponse:
     remote_id_ = packet.SocketId();
@@ -273,8 +275,7 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet,
   }
 }
 
-void RudpSocket::HandleData(const RudpDataPacket &packet,
-                           const ip::udp::endpoint &endpoint) {
+void RudpSocket::HandleData(const RudpDataPacket &packet) {
   if (state_ == kConnected) {
     if (read_buffer_.size() + packet.Data().size() < kMaxReadBufferSize) {
       read_buffer_.insert(read_buffer_.end(),
@@ -284,6 +285,12 @@ void RudpSocket::HandleData(const RudpDataPacket &packet,
     } else {
       // Packet is dropped because we have nowhere to store it.
     }
+  }
+}
+
+void RudpSocket::HandleAck(const RudpAckPacket &packet) {
+  if (state_ == kConnected) {
+    sender_.HandleAck(packet);
   }
 }
 
