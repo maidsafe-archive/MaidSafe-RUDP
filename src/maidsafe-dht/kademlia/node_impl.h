@@ -67,6 +67,7 @@ class Rpcs;
 namespace test {
 class NodeImplTest;
 class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
+class NodeImplTest_BEH_KAD_Join_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -189,7 +190,7 @@ class Node::Impl {
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
-
+  friend class test::NodeImplTest_BEH_KAD_Join_Test;
  private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);
