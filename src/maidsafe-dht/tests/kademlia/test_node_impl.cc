@@ -309,16 +309,18 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
                             const size_t &value_size,
                             std::string key,
                             std::string value) {
-    if (key.empty())
+    while (key.empty())
       key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    if (value.empty()) {
+    while (value.empty()) {
       value.reserve(value_size);
       std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
       while (value.size() < value_size)
         value += temp;
       value = value.substr(0, value_size);
     }
-    std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    std::string signature;
+    while(signature.empty())
+      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     return KeyValueSignature(key, value, signature);
   }
 
