@@ -25,6 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <algorithm>
+
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/node_id.h"
@@ -76,19 +78,108 @@ Node::Impl::Impl(IoServicePtr asio_service,
       mutex_(),
       condition_downlist_(),
       down_contacts_(),
-      thread_group_() {}
+      thread_group_(),
+      refresh_thread_running_(false),
+      downlist_thread_running_(false) {}
 
 Node::Impl::~Impl() {
   if (joined_)
     Leave(NULL);
 }
 
+void Node::Impl::Join(const NodeId &node_id,
+                      const Port &port,
+                      const std::vector<Contact> &bootstrap_contacts,
+                      JoinFunctor callback) {
+  if (bootstrap_contacts.empty() ||
+      listening_transport_->listening_port() == 0) {
+    callback(-1);
+    return;
+  }
+
+  // Create contact_ inforrmation for node and set contact for Rpcs
+  Contact contact(node_id, listening_transport_->transport_details().endpoint,
+                  listening_transport_->transport_details().local_endpoints,
+                  listening_transport_->transport_details().rendezvous_endpoint,
+                  false, false, default_securifier_->kSigningKeyId(),
+                  default_securifier_->kSigningPublicKey(), "");
+  contact_ = contact;
+  rpcs_->set_contact(contact_);
+
+  FindNodesFunctor fncallback;
+  std::vector<Contact> temp_bootstrap_contacts;
+  temp_bootstrap_contacts.assign(bootstrap_contacts.begin(),
+                                 bootstrap_contacts.end());
+  std::sort(temp_bootstrap_contacts.begin(), temp_bootstrap_contacts.end(),
+            boost::bind(&Node::Impl::SortByDistance, this, _1, _2));
+  std::vector<Contact> search_contact;
+  search_contact.push_back(temp_bootstrap_contacts.front());
+  temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
+  fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
+                           _1, _2, temp_bootstrap_contacts, node_id, callback);
+  std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
+  AddContactsToContainer<FindNodesArgs>(search_contact, fna);
+  IterativeSearch<FindNodesArgs>(fna);
+}
+
+void Node::Impl::JoinFindNodesCallback(
+    const int &result,
+    const std::vector<Contact>&,
+    std::vector<Contact> bootstrap_contacts,
+    const NodeId &node_id,
+    JoinFunctor callback) {
+  if (result < 0) {
+    if (bootstrap_contacts.empty()) {
+      callback(result);
+      return;
+    }
+    std::vector<Contact> search_contact;
+    search_contact.push_back(bootstrap_contacts.front());
+    bootstrap_contacts.erase(bootstrap_contacts.begin());
+    FindNodesFunctor fncallback;
+    fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
+                             _1, _2, bootstrap_contacts, node_id, callback);
+    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
+    AddContactsToContainer<FindNodesArgs>(search_contact, fna);
+    IterativeSearch<FindNodesArgs>(fna);
+  } else {
+    joined_ = true;
+    if (!client_only_node_) {
+      service_.reset(new Service(routing_table_, data_store_,
+                                 alternative_store_, default_securifier_, k_));
+      service_->ConnectToSignals(listening_transport_, message_handler_);
+      thread_group_.create_thread(boost::bind(&Node::Impl::RefreshDataStore,
+                                              this));
+      refresh_thread_running_ = true;
+      // Connect the ReportDown Signal
+      report_down_contact_->connect(
+          ReportDownContactPtr::element_type::slot_type(
+              &Node::Impl::ReportDownContact, this, _1));
+      routing_table_->ping_oldest_contact()->connect(
+          boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
+      routing_table_->validate_contact()->connect(
+          boost::bind(&Node::Impl::ValidateContact, this, _1));
+      // Startup the thread to monitor the downlist queue
+      thread_group_.create_thread(
+          boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+      downlist_thread_running_ = true;
+    }
+    callback(result);
+  }
+}
+
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
+  joined_ = false;
+//  std::cout << "Leave: 0" << std::endl;
+//  condition_downlist_.notify_one();
   thread_group_.interrupt_all();
+//  std::cout << "Leave: 1" << std::endl;
   thread_group_.join_all();
+//  std::cout << "Leave: 2" << std::endl;
+  refresh_thread_running_ = false;
+  downlist_thread_running_ = false;
   routing_table_connection_.disconnect();
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
-  joined_ = false;
 }
 
 void Node::Impl::StoreResponse(RankInfoPtr rank_info,
@@ -419,73 +510,19 @@ boost::posix_time::time_duration Node::Impl::mean_refresh_interval() const {
   return kMeanRefreshInterval_;
 }
 
+bool Node::Impl::refresh_thread_running() const {
+  return refresh_thread_running_;
+}
+
+bool Node::Impl::downlist_thread_running() const {
+  return downlist_thread_running_;
+}
+
 bool Node::Impl::SortByDistance(Contact contact_1, Contact contact_2) {
   NodeId node_id1, node_id2;
   node_id1 = contact_1.node_id() ^ contact_.node_id();
   node_id2 = contact_2.node_id() ^ contact_.node_id();
   return node_id2 > node_id1;
-}
-
-void Node::Impl::Join(const NodeId &node_id,
-          const Port &port,
-          const std::vector<Contact> &bootstrap_contacts,
-          JoinFunctor callback) {
-  joined_ = true;
-  // Create contact_ inforrmation for node and set contact for Rpcs
-  Contact contact(node_id, listening_transport_->transport_details().endpoint,
-                  listening_transport_->transport_details().local_endpoints,
-                  listening_transport_->transport_details().rendezvous_endpoint,
-                  false, false, default_securifier_->kSigningKeyId(),
-                  default_securifier_->kSigningPublicKey(), "");
-  contact_ = contact;
-  rpcs_->set_contact(contact_);
-
-  FindNodesFunctor fncallback;
-  std::vector<Contact> temp_bootstrap_contacts;
-  temp_bootstrap_contacts.assign(bootstrap_contacts.begin(),
-                                 bootstrap_contacts.end());
-  std::sort(temp_bootstrap_contacts.begin(), temp_bootstrap_contacts.end(),
-            boost::bind(&Node::Impl::SortByDistance, this, _1, _2));
-  std::vector<Contact> search_contact;
-  search_contact.push_back(temp_bootstrap_contacts.front());
-  temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
-  fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
-                           _1, _2, temp_bootstrap_contacts, node_id, callback);
-  std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
-  AddContactsToContainer<FindNodesArgs>(search_contact, fna);
-  IterativeSearch<FindNodesArgs>(fna);
-}
-
-void Node::Impl::JoinFindNodesCallback(
-    const int &result,
-    const std::vector<Contact> &contacts,
-    std::vector<Contact> bootstrap_contacts,
-    const NodeId &node_id,
-    JoinFunctor callback) {
-  if (result < 0) {
-    if (bootstrap_contacts.empty()) {
-      callback(result);
-      return;
-    }
-    std::vector<Contact> search_contact;
-    search_contact.push_back(bootstrap_contacts.front());
-    bootstrap_contacts.erase(bootstrap_contacts.begin());
-    FindNodesFunctor fncallback;
-    fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
-                             _1, _2, bootstrap_contacts, node_id, callback);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
-    AddContactsToContainer<FindNodesArgs>(search_contact, fna);
-    IterativeSearch<FindNodesArgs>(fna);
-  } else {
-    if (!client_only_node_) {
-      service_.reset(new Service(routing_table_, data_store_,
-                                 alternative_store_, default_securifier_, k_));
-      service_->ConnectToSignals(listening_transport_, message_handler_);
-      thread_group_.create_thread(boost::bind(&Node::Impl::RefreshDataStore,
-                                              this));
-    }
-    callback(result);
-  }
 }
 
 void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
@@ -511,8 +548,8 @@ void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
 void Node::Impl::RefreshDataStore() {
   std::vector<KeyValueTuple> key_value_tuples;
   while (joined_) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
     data_store_->Refresh(&key_value_tuples);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   boost::bind(&Node::Impl::PostStoreRefresh, this, _1));
   }
@@ -788,8 +825,9 @@ void Node::Impl::PingOldestContact(const Contact &oldest_contact,
                                    const Contact &replacement_contact,
                                    RankInfoPtr replacement_rank_info) {
   Rpcs::PingFunctor callback(boost::bind(&Node::Impl::PingOldestContactCallback,
-      this, oldest_contact, _1, _2, replacement_contact,
-      replacement_rank_info));
+                                         this, oldest_contact, _1, _2,
+                                         replacement_contact,
+                                         replacement_rank_info));
   rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kTcp);
 }
 
@@ -816,14 +854,13 @@ void Node::Impl::ReportDownContact(const Contact &down_contact) {
 void Node::Impl::MonitoringDownlistThread() {
   while (joined_) {
     boost::mutex::scoped_lock loch_surlaplage(mutex_);
-    while (down_contacts_.empty())
+    while (down_contacts_.empty() && joined_) {
       condition_downlist_.wait(loch_surlaplage);
+    }
 
     // report the downlist to local k-closest contacts
     std::vector<Contact> close_nodes, excludes;
     routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);
-//     routing_table_->GetCloseContacts(contact_.node_id(), k_,
-//                                      excludes, &close_nodes);
     auto it = close_nodes.begin();
     auto it_end = close_nodes.end();
     while (it != it_end) {
@@ -835,8 +872,8 @@ void Node::Impl::MonitoringDownlistThread() {
 }
 
 void Node::Impl::ValidateContact(const Contact &contact) {
-  GetPublicKeyAndValidationCallback callback(boost::bind(
-      &Node::Impl::ValidateContactCallback, this, contact, _1, _2));
+  GetPublicKeyAndValidationCallback callback(
+      boost::bind(&Node::Impl::ValidateContactCallback, this, contact, _1, _2));
   default_securifier_->GetPublicKeyAndValidation(contact.public_key_id(),
                                                  callback);
 }
