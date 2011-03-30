@@ -87,6 +87,18 @@ class RudpDataPacketTest : public testing::Test {
   RudpDataPacket data_packet_;
 };
 
+TEST(RudpPacketTest, FUNC_DecodeDestinationSocketId) {
+  char d[16];
+  d[12] = 0x44;
+  d[13] = 0x22;
+  d[14] = 0x11;
+  d[15] = 0x00;
+  boost::uint32_t id;
+  EXPECT_TRUE(RudpPacket::DecodeDestinationSocketId(&id,
+                                                    boost::asio::buffer(d)));
+  EXPECT_EQ(0x44221100, id);
+}
+
 TEST_F(RudpDataPacketTest, FUNC_SequenceNumber) {
   EXPECT_EQ(0U, data_packet_.PacketSequenceNumber());
 //   data_packet_.SetPacketSequenceNumber(0x80000000);
