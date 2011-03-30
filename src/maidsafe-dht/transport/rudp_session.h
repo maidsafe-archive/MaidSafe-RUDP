@@ -90,9 +90,6 @@ class RudpSession {
 
   // Whether the connection been fully established.
   bool connected_;
-
-  // The time to next attempt to establish a connection.
-  boost::posix_time::ptime time_of_next_attempt_;
 };
 
 }  // namespace transport
