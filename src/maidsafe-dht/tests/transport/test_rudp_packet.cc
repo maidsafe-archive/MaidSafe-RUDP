@@ -27,8 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
+#include "maidsafe-dht/transport/rudp_packet.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_sender.h"
+#include "maidsafe-dht/transport/rudp_control_packet.h"
+#include "maidsafe-dht/transport/rudp_ack_packet.h"
 
 namespace maidsafe {
 
@@ -85,61 +87,6 @@ class RudpDataPacketTest : public testing::Test {
   }
  protected:
   RudpDataPacket data_packet_;
-};
-
-class RudpControlPacketTest : public testing::Test {
- public:
-  RudpControlPacketTest() : control_packet_() {}
-
- protected:
-  void TestAdditionalInfo() {
-    EXPECT_EQ(0U, control_packet_.AdditionalInfo());
-  //   control_packet_.SetAdditionalInfo(0x20000000);
-  //   EXPECT_EQ(0U, control_packet_.AdditionalInfo());
-    control_packet_.SetAdditionalInfo(0x1fffffff);
-    EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
-  }
-
-  void SetType(boost::uint32_t n) {
-    control_packet_.SetType(n);
-  }
-
-  bool IsValidBase(const boost::asio::const_buffer &buffer,
-                   boost::uint16_t expected_packet_type) {
-    return control_packet_.IsValidBase(buffer, expected_packet_type);
-  }
-
-  void TestEncodeDecode() {
-    {
-      // Pass in a buffer having the length less than required
-      char d[15];
-      EXPECT_EQ(0U, control_packet_.EncodeBase(boost::asio::buffer(d)));
-    }
-    {
-      control_packet_.SetType(0x7fff);
-      control_packet_.SetAdditionalInfo(0x1fffffff);
-      control_packet_.SetTimeStamp(0xffffffff);
-      control_packet_.SetDestinationSocketId(0xffffffff);
-
-      char char_array[RudpControlPacket::kHeaderSize];
-      boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-      EXPECT_EQ(RudpControlPacket::kHeaderSize,
-                control_packet_.EncodeBase(dbuffer));
-
-      control_packet_.SetType(0);
-      control_packet_.SetAdditionalInfo(0);
-      control_packet_.SetTimeStamp(0);
-      control_packet_.SetDestinationSocketId(0);
-      EXPECT_TRUE(control_packet_.DecodeBase(dbuffer, 0x7fff));
-
-      EXPECT_EQ(0x7fff, control_packet_.Type());
-      EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
-      EXPECT_EQ(0xffffffff, control_packet_.TimeStamp());
-      EXPECT_EQ(0xffffffff, control_packet_.DestinationSocketId());
-    }
-  }
-
-  RudpControlPacket control_packet_;
 };
 
 TEST(RudpPacketTest, FUNC_DecodeDestinationSocketId) {
@@ -227,9 +174,9 @@ TEST_F(RudpDataPacketTest, FUNC_IsValid) {
 }
 
 TEST_F(RudpDataPacketTest, BEH_EncodeDecode) {
-  std::string data("Encode Decode Test");
   {
     // Pass in a buffer having the length less than required
+    std::string data("Encode Decode Test");
     data_packet_.SetData(data);
     char dbuffer[32];
     EXPECT_EQ(0U, data_packet_.Encode(boost::asio::buffer(dbuffer)));
@@ -262,6 +209,61 @@ TEST_F(RudpDataPacketTest, BEH_EncodeDecode) {
     EXPECT_FALSE(data_packet_.InOrder());
   }
 }
+
+class RudpControlPacketTest : public testing::Test {
+ public:
+  RudpControlPacketTest() : control_packet_() {}
+
+ protected:
+  void TestAdditionalInfo() {
+    EXPECT_EQ(0U, control_packet_.AdditionalInfo());
+  //   control_packet_.SetAdditionalInfo(0x20000000);
+  //   EXPECT_EQ(0U, control_packet_.AdditionalInfo());
+    control_packet_.SetAdditionalInfo(0x1fffffff);
+    EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+  }
+
+  void SetType(boost::uint32_t n) {
+    control_packet_.SetType(n);
+  }
+
+  bool IsValidBase(const boost::asio::const_buffer &buffer,
+                   boost::uint16_t expected_packet_type) {
+    return control_packet_.IsValidBase(buffer, expected_packet_type);
+  }
+
+  void TestEncodeDecode() {
+    {
+      // Pass in a buffer having the length less than required
+      char d[15];
+      EXPECT_EQ(0U, control_packet_.EncodeBase(boost::asio::buffer(d)));
+    }
+    {
+      control_packet_.SetType(0x7fff);
+      control_packet_.SetAdditionalInfo(0x1fffffff);
+      control_packet_.SetTimeStamp(0xffffffff);
+      control_packet_.SetDestinationSocketId(0xffffffff);
+
+      char char_array[RudpControlPacket::kHeaderSize];
+      boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+      EXPECT_EQ(RudpControlPacket::kHeaderSize,
+                control_packet_.EncodeBase(dbuffer));
+
+      control_packet_.SetType(0);
+      control_packet_.SetAdditionalInfo(0);
+      control_packet_.SetTimeStamp(0);
+      control_packet_.SetDestinationSocketId(0);
+      EXPECT_TRUE(control_packet_.DecodeBase(dbuffer, 0x7fff));
+
+      EXPECT_EQ(0x7fff, control_packet_.Type());
+      EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+      EXPECT_EQ(0xffffffff, control_packet_.TimeStamp());
+      EXPECT_EQ(0xffffffff, control_packet_.DestinationSocketId());
+    }
+  }
+
+  RudpControlPacket control_packet_;
+};
 
 TEST_F(RudpControlPacketTest, FUNC_Type) {
   EXPECT_EQ(0U, control_packet_.Type());
@@ -314,6 +316,105 @@ TEST_F(RudpControlPacketTest, FUNC_IsValidBase) {
 
 TEST_F(RudpControlPacketTest, BEH_EncodeDecode) {
   TestEncodeDecode();
+}
+
+class RudpAckPacketTest : public testing::Test {
+ public:
+  RudpAckPacketTest() : ack_packet_() {}
+
+ protected:
+  void RestoreDefault() {
+    ack_packet_.SetAckSequenceNumber(0);
+    ack_packet_.SetPacketSequenceNumber(0);
+    ack_packet_.SetRoundTripTime(0);
+    ack_packet_.SetRoundTripTimeVariance(0);
+    ack_packet_.SetAvailableBufferSize(0);
+    ack_packet_.SetPacketsReceivingRate(0);
+    ack_packet_.SetEstimatedLinkCapacity(0);
+  }
+
+  void TestEncodeDecode() {
+    ack_packet_.SetAckSequenceNumber(0x1fffffff);
+    ack_packet_.SetPacketSequenceNumber(0xffffffff);
+
+    char char_array_optional[RudpAckPacket::kOptionalPacketSize];
+    char char_array[RudpAckPacket::kPacketSize];
+    boost::asio::mutable_buffer dbuffer;
+    if (ack_packet_.HasOptionalFields()) {
+      dbuffer = boost::asio::buffer(char_array_optional);
+      EXPECT_EQ(RudpAckPacket::kOptionalPacketSize,
+                ack_packet_.Encode(dbuffer));
+    } else {
+      dbuffer = boost::asio::buffer(char_array);
+      EXPECT_EQ(RudpAckPacket::kPacketSize, ack_packet_.Encode(dbuffer));
+    }
+    RestoreDefault();
+    EXPECT_TRUE(ack_packet_.Decode(dbuffer));
+
+    EXPECT_EQ(0x1fffffff, ack_packet_.AckSequenceNumber());
+    EXPECT_EQ(0xffffffff, ack_packet_.PacketSequenceNumber());
+  }
+
+  RudpAckPacket ack_packet_;
+};
+
+TEST_F(RudpAckPacketTest, FUNC_IsValid) {
+  {
+    // Buffer length wrong
+    char d[RudpControlPacket::kHeaderSize + 10];
+    EXPECT_FALSE(ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  char d[RudpControlPacket::kHeaderSize + 4];
+  {
+    // Packet type wrong
+    d[0] = 0x80;
+    EXPECT_FALSE(ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  {
+    // Everything is fine
+    d[0] = 0x80;
+    d[1] = RudpAckPacket::kPacketType;
+    EXPECT_TRUE(ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+}
+
+TEST_F(RudpAckPacketTest, BEH_EncodeDecode) {
+  {
+    // Pass in a buffer having the length less than required
+    char dbuffer[RudpAckPacket::kPacketSize - 1];
+    EXPECT_EQ(0U, ack_packet_.Encode(boost::asio::buffer(dbuffer)));
+  }
+  {
+    //TODO There will be an error if passed in buffer has a size less than
+    //     kOptionalPacketSize, but the has_optional_fields_ has been set
+  }
+  RestoreDefault();
+  {
+    // Send an ack_packet without optional fields
+    ack_packet_.SetHasOptionalFields(false);
+    TestEncodeDecode();
+    EXPECT_EQ(0U, ack_packet_.RoundTripTime());
+    EXPECT_EQ(0U, ack_packet_.RoundTripTimeVariance());
+    EXPECT_EQ(0U, ack_packet_.AvailableBufferSize());
+    EXPECT_EQ(0U, ack_packet_.PacketsReceivingRate());
+    EXPECT_EQ(0U, ack_packet_.EstimatedLinkCapacity());
+  }
+  RestoreDefault();
+  {
+    // Send an ack_packet without optional fields
+    ack_packet_.SetHasOptionalFields(true);
+    ack_packet_.SetRoundTripTime(0x11111111);
+    ack_packet_.SetRoundTripTimeVariance(0x22222222);
+    ack_packet_.SetAvailableBufferSize(0x44444444);
+    ack_packet_.SetPacketsReceivingRate(0x88888888);
+    ack_packet_.SetEstimatedLinkCapacity(0xffffffff);
+    TestEncodeDecode();
+    EXPECT_EQ(0x11111111, ack_packet_.RoundTripTime());
+    EXPECT_EQ(0x22222222, ack_packet_.RoundTripTimeVariance());
+    EXPECT_EQ(0x44444444, ack_packet_.AvailableBufferSize());
+    EXPECT_EQ(0x88888888, ack_packet_.PacketsReceivingRate());
+    EXPECT_EQ(0xffffffff, ack_packet_.EstimatedLinkCapacity());
+  }
 }
 
 }  // namespace test
