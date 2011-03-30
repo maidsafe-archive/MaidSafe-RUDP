@@ -42,15 +42,11 @@ namespace maidsafe {
 
 namespace transport {
 
-class RudpMultiplexer;
+class RudpPeer;
 
 class RudpSender {
  public:
-  explicit RudpSender(RudpMultiplexer &multiplexer);
-
-  // Set the details of the remote peer.
-  void SetPeer(boost::asio::ip::udp::endpoint remote_endpoint,
-               boost::uint32_t remote_id);
+  explicit RudpSender(RudpPeer &peer);
 
   // Get the sequence number that will be used for the next packet.
   boost::uint32_t GetNextPacketSequenceNumber() const;
@@ -86,12 +82,8 @@ class RudpSender {
   // Send waiting packets.
   void DoSend();
 
-  // The multiplexer used to send and receive UDP packets.
-  RudpMultiplexer &multiplexer_;
-
-  // The remote socket's endpoint and identifier.
-  boost::asio::ip::udp::endpoint remote_endpoint_;
-  boost::uint32_t remote_id_;
+  // The peer with which we are communicating.
+  RudpPeer &peer_;
 
   // The buffer used to store application data that is waiting to be sent.
   std::deque<unsigned char> write_buffer_;

@@ -46,12 +46,11 @@ namespace maidsafe {
 namespace transport {
 
 RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
-  : multiplexer_(multiplexer),
-    id_(0),
-    remote_endpoint_(),
-    remote_id_(0),
+  : id_(0),
+    dispatcher_(multiplexer.dispatcher_),
+    peer_(multiplexer),
     state_(kNotYetOpen),
-    sender_(multiplexer),
+    sender_(peer_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -68,7 +67,7 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
 
 RudpSocket::~RudpSocket() {
   if (IsOpen())
-    multiplexer_.dispatcher_.RemoveSocket(id_);
+    dispatcher_.RemoveSocket(id_);
 }
 
 boost::uint32_t RudpSocket::Id() const {
@@ -76,11 +75,11 @@ boost::uint32_t RudpSocket::Id() const {
 }
 
 boost::asio::ip::udp::endpoint RudpSocket::RemoteEndpoint() const {
-  return remote_endpoint_;
+  return peer_.Endpoint();
 }
 
 boost::uint32_t RudpSocket::RemoteId() const {
-  return remote_id_;
+  return peer_.Id();
 }
 
 bool RudpSocket::IsOpen() const {
@@ -89,10 +88,10 @@ bool RudpSocket::IsOpen() const {
 
 void RudpSocket::Close() {
   if (IsOpen())
-    multiplexer_.dispatcher_.RemoveSocket(id_);
+    dispatcher_.RemoveSocket(id_);
   id_ = 0;
-  remote_endpoint_ = ip::udp::endpoint();
-  remote_id_ = 0;
+  peer_.SetEndpoint(ip::udp::endpoint());
+  peer_.SetId(0);
   waiting_connect_ec_ = asio::error::operation_aborted;
   waiting_connect_.cancel();
   waiting_write_ec_ = asio::error::operation_aborted;
@@ -104,9 +103,9 @@ void RudpSocket::Close() {
 }
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
-  id_ = multiplexer_.dispatcher_.AddSocket(this);
-  remote_endpoint_ = remote;
-  remote_id_ = 0; // Assigned when handshake response is received.
+  id_ = dispatcher_.AddSocket(this);
+  peer_.SetEndpoint(remote);
+  peer_.SetId(0); // Assigned when handshake response is received.
 
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
@@ -115,18 +114,18 @@ void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
   packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
   packet.SetSocketId(id_);
-  packet.SetIpAddress(remote_endpoint_.address());
+  packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(0);
   packet.SetConnectionType(1);
 
-  multiplexer_.SendTo(packet, remote_endpoint_);
+  peer_.Send(packet);
   state_ = kClientAwaitingHandshakeResponse;
 }
 
 void RudpSocket::StartConnect() {
   assert(IsOpen()); // Socket must already have been accepted.
-  assert(remote_endpoint_ != ip::udp::endpoint());
-  assert(remote_id_ != 0);
+  assert(peer_.Endpoint() != ip::udp::endpoint());
+  assert(peer_.Id() != 0);
 
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
@@ -135,12 +134,12 @@ void RudpSocket::StartConnect() {
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
   packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
   packet.SetSocketId(id_);
-  packet.SetIpAddress(remote_endpoint_.address());
-  packet.SetDestinationSocketId(remote_id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(0xffffffff);
   packet.SetSynCookie(0); // TODO calculate cookie
 
-  multiplexer_.SendTo(packet, remote_endpoint_);
+  peer_.Send(packet);
   state_ = kServerAwaitingHandshakeResponse;
 }
 
@@ -250,23 +249,21 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
 void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   switch (state_) {
   case kClientAwaitingHandshakeResponse:
-    remote_id_ = packet.SocketId();
+    peer_.SetId(packet.SocketId());
     state_ = kConnected;
-    sender_.SetPeer(remote_endpoint_, remote_id_);
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
     {
       RudpHandshakePacket response_packet(packet);
       response_packet.SetSocketId(id_);
-      response_packet.SetIpAddress(remote_endpoint_.address());
-      response_packet.SetDestinationSocketId(remote_id_);
+      response_packet.SetIpAddress(peer_.Endpoint().address());
+      response_packet.SetDestinationSocketId(peer_.Id());
       response_packet.SetConnectionType(0xffffffff);
-      multiplexer_.SendTo(response_packet, remote_endpoint_);
+      peer_.Send(response_packet);
     }
     break;
   case kServerAwaitingHandshakeResponse:
     state_ = kConnected;
-    sender_.SetPeer(remote_endpoint_, remote_id_);
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
     break;

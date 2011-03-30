@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_multiplexer.h"
+#include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
@@ -39,16 +39,9 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpSender::RudpSender(RudpMultiplexer &multiplexer)
-  : multiplexer_(multiplexer),
-    remote_id_(0),
+RudpSender::RudpSender(RudpPeer &peer)
+  : peer_(peer),
     unacked_packets_(GenerateSequenceNumber()) {
-}
-
-void RudpSender::SetPeer(boost::asio::ip::udp::endpoint remote_endpoint,
-                         boost::uint32_t remote_id) {
-  remote_endpoint_ = remote_endpoint;
-  remote_id_ = remote_id;
 }
 
 boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
@@ -93,7 +86,7 @@ void RudpSender::DoSend() {
   if (!loss_list_.empty()) {
     boost::uint32_t seqnum = loss_list_.front();
     if (unacked_packets_.Contains(seqnum))
-      multiplexer_.SendTo(unacked_packets_.Packet(seqnum), remote_endpoint_);
+      peer_.Send(unacked_packets_.Packet(seqnum));
     loss_list_.pop_front();
   }
 
@@ -109,10 +102,10 @@ void RudpSender::DoSend() {
     packet.SetInOrder(true);
     packet.SetMessageNumber(0);
     packet.SetTimeStamp(0);
-    packet.SetDestinationSocketId(remote_id_);
+    packet.SetDestinationSocketId(peer_.Id());
     size_t data_size = std::min<size_t>(kMaxDataSize, write_buffer_.size());
     packet.SetData(write_buffer_.begin(), write_buffer_.begin() + data_size);
-    multiplexer_.SendTo(packet, remote_endpoint_);
+    peer_.Send(packet);
   }
 }
 

@@ -73,8 +73,8 @@ void RudpAcceptor::StartAccept(RudpSocket &socket) {
   assert(waiting_accept_socket_ == 0); // Only one accept operation at a time.
 
   if (!pending_requests_.empty()) {
-    socket.remote_id_ = pending_requests_.front().remote_id;
-    socket.remote_endpoint_ = pending_requests_.front().remote_endpoint;
+    socket.peer_.SetEndpoint(pending_requests_.front().remote_endpoint);
+    socket.peer_.SetId(pending_requests_.front().remote_id);
     socket.id_ = multiplexer_.dispatcher_.AddSocket(&socket);
     pending_requests_.pop_front();
     waiting_accept_.cancel();
@@ -89,8 +89,8 @@ void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
   if (packet.Decode(data)) {
     if (RudpSocket* socket = waiting_accept_socket_) {
       // A socket is ready and waiting to accept the new connection.
-      socket->remote_id_ = packet.SocketId();
-      socket->remote_endpoint_ = endpoint;
+      socket->peer_.SetEndpoint(endpoint);
+      socket->peer_.SetId(packet.SocketId());
       socket->id_ = multiplexer_.dispatcher_.AddSocket(socket);
       waiting_accept_socket_ = 0;
       waiting_accept_.cancel();

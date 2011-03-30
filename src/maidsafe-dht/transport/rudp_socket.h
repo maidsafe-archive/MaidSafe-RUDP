@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
+#include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
 #include "maidsafe-dht/transport/rudp_sender.h"
 #include "maidsafe-dht/transport/rudp_write_op.h"
@@ -57,7 +58,7 @@ namespace maidsafe {
 namespace transport {
 
 class RudpAcceptor;
-class RudpMultiplexer;
+class RudpDispatcher;
 
 class RudpSocket {
  public:
@@ -149,15 +150,14 @@ class RudpSocket {
   // Called to process a newly received acknowledgement packet.
   void HandleAck(const RudpAckPacket &packet);
 
-  // The multiplexer used to send and receive UDP packets.
-  RudpMultiplexer &multiplexer_;
-
   // The unique socket identifier assigned by the dispatcher.
   boost::uint32_t id_;
 
-  // The remote socket's endpoint and identifier.
-  boost::asio::ip::udp::endpoint remote_endpoint_;
-  boost::uint32_t remote_id_;
+  // The dispatcher that holds this sockets registration.
+  RudpDispatcher &dispatcher_;
+
+  // The remote peer with which we are communicating.
+  RudpPeer peer_;
 
   // The current state of the connection.
   enum State {
