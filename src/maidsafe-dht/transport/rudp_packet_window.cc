@@ -86,7 +86,7 @@ RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
     return packets_[n - begin_];
 }
 
-boost::uint32 RudpPacketWindow::Next(boost::uint32 n) {
+boost::uint32_t RudpPacketWindow::Next(boost::uint32_t n) {
   return (n == kMaxSequenceNumber) ? 0 : n + 1;
 }
 
