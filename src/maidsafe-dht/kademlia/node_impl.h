@@ -68,12 +68,13 @@ namespace test {
 class NodeImplTest;
 class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 class NodeImplTest_BEH_KAD_Join_Test;
+class NodeImplTest_FUNC_KAD_Downlist_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
-    ReportDownContactPtr;
+        ReportDownContactPtr;
 typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
 class Node::Impl {
@@ -187,10 +188,14 @@ class Node::Impl {
    *  @return The kBeta_ */
   boost::uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
+  bool refresh_thread_running() const;
+  bool downlist_thread_running() const;
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
   friend class test::NodeImplTest_BEH_KAD_Join_Test;
+  friend class test::NodeImplTest_FUNC_KAD_Downlist_Test;
+
  private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);
@@ -404,6 +409,7 @@ class Node::Impl {
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
   boost::thread_group thread_group_;
+  bool refresh_thread_running_, downlist_thread_running_;
 };
 
 }  // namespace kademlia
