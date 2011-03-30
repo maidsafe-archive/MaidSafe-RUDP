@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
+#include "maidsafe-dht/kademlia/alternative_store.h"
 
 namespace maidsafe {
 
@@ -73,6 +74,39 @@ void TestFindNodesCallback(RankInfoPtr,
   *response_code = callback_code;
   *contact_list = contacts;
 }
+
+void TestStoreCallback(RankInfoPtr,
+                       int callback_code,
+                       bool *done,
+                       int *response_code) {
+  *done = true;
+  *response_code = callback_code;
+}
+
+void TestFindValueCallback(RankInfoPtr,
+                           int callback_code,
+                           std::vector<std::string> values,
+                           std::vector<Contact> contacts,
+                           Contact alternative_value_holder,
+                           std::vector<std::string> *return_values,
+                           std::vector<Contact> *return_contacts,
+                           bool *done,
+                           int *response_code) {
+  *done = true;
+  *response_code = callback_code;
+  *return_values = values;
+  *return_contacts = contacts;
+}
+
+class AlternativeStoreTrue: public AlternativeStore {
+ public:
+  virtual ~AlternativeStoreTrue() {}
+  virtual bool Has(const std::string&) {
+    return true;
+  }
+};
+
+typedef std::shared_ptr<AlternativeStoreTrue> AlternativeStoreTruePtr;
 
 class CreateContactAndNodeId {
  public:
@@ -187,7 +221,7 @@ class CreateContactAndNodeId {
     transport::Endpoint end_point(ip, port);
     local_endpoints.push_back(end_point);
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, "", crypto_key.public_key(), "");
+                    false, node_id.String(), crypto_key.public_key(), "");
     IP ipa = IP::from_string(ip);
     contact.SetPreferredEndpoint(ipa);
     return contact;
@@ -217,7 +251,9 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
                alternative_store_(),
                asio_service_(new boost::asio::io_service()),
                local_asio_(new boost::asio::io_service()),
-               rank_info_() { }
+               rank_info_(),
+               contacts_(),
+               transport_() { }
 
   static void SetUpTestCase() {
     sender_crypto_key_id_.GenerateKeys(4096);
@@ -239,9 +275,6 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
     service_securifier_ = std::shared_ptr<Securifier>(
         new Securifier("", receiver_crypto_key_id_.public_key(),
                        receiver_crypto_key_id_.private_key()));
-    service_securifier_ = std::shared_ptr<Securifier>(
-        new Securifier("", receiver_crypto_key_id_.public_key(),
-                       receiver_crypto_key_id_.private_key()));
     NodeId service_node_id = GenerateRandomId(node_id_, 503);
     service_contact_ = ComposeContactWithKey(service_node_id,
                                              5011,
@@ -253,6 +286,11 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
                                                     k));
     service_->set_node_contact(service_contact_);
     service_->set_node_joined(true);
+    transport_.reset(new transport::TcpTransport(*local_asio_));
+    handler_ = std::shared_ptr<MessageHandler>(
+        new MessageHandler(service_securifier_));
+    service_->ConnectToSignals(transport_, handler_);
+    transport_->StartListening(service_contact_.endpoint());
   }
   virtual void TearDown() { }
 
@@ -265,12 +303,78 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
       AddContact(contact, rank_info_);
+      contacts_.push_back(contact);
     }
   }
 
   void AddContact(const Contact& contact, const RankInfoPtr rank_info) {
     routing_table_->AddContact(contact, rank_info);
     routing_table_->SetValidated(contact.node_id(), true);
+  }
+
+  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
+                            const size_t &value_size,
+                            std::string key,
+                            std::string value) {
+    if (key.empty())
+      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
+    if (value.empty()) {
+      value.reserve(value_size);
+      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
+      while (value.size() < value_size)
+        value += temp;
+      value = value.substr(0, value_size);
+    }
+    std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    return KeyValueSignature(key, value, signature);
+  }
+
+  protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
+                            const KeyValueSignature& kvs,
+                            const crypto::RsaKeyPair& crypto_key_data) {
+    protobuf::StoreRequest store_request;
+    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
+    store_request.set_key(kvs.key);
+    store_request.mutable_signed_value()->set_signature(kvs.signature);
+    store_request.mutable_signed_value()->set_value(kvs.value);
+    store_request.set_ttl(3600*24);
+    store_request.set_signing_public_key_id(
+        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
+            crypto::AsymSign(crypto_key_data.public_key(),
+                            crypto_key_data.private_key())));
+    return store_request;
+  }
+
+  boost::uint16_t KDistanceTo(const NodeId &lhs, const NodeId &rhs) {
+    boost::uint16_t distance = 0;
+    std::string this_id_binary = lhs.ToStringEncoded(NodeId::kBinary);
+    std::string rhs_id_binary = rhs.ToStringEncoded(NodeId::kBinary);
+    std::string::const_iterator this_it = this_id_binary.begin();
+    std::string::const_iterator rhs_it = rhs_id_binary.begin();
+    for (; ((this_it != this_id_binary.end()) && (*this_it == *rhs_it));
+        ++this_it, ++rhs_it)
+      ++distance;
+    return distance;
+  }
+
+  int GetDistance(const std::vector<Contact> &list, int test) {
+    int low(0), high(0);
+    boost::uint16_t distance = KDistanceTo(service_contact_.node_id(),
+                                           list[0].node_id());
+    low = distance;
+    auto it = list.begin();
+    while (it != list.end()) {
+      distance = KDistanceTo(service_contact_.node_id(), (*it).node_id());
+      if (distance > high)
+        high = distance;
+      else if (distance < low)
+        low = distance;
+      ++it;
+    }
+    if (test > 0)
+      return high;
+    else
+      return low;
   }
 
  protected:
@@ -289,6 +393,9 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
   static crypto::RsaKeyPair sender_crypto_key_id_;
   static crypto::RsaKeyPair receiver_crypto_key_id_;
   RankInfoPtr rank_info_;
+  std::vector<Contact> contacts_;
+  TransportPtr transport_;
+  MessageHandlerPtr handler_;
 };
 
 crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
@@ -302,141 +409,191 @@ TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
               boost::bind(&TestPingCallback, _1, _2, &done, &response_code),
               kTcp);
   asio_service_->run();
-
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_GT(0, response_code);
   asio_service_->stop();
+
+  ASSERT_GT(0, response_code);
 }
 
 TEST_F(RpcsTest, BEH_KAD_PingTarget) {
-  TransportPtr transport;
-  transport.reset(new transport::TcpTransport(*local_asio_));
-  MessageHandlerPtr handler(new MessageHandler(service_securifier_));
-  service_->ConnectToSignals(transport, handler);
-  transport->StartListening(service_contact_.endpoint());
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
   bool done(false);
   int response_code(0);
+  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
 
-  rpcs_->Ping(service_securifier_, service_contact_,
+  rpcs_->Ping(rpcs_securifier_, service_contact_,
               boost::bind(&TestPingCallback, _1, _2, &done, &response_code),
               kTcp);
   asio_service_->run();
-
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
   asio_service_->stop();
   local_asio_->stop();
   th.join();
+
+  ASSERT_EQ(0, response_code);
 }
 
 TEST_F(RpcsTest, BEH_KAD_FindNodesEmptyRT) {
   // tests FindNodes using empty routing table
-  TransportPtr transport;
-  transport.reset(new transport::TcpTransport(*local_asio_));
-  MessageHandlerPtr handler(new MessageHandler(service_securifier_));
-  service_->ConnectToSignals(transport, handler);
-  transport->StartListening(service_contact_.endpoint());
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
   bool done(false);
   int response_code(0);
   std::vector<Contact> contact_list;
   Key key = service_contact_.node_id();
+  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
 
-  rpcs_->FindNodes(key, service_securifier_, service_contact_,
+  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
                    boost::bind(&TestFindNodesCallback, _1, _2, _3,
                                &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
-
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, contact_list.size());
-  ASSERT_EQ(0, response_code);
   asio_service_->stop();
   local_asio_->stop();
   th.join();
+
+  ASSERT_EQ(0, contact_list.size());
+  ASSERT_EQ(0, response_code);
 }
 
 TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
   // tests FindNodes with a populated routing table not containing the node
   // being sought
-  TransportPtr transport;
-  transport.reset(new transport::TcpTransport(*local_asio_));
-  MessageHandlerPtr handler(new MessageHandler(service_securifier_));
-  service_->ConnectToSignals(transport, handler);
-  transport->StartListening(service_contact_.endpoint());
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
   bool done(false);
   int response_code(0);
   std::vector<Contact> contact_list;
   PopulateRoutingTable(2*k);
-  service_->set_node_contact(service_contact_);
   Key key = service_contact_.node_id();
+  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
 
-  rpcs_->FindNodes(key, service_securifier_, service_contact_,
+  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
                    boost::bind(&TestFindNodesCallback, _1, _2, _3,
                                &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
-
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  asio_service_->stop();
+  local_asio_->stop();
+  th.join();
 
   bool found(false);
+  std::sort(contact_list.begin(), contact_list.end());
   auto it = contact_list.begin();
   while (it != contact_list.end()) {
     if ((*it).node_id() == service_contact_.node_id())
       found = true;
+    for (int i = 0; i < contacts_.size(); i++) {
+      if ((*it).node_id() == contacts_[i].node_id())
+        contacts_.erase(contacts_.begin()+i);
+      }
     ++it;
   }
+
   ASSERT_FALSE(found);
+  ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
   ASSERT_EQ(k, contact_list.size());
   ASSERT_EQ(0, response_code);
-
-  asio_service_->stop();
-  local_asio_->stop();
-  th.join();
 }
 
 TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
   // tests FindNodes with a populated routing table which contains the node
   // being sought
-  TransportPtr transport;
-  transport.reset(new transport::TcpTransport(*local_asio_));
-  MessageHandlerPtr handler(new MessageHandler(service_securifier_));
-  service_->ConnectToSignals(transport, handler);
-  transport->StartListening(service_contact_.endpoint());
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
   bool done(false);
   int response_code(0);
-  std::vector<Contact> contact_list;
   PopulateRoutingTable(2*k);
-  service_->set_node_contact(service_contact_);
+  std::vector<Contact> contact_list;
   AddContact(service_contact_, rank_info_);
   Key key = service_contact_.node_id();
+  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
 
-  rpcs_->FindNodes(key, service_securifier_, service_contact_,
+  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
                    boost::bind(&TestFindNodesCallback, _1, _2, _3,
                                &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
-
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  asio_service_->stop();
+  local_asio_->stop();
+  th.join();
 
   bool found(false);
   auto it = contact_list.begin();
   while (it != contact_list.end()) {
     if ((*it).node_id() == service_contact_.node_id())
       found = true;
+    for (int i = 0; i < contacts_.size(); i++) {
+      if ((*it).node_id() == contacts_[i].node_id())
+        contacts_.erase(contacts_.begin()+i);
+      }
     ++it;
   }
+
   ASSERT_TRUE(found);
+  ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
   ASSERT_EQ(k, contact_list.size());
   ASSERT_EQ(0, response_code);
+}
+
+TEST_F(RpcsTest, BEH_KAD_StoreAndFindValue) {
+  bool done(false);
+  int response_code(0);
+  PopulateRoutingTable(2*k);
+  Key key = rpcs_contact_.node_id();
+  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
+                                  key.String(), "");
+  boost::posix_time::seconds ttl(3600);
+
+  // attempt to find value before any stored
+  std::vector<std::string> return_values;
+  std::vector<Contact> return_contacts;
+  done = false;
+  response_code = 0;
+  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
+                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
+                               &return_values,
+                               &return_contacts,
+                               &done, &response_code),
+                   kTcp);
+  asio_service_->run();
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  ASSERT_EQ(0, response_code);
+  ASSERT_EQ(0, return_values.size());
+  ASSERT_EQ(k, return_contacts.size());
+  asio_service_->reset();
+
+  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
+               service_contact_,
+               boost::bind(&TestStoreCallback, _1, _2,
+                           &done, &response_code),
+               kTcp);
+  asio_service_->run();
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  ASSERT_EQ(0, response_code);
+  asio_service_->reset();
+
+  // attempt to retrieve value stored
+  return_values.clear();
+  return_contacts.clear();
+  done = false;
+  response_code = 0;
+  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
+                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
+                               &return_values,
+                               &return_contacts,
+                               &done, &response_code),
+                   kTcp);
+  asio_service_->run();
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  ASSERT_EQ(0, response_code);
+  ASSERT_EQ(kvs.value, return_values[0]);
+  ASSERT_EQ(0, return_contacts.size());
 
   asio_service_->stop();
   local_asio_->stop();
