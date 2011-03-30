@@ -257,7 +257,7 @@ void Service::StoreRefresh(const transport::Info &info,
     return;
   if (request.serialised_store_request().empty() ||
       request.serialised_store_request_signature().empty() || !securifier_) {
-    DLOG(WARNING) << "StoreFresh Input Error" << std::endl;
+    DLOG(WARNING) << "StoreRefresh Input Error" << std::endl;
     return;
   }
 

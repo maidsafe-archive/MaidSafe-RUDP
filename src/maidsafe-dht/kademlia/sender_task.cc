@@ -65,7 +65,6 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
       key_value_signature.signature.empty() || public_key_id.empty() ||
       request_signature.first.empty() || request_signature.second.empty() ||
       ops_callback == NULL) {
-//    std::cout << "Failing like a bastard, the fecking rat fink, hijo de su putisima madre" << std::endl;
     return false;
   }
   Task task(key_value_signature, info, request_signature, public_key_id,
@@ -93,9 +92,7 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
 void SenderTask::SenderTaskCallback(std::string public_key_id,
                                     std::string public_key,
                                     std::string public_key_validation) {
-  std::cout << "SenderTask::SenderTaskCallback" << std::endl;
   if (public_key_id.empty()) {
-
     return;
   }
   UpgradeLock upgrade_lock(shared_mutex_);
@@ -103,8 +100,6 @@ void SenderTask::SenderTaskCallback(std::string public_key_id,
       task_index_->get<TagPublicKeyId>();
   auto itr_pair = index_by_public_key_id.equal_range(public_key_id);
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-//  if (itr_pair.first == itr_pair.second)
-//    std::cout << "!!! Failing like a bastard, the fecking rat fink, hijo de su putisima madre" << std::endl;
   while (itr_pair.first != itr_pair.second) {
     TaskCallback call_back = (*itr_pair.first).ops_callback;
     call_back((*itr_pair.first).key_value_signature, (*itr_pair.first).info,

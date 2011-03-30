@@ -50,7 +50,6 @@ class SenderTaskTest: public testing::Test {
         sender_task_(new SenderTask),
         count_callback_1_(0),
         count_callback_2_(0),
-//        asio_service_(new boost::asio::io_service),
         asio_thread_group_() {
   }
 
@@ -62,7 +61,6 @@ class SenderTaskTest: public testing::Test {
                             std::string value) {
     while (key.empty()) {
       key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-//      std::cout << "A key has been made" << std::endl;
     }
     while (value.empty()) {
       value.reserve(value_size);
@@ -70,14 +68,11 @@ class SenderTaskTest: public testing::Test {
       while (value.size() < value_size)
         value += temp;
       value = value.substr(0, value_size);
-//      std::cout << "A value has been made" << std::endl;
     }
     std::string signature;
     while (signature.empty()) {
       signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-//      std::cout << "A signature has been made" << std::endl;
     }
-//    std::cout << std::endl;
     return KeyValueSignature(key, value, signature);
   }
 
@@ -144,7 +139,6 @@ class SenderTaskTest: public testing::Test {
   transport::Info info_;
   boost::shared_ptr<SenderTask> sender_task_;
   volatile boost::uint16_t count_callback_1_, count_callback_2_;
-//  boost::shared_ptr<boost::asio::io_service> asio_service_;
   boost::thread_group asio_thread_group_;
 };
 

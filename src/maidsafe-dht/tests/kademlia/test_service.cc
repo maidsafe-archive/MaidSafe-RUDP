@@ -213,16 +213,18 @@ class ServicesTest: public testing::Test {
                             const size_t &value_size,
                             std::string key,
                             std::string value) {
-    if (key.empty())
+    while (key.empty())
       key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    if (value.empty()) {
+    while (value.empty()) {
       value.reserve(value_size);
       std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
       while (value.size() < value_size)
         value += temp;
       value = value.substr(0, value_size);
     }
-    std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    std::string signature;
+    while(signature.empty())
+      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     return KeyValueSignature(key, value, signature);
   }
 
@@ -235,14 +237,18 @@ class ServicesTest: public testing::Test {
     bptime::ptime now = bptime::microsec_clock::universal_time();
     bptime::ptime expire_time = now + ttl;
     bptime::ptime refresh_time = now + bptime::minutes(30);
-    std::string request = RandomString(1024);
-    std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
+    std::string request;
+    while (request.empty())
+      request = RandomString(1024);
+    std::string req_sig;
+    while (req_sig.empty())
+     req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
     return KeyValueTuple(kvs, expire_time, refresh_time,
                          RequestAndSignature(request, req_sig), false);
   }
 
   protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-                            const KeyValueSignature& kvs) {
+                                          const KeyValueSignature& kvs) {
     protobuf::StoreRequest store_request;
     store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     store_request.set_key(kvs.key);
@@ -253,7 +259,7 @@ class ServicesTest: public testing::Test {
   }
 
   protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                            const KeyValueSignature& kvs) {
+                                            const KeyValueSignature& kvs) {
     protobuf::DeleteRequest delete_request;
     delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     delete_request.set_key(kvs.key);
@@ -307,8 +313,9 @@ class ServicesTest: public testing::Test {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
     protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
     std::string message = store_request.SerializeAsString();
-    std::string message_sig = crypto::AsymSign(message,
-                                               crypto_key_data.private_key());
+    std::string message_sig;
+    while (message_sig.empty())
+      message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, message, message_sig,
                     &store_response, &time_out);
@@ -320,8 +327,10 @@ class ServicesTest: public testing::Test {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
     protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
     std::string delete_message = delete_request.SerializeAsString();
-    std::string delete_message_sig =
-        crypto::AsymSign(delete_message, crypto_key_data.private_key());
+    std::string delete_message_sig;
+    while (delete_message_sig.empty())
+      delete_message_sig = crypto::AsymSign(delete_message,
+                                            crypto_key_data.private_key());
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
@@ -337,8 +346,9 @@ class ServicesTest: public testing::Test {
                                                 crypto_key_data);
     protobuf::StoreRequest store_request = MakeStoreRequest(sender_orig, kvs);
     std::string message = store_request.SerializeAsString();
-    std::string message_sig = crypto::AsymSign(message,
-                                               crypto_key_data.private_key());
+    std::string message_sig;
+    while (message_sig.empty())
+      message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
     Contact new_sender = ComposeContactWithKey(sender_id_new, 5001,
                                                crypto_key_data_new);
     protobuf::StoreRefreshRequest store_refresh_request;
@@ -362,8 +372,10 @@ class ServicesTest: public testing::Test {
     protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender_orig,
                                                                kvs);
     std::string delete_message = delete_request.SerializeAsString();
-    std::string delete_message_sig = crypto::AsymSign(delete_message,
-                                         crypto_key_data.private_key());
+    std::string delete_message_sig;
+    while (delete_message_sig.empty())
+      delete_message_sig = crypto::AsymSign(delete_message,
+                                            crypto_key_data.private_key());
     Contact new_sender = ComposeContactWithKey(sender_id_new, 5001,
                                                crypto_key_data_new);
     protobuf::DeleteRefreshRequest delete_refresh_request;
@@ -509,8 +521,9 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
-  std::string message_sig = crypto::AsymSign(message,
-                                             crypto_key_data.private_key());
+  std::string message_sig;
+  while (message_sig.empty())
+    message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
   RequestAndSignature request_signature(message, message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -625,13 +638,17 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
-  std::string store_message_sig = crypto::AsymSign(store_message,
-                                      crypto_key_data.private_key());
+  std::string store_message_sig;
+  while (store_message_sig.empty())
+    store_message_sig = crypto::AsymSign(store_message,
+                                         crypto_key_data.private_key());
 
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig =
-      crypto::AsymSign(delete_message, crypto_key_data.private_key());
+  std::string delete_message_sig;
+  while (delete_message_sig.empty())
+    delete_message_sig = crypto::AsymSign(delete_message,
+                                          crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -740,8 +757,9 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
-  std::string message_sig = crypto::AsymSign(message,
-                                             crypto_key_data.private_key());
+  std::string message_sig;
+  while (message_sig.empty())
+    message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
   RequestAndSignature request_signature(message, message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
 
@@ -855,13 +873,17 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
-  std::string store_message_sig = crypto::AsymSign(store_message,
-                                      crypto_key_data.private_key());
+  std::string store_message_sig;
+  while (store_message_sig.empty())
+    store_message_sig = crypto::AsymSign(store_message,
+                                         crypto_key_data.private_key());
 
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig = crypto::AsymSign(delete_message,
-                                       crypto_key_data.private_key());
+  std::string delete_message_sig;
+  while (delete_message_sig.empty())
+    delete_message_sig = crypto::AsymSign(delete_message,
+                                          crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
 
@@ -1992,8 +2014,10 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   // Signal StoreRequest
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string message = store_request.SerializeAsString();
-  std::string message_sig = crypto::AsymSign(message,
-                                             crypto_key_data.private_key());
+  std::string message_sig;
+  while (message_sig.empty())
+    message_sig = crypto::AsymSign(message,
+                                   crypto_key_data.private_key());
   protobuf::StoreResponse store_response;
   (*message_handler_ptr->on_store_request())(info_, store_request, message,
       message_sig, &store_response, &time_out);
@@ -2006,18 +2030,25 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   store_refresh_request.set_serialised_store_request_signature(message_sig);
   protobuf::StoreRefreshResponse store_refresh_response;
   (*message_handler_ptr->on_store_refresh_request())(info_,
-      store_refresh_request, &store_refresh_response, &time_out);
+                                                     store_refresh_request,
+                                                     &store_refresh_response,
+                                                     &time_out);
   EXPECT_TRUE(store_refresh_response.result());
   JoinNetworkLookup(securifier_);
 
   // Signal DeleteRequest
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig =
-      crypto::AsymSign(delete_message, crypto_key_data.private_key());
+  std::string delete_message_sig;
+  while (delete_message_sig.empty())
+    delete_message_sig = crypto::AsymSign(delete_message,
+                                          crypto_key_data.private_key());
   protobuf::DeleteResponse delete_response;
   (*message_handler_ptr->on_delete_request())(info_, delete_request,
-      delete_message, delete_message_sig, &delete_response, &time_out);
+                                              delete_message,
+                                              delete_message_sig,
+                                              &delete_response,
+                                              &time_out);
   EXPECT_TRUE(delete_response.result());
 
   // Signal DeleteRefreshRequest
@@ -2028,7 +2059,9 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
       set_serialised_delete_request_signature(delete_message_sig);
   protobuf::DeleteRefreshResponse delete_refresh_response;
   (*message_handler_ptr->on_delete_refresh_request())(info_,
-      delete_refresh_request, &delete_refresh_response, &time_out);
+                                                      delete_refresh_request,
+                                                      &delete_refresh_response,
+                                                      &time_out);
   EXPECT_TRUE(delete_refresh_response.result());
 
   // Signal DownlistNotification

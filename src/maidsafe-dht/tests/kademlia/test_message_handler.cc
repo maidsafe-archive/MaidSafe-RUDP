@@ -1147,9 +1147,11 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
   total = (*it).second;
   ASSERT_EQ(0U, total);
 
-  message_signature = crypto::AsymSign((boost::lexical_cast<std::string>
-                                       (message_type) + payload),
-                                        kp.private_key());
+  message_signature.clear();
+  while (message_signature.empty())
+    message_signature = crypto::AsymSign((boost::lexical_cast<std::string>
+                                         (message_type) + payload),
+                                         kp.private_key());
   request.mutable_sender()->CopyFrom(contact);
   payload = request.SerializeAsString();
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
