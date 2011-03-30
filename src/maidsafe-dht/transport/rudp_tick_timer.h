@@ -34,64 +34,6 @@ namespace maidsafe {
 
 namespace transport {
 
-<<<<<<< HEAD:src/maidsafe-dht/transport/rudp_packet_window.cc
-RudpPacketWindow::RudpPacketWindow(boost::uint32_t initial_sequence_number)
-  : begin_(initial_sequence_number),
-    end_(initial_sequence_number) {
-  assert(initial_sequence_number <= kMaxSequenceNumber);
-}
-
-boost::uint32_t RudpPacketWindow::Begin() const {
-  return begin_;
-}
-
-boost::uint32_t RudpPacketWindow::End() const {
-  return end_;
-}
-
-bool RudpPacketWindow::Contains(boost::uint32_t n) const {
-  if (begin_ <= end_)
-    return (begin_ <= n) && (n < end_);
-  else
-    return (n < end_) || ((n >= begin_) && (n <= kMaxSequenceNumber));
-}
-
-bool RudpPacketWindow::IsEmpty() const {
-  return packets_.empty();
-}
-
-bool RudpPacketWindow::IsFull() const {
-  return packets_.size() == kMaxWindowSize;
-}
-
-boost::uint32_t RudpPacketWindow::Append() {
-  assert(!IsFull());
-  packets_.push_back(RudpDataPacket());
-  boost::uint32_t n = end_;
-  end_ = Next(end_);
-  return n;
-}
-
-void RudpPacketWindow::Remove() {
-  assert(!IsEmpty());
-  packets_.erase(packets_.begin());
-  begin_ = Next(begin_);
-}
-
-RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
-  assert(Contains(n));
-  if (begin_ <= end_)
-    return packets_[n - begin_];
-  else if (n < end_)
-    return packets_[kMaxSequenceNumber - begin_ + n + 1];
-  else
-    return packets_[n - begin_];
-}
-
-boost::uint32_t RudpPacketWindow::Next(boost::uint32_t n) {
-  return (n == kMaxSequenceNumber) ? 0 : n + 1;
-}
-=======
 // Lightweight wrapper around a deadline_timer that avoids modifying the expiry
 // time if it would move it further away.
 class RudpTickTimer {
@@ -130,7 +72,6 @@ class RudpTickTimer {
  private:
   boost::asio::deadline_timer timer_;
 };
->>>>>>> reliable_udp_transport:src/maidsafe-dht/transport/rudp_tick_timer.h
 
 }  // namespace transport
 
