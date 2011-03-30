@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe-dht/transport/rudp_packet_window.h"
+#include "maidsafe-dht/transport/rudp_sliding_window.h"
 
 namespace maidsafe {
 
@@ -38,38 +38,37 @@ namespace test {
 static const size_t kTestPacketCount = 100000;
 
 static void TestWindowRange(boost::uint32_t first_sequence_number) {
-  RudpPacketWindow window(first_sequence_number);
+  RudpSlidingWindow<boost::uint32_t> window(first_sequence_number);
 
-  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
+  for (int i = 0; i < RudpSlidingWindow<boost::uint32_t>::kMaxWindowSize; ++i) {
     boost::uint32_t n = window.Append();
-    window.Packet(n).SetPacketSequenceNumber(n);
+    window[n] = n;
   }
 
   for (int i = 0; i < kTestPacketCount; ++i) {
-    ASSERT_EQ(window.Begin(),
-              window.Packet(window.Begin()).PacketSequenceNumber());
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
     window.Remove();
     boost::uint32_t n = window.Append();
-    window.Packet(n).SetPacketSequenceNumber(n);
+    window[n] = n;
   }
 
-  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
-    ASSERT_EQ(window.Begin(),
-              window.Packet(window.Begin()).PacketSequenceNumber());
+  for (int i = 0; i < RudpSlidingWindow<boost::uint32_t>::kMaxWindowSize; ++i) {
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
     window.Remove();
   }
 }
 
-TEST(RudpPacketWindowTest, BEH_FromZero) {
+TEST(RudpSlidingWindowTest, BEH_FromZero) {
   TestWindowRange(0);
 }
 
-TEST(RudpPacketWindowTest, BEH_FromN) {
+TEST(RudpSlidingWindowTest, BEH_FromN) {
   TestWindowRange(123456);
 }
 
-TEST(RudpPacketWindowTest, BEH_Wraparound) {
-  TestWindowRange(RudpPacketWindow::kMaxSequenceNumber - kTestPacketCount / 2);
+TEST(RudpSlidingWindowTest, BEH_Wraparound) {
+  TestWindowRange(RudpSlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
+                  kTestPacketCount / 2);
 }
 
 }  // namespace test

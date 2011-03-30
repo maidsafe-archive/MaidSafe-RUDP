@@ -25,71 +25,38 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_packet_window.h"
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
 
-#include <cassert>
+#include <vector>
+
+#include "boost/asio/buffer.hpp"
+#include "maidsafe-dht/transport/rudp_control_packet.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-RudpPacketWindow::RudpPacketWindow(boost::uint32_t initial_sequence_number)
-  : begin_(initial_sequence_number),
-    end_(initial_sequence_number) {
-  assert(initial_sequence_number <= kMaxSequenceNumber);
-}
+class RudpNegativeAckPacket : public RudpControlPacket {
+ public:
+  enum { kPacketType = 3 };
 
-boost::uint32_t RudpPacketWindow::Begin() const {
-  return begin_;
-}
+  RudpNegativeAckPacket();
 
-boost::uint32_t RudpPacketWindow::End() const {
-  return end_;
-}
+  void AddSequenceNumber(boost::uint32_t n);
+  void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
+  bool ContainsSequenceNumber(boost::uint32_t n) const;
 
-bool RudpPacketWindow::Contains(boost::uint32_t n) const {
-  if (begin_ <= end_)
-    return (begin_ <= n) && (n < end_);
-  else
-    return (n < end_) || ((n >= begin_) && (n <= kMaxSequenceNumber));
-}
+  static bool IsValid(const boost::asio::const_buffer &buffer);
+  bool Decode(const boost::asio::const_buffer &buffer);
+  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 
-bool RudpPacketWindow::IsEmpty() const {
-  return packets_.empty();
-}
-
-bool RudpPacketWindow::IsFull() const {
-  return packets_.size() == kMaxWindowSize;
-}
-
-boost::uint32_t RudpPacketWindow::Append() {
-  assert(!IsFull());
-  packets_.push_back(RudpDataPacket());
-  boost::uint32_t n = end_;
-  end_ = Next(end_);
-  return n;
-}
-
-void RudpPacketWindow::Remove() {
-  assert(!IsEmpty());
-  packets_.erase(packets_.begin());
-  begin_ = Next(begin_);
-}
-
-RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
-  assert(Contains(n));
-  if (begin_ <= end_)
-    return packets_[n - begin_];
-  else if (n < end_)
-    return packets_[kMaxSequenceNumber - begin_ + n + 1];
-  else
-    return packets_[n - begin_];
-}
-
-boost::uint32_t RudpPacketWindow::Next(boost::uint32_t n) {
-  return (n == kMaxSequenceNumber) ? 0 : n + 1;
-}
+ private:
+  std::vector<boost::uint32_t> sequence_numbers_;
+};
 
 }  // namespace transport
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
