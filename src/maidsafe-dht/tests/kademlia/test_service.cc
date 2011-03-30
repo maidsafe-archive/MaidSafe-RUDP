@@ -223,7 +223,7 @@ class ServicesTest: public testing::Test {
       value = value.substr(0, value_size);
     }
     std::string signature;
-    while(signature.empty())
+    while (signature.empty())
       signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     return KeyValueSignature(key, value, signature);
   }

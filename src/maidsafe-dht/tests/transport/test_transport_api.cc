@@ -283,7 +283,7 @@ void TransportAPITest<T>::CheckMessages() {
   while (listening_msg_handlers_itr != listening_message_handlers_.end()) {
     IncomingMessages listening_request_received =
         (*listening_msg_handlers_itr)->requests_received();
-   auto listening_request_received_itr = listening_request_received.begin();
+    auto listening_request_received_itr = listening_request_received.begin();
     while (listening_request_received_itr !=
            listening_request_received.end()) {
       found = false;
