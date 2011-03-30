@@ -205,21 +205,27 @@ void RudpSocket::ProcessRead() {
 
 void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
-  RudpDataPacket data_packet;
-  RudpAckPacket ack_packet;
-  RudpNegativeAckPacket negative_ack_packet;
-  RudpHandshakePacket handshake_packet;
-  if (data_packet.Decode(data)) {
-    HandleData(data_packet);
-  } else if (ack_packet.Decode(data)) {
-    HandleAck(ack_packet);
-  } else if (negative_ack_packet.Decode(data)) {
-    HandleNegativeAck(negative_ack_packet);
-  } else if (handshake_packet.Decode(data)) {
-    HandleHandshake(handshake_packet);
+  if (endpoint == peer_.Endpoint()) {
+    RudpDataPacket data_packet;
+    RudpAckPacket ack_packet;
+    RudpNegativeAckPacket negative_ack_packet;
+    RudpHandshakePacket handshake_packet;
+    if (data_packet.Decode(data)) {
+      HandleData(data_packet);
+    } else if (ack_packet.Decode(data)) {
+      HandleAck(ack_packet);
+    } else if (negative_ack_packet.Decode(data)) {
+      HandleNegativeAck(negative_ack_packet);
+    } else if (handshake_packet.Decode(data)) {
+      HandleHandshake(handshake_packet);
+    } else {
+      DLOG(ERROR) << "Socket " << session_.Id()
+                  << " ignoring invalid packet from "
+                  << endpoint << std::endl;
+    }
   } else {
     DLOG(ERROR) << "Socket " << session_.Id()
-                << " ignoring invalid packet from "
+                << " ignoring spurious packet from "
                 << endpoint << std::endl;
   }
 }
