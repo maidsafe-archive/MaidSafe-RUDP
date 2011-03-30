@@ -25,58 +25,61 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
 
-#include "boost/asio/handler_alloc_hook.hpp"
-#include "boost/asio/handler_invoke_hook.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rudp_socket.h"
+#include "boost/cstdint.hpp"
+#include "maidsafe-dht/transport/rudp_handshake_packet.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class RudpAcceptOp {
+class RudpPeer;
+
+class RudpSession {
  public:
-  RudpAcceptOp(AcceptHandler handler, RudpSocket &socket)
-    : handler_(handler),
-      socket_(socket) {
-  }
+  explicit RudpSession(RudpPeer &peer);
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.RemoteId() == 0)
-      ec = boost::asio::error::operation_aborted;
-    handler_(ec);
-  }
+  // Open the session as a client or server.
+  enum Mode { kClient, kServer };
+  void Open(boost::uint32_t id, boost::uint32_t sequence_number, Mode mode);
 
-  friend void *asio_handler_allocate(size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
-  }
+  // Get whether the session is already open. May not be connected.
+  bool IsOpen() const;
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
-  }
+  // Get whether the session is currently connected to the peer.
+  bool IsConnected() const;
 
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
-  }
+  // Get the id assigned to the session.
+  boost::uint32_t Id() const;
+
+  // Close the session. Clears the id.
+  void Close();
+
+  // Handle a handshake packet.
+  void HandleHandshake(const RudpHandshakePacket &packet);
 
  private:
-  AcceptHandler handler_;
-  RudpSocket &socket_;
+  // Disallow copying and assignment.
+  RudpSession(const RudpSession&);
+  RudpSession &operator=(const RudpSession&);
+
+  // The peer with which we are communicating.
+  RudpPeer &peer_;
+
+  // The local socket id.
+  boost::uint32_t id_;
+
+  // Are we a client or a server?
+  Mode mode_;
+
+  // Whether the connection been fully established.
+  bool connected_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_

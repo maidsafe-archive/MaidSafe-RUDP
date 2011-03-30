@@ -51,6 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
 #include "maidsafe-dht/transport/rudp_sender.h"
+#include "maidsafe-dht/transport/rudp_session.h"
 #include "maidsafe-dht/transport/rudp_write_op.h"
 
 namespace maidsafe {
@@ -150,22 +151,14 @@ class RudpSocket {
   // Called to process a newly received acknowledgement packet.
   void HandleAck(const RudpAckPacket &packet);
 
-  // The unique socket identifier assigned by the dispatcher.
-  boost::uint32_t id_;
-
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;
 
   // The remote peer with which we are communicating.
   RudpPeer peer_;
 
-  // The current state of the connection.
-  enum State {
-    kNotYetOpen,
-    kClientAwaitingHandshakeResponse,
-    kServerAwaitingHandshakeResponse,
-    kConnected
-  } state_;
+  // The session state associated with the connection.
+  RudpSession session_;
 
   // The send side of the connection.
   RudpSender sender_;

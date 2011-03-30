@@ -75,7 +75,6 @@ void RudpAcceptor::StartAccept(RudpSocket &socket) {
   if (!pending_requests_.empty()) {
     socket.peer_.SetEndpoint(pending_requests_.front().remote_endpoint);
     socket.peer_.SetId(pending_requests_.front().remote_id);
-    socket.id_ = multiplexer_.dispatcher_.AddSocket(&socket);
     pending_requests_.pop_front();
     waiting_accept_.cancel();
   } else {
@@ -91,7 +90,6 @@ void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
       // A socket is ready and waiting to accept the new connection.
       socket->peer_.SetEndpoint(endpoint);
       socket->peer_.SetId(packet.SocketId());
-      socket->id_ = multiplexer_.dispatcher_.AddSocket(socket);
       waiting_accept_socket_ = 0;
       waiting_accept_.cancel();
     } else {

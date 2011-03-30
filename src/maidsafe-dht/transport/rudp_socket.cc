@@ -32,7 +32,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_multiplexer.h"
 
 namespace asio = boost::asio;
@@ -46,10 +45,9 @@ namespace maidsafe {
 namespace transport {
 
 RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
-  : id_(0),
-    dispatcher_(multiplexer.dispatcher_),
+  : dispatcher_(multiplexer.dispatcher_),
     peer_(multiplexer),
-    state_(kNotYetOpen),
+    session_(peer_),
     sender_(peer_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
@@ -67,11 +65,11 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
 
 RudpSocket::~RudpSocket() {
   if (IsOpen())
-    dispatcher_.RemoveSocket(id_);
+    dispatcher_.RemoveSocket(session_.Id());
 }
 
 boost::uint32_t RudpSocket::Id() const {
-  return id_;
+  return session_.Id();
 }
 
 boost::asio::ip::udp::endpoint RudpSocket::RemoteEndpoint() const {
@@ -83,13 +81,13 @@ boost::uint32_t RudpSocket::RemoteId() const {
 }
 
 bool RudpSocket::IsOpen() const {
-  return id_ != 0;
+  return session_.IsOpen();
 }
 
 void RudpSocket::Close() {
-  if (IsOpen())
-    dispatcher_.RemoveSocket(id_);
-  id_ = 0;
+  if (session_.IsOpen())
+    dispatcher_.RemoveSocket(session_.Id());
+  session_.Close();
   peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
   waiting_connect_ec_ = asio::error::operation_aborted;
@@ -103,44 +101,19 @@ void RudpSocket::Close() {
 }
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
-  id_ = dispatcher_.AddSocket(this);
   peer_.SetEndpoint(remote);
   peer_.SetId(0); // Assigned when handshake response is received.
-
-  RudpHandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sender_.GetNextPacketSequenceNumber());
-  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(0);
-  packet.SetConnectionType(1);
-
-  peer_.Send(packet);
-  state_ = kClientAwaitingHandshakeResponse;
+  session_.Open(dispatcher_.AddSocket(this),
+                sender_.GetNextPacketSequenceNumber(),
+                RudpSession::kClient);
 }
 
 void RudpSocket::StartConnect() {
-  assert(IsOpen()); // Socket must already have been accepted.
   assert(peer_.Endpoint() != ip::udp::endpoint());
   assert(peer_.Id() != 0);
-
-  RudpHandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sender_.GetNextPacketSequenceNumber());
-  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(0xffffffff);
-  packet.SetSynCookie(0); // TODO calculate cookie
-
-  peer_.Send(packet);
-  state_ = kServerAwaitingHandshakeResponse;
+  session_.Open(dispatcher_.AddSocket(this),
+                sender_.GetNextPacketSequenceNumber(),
+                RudpSession::kServer);
 }
 
 void RudpSocket::StartWrite(const asio::const_buffer &data) {
@@ -240,40 +213,22 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
   } else if (handshake_packet.Decode(data)) {
     HandleHandshake(handshake_packet);
   } else {
-    DLOG(ERROR) << "Socket " << id_
+    DLOG(ERROR) << "Socket " << session_.Id()
                 << " ignoring invalid packet from "
                 << endpoint << std::endl;
   }
 }
 
 void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
-  switch (state_) {
-  case kClientAwaitingHandshakeResponse:
-    peer_.SetId(packet.SocketId());
-    state_ = kConnected;
+  session_.HandleHandshake(packet);
+  if (session_.IsConnected()) {
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
-    {
-      RudpHandshakePacket response_packet(packet);
-      response_packet.SetSocketId(id_);
-      response_packet.SetIpAddress(peer_.Endpoint().address());
-      response_packet.SetDestinationSocketId(peer_.Id());
-      response_packet.SetConnectionType(0xffffffff);
-      peer_.Send(response_packet);
-    }
-    break;
-  case kServerAwaitingHandshakeResponse:
-    state_ = kConnected;
-    waiting_connect_ec_.clear();
-    waiting_connect_.cancel();
-    break;
-  default:
-    break;
   }
 }
 
 void RudpSocket::HandleData(const RudpDataPacket &packet) {
-  if (state_ == kConnected) {
+  if (session_.IsConnected()) {
     if (read_buffer_.size() + packet.Data().size() < kMaxReadBufferSize) {
       read_buffer_.insert(read_buffer_.end(),
                           packet.Data().begin(),
@@ -286,7 +241,7 @@ void RudpSocket::HandleData(const RudpDataPacket &packet) {
 }
 
 void RudpSocket::HandleAck(const RudpAckPacket &packet) {
-  if (state_ == kConnected) {
+  if (session_.IsConnected()) {
     sender_.HandleAck(packet);
   }
 }
