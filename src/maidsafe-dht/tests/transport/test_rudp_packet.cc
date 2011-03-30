@@ -87,16 +87,81 @@ class RudpDataPacketTest : public testing::Test {
   RudpDataPacket data_packet_;
 };
 
+class RudpControlPacketTest : public testing::Test {
+ public:
+  RudpControlPacketTest() : control_packet_() {}
+
+ protected:
+  void TestAdditionalInfo() {
+    EXPECT_EQ(0U, control_packet_.AdditionalInfo());
+  //   control_packet_.SetAdditionalInfo(0x20000000);
+  //   EXPECT_EQ(0U, control_packet_.AdditionalInfo());
+    control_packet_.SetAdditionalInfo(0x1fffffff);
+    EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+  }
+
+  void SetType(boost::uint32_t n) {
+    control_packet_.SetType(n);
+  }
+
+  bool IsValidBase(const boost::asio::const_buffer &buffer,
+                   boost::uint16_t expected_packet_type) {
+    return control_packet_.IsValidBase(buffer, expected_packet_type);
+  }
+
+  void TestEncodeDecode() {
+    {
+      // Pass in a buffer having the length less than required
+      char d[15];
+      EXPECT_EQ(0U, control_packet_.EncodeBase(boost::asio::buffer(d)));
+    }
+    {
+      control_packet_.SetType(0x7fff);
+      control_packet_.SetAdditionalInfo(0x1fffffff);
+      control_packet_.SetTimeStamp(0xffffffff);
+      control_packet_.SetDestinationSocketId(0xffffffff);
+
+      char char_array[RudpControlPacket::kHeaderSize];
+      boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+      EXPECT_EQ(RudpControlPacket::kHeaderSize,
+                control_packet_.EncodeBase(dbuffer));
+
+      control_packet_.SetType(0);
+      control_packet_.SetAdditionalInfo(0);
+      control_packet_.SetTimeStamp(0);
+      control_packet_.SetDestinationSocketId(0);
+      EXPECT_TRUE(control_packet_.DecodeBase(dbuffer, 0x7fff));
+
+      EXPECT_EQ(0x7fff, control_packet_.Type());
+      EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+      EXPECT_EQ(0xffffffff, control_packet_.TimeStamp());
+      EXPECT_EQ(0xffffffff, control_packet_.DestinationSocketId());
+    }
+  }
+
+  RudpControlPacket control_packet_;
+};
+
 TEST(RudpPacketTest, FUNC_DecodeDestinationSocketId) {
-  char d[16];
-  d[12] = 0x44;
-  d[13] = 0x22;
-  d[14] = 0x11;
-  d[15] = 0x00;
-  boost::uint32_t id;
-  EXPECT_TRUE(RudpPacket::DecodeDestinationSocketId(&id,
-                                                    boost::asio::buffer(d)));
-  EXPECT_EQ(0x44221100, id);
+  {
+    // Try to decode with an invalid buffer
+    boost::uint32_t id;
+    char d[15];
+    EXPECT_FALSE(RudpPacket::DecodeDestinationSocketId(&id,
+                                                       boost::asio::buffer(d)));
+  }
+  {
+    // Decode with a valid buffer
+    char d[16];
+    d[12] = 0x44;
+    d[13] = 0x22;
+    d[14] = 0x11;
+    d[15] = 0x00;
+    boost::uint32_t id;
+    EXPECT_TRUE(RudpPacket::DecodeDestinationSocketId(&id,
+                                                      boost::asio::buffer(d)));
+    EXPECT_EQ(0x44221100, id);
+  }
 }
 
 TEST_F(RudpDataPacketTest, FUNC_SequenceNumber) {
@@ -196,6 +261,59 @@ TEST_F(RudpDataPacketTest, BEH_EncodeDecode) {
     EXPECT_FALSE(data_packet_.FirstPacketInMessage());
     EXPECT_FALSE(data_packet_.InOrder());
   }
+}
+
+TEST_F(RudpControlPacketTest, FUNC_Type) {
+  EXPECT_EQ(0U, control_packet_.Type());
+//   control_packet_.SetType(0x8000);
+//   EXPECT_EQ(0U, control_packet_.Type());
+  SetType(0x7fff);
+  EXPECT_EQ(0x7fff, control_packet_.Type());
+}
+
+TEST_F(RudpControlPacketTest, FUNC_AdditionalInfo) {
+  TestAdditionalInfo();
+}
+
+TEST_F(RudpControlPacketTest, FUNC_TimeStamp) {
+  EXPECT_EQ(0U, control_packet_.TimeStamp());
+  control_packet_.SetTimeStamp(0xffffffff);
+  EXPECT_EQ(0xffffffff, control_packet_.TimeStamp());
+}
+
+TEST_F(RudpControlPacketTest, FUNC_DestinationSocketId) {
+  EXPECT_EQ(0U, control_packet_.DestinationSocketId());
+  control_packet_.SetDestinationSocketId(0xffffffff);
+  EXPECT_EQ(0xffffffff, control_packet_.DestinationSocketId());
+}
+
+TEST_F(RudpControlPacketTest, FUNC_IsValidBase) {
+  {
+    // Buffer length too short
+    char d[15];
+    EXPECT_FALSE(IsValidBase(boost::asio::buffer(d), 0x7444));
+  }
+  char d[16];
+  {
+    // Packet type is not a control_packet
+    d[0] = 0x00;
+    EXPECT_FALSE(IsValidBase(boost::asio::buffer(d), 0x7444));
+  }
+  {
+    // Input control packet is not in an expected packet type
+    d[0] = 0x80;
+    EXPECT_FALSE(IsValidBase(boost::asio::buffer(d), 0x7444));
+  }
+  {
+    // Everything is fine
+    d[0] = 0xf4;
+    d[1] = 0x44;
+    EXPECT_TRUE(IsValidBase(boost::asio::buffer(d), 0x7444));
+  }
+}
+
+TEST_F(RudpControlPacketTest, BEH_EncodeDecode) {
+  TestEncodeDecode();
 }
 
 }  // namespace test

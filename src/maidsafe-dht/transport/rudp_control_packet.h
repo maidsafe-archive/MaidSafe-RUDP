@@ -37,6 +37,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 namespace transport {
+  
+namespace test {
+class RudpControlPacketTest;
+}  // namespace test
 
 class RudpControlPacket : public RudpPacket {
  public:
@@ -52,6 +56,7 @@ class RudpControlPacket : public RudpPacket {
   boost::uint32_t DestinationSocketId() const;
   void SetDestinationSocketId(boost::uint32_t n);
 
+  friend class test::RudpControlPacketTest;
  protected:
   void SetType(boost::uint16_t n);
 
