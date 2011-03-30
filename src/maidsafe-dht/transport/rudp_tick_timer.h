@@ -25,71 +25,56 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
 
-#include "boost/asio/error.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/rudp_sender.h"
-#include "maidsafe-dht/transport/rudp_session.h"
-#include "maidsafe-dht/transport/rudp_tick_timer.h"
+#include "boost/asio/deadline_timer.hpp"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to perform an asynchronous tick operation.
-template <typename TickHandler>
-class RudpTickOp {
+// Lightweight wrapper around a deadline_timer that avoids modifying the expiry
+// time if it would move it further away.
+class RudpTickTimer {
  public:
-  RudpTickOp(TickHandler handler, RudpTickTimer *tick_timer,
-             RudpSession *session, RudpSender *sender)
-    : handler_(handler),
-      tick_timer_(tick_timer),
-      session_(session),
-      sender_(sender) {
+  RudpTickTimer(boost::asio::io_service &asio_service)
+    : timer_(asio_service) {
+    Reset();
   }
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (session_->IsOpen()) {
-      tick_timer_->Reset();
-      if (session_->IsConnected()) {
-        sender_->HandleTick();
-      } else {
-        session_->HandleTick();
-      }
-    } else {
-      ec = boost::asio::error::operation_aborted;
-    }
-    handler_(ec);
+  static boost::posix_time::ptime Now() {
+    return boost::asio::deadline_timer::traits_type::now();
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpTickOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
+  void Cancel() {
+    timer_.cancel();
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpTickOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
+  void Reset() {
+    timer_.expires_at(boost::posix_time::pos_infin);
   }
 
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpTickOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
+  void TickAt(const boost::posix_time::ptime &time) {
+    if (time < timer_.expires_at())
+      timer_.expires_at(time);
+  }
+
+  void TickAfter(const boost::posix_time::time_duration &duration) {
+    TickAt(Now() + duration);
+  }
+
+  template <typename WaitHandler>
+  void AsyncWait(WaitHandler handler) {
+    timer_.async_wait(handler);
   }
 
  private:
-  TickHandler handler_;
-  RudpTickTimer *tick_timer_;
-  RudpSession *session_;
-  RudpSender *sender_;
+  boost::asio::deadline_timer timer_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_

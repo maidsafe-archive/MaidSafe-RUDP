@@ -61,9 +61,6 @@ class RudpDispatcher {
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
-  // Handle a tick by dispatching to all sockets.
-  void HandleTick();
-
  private:
   // Disallow copying and assignment.
   RudpDispatcher(const RudpDispatcher&);

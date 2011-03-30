@@ -44,10 +44,11 @@ namespace maidsafe {
 namespace transport {
 
 class RudpPeer;
+class RudpTickTimer;
 
 class RudpSender {
  public:
-  explicit RudpSender(RudpPeer &peer);
+  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer);
 
   // Get the sequence number that will be used for the next packet.
   boost::uint32_t GetNextPacketSequenceNumber() const;
@@ -66,7 +67,7 @@ class RudpSender {
   void HandleNegativeAck(const RudpNegativeAckPacket &packet);
 
   // Handle a tick in the system time.
-  void HandleTick(const boost::posix_time::time_duration &time_since_epoch);
+  void HandleTick();
 
  private:
   // Disallow copying and assignment.
@@ -86,6 +87,9 @@ class RudpSender {
   // The peer with which we are communicating.
   RudpPeer &peer_;
 
+  // The timer used to generate tick events.
+  RudpTickTimer &tick_timer_;
+
   // The buffer used to store application data that is waiting to be sent.
   std::deque<unsigned char> write_buffer_;
 
@@ -93,15 +97,12 @@ class RudpSender {
     UnackedPacket() : is_lost(false) {}
     RudpDataPacket packet;
     bool is_lost;
-    boost::posix_time::time_duration last_send_time;
+    boost::posix_time::ptime last_send_time;
   };
 
   // The sender's window of unacknowledged packets.
   typedef RudpSlidingWindow<UnackedPacket> UnackedPacketWindow;
   UnackedPacketWindow unacked_packets_;
-
-  // The time as of the last tick.
-  boost::posix_time::time_duration time_since_epoch_;
 };
 
 }  // namespace transport

@@ -31,14 +31,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
+
+namespace asio = boost::asio;
+namespace ip = asio::ip;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace transport {
 
-RudpSession::RudpSession(RudpPeer &peer)
+RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)
   : peer_(peer),
+    tick_timer_(tick_timer),
     id_(0),
+    sequence_number_(0),
     mode_(kClient),
     connected_(false) {
 }
@@ -48,22 +55,9 @@ void RudpSession::Open(boost::uint32_t id,
                        Mode mode) {
   assert(id != 0);
   id_ = id;
+  sequence_number_ = sequence_number;
   mode_ = mode;
-
-  RudpHandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sequence_number);
-  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(1); // Not used in this implementation.
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(mode == kClient ? 1 : 0xffffffff);
-  if (mode == kServer)
-    packet.SetSynCookie(0); // TODO calculate cookie
-
-  peer_.Send(packet);
+  SendFirstPacket();
 }
 
 bool RudpSession::IsOpen() const {
@@ -95,6 +89,34 @@ void RudpSession::HandleHandshake(const RudpHandshakePacket &packet) {
       response_packet.SetConnectionType(0xffffffff);
       peer_.Send(response_packet);
     }
+  }
+}
+
+void RudpSession::HandleTick() {
+  if (mode_ == kClient)
+    if (!connected_)
+      SendFirstPacket();
+}
+
+void RudpSession::SendFirstPacket() {
+  RudpHandshakePacket packet;
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetInitialPacketSequenceNumber(sequence_number_);
+  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
+  packet.SetMaximumFlowWindowSize(64); // Not used in this implementation.
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(peer_.Id());
+  packet.SetConnectionType(mode_ == kClient ? 1 : 0xffffffff);
+  if (mode_ == kServer)
+    packet.SetSynCookie(0); // TODO calculate cookie
+
+  peer_.Send(packet);
+
+  if (mode_ == kClient) {
+    // Schedule another connection attempt.
+    tick_timer_.TickAfter(bptime::milliseconds(500));
   }
 }
 

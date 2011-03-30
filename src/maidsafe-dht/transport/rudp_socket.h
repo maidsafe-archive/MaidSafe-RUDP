@@ -48,10 +48,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
+#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
 #include "maidsafe-dht/transport/rudp_sender.h"
 #include "maidsafe-dht/transport/rudp_session.h"
+#include "maidsafe-dht/transport/rudp_tick_op.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
 #include "maidsafe-dht/transport/rudp_write_op.h"
 
 namespace maidsafe {
@@ -81,7 +84,18 @@ class RudpSocket {
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 
-  // Initiate an asynchronous connect operation for the client side.
+  // Asynchronously process one "tick". The internal tick size varies based on
+  // the next time-based event that is of interest to the socket.
+  template <typename TickHandler>
+  void AsyncTick(TickHandler handler) {
+    RudpTickOp<TickHandler> op(handler, &tick_timer_, &session_, &sender_);
+    tick_timer_.AsyncWait(op);
+  }
+
+  // Initiate an asynchronous connect operation for the client side. Note that
+  // the socket will continue to make connection attempts indefinitely. It is
+  // up to the caller to set a timeout and close the socket after the timeout
+  // period expires.
   template <typename ConnectHandler>
   void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
                     ConnectHandler handler) {
@@ -151,11 +165,19 @@ class RudpSocket {
   // Called to process a newly received acknowledgement packet.
   void HandleAck(const RudpAckPacket &packet);
 
+  // Called to process a newly received negative acknowledgement packet.
+  void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;
 
   // The remote peer with which we are communicating.
   RudpPeer peer_;
+
+  // This class requires a single outstanding tick operation at all times. The
+  // following timer stores the pending tick operation, with the timer set to
+  // expire at the time of the next interesting time-based event.
+  RudpTickTimer tick_timer_;
 
   // The session state associated with the connection.
   RudpSession session_;

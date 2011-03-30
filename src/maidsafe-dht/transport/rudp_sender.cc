@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 
 #include "maidsafe-dht/transport/rudp_peer.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
@@ -41,10 +42,10 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpSender::RudpSender(RudpPeer &peer)
+RudpSender::RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer)
   : peer_(peer),
-    unacked_packets_(GenerateSequenceNumber()),
-    time_since_epoch_(GetDurationSinceEpoch()) {
+    tick_timer_(tick_timer),
+    unacked_packets_(GenerateSequenceNumber()) {
 }
 
 boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
@@ -82,8 +83,7 @@ void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
   }
 }
 
-void RudpSender::HandleTick(const bptime::time_duration &time_since_epoch) {
-  time_since_epoch_ = time_since_epoch;
+void RudpSender::HandleTick() {
 }
 
 boost::uint32_t RudpSender::GenerateSequenceNumber() {
@@ -101,7 +101,7 @@ void RudpSender::DoSend() {
     UnackedPacket &p = unacked_packets_[n];
     if (p.is_lost) {
       p.is_lost = false;
-      p.last_send_time = time_since_epoch_;
+      p.last_send_time = tick_timer_.Now();
       peer_.Send(p.packet);
     }
   }
@@ -122,7 +122,7 @@ void RudpSender::DoSend() {
     p.packet.SetData(write_buffer_.begin(), write_buffer_.begin() + length);
     write_buffer_.erase(write_buffer_.begin(), write_buffer_.begin() + length);
     p.is_lost = false;
-    p.last_send_time = time_since_epoch_;
+    p.last_send_time = tick_timer_.Now();
     peer_.Send(p.packet);
   }
 }

@@ -47,8 +47,9 @@ namespace transport {
 RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
   : dispatcher_(multiplexer.dispatcher_),
     peer_(multiplexer),
-    session_(peer_),
-    sender_(peer_),
+    tick_timer_(multiplexer.socket_.get_io_service()),
+    session_(peer_, tick_timer_),
+    sender_(peer_, tick_timer_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -90,6 +91,7 @@ void RudpSocket::Close() {
   session_.Close();
   peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
+  tick_timer_.Cancel();
   waiting_connect_ec_ = asio::error::operation_aborted;
   waiting_connect_.cancel();
   waiting_write_ec_ = asio::error::operation_aborted;
@@ -205,11 +207,14 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
   RudpDataPacket data_packet;
   RudpAckPacket ack_packet;
+  RudpNegativeAckPacket negative_ack_packet;
   RudpHandshakePacket handshake_packet;
   if (data_packet.Decode(data)) {
     HandleData(data_packet);
   } else if (ack_packet.Decode(data)) {
     HandleAck(ack_packet);
+  } else if (negative_ack_packet.Decode(data)) {
+    HandleNegativeAck(negative_ack_packet);
   } else if (handshake_packet.Decode(data)) {
     HandleHandshake(handshake_packet);
   } else {
@@ -243,6 +248,12 @@ void RudpSocket::HandleData(const RudpDataPacket &packet) {
 void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
+  }
+}
+
+void RudpSocket::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
+  if (session_.IsConnected()) {
+    sender_.HandleNegativeAck(packet);
   }
 }
 

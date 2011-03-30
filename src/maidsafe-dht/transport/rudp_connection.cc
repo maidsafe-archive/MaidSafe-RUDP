@@ -89,6 +89,7 @@ void RudpConnection::StartReceiving() {
 }
 
 void RudpConnection::DoStartReceiving() {
+  StartTick();
   StartServerConnect();
   CheckTimeout();
 }
@@ -102,6 +103,7 @@ void RudpConnection::StartSending(const std::string &data,
 }
 
 void RudpConnection::DoStartSending() {
+  StartTick();
   StartClientConnect();
   CheckTimeout();
 }
@@ -118,6 +120,19 @@ void RudpConnection::CheckTimeout() {
     // Timeout not yet reached. Go back to sleep.
     timer_.async_wait(strand_.wrap(std::bind(&RudpConnection::CheckTimeout,
                                              shared_from_this())));
+  }
+}
+
+void RudpConnection::StartTick() {
+  auto handler = strand_.wrap(std::bind(&RudpConnection::HandleTick,
+                                        shared_from_this()));
+  socket_.AsyncTick(handler);
+}
+
+void RudpConnection::HandleTick() {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (socket_.IsOpen()) {
+    StartTick();
   }
 }
 

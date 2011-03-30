@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
 
 #include "boost/cstdint.hpp"
+#include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 
 namespace maidsafe {
@@ -36,10 +37,11 @@ namespace maidsafe {
 namespace transport {
 
 class RudpPeer;
+class RudpTickTimer;
 
 class RudpSession {
  public:
-  explicit RudpSession(RudpPeer &peer);
+  explicit RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer);
 
   // Open the session as a client or server.
   enum Mode { kClient, kServer };
@@ -60,22 +62,37 @@ class RudpSession {
   // Handle a handshake packet.
   void HandleHandshake(const RudpHandshakePacket &packet);
 
+  // Handle a tick in the system time.
+  void HandleTick();
+
  private:
   // Disallow copying and assignment.
   RudpSession(const RudpSession&);
   RudpSession &operator=(const RudpSession&);
 
+  // Send the initial packet that kicks off connection establishment.
+  void SendFirstPacket();
+
   // The peer with which we are communicating.
   RudpPeer &peer_;
 
+  // The timer used to generate tick events.
+  RudpTickTimer &tick_timer_;
+
   // The local socket id.
   boost::uint32_t id_;
+
+  // The initial sequence number for the session.
+  boost::uint32_t sequence_number_;
 
   // Are we a client or a server?
   Mode mode_;
 
   // Whether the connection been fully established.
   bool connected_;
+
+  // The time to next attempt to establish a connection.
+  boost::posix_time::ptime time_of_next_attempt_;
 };
 
 }  // namespace transport

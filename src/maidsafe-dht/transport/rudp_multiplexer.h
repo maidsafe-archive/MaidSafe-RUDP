@@ -31,14 +31,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>  // NOLINT
 #include <vector>
 
-#include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_dispatch_op.h"
 #include "maidsafe-dht/transport/rudp_dispatcher.h"
 #include "maidsafe-dht/transport/rudp_packet.h"
-#include "maidsafe-dht/transport/rudp_tick_op.h"
 
 namespace maidsafe {
 
@@ -71,14 +69,6 @@ class RudpMultiplexer {
                                sender_endpoint_, 0, op);
   }
 
-  // Asynchronously process one "tick", typically 10ms.
-  template <typename TickHandler>
-  void AsyncTick(TickHandler handler) {
-    RudpTickOp<TickHandler> op(handler, &dispatcher_);
-    tick_timer_.expires_from_now(boost::posix_time::milliseconds(10));
-    tick_timer_.async_wait(op);
-  }
-
   // Called by the acceptor or socket objects to send a packet. Returns true if
   // the data was sent successfully, false otherwise.
   template <typename Packet>
@@ -104,9 +94,6 @@ class RudpMultiplexer {
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;
-
-  // Timer used to process ticks.
-  boost::asio::deadline_timer tick_timer_;
 
   // Data members used to receive information about incoming packets.
   std::vector<unsigned char> receive_buffer_;
