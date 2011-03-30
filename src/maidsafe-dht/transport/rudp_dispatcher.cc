@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -93,9 +94,6 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       }
     }
   }
-}
-
-void RudpDispatcher::HandleTick() {
 }
 
 }  // namespace transport

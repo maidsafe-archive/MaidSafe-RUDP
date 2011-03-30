@@ -1,4 +1,4 @@
-/* Copyright (c) 2011 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,55 +25,48 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
-#include "maidsafe/common/log.h"
-#include "maidsafe-dht/transport/rudp_packet_window.h"
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
+
+#include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
+#include "maidsafe-dht/transport/rudp_multiplexer.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-namespace test {
+class RudpPeer {
+ public:
+  explicit RudpPeer(RudpMultiplexer &multiplexer)
+    : multiplexer_(multiplexer), id_(0) {}
 
-static const size_t kTestPacketCount = 100000;
+  const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
+  void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }
 
-static void TestWindowRange(boost::uint32_t first_sequence_number) {
-  RudpPacketWindow window(first_sequence_number);
+  boost::uint32_t Id() const { return id_; }
+  void SetId(boost::uint32_t id) { id_ = id; }
 
-  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
-    boost::uint32_t n = window.Append();
-    window.Packet(n).SetPacketSequenceNumber(n);
+  template <typename Packet>
+  TransportCondition Send(const Packet &packet) {
+    return multiplexer_.SendTo(packet, endpoint_);
   }
 
-  for (int i = 0; i < kTestPacketCount; ++i) {
-    ASSERT_EQ(window.Begin(),
-              window.Packet(window.Begin()).PacketSequenceNumber());
-    window.Remove();
-    boost::uint32_t n = window.Append();
-    window.Packet(n).SetPacketSequenceNumber(n);
-  }
+ private:
+  // Disallow copying and assignment.
+  RudpPeer(const RudpPeer&);
+  RudpPeer &operator=(const RudpPeer&);
 
-  for (int i = 0; i < RudpPacketWindow::kMaxWindowSize; ++i) {
-    ASSERT_EQ(window.Begin(),
-              window.Packet(window.Begin()).PacketSequenceNumber());
-    window.Remove();
-  }
-}
+  // The multiplexer used to send and receive UDP packets.
+  RudpMultiplexer &multiplexer_;
 
-TEST(RudpPacketWindowTest, BEH_FromZero) {
-  TestWindowRange(0);
-}
-
-TEST(RudpPacketWindowTest, BEH_FromN) {
-  TestWindowRange(123456);
-}
-
-TEST(RudpPacketWindowTest, BEH_Wraparound) {
-  TestWindowRange(RudpPacketWindow::kMaxSequenceNumber - kTestPacketCount / 2);
-}
-
-}  // namespace test
+  // The remote socket's endpoint and identifier.
+  boost::asio::ip::udp::endpoint endpoint_;
+  boost::uint32_t id_;
+};
 
 }  // namespace transport
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_

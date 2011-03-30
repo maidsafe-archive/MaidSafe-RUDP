@@ -25,58 +25,38 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
 
-#include "boost/asio/handler_alloc_hook.hpp"
-#include "boost/asio/handler_invoke_hook.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rudp_socket.h"
+#include <vector>
+
+#include "boost/asio/buffer.hpp"
+#include "maidsafe-dht/transport/rudp_control_packet.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class RudpAcceptOp {
+class RudpNegativeAckPacket : public RudpControlPacket {
  public:
-  RudpAcceptOp(AcceptHandler handler, RudpSocket &socket)
-    : handler_(handler),
-      socket_(socket) {
-  }
+  enum { kPacketType = 3 };
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.RemoteId() == 0)
-      ec = boost::asio::error::operation_aborted;
-    handler_(ec);
-  }
+  RudpNegativeAckPacket();
 
-  friend void *asio_handler_allocate(size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
-  }
+  void AddSequenceNumber(boost::uint32_t n);
+  void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
+  bool ContainsSequenceNumber(boost::uint32_t n) const;
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
-  }
-
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
-  }
+  static bool IsValid(const boost::asio::const_buffer &buffer);
+  bool Decode(const boost::asio::const_buffer &buffer);
+  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 
  private:
-  AcceptHandler handler_;
-  RudpSocket &socket_;
+  std::vector<boost::uint32_t> sequence_numbers_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_

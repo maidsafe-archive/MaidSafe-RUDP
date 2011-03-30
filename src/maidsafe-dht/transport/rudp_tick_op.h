@@ -28,28 +28,40 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
 
+#include "boost/asio/error.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rudp_dispatcher.h"
+#include "maidsafe-dht/transport/rudp_sender.h"
+#include "maidsafe-dht/transport/rudp_session.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to perform an asynchronous dispatch operation.
+// Helper class to perform an asynchronous tick operation.
 template <typename TickHandler>
 class RudpTickOp {
  public:
-  RudpTickOp(TickHandler handler, RudpDispatcher *dispatcher)
+  RudpTickOp(TickHandler handler, RudpTickTimer *tick_timer,
+             RudpSession *session, RudpSender *sender)
     : handler_(handler),
-      dispatcher_(dispatcher) {
+      tick_timer_(tick_timer),
+      session_(session),
+      sender_(sender) {
   }
 
-  void operator()(const boost::system::error_code &ec) {
-    if (!ec) {
-      dispatcher_->HandleTick();
+  void operator()(boost::system::error_code) {
+    boost::system::error_code ec;
+    if (session_->IsOpen()) {
+      tick_timer_->Reset();
+      if (session_->IsConnected()) {
+        sender_->HandleTick();
+      } else {
+        session_->HandleTick();
+      }
+    } else {
+      ec = boost::asio::error::operation_aborted;
     }
-
     handler_(ec);
   }
 
@@ -71,7 +83,9 @@ class RudpTickOp {
 
  private:
   TickHandler handler_;
-  RudpDispatcher *dispatcher_;
+  RudpTickTimer *tick_timer_;
+  RudpSession *session_;
+  RudpSender *sender_;
 };
 
 }  // namespace transport

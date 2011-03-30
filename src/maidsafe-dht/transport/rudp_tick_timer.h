@@ -25,14 +25,16 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_packet_window.h"
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
 
-#include <cassert>
+#include "boost/asio/deadline_timer.hpp"
 
 namespace maidsafe {
 
 namespace transport {
 
+<<<<<<< HEAD:src/maidsafe-dht/transport/rudp_packet_window.cc
 RudpPacketWindow::RudpPacketWindow(boost::uint32_t initial_sequence_number)
   : begin_(initial_sequence_number),
     end_(initial_sequence_number) {
@@ -89,7 +91,49 @@ RudpDataPacket &RudpPacketWindow::Packet(boost::uint32_t n) {
 boost::uint32_t RudpPacketWindow::Next(boost::uint32_t n) {
   return (n == kMaxSequenceNumber) ? 0 : n + 1;
 }
+=======
+// Lightweight wrapper around a deadline_timer that avoids modifying the expiry
+// time if it would move it further away.
+class RudpTickTimer {
+ public:
+  RudpTickTimer(boost::asio::io_service &asio_service)
+    : timer_(asio_service) {
+    Reset();
+  }
+
+  static boost::posix_time::ptime Now() {
+    return boost::asio::deadline_timer::traits_type::now();
+  }
+
+  void Cancel() {
+    timer_.cancel();
+  }
+
+  void Reset() {
+    timer_.expires_at(boost::posix_time::pos_infin);
+  }
+
+  void TickAt(const boost::posix_time::ptime &time) {
+    if (time < timer_.expires_at())
+      timer_.expires_at(time);
+  }
+
+  void TickAfter(const boost::posix_time::time_duration &duration) {
+    TickAt(Now() + duration);
+  }
+
+  template <typename WaitHandler>
+  void AsyncWait(WaitHandler handler) {
+    timer_.async_wait(handler);
+  }
+
+ private:
+  boost::asio::deadline_timer timer_;
+};
+>>>>>>> reliable_udp_transport:src/maidsafe-dht/transport/rudp_tick_timer.h
 
 }  // namespace transport
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_

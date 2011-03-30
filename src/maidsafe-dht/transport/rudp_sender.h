@@ -36,21 +36,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_packet_window.h"
+#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_sliding_window.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpMultiplexer;
+class RudpPeer;
+class RudpTickTimer;
 
 class RudpSender {
  public:
-  explicit RudpSender(RudpMultiplexer &multiplexer);
-
-  // Set the details of the remote peer.
-  void SetPeer(boost::asio::ip::udp::endpoint remote_endpoint,
-               boost::uint32_t remote_id);
+  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer);
 
   // Get the sequence number that will be used for the next packet.
   boost::uint32_t GetNextPacketSequenceNumber() const;
@@ -66,10 +64,10 @@ class RudpSender {
   void HandleAck(const RudpAckPacket &packet);
 
   // Handle an negative acknowlegement packet.
-  //void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+  void HandleNegativeAck(const RudpNegativeAckPacket &packet);
 
   // Handle a tick in the system time.
-  //void HandleTick(const boost::posix_time::time_duration &time_since_epoch);
+  void HandleTick();
 
  private:
   // Disallow copying and assignment.
@@ -86,21 +84,25 @@ class RudpSender {
   // Send waiting packets.
   void DoSend();
 
-  // The multiplexer used to send and receive UDP packets.
-  RudpMultiplexer &multiplexer_;
+  // The peer with which we are communicating.
+  RudpPeer &peer_;
 
-  // The remote socket's endpoint and identifier.
-  boost::asio::ip::udp::endpoint remote_endpoint_;
-  boost::uint32_t remote_id_;
+  // The timer used to generate tick events.
+  RudpTickTimer &tick_timer_;
 
   // The buffer used to store application data that is waiting to be sent.
   std::deque<unsigned char> write_buffer_;
 
-  // The sender's window of unacknowledged packets.
-  RudpPacketWindow unacked_packets_;
+  struct UnackedPacket {
+    UnackedPacket() : is_lost(false) {}
+    RudpDataPacket packet;
+    bool is_lost;
+    boost::posix_time::ptime last_send_time;
+  };
 
-  // List of packets known to be lost due to NAK or timeout.
-  std::deque<boost::uint32_t> loss_list_;
+  // The sender's window of unacknowledged packets.
+  typedef RudpSlidingWindow<UnackedPacket> UnackedPacketWindow;
+  UnackedPacketWindow unacked_packets_;
 };
 
 }  // namespace transport

@@ -25,57 +25,78 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
 
-#include <unordered_map>
-#include "boost/asio/buffer.hpp"
-#include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
-#include "maidsafe-dht/transport/transport.h"
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "maidsafe-dht/transport/rudp_handshake_packet.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpAcceptor;
-class RudpSocket;
+class RudpPeer;
+class RudpTickTimer;
 
-class RudpDispatcher {
+class RudpSession {
  public:
-  RudpDispatcher();
+  explicit RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer);
 
-  // Get the one-and-only acceptor.
-  RudpAcceptor *GetAcceptor() const;
+  // Open the session as a client or server.
+  enum Mode { kClient, kServer };
+  void Open(boost::uint32_t id, boost::uint32_t sequence_number, Mode mode);
 
-  // Set the one-and-only acceptor.
-  void SetAcceptor(RudpAcceptor *acceptor);
+  // Get whether the session is already open. May not be connected.
+  bool IsOpen() const;
 
-  // Add a socket. Returns a new unique id for the socket.
-  boost::uint32_t AddSocket(RudpSocket *socket);
+  // Get whether the session is currently connected to the peer.
+  bool IsConnected() const;
 
-  // Remove the socket corresponding to the given id.
-  void RemoveSocket(boost::uint32_t id);
+  // Get the id assigned to the session.
+  boost::uint32_t Id() const;
 
-  // Handle a new packet by dispatching to the appropriate socket or acceptor.
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &endpoint);
+  // Close the session. Clears the id.
+  void Close();
+
+  // Handle a handshake packet.
+  void HandleHandshake(const RudpHandshakePacket &packet);
+
+  // Handle a tick in the system time.
+  void HandleTick();
 
  private:
   // Disallow copying and assignment.
-  RudpDispatcher(const RudpDispatcher&);
-  RudpDispatcher &operator=(const RudpDispatcher&);
+  RudpSession(const RudpSession&);
+  RudpSession &operator=(const RudpSession&);
 
-  // The one-and-only acceptor.
-  RudpAcceptor* acceptor_;
+  // Send the initial packet that kicks off connection establishment.
+  void SendFirstPacket();
 
-  // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t, RudpSocket*> SocketMap;
-  SocketMap sockets_;
+  // The peer with which we are communicating.
+  RudpPeer &peer_;
+
+  // The timer used to generate tick events.
+  RudpTickTimer &tick_timer_;
+
+  // The local socket id.
+  boost::uint32_t id_;
+
+  // The initial sequence number for the session.
+  boost::uint32_t sequence_number_;
+
+  // Are we a client or a server?
+  Mode mode_;
+
+  // Whether the connection been fully established.
+  bool connected_;
+
+  // The time to next attempt to establish a connection.
+  boost::posix_time::ptime time_of_next_attempt_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_

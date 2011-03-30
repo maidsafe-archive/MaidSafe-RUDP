@@ -77,6 +77,9 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
   void CheckTimeout();
 
+  void StartTick();
+  void HandleTick();
+
   void StartServerConnect();
   void HandleServerConnect(const boost::system::error_code &ec);
 

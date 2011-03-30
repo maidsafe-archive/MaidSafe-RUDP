@@ -27,28 +27,25 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/rudp_sender.h"
 
+#include <algorithm>
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_multiplexer.h"
+#include "maidsafe-dht/transport/rudp_peer.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace transport {
 
-RudpSender::RudpSender(RudpMultiplexer &multiplexer)
-  : multiplexer_(multiplexer),
-    remote_id_(0),
+RudpSender::RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer)
+  : peer_(peer),
+    tick_timer_(tick_timer),
     unacked_packets_(GenerateSequenceNumber()) {
-}
-
-void RudpSender::SetPeer(boost::asio::ip::udp::endpoint remote_endpoint,
-                         boost::uint32_t remote_id) {
-  remote_endpoint_ = remote_endpoint;
-  remote_id_ = remote_id;
 }
 
 boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
@@ -76,9 +73,18 @@ void RudpSender::HandleAck(const RudpAckPacket &packet) {
   }
 }
 
-//void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
+  for (boost::uint32_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End();
+       n = unacked_packets_.Next(n)) {
+    if (packet.ContainsSequenceNumber(n)) {
+      unacked_packets_[n].is_lost = true;
+    }
+  }
+}
 
-//void HandleTick(const boost::posix_time::time_duration &time_since_epoch);
+void RudpSender::HandleTick() {
+}
 
 boost::uint32_t RudpSender::GenerateSequenceNumber() {
   boost::uint32_t seqnum = 0;
@@ -88,31 +94,36 @@ boost::uint32_t RudpSender::GenerateSequenceNumber() {
 }
 
 void RudpSender::DoSend() {
-  // If the sender's loss list is not empty, retransmit the first packet in
-  // the list and remove it from the loss list.
-  if (!loss_list_.empty()) {
-    boost::uint32_t seqnum = loss_list_.front();
-    if (unacked_packets_.Contains(seqnum))
-      multiplexer_.SendTo(unacked_packets_.Packet(seqnum), remote_endpoint_);
-    loss_list_.pop_front();
+  // Retransmit lost packets.
+  for (boost::uint32_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End();
+       n = unacked_packets_.Next(n)) {
+    UnackedPacket &p = unacked_packets_[n];
+    if (p.is_lost) {
+      p.is_lost = false;
+      p.last_send_time = tick_timer_.Now();
+      peer_.Send(p.packet);
+    }
   }
 
-  // Otherwise, if we have some waiting application data, and the number of
-  // unacknowledged packets is less than the window size, create a new packet
-  // and send it.
-  else if (!write_buffer_.empty() && !unacked_packets_.IsFull()) {
-    boost::uint32_t seqnum = unacked_packets_.Append();
-    RudpDataPacket &packet = unacked_packets_.Packet(seqnum);
-    packet.SetPacketSequenceNumber(seqnum);
-    packet.SetFirstPacketInMessage(true);
-    packet.SetLastPacketInMessage(true);
-    packet.SetInOrder(true);
-    packet.SetMessageNumber(0);
-    packet.SetTimeStamp(0);
-    packet.SetDestinationSocketId(remote_id_);
-    size_t data_size = std::min<size_t>(kMaxDataSize, write_buffer_.size());
-    packet.SetData(write_buffer_.begin(), write_buffer_.begin() + data_size);
-    multiplexer_.SendTo(packet, remote_endpoint_);
+  // If we have some waiting application data, create new packets until the
+  // sender's window is full.
+  while (!write_buffer_.empty() && !unacked_packets_.IsFull()) {
+    boost::uint32_t n = unacked_packets_.Append();
+    UnackedPacket &p = unacked_packets_[n];
+    p.packet.SetPacketSequenceNumber(n);
+    p.packet.SetFirstPacketInMessage(true);
+    p.packet.SetLastPacketInMessage(true);
+    p.packet.SetInOrder(true);
+    p.packet.SetMessageNumber(0);
+    p.packet.SetTimeStamp(0);
+    p.packet.SetDestinationSocketId(peer_.Id());
+    size_t length = std::min<size_t>(kMaxDataSize, write_buffer_.size());
+    p.packet.SetData(write_buffer_.begin(), write_buffer_.begin() + length);
+    write_buffer_.erase(write_buffer_.begin(), write_buffer_.begin() + length);
+    p.is_lost = false;
+    p.last_send_time = tick_timer_.Now();
+    peer_.Send(p.packet);
   }
 }
 

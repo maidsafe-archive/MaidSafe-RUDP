@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,58 +25,54 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
-
-#include "boost/asio/handler_alloc_hook.hpp"
-#include "boost/asio/handler_invoke_hook.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rudp_socket.h"
+#include "gtest/gtest.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe-dht/transport/rudp_sliding_window.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt an accept handler into a waiting operation.
-template <typename AcceptHandler>
-class RudpAcceptOp {
- public:
-  RudpAcceptOp(AcceptHandler handler, RudpSocket &socket)
-    : handler_(handler),
-      socket_(socket) {
+namespace test {
+
+static const size_t kTestPacketCount = 100000;
+
+static void TestWindowRange(boost::uint32_t first_sequence_number) {
+  RudpSlidingWindow<boost::uint32_t> window(first_sequence_number);
+
+  for (int i = 0; i < RudpSlidingWindow<boost::uint32_t>::kMaxWindowSize; ++i) {
+    boost::uint32_t n = window.Append();
+    window[n] = n;
   }
 
-  void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (socket_.RemoteId() == 0)
-      ec = boost::asio::error::operation_aborted;
-    handler_(ec);
+  for (int i = 0; i < kTestPacketCount; ++i) {
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
+    window.Remove();
+    boost::uint32_t n = window.Append();
+    window[n] = n;
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
+  for (int i = 0; i < RudpSlidingWindow<boost::uint32_t>::kMaxWindowSize; ++i) {
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
+    window.Remove();
   }
+}
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
-  }
+TEST(RudpSlidingWindowTest, BEH_FromZero) {
+  TestWindowRange(0);
+}
 
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpAcceptOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
-  }
+TEST(RudpSlidingWindowTest, BEH_FromN) {
+  TestWindowRange(123456);
+}
 
- private:
-  AcceptHandler handler_;
-  RudpSocket &socket_;
-};
+TEST(RudpSlidingWindowTest, BEH_Wraparound) {
+  TestWindowRange(RudpSlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
+                  kTestPacketCount / 2);
+}
+
+}  // namespace test
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_

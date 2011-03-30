@@ -298,7 +298,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_packet_window.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_sliding_window.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
@@ -318,10 +318,11 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_handshake_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_keepalive_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_multiplexer.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_negative_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_packet.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_packet_window.cc"
-                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_shutdown_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_sender.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_session.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_shutdown_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_socket.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_transport.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc"
