@@ -58,6 +58,12 @@ TransportCondition RudpMultiplexer::Open(const ip::udp &protocol) {
   if (ec)
     return kInvalidAddress;
 
+  ip::udp::socket::non_blocking_io nbio(true);
+  socket_.io_control(nbio, ec);
+
+  if (ec)
+    return kSetOptionFailure;
+
   return kSuccess;
 }
 
@@ -73,6 +79,12 @@ TransportCondition RudpMultiplexer::Open(const ip::udp::endpoint &endpoint) {
 
   if (ec)
     return kInvalidAddress;
+
+  ip::udp::socket::non_blocking_io nbio(true);
+  socket_.io_control(nbio, ec);
+
+  if (ec)
+    return kSetOptionFailure;
 
   socket_.bind(endpoint, ec);
 

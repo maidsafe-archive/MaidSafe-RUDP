@@ -72,7 +72,7 @@ void RudpDispatcher::RemoveSocket(boost::uint32_t id) {
 }
 
 void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
-                                      const ip::udp::endpoint &endpoint) {
+                                       const ip::udp::endpoint &endpoint) {
   boost::uint32_t id = 0;
   if (RudpPacket::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
