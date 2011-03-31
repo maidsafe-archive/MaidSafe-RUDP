@@ -194,8 +194,8 @@ void Service::Store(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-
-  if (message_signature.empty() || message.empty() || !securifier_) {
+  if (!securifier_ || message.empty() ||
+      (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
@@ -243,14 +243,14 @@ void Service::StoreRefresh(const transport::Info &info,
                                               _4, _5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
-                            request.sender().public_key_id(), store_refresh_cb,
-                            is_new_id)) {
+                            ori_store_request.sender().public_key_id(),
+                            store_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
-      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
-                                             cb);
+                      ori_store_request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(
+          ori_store_request.sender().public_key_id(), cb);
     }
     response->set_result(true);
   }
@@ -320,7 +320,8 @@ void Service::Delete(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_ || !securifier_)
     return;
-  if (message_signature.empty() || message.empty() || !securifier_) {
+  if (!securifier_ || message.empty() ||
+      (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     DLOG(WARNING) << "Delete Input Error" << std::endl;
     return;
   }
@@ -379,14 +380,14 @@ void Service::DeleteRefresh(const transport::Info &info,
                                                _5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
-                            request.sender().public_key_id(), delete_refresh_cb,
-                            is_new_id)) {
+                            ori_delete_request.sender().public_key_id(),
+                            delete_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
-      securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
-                                             cb);
+                      ori_delete_request.sender().public_key_id(), _1, _2);
+      securifier_->GetPublicKeyAndValidation(
+          ori_delete_request.sender().public_key_id(), cb);
     }
     response->set_result(true);
   }
@@ -414,6 +415,11 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                     std::string public_key_validation) {
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
+                            public_key)) {
+    DLOG(WARNING) << "Failed to validate request_signature";
+    return;
+  }
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
@@ -437,7 +443,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              public_key,
                              public_key_validation,
                              request.key() ) ) {
-    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+    DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
                   << " (is_refresh = " << is_refresh << " )"
                   << std::endl;
     return false;

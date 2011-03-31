@@ -66,7 +66,7 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
                       TaskCallback ops_callback, bool & is_new_id) {
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
       key_value_signature.signature.empty() || public_key_id.empty() ||
-      request_signature.first.empty() || request_signature.second.empty() ||
+      request_signature.first.empty() || /*request_signature.second.empty() ||*/
       ops_callback == NULL)
     return false;
   Task task(key_value_signature, info, request_signature, public_key_id,

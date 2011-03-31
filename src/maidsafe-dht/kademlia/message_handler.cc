@@ -178,7 +178,6 @@ void MessageHandler::ProcessSerialisedMessage(
     transport::Timeout* timeout) {
   message_response->clear();
   *timeout = transport::kImmediateTimeout;
-
   switch (message_type) {
     case kPingRequest: {
 //       if (security_type != kAsymmetricEncrypt)
@@ -241,8 +240,9 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRequest: {
-      if (  // (security_type != (kSign | kAsymmetricEncrypt)) ||
-          message_signature.empty())
+      if (message_signature.empty() &&
+          !securifier_->kSigningKeyId().empty())
+        // (security_type != (kSign | kAsymmetricEncrypt)) ||
         return;
       protobuf::StoreRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
@@ -280,12 +280,28 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRefreshRequest: {
+      if (message_signature.empty() &&
+          !securifier_->kSigningKeyId().empty())
+        return;
 //       if (security_type != kAsymmetricEncrypt)
 //         return;
       protobuf::StoreRefreshRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         std::string message =
-           boost::lexical_cast<std::string>(message_type) + payload;
+            boost::lexical_cast<std::string>(message_type) + payload;
+        std::string public_key_id, public_key, other_info;
+        if (request.sender().has_public_key_id())
+          public_key_id = request.sender().public_key_id();
+        if (request.sender().has_public_key())
+          public_key = request.sender().public_key();
+        if (request.sender().has_other_info())
+          other_info = request.sender().other_info();
+        securifier_->GetPublicKeyAndValidation(public_key_id, &public_key,
+                                               &other_info);
+        if (!securifier_->Validate(message, message_signature, public_key_id,
+                                   public_key, other_info,
+                                   request.sender().node_id()))
+          return;
         protobuf::StoreRefreshResponse response;
         (*on_store_refresh_request_)(info, request, &response, timeout);
         *message_response = WrapMessage(response,
@@ -302,8 +318,9 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRequest: {
-      if (  // (security_type != (kSign | kAsymmetricEncrypt)) ||
-          message_signature.empty())
+      if (message_signature.empty() &&
+          !securifier_->kSigningKeyId().empty())
+          // (security_type != (kSign | kAsymmetricEncrypt)) ||
         return;
       protobuf::DeleteRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
@@ -341,12 +358,28 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRefreshRequest: {
+      if (message_signature.empty() &&
+          !securifier_->kSigningKeyId().empty())
+        return;
 //       if (security_type != kAsymmetricEncrypt)
 //         return;
       protobuf::DeleteRefreshRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         std::string message =
-           boost::lexical_cast<std::string>(message_type) + payload;
+            boost::lexical_cast<std::string>(message_type) + payload;
+        std::string public_key_id, public_key, other_info;
+        if (request.sender().has_public_key_id())
+          public_key_id = request.sender().public_key_id();
+        if (request.sender().has_public_key())
+          public_key = request.sender().public_key();
+        if (request.sender().has_other_info())
+          other_info = request.sender().other_info();
+        securifier_->GetPublicKeyAndValidation(public_key_id, &public_key,
+                                               &other_info);
+        if (!securifier_->Validate(message, message_signature, public_key_id,
+                                   public_key, other_info,
+                                   request.sender().node_id()))
+          return;
         protobuf::DeleteRefreshResponse response;
         (*on_delete_refresh_request_)(info, request, &response, timeout);
         *message_response = WrapMessage(response,

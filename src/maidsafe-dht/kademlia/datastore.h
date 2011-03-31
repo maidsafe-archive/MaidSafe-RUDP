@@ -51,6 +51,7 @@ namespace kademlia {
 namespace test {
   class DataStoreTest;
   class ServicesTest;
+  class RpcsTest;
 }
 
 struct KeyValueSignature {
@@ -189,6 +190,7 @@ class DataStore {
   bptime::seconds refresh_interval() const;
   friend class test::DataStoreTest;
   friend class test::ServicesTest;
+  friend class test::RpcsTest;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
