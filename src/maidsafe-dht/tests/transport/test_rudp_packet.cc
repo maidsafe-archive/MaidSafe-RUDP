@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_control_packet.h"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_handshake_packet.h"
 
 namespace maidsafe {
 
@@ -414,6 +415,85 @@ TEST_F(RudpAckPacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0x44444444, ack_packet_.AvailableBufferSize());
     EXPECT_EQ(0x88888888, ack_packet_.PacketsReceivingRate());
     EXPECT_EQ(0xffffffff, ack_packet_.EstimatedLinkCapacity());
+  }
+}
+
+class RudpHandshakePacketTest : public testing::Test {
+ public:
+  RudpHandshakePacketTest() : handshake_packet_() {}
+
+ protected:
+  RudpHandshakePacket handshake_packet_;
+};
+
+TEST_F(RudpHandshakePacketTest, FUNC_IsValid) {
+  {
+    // Buffer length wrong
+    char d[RudpHandshakePacket::kPacketSize + 10];
+    EXPECT_FALSE(handshake_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  char d[RudpHandshakePacket::kPacketSize];
+  {
+    // Packet type wrong
+    d[0] = 0x80;
+    EXPECT_FALSE(handshake_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  {
+    // Everything is fine
+    d[0] = 0x80;
+    d[1] = RudpHandshakePacket::kPacketType;
+    EXPECT_TRUE(handshake_packet_.IsValid(boost::asio::buffer(d)));
+  }
+}
+
+TEST_F(RudpHandshakePacketTest, BEH_EncodeDecode) {
+  {
+    // Pass in a buffer having the length less than required
+    char dbuffer[RudpHandshakePacket::kPacketSize - 1];
+    EXPECT_EQ(0U, handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
+  }
+  {
+    // Encode and Decode a Handshake Packet
+    handshake_packet_.SetRudpVersion(0x11111111);
+    handshake_packet_.SetSocketType(0x22222222);
+    handshake_packet_.SetInitialPacketSequenceNumber(0x44444444);
+    handshake_packet_.SetMaximumPacketSize(0x88888888);
+    handshake_packet_.SetMaximumFlowWindowSize(0xffffffff);
+    handshake_packet_.SetConnectionType(0xdddddddd);
+    handshake_packet_.SetSocketId(0xbbbbbbbb);
+    handshake_packet_.SetSynCookie(0xaaaaaaaa);
+    handshake_packet_.SetIpAddress(
+        boost::asio::ip::address::from_string(
+            "2001:db8:85a3:8d3:1319:8a2e:370:7348"));
+
+    char char_array[RudpHandshakePacket::kPacketSize];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+    handshake_packet_.Encode(boost::asio::buffer(dbuffer));
+
+    handshake_packet_.SetRudpVersion(0);
+    handshake_packet_.SetSocketType(0);
+    handshake_packet_.SetInitialPacketSequenceNumber(0);
+    handshake_packet_.SetMaximumPacketSize(0);
+    handshake_packet_.SetMaximumFlowWindowSize(0);
+    handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetSocketId(0);
+    handshake_packet_.SetSynCookie(0);
+    handshake_packet_.SetIpAddress(
+        boost::asio::ip::address::from_string("123.234.231.134"));
+
+    handshake_packet_.Decode(dbuffer);
+
+    EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
+    EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
+    EXPECT_EQ(0x44444444, handshake_packet_.InitialPacketSequenceNumber());
+    EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
+    EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
+    EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
+    EXPECT_EQ(boost::asio::ip::address::from_string(
+                  "2001:db8:85a3:8d3:1319:8a2e:370:7348"),
+              handshake_packet_.IpAddress());
   }
 }
 
