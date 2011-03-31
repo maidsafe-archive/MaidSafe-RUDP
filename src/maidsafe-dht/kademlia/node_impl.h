@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/contact.h"
+#include "maidsafe-dht/kademlia/datastore.h"
 
 namespace maidsafe {
 
@@ -66,17 +67,22 @@ class Rpcs;
 namespace test {
 class NodeImplTest;
 class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
+class NodeImplTest_BEH_KAD_Join_Test;
+class NodeImplTest_BEH_KAD_DownlistClient_Test;
+class NodeImplTest_BEH_KAD_Getters_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
         ReportDownContactPtr;
+typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
 class Node::Impl {
  public:
   Impl(IoServicePtr asio_service,
        TransportPtr listening_transport,
+       MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
@@ -210,9 +216,14 @@ class Node::Impl {
   void EnablePingOldestContact();
   /** Setter. Will connect the validate_contact signal in routing table. */
   void EnableValidateContact();
+  bool refresh_thread_running() const;
+  bool downlist_thread_running() const;
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
+  friend class test::NodeImplTest_BEH_KAD_Join_Test;
+  friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
+  friend class test::NodeImplTest_BEH_KAD_Getters_Test;
 
  private:
   Impl(const Impl&);
@@ -227,6 +238,7 @@ class Node::Impl {
                           const std::vector<Contact> &cs,
                           const NodeId &node_id,
                           GetContactFunctor callback);
+
   /** Function to add acquired closest contacts into shared struct info, during
    *  the execution of iterative search.
    *  Used by: FindNodes, FindValue
@@ -258,6 +270,7 @@ class Node::Impl {
                                     const std::vector<Contact> &contacts,
                                     const Contact &alternative_store,
                                     std::shared_ptr<RpcArgs> fvrpc);
+
   /** Callback from the rpc->findnodes requests, during the FindNodes operation.
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->findnodes. Any negative
@@ -290,6 +303,7 @@ class Node::Impl {
                                 std::vector<Contact> *closest_contacts,
                                 bool *cur_iteration_done,
                                 bool *calledback);
+
   /** Function to be connected with the ping_oldest_contact signal in routing
    *  table. Will try to ping the report in oldest contact
    *  @param[in] oldest_contact The report in oldest_contact
@@ -298,6 +312,7 @@ class Node::Impl {
   void PingOldestContact(const Contact &oldest_contact,
                          const Contact &replacement_contact,
                          RankInfoPtr replacement_rank_info);
+
   /** Callback Function of the PingOldestContact
    *  Will try to replace the oldest with the new one if no response from the
    *  oldest
@@ -311,10 +326,12 @@ class Node::Impl {
                                  const int &result,
                                  Contact replacement_contact,
                                  RankInfoPtr replacement_rank_info);
+
   /** Function to be connected with the validate_contact signal in routing
    *  table. Will try to validate the contact
    *  @param[in] contact The contact needs to be validated */
   void ValidateContact(const Contact &contact);
+
   /** Callback Functionof the ValidateContact
    *  @param[in] contact The contact needs to be validated
    *  @param[in] public_key The public_key of the contact
@@ -322,10 +339,12 @@ class Node::Impl {
   void ValidateContactCallback(Contact contact,
                                std::string public_key,
                                std::string public_key_validation);
+
   /** Function to be connected with the ping_downlist_contact signal in service.
    *  Will try to ping the report in down contact.
    *  @param[in] contact The report in down_contact */
   void PingDownlistContact(const Contact &contact);
+
   /** Callback Function of the PingDownlistContact
    *  Will increase the RpcFailure of the contact by one if got no response
    *  @param[in] contact The report in down_contact
@@ -419,22 +438,38 @@ class Node::Impl {
    *  the downlist */
   void MonitoringDownlistThread();
 
+  bool SortByDistance(Contact contact_1, Contact contact_2);
+  void JoinFindNodesCallback(const int &result,
+                             const std::vector<Contact> &contacts,
+                             std::vector<Contact> bootstrap_contacts,
+                             const NodeId &node_id,
+                             JoinFunctor callback);
+  void RefreshDataStore();
+  void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
+  void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
+
   IoServicePtr asio_service_;
   TransportPtr listening_transport_;
+  MessageHandlerPtr message_handler_;
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
   OnOnlineStatusChangePtr on_online_status_change_;
+
   /** If the node is Client Only, then it shall not put anything into its local
    *  routing table. Only Vault is allowed to do so. */
   bool client_only_node_;
+
   /** Global K parameter */
   const boost::uint16_t k_;
+
   /** Global threshold to define the number of succeed required to consider a
    *  Store, Delete or Update to be success */
   int threshold_;
+
   /** Alpha parameter to define how many contacts to be enquired during one
    *  iteration */
   const boost::uint16_t kAlpha_;
+
   /** Beta parameter to define how many contacted contacts required in one
    *  iteration before starting a new iteration */
   const boost::uint16_t kBeta_;
@@ -443,22 +478,28 @@ class Node::Impl {
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs> rpcs_;
+
   /** Own info of nodeid, ip and port */
   Contact contact_;
   bool joined_, refresh_routine_started_, stopping_;
-//   boost::signals2::connection routing_table_connection_;
+
   /** Signal to be fired when there is one contact detected as DOWN during any
    *  operations */
   ReportDownContactPtr report_down_contact_;
+
   /** Mutex lock to protect down_contacts_ */
   boost::mutex mutex_;
+
   /** Conditional Variable to wait/notify the thread monitoring down_contacts_*/
   boost::condition_variable condition_downlist_;
+
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
+
   /** The thread group to hold all monitoring treads
    *  Used by: MonitoringDownlistThread */
   boost::thread_group thread_group_;
+  bool refresh_thread_running_, downlist_thread_running_;
 };
 
 }  // namespace kademlia
