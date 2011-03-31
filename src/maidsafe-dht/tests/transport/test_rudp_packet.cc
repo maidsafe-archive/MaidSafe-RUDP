@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_keepalive_packet.h"
+#include "maidsafe-dht/transport/rudp_shutdown_packet.h"
 
 namespace maidsafe {
 
@@ -520,6 +521,31 @@ TEST(RudpKeepalivePacketTest, FUNC_ALL) {
     EXPECT_EQ(RudpKeepalivePacket::kPacketSize,
               keepalive_packet.Encode(dbuffer));
     EXPECT_TRUE(keepalive_packet.Decode(dbuffer));
+  }
+}
+
+TEST(RudpShutdownPacketTest, FUNC_ALL) {
+  // Generally, RudpShutdownPacket use Base(ControlPacket)'s IsValid and
+  // Encode/Decode directly. So here we only test those error condition branch
+  RudpShutdownPacket shutdown_packet;
+  {
+    // Decode with a wrong length Buffer
+    char d[RudpShutdownPacket::kPacketSize + 10];
+    EXPECT_FALSE(shutdown_packet.Decode(boost::asio::buffer(d)));
+  }
+  {
+    // Decode with a type wrong Packet
+    char d[RudpShutdownPacket::kPacketSize];
+    d[0] = 0x80;
+    EXPECT_FALSE(shutdown_packet.Decode(boost::asio::buffer(d)));
+  }
+  {
+    // Encode then Decode
+    char char_array[RudpShutdownPacket::kPacketSize];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+    EXPECT_EQ(RudpShutdownPacket::kPacketSize,
+              shutdown_packet.Encode(dbuffer));
+    EXPECT_TRUE(shutdown_packet.Decode(dbuffer));
   }
 }
 

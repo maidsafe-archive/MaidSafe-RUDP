@@ -43,6 +43,8 @@ bool RudpShutdownPacket::IsValid(const asio::const_buffer &buffer) {
 }
 
 bool RudpShutdownPacket::Decode(const asio::const_buffer &buffer) {
+  if (!IsValid(buffer))
+    return false;
   return DecodeBase(buffer, kPacketType);
 }
 
