@@ -903,9 +903,56 @@ TEST_F(NodeImplTest, BEH_KAD_Join) {
     bootstrap_contacts.clear();
     ASSERT_TRUE(node_->refresh_thread_running());
     ASSERT_TRUE(node_->downlist_thread_running());
-    ASSERT_LT(size_t(0), node_->thread_group_.size());
+    ASSERT_LT(size_t(0), node_->thread_group_->size());
     node_->Leave(NULL);
   }
+}
+
+TEST_F(NodeImplTest, BEH_KAD_Leave) {
+  PopulateRoutingTable(test::k, 500);
+std::vector<Contact> bootstrap_contacts;
+  std::shared_ptr<Rpcs> old_rpcs = GetRpc();
+  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  SetRpc(new_rpcs);
+
+  int count = 10 * test::k;
+  new_rpcs->PopulateResponseCandidates(count, 499);
+  NodeId target = GenerateRandomId(node_id_, 480);
+  new_rpcs->target_id_ = target;
+  std::shared_ptr<RoutingTableContactsContainer> temp
+      (new RoutingTableContactsContainer());
+  new_rpcs->respond_contacts_ = temp;
+  new_rpcs->SetCountersToZero();
+  int result(1);
+    bool done(false);
+    JoinFunctor callback = boost::bind(&NodeImplTest::NodeImplJoinCallback,
+                                       this, _1, &result, &done);
+    Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
+                                     5600);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 495)), 5700);
+    bootstrap_contacts.push_back(contact);
+
+    contact = ComposeContact(target, 6400);
+    bootstrap_contacts.push_back(contact);
+
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            boost::bind(&MockRpcs::FindNodeResponseClose,
+                        new_rpcs.get(), _1, _2))));
+    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    ASSERT_LT(0U, result);
+    bootstrap_contacts.clear();
+    node_->Leave(&bootstrap_contacts);
+    ASSERT_FALSE(node_->joined());
+    ASSERT_EQ(size_t(0), node_->thread_group_.use_count());
+    ASSERT_FALSE(node_->refresh_thread_running());
+    ASSERT_FALSE(node_->downlist_thread_running());
+    ASSERT_LT(size_t(0), bootstrap_contacts.size());
 }
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
