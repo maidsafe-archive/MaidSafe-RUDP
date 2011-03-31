@@ -222,10 +222,8 @@ class RudpControlPacketTest : public testing::Test {
  protected:
   void TestAdditionalInfo() {
     EXPECT_EQ(0U, control_packet_.AdditionalInfo());
-  //   control_packet_.SetAdditionalInfo(0x20000000);
-  //   EXPECT_EQ(0U, control_packet_.AdditionalInfo());
-    control_packet_.SetAdditionalInfo(0x1fffffff);
-    EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+    control_packet_.SetAdditionalInfo(0xffffffff);
+    EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
   }
 
   void SetType(boost::uint32_t n) {
@@ -245,7 +243,7 @@ class RudpControlPacketTest : public testing::Test {
     }
     {
       control_packet_.SetType(0x7fff);
-      control_packet_.SetAdditionalInfo(0x1fffffff);
+      control_packet_.SetAdditionalInfo(0xffffffff);
       control_packet_.SetTimeStamp(0xffffffff);
       control_packet_.SetDestinationSocketId(0xffffffff);
 
@@ -261,7 +259,7 @@ class RudpControlPacketTest : public testing::Test {
       EXPECT_TRUE(control_packet_.DecodeBase(dbuffer, 0x7fff));
 
       EXPECT_EQ(0x7fff, control_packet_.Type());
-      EXPECT_EQ(0x1fffffff, control_packet_.AdditionalInfo());
+      EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
       EXPECT_EQ(0xffffffff, control_packet_.TimeStamp());
       EXPECT_EQ(0xffffffff, control_packet_.DestinationSocketId());
     }
@@ -339,7 +337,7 @@ class RudpAckPacketTest : public testing::Test {
   }
 
   void TestEncodeDecode() {
-    ack_packet_.SetAckSequenceNumber(0x1fffffff);
+    ack_packet_.SetAckSequenceNumber(0xffffffff);
     ack_packet_.SetPacketSequenceNumber(0xffffffff);
 
     char char_array_optional[RudpAckPacket::kOptionalPacketSize];
@@ -356,7 +354,7 @@ class RudpAckPacketTest : public testing::Test {
     RestoreDefault();
     EXPECT_TRUE(ack_packet_.Decode(dbuffer));
 
-    EXPECT_EQ(0x1fffffff, ack_packet_.AckSequenceNumber());
+    EXPECT_EQ(0xffffffff, ack_packet_.AckSequenceNumber());
     EXPECT_EQ(0xffffffff, ack_packet_.PacketSequenceNumber());
   }
 
@@ -568,14 +566,14 @@ TEST(RudpAckOfAckPacketTest, FUNC_ALL) {
   }
   {
     // Encode then Decode
-    ackofack_packet.SetAckSequenceNumber(0x1fffffff);
+    ackofack_packet.SetAckSequenceNumber(0xffffffff);
     char char_array[RudpAckOfAckPacket::kPacketSize];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
     EXPECT_EQ(RudpAckOfAckPacket::kPacketSize,
               ackofack_packet.Encode(dbuffer));
     ackofack_packet.SetAckSequenceNumber(0);
     EXPECT_TRUE(ackofack_packet.Decode(dbuffer));
-    EXPECT_EQ(0x1fffffff, ackofack_packet.AckSequenceNumber());
+    EXPECT_EQ(0xffffffff, ackofack_packet.AckSequenceNumber());
   }
 }
 
@@ -613,6 +611,7 @@ TEST_F(RudpNegativeAckPacketTest, FUNC_IsValid) {
 }
 
 TEST_F(RudpNegativeAckPacketTest, FUNC_ContainsSequenceNumber) {
+  EXPECT_FALSE(negative_ack_packet_.HasSequenceNumbers());
   {
     // Search in Empty
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0));
@@ -672,6 +671,7 @@ TEST_F(RudpNegativeAckPacketTest, FUNC_ContainsSequenceNumber) {
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x12));
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffef));
   }
+  EXPECT_TRUE(negative_ack_packet_.HasSequenceNumbers());
 }
 
 TEST_F(RudpNegativeAckPacketTest, BEH_EncodeDecode) {
