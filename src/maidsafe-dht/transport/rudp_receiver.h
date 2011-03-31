@@ -54,6 +54,9 @@ class RudpReceiver {
   // specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number);
 
+  // Determine whether all acknowledgements have been processed.
+  bool Flushed() const;
+
   // Reads some application data. Returns number of bytes copied.
   size_t ReadData(const boost::asio::mutable_buffer &data);
 
@@ -70,6 +73,9 @@ class RudpReceiver {
   // Disallow copying and assignment.
   RudpReceiver(const RudpReceiver&);
   RudpReceiver &operator=(const RudpReceiver&);
+
+  // Calculate the sequence number which should be sent in an acknowledgement.
+  boost::uint32_t AckPacketSequenceNumber() const;
 
   // The peer with which we are communicating.
   RudpPeer &peer_;

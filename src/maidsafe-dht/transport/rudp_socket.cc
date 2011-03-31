@@ -59,10 +59,13 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     waiting_read_(multiplexer.socket_.get_io_service()),
     waiting_read_transfer_at_least_(0),
     waiting_read_ec_(),
-    waiting_read_bytes_transferred_(0) {
+    waiting_read_bytes_transferred_(0),
+    waiting_flush_(multiplexer.socket_.get_io_service()),
+    waiting_flush_ec_() {
   waiting_connect_.expires_at(boost::posix_time::pos_infin);
   waiting_write_.expires_at(boost::posix_time::pos_infin);
   waiting_read_.expires_at(boost::posix_time::pos_infin);
+  waiting_flush_.expires_at(boost::posix_time::pos_infin);
 }
 
 RudpSocket::~RudpSocket() {
@@ -101,6 +104,8 @@ void RudpSocket::Close() {
   waiting_read_ec_ = asio::error::operation_aborted;
   waiting_read_bytes_transferred_ = 0;
   waiting_read_.cancel();
+  waiting_flush_ec_ = asio::error::operation_aborted;
+  waiting_flush_.cancel();
 }
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
@@ -196,6 +201,17 @@ void RudpSocket::ProcessRead() {
   }
 }
 
+void RudpSocket::StartFlush() {
+  ProcessFlush();
+}
+
+void RudpSocket::ProcessFlush() {
+  if (sender_.Flushed() && receiver_.Flushed()) {
+    waiting_flush_ec_.clear();
+    waiting_flush_.cancel();
+  }
+}
+
 void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
   if (endpoint == peer_.Endpoint()) {
@@ -247,12 +263,14 @@ void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
     ProcessWrite();
+    ProcessFlush();
   }
 }
 
 void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
+    ProcessFlush();
   }
 }
 

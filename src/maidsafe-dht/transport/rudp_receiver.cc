@@ -57,6 +57,12 @@ void RudpReceiver::Reset(boost::uint32_t initial_sequence_number) {
   last_ack_packet_sequence_number_ = initial_sequence_number;
 }
 
+bool RudpReceiver::Flushed() const {
+  boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
+  return acks_.IsEmpty() &&
+         (ack_packet_seqnum == last_ack_packet_sequence_number_);
+}
+
 size_t RudpReceiver::ReadData(const boost::asio::mutable_buffer &data) {
   for (boost::uint32_t n = unread_packets_.Begin();
        n != unread_packets_.End();
@@ -109,15 +115,10 @@ void RudpReceiver::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
 void RudpReceiver::HandleTick() {
   bptime::ptime now = tick_timer_.Now();
 
-  // Work out what sequence number we need to acknowledge up to.
-  boost::uint32_t ack_packet_seqnum = unread_packets_.Begin();
-  while (ack_packet_seqnum != unread_packets_.End() &&
-         !unread_packets_[ack_packet_seqnum].lost)
-    ack_packet_seqnum = unread_packets_.Next(ack_packet_seqnum);
-
   // Generate an acknowledgement only if the latest sequence number has
   // changed, or if it has been too long since the last unacknowledged
   // acknowledgement.
+  boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() &&
        (acks_.Back().send_time + bptime::milliseconds(250) <= now))) {
@@ -131,6 +132,7 @@ void RudpReceiver::HandleTick() {
     a.packet.SetHasOptionalFields(false);
     a.send_time = now;
     peer_.Send(a.packet);
+    last_ack_packet_sequence_number_ = ack_packet_seqnum;
     tick_timer_.TickAt(now + bptime::milliseconds(250));
   }
 
@@ -158,6 +160,15 @@ void RudpReceiver::HandleTick() {
     peer_.Send(negative_ack);
     tick_timer_.TickAt(now + bptime::milliseconds(250));
   }
+}
+
+boost::uint32_t RudpReceiver::AckPacketSequenceNumber() const {
+  // Work out what sequence number we need to acknowledge up to.
+  boost::uint32_t ack_packet_seqnum = unread_packets_.Begin();
+  while (ack_packet_seqnum != unread_packets_.End() &&
+         !unread_packets_[ack_packet_seqnum].lost)
+    ack_packet_seqnum = unread_packets_.Next(ack_packet_seqnum);
+  return ack_packet_seqnum;
 }
 
 }  // namespace transport

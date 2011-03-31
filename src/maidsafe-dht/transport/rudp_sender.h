@@ -57,6 +57,9 @@ class RudpSender {
   // writes can complete immediately provided there is available free space.
   size_t GetFreeSpace() const;
 
+  // Determine whether all data has been transmitted to the peer.
+  bool Flushed() const;
+
   // Adds some application data to be sent. Returns number of bytes copied.
   size_t AddData(const boost::asio::const_buffer &data);
 

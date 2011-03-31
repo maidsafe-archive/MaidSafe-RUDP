@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cassert>
 
+#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
@@ -56,6 +57,10 @@ size_t RudpSender::GetFreeSpace() const {
   return kMaxWriteBufferSize - write_buffer_.size();
 }
 
+bool RudpSender::Flushed() const {
+  return write_buffer_.empty() && unacked_packets_.IsEmpty();
+}
+
 size_t RudpSender::AddData(const asio::const_buffer &data) {
   size_t length = std::min(GetFreeSpace(), asio::buffer_size(data));
   const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
@@ -66,6 +71,12 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
 
 void RudpSender::HandleAck(const RudpAckPacket &packet) {
   boost::uint32_t seqnum = packet.PacketSequenceNumber();
+
+  RudpAckOfAckPacket response_packet;
+  response_packet.SetDestinationSocketId(peer_.Id());
+  response_packet.SetAckSequenceNumber(packet.AckSequenceNumber());
+  peer_.Send(response_packet);
+
   if (unacked_packets_.Contains(seqnum) || unacked_packets_.End() == seqnum) {
     while (unacked_packets_.Begin() != seqnum)
       unacked_packets_.Remove();
@@ -85,8 +96,16 @@ void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
 }
 
 void RudpSender::HandleTick() {
+  for (boost::uint32_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End();
+       n = unacked_packets_.Next(n)) {
+    unacked_packets_[n].lost = true;
+  }
+
   DoSend();
-  tick_timer_.TickAfter(bptime::milliseconds(250));
+
+  if (!Flushed())
+    tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void RudpSender::DoSend() {

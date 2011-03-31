@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
+#include "maidsafe-dht/transport/rudp_flush_op.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
@@ -139,6 +140,14 @@ class RudpSocket {
     StartRead(data, transfer_at_least);
   }
 
+  // Initiate an asynchronous operation to flush all outbound data.
+  template <typename FlushHandler>
+  void AsyncFlush(FlushHandler handler) {
+    RudpFlushOp<FlushHandler> op(handler, &waiting_flush_ec_);
+    waiting_flush_.async_wait(op);
+    StartFlush();
+  }
+
  private:
   friend class RudpAcceptor;
   friend class RudpDispatcher;
@@ -154,6 +163,8 @@ class RudpSocket {
   void StartRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least);
   void ProcessRead();
+  void StartFlush();
+  void ProcessFlush();
 
   // Called by the RudpDispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
@@ -216,6 +227,12 @@ class RudpSocket {
   size_t waiting_read_transfer_at_least_;
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
+
+  // This class allows only one outstanding flush operation at a time. The
+  // following data members  store the pending flush, and the result that is
+  // intended for its completion handler.
+  boost::asio::deadline_timer waiting_flush_;
+  boost::system::error_code waiting_flush_ec_;
 };
 
 }  // namespace transport
