@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SENDER_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_SENDER_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_RECEIVER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_RECEIVER_H_
 
 #include <deque>
 
@@ -35,8 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_sliding_window.h"
 
 namespace maidsafe {
@@ -46,40 +46,30 @@ namespace transport {
 class RudpPeer;
 class RudpTickTimer;
 
-class RudpSender {
+class RudpReceiver {
  public:
-  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer);
+  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer);
 
-  // Get the sequence number that will be used for the next packet.
-  boost::uint32_t GetNextPacketSequenceNumber() const;
+  // Reset receiver so that it is ready to start receiving data from the
+  // specified sequence number.
+  void Reset(boost::uint32_t initial_sequence_number);
 
-  // Returns how much data can be written to without blocking. Asynchronous
-  // writes can complete immediately provided there is available free space.
-  size_t GetFreeSpace() const;
+  // Reads some application data. Returns number of bytes copied.
+  size_t ReadData(const boost::asio::mutable_buffer &data);
 
-  // Adds some application data to be sent. Returns number of bytes copied.
-  size_t AddData(const boost::asio::const_buffer &data);
+  // Handle a data packet.
+  void HandleData(const RudpDataPacket &packet);
 
-  // Handle an acknowlegement packet.
-  void HandleAck(const RudpAckPacket &packet);
-
-  // Handle an negative acknowlegement packet.
-  void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+  // Handle an acknowledgement of an acknowledgement packet.
+  void HandleAckOfAck(const RudpAckOfAckPacket &packet);
 
   // Handle a tick in the system time.
   void HandleTick();
 
  private:
   // Disallow copying and assignment.
-  RudpSender(const RudpSender&);
-  RudpSender &operator=(const RudpSender&);
-
-  // Various constants that probably should be configurable.
-  enum { kMaxWriteBufferSize = 65536 };
-  enum { kMaxDataSize = 1024 };
-
-  // Send waiting packets.
-  void DoSend();
+  RudpReceiver(const RudpReceiver&);
+  RudpReceiver &operator=(const RudpReceiver&);
 
   // The peer with which we are communicating.
   RudpPeer &peer_;
@@ -87,23 +77,35 @@ class RudpSender {
   // The timer used to generate tick events.
   RudpTickTimer &tick_timer_;
 
-  // The buffer used to store application data that is waiting to be sent.
-  std::deque<unsigned char> write_buffer_;
-
-  struct UnackedPacket {
-    UnackedPacket() : lost(false) {}
+  struct UnreadPacket {
+    UnreadPacket() : lost(true), bytes_read(0) {}
     RudpDataPacket packet;
     bool lost;
-    boost::posix_time::ptime last_send_time;
+    size_t bytes_read;
   };
 
-  // The sender's window of unacknowledged packets.
-  typedef RudpSlidingWindow<UnackedPacket> UnackedPacketWindow;
-  UnackedPacketWindow unacked_packets_;
+  // The receiver's window of unread packets. If this window fills up, any new
+  // data packets are dropped. The application needs to read data regularly to
+  // ensure that more data can be received.
+  typedef RudpSlidingWindow<UnreadPacket> UnreadPacketWindow;
+  UnreadPacketWindow unread_packets_;
+
+  struct Ack {
+    RudpAckPacket packet;
+    boost::posix_time::ptime send_time;
+  };
+
+  // The receiver's window of acknowledgements. New acks are generated on a
+  // regular basis, so if this window fills up the oldest entries are removed.
+  typedef RudpSlidingWindow<Ack> AckWindow;
+  AckWindow acks_;
+
+  // The last packet sequence number to have been acknowledged.
+  boost::uint32_t last_ack_packet_sequence_number_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SENDER_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_RECEIVER_H_

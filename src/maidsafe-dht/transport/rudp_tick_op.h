@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/error.hpp"
 #include "boost/system/error_code.hpp"
+#include "maidsafe-dht/transport/rudp_receiver.h"
 #include "maidsafe-dht/transport/rudp_sender.h"
 #include "maidsafe-dht/transport/rudp_session.h"
 #include "maidsafe-dht/transport/rudp_tick_timer.h"
@@ -43,21 +44,25 @@ template <typename TickHandler>
 class RudpTickOp {
  public:
   RudpTickOp(TickHandler handler, RudpTickTimer *tick_timer,
-             RudpSession *session, RudpSender *sender)
+             RudpSession *session, RudpSender *sender, RudpReceiver *receiver)
     : handler_(handler),
       tick_timer_(tick_timer),
       session_(session),
-      sender_(sender) {
+      sender_(sender),
+      receiver_(receiver) {
   }
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
     if (session_->IsOpen()) {
-      tick_timer_->Reset();
-      if (session_->IsConnected()) {
-        sender_->HandleTick();
-      } else {
-        session_->HandleTick();
+      if (tick_timer_->Expired()) {
+        tick_timer_->Reset();
+        if (session_->IsConnected()) {
+          sender_->HandleTick();
+          receiver_->HandleTick();
+        } else {
+          session_->HandleTick();
+        }
       }
     } else {
       ec = boost::asio::error::operation_aborted;
@@ -86,6 +91,7 @@ class RudpTickOp {
   RudpTickTimer *tick_timer_;
   RudpSession *session_;
   RudpSender *sender_;
+  RudpReceiver *receiver_;
 };
 
 }  // namespace transport

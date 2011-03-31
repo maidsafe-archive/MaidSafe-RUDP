@@ -56,6 +56,9 @@ class RudpSession {
   // Get the id assigned to the session.
   boost::uint32_t Id() const;
 
+  // Get the first sequence number for packets received.
+  boost::uint32_t ReceivingSequenceNumber() const;
+
   // Close the session. Clears the id.
   void Close();
 
@@ -82,8 +85,11 @@ class RudpSession {
   // The local socket id.
   boost::uint32_t id_;
 
-  // The initial sequence number for the session.
-  boost::uint32_t sequence_number_;
+  // The initial sequence number for packets sent in this session.
+  boost::uint32_t sending_sequence_number_;
+
+  // The initial sequence number for packets received in this session.
+  boost::uint32_t receiving_sequence_number_;
 
   // Are we a client or a server?
   Mode mode_;

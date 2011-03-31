@@ -77,6 +77,10 @@ bool RudpNegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
   return false;
 }
 
+bool RudpNegativeAckPacket::HasSequenceNumbers() const {
+  return !sequence_numbers_.empty();
+}
+
 bool RudpNegativeAckPacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))

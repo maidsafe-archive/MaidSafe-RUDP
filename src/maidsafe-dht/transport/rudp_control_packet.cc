@@ -60,7 +60,6 @@ boost::uint32_t RudpControlPacket::AdditionalInfo() const {
 }
 
 void RudpControlPacket::SetAdditionalInfo(boost::uint32_t n) {
-  assert(n <= 0x1fffffff);
   additional_info_ = n;
 }
 
