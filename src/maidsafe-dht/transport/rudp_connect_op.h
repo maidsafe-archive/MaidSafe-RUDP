@@ -42,7 +42,7 @@ template <typename ConnectHandler>
 class RudpConnectOp {
  public:
   RudpConnectOp(ConnectHandler handler,
-               const boost::system::error_code *ec)
+                const boost::system::error_code *ec)
     : handler_(handler),
       ec_(ec) {
   }

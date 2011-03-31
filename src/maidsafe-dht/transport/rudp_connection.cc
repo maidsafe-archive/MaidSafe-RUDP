@@ -49,9 +49,9 @@ namespace maidsafe {
 namespace transport {
 
 RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
-                             const asio::io_service::strand &strand,
-                             const std::shared_ptr<RudpMultiplexer> &multiplexer,
-                             const ip::udp::endpoint &remote)
+                               const asio::io_service::strand &strand,
+                               const std::shared_ptr<RudpMultiplexer> &multiplexer,
+                               const ip::udp::endpoint &remote)
   : transport_(transport),
     strand_(strand),
     multiplexer_(multiplexer),
@@ -95,7 +95,7 @@ void RudpConnection::DoStartReceiving() {
 }
 
 void RudpConnection::StartSending(const std::string &data,
-                                 const Timeout &timeout) {
+                                  const Timeout &timeout) {
   EncodeData(data);
   timeout_for_response_ = timeout;
   strand_.dispatch(std::bind(&RudpConnection::DoStartSending,

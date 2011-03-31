@@ -45,13 +45,12 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpTransport::RudpTransport(
-    boost::asio::io_service &asio_service)
-        : Transport(asio_service),
-          strand_(asio_service),
-          multiplexer_(new RudpMultiplexer(asio_service)),
-          acceptor_(),
-          connections_() {}
+RudpTransport::RudpTransport(asio::io_service &asio_service)
+  : Transport(asio_service),
+    strand_(asio_service),
+    multiplexer_(new RudpMultiplexer(asio_service)),
+    acceptor_(),
+    connections_() {}
 
 RudpTransport::~RudpTransport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -107,7 +106,7 @@ void RudpTransport::StartDispatch() {
 }
 
 void RudpTransport::HandleDispatch(MultiplexerPtr multiplexer,
-                                  const bs::error_code &ec) {
+                                   const bs::error_code &ec) {
   if (!multiplexer->IsOpen())
     return;
 
@@ -128,8 +127,8 @@ void RudpTransport::StartAccept() {
 }
 
 void RudpTransport::HandleAccept(AcceptorPtr acceptor,
-                                ConnectionPtr connection,
-                                const bs::error_code &ec) {
+                                 ConnectionPtr connection,
+                                 const bs::error_code &ec) {
   if (!acceptor->IsOpen())
     return;
 
@@ -144,16 +143,16 @@ void RudpTransport::HandleAccept(AcceptorPtr acceptor,
 }
 
 void RudpTransport::Send(const std::string &data,
-                        const Endpoint &endpoint,
-                        const Timeout &timeout) {
+                         const Endpoint &endpoint,
+                         const Timeout &timeout) {
   strand_.dispatch(std::bind(&RudpTransport::DoSend,
                              shared_from_this(),
                              data, endpoint, timeout));
 }
 
 void RudpTransport::DoSend(const std::string &data,
-                        const Endpoint &endpoint,
-                        const Timeout &timeout) {
+                           const Endpoint &endpoint,
+                           const Timeout &timeout) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {

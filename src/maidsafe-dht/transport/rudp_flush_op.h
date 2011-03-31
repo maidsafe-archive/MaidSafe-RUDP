@@ -42,7 +42,7 @@ template <typename FlushHandler>
 class RudpFlushOp {
  public:
   RudpFlushOp(FlushHandler handler,
-               const boost::system::error_code *ec)
+              const boost::system::error_code *ec)
     : handler_(handler),
       ec_(ec) {
   }

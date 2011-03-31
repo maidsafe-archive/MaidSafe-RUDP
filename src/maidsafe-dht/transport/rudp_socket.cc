@@ -164,7 +164,7 @@ void RudpSocket::ProcessWrite() {
 }
 
 void RudpSocket::StartRead(const asio::mutable_buffer &data,
-                          size_t transfer_at_least) {
+                           size_t transfer_at_least) {
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();

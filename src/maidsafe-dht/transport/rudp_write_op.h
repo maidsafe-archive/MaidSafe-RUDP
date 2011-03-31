@@ -42,8 +42,8 @@ template <typename WriteHandler>
 class RudpWriteOp {
  public:
   RudpWriteOp(WriteHandler handler,
-            const boost::system::error_code *ec,
-            const size_t *bytes_transferred)
+              const boost::system::error_code *ec,
+              const size_t *bytes_transferred)
     : handler_(handler),
       ec_(ec),
       bytes_transferred_(bytes_transferred) {
