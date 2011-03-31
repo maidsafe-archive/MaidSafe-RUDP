@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCH_OP_H_
 
 #include "boost/asio/buffer.hpp"
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_dispatcher.h"

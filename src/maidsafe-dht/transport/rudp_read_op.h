@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_READ_OP_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_READ_OP_H_
 
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
