@@ -38,11 +38,14 @@ RudpNegativeAckPacket::RudpNegativeAckPacket() {
 }
 
 void RudpNegativeAckPacket::AddSequenceNumber(boost::uint32_t n) {
+  assert(n <= 0x7fffffff);
   sequence_numbers_.push_back(n);
 }
 
 void RudpNegativeAckPacket::AddSequenceNumbers(boost::uint32_t first,
                                                boost::uint32_t last) {
+  assert(first <= 0x7fffffff);
+  assert(last <= 0x7fffffff);
   sequence_numbers_.push_back(first | 0x80000000);
   sequence_numbers_.push_back(last);
 }
@@ -54,6 +57,7 @@ bool RudpNegativeAckPacket::IsValid(const asio::const_buffer &buffer) {
 }
 
 bool RudpNegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
+  assert(n <= 0x7fffffff);
   for (size_t i = 0; i < sequence_numbers_.size(); ++i) {
     if (((sequence_numbers_[i] & 0x80000000) != 0) &&
         (i + 1 < sequence_numbers_.size())) {

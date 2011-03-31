@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_keepalive_packet.h"
 #include "maidsafe-dht/transport/rudp_shutdown_packet.h"
 #include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 
 namespace maidsafe {
 
@@ -575,6 +576,129 @@ TEST(RudpAckOfAckPacketTest, FUNC_ALL) {
     ackofack_packet.SetAckSequenceNumber(0);
     EXPECT_TRUE(ackofack_packet.Decode(dbuffer));
     EXPECT_EQ(0x1fffffff, ackofack_packet.AckSequenceNumber());
+  }
+}
+
+class RudpNegativeAckPacketTest : public testing::Test {
+ public:
+  RudpNegativeAckPacketTest() : negative_ack_packet_() {}
+
+ protected:
+  RudpNegativeAckPacket negative_ack_packet_;
+};
+
+TEST_F(RudpNegativeAckPacketTest, FUNC_IsValid) {
+  {
+    // Buffer length less
+    char d[RudpControlPacket::kHeaderSize];
+    EXPECT_FALSE(negative_ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  {
+    // Buffer length wrong
+    char d[RudpControlPacket::kHeaderSize + 13];
+    EXPECT_FALSE(negative_ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  char d[RudpControlPacket::kHeaderSize + 12];
+  {
+    // Packet type wrong
+    d[0] = 0x80;
+    EXPECT_FALSE(negative_ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  {
+    // Everything is fine
+    d[0] = 0x80;
+    d[1] = RudpNegativeAckPacket::kPacketType;
+    EXPECT_TRUE(negative_ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+}
+
+TEST_F(RudpNegativeAckPacketTest, FUNC_ContainsSequenceNumber) {
+  {
+    // Search in Empty
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0));
+  }
+  {
+    // Search a single
+    negative_ack_packet_.AddSequenceNumber(0x8);
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x8));
+  }
+  {
+    // Search in an one-value-range
+    negative_ack_packet_.AddSequenceNumbers(0x9, 0x9);
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x10));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x9));
+  }
+  {
+    // Search in a range
+    negative_ack_packet_.AddSequenceNumbers(0x11, 0x17);
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x10));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x11));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x17));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x16));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x12));
+  }
+  {
+    // Search in a wrapped around range
+    negative_ack_packet_.AddSequenceNumbers(0x7fffffff, 0x0);
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x10));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x11));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x17));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x16));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x12));
+  }
+  {
+    // Search in an overlapped range
+    negative_ack_packet_.AddSequenceNumbers(0x7ffffff0, 0xf);
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x8));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x9));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x10));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x11));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x17));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x16));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x12));
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffef));
+  }
+}
+
+TEST_F(RudpNegativeAckPacketTest, BEH_EncodeDecode) {
+  negative_ack_packet_.AddSequenceNumber(0x8);
+  {
+    // Pass in a buffer having less space to encode
+    char d[RudpControlPacket::kHeaderSize + 1 * 4 - 1];
+    EXPECT_FALSE(negative_ack_packet_.IsValid(boost::asio::buffer(d)));
+  }
+  {
+    // Encode and Decode a NegativeAck Packet
+    negative_ack_packet_.AddSequenceNumbers(0x7fffffff, 0x5);
+
+    char char_array[RudpControlPacket::kHeaderSize + 3 * 4];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+    negative_ack_packet_.Encode(boost::asio::buffer(dbuffer));
+
+    negative_ack_packet_.AddSequenceNumber(0x7);
+
+    negative_ack_packet_.Decode(dbuffer);
+
+    EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x8));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x0));
+    EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x5));
+//     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x80000000));
   }
 }
 
