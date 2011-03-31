@@ -46,6 +46,7 @@ class RudpNegativeAckPacket : public RudpControlPacket {
   void AddSequenceNumber(boost::uint32_t n);
   void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
   bool ContainsSequenceNumber(boost::uint32_t n) const;
+  bool HasSequenceNumbers() const;
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);

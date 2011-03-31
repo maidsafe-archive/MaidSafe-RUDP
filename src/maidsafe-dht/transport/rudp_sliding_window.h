@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <deque>
 
 #include "boost/cstdint.hpp"
+#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 
@@ -47,9 +48,21 @@ class RudpSlidingWindow {
   // wrapped around to start from 0.
   enum { kMaxSequenceNumber = 0x7fffffff };
 
-  RudpSlidingWindow(boost::uint32_t initial_sequence_number)
-    : begin_(initial_sequence_number), end_(initial_sequence_number) {
+  // Construct to start with a random sequence number.
+  RudpSlidingWindow() {
+    Reset(GenerateSequenceNumber());
+  }
+
+  // Construct to start with a specified sequence number.
+  RudpSlidingWindow(boost::uint32_t initial_sequence_number) {
+    Reset(initial_sequence_number);
+  }
+
+  // Reset to empty starting with the specified sequence number.
+  void Reset(boost::uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
+    begin_ = end_ = initial_sequence_number;
+    items_.clear();
   }
 
   // Get the sequence number of the first item in window.
@@ -64,10 +77,15 @@ class RudpSlidingWindow {
 
   // Determine whether a sequence number is in the window.
   bool Contains(boost::uint32_t n) const {
-    if (begin_ <= end_)
-      return (begin_ <= n) && (n < end_);
-    else
-      return (n < end_) || ((n >= begin_) && (n <= kMaxSequenceNumber));
+    return IsInRange(begin_, end_, n);
+  }
+
+  // Determine whether a sequence number is within one window size past the
+  // end. This is used to filter out packets with non-sensical sequence numbers.
+  bool IsComingSoon(boost::uint32_t n) const {
+    boost::uint32_t begin = end_;
+    boost::uint32_t end = (begin + kMaxWindowSize) % (kMaxSequenceNumber + 1);
+    return IsInRange(begin, end, n);
   }
 
   // Get whether the window is empty.
@@ -101,13 +119,39 @@ class RudpSlidingWindow {
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
   T &operator[](boost::uint32_t n) {
-    assert(Contains(n));
-    if (begin_ <= end_)
-      return items_[n - begin_];
-    else if (n < end_)
-      return items_[kMaxSequenceNumber - begin_ + n + 1];
-    else
-      return items_[n - begin_];
+    return items_[SequenceNumberToIndex(n)];
+  }
+
+  // Get the item with the specified sequence number.
+  // Precondition: Contains(n).
+  const T &operator[](boost::uint32_t n) const {
+    return items_[SequenceNumberToIndex(n)];
+  }
+
+  // Get the element at the front of the window.
+  // Precondition: !IsEmpty().
+  T &Front() {
+    return items_.front();
+  }
+
+  // Get the element at the front of the window.
+  // Precondition: !IsEmpty().
+  const T &Front() const {
+    return items_.front();
+  }
+
+  // Get the element at the back of the window.
+  // Precondition: !IsEmpty().
+  T &Back() {
+    assert(!IsEmpty());
+    return items_.front();
+  }
+
+  // Get the element at the back of the window.
+  // Precondition: !IsEmpty().
+  const T &Back() const {
+    assert(!IsEmpty());
+    return items_.back();
   }
 
   // Get the sequence number that follows a given number.
@@ -119,6 +163,35 @@ class RudpSlidingWindow {
   // Disallow copying and assignment.
   RudpSlidingWindow(const RudpSlidingWindow&);
   RudpSlidingWindow &operator=(const RudpSlidingWindow&);
+
+  // Helper function to convert a sequence number into an index in the window.
+  size_t SequenceNumberToIndex(boost::uint32_t n) const {
+    assert(Contains(n));
+    if (begin_ <= end_)
+      return n - begin_;
+    else if (n < end_)
+      return kMaxSequenceNumber - begin_ + n + 1;
+    else
+      return n - begin_;
+  }
+
+  // Helper function to generate an initial sequence number.
+  static boost::uint32_t GenerateSequenceNumber() {
+    boost::uint32_t seqnum = 0;
+    while (seqnum == 0)
+      seqnum = (SRandomUint32() & 0x7fffffff);
+    return seqnum;
+  }
+
+  // Helper function to determine if a sequence number is in a given range.
+  static bool IsInRange(boost::uint32_t begin,
+                        boost::uint32_t end,
+                        boost::uint32_t n) {
+    if (begin <= end)
+      return (begin <= n) && (n < end);
+    else
+      return (n < end) || ((n >= begin) && (n <= kMaxSequenceNumber));
+  }
 
   // The items in the window.
   std::deque<T> items_;

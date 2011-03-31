@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cassert>
 
+#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
@@ -45,7 +46,7 @@ namespace transport {
 RudpSender::RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer)
   : peer_(peer),
     tick_timer_(tick_timer),
-    unacked_packets_(GenerateSequenceNumber()) {
+    unacked_packets_() {
 }
 
 boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
@@ -54,6 +55,10 @@ boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
 
 size_t RudpSender::GetFreeSpace() const {
   return kMaxWriteBufferSize - write_buffer_.size();
+}
+
+bool RudpSender::Flushed() const {
+  return write_buffer_.empty() && unacked_packets_.IsEmpty();
 }
 
 size_t RudpSender::AddData(const asio::const_buffer &data) {
@@ -66,6 +71,12 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
 
 void RudpSender::HandleAck(const RudpAckPacket &packet) {
   boost::uint32_t seqnum = packet.PacketSequenceNumber();
+
+  RudpAckOfAckPacket response_packet;
+  response_packet.SetDestinationSocketId(peer_.Id());
+  response_packet.SetAckSequenceNumber(packet.AckSequenceNumber());
+  peer_.Send(response_packet);
+
   if (unacked_packets_.Contains(seqnum) || unacked_packets_.End() == seqnum) {
     while (unacked_packets_.Begin() != seqnum)
       unacked_packets_.Remove();
@@ -78,19 +89,23 @@ void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     if (packet.ContainsSequenceNumber(n)) {
-      unacked_packets_[n].is_lost = true;
+      unacked_packets_[n].lost = true;
     }
   }
+  DoSend();
 }
 
 void RudpSender::HandleTick() {
-}
+  for (boost::uint32_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End();
+       n = unacked_packets_.Next(n)) {
+    unacked_packets_[n].lost = true;
+  }
 
-boost::uint32_t RudpSender::GenerateSequenceNumber() {
-  boost::uint32_t seqnum = 0;
-  while (seqnum == 0)
-    seqnum = (SRandomUint32() & 0x7fffffff);
-  return seqnum;
+  DoSend();
+
+  if (!Flushed())
+    tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void RudpSender::DoSend() {
@@ -99,8 +114,8 @@ void RudpSender::DoSend() {
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     UnackedPacket &p = unacked_packets_[n];
-    if (p.is_lost) {
-      p.is_lost = false;
+    if (p.lost) {
+      p.lost = false;
       p.last_send_time = tick_timer_.Now();
       peer_.Send(p.packet);
     }
@@ -121,7 +136,7 @@ void RudpSender::DoSend() {
     size_t length = std::min<size_t>(kMaxDataSize, write_buffer_.size());
     p.packet.SetData(write_buffer_.begin(), write_buffer_.begin() + length);
     write_buffer_.erase(write_buffer_.begin(), write_buffer_.begin() + length);
-    p.is_lost = false;
+    p.lost = false;
     p.last_send_time = tick_timer_.Now();
     peer_.Send(p.packet);
   }

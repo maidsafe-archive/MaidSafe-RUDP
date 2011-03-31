@@ -45,7 +45,8 @@ RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)
   : peer_(peer),
     tick_timer_(tick_timer),
     id_(0),
-    sequence_number_(0),
+    sending_sequence_number_(0),
+    receiving_sequence_number_(0),
     mode_(kClient),
     connected_(false) {
 }
@@ -55,7 +56,7 @@ void RudpSession::Open(boost::uint32_t id,
                        Mode mode) {
   assert(id != 0);
   id_ = id;
-  sequence_number_ = sequence_number;
+  sending_sequence_number_ = sequence_number;
   mode_ = mode;
   SendFirstPacket();
 }
@@ -72,6 +73,10 @@ boost::uint32_t RudpSession::Id() const {
   return id_;
 }
 
+boost::uint32_t RudpSession::ReceivingSequenceNumber() const {
+  return receiving_sequence_number_;
+}
+
 void RudpSession::Close() {
   id_ = 0;
   connected_ = false;
@@ -80,9 +85,11 @@ void RudpSession::Close() {
 void RudpSession::HandleHandshake(const RudpHandshakePacket &packet) {
   if (!connected_) {
     connected_ = true;
+    receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     if (mode_ == kClient) {
       peer_.SetId(packet.SocketId());
       RudpHandshakePacket response_packet(packet);
+      response_packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
       response_packet.SetSocketId(id_);
       response_packet.SetIpAddress(peer_.Endpoint().address());
       response_packet.SetDestinationSocketId(peer_.Id());
@@ -102,7 +109,7 @@ void RudpSession::SendFirstPacket() {
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sequence_number_);
+  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
   packet.SetMaximumFlowWindowSize(64); // Not used in this implementation.
   packet.SetSocketId(id_);

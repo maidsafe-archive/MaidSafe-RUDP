@@ -49,9 +49,9 @@ namespace maidsafe {
 namespace transport {
 
 RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
-                             const asio::io_service::strand &strand,
-                             const std::shared_ptr<RudpMultiplexer> &multiplexer,
-                             const ip::udp::endpoint &remote)
+                               const asio::io_service::strand &strand,
+                               const std::shared_ptr<RudpMultiplexer> &multiplexer,
+                               const ip::udp::endpoint &remote)
   : transport_(transport),
     strand_(strand),
     multiplexer_(multiplexer),
@@ -95,7 +95,7 @@ void RudpConnection::DoStartReceiving() {
 }
 
 void RudpConnection::StartSending(const std::string &data,
-                                 const Timeout &timeout) {
+                                  const Timeout &timeout) {
   EncodeData(data);
   timeout_for_response_ = timeout;
   strand_.dispatch(std::bind(&RudpConnection::DoStartSending,
@@ -265,7 +265,8 @@ void RudpConnection::DispatchMessage() {
                                        info, &response,
                                        &response_timeout);
     if (response.empty()) {
-      Close();
+      strand_.dispatch(std::bind(&RudpConnection::StartFlush,
+                                 shared_from_this()));
       return;
     }
 
@@ -325,8 +326,30 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
   if (timeout_for_response_ != kImmediateTimeout) {
     StartReadSize();
   } else {
-    DoClose();
+    StartFlush();
   }
+}
+
+void RudpConnection::StartFlush() {
+  assert(socket_.IsOpen());
+
+  socket_.AsyncFlush(strand_.wrap(std::bind(&RudpConnection::HandleFlush,
+                                            shared_from_this(), arg::_1)));
+
+  timer_.expires_from_now(kStallTimeout); // TODO kDefaultFinalTimeout?
+}
+
+void RudpConnection::HandleFlush(const bs::error_code &ec) {
+  // If the socket is closed, it means the timeout has been triggered.
+  if (!socket_.IsOpen()) {
+    return CloseOnError(kSendTimeout);
+  }
+
+  if (ec) {
+    return CloseOnError(kSendFailure);
+  }
+
+  DoClose();
 }
 
 void RudpConnection::CloseOnError(const TransportCondition &error) {

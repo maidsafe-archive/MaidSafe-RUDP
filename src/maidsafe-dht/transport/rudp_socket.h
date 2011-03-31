@@ -45,12 +45,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
+#include "maidsafe-dht/transport/rudp_flush_op.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
+#include "maidsafe-dht/transport/rudp_receiver.h"
 #include "maidsafe-dht/transport/rudp_sender.h"
 #include "maidsafe-dht/transport/rudp_session.h"
 #include "maidsafe-dht/transport/rudp_tick_op.h"
@@ -88,7 +91,8 @@ class RudpSocket {
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
   void AsyncTick(TickHandler handler) {
-    RudpTickOp<TickHandler> op(handler, &tick_timer_, &session_, &sender_);
+    RudpTickOp<TickHandler> op(handler, &tick_timer_,
+                               &session_, &sender_, &receiver_);
     tick_timer_.AsyncWait(op);
   }
 
@@ -136,6 +140,14 @@ class RudpSocket {
     StartRead(data, transfer_at_least);
   }
 
+  // Initiate an asynchronous operation to flush all outbound data.
+  template <typename FlushHandler>
+  void AsyncFlush(FlushHandler handler) {
+    RudpFlushOp<FlushHandler> op(handler, &waiting_flush_ec_);
+    waiting_flush_.async_wait(op);
+    StartFlush();
+  }
+
  private:
   friend class RudpAcceptor;
   friend class RudpDispatcher;
@@ -151,6 +163,8 @@ class RudpSocket {
   void StartRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least);
   void ProcessRead();
+  void StartFlush();
+  void ProcessFlush();
 
   // Called by the RudpDispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
@@ -164,6 +178,9 @@ class RudpSocket {
 
   // Called to process a newly received acknowledgement packet.
   void HandleAck(const RudpAckPacket &packet);
+
+  // Called to process a newly received acknowledgement of an acknowledgement.
+  void HandleAckOfAck(const RudpAckOfAckPacket &packet);
 
   // Called to process a newly received negative acknowledgement packet.
   void HandleNegativeAck(const RudpNegativeAckPacket &packet);
@@ -185,17 +202,14 @@ class RudpSocket {
   // The send side of the connection.
   RudpSender sender_;
 
+  // The receive side of the connection.
+  RudpReceiver receiver_;
+
   // This class allows for a single asynchronous connect operation. The
   // following data members store the pending connect, and the result that is
   // intended for its completion handler.
   boost::asio::deadline_timer waiting_connect_;
   boost::system::error_code waiting_connect_ec_;
-
-  // The buffer used to store application data that is waiting to be sent.
-  // Asynchronous read operations will complete immediately as long as there is
-  // sufficient data to complete the read.
-  enum { kMaxReadBufferSize = 65536 };
-  std::deque<unsigned char> read_buffer_;
 
   // This class allows only one outstanding asynchronous write operation at a
   // time. The following data members store the pending write, and the result
@@ -213,6 +227,12 @@ class RudpSocket {
   size_t waiting_read_transfer_at_least_;
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
+
+  // This class allows only one outstanding flush operation at a time. The
+  // following data members  store the pending flush, and the result that is
+  // intended for its completion handler.
+  boost::asio::deadline_timer waiting_flush_;
+  boost::system::error_code waiting_flush_ec_;
 };
 
 }  // namespace transport

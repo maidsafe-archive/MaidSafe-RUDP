@@ -320,6 +320,7 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_multiplexer.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_negative_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_packet.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_receiver.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_sender.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_session.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_shutdown_packet.cc"

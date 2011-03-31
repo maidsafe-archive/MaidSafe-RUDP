@@ -50,6 +50,7 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     tick_timer_(multiplexer.socket_.get_io_service()),
     session_(peer_, tick_timer_),
     sender_(peer_, tick_timer_),
+    receiver_(peer_, tick_timer_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -58,10 +59,13 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     waiting_read_(multiplexer.socket_.get_io_service()),
     waiting_read_transfer_at_least_(0),
     waiting_read_ec_(),
-    waiting_read_bytes_transferred_(0) {
+    waiting_read_bytes_transferred_(0),
+    waiting_flush_(multiplexer.socket_.get_io_service()),
+    waiting_flush_ec_() {
   waiting_connect_.expires_at(boost::posix_time::pos_infin);
   waiting_write_.expires_at(boost::posix_time::pos_infin);
   waiting_read_.expires_at(boost::posix_time::pos_infin);
+  waiting_flush_.expires_at(boost::posix_time::pos_infin);
 }
 
 RudpSocket::~RudpSocket() {
@@ -100,6 +104,8 @@ void RudpSocket::Close() {
   waiting_read_ec_ = asio::error::operation_aborted;
   waiting_read_bytes_transferred_ = 0;
   waiting_read_.cancel();
+  waiting_flush_ec_ = asio::error::operation_aborted;
+  waiting_flush_.cancel();
 }
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
@@ -158,7 +164,7 @@ void RudpSocket::ProcessWrite() {
 }
 
 void RudpSocket::StartRead(const asio::mutable_buffer &data,
-                          size_t transfer_at_least) {
+                           size_t transfer_at_least) {
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -180,16 +186,8 @@ void RudpSocket::ProcessRead() {
   if (asio::buffer_size(waiting_read_buffer_) == 0)
     return;
 
-  // If the read buffer is empty then the read is going to have to wait.
-  if (read_buffer_.empty())
-    return;
-
   // Copy whatever data we can into the read buffer.
-  size_t length = std::min(read_buffer_.size(),
-                           asio::buffer_size(waiting_read_buffer_));
-  unsigned char* data = asio::buffer_cast<unsigned char*>(waiting_read_buffer_);
-  std::copy(read_buffer_.begin(), read_buffer_.begin() + length, data);
-  read_buffer_.erase(read_buffer_.begin(), read_buffer_.begin() + length);
+  size_t length = receiver_.ReadData(waiting_read_buffer_);
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;
 
@@ -203,30 +201,52 @@ void RudpSocket::ProcessRead() {
   }
 }
 
+void RudpSocket::StartFlush() {
+  ProcessFlush();
+}
+
+void RudpSocket::ProcessFlush() {
+  if (sender_.Flushed() && receiver_.Flushed()) {
+    waiting_flush_ec_.clear();
+    waiting_flush_.cancel();
+  }
+}
+
 void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
-  RudpDataPacket data_packet;
-  RudpAckPacket ack_packet;
-  RudpNegativeAckPacket negative_ack_packet;
-  RudpHandshakePacket handshake_packet;
-  if (data_packet.Decode(data)) {
-    HandleData(data_packet);
-  } else if (ack_packet.Decode(data)) {
-    HandleAck(ack_packet);
-  } else if (negative_ack_packet.Decode(data)) {
-    HandleNegativeAck(negative_ack_packet);
-  } else if (handshake_packet.Decode(data)) {
-    HandleHandshake(handshake_packet);
+  if (endpoint == peer_.Endpoint()) {
+    RudpDataPacket data_packet;
+    RudpAckPacket ack_packet;
+    RudpAckOfAckPacket ack_of_ack_packet;
+    RudpNegativeAckPacket negative_ack_packet;
+    RudpHandshakePacket handshake_packet;
+    if (data_packet.Decode(data)) {
+      HandleData(data_packet);
+    } else if (ack_packet.Decode(data)) {
+      HandleAck(ack_packet);
+    } else if (ack_of_ack_packet.Decode(data)) {
+      HandleAckOfAck(ack_of_ack_packet);
+    } else if (negative_ack_packet.Decode(data)) {
+      HandleNegativeAck(negative_ack_packet);
+    } else if (handshake_packet.Decode(data)) {
+      HandleHandshake(handshake_packet);
+    } else {
+      DLOG(ERROR) << "Socket " << session_.Id()
+                  << " ignoring invalid packet from "
+                  << endpoint << std::endl;
+    }
   } else {
     DLOG(ERROR) << "Socket " << session_.Id()
-                << " ignoring invalid packet from "
+                << " ignoring spurious packet from "
                 << endpoint << std::endl;
   }
 }
 
 void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
+  bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
-  if (session_.IsConnected()) {
+  if (!was_connected && session_.IsConnected()) {
+    receiver_.Reset(session_.ReceivingSequenceNumber());
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
   }
@@ -234,20 +254,23 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
 
 void RudpSocket::HandleData(const RudpDataPacket &packet) {
   if (session_.IsConnected()) {
-    if (read_buffer_.size() + packet.Data().size() < kMaxReadBufferSize) {
-      read_buffer_.insert(read_buffer_.end(),
-                          packet.Data().begin(),
-                          packet.Data().end());
-      ProcessRead();
-    } else {
-      // Packet is dropped because we have nowhere to store it.
-    }
+    receiver_.HandleData(packet);
+    ProcessRead();
   }
 }
 
 void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
+    ProcessWrite();
+    ProcessFlush();
+  }
+}
+
+void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
+  if (session_.IsConnected()) {
+    receiver_.HandleAckOfAck(packet);
+    ProcessFlush();
   }
 }
 

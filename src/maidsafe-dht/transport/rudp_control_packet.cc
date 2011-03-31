@@ -60,7 +60,6 @@ boost::uint32_t RudpControlPacket::AdditionalInfo() const {
 }
 
 void RudpControlPacket::SetAdditionalInfo(boost::uint32_t n) {
-  assert(n <= 0x1fffffff);
   additional_info_ = n;
 }
 
@@ -81,7 +80,7 @@ void RudpControlPacket::SetDestinationSocketId(boost::uint32_t n) {
 }
 
 bool RudpControlPacket::IsValidBase(const asio::const_buffer &buffer,
-                                   boost::uint16_t expected_packet_type) {
+                                    boost::uint16_t expected_packet_type) {
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
   return ((asio::buffer_size(buffer) >= kHeaderSize) &&
           ((p[0] & 0x80) != 0) &&
@@ -90,7 +89,7 @@ bool RudpControlPacket::IsValidBase(const asio::const_buffer &buffer,
 }
 
 bool RudpControlPacket::DecodeBase(const asio::const_buffer &buffer,
-                                  boost::uint16_t expected_packet_type) {
+                                   boost::uint16_t expected_packet_type) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValidBase(buffer, expected_packet_type))
     return false;

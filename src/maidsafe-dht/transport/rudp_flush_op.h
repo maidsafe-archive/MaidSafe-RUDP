@@ -25,79 +25,55 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_FLUSH_OP_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_FLUSH_OP_H_
 
-#include "boost/asio/error.hpp"
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/rudp_receiver.h"
-#include "maidsafe-dht/transport/rudp_sender.h"
-#include "maidsafe-dht/transport/rudp_session.h"
-#include "maidsafe-dht/transport/rudp_tick_timer.h"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to perform an asynchronous tick operation.
-template <typename TickHandler>
-class RudpTickOp {
+// Helper class to adapt a flush handler into a waiting operation.
+template <typename FlushHandler>
+class RudpFlushOp {
  public:
-  RudpTickOp(TickHandler handler, RudpTickTimer *tick_timer,
-             RudpSession *session, RudpSender *sender, RudpReceiver *receiver)
+  RudpFlushOp(FlushHandler handler,
+              const boost::system::error_code *ec)
     : handler_(handler),
-      tick_timer_(tick_timer),
-      session_(session),
-      sender_(sender),
-      receiver_(receiver) {
+      ec_(ec) {
   }
 
   void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
-    if (session_->IsOpen()) {
-      if (tick_timer_->Expired()) {
-        tick_timer_->Reset();
-        if (session_->IsConnected()) {
-          sender_->HandleTick();
-          receiver_->HandleTick();
-        } else {
-          session_->HandleTick();
-        }
-      }
-    } else {
-      ec = boost::asio::error::operation_aborted;
-    }
-    handler_(ec);
+    handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpTickOp *op) {
+  friend void *asio_handler_allocate(size_t n, RudpFlushOp *op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpTickOp *op) {
+  friend void asio_handler_deallocate(void *p, size_t n, RudpFlushOp *op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpTickOp *op) {
+  friend void asio_handler_invoke(const Function &f, RudpFlushOp *op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
-  TickHandler handler_;
-  RudpTickTimer *tick_timer_;
-  RudpSession *session_;
-  RudpSender *sender_;
-  RudpReceiver *receiver_;
+  FlushHandler handler_;
+  const boost::system::error_code *ec_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_OP_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_FLUSH_OP_H_

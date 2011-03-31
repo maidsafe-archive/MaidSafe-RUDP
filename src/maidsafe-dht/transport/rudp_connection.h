@@ -56,9 +56,9 @@ class RudpTransport;
 class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
  public:
   RudpConnection(const std::shared_ptr<RudpTransport> &transport,
-                const boost::asio::io_service::strand &strand,
-                const std::shared_ptr<RudpMultiplexer> &multiplexer,
-                const boost::asio::ip::udp::endpoint &remote);
+                 const boost::asio::io_service::strand &strand,
+                 const std::shared_ptr<RudpMultiplexer> &multiplexer,
+                 const boost::asio::ip::udp::endpoint &remote);
   ~RudpConnection();
 
   RudpSocket &Socket();
@@ -94,6 +94,9 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
   void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
+
+  void StartFlush();
+  void HandleFlush(const boost::system::error_code &ec);
 
   void DispatchMessage();
   void EncodeData(const std::string &data);

@@ -83,7 +83,7 @@ void RudpAcceptor::StartAccept(RudpSocket &socket) {
 }
 
 void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
-                                    const asio::ip::udp::endpoint &endpoint) {
+                                     const asio::ip::udp::endpoint &endpoint) {
   RudpHandshakePacket packet;
   if (packet.Decode(data)) {
     if (RudpSocket* socket = waiting_accept_socket_) {

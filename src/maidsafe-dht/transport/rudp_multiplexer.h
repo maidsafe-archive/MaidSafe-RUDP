@@ -62,9 +62,9 @@ class RudpMultiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
-    RudpDispatchOp<DispatchHandler> op(handler,
-                                      boost::asio::buffer(receive_buffer_),
-                                      &sender_endpoint_, &dispatcher_);
+    RudpDispatchOp<DispatchHandler> op(handler, &socket_,
+                                       boost::asio::buffer(receive_buffer_),
+                                       &sender_endpoint_, &dispatcher_);
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_),
                                sender_endpoint_, 0, op);
   }
@@ -73,7 +73,7 @@ class RudpMultiplexer {
   // the data was sent successfully, false otherwise.
   template <typename Packet>
   TransportCondition SendTo(const Packet &packet,
-              const boost::asio::ip::udp::endpoint &endpoint) {
+                            const boost::asio::ip::udp::endpoint &endpoint) {
     std::array<unsigned char, RudpPacket::kMaxSize> data;
     auto buffer = boost::asio::buffer(&data[0], RudpPacket::kMaxSize);
     if (size_t length = packet.Encode(buffer)) {

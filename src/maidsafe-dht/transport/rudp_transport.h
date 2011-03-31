@@ -46,7 +46,7 @@ class RudpMultiplexer;
 class RudpSocket;
 
 class RudpTransport : public Transport,
-                     public std::enable_shared_from_this<RudpTransport> {
+                      public std::enable_shared_from_this<RudpTransport> {
  public:
   explicit RudpTransport(boost::asio::io_service &asio_service);  // NOLINT
   ~RudpTransport();

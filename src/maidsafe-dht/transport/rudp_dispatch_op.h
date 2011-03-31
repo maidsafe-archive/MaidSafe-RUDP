@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCH_OP_H_
 
 #include "boost/asio/buffer.hpp"
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_dispatcher.h"
@@ -42,10 +44,12 @@ template <typename DispatchHandler>
 class RudpDispatchOp {
  public:
   RudpDispatchOp(DispatchHandler handler,
-                const boost::asio::const_buffer &buffer,
-                const boost::asio::ip::udp::endpoint *sender_endpoint,
-                RudpDispatcher *dispatcher)
+                 boost::asio::ip::udp::socket *socket,
+                 const boost::asio::mutable_buffer &buffer,
+                 boost::asio::ip::udp::endpoint *sender_endpoint,
+                 RudpDispatcher *dispatcher)
     : handler_(handler),
+      socket_(socket),
       buffer_(buffer),
       sender_endpoint_(sender_endpoint),
       dispatcher_(dispatcher) {
@@ -53,10 +57,16 @@ class RudpDispatchOp {
 
   void operator()(const boost::system::error_code &ec,
                   size_t bytes_transferred) {
-    if (!ec) {
+
+    boost::system::error_code local_ec = ec;
+
+    while (!local_ec) {
       dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_,
                                                          bytes_transferred),
                                      *sender_endpoint_);
+
+      bytes_transferred = socket_->receive_from(boost::asio::buffer(buffer_),
+                                                *sender_endpoint_, 0, local_ec);
     }
 
     handler_(ec);
@@ -80,8 +90,9 @@ class RudpDispatchOp {
 
  private:
   DispatchHandler handler_;
-  boost::asio::const_buffer buffer_;
-  const boost::asio::ip::udp::endpoint *sender_endpoint_;
+  boost::asio::ip::udp::socket *socket_;
+  boost::asio::mutable_buffer buffer_;
+  boost::asio::ip::udp::endpoint *sender_endpoint_;
   RudpDispatcher *dispatcher_;
 };
 

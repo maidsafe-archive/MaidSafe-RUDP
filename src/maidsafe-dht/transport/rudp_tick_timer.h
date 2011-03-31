@@ -55,6 +55,10 @@ class RudpTickTimer {
     timer_.expires_at(boost::posix_time::pos_infin);
   }
 
+  bool Expired() const {
+    return Now() >= timer_.expires_at();
+  }
+
   void TickAt(const boost::posix_time::ptime &time) {
     if (time < timer_.expires_at())
       timer_.expires_at(time);

@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_CONNECT_OP_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_CONNECT_OP_H_
 
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
@@ -40,7 +42,7 @@ template <typename ConnectHandler>
 class RudpConnectOp {
  public:
   RudpConnectOp(ConnectHandler handler,
-               const boost::system::error_code *ec)
+                const boost::system::error_code *ec)
     : handler_(handler),
       ec_(ec) {
   }

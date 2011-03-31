@@ -37,7 +37,7 @@ RudpPacket::~RudpPacket() {
 }
 
 bool RudpPacket::DecodeDestinationSocketId(boost::uint32_t *id,
-                                          const asio::const_buffer &data) {
+                                           const asio::const_buffer &data) {
   // Refuse to decode anything that's too short.
   if (asio::buffer_size(data) < 16)
     return false;
