@@ -68,6 +68,7 @@ namespace test {
 class NodeImplTest;
 class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 class NodeImplTest_BEH_KAD_Join_Test;
+class NodeImplTest_BEH_KAD_Leave_Test;
 class NodeImplTest_FUNC_KAD_Downlist_Test;
 }  // namespace test
 
@@ -194,6 +195,7 @@ class Node::Impl {
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
   friend class test::NodeImplTest_BEH_KAD_Join_Test;
+  friend class test::NodeImplTest_BEH_KAD_Leave_Test;
   friend class test::NodeImplTest_FUNC_KAD_Downlist_Test;
 
  private:
@@ -408,7 +410,7 @@ class Node::Impl {
   boost::condition_variable condition_downlist_;
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
-  boost::thread_group thread_group_;
+  boost::shared_ptr<boost::thread_group> thread_group_;
   bool refresh_thread_running_, downlist_thread_running_;
 };
 

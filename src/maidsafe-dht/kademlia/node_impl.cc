@@ -144,11 +144,12 @@ void Node::Impl::JoinFindNodesCallback(
     IterativeSearch<FindNodesArgs>(fna);
   } else {
     joined_ = true;
+    thread_group_.reset(new boost::thread_group());
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
       service_->ConnectToSignals(listening_transport_, message_handler_);
-      thread_group_.create_thread(boost::bind(&Node::Impl::RefreshDataStore,
+      thread_group_->create_thread(boost::bind(&Node::Impl::RefreshDataStore,
                                               this));
       refresh_thread_running_ = true;
       // Connect the ReportDown Signal
@@ -160,7 +161,7 @@ void Node::Impl::JoinFindNodesCallback(
       routing_table_->validate_contact()->connect(
           boost::bind(&Node::Impl::ValidateContact, this, _1));
       // Startup the thread to monitor the downlist queue
-      thread_group_.create_thread(
+      thread_group_->create_thread(
           boost::bind(&Node::Impl::MonitoringDownlistThread, this));
       downlist_thread_running_ = true;
     }
@@ -170,12 +171,12 @@ void Node::Impl::JoinFindNodesCallback(
 
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   joined_ = false;
-//  std::cout << "Leave: 0" << std::endl;
-//  condition_downlist_.notify_one();
-  thread_group_.interrupt_all();
-//  std::cout << "Leave: 1" << std::endl;
-  thread_group_.join_all();
-//  std::cout << "Leave: 2" << std::endl;
+
+  if (thread_group_ != NULL)  {
+    thread_group_->interrupt_all();
+    thread_group_->join_all();
+    thread_group_.reset();
+  }
   refresh_thread_running_ = false;
   downlist_thread_running_ = false;
   routing_table_connection_.disconnect();
