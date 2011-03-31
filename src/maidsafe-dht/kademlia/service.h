@@ -71,8 +71,8 @@ namespace test {
 class ServicesTest;
 }  // namespace test
 
-typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
-    const Contact&)>> PingDownListContactsPtr;
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
+        PingDownListContactsPtr;
 
 /** Object handling service requests on a node.
  *  Contains tables of the routing contacts and <value,sig,key> tuples

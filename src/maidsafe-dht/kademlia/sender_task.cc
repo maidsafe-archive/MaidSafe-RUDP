@@ -64,8 +64,9 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
       key_value_signature.signature.empty() || public_key_id.empty() ||
       request_signature.first.empty() || request_signature.second.empty() ||
-      ops_callback == NULL)
+      ops_callback == NULL) {
     return false;
+  }
   Task task(key_value_signature, info, request_signature, public_key_id,
             ops_callback);
   UpgradeLock upgrade_lock(shared_mutex_);
@@ -91,8 +92,9 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
 void SenderTask::SenderTaskCallback(std::string public_key_id,
                                     std::string public_key,
                                     std::string public_key_validation) {
-  if (public_key_id.empty())
+  if (public_key_id.empty()) {
     return;
+  }
   UpgradeLock upgrade_lock(shared_mutex_);
   TaskIndex::index<TagPublicKeyId>::type& index_by_public_key_id =
       task_index_->get<TagPublicKeyId>();
