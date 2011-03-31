@@ -68,8 +68,9 @@ namespace test {
 class NodeImplTest;
 class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 class NodeImplTest_BEH_KAD_Join_Test;
-class NodeImplTest_BEH_KAD_DownlistClient_Test;
 class NodeImplTest_BEH_KAD_Getters_Test;
+class NodeImplTest_BEH_KAD_Leave_Test;
+class NodeImplTest_BEH_KAD_DownlistClient_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -222,8 +223,9 @@ class Node::Impl {
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
   friend class test::NodeImplTest_BEH_KAD_Join_Test;
-  friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
   friend class test::NodeImplTest_BEH_KAD_Getters_Test;
+  friend class test::NodeImplTest_BEH_KAD_Leave_Test;
+  friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
 
  private:
   Impl(const Impl&);
@@ -498,7 +500,7 @@ class Node::Impl {
 
   /** The thread group to hold all monitoring treads
    *  Used by: MonitoringDownlistThread */
-  boost::thread_group thread_group_;
+  boost::shared_ptr<boost::thread_group> thread_group_;
   bool refresh_thread_running_, downlist_thread_running_;
 };
 
