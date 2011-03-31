@@ -216,7 +216,7 @@ class ServicesTest: public testing::Test {
     store_request.set_signing_public_key_id(
         crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
             crypto::AsymSign(crypto_key_data.public_key(),
-                            crypto_key_data.private_key())));
+                             crypto_key_data.private_key())));
     return store_request;
   }
 
