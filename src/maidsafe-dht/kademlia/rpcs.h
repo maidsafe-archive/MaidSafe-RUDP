@@ -111,7 +111,7 @@ class Rpcs {
                     const std::string &serialised_store_request_signature,
                     SecurifierPtr securifier,
                     const Contact &peer,
-                    StoreFunctor callback,
+                    StoreRefreshFunctor callback,
                     TransportType type);
   virtual void Delete(const Key &key,
                       const std::string &value,
