@@ -43,6 +43,8 @@ bool RudpKeepalivePacket::IsValid(const asio::const_buffer &buffer) {
 }
 
 bool RudpKeepalivePacket::Decode(const asio::const_buffer &buffer) {
+  if (!IsValid(buffer))
+    return false;
   return DecodeBase(buffer, kPacketType);
 }
 

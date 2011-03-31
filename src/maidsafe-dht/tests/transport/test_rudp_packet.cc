@@ -32,12 +32,35 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_control_packet.h"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
+#include "maidsafe-dht/transport/rudp_keepalive_packet.h"
 
 namespace maidsafe {
 
 namespace transport {
 
 namespace test {
+
+TEST(RudpPacketTest, FUNC_DecodeDestinationSocketId) {
+  {
+    // Try to decode with an invalid buffer
+    boost::uint32_t id;
+    char d[15];
+    EXPECT_FALSE(RudpPacket::DecodeDestinationSocketId(&id,
+                                                       boost::asio::buffer(d)));
+  }
+  {
+    // Decode with a valid buffer
+    char d[16];
+    d[12] = 0x44;
+    d[13] = 0x22;
+    d[14] = 0x11;
+    d[15] = 0x00;
+    boost::uint32_t id;
+    EXPECT_TRUE(RudpPacket::DecodeDestinationSocketId(&id,
+                                                      boost::asio::buffer(d)));
+    EXPECT_EQ(0x44221100, id);
+  }
+}
 
 class RudpDataPacketTest : public testing::Test {
  public:
@@ -89,28 +112,6 @@ class RudpDataPacketTest : public testing::Test {
  protected:
   RudpDataPacket data_packet_;
 };
-
-TEST(RudpPacketTest, FUNC_DecodeDestinationSocketId) {
-  {
-    // Try to decode with an invalid buffer
-    boost::uint32_t id;
-    char d[15];
-    EXPECT_FALSE(RudpPacket::DecodeDestinationSocketId(&id,
-                                                       boost::asio::buffer(d)));
-  }
-  {
-    // Decode with a valid buffer
-    char d[16];
-    d[12] = 0x44;
-    d[13] = 0x22;
-    d[14] = 0x11;
-    d[15] = 0x00;
-    boost::uint32_t id;
-    EXPECT_TRUE(RudpPacket::DecodeDestinationSocketId(&id,
-                                                      boost::asio::buffer(d)));
-    EXPECT_EQ(0x44221100, id);
-  }
-}
 
 TEST_F(RudpDataPacketTest, FUNC_SequenceNumber) {
   EXPECT_EQ(0U, data_packet_.PacketSequenceNumber());
@@ -494,6 +495,31 @@ TEST_F(RudpHandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(boost::asio::ip::address::from_string(
                   "2001:db8:85a3:8d3:1319:8a2e:370:7348"),
               handshake_packet_.IpAddress());
+  }
+}
+
+TEST(RudpKeepalivePacketTest, FUNC_ALL) {
+  // Generally, KeepalivePacket use Base(ControlPacket)'s IsValid and
+  // Encode/Decode directly. So here we only test those error condition branch
+  RudpKeepalivePacket keepalive_packet;
+  {
+    // Decode with a wrong length Buffer
+    char d[RudpKeepalivePacket::kPacketSize + 10];
+    EXPECT_FALSE(keepalive_packet.Decode(boost::asio::buffer(d)));
+  }
+  {
+    // Decode with a type wrong Packet
+    char d[RudpKeepalivePacket::kPacketSize];
+    d[0] = 0x80;
+    EXPECT_FALSE(keepalive_packet.Decode(boost::asio::buffer(d)));
+  }
+  {
+    // Encode then Decode
+    char char_array[RudpKeepalivePacket::kPacketSize];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+    EXPECT_EQ(RudpKeepalivePacket::kPacketSize,
+              keepalive_packet.Encode(dbuffer));
+    EXPECT_TRUE(keepalive_packet.Decode(dbuffer));
   }
 }
 
