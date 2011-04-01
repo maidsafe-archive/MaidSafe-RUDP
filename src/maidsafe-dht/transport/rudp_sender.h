@@ -28,8 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SENDER_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_SENDER_H_
 
-#include <deque>
-
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
@@ -78,7 +76,6 @@ class RudpSender {
   RudpSender &operator=(const RudpSender&);
 
   // Various constants that probably should be configurable.
-  enum { kMaxWriteBufferSize = 65536 };
   enum { kMaxDataSize = 1024 };
 
   // Send waiting packets.
@@ -89,9 +86,6 @@ class RudpSender {
 
   // The timer used to generate tick events.
   RudpTickTimer &tick_timer_;
-
-  // The buffer used to store application data that is waiting to be sent.
-  std::deque<unsigned char> write_buffer_;
 
   struct UnackedPacket {
     UnackedPacket() : lost(false) {}

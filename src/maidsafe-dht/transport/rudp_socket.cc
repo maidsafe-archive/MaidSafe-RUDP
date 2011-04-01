@@ -145,10 +145,6 @@ void RudpSocket::ProcessWrite() {
   if (asio::buffer_size(waiting_write_buffer_) == 0)
     return;
 
-  // If the write buffer is full then the write is going to have to wait.
-  if (sender_.GetFreeSpace() == 0)
-    return;
-
   // Copy whatever data we can into the write buffer.
   size_t length = sender_.AddData(waiting_write_buffer_);
   waiting_write_buffer_ = waiting_write_buffer_ + length;

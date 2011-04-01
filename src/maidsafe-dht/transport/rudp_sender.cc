@@ -53,20 +53,31 @@ boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
   return unacked_packets_.End();
 }
 
-size_t RudpSender::GetFreeSpace() const {
-  return kMaxWriteBufferSize - write_buffer_.size();
-}
-
 bool RudpSender::Flushed() const {
-  return write_buffer_.empty() && unacked_packets_.IsEmpty();
+  return unacked_packets_.IsEmpty();
 }
 
 size_t RudpSender::AddData(const asio::const_buffer &data) {
-  size_t length = std::min(GetFreeSpace(), asio::buffer_size(data));
-  const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
-  write_buffer_.insert(write_buffer_.end(), p, p + length);
+  const unsigned char *begin = asio::buffer_cast<const unsigned char*>(data);
+  const unsigned char *ptr = begin;
+  const unsigned char *end = begin + asio::buffer_size(data);
+  while (!unacked_packets_.IsFull() && (ptr < end)) {
+    boost::uint32_t n = unacked_packets_.Append();
+    UnackedPacket &p = unacked_packets_[n];
+    p.packet.SetPacketSequenceNumber(n);
+    p.packet.SetFirstPacketInMessage(true);
+    p.packet.SetLastPacketInMessage(true);
+    p.packet.SetInOrder(true);
+    p.packet.SetMessageNumber(0);
+    p.packet.SetTimeStamp(0);
+    p.packet.SetDestinationSocketId(peer_.Id());
+    size_t length = std::min<size_t>(kMaxDataSize, end - ptr);
+    p.packet.SetData(ptr, ptr + length);
+    p.lost = true; // Mark as lost so that DoSend() will send it.
+    ptr += length;
+  }
   DoSend();
-  return length;
+  return ptr - begin;
 }
 
 void RudpSender::HandleAck(const RudpAckPacket &packet) {
@@ -92,6 +103,7 @@ void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
       unacked_packets_[n].lost = true;
     }
   }
+
   DoSend();
 }
 
@@ -109,44 +121,18 @@ void RudpSender::HandleTick() {
 }
 
 void RudpSender::DoSend() {
-  bool sent_something = false;
-
-  // Retransmit lost packets.
+  bptime::ptime now = tick_timer_.Now();
   for (boost::uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     UnackedPacket &p = unacked_packets_[n];
     if (p.lost) {
-      p.lost = false;
-      p.last_send_time = tick_timer_.Now();
       peer_.Send(p.packet);
-      sent_something = true;
+      p.lost = false;
+      p.last_send_time = now;
+      tick_timer_.TickAt(now + bptime::milliseconds(250));
     }
   }
-
-  // If we have some waiting application data, create new packets until the
-  // sender's window is full.
-  while (!write_buffer_.empty() && !unacked_packets_.IsFull()) {
-    boost::uint32_t n = unacked_packets_.Append();
-    UnackedPacket &p = unacked_packets_[n];
-    p.packet.SetPacketSequenceNumber(n);
-    p.packet.SetFirstPacketInMessage(true);
-    p.packet.SetLastPacketInMessage(true);
-    p.packet.SetInOrder(true);
-    p.packet.SetMessageNumber(0);
-    p.packet.SetTimeStamp(0);
-    p.packet.SetDestinationSocketId(peer_.Id());
-    size_t length = std::min<size_t>(kMaxDataSize, write_buffer_.size());
-    p.packet.SetData(write_buffer_.begin(), write_buffer_.begin() + length);
-    write_buffer_.erase(write_buffer_.begin(), write_buffer_.begin() + length);
-    p.lost = false;
-    p.last_send_time = tick_timer_.Now();
-    peer_.Send(p.packet);
-    sent_something = true;
-  }
-
-  if (sent_something)
-    tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 }  // namespace transport
