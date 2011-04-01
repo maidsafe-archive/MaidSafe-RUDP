@@ -62,7 +62,8 @@ RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
     buffer_(),
     data_size_(0),
     data_received_(0),
-    timeout_for_response_(kDefaultInitialTimeout) {
+    timeout_for_response_(kDefaultInitialTimeout),
+    timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
@@ -77,10 +78,20 @@ void RudpConnection::Close() {
 }
 
 void RudpConnection::DoClose() {
-  socket_.Close();
-  timer_.cancel();
-  if (std::shared_ptr<RudpTransport> transport = transport_.lock())
+  if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
+    // We're still connected to the transport. We need to detach and then
+    // start flushing the socket to attempt a graceful closure.
     transport->RemoveConnection(shared_from_this());
+    transport_.reset();
+    socket_.AsyncFlush(strand_.wrap(std::bind(&RudpConnection::DoClose,
+                                              shared_from_this())));
+    timer_.expires_from_now(kStallTimeout);
+  }
+  else {
+    // We've already had a go at graceful closure. Just tear down the socket.
+    socket_.Close();
+    timer_.cancel();
+  }
 }
 
 void RudpConnection::StartReceiving() {
@@ -114,13 +125,24 @@ void RudpConnection::CheckTimeout() {
     return;
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
-    // Time has run out. Close the socket to cancel outstanding operations.
-    socket_.Close();
-  } else {
-    // Timeout not yet reached. Go back to sleep.
-    timer_.async_wait(strand_.wrap(std::bind(&RudpConnection::CheckTimeout,
-                                             shared_from_this())));
+    // Time has run out.
+    if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
+      Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
+      if (timeout_state_ == kSending)
+        (*transport->on_error_)(kSendTimeout, ep);
+      else
+        (*transport->on_error_)(kReceiveTimeout, ep);
+    }
+    DoClose();
   }
+
+  // Keep processing timeouts until the socket is completely closed.
+  timer_.async_wait(strand_.wrap(std::bind(&RudpConnection::CheckTimeout,
+                                           shared_from_this())));
+}
+
+bool RudpConnection::Stopped() const {
+  return (!transport_.lock() || !socket_.IsOpen());
 }
 
 void RudpConnection::StartTick() {
@@ -130,7 +152,7 @@ void RudpConnection::StartTick() {
 }
 
 void RudpConnection::HandleTick() {
-  // If the socket is closed, it means the timeout has been triggered.
+  // We need to keep ticking during a graceful shutdown.
   if (socket_.IsOpen()) {
     StartTick();
   }
@@ -142,12 +164,12 @@ void RudpConnection::StartServerConnect() {
   socket_.AsyncConnect(handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
+  timeout_state_ = kSending;
 }
 
 void RudpConnection::HandleServerConnect(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kReceiveTimeout);
+  if (Stopped()) {
+    return;
   }
 
   if (ec) {
@@ -163,12 +185,12 @@ void RudpConnection::StartClientConnect() {
   socket_.AsyncConnect(remote_endpoint_, handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
+  timeout_state_ = kSending;
 }
 
 void RudpConnection::HandleClientConnect(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kSendTimeout);
+  if (Stopped()) {
+    return;
   }
 
   if (ec) {
@@ -179,7 +201,7 @@ void RudpConnection::HandleClientConnect(const bs::error_code &ec) {
 }
 
 void RudpConnection::StartReadSize() {
-  assert(socket_.IsOpen());
+  assert(!Stopped());
 
   buffer_.resize(sizeof(DataSize));
   socket_.AsyncRead(asio::buffer(buffer_), sizeof(DataSize),
@@ -189,12 +211,12 @@ void RudpConnection::StartReadSize() {
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
   response_deadline_ = now + timeout_for_response_;
   timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
+  timeout_state_ = kReceiving;
 }
 
 void RudpConnection::HandleReadSize(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kReceiveTimeout);
+  if (Stopped()) {
+    return;
   }
 
   if (ec) {
@@ -211,7 +233,7 @@ void RudpConnection::HandleReadSize(const bs::error_code &ec) {
 }
 
 void RudpConnection::StartReadData() {
-  assert(socket_.IsOpen());
+  assert(!Stopped());
 
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t>(kMaxTransportChunkSize),
@@ -226,12 +248,12 @@ void RudpConnection::StartReadData() {
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
   timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
+  timeout_state_ = kReceiving;
 }
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kReceiveTimeout);
+  if (Stopped()) {
+    return;
   }
 
   if (ec) {
@@ -265,8 +287,7 @@ void RudpConnection::DispatchMessage() {
                                        info, &response,
                                        &response_timeout);
     if (response.empty()) {
-      strand_.dispatch(std::bind(&RudpConnection::StartFlush,
-                                 shared_from_this()));
+      Close();
       return;
     }
 
@@ -298,7 +319,9 @@ void RudpConnection::EncodeData(const std::string &data) {
 }
 
 void RudpConnection::StartWrite() {
-  assert(socket_.IsOpen());
+  if (Stopped()) {
+    return;
+  }
 
 //  timeout_for_response_ = kImmediateTimeout;
   Timeout tm_out(bptime::milliseconds(std::max(
@@ -310,12 +333,12 @@ void RudpConnection::StartWrite() {
                                             shared_from_this(), arg::_1)));
 
   timer_.expires_from_now(tm_out);
+  timeout_state_ = kSending;
 }
 
 void RudpConnection::HandleWrite(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kSendTimeout);
+  if (Stopped()) {
+    return;
   }
 
   if (ec) {
@@ -326,30 +349,8 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
   if (timeout_for_response_ != kImmediateTimeout) {
     StartReadSize();
   } else {
-    StartFlush();
+    DoClose();
   }
-}
-
-void RudpConnection::StartFlush() {
-  assert(socket_.IsOpen());
-
-  socket_.AsyncFlush(strand_.wrap(std::bind(&RudpConnection::HandleFlush,
-                                            shared_from_this(), arg::_1)));
-
-  timer_.expires_from_now(kStallTimeout); // TODO kDefaultFinalTimeout?
-}
-
-void RudpConnection::HandleFlush(const bs::error_code &ec) {
-  // If the socket is closed, it means the timeout has been triggered.
-  if (!socket_.IsOpen()) {
-    return CloseOnError(kSendTimeout);
-  }
-
-  if (ec) {
-    return CloseOnError(kSendFailure);
-  }
-
-  DoClose();
 }
 
 void RudpConnection::CloseOnError(const TransportCondition &error) {

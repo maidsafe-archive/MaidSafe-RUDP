@@ -76,6 +76,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void DoStartSending();
 
   void CheckTimeout();
+  bool Stopped() const;
 
   void StartTick();
   void HandleTick();
@@ -95,9 +96,6 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
 
-  void StartFlush();
-  void HandleFlush(const boost::system::error_code &ec);
-
   void DispatchMessage();
   void EncodeData(const std::string &data);
   void CloseOnError(const TransportCondition &error);
@@ -112,6 +110,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   std::vector<unsigned char> buffer_;
   size_t data_size_, data_received_;
   Timeout timeout_for_response_;
+  enum TimeoutState { kNoTimeout, kSending, kReceiving } timeout_state_;
 };
 
 }  // namespace transport
