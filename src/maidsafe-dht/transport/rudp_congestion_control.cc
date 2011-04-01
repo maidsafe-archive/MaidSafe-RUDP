@@ -239,15 +239,6 @@ boost::uint32_t RudpCongestionControl::AckInterval() const {
   return ack_interval_;
 }
 
-void RudpCongestionControl::CalculatePacketsReceivingRate() {
-}
-
-void RudpCongestionControl::CalculateEstimatedLinkCapacity() {
-}
-
-void RudpCongestionControl::CalculateReceiveWindowSize() {
-}
-
 }  // namespace transport
 
 }  // namespace maidsafe

@@ -79,10 +79,6 @@ class RudpCongestionControl {
   RudpCongestionControl(const RudpCongestionControl&);
   RudpCongestionControl &operator=(const RudpCongestionControl&);
 
-  void CalculatePacketsReceivingRate();
-  void CalculateEstimatedLinkCapacity();
-  void CalculateReceiveWindowSize();
-
   bool slow_start_phase_;
 
   boost::uint32_t round_trip_time_;
