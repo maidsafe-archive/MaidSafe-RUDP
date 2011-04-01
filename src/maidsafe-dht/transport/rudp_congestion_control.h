@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_CONGESTION_CONTROL_H_
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_CONGESTION_CONTROL_H_
 
+#include <deque>
+
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
@@ -45,10 +47,12 @@ class RudpCongestionControl {
   void OnClose();
   void OnDataPacketSent(boost::uint32_t seqnum);
   void OnDataPacketReceived(boost::uint32_t seqnum);
+  void OnGenerateAck(boost::uint32_t seqnum);
   void OnAck(boost::uint32_t seqnum);
   void OnAck(boost::uint32_t seqnum,
              boost::uint32_t round_trip_time,
              boost::uint32_t round_trip_time_variance,
+             boost::uint32_t available_buffer_size,
              boost::uint32_t packets_receiving_rate,
              boost::uint32_t estimated_link_capacity);
   void OnNegativeAck(boost::uint32_t seqnum);
@@ -62,7 +66,8 @@ class RudpCongestionControl {
   boost::uint32_t EstimatedLinkCapacity() const;
 
   // Parameters that are altered based on level of congestion.
-  size_t WindowSize() const;
+  size_t SendWindowSize() const;
+  size_t ReceiveWindowSize() const;
   boost::posix_time::time_duration SendDelay() const;
   boost::posix_time::time_duration SendTimeout() const;
   boost::posix_time::time_duration AckDelay() const;
@@ -74,17 +79,30 @@ class RudpCongestionControl {
   RudpCongestionControl(const RudpCongestionControl&);
   RudpCongestionControl &operator=(const RudpCongestionControl&);
 
+  void CalculatePacketsReceivingRate();
+  void CalculateEstimatedLinkCapacity();
+  void CalculateReceiveWindowSize();
+
+  bool slow_start_phase_;
+
   boost::uint32_t round_trip_time_;
   boost::uint32_t round_trip_time_variance_;
   boost::uint32_t packets_receiving_rate_;
   boost::uint32_t estimated_link_capacity_;
 
-  size_t window_size_;
+  size_t send_window_size_;
+  size_t receive_window_size_;
   boost::posix_time::time_duration send_delay_;
   boost::posix_time::time_duration send_timeout_;
   boost::posix_time::time_duration ack_delay_;
   boost::posix_time::time_duration ack_timeout_;
   boost::uint32_t ack_interval_;
+
+  enum { kMaxArrivalTimes = 16 + 1 };
+  std::deque<boost::posix_time::ptime> arrival_times_;
+
+  enum { kMaxPacketPairIntervals = 16 + 1 };
+  std::deque<boost::posix_time::time_duration> packet_pair_intervals_;
 };
 
 }  // namespace transport

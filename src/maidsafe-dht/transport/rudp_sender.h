@@ -73,9 +73,6 @@ class RudpSender {
   RudpSender(const RudpSender&);
   RudpSender &operator=(const RudpSender&);
 
-  // Various constants that probably should be configurable.
-  enum { kMaxDataSize = 1024 };
-
   // Send waiting packets.
   void DoSend();
 

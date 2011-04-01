@@ -27,23 +27,33 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/rudp_congestion_control.h"
 
+#include <algorithm>
+#include <cmath>
+
+#include "maidsafe-dht/transport/rudp_data_packet.h"
+#include "maidsafe-dht/transport/rudp_tick_timer.h"
+
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace transport {
 
+static const bptime::time_duration kSynPeriod = bptime::milliseconds(10);
+
 RudpCongestionControl::RudpCongestionControl()
-  : round_trip_time_(0),
+  : slow_start_phase_(true),
+    round_trip_time_(0),
     round_trip_time_variance_(0),
     packets_receiving_rate_(0),
     estimated_link_capacity_(0),
-    window_size_(16),
+    send_window_size_(16),
+    receive_window_size_(16),
     send_delay_(bptime::milliseconds(0)),
     send_timeout_(bptime::milliseconds(100)),
     ack_delay_(bptime::milliseconds(10)),
     ack_timeout_(bptime::milliseconds(100)),
-    ack_interval_(8) {
+    ack_interval_(16) {
 }
 
 void RudpCongestionControl::OnOpen(boost::uint32_t send_seqnum,
@@ -57,6 +67,76 @@ void RudpCongestionControl::OnDataPacketSent(boost::uint32_t seqnum) {
 }
 
 void RudpCongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
+  bptime::ptime now = RudpTickTimer::Now();
+
+  if ((seqnum % 16 == 1) && !arrival_times_.empty()) {
+    packet_pair_intervals_.push_back(now - arrival_times_.back());
+    while (packet_pair_intervals_.size() > kMaxPacketPairIntervals)
+      packet_pair_intervals_.pop_front();
+  }
+
+  arrival_times_.push_back(now);
+  while (arrival_times_.size() > kMaxArrivalTimes)
+    arrival_times_.pop_front();
+}
+
+void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
+  // Need to have received at least 8 packets to calculate receiving rate.
+  if (arrival_times_.size() <= 8)
+    return;
+
+  // Calculate all packet arrival intervals.
+  std::vector<boost::uint64_t> intervals;
+  for (auto iter = arrival_times_.begin() + 1;
+       iter != arrival_times_.end(); ++iter)
+    intervals.push_back((*iter - *(iter - 1)).total_microseconds());
+
+  // Find the median packet arrival interval.
+  std::sort(intervals.begin(), intervals.end());
+  boost::uint64_t median = intervals[intervals.size() / 2];
+
+  // Calculate average of all intervals in range (median / 8) to (median * 8).
+  size_t num_valid_intervals = 0;
+  boost::uint64_t total = 0;
+  for (auto iter = intervals.begin(); iter != intervals.end(); ++iter)
+    if ((median / 8 <= *iter) && (*iter <= median * 8))
+      ++num_valid_intervals, total += *iter;
+
+  // Determine packet arrival speed only if we had more than 8 valid values.
+  if ((total > 0) && (num_valid_intervals > 8))
+    packets_receiving_rate_ = 1000000 * num_valid_intervals / total;
+  else
+    packets_receiving_rate_ = 0;
+
+  // Need to have recorded some packet pair intervals to be able to calculate
+  // the estimated link capacity.
+  if (!packet_pair_intervals_.empty()) {
+    // Calculate the estimated link capacity by determining the median of the
+    // packet pair intervals, and from that determining the number of packets
+    // per second.
+    std::vector<boost::uint64_t> intervals;
+    for (auto iter = packet_pair_intervals_.begin();
+        iter != packet_pair_intervals_.end(); ++iter)
+      intervals.push_back(iter->total_microseconds());
+    std::sort(intervals.begin(), intervals.end());
+    boost::uint64_t median = intervals[intervals.size() / 2];
+    estimated_link_capacity_ = (median > 0) ? (1000000 / median) : 0;
+  }
+
+  // We can now end the slow start phase, if we're still in it.
+  if (slow_start_phase_ && (packets_receiving_rate_ > 0)) {
+    receive_window_size_ = packets_receiving_rate_ *
+                           (round_trip_time_ +
+                            kSynPeriod.total_microseconds()) / 1000000;
+    slow_start_phase_ = false;
+    return;
+  }
+
+  receive_window_size_ = (packets_receiving_rate_ *
+                          (round_trip_time_ +
+                          kSynPeriod.total_microseconds())) / 1000000 + 16;
+
+  // TODO calculate SND (send_delay_).
 }
 
 void RudpCongestionControl::OnAck(boost::uint32_t seqnum) {
@@ -65,8 +145,30 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum) {
 void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
                                   boost::uint32_t round_trip_time,
                                   boost::uint32_t round_trip_time_variance,
+                                  boost::uint32_t available_buffer_size,
                                   boost::uint32_t packets_receiving_rate,
                                   boost::uint32_t estimated_link_capacity) {
+  round_trip_time_ = round_trip_time;
+  round_trip_time_variance_ = round_trip_time_variance;
+
+  ack_delay_ = bptime::microseconds(UINT64_C(4) * round_trip_time_);
+  ack_delay_ += bptime::microseconds(round_trip_time_variance_);
+  ack_delay_ += kSynPeriod;
+
+  send_window_size_ = (available_buffer_size + 1) /
+                      RudpDataPacket::kMaxDataSize;
+
+  if (packets_receiving_rate) {
+    boost::uint64_t tmp = packets_receiving_rate_ * UINT64_C(7);
+    tmp = (tmp + packets_receiving_rate) / 8;
+    packets_receiving_rate_ = static_cast<boost::uint32_t>(tmp);
+  }
+
+  if (estimated_link_capacity) {
+    boost::uint64_t tmp = estimated_link_capacity_ * UINT64_C(7);
+    tmp = (tmp + estimated_link_capacity) / 8;
+    estimated_link_capacity_ = static_cast<boost::uint32_t>(tmp);
+  }
 }
 
 void RudpCongestionControl::OnNegativeAck(boost::uint32_t seqnum) {
@@ -76,6 +178,21 @@ void RudpCongestionControl::OnSendTimeout(boost::uint32_t seqnum) {
 }
 
 void RudpCongestionControl::OnAckOfAck(boost::uint32_t round_trip_time) {
+  boost::uint32_t diff = (round_trip_time < round_trip_time_) ?
+                         (round_trip_time_ - round_trip_time) :
+                         (round_trip_time - round_trip_time_);
+
+  boost::uint32_t tmp = round_trip_time_ * UINT64_C(7);
+  tmp = (tmp + round_trip_time) / 8;
+  round_trip_time_ = static_cast<boost::uint32_t>(tmp);
+
+  tmp = round_trip_time_variance_ * UINT64_C(3);
+  tmp = (tmp + diff) / 4;
+  round_trip_time_variance_ = static_cast<boost::uint32_t>(tmp);
+
+  ack_delay_ = bptime::microseconds(UINT64_C(4) * round_trip_time_);
+  ack_delay_ += bptime::microseconds(round_trip_time_variance_);
+  ack_delay_ += kSynPeriod;
 }
 
 boost::uint32_t RudpCongestionControl::RoundTripTime() const {
@@ -94,8 +211,12 @@ boost::uint32_t RudpCongestionControl::EstimatedLinkCapacity() const {
   return estimated_link_capacity_;
 }
 
-size_t RudpCongestionControl::WindowSize() const {
-  return window_size_;
+size_t RudpCongestionControl::SendWindowSize() const {
+  return send_window_size_;
+}
+
+size_t RudpCongestionControl::ReceiveWindowSize() const {
+  return receive_window_size_;
 }
 
 boost::posix_time::time_duration RudpCongestionControl::SendDelay() const {
@@ -116,6 +237,15 @@ boost::posix_time::time_duration RudpCongestionControl::AckTimeout() const {
 
 boost::uint32_t RudpCongestionControl::AckInterval() const {
   return ack_interval_;
+}
+
+void RudpCongestionControl::CalculatePacketsReceivingRate() {
+}
+
+void RudpCongestionControl::CalculateEstimatedLinkCapacity() {
+}
+
+void RudpCongestionControl::CalculateReceiveWindowSize() {
 }
 
 }  // namespace transport

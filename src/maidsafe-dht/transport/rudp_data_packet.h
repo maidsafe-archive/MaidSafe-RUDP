@@ -44,6 +44,9 @@ class RudpDataPacket : public RudpPacket {
  public:
   enum { kHeaderSize = 16 };
 
+  // This constant should probably should be configurable.
+  enum { kMaxDataSize = 1024 };
+
   RudpDataPacket();
 
   boost::uint32_t PacketSequenceNumber() const;

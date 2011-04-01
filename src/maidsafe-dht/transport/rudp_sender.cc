@@ -61,7 +61,7 @@ bool RudpSender::Flushed() const {
 }
 
 size_t RudpSender::AddData(const asio::const_buffer &data) {
-  unacked_packets_.SetMaximumSize(congestion_control_.WindowSize());
+  unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
 
   const unsigned char *begin = asio::buffer_cast<const unsigned char*>(data);
   const unsigned char *ptr = begin;
@@ -78,7 +78,7 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
     p.packet.SetMessageNumber(0);
     p.packet.SetTimeStamp(0);
     p.packet.SetDestinationSocketId(peer_.Id());
-    size_t length = std::min<size_t>(kMaxDataSize, end - ptr);
+    size_t length = std::min<size_t>(RudpDataPacket::kMaxDataSize, end - ptr);
     p.packet.SetData(ptr, ptr + length);
     p.lost = true; // Mark as lost so that DoSend() will send it.
 
@@ -97,6 +97,7 @@ void RudpSender::HandleAck(const RudpAckPacket &packet) {
     congestion_control_.OnAck(seqnum,
                               packet.RoundTripTime(),
                               packet.RoundTripTimeVariance(),
+                              packet.AvailableBufferSize(),
                               packet.PacketsReceivingRate(),
                               packet.EstimatedLinkCapacity());
   } else {

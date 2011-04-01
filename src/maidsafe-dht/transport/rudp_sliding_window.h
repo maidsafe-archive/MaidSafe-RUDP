@@ -43,6 +43,7 @@ class RudpSlidingWindow {
  public:
   // A constant that probably should be configurable.
   enum { kDefaultWindowSize = 64 };
+  enum { kMaximumWindowSize = 64 };
 
   // The maximum possible sequence number. When reached, sequence numbers are
   // wrapped around to start from 0.
@@ -85,7 +86,7 @@ class RudpSlidingWindow {
   // end. This is used to filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
-    boost::uint32_t end = (begin + maximum_size_) % (kMaxSequenceNumber + 1);
+    boost::uint32_t end = (begin + kMaximumWindowSize) % (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
   }
 
@@ -96,7 +97,7 @@ class RudpSlidingWindow {
 
   // Set the maximum size of the window.
   void SetMaximumSize(size_t size) {
-    maximum_size_ = size;
+    maximum_size_ = size < kMaximumWindowSize ? size : kMaximumWindowSize;
   }
 
   // Get the current size of the window.

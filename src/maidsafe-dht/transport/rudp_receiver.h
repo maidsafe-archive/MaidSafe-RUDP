@@ -76,6 +76,9 @@ class RudpReceiver {
   RudpReceiver(const RudpReceiver&);
   RudpReceiver &operator=(const RudpReceiver&);
 
+  // Helper function to calculate the available buffer size.
+  boost::uint32_t AvailableBufferSize() const;
+
   // Calculate the sequence number which should be sent in an acknowledgement.
   boost::uint32_t AckPacketSequenceNumber() const;
 

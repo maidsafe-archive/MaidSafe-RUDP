@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
+#include "maidsafe-dht/transport/rudp_sliding_window.h"
 #include "maidsafe-dht/transport/rudp_tick_timer.h"
 
 namespace asio = boost::asio;
@@ -165,7 +166,7 @@ void RudpSession::SendCookieResponse() {
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(64); // Not used in this implementation.
+  packet.SetMaximumFlowWindowSize(RudpSlidingWindow<int>::kMaximumWindowSize);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
@@ -186,7 +187,7 @@ void RudpSession::SendConnectionAccepted() {
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
   packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(64); // Not used in this implementation.
+  packet.SetMaximumFlowWindowSize(RudpSlidingWindow<int>::kMaximumWindowSize);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
