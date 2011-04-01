@@ -299,6 +299,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_sliding_window.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_socket.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
