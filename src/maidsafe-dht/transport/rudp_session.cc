@@ -48,7 +48,7 @@ RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)
     sending_sequence_number_(0),
     receiving_sequence_number_(0),
     mode_(kClient),
-    connected_(false) {
+    state_(kClosed) {
 }
 
 void RudpSession::Open(boost::uint32_t id,
@@ -58,15 +58,21 @@ void RudpSession::Open(boost::uint32_t id,
   id_ = id;
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
-  SendFirstPacket();
+  if (mode_ == kClient) {
+    state_ = kProbing;
+    SendConnectionRequest();
+  } else {
+    state_ = kHandshaking;
+    SendCookieChallenge();
+  }
 }
 
 bool RudpSession::IsOpen() const {
-  return id_ != 0;
+  return state_ != kClosed;
 }
 
 bool RudpSession::IsConnected() const {
-  return connected_;
+  return state_ == kConnected;
 }
 
 boost::uint32_t RudpSession::Id() const {
@@ -78,34 +84,82 @@ boost::uint32_t RudpSession::ReceivingSequenceNumber() const {
 }
 
 void RudpSession::Close() {
-  id_ = 0;
-  connected_ = false;
+  state_ = kClosed;
 }
 
 void RudpSession::HandleHandshake(const RudpHandshakePacket &packet) {
-  if (!connected_) {
-    connected_ = true;
-    receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
-    if (mode_ == kClient) {
-      peer_.SetId(packet.SocketId());
-      RudpHandshakePacket response_packet(packet);
-      response_packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-      response_packet.SetSocketId(id_);
-      response_packet.SetIpAddress(peer_.Endpoint().address());
-      response_packet.SetDestinationSocketId(peer_.Id());
-      response_packet.SetConnectionType(0xffffffff);
-      peer_.Send(response_packet);
+  if (peer_.Id() == 0) {
+    peer_.SetId(packet.SocketId());
+  }
+
+  if (mode_ == kClient) {
+    if (state_ == kProbing || state_ == kHandshaking) {
+      state_ = kHandshaking;
+      if (packet.ConnectionType() == 0xffffffff) {
+        state_ = kConnected;
+        receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
+      } else {
+        SendCookieResponse();
+      }
+    }
+  } else {
+    if (state_ == kConnected) {
+      SendConnectionAccepted();
+    } else if (packet.SynCookie() == 1) {
+      state_ = kConnected;
+      receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
+      SendConnectionAccepted();
+    } else {
+      SendCookieChallenge();
     }
   }
 }
 
 void RudpSession::HandleTick() {
-  if (mode_ == kClient)
-    if (!connected_)
-      SendFirstPacket();
+  if (mode_ == kClient) {
+    if (state_ == kProbing) {
+      SendConnectionRequest();
+    } else if (state_ == kHandshaking) {
+      SendCookieResponse();
+    }
+  }
 }
 
-void RudpSession::SendFirstPacket() {
+void RudpSession::SendConnectionRequest() {
+  assert(mode_ == kClient);
+
+  RudpHandshakePacket packet;
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(0);
+  packet.SetConnectionType(1);
+
+  peer_.Send(packet);
+
+  // Schedule another connection request.
+  tick_timer_.TickAfter(bptime::milliseconds(250));
+}
+
+void RudpSession::SendCookieChallenge() {
+  assert(mode_ == kServer);
+
+  RudpHandshakePacket packet;
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(peer_.Id());
+  packet.SetConnectionType(0);
+  packet.SetSynCookie(1); // TODO calculate cookie
+
+  peer_.Send(packet);
+}
+
+void RudpSession::SendCookieResponse() {
+  assert(mode_ == kClient);
+
   RudpHandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
@@ -115,16 +169,31 @@ void RudpSession::SendFirstPacket() {
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(mode_ == kClient ? 1 : 0xffffffff);
-  if (mode_ == kServer)
-    packet.SetSynCookie(0); // TODO calculate cookie
+  packet.SetConnectionType(1);
+  packet.SetSynCookie(1); // TODO calculate cookie
 
   peer_.Send(packet);
 
-  if (mode_ == kClient) {
-    // Schedule another connection attempt.
-    tick_timer_.TickAfter(bptime::milliseconds(500));
-  }
+  // Schedule another cookie response.
+  tick_timer_.TickAfter(bptime::milliseconds(250));
+}
+
+void RudpSession::SendConnectionAccepted() {
+  assert(mode_ == kServer);
+
+  RudpHandshakePacket packet;
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
+  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
+  packet.SetMaximumFlowWindowSize(64); // Not used in this implementation.
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(peer_.Id());
+  packet.SetConnectionType(0xffffffff);
+  packet.SetSynCookie(0); // TODO calculate cookie
+
+  peer_.Send(packet);
 }
 
 }  // namespace transport
