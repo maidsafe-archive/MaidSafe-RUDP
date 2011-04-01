@@ -30,7 +30,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <limits>
 
+#include "maidsafe-dht/transport/rudp_congestion_control.h"
 #include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_tick_timer.h"
@@ -44,9 +46,11 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpReceiver::RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer)
+RudpReceiver::RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+                           RudpCongestionControl &congestion_control)
   : peer_(peer),
     tick_timer_(tick_timer),
+    congestion_control_(congestion_control),
     unread_packets_(),
     acks_(),
     last_ack_packet_sequence_number_(0) {
@@ -87,6 +91,8 @@ size_t RudpReceiver::ReadData(const boost::asio::mutable_buffer &data) {
 }
 
 void RudpReceiver::HandleData(const RudpDataPacket &packet) {
+  unread_packets_.SetMaximumSize(congestion_control_.WindowSize());
+
   boost::uint32_t seqnum = packet.PacketSequenceNumber();
 
   // Make sure there is space in the window for packets that are expected soon.
@@ -97,19 +103,37 @@ void RudpReceiver::HandleData(const RudpDataPacket &packet) {
   if (unread_packets_.Contains(seqnum)) {
     UnreadPacket &p = unread_packets_[seqnum];
     if (p.lost) {
+      congestion_control_.OnDataPacketReceived(seqnum);
       p.packet = packet;
       p.lost = false;
       p.bytes_read = 0;
     }
   }
 
-  // Schedule generation of acknowledgement and negative acknowlegement packets.
-  tick_timer_.TickAfter(bptime::milliseconds(50));
+  if (seqnum % congestion_control_.AckInterval() == 0) {
+    // Send acknowledgement packets immediately.
+    HandleTick();
+  } else {
+    // Schedule generation of acknowledgement packets for later.
+    tick_timer_.TickAfter(congestion_control_.AckDelay());
+  }
 }
 
 void RudpReceiver::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
-  while (acks_.Contains(packet.AckSequenceNumber()))
+  boost::uint32_t ack_seqnum = packet.AckSequenceNumber();
+
+  if (acks_.Contains(ack_seqnum)) {
+    Ack &a = acks_[ack_seqnum];
+    boost::posix_time::time_duration rtt = tick_timer_.Now() - a.send_time;
+    boost::uint64_t rtt_us = rtt.total_microseconds();
+    if (rtt_us < UINT32_MAX) {
+      congestion_control_.OnAckOfAck(static_cast<boost::uint32_t>(rtt_us));
+    }
+  }
+
+  while (acks_.Contains(ack_seqnum)) {
     acks_.Remove();
+  }
 }
 
 void RudpReceiver::HandleTick() {
@@ -121,7 +145,7 @@ void RudpReceiver::HandleTick() {
   boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() &&
-       (acks_.Back().send_time + bptime::milliseconds(250) <= now))) {
+       (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
     if (acks_.IsFull())
       acks_.Remove();
     boost::uint32_t n = acks_.Append();
@@ -133,7 +157,7 @@ void RudpReceiver::HandleTick() {
     a.send_time = now;
     peer_.Send(a.packet);
     last_ack_packet_sequence_number_ = ack_packet_seqnum;
-    tick_timer_.TickAt(now + bptime::milliseconds(250));
+    tick_timer_.TickAt(now + congestion_control_.AckTimeout());
   }
 
   // Generate a negative acknowledgement packet to request missing packets.
@@ -158,7 +182,7 @@ void RudpReceiver::HandleTick() {
   }
   if (negative_ack.HasSequenceNumbers()) {
     peer_.Send(negative_ack);
-    tick_timer_.TickAt(now + bptime::milliseconds(250));
+    tick_timer_.TickAt(now + congestion_control_.AckTimeout());
   }
 }
 

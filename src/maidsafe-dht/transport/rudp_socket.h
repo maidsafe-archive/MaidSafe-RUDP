@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_congestion_control.h"
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_flush_op.h"
@@ -198,6 +199,9 @@ class RudpSocket {
 
   // The session state associated with the connection.
   RudpSession session_;
+
+  // The congestion control information associated with the connection.
+  RudpCongestionControl congestion_control_;
 
   // The send side of the connection.
   RudpSender sender_;

@@ -49,8 +49,8 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
     session_(peer_, tick_timer_),
-    sender_(peer_, tick_timer_),
-    receiver_(peer_, tick_timer_),
+    sender_(peer_, tick_timer_, congestion_control_),
+    receiver_(peer_, tick_timer_, congestion_control_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -90,8 +90,10 @@ bool RudpSocket::IsOpen() const {
 }
 
 void RudpSocket::Close() {
-  if (session_.IsOpen())
+  if (session_.IsOpen()) {
+    congestion_control_.OnClose();
     dispatcher_.RemoveSocket(session_.Id());
+  }
   session_.Close();
   peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
@@ -242,6 +244,8 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
   if (!was_connected && session_.IsConnected()) {
+    congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
+                               session_.ReceivingSequenceNumber());
     receiver_.Reset(session_.ReceivingSequenceNumber());
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();

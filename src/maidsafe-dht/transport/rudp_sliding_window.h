@@ -42,7 +42,7 @@ template <typename T>
 class RudpSlidingWindow {
  public:
   // A constant that probably should be configurable.
-  enum { kMaxWindowSize = 64 };
+  enum { kDefaultWindowSize = 64 };
 
   // The maximum possible sequence number. When reached, sequence numbers are
   // wrapped around to start from 0.
@@ -61,6 +61,7 @@ class RudpSlidingWindow {
   // Reset to empty starting with the specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
+    maximum_size_ = kDefaultWindowSize;
     begin_ = end_ = initial_sequence_number;
     items_.clear();
   }
@@ -84,8 +85,23 @@ class RudpSlidingWindow {
   // end. This is used to filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
-    boost::uint32_t end = (begin + kMaxWindowSize) % (kMaxSequenceNumber + 1);
+    boost::uint32_t end = (begin + maximum_size_) % (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
+  }
+
+  // Get the maximum size of the window.
+  size_t MaximumSize() const {
+    return maximum_size_;
+  }
+
+  // Set the maximum size of the window.
+  void SetMaximumSize(size_t size) {
+    maximum_size_ = size;
+  }
+
+  // Get the current size of the window.
+  size_t Size() const {
+    return items_.size();
   }
 
   // Get whether the window is empty.
@@ -95,7 +111,7 @@ class RudpSlidingWindow {
 
   // Get whether the window is full.
   bool IsFull() const {
-    return items_.size() == kMaxWindowSize;
+    return items_.size() >= maximum_size_;
   }
 
   // Add a new item to the end.
@@ -195,6 +211,9 @@ class RudpSlidingWindow {
 
   // The items in the window.
   std::deque<T> items_;
+
+  // The maximum number of items allowed in the window.
+  size_t maximum_size_;
 
   // The sequence number of the first item in window.
   boost::uint32_t begin_;

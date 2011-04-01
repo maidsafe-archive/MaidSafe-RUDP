@@ -41,19 +41,17 @@ namespace maidsafe {
 
 namespace transport {
 
+class RudpCongestionControl;
 class RudpPeer;
 class RudpTickTimer;
 
 class RudpSender {
  public:
-  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer);
+  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer,
+                      RudpCongestionControl &congestion_control);
 
   // Get the sequence number that will be used for the next packet.
   boost::uint32_t GetNextPacketSequenceNumber() const;
-
-  // Returns how much data can be written to without blocking. Asynchronous
-  // writes can complete immediately provided there is available free space.
-  size_t GetFreeSpace() const;
 
   // Determine whether all data has been transmitted to the peer.
   bool Flushed() const;
@@ -87,6 +85,9 @@ class RudpSender {
   // The timer used to generate tick events.
   RudpTickTimer &tick_timer_;
 
+  // The congestion control information associated with the connection.
+  RudpCongestionControl &congestion_control_;
+
   struct UnackedPacket {
     UnackedPacket() : lost(false) {}
     RudpDataPacket packet;
@@ -97,6 +98,9 @@ class RudpSender {
   // The sender's window of unacknowledged packets.
   typedef RudpSlidingWindow<UnackedPacket> UnackedPacketWindow;
   UnackedPacketWindow unacked_packets_;
+
+  // The next time at which all unacked packets will be considered lost.
+  boost::posix_time::ptime send_timeout_;
 };
 
 }  // namespace transport

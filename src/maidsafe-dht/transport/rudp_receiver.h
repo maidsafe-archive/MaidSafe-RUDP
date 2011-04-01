@@ -43,12 +43,14 @@ namespace maidsafe {
 
 namespace transport {
 
+class RudpCongestionControl;
 class RudpPeer;
 class RudpTickTimer;
 
 class RudpReceiver {
  public:
-  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer);
+  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+                        RudpCongestionControl &congestion_control);
 
   // Reset receiver so that it is ready to start receiving data from the
   // specified sequence number.
@@ -82,6 +84,9 @@ class RudpReceiver {
 
   // The timer used to generate tick events.
   RudpTickTimer &tick_timer_;
+
+  // The congestion control information associated with the connection.
+  RudpCongestionControl &congestion_control_;
 
   struct UnreadPacket {
     UnreadPacket() : lost(true), bytes_read(0) {}

@@ -312,6 +312,7 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_ack_of_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_congestion_control.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_control_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_data_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_dispatcher.cc"
