@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.h"
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_congestion_control.h"
 #include "maidsafe-dht/transport/rudp_connect_op.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_flush_op.h"
@@ -91,8 +92,7 @@ class RudpSocket {
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
   void AsyncTick(TickHandler handler) {
-    RudpTickOp<TickHandler> op(handler, &tick_timer_,
-                               &session_, &sender_, &receiver_);
+    RudpTickOp<TickHandler, RudpSocket> op(handler, this, &tick_timer_);
     tick_timer_.AsyncWait(op);
   }
 
@@ -185,6 +185,10 @@ class RudpSocket {
   // Called to process a newly received negative acknowledgement packet.
   void HandleNegativeAck(const RudpNegativeAckPacket &packet);
 
+  // Called to handle a tick event.
+  void HandleTick();
+  friend void DispatchTick(RudpSocket *socket) { socket->HandleTick(); }
+
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;
 
@@ -198,6 +202,9 @@ class RudpSocket {
 
   // The session state associated with the connection.
   RudpSession session_;
+
+  // The congestion control information associated with the connection.
+  RudpCongestionControl congestion_control_;
 
   // The send side of the connection.
   RudpSender sender_;

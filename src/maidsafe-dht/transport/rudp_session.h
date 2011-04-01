@@ -73,8 +73,12 @@ class RudpSession {
   RudpSession(const RudpSession&);
   RudpSession &operator=(const RudpSession&);
 
-  // Send the initial packet that kicks off connection establishment.
-  void SendFirstPacket();
+  // Helper functions to send the packets that make up the handshaking process.
+  void SendPacket();
+  void SendConnectionRequest();
+  void SendCookieChallenge();
+  void SendCookieResponse();
+  void SendConnectionAccepted();
 
   // The peer with which we are communicating.
   RudpPeer &peer_;
@@ -94,8 +98,8 @@ class RudpSession {
   // Are we a client or a server?
   Mode mode_;
 
-  // Whether the connection been fully established.
-  bool connected_;
+  // The state of the session.
+  enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
 };
 
 }  // namespace transport

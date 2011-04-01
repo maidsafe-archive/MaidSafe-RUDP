@@ -299,6 +299,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_sliding_window.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_socket.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_rudp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
@@ -312,6 +313,7 @@ ELSEIF(UNIX)
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_ack_of_ack_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_congestion_control.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_control_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_data_packet.cc"
                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/rudp_dispatcher.cc"

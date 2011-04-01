@@ -49,8 +49,8 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
     session_(peer_, tick_timer_),
-    sender_(peer_, tick_timer_),
-    receiver_(peer_, tick_timer_),
+    sender_(peer_, tick_timer_, congestion_control_),
+    receiver_(peer_, tick_timer_, congestion_control_),
     waiting_connect_(multiplexer.socket_.get_io_service()),
     waiting_connect_ec_(),
     waiting_write_(multiplexer.socket_.get_io_service()),
@@ -90,8 +90,10 @@ bool RudpSocket::IsOpen() const {
 }
 
 void RudpSocket::Close() {
-  if (session_.IsOpen())
+  if (session_.IsOpen()) {
+    congestion_control_.OnClose();
     dispatcher_.RemoveSocket(session_.Id());
+  }
   session_.Close();
   peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
@@ -143,10 +145,6 @@ void RudpSocket::StartWrite(const asio::const_buffer &data) {
 void RudpSocket::ProcessWrite() {
   // There's only a waiting write if the write buffer is non-empty.
   if (asio::buffer_size(waiting_write_buffer_) == 0)
-    return;
-
-  // If the write buffer is full then the write is going to have to wait.
-  if (sender_.GetFreeSpace() == 0)
     return;
 
   // Copy whatever data we can into the write buffer.
@@ -246,6 +244,8 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
   if (!was_connected && session_.IsConnected()) {
+    congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
+                               session_.ReceivingSequenceNumber());
     receiver_.Reset(session_.ReceivingSequenceNumber());
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
@@ -256,12 +256,14 @@ void RudpSocket::HandleData(const RudpDataPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
     ProcessRead();
+    ProcessWrite();
   }
 }
 
 void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
+    ProcessRead();
     ProcessWrite();
     ProcessFlush();
   }
@@ -270,6 +272,8 @@ void RudpSocket::HandleAck(const RudpAckPacket &packet) {
 void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
+    ProcessRead();
+    ProcessWrite();
     ProcessFlush();
   }
 }
@@ -277,6 +281,18 @@ void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
 void RudpSocket::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleNegativeAck(packet);
+  }
+}
+
+void RudpSocket::HandleTick() {
+  if (session_.IsConnected()) {
+    sender_.HandleTick();
+    receiver_.HandleTick();
+    ProcessRead();
+    ProcessWrite();
+    ProcessFlush();
+  } else {
+    session_.HandleTick();
   }
 }
 

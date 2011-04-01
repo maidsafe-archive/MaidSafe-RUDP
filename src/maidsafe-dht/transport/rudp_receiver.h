@@ -43,12 +43,14 @@ namespace maidsafe {
 
 namespace transport {
 
+class RudpCongestionControl;
 class RudpPeer;
 class RudpTickTimer;
 
 class RudpReceiver {
  public:
-  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer);
+  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+                        RudpCongestionControl &congestion_control);
 
   // Reset receiver so that it is ready to start receiving data from the
   // specified sequence number.
@@ -74,6 +76,9 @@ class RudpReceiver {
   RudpReceiver(const RudpReceiver&);
   RudpReceiver &operator=(const RudpReceiver&);
 
+  // Helper function to calculate the available buffer size.
+  boost::uint32_t AvailableBufferSize() const;
+
   // Calculate the sequence number which should be sent in an acknowledgement.
   boost::uint32_t AckPacketSequenceNumber() const;
 
@@ -82,6 +87,9 @@ class RudpReceiver {
 
   // The timer used to generate tick events.
   RudpTickTimer &tick_timer_;
+
+  // The congestion control information associated with the connection.
+  RudpCongestionControl &congestion_control_;
 
   struct UnreadPacket {
     UnreadPacket() : lost(true), bytes_read(0) {}
