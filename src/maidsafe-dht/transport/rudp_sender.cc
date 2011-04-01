@@ -109,6 +109,8 @@ void RudpSender::HandleTick() {
 }
 
 void RudpSender::DoSend() {
+  bool sent_something = false;
+
   // Retransmit lost packets.
   for (boost::uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
@@ -118,6 +120,7 @@ void RudpSender::DoSend() {
       p.lost = false;
       p.last_send_time = tick_timer_.Now();
       peer_.Send(p.packet);
+      sent_something = true;
     }
   }
 
@@ -139,7 +142,11 @@ void RudpSender::DoSend() {
     p.lost = false;
     p.last_send_time = tick_timer_.Now();
     peer_.Send(p.packet);
+    sent_something = true;
   }
+
+  if (sent_something)
+    tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 }  // namespace transport
