@@ -153,7 +153,14 @@ void RudpReceiver::HandleTick() {
     a.packet.SetDestinationSocketId(peer_.Id());
     a.packet.SetAckSequenceNumber(n);
     a.packet.SetPacketSequenceNumber(ack_packet_seqnum);
-    a.packet.SetHasOptionalFields(false);
+    a.packet.SetHasOptionalFields(true);
+    a.packet.SetRoundTripTime(congestion_control_.RoundTripTime());
+    a.packet.SetRoundTripTimeVariance(
+        congestion_control_.RoundTripTimeVariance());
+    a.packet.SetPacketsReceivingRate(
+        congestion_control_.PacketsReceivingRate());
+    a.packet.SetEstimatedLinkCapacity(
+        congestion_control_.EstimatedLinkCapacity());
     a.send_time = now;
     peer_.Send(a.packet);
     last_ack_packet_sequence_number_ = ack_packet_seqnum;
