@@ -44,7 +44,8 @@ namespace transport {
 namespace test {
 
 TestMessageHandler::TestMessageHandler(const std::string &id)
-    : this_id_(id),
+    : finished_(false),
+      this_id_(id),
       requests_received_(),
       responses_received_(),
       responses_sent_(),
@@ -76,6 +77,7 @@ void TestMessageHandler::DoOnResponseReceived(const std::string &request,
   responses_received_.push_back(std::make_pair(request, info));
   DLOG(INFO) << this_id_ << " - Received response: \"" << request << "\""
               << std::endl;
+  finished_ = true;
 }
 
 void TestMessageHandler::DoOnError(const TransportCondition &tc) {
@@ -200,10 +202,12 @@ template <typename T>
 void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
   Endpoint endpoint;
   endpoint.ip = kIP;
+  std::vector<TestMessageHandlerPtr> msg_handlers;
   std::vector<TransportPtr>::iterator sending_transports_itr(
       sending_transports_.begin());
   while (sending_transports_itr != sending_transports_.end()) {
     TestMessageHandlerPtr msg_h(new TestMessageHandler("Sender"));
+    msg_handlers.push_back(msg_h);
     (*sending_transports_itr)->on_message_received()->connect(boost::bind(
         &TestMessageHandler::DoOnResponseReceived, msg_h, _1, _2, _3, _4));
     (*sending_transports_itr)->on_error()->connect(
@@ -215,6 +219,7 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
       listening_transports_.begin());
   while (listening_transports_itr != listening_transports_.end()) {
     TestMessageHandlerPtr msg_h(new TestMessageHandler("Receiver"));
+//     msg_handlers.push_back(msg_h);
     (*listening_transports_itr)->on_message_received()->connect(
         boost::bind(&TestMessageHandler::DoOnRequestReceived, msg_h, _1, _2,
                     _3, _4));
@@ -245,7 +250,22 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     }
     ++sending_transports_itr;
   }
-  boost::this_thread::sleep(boost::posix_time::seconds(10));
+  bool waiting(true);
+  int i(0);
+  do {
+    waiting = false;
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
+    ++i;
+    for (auto it = msg_handlers.begin(); it != msg_handlers.end(); ++it){
+      if (!(*it)->finished_)
+        waiting = true;
+    }
+  } while (waiting && (i < 10));
+  // without this sleep, test of RUDP/ManyToManyMultiMessage will fail,
+  // reporting received responses numatch with the expected
+  // Note: only RUDP has this problem. TCP and UDP will not fail even without
+  //       this sleep
+  boost::this_thread::sleep(boost::posix_time::seconds(1));
   work_.reset();
   work_1_.reset();
   work_2_.reset();

@@ -74,6 +74,7 @@ class TestMessageHandler {
   IncomingMessages responses_received();
   OutgoingResponses responses_sent();
   Results results();
+  bool finished_;
  private:
   TestMessageHandler(const TestMessageHandler&);
   TestMessageHandler& operator=(const TestMessageHandler&);
