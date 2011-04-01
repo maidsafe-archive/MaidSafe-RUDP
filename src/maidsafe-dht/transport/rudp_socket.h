@@ -92,8 +92,7 @@ class RudpSocket {
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
   void AsyncTick(TickHandler handler) {
-    RudpTickOp<TickHandler> op(handler, &tick_timer_,
-                               &session_, &sender_, &receiver_);
+    RudpTickOp<TickHandler, RudpSocket> op(handler, this, &tick_timer_);
     tick_timer_.AsyncWait(op);
   }
 
@@ -185,6 +184,10 @@ class RudpSocket {
 
   // Called to process a newly received negative acknowledgement packet.
   void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+
+  // Called to handle a tick event.
+  void HandleTick();
+  friend void DispatchTick(RudpSocket *socket) { socket->HandleTick(); }
 
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;

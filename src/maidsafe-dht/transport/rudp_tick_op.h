@@ -42,29 +42,21 @@ namespace maidsafe {
 namespace transport {
 
 // Helper class to perform an asynchronous tick operation.
-template <typename TickHandler>
+template <typename TickHandler, typename Socket>
 class RudpTickOp {
  public:
-  RudpTickOp(TickHandler handler, RudpTickTimer *tick_timer,
-             RudpSession *session, RudpSender *sender, RudpReceiver *receiver)
+  RudpTickOp(TickHandler handler, Socket *socket, RudpTickTimer *tick_timer)
     : handler_(handler),
-      tick_timer_(tick_timer),
-      session_(session),
-      sender_(sender),
-      receiver_(receiver) {
+      socket_(socket),
+      tick_timer_(tick_timer) {
   }
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
-    if (session_->IsOpen()) {
+    if (socket_->IsOpen()) {
       if (tick_timer_->Expired()) {
         tick_timer_->Reset();
-        if (session_->IsConnected()) {
-          sender_->HandleTick();
-          receiver_->HandleTick();
-        } else {
-          session_->HandleTick();
-        }
+        DispatchTick(socket_);
       }
     } else {
       ec = boost::asio::error::operation_aborted;
@@ -90,10 +82,8 @@ class RudpTickOp {
 
  private:
   TickHandler handler_;
+  Socket *socket_;
   RudpTickTimer *tick_timer_;
-  RudpSession *session_;
-  RudpSender *sender_;
-  RudpReceiver *receiver_;
 };
 
 }  // namespace transport

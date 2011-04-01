@@ -256,12 +256,14 @@ void RudpSocket::HandleData(const RudpDataPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
     ProcessRead();
+    ProcessWrite();
   }
 }
 
 void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
+    ProcessRead();
     ProcessWrite();
     ProcessFlush();
   }
@@ -270,6 +272,8 @@ void RudpSocket::HandleAck(const RudpAckPacket &packet) {
 void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
+    ProcessRead();
+    ProcessWrite();
     ProcessFlush();
   }
 }
@@ -277,6 +281,18 @@ void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
 void RudpSocket::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleNegativeAck(packet);
+  }
+}
+
+void RudpSocket::HandleTick() {
+  if (session_.IsConnected()) {
+    sender_.HandleTick();
+    receiver_.HandleTick();
+    ProcessRead();
+    ProcessWrite();
+    ProcessFlush();
+  } else {
+    session_.HandleTick();
   }
 }
 
