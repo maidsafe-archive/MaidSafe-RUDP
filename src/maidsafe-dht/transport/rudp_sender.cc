@@ -168,12 +168,14 @@ void RudpSender::DoSend() {
       p.lost = false;
       p.last_send_time = now;
       congestion_control_.OnDataPacketSent(n);
-
-      // Set the send timeout so the packet can be resent as necessary.
-      if (now + congestion_control_.SendTimeout() < send_timeout_)
-        send_timeout_ = now + congestion_control_.SendTimeout();
-      tick_timer_.TickAt(send_timeout_);
     }
+  }
+
+  // Set the send timeout so that unacknowledged packets can be marked as lost.
+  if (!unacked_packets_.IsEmpty()) {
+    send_timeout_ = unacked_packets_.Front().last_send_time +
+                    congestion_control_.SendTimeout();
+    tick_timer_.TickAt(send_timeout_);
   }
 }
 
