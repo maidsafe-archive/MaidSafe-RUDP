@@ -66,7 +66,7 @@ class MessageHandler;
 enum OnlineStatus { kOffline, kOnline, kAttemptingConnect };
 
 typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
-    OnOnlineStatusChangePtr;
+        OnOnlineStatusChangePtr;
 
 // Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
 // return code.

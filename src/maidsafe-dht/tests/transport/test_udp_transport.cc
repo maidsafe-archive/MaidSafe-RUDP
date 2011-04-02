@@ -25,44 +25,19 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RPCS_H_
-#define MAIDSAFE_DHT_TRANSPORT_RPCS_H_
-
-#include <vector>
-
-#include "boost/function.hpp"
-
-#include "maidsafe-dht/transport/transport.pb.h"
+#include "maidsafe-dht/transport/udp_transport.h"
+#include "maidsafe-dht/tests/transport/test_transport_api.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class Transport;
-struct Endpoint;
-struct TransportDetails;
+namespace test {
 
-class Rpcs {
-  typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
 
- public:
-  void NatDetection(const std::vector<Endpoint> &candidates,
-                    bool full,
-                    NatResultFunctor nrf);
-  void NatDetection(const std::vector<Endpoint> &candidates,
-                    std::shared_ptr<Transport> listening_transport,
-                    bool full,
-                    NatResultFunctor nrf);
 
- private:
-  void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
-                            const std::vector<Endpoint> &candidates,
-                            NatResultFunctor nrf,
-                            int index);
-};
+}  // namespace test
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TRANSPORT_RPCS_H_

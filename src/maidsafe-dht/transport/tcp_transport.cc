@@ -28,7 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 
 #include "maidsafe-dht/transport/tcp_transport.h"
+
 #include "maidsafe/common/log.h"
+
+#include "maidsafe-dht/transport/message_handler.h"
+#include "maidsafe-dht/transport/transport.pb.h"
+#include "maidsafe-dht/transport/utils.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -39,12 +44,11 @@ namespace maidsafe {
 
 namespace transport {
 
-TcpTransport::TcpTransport(
-    boost::asio::io_service &asio_service)
-        : Transport(asio_service),
-          acceptor_(),
-          connections_(),
-          strand_(asio_service) {}
+TcpTransport::TcpTransport(boost::asio::io_service &asio_service)  // NOLINT
+    : Transport(asio_service),
+      acceptor_(),
+      connections_(),
+      strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -86,6 +90,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
       std::make_shared<TcpConnection>(shared_from_this(),
                                       boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
+  transport_details_.endpoint.port = listening_port_;
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
@@ -93,6 +98,11 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
                           strand_.wrap(std::bind(&TcpTransport::HandleAccept,
                                                  shared_from_this(), acceptor_,
                                                  new_connection, arg::_1)));
+  return kSuccess;
+}
+
+TransportCondition TcpTransport::Bootstrap(
+    const std::vector<Endpoint> &candidates) {
   return kSuccess;
 }
 

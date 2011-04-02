@@ -62,6 +62,7 @@ bool ConnectedObjectsList::RemoveObject(boost::uint32_t index) {
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   // Remove the entry from multi index
   index_by_index_id.erase(it);
+  return true;
 }
 
 TransportPtr ConnectedObjectsList::GetTransport(boost::uint32_t index) {

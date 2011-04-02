@@ -25,17 +25,51 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_DETAIL_H_
-#define MAIDSAFE_DHT_TRANSPORT_DETAIL_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
+
+#include <string>
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/asio/io_service.hpp"
+#include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
+#include "maidsafe-dht/transport/transport.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-typedef int SocketId;
+class UdpRequest {
+ public:
+  UdpRequest(const std::string &data,
+             const boost::asio::ip::udp::endpoint &endpoint,
+             boost::asio::io_service &asio_service,
+             const Timeout &timeout,
+             boost::uint64_t reply_to_id = 0);
+
+  const std::string &Data() const;
+  const boost::asio::ip::udp::endpoint& Endpoint() const;
+  const Timeout& ReplyTimeout() const;
+  boost::uint64_t ReplyToId() const;
+
+  template <typename WaitHandler>
+  void WaitForTimeout(WaitHandler handler) {
+    timer_.async_wait(handler);
+  }
+
+ private:
+  UdpRequest(const UdpRequest&);
+  UdpRequest &operator=(const UdpRequest&);
+
+  std::string data_;
+  boost::asio::ip::udp::endpoint endpoint_;
+  boost::asio::deadline_timer timer_;
+  Timeout reply_timeout_;
+  boost::uint64_t reply_to_id_;
+};
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_DETAIL_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_

@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 namespace kademlia {
+
 const boost::uint16_t kFailureTolerance = 2;
 
 void Rpcs::Ping(SecurifierPtr securifier,
@@ -57,18 +58,18 @@ void Rpcs::Ping(SecurifierPtr securifier,
   request.set_ping(random_data);
   std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
   rpcs_failure_peer->peer = peer;
-  std::string message =
-      message_handler->WrapMessage(request, peer.public_key());
+  std::string message(message_handler->WrapMessage(request, peer.public_key()));
 
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_ping_response()->connect(boost::bind(
-      &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
-      object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::PingCallback, this, random_data, _1, transport::Info(),
-      protobuf::PingResponse(), object_indx, callback, message,
-      rpcs_failure_peer));
-  transport->Send(message, peer.PreferredEndpoint(),
+  message_handler->on_ping_response()->connect(
+      boost::bind(&Rpcs::PingCallback, this, random_data, transport::kSuccess,
+                  _1, _2, object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(
+      boost::bind(&Rpcs::PingCallback, this, random_data, _1, transport::Info(),
+                  protobuf::PingResponse(), object_indx, callback, message,
+                  rpcs_failure_peer));
+  transport->Send(message,
+                  peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
 
@@ -159,7 +160,6 @@ void Rpcs::Store(const Key &key,
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
-  request.set_signing_public_key_id(securifier->kSigningKeyId());
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
@@ -231,7 +231,6 @@ void Rpcs::Delete(const Key &key,
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
-  request.set_signing_public_key_id(securifier->kSigningKeyId());
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
@@ -531,9 +530,6 @@ void Rpcs::Prepare(TransportType type,
     case kTcp:
       transport.reset(new transport::TcpTransport(*asio_service_));
       break;
-//    case kOther:
-//      transport.reset(new transport::UdtTransport(*asio_service_));
-//      break;
     default:
       break;
   }
@@ -544,7 +540,7 @@ void Rpcs::Prepare(TransportType type,
       boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
                   _1, _2, _3, _4));
   transport->on_error()->connect(
-      boost::bind(&MessageHandler::OnError, message_handler.get(), _1));
+      boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
 }
 
 }  // namespace kademlia
