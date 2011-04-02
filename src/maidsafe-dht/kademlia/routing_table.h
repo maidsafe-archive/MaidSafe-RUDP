@@ -332,6 +332,14 @@ class RoutingTable {
                         const size_t &count,
                         const std::vector<Contact> &exclude_contacts,
                         std::vector<Contact> *close_contacts);
+  /** Finds a number of known nodes closest to the holder node in the current
+   *  routing table.
+   *  @param[in] count Number of closest nodes looking for.
+   *  @param[in] exclude_contacts List of contacts that shall be excluded.
+   *  @param[out] close_contacts Result of the find closest contacts. */
+  void GetContactsClosestToOwnId(const size_t &count,
+                                 const std::vector<Contact> &exclude_contacts,
+                                 std::vector<Contact> *close_contacts);
   /** Set one node's public key.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] new_public_key The new value of the public key.
@@ -365,6 +373,13 @@ class RoutingTable {
    *  but either of tcp443 or tcp80 may be true.
    *  @param[out] contacts The result of all directly connected contacts. */
   void GetBootstrapContacts(std::vector<Contact> *contacts);
+  /** Get the local RankInfo of the contact
+   *  @param[in] contact The contact to find
+   *  @return The localRankInfo of the contact */
+  RankInfoPtr GetLocalRankInfo(const Contact &contact);
+  /** Get all contacts in the routing table
+   *  @param[out] contacts All contacts in the routing table */
+  void GetAllContacts(std::vector<Contact> *contacts);
   /** Getter.
    *  @return The ping_oldest_contact_ signal. */
   PingOldestContactPtr ping_oldest_contact();
@@ -384,14 +399,6 @@ class RoutingTable {
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
   typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
       UpgradeToUniqueLock;
-  /** Finds a number of known nodes closest to the holder node in the current
-   *  routing table.
-   *  @param[in] count Number of closest nodes looking for.
-   *  @param[in] exclude_contacts List of contacts that shall be excluded.
-   *  @param[out] close_contacts Result of the find closest contacts. */
-  void GetContactsClosestToOwnId(const size_t &count,
-                                 const std::vector<Contact> &exclude_contacts,
-                                 std::vector<Contact> *close_contacts);
   /** Return the contact which is the lastseen on in the target kbucket.
    *  @param[in] kbucket_index The index of the kbucket.
    *  @return The last seend contact in the kbucket. */

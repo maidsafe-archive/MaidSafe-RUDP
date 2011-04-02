@@ -33,13 +33,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/cstdint.hpp"
-#include "boost/enable_shared_from_this.hpp"
 #include "boost/function.hpp"
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/sender_task.h"
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -68,17 +68,17 @@ class DownlistNotification;
 }  // namespace protobuf
 
 namespace test {
-  class ServicesTest;
-  class RpcsTest;
+class ServicesTest;
+class RpcsTest;
 }  // namespace test
 
-typedef std::shared_ptr<boost::signals2::signal<void(  // NOLINT
-    const Contact&)>> PingDownListContactsPtr;
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
+        PingDownListContactsPtr;
 
 /** Object handling service requests on a node.
  *  Contains tables of the routing contacts and <value,sig,key> tuples
  *  @class Service */
-class Service : public boost::enable_shared_from_this<Service> {
+class Service : public std::enable_shared_from_this<Service> {
  public:
   /** Constructor.  To create a Service, in all cases the routing_table and
    * data_store must be provided.

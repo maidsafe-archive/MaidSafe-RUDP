@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,65 +25,44 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
+#include "maidsafe-dht/transport/udp_request.h"
 
-#include "boost/asio/io_service.hpp"
-#include "boost/bind.hpp"
-#include "boost/shared_ptr.hpp"
-#include "boost/thread.hpp"
-
-#include "maidsafe-dht/nat-pmp/natpmp_client.h"
-#include "maidsafe/common/log.h"
+namespace asio = boost::asio;
+namespace ip = asio::ip;
 
 namespace maidsafe {
 
-namespace natpmp {
+namespace transport {
 
-namespace test {
-
-class NATPMPTest : public testing::Test {
- public:
-  NATPMPTest() {}
-};
-
-TEST_F(NATPMPTest, FUNC_NATPMP_Test) {
-  boost::asio::io_service ios;
-
-  NatPmpClient client(&ios);
-
-  boost::uint16_t tcp_port = 33333;
-  boost::uint16_t udp_port = 33333;
-
-  DLOG(INFO) << "Starting NAT-PMP..." << std::endl;
-
-  DLOG(INFO) << "Requesting external ip address from gateway." << std::endl;
-
-  client.Start();
-
-  DLOG(INFO) << "Queueing mapping request for tcp port " << tcp_port << " to "
-             << tcp_port << std::endl;
-
-  client.MapPort(Protocol::kTcp, 33333, 33333, 3600);
-
-  DLOG(INFO) << "Queueing mapping request for udp port " << udp_port << " to "
-             << udp_port << std::endl;
-
-  client.MapPort(Protocol::kUdp, 33333, 33333, 3600);
-
-  boost::shared_ptr<boost::thread> thread(new boost::thread(
-      boost::bind(&boost::asio::io_service::run, &ios)));
-
-  DLOG(INFO) << "Sleeping for 64 seconds..." << std::endl;
-
-  boost::this_thread::sleep(boost::posix_time::seconds(64));
-
-  DLOG(INFO) << "Stopping NAT-PMP..." << std::endl;
-
-  client.Stop();
+UdpRequest::UdpRequest(const std::string &data,
+                       const ip::udp::endpoint &endpoint,
+                       asio::io_service &asio_service,
+                       const Timeout &timeout,
+                       boost::uint64_t reply_to_id)
+  : data_(data),
+    endpoint_(endpoint),
+    timer_(asio_service, timeout),
+    reply_timeout_(timeout),
+    reply_to_id_(reply_to_id) {
 }
 
-}  // namespace test
+const std::string &UdpRequest::Data() const {
+  return data_;
+}
 
-}  // namespace natpmp
+const boost::asio::ip::udp::endpoint& UdpRequest::Endpoint() const {
+  return endpoint_;
+}
+
+const Timeout& UdpRequest::ReplyTimeout() const {
+  return reply_timeout_;
+}
+
+boost::uint64_t UdpRequest::ReplyToId() const {
+  return reply_to_id_;
+}
+
+}  // namespace transport
 
 }  // namespace maidsafe
+

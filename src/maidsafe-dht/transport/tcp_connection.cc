@@ -203,9 +203,11 @@ void TcpConnection::DispatchMessage() {
     Timeout response_timeout(kImmediateTimeout);
     Info info;
     // TODO(Fraser#5#): 2011-01-18 - Add info details.
-    (*transport->on_message_received_)(
-        std::string(data_buffer_.begin(), data_buffer_.end()), info, &response,
-        &response_timeout);
+    (*transport->on_message_received_)(std::string(data_buffer_.begin(),
+                                                   data_buffer_.end()),
+                                       info,
+                                       &response,
+                                       &response_timeout);
     if (response.empty()) {
       Close();
       return;
@@ -221,12 +223,16 @@ void TcpConnection::DispatchMessage() {
 void TcpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = data.size();
-  if (static_cast<size_t>(msg_size) >
-          static_cast<size_t>(kMaxTransportMessageSize)) {
-    DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << kMaxTransportMessageSize << ")" << std::endl;
-    if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-      (*transport->on_error_)(kMessageSizeTooLarge);
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
+    if (msg_size > transport->kMaxTransportMessageSize()) {
+      DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
+                  << transport->kMaxTransportMessageSize() << ")"
+                  << std::endl;
+      Endpoint ep;
+      (*transport->on_error_)(kMessageSizeTooLarge, ep);
+      return;
+    }
+  } else {
     return;
   }
 
@@ -295,8 +301,10 @@ void TcpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void TcpConnection::CloseOnError(const TransportCondition &error) {
-  if (std::shared_ptr<TcpTransport> transport = transport_.lock())
-    (*transport->on_error_)(error);
+  if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
+    Endpoint ep;
+    (*transport->on_error_)(error, ep);
+  }
   DoClose();
 }
 
