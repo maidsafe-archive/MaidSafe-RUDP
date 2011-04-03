@@ -69,6 +69,7 @@ class DownlistNotification;
 
 namespace test {
 class ServicesTest;
+class RpcsTest;
 }  // namespace test
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
@@ -294,6 +295,7 @@ class Service : public std::enable_shared_from_this<Service> {
                          const std::string &public_key_validation,
                          const bool is_refresh);
   friend class test::ServicesTest;
+  friend class test::RpcsTest;
 
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;

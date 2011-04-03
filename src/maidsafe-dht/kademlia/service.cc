@@ -210,8 +210,8 @@ void Service::Store(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_)
     return;
-
-  if (message_signature.empty() || message.empty() || !securifier_) {
+  if (!securifier_ || message.empty() ||
+      (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
@@ -362,7 +362,8 @@ void Service::Delete(const transport::Info &info,
   response->set_result(false);
   if (!node_joined_ || !securifier_)
     return;
-  if (message_signature.empty() || message.empty() || !securifier_) {
+  if (!securifier_ || message.empty() ||
+      (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     DLOG(WARNING) << "Delete Input Error" << std::endl;
     return;
   }
@@ -479,6 +480,11 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                     std::string public_key_validation) {
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
+                            public_key)) {
+    DLOG(WARNING) << "Failed to validate request_signature";
+    return;
+  }
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
@@ -502,7 +508,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              public_key,
                              public_key_validation,
                              request.key() ) ) {
-    DLOG(WARNING) << "Failed to validate Store request for kademlia value"
+    DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
                   << " (is_refresh = " << is_refresh << " )"
                   << std::endl;
     return false;
