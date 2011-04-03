@@ -42,6 +42,7 @@ using namespace maidsafe::kademlia;
 
 std::vector<IoServicePtr> asio_services_;
 std::vector<TransportPtr> transports_;
+std::vector<MessageHandlerPtr> message_handlers_;
 std::vector<AlternativeStorePtr> alternative_stores_;
 std::vector<SecurifierPtr> securifiers_;
 
@@ -165,6 +166,8 @@ void EnvironmentNodes::SetUp() {
                                             rsa_key_pair.public_key(),
                                             rsa_key_pair.private_key()));
     securifiers_.push_back(securifier);
+    MessageHandlerPtr message_handler(new MessageHandler(securifier));
+    message_handlers_.push_back(message_handler);
     ports_.push_back(5000 + i);
     GenerateUniqueRandomId(seed_id, 511 - i);
     bool client_only_node(true);
@@ -176,15 +179,19 @@ void EnvironmentNodes::SetUp() {
       std::vector<transport::Endpoint> local_endpoints;
       transport::Endpoint end_point(ip, ports_[i]);
       local_endpoints.push_back(end_point);
-      Contact contact(node_ids_[i], end_point, local_endpoints, end_point, false,
-                      false, "", rsa_key_pair.public_key(), "");
+      Contact contact(node_ids_[i], end_point, local_endpoints, end_point,
+                      false, false, "", rsa_key_pair.public_key(), "");
       bootstrap_contacts_.push_back(contact);
     }
-    std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
+    std::shared_ptr<Node> cur_node(new Node(local_asio,
+                                            local_transport,
+                                            message_handler,
                                             securifier,
                                             alternative_store,
                                             client_only_node,
-                                            kK_, kAlpha_, kBeta_,
+                                            kK_,
+                                            kAlpha_,
+                                            kBeta_,
                                             kMeanRefresh_));
     nodes_.push_back(cur_node);
     std::string db_local(test_dir_ + std::string("/datastore") +

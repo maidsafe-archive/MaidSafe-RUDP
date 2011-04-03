@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/kademlia/rpcs_objects.h"
 
 namespace bs2 = boost::signals2;
 
@@ -70,20 +71,34 @@ class DeleteRefreshResponse;
 class UpdateResponse;
 }  // namespace protobuf
 
+struct RpcsFailurePeer {
+ public:
+  RpcsFailurePeer() : peer(), rpcs_failure(1) {}
+  Contact peer;
+  boost::uint16_t rpcs_failure;
+};
+
 class Rpcs {
  public:
   typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
-      StoreFunctor, StoreRefreshFunctor, DeleteFunctor, DeleteRefreshFunctor;
-  typedef boost::function<void(RankInfoPtr, const int&,
-      const std::vector<std::string>&, const std::vector<Contact>&,
-      const Contact&)> FindValueFunctor;
-  typedef boost::function<void(RankInfoPtr, const int&,
-      const std::vector<Contact>&)> FindNodesFunctor;
+                                                         StoreFunctor,
+                                                         StoreRefreshFunctor,
+                                                         DeleteFunctor,
+                                                         DeleteRefreshFunctor;
+  typedef boost::function<void(RankInfoPtr,
+                               const int&,
+                               const std::vector<std::string>&,
+                               const std::vector<Contact>&,
+                               const Contact&)> FindValueFunctor;
+  typedef boost::function<void(RankInfoPtr,
+                               const int&,
+                               const std::vector<Contact>&)> FindNodesFunctor;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
-      : contact_(),
-        asio_service_(asio_service),
-        default_securifier_(default_securifier) {}
+      : asio_service_(asio_service),
+        contact_(),
+        default_securifier_(default_securifier),
+        connected_objects_() {}
   virtual ~Rpcs() {}
   virtual void Ping(SecurifierPtr securifier,
                     const Contact &peer,
@@ -107,12 +122,13 @@ class Rpcs {
                      const Contact &peer,
                      StoreFunctor callback,
                      TransportType type);
-  void StoreRefresh(const std::string &serialised_store_request,
-                    const std::string &serialised_store_request_signature,
-                    SecurifierPtr securifier,
-                    const Contact &peer,
-                    StoreRefreshFunctor callback,
-                    TransportType type);
+  virtual void StoreRefresh(
+      const std::string &serialised_store_request,
+      const std::string &serialised_store_request_signature,
+      SecurifierPtr securifier,
+      const Contact &peer,
+      StoreFunctor callback,
+      TransportType type);
   virtual void Delete(const Key &key,
                       const std::string &value,
                       const std::string &signature,
@@ -120,67 +136,94 @@ class Rpcs {
                       const Contact &peer,
                       DeleteFunctor callback,
                       TransportType type);
-  void DeleteRefresh(const std::string &serialised_delete_request,
-                     const std::string &serialised_delete_request_signature,
-                     SecurifierPtr securifier,
-                     const Contact &peer,
-                     DeleteFunctor callback,
-                     TransportType type);
+  virtual void DeleteRefresh(
+      const std::string &serialised_delete_request,
+      const std::string &serialised_delete_request_signature,
+      SecurifierPtr securifier,
+      const Contact &peer,
+      DeleteFunctor callback,
+      TransportType type);
   virtual void Downlist(const std::vector<NodeId> &node_ids,
                         SecurifierPtr securifier,
                         const Contact &peer,
                         TransportType type);
   void set_contact(const Contact &contact) { contact_ = contact; }
 
+  virtual void Prepare(TransportType type,
+                       SecurifierPtr securifier,
+                       TransportPtr &transport,
+                       MessageHandlerPtr &message_handler);
+
+ protected:
+  IoServicePtr asio_service_;
+
  private:
-  typedef boost::tuple<TransportPtr, MessageHandlerPtr, bs2::connection,
-                       bs2::connection> ConnectedObjects;
   Rpcs(const Rpcs&);
   Rpcs& operator=(const Rpcs&);
   void PingCallback(const std::string &random_data,
                     const transport::TransportCondition &transport_condition,
                     const transport::Info &info,
                     const protobuf::PingResponse &response,
-                    ConnectedObjects connected_objects,
-                    PingFunctor callback);
+                    const boost::uint32_t &index,
+                    PingFunctor callback,
+                    const std::string &message,
+                    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void FindValueCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindValueResponse &response,
-      ConnectedObjects connected_objects,
-      FindValueFunctor callback);
+      const boost::uint32_t &index,
+      FindValueFunctor callback,
+      const std::string &message,
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void FindNodesCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindNodesResponse &response,
-      ConnectedObjects connected_objects,
-      FindNodesFunctor callback);
+      const boost::uint32_t &index,
+      FindNodesFunctor callback,
+      const std::string &message,
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void StoreCallback(const transport::TransportCondition &transport_condition,
                      const transport::Info &info,
                      const protobuf::StoreResponse &response,
-                     ConnectedObjects connected_objects,
-                     StoreFunctor callback);
+                     const boost::uint32_t &index,
+                     StoreFunctor callback,
+                     const std::string &message,
+                     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void StoreRefreshCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::StoreRefreshResponse &response,
-      ConnectedObjects connected_objects,
-      StoreRefreshFunctor callback);
+      const boost::uint32_t &index,
+      StoreRefreshFunctor callback,
+      const std::string &message,
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
                       const protobuf::DeleteResponse &response,
-                      ConnectedObjects connected_objects,
-                      DeleteFunctor callback);
+                      const boost::uint32_t &index,
+                      DeleteFunctor callback,
+                      const std::string &message,
+                      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   void DeleteRefreshCallback(
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::DeleteRefreshResponse &response,
-      ConnectedObjects connected_objects,
-      DeleteRefreshFunctor callback);
-  ConnectedObjects Prepare(TransportType type, SecurifierPtr securifier);
+      const boost::uint32_t &index,
+      DeleteRefreshFunctor callback,
+      const std::string &message,
+      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
+
   Contact contact_;
-  IoServicePtr asio_service_;
   SecurifierPtr default_securifier_;
+  ConnectedObjectsList connected_objects_;
 };
 
 }  // namespace kademlia

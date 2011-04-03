@@ -159,12 +159,12 @@ LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht
 LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.h")
-FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.cc"
-                                    "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.h")
+# FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.cc"
+#                                     "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.h")
 FILE(GLOB ALL_FILES_TEST_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/*.cc"
                                        "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/*.h")
-FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/*.cc"
-                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/*.h")
+# FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/*.cc"
+#                                   "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/*.h")
 IF(Mysqlpp_FOUND)
   FILE(GLOB ALL_FILES_NETWORK_TEST_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/distributed_network/*.cc"
                                        "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/distributed_network/*.h")
@@ -178,8 +178,8 @@ ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR
 ADD_EXECUTABLE(TESTkademlia_api ${ALL_FILES_TEST_NODE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 #### ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+# ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+# ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
 #ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(KademliaDemo EXCLUDE_FROM_ALL ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -194,15 +194,16 @@ RENAME_EXECUTABLE(TESTkademlia)
 RENAME_EXECUTABLE(TESTkademlia_api)
 #### RENAME_EXECUTABLE(TESTnode)
 RENAME_EXECUTABLE(TESTtransport)
-RENAME_EXECUTABLE(TESTnatpmp)
-RENAME_EXECUTABLE(TESTupnp)
+# RENAME_EXECUTABLE(TESTnatpmp)
+# RENAME_EXECUTABLE(TESTupnp)
 RENAME_EXECUTABLE(KademliaDemo)
 RENAME_EXECUTABLE(benchmark_static)
 IF(Mysqlpp_FOUND)
   RENAME_EXECUTABLE(distributed_net_clients)
 ENDIF()
 
-SET(TEST_TARGETS TESTupnp TESTnatpmp TESTkademlia TESTkademlia_api TESTtransport)
+# SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
+SET(TEST_TARGETS TESTkademlia TESTtransport TESTkademlia_api)
 SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static PROPERTIES FOLDER "Tests")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
@@ -233,9 +234,9 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gmock_static)
 TARGET_LINK_LIBRARIES(TESTkademlia_api maidsafe_dht_static gtest_static)
-#### TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
-TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_static)
-TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_static)
+# TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
+# TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_static)
+# TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(KademliaDemo maidsafe_dht_static boost_program_options)
 TARGET_LINK_LIBRARIES(benchmark_static maidsafe_dht_static boost_program_options)
 IF(Mysqlpp_FOUND)
@@ -256,7 +257,7 @@ IF(MSVC)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/routing_table.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
+                              # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warnings 4503, 4512 & 4996 disabled due to generation through use of Boost Signals2
@@ -271,7 +272,8 @@ IF(MSVC)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.pb.cc
                                 PROPERTIES COMPILE_FLAGS "/W0")
 
-  SET_TARGET_PROPERTIES(TESTkademlia TESTkademlia_api TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
+  # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
+  SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTkademlia_api KademliaDemo benchmark_static PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
@@ -288,7 +290,6 @@ IF(MSVC)
 
   SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ELSEIF(UNIX)
-  #ADD_DEFINITIONS(-Wno-effc++)
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
@@ -300,8 +301,13 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_routing_table.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_datastore.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_environment.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/main.cc
+                              # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
+                              # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_mock_rpcs.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
  			      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc
@@ -311,9 +317,8 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_request.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc PROPERTIES COMPILE_FLAGS "-Wno-effc++")
-SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
+                              PROPERTIES COMPILE_FLAGS "-Wno-effc++")
+  SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 ENDIF()
 
 
@@ -322,7 +327,7 @@ ENDIF()
 ###################################################################################################
 IF(PYTHONINTERP_FOUND)
   IF(UNIX)
-    ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
+    ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_NODE_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_KAD PROPERTY LABELS Functional Kademlia CodingStyle)
     ADD_TEST(STYLE_CHECK_TRANSPORT python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_TRANSPORT} ${ALL_FILES_TEST_TRANSPORT_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_TRANSPORT PROPERTY LABELS Functional Transport CodingStyle)

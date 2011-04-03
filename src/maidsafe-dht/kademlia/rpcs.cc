@@ -39,26 +39,38 @@ namespace maidsafe {
 
 namespace kademlia {
 
+const boost::uint16_t kFailureTolerance = 2;
+
 void Rpcs::Ping(SecurifierPtr securifier,
                 const Contact &peer,
                 PingFunctor callback,
                 TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::PingRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
-  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
+//  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
+  std::string random_data("ping");
   request.set_ping(random_data);
-  std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+  std::string message(message_handler->WrapMessage(request, peer.public_key()));
+
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_ping_response()->connect(boost::bind(
-      &Rpcs::PingCallback, this, random_data, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
-      &Rpcs::PingCallback, this, "", _1, transport::Info(),
-      protobuf::PingResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+  message_handler->on_ping_response()->connect(
+      boost::bind(&Rpcs::PingCallback, this, random_data, transport::kSuccess,
+                  _1, _2, object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(
+      boost::bind(&Rpcs::PingCallback, this, random_data, _1, transport::Info(),
+                  protobuf::PingResponse(), object_indx, callback, message,
+                  rpcs_failure_peer));
+  transport->Send(message,
+                  peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::FindValue(const Key &key,
@@ -66,21 +78,30 @@ void Rpcs::FindValue(const Key &key,
                      const Contact &peer,
                      FindValueFunctor callback,
                      TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::FindValueRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_find_value_response()->connect(boost::bind(
+  message_handler->on_find_value_response()->connect(boost::bind(
       &Rpcs::FindValueCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::FindValueCallback, this, _1, transport::Info(),
-      protobuf::FindValueResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::FindValueResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::FindNodes(const Key &key,
@@ -88,21 +109,30 @@ void Rpcs::FindNodes(const Key &key,
                      const Contact &peer,
                      FindNodesFunctor callback,
                      TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::FindNodesRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_find_nodes_response()->connect(boost::bind(
+  message_handler->on_find_nodes_response()->connect(boost::bind(
       &Rpcs::FindNodesCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::FindNodesCallback, this, _1, transport::Info(),
-      protobuf::FindNodesResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::FindNodesResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::Store(const Key &key,
@@ -113,26 +143,35 @@ void Rpcs::Store(const Key &key,
                  const Contact &peer,
                  StoreFunctor callback,
                  TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::StoreRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_store_response()->connect(boost::bind(
+  message_handler->on_store_response()->connect(boost::bind(
       &Rpcs::StoreCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::StoreCallback, this, _1, transport::Info(),
-      protobuf::StoreResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::StoreResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::StoreRefresh(const std::string &serialised_store_request,
@@ -141,23 +180,32 @@ void Rpcs::StoreRefresh(const std::string &serialised_store_request,
                         const Contact &peer,
                         StoreRefreshFunctor callback,
                         TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::StoreRefreshRequest request;
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_serialised_store_request(serialised_store_request);
   request.set_serialised_store_request_signature(
       serialised_store_request_signature);
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_store_refresh_response()->connect(boost::bind(
+  message_handler->on_store_refresh_response()->connect(boost::bind(
       &Rpcs::StoreRefreshCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::StoreRefreshCallback, this, _1, transport::Info(),
-      protobuf::StoreRefreshResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::StoreRefreshResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::Delete(const Key &key,
@@ -167,8 +215,16 @@ void Rpcs::Delete(const Key &key,
                   const Contact &peer,
                   DeleteFunctor callback,
                   TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::DeleteRequest request;
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
@@ -176,16 +232,17 @@ void Rpcs::Delete(const Key &key,
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_delete_response()->connect(boost::bind(
+  message_handler->on_delete_response()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::DeleteCallback, this, _1, transport::Info(),
-      protobuf::DeleteResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::DeleteResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::DeleteRefresh(const std::string &serialised_delete_request,
@@ -194,38 +251,50 @@ void Rpcs::DeleteRefresh(const std::string &serialised_delete_request,
                          const Contact &peer,
                          DeleteRefreshFunctor callback,
                          TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+  boost::uint32_t object_indx =
+      connected_objects_.AddObject(transport, message_handler);
+
   protobuf::DeleteRefreshRequest request;
+  std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
+  rpcs_failure_peer->peer = peer;
+
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_serialised_delete_request(serialised_delete_request);
   request.set_serialised_delete_request_signature(
       serialised_delete_request_signature);
   std::string message =
-      connected_objects.get<1>()->WrapMessage(request, peer.public_key());
+      message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  connected_objects.get<1>()->on_delete_refresh_response()->connect(boost::bind(
+  message_handler->on_delete_refresh_response()->connect(boost::bind(
       &Rpcs::DeleteRefreshCallback, this, transport::kSuccess, _1, _2,
-      connected_objects, callback));
-  connected_objects.get<1>()->on_error()->connect(boost::bind(
+      object_indx, callback, message, rpcs_failure_peer));
+  message_handler->on_error()->connect(boost::bind(
       &Rpcs::DeleteRefreshCallback, this, _1, transport::Info(),
-      protobuf::DeleteRefreshResponse(), connected_objects, callback));
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      protobuf::DeleteRefreshResponse(), object_indx, callback, message,
+      rpcs_failure_peer));
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
                     SecurifierPtr securifier,
                     const Contact &peer,
                     TransportType type) {
-  Rpcs::ConnectedObjects connected_objects(Prepare(type, securifier));
+  TransportPtr transport;
+  MessageHandlerPtr message_handler;
+  Prepare(type, securifier, transport, message_handler);
+
   protobuf::DownlistNotification notification;
   *notification.mutable_sender() = ToProtobuf(contact_);
   for (size_t i = 0; i < node_ids.size(); ++i)
     notification.add_node_ids(node_ids[i].String());
   std::string message =
-      connected_objects.get<1>()->WrapMessage(notification, peer.public_key());
-  connected_objects.get<0>()->Send(message, peer.PreferredEndpoint(),
-                                   transport::kDefaultInitialTimeout);
+      message_handler->WrapMessage(notification, peer.public_key());
+  transport->Send(message, peer.PreferredEndpoint(),
+                  transport::kDefaultInitialTimeout);
 }
 
 void Rpcs::PingCallback(
@@ -233,135 +302,230 @@ void Rpcs::PingCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    PingFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.echo() == random_data)
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
+    const boost::uint32_t &index,
+    PingFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition);
+      return;
+    }
+    if (response.IsInitialized() && response.echo() == "pong") {
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+    } else {
+      callback(RankInfoPtr(new transport::Info(info)), -1);
+    }
+  }
 }
 
 void Rpcs::FindValueCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindValueResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    FindValueFunctor callback) {
-  std::vector<std::string> values;
-  std::vector<Contact> contacts;
-  Contact alternative_value_holder;
+    const boost::uint32_t &index,
+    FindValueFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+    (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
 
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
-                    values, contacts, alternative_value_holder);
+    std::vector<std::string> values;
+    std::vector<Contact> contacts;
+    Contact alternative_value_holder;
 
-  if (!response.IsInitialized() || !response.result())
-    return callback(RankInfoPtr(new transport::Info(info)), -1, values,
-                    contacts, alternative_value_holder);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+               values, contacts, alternative_value_holder);
+      return;
+    }
+    if (!response.IsInitialized() || !response.result()) {
+      callback(RankInfoPtr(new transport::Info(info)), -1, values,
+                      contacts, alternative_value_holder);
+      return;
+    }
+    for (int i = 0; i < response.signed_values_size(); ++i)
+      values.push_back(response.signed_values(i).value());
 
-  for (int i = 0; i < response.signed_values_size(); ++i)
-    values.push_back(response.signed_values(i).value());
+    for (int i = 0; i < response.closest_nodes_size(); ++i)
+      contacts.push_back(FromProtobuf(response.closest_nodes(i)));
+    if (response.has_alternative_value_holder()) {
+      alternative_value_holder =
+          FromProtobuf(response.alternative_value_holder());
+    }
 
-  for (int i = 0; i < response.closest_nodes_size(); ++i)
-    contacts.push_back(FromProtobuf(response.closest_nodes(i)));
-
-  if (response.has_alternative_value_holder()) {
-    alternative_value_holder =
-        FromProtobuf(response.alternative_value_holder());
+    callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+             values, contacts, alternative_value_holder);
   }
-
-  callback(RankInfoPtr(new transport::Info(info)), transport_condition, values,
-           contacts, alternative_value_holder);
 }
 
 void Rpcs::FindNodesCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindNodesResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    FindNodesFunctor callback) {
-  std::vector<Contact> contacts;
+    const boost::uint32_t &index,
+    FindNodesFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    std::vector<Contact> contacts;
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+               contacts);
+      return;
+    }
+    if (!response.IsInitialized() || !response.result()) {
+      callback(RankInfoPtr(new transport::Info(info)), -1, contacts);
+      return;
+    }
 
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)), transport_condition,
-                    contacts);
+    for (int i = 0; i < response.closest_nodes_size(); ++i)
+      contacts.push_back(FromProtobuf(response.closest_nodes(i)));
 
-  if (!response.IsInitialized() || !response.result())
-    return callback(RankInfoPtr(new transport::Info(info)), -1, contacts);
-
-  for (int i = 0; i < response.closest_nodes_size(); ++i)
-    contacts.push_back(FromProtobuf(response.closest_nodes(i)));
-
-  callback(RankInfoPtr(new transport::Info(info)), transport_condition,
-                       contacts);
+    callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+                         contacts);
+  }
 }
 
 void Rpcs::StoreCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    StoreFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.result())
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
+    const boost::uint32_t &index,
+    StoreFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition);
+      return;
+    }
+    if (response.IsInitialized() && response.result())
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+    else
+      callback(RankInfoPtr(new transport::Info(info)), -1);
+  }
 }
 
 void Rpcs::StoreRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreRefreshResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    StoreRefreshFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.result())
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
+    const boost::uint32_t &index,
+    StoreRefreshFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition);
+      return;
+    }
+    if (response.IsInitialized() && response.result())
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+    else
+      callback(RankInfoPtr(new transport::Info(info)), -1);
+  }
 }
 
 void Rpcs::DeleteCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    DeleteFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.result())
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
+    const boost::uint32_t &index,
+    DeleteFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition);
+      return;
+    }
+    if (response.IsInitialized() && response.result())
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+    else
+      callback(RankInfoPtr(new transport::Info(info)), -1);
+  }
 }
 
 void Rpcs::DeleteRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteRefreshResponse &response,
-    ConnectedObjects /*connected_objects*/,
-    DeleteRefreshFunctor callback) {
-  if (transport_condition != transport::kSuccess)
-    return callback(RankInfoPtr(new transport::Info(info)),
-                    transport_condition);
-  if (response.IsInitialized() && response.result())
-    callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-  else
-    callback(RankInfoPtr(new transport::Info(info)), -1);
+    const boost::uint32_t &index,
+    DeleteRefreshFunctor callback,
+    const std::string &message,
+    std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  if ((transport_condition != transport::kSuccess) &&
+      (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    ++(rpcs_failure_peer->rpcs_failure);
+    TransportPtr transport = connected_objects_.GetTransport(index);
+    transport->Send(
+        message, rpcs_failure_peer->peer.PreferredEndpoint(),
+        transport::kDefaultInitialTimeout);
+  } else {
+    connected_objects_.RemoveObject(index);
+    if (transport_condition != transport::kSuccess) {
+      callback(RankInfoPtr(new transport::Info(info)), transport_condition);
+      return;
+    }
+    if (response.IsInitialized() && response.result())
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
+    else
+      callback(RankInfoPtr(new transport::Info(info)), -1);
+  }
 }
 
-Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
-                                     SecurifierPtr securifier) {
-  TransportPtr transport;
+void Rpcs::Prepare(TransportType type,
+                   SecurifierPtr securifier,
+                   TransportPtr &transport,
+                   MessageHandlerPtr &message_handler) {
   switch (type) {
     case kTcp:
       transport.reset(new transport::TcpTransport(*asio_service_));
@@ -369,15 +533,14 @@ Rpcs::ConnectedObjects Rpcs::Prepare(TransportType type,
     default:
       break;
   }
-  MessageHandlerPtr message_handler(new MessageHandler(securifier ? securifier :
+  message_handler.reset(new MessageHandler(securifier ? securifier :
                                                        default_securifier_));
   // Connect message handler to transport for incoming raw messages
-  bs2::connection on_recv_con = transport->on_message_received()->connect(
+  transport->on_message_received()->connect(
       boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
                   _1, _2, _3, _4));
-  bs2::connection on_err_con = transport->on_error()->connect(
+  transport->on_error()->connect(
       boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
-  return boost::make_tuple(transport, message_handler, on_recv_con, on_err_con);
 }
 
 }  // namespace kademlia
