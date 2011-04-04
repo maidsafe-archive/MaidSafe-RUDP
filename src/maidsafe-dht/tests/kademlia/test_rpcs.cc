@@ -361,7 +361,7 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
   }
 
   protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-      const KeyValueSignature& kvs, const crypto::RsaKeyPair& crypto_key_data) {
+                                          const KeyValueSignature& kvs) {
     protobuf::StoreRequest store_request;
     store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     store_request.set_key(kvs.key);
@@ -372,8 +372,7 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
   }
 
   protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                            const KeyValueSignature& kvs,
-                            const crypto::RsaKeyPair& crypto_key_data) {
+                                            const KeyValueSignature& kvs) {
     protobuf::DeleteRequest delete_request;
     delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
     delete_request.set_key(kvs.key);
@@ -386,8 +385,7 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
                               const crypto::RsaKeyPair& crypto_key_data,
                               const Contact& contact,
                               RequestAndSignature& request_signature) {
-    protobuf::StoreRequest store_request = MakeStoreRequest(contact, kvs,
-                                                            crypto_key_data);
+    protobuf::StoreRequest store_request = MakeStoreRequest(contact, kvs);
     std::string store_message = store_request.SerializeAsString();
     std::string store_message_sig =
         crypto::AsymSign(store_message, crypto_key_data.private_key());
@@ -402,8 +400,7 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
                                    const crypto::RsaKeyPair& crypto_key_data,
                                    const Contact& contact,
                                    RequestAndSignature& request_signature) {
-    protobuf::DeleteRequest delete_request = MakeDeleteRequest(contact, kvs,
-                                                               crypto_key_data);
+    protobuf::DeleteRequest delete_request = MakeDeleteRequest(contact, kvs);
     std::string delete_message = delete_request.SerializeAsString();
     std::string delete_message_sig =
         crypto::AsymSign(delete_message, crypto_key_data.private_key());
@@ -821,8 +818,7 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   boost::posix_time::seconds ttl(2);
   KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
                                   key.String(), "");
-  protobuf::StoreRequest store_request =
-      MakeStoreRequest(rpcs_contact_, kvs, sender_crypto_key_id_);
+  protobuf::StoreRequest store_request = MakeStoreRequest(rpcs_contact_, kvs);
   std::string message = store_request.SerializeAsString();
   std::string store_message_sig =
       crypto::AsymSign(message, sender_crypto_key_id_.private_key());
@@ -988,8 +984,7 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   boost::posix_time::seconds ttl(2);
   KeyValueSignature kvs =
       MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
-  protobuf::StoreRequest store_request =
-      MakeStoreRequest(rpcs_contact_, kvs, sender_crypto_key_id_);
+  protobuf::StoreRequest store_request = MakeStoreRequest(rpcs_contact_, kvs);
   std::string message = store_request.SerializeAsString();
   std::string store_message_sig =
       crypto::AsymSign(message, sender_crypto_key_id_.private_key());
@@ -1399,8 +1394,7 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshNonExistingKey) {
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
   Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
-  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs,
-                                                             crypto_key_data);
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   AddTestValidation(sender_id.String(), crypto_key_data.public_key());
   std::string delete_message = delete_request.SerializeAsString();
   std::string delete_message_sig =
