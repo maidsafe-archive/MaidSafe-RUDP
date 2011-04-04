@@ -71,6 +71,8 @@ class NodeImplTest_BEH_KAD_Join_Test;
 class NodeImplTest_BEH_KAD_Getters_Test;
 class NodeImplTest_BEH_KAD_Leave_Test;
 class NodeImplTest_BEH_KAD_DownlistClient_Test;
+class NodeApiTest_BEH_KAD_Join_Server_Test;
+
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -226,7 +228,7 @@ class Node::Impl {
   friend class test::NodeImplTest_BEH_KAD_Getters_Test;
   friend class test::NodeImplTest_BEH_KAD_Leave_Test;
   friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
-
+  friend class test::NodeApiTest_BEH_KAD_Join_Server_Test;
  private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);

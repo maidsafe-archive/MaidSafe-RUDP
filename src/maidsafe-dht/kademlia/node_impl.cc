@@ -96,7 +96,6 @@ void Node::Impl::Join(const NodeId &node_id,
     callback(-1);
     return;
   }
-
   // Create contact_ inforrmation for node and set contact for Rpcs
   Contact contact(node_id, listening_transport_->transport_details().endpoint,
                   listening_transport_->transport_details().local_endpoints,
@@ -105,6 +104,12 @@ void Node::Impl::Join(const NodeId &node_id,
                   default_securifier_->kSigningPublicKey(), "");
   contact_ = contact;
   rpcs_->set_contact(contact_);
+  if (bootstrap_contacts.size() == 1 &&
+      bootstrap_contacts[0].node_id() == node_id) {
+    std::vector<Contact> contacts;
+    JoinFindNodesCallback(1, contacts, bootstrap_contacts, node_id, callback);
+    return;
+  }
 
   FindNodesFunctor fncallback;
   std::vector<Contact> temp_bootstrap_contacts;
@@ -143,14 +148,17 @@ void Node::Impl::JoinFindNodesCallback(
     AddContactsToContainer<FindNodesArgs>(search_contact, fna);
     IterativeSearch<FindNodesArgs>(fna);
   } else {
-    joined_ = true;
+     joined_ = true;
+     if (!routing_table_)
+        routing_table_.reset(new RoutingTable(node_id, k_));
     thread_group_.reset(new boost::thread_group());
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
+      service_->set_node_joined(true);
       service_->ConnectToSignals(listening_transport_, message_handler_);
       thread_group_->create_thread(boost::bind(&Node::Impl::RefreshDataStore,
-                                              this));
+                                   this));
       refresh_thread_running_ = true;
       // Connect the ReportDown Signal
       report_down_contact_->connect(
@@ -552,7 +560,7 @@ bool Node::Impl::SortByDistance(Contact contact_1, Contact contact_2) {
   NodeId node_id1, node_id2;
   node_id1 = contact_1.node_id() ^ contact_.node_id();
   node_id2 = contact_2.node_id() ^ contact_.node_id();
-  return node_id2 > node_id1;
+  return node_id2 < node_id1;
 }
 
 void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,

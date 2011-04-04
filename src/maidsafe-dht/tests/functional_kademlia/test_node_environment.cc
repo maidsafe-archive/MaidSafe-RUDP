@@ -24,8 +24,15 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+#include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
 
-#include "test_node_environment.h"
+#include <ShlObj.h>
+
+namespace maidsafe {
+
+namespace kademlia {
+
+namespace test {
 
 boost::uint16_t kNetworkSize;
 boost::uint16_t kK_;
@@ -33,14 +40,16 @@ boost::uint16_t kAlpha_;
 boost::uint16_t kBeta_;
 boost::uint16_t kNumServers_;
 boost::posix_time::time_duration kMeanRefresh_;
+const boost::uint16_t kThreadGroupSize = 3;
 
 std::string test_dir_;
 std::string kad_config_file_;
-
-using namespace maidsafe;
-using namespace maidsafe::kademlia;
+typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 
 std::vector<IoServicePtr> asio_services_;
+std::vector<WorkPtr> works_;
+std::vector<ThreadGroupPtr> thread_groups_;
 std::vector<TransportPtr> transports_;
 std::vector<MessageHandlerPtr> message_handlers_;
 std::vector<AlternativeStorePtr> alternative_stores_;
@@ -107,6 +116,7 @@ std::string get_app_directory() {
     app_path = fs::path(stm.str());
     app_path /= "maidsafe";
   }
+
 #elif defined(MAIDSAFE_APPLE)
   app_path = fs::path("/Library/maidsafe/");
 #endif
@@ -157,8 +167,23 @@ void EnvironmentNodes::SetUp() {
     rsa_key_pair.GenerateKeys(4096);
     crypto_key_pairs_.push_back(rsa_key_pair);
     IoServicePtr local_asio(new boost::asio::io_service());
+    WorkPtr local_work(new boost::asio::io_service::work(*local_asio));
+    works_.push_back(local_work);
     asio_services_.push_back(local_asio);
+    ThreadGroupPtr local_thread_group;
+
+    local_thread_group.reset(new boost::thread_group());
+
+    for (int i = 0; i < kThreadGroupSize; ++i)
+       local_thread_group->create_thread(std::bind(static_cast<
+          std::size_t(boost::asio::io_service::*)()>
+              (&boost::asio::io_service::run), local_asio));
+
+    thread_groups_.push_back(local_thread_group);
+
     TransportPtr local_transport(new transport::TcpTransport(*local_asio));
+    EXPECT_EQ(transport::kSuccess, local_transport->StartListening(
+        transport::Endpoint("127.0.0.1", 5000 + i)));
     transports_.push_back(local_transport);
     AlternativeStorePtr alternative_store;
     alternative_stores_.push_back(alternative_store);
@@ -173,8 +198,6 @@ void EnvironmentNodes::SetUp() {
     bool client_only_node(true);
     if (i < kNumServers_) {
       client_only_node = false;
-//       boost::asio::ip::address local_ip;
-//       ASSERT_TRUE(base::GetLocalAddress(&local_ip));
       std::string ip("127.0.0.1");
       std::vector<transport::Endpoint> local_endpoints;
       transport::Endpoint end_point(ip, ports_[i]);
@@ -183,34 +206,28 @@ void EnvironmentNodes::SetUp() {
                       false, false, "", rsa_key_pair.public_key(), "");
       bootstrap_contacts_.push_back(contact);
     }
-    std::shared_ptr<Node> cur_node(new Node(local_asio,
-                                            local_transport,
+    std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
                                             message_handler,
                                             securifier,
                                             alternative_store,
                                             client_only_node,
-                                            kK_,
-                                            kAlpha_,
-                                            kBeta_,
+                                            kK_, kAlpha_, kBeta_,
                                             kMeanRefresh_));
     nodes_.push_back(cur_node);
     std::string db_local(test_dir_ + std::string("/datastore") +
                          boost::lexical_cast<std::string>(i));
     boost::filesystem::create_directories(db_local);
     dbs_.push_back(db_local);
-  }
-  // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
-  // joined before others. However, it depends on what to be tested
-
-  // Join all the nodes
-  for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
     bool done(false);
     int response_code(-3);
     nodes_[i]->Join(node_ids_[i], ports_[i], bootstrap_contacts_,
                     boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(nodes_[i]->joined());
   }
+  // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
+  // joined before others. However, it depends on what to be tested
 }
 
 void EnvironmentNodes::TearDown() {
@@ -244,7 +261,12 @@ void EnvironmentNodes::TearDown() {
     catch(const std::exception &e) {
       DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
     }
-
+    for (size_t i = 0; i < asio_services_.size(); ++i) {
+      works_[i].reset();
+      asio_services_[i]->stop();
+      thread_groups_[i]->join_all();
+      thread_groups_[i].reset();
+    }
     dbs_.clear();
     bootstrap_contacts_.clear();
     nodes_.clear();
@@ -254,6 +276,14 @@ void EnvironmentNodes::TearDown() {
     alternative_stores_.clear();
     transports_.clear();
     asio_services_.clear();
+    works_.clear();
+    thread_groups_.clear();
     crypto_key_pairs_.clear();
     DLOG(INFO) << "TestNode, TearDown Finished." << std::endl;
 }
+
+}   //  namespace test
+
+}   //  namespace kademlia
+
+}   //   namespace maidsafe

@@ -58,6 +58,7 @@ namespace kademlia {
 namespace test {
 class NodeImplTest;
 class NodeImplTest_BEH_KAD_Join_Test;
+class NodeApiTest_BEH_KAD_Join_Server_Test;
 }  // namespace test
 
 // This class represents a kademlia node providing the API to join the network,
@@ -222,6 +223,7 @@ class Node {
 
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_BEH_KAD_Join_Test;
+  friend class test::NodeApiTest_BEH_KAD_Join_Server_Test;
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;

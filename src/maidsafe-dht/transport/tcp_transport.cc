@@ -146,6 +146,7 @@ void TcpTransport::HandleAccept(AcceptorPtr acceptor,
 void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
+                          std::cout<<"\nsend TCPTransport\n";
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
   ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
                                                            tcp_endpoint));
