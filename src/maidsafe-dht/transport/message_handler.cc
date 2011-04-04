@@ -41,18 +41,6 @@ namespace maidsafe {
 
 namespace transport {
 
-enum MessageType {
-  kManagedEndpointMessage = 1,
-  kNatDetectionRequest,
-  kNatDetectionResponse,
-  kProxyConnectRequest,
-  kProxyConnectResponse,
-  kForwardRendezvousRequest,
-  kForwardRendezvousResponse,
-  kRendezvousRequest,
-  kRendezvousAcknowledgement
-};
-
 void MessageHandler::OnMessageReceived(const std::string &request,
                                        const Info &info,
                                        std::string *response,
@@ -76,62 +64,81 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   }
 }
 
-void MessageHandler::OnError(const TransportCondition &transport_condition) {
-  (*on_error_)(transport_condition);
+void MessageHandler::OnError(const TransportCondition &transport_condition,
+                             const Endpoint &remote_endpoint) {
+  (*on_error_)(transport_condition, remote_endpoint);
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ManagedEndpointMessage &msg) {
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionRequest &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionResponse &msg) {
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectRequest &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectResponse &msg) {
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousResponse &msg) {
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousRequest &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousAcknowledgement &msg) {
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(),
+                                      kNone,
+                                      "");
 }
 
 void MessageHandler::ProcessSerialisedMessage(
@@ -139,7 +146,7 @@ void MessageHandler::ProcessSerialisedMessage(
     const std::string &payload,
     const SecurityType &/*security_type*/,
     const std::string &/*message_signature*/,
-    const Info &/*info*/,
+    const Info &info,
     std::string *message_response,
     Timeout *timeout) {
   message_response->clear();
@@ -158,13 +165,6 @@ void MessageHandler::ProcessSerialisedMessage(
     case kNatDetectionRequest: {
       protobuf::NatDetectionRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
-//         NatDetectionReqSigPtr::element_type::result_type
-//             (NatDetectionReqSigPtr::element_type::*sig)
-//             (NatDetectionReqSigPtr::element_type::arg<0>::type,
-//              NatDetectionReqSigPtr::element_type::arg<1>::type) =
-//             &NatDetectionReqSigPtr::element_type::operator();
-//         asio_service_->post(boost::bind(sig, on_nat_detection_, request,
-//                                         conversation_id));
         protobuf::NatDetectionResponse response;
         (*on_nat_detection_request_)(request, &response, timeout);
         *message_response = WrapMessage(response);

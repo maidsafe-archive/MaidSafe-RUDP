@@ -81,12 +81,18 @@ struct RpcsFailurePeer {
 class Rpcs {
  public:
   typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
-      StoreFunctor, StoreRefreshFunctor, DeleteFunctor, DeleteRefreshFunctor;
-  typedef boost::function<void(RankInfoPtr, const int&,
-      const std::vector<std::string>&, const std::vector<Contact>&,
-      const Contact&)> FindValueFunctor;
-  typedef boost::function<void(RankInfoPtr, const int&,
-      const std::vector<Contact>&)> FindNodesFunctor;
+                                                         StoreFunctor,
+                                                         StoreRefreshFunctor,
+                                                         DeleteFunctor,
+                                                         DeleteRefreshFunctor;
+  typedef boost::function<void(RankInfoPtr,
+                               const int&,
+                               const std::vector<std::string>&,
+                               const std::vector<Contact>&,
+                               const Contact&)> FindValueFunctor;
+  typedef boost::function<void(RankInfoPtr,
+                               const int&,
+                               const std::vector<Contact>&)> FindNodesFunctor;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
       : asio_service_(asio_service),
@@ -119,7 +125,9 @@ class Rpcs {
   virtual void StoreRefresh(
       const std::string &serialised_store_request,
       const std::string &serialised_store_request_signature,
-      SecurifierPtr securifier, const Contact &peer, StoreFunctor callback,
+      SecurifierPtr securifier,
+      const Contact &peer,
+      StoreFunctor callback,
       TransportType type);
   virtual void Delete(const Key &key,
                       const std::string &value,
@@ -131,7 +139,9 @@ class Rpcs {
   virtual void DeleteRefresh(
       const std::string &serialised_delete_request,
       const std::string &serialised_delete_request_signature,
-      SecurifierPtr securifier, const Contact &peer, DeleteFunctor callback,
+      SecurifierPtr securifier,
+      const Contact &peer,
+      DeleteFunctor callback,
       TransportType type);
   virtual void Downlist(const std::vector<NodeId> &node_ids,
                         SecurifierPtr securifier,

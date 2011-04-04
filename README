@@ -1,6 +1,8 @@
+For full build instructions, see https://github.com/maidsafe/MaidSafe-DHT/wiki/Developer-Build-Instructions
+Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
+
 Directory structure
 ===================
-
 - build (all build files)
     - Linux
         - Debug
@@ -12,20 +14,6 @@ Directory structure
         - Release
         - RelWithDebInfo
         - MinSizeRel
-    - Win_MinGW
-        - Debug
-        - Release
-        - RelWithDebInfo
-        - MinSizeRel
     - Win_MSVC
-    - tools
-- doc (documentation including API structure [To be completed])
 - src
-    - maidsafe (all source files, inc 3rd party)
-
-
-For full build instructions, see https://github.com/maidsafe/MaidSafe-DHT/wiki/DevBuild 
-Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
-
-Please note the src/udt directory is a (nearly clean) CVS copy of the official udt
-project and typing CVS update in src/udt will bring this directory up to date at any time.
+    - maidsafe

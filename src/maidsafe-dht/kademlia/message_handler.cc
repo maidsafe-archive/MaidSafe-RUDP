@@ -26,31 +26,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe-dht/kademlia/message_handler.h"
+
 #include "boost/lexical_cast.hpp"
-#include "maidsafe-dht/kademlia/securifier.h"
+
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 
 namespace maidsafe {
 
 namespace kademlia {
-
-enum MessageType {
-  kPingRequest = transport::kMaxMessageType + 1,
-  kPingResponse,
-  kFindValueRequest,
-  kFindValueResponse,
-  kFindNodesRequest,
-  kFindNodesResponse,
-  kStoreRequest,
-  kStoreResponse,
-  kStoreRefreshRequest,
-  kStoreRefreshResponse,
-  kDeleteRequest,
-  kDeleteResponse,
-  kDeleteRefreshRequest,
-  kDeleteRefreshResponse,
-  kDownlistNotification
-};
 
 std::string MessageHandler::WrapMessage(
     const protobuf::PingRequest &msg,
