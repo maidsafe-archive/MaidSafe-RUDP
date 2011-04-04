@@ -47,34 +47,45 @@ namespace kademlia {
 
 namespace test {
 
-namespace mock_rpcs {
-  const boost::uint16_t kFailureTolerance = 2;
-}  //  namespace mock_rpcs
+const boost::uint16_t kFailureTolerance = 2;
 
 // Mock the TcpTransport class
-class MockTransport : public transport::Transport {
+class RpcsMockTransport : public transport::Transport {
  public:
-  MockTransport(boost::asio::io_service &asio_service, const int &repeat_factor)
-    : repeat_factor_(repeat_factor),
-      Transport(asio_service) {}
-  ~MockTransport() {}
+  RpcsMockTransport(boost::asio::io_service &asio_service,  // NOLINT
+                    const int &repeat_factor)
+      : Transport(asio_service),
+        repeat_factor_(repeat_factor) {}
+  ~RpcsMockTransport() {}
   virtual transport::TransportCondition StartListening(
       const transport::Endpoint &endpoint) {
+    return transport::kSuccess;
+  }
+  virtual transport::TransportCondition Bootstrap(
+      const std::vector<transport::Endpoint>&) {
     return transport::kSuccess;
   }
   virtual void StopListening() {}
   virtual void Send(const std::string &data,
                     const transport::Endpoint &endpoint,
                     const transport::Timeout &timeout) {
+    if (repeat_factor_ < kFailureTolerance) {
+      boost::thread th(&RpcsMockTransport::SignalError, this);
+    } else {
+      boost::thread th(&RpcsMockTransport::SignalMessageReceived, this, data);
+    }
+  }
+  void SignalError() {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    ++repeat_factor_;
+    (*on_error())(transport::kError, transport::Endpoint());
+  }
+  void SignalMessageReceived(std::string data) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
     transport::Info info;
     transport::Timeout response_timeout(transport::kImmediateTimeout);
     std::string response("response");
-    if (repeat_factor_ < mock_rpcs::kFailureTolerance) {
-      ++repeat_factor_;
-      (*on_error())(transport::kError);
-    } else {
-      (*on_message_received())(data, info, &response, &response_timeout);
-    }
+    (*on_message_received())(data, info, &response, &response_timeout);
   }
  protected:
   boost::uint16_t repeat_factor_;
@@ -84,10 +95,11 @@ class MockMessageHandler : public MessageHandler {
  public:
   MockMessageHandler(SecurifierPtr securifier, const int &request_type,
                      const int &result_type)
-    : securifier_(securifier),
+    : MessageHandler(securifier),
+      securifier_(securifier),
       request_type_(request_type),
-      result_type_(result_type),
-      MessageHandler(securifier) {}
+      result_type_(result_type) {}
+
   void OnMessageReceived(const std::string &request,
                          const transport::Info &info,
                          std::string *response,
@@ -258,16 +270,18 @@ class MockMessageHandler : public MessageHandler {
 
 typedef std::shared_ptr<MockMessageHandler> MockMessageHandlerPtr;
 
-class MockRpcs : public Rpcs {
+class TestMockRpcs : public Rpcs {
  public:
-  MockRpcs(IoServicePtr asio_service, SecurifierPtr securifier,
+  TestMockRpcs(IoServicePtr asio_service, SecurifierPtr securifier,
            const int &request_type, const int &repeat_factor,
            const int &result_type)
-    : asio_service_(asio_service), securifier_(securifier),
+    : Rpcs(asio_service, securifier),
+      asio_service_(asio_service),
+      securifier_(securifier),
       request_type_(request_type),
-      Rpcs(asio_service, securifier),
-      result_type_(result_type), repeat_factor_(repeat_factor) {}
-  ~MockRpcs() {}
+      result_type_(result_type),
+      repeat_factor_(repeat_factor) {}
+  ~TestMockRpcs() {}
   MOCK_METHOD4(Prepare, void(TransportType type,
                              SecurifierPtr securifier,
                              TransportPtr &transport,
@@ -276,15 +290,17 @@ class MockRpcs : public Rpcs {
                    SecurifierPtr securifier,
                    TransportPtr &transport,
                    MessageHandlerPtr &message_handler) {
-    transport.reset(new MockTransport(*asio_service_, repeat_factor_));
-    message_handler.reset(new MockMessageHandler(
-        securifier, request_type_, result_type_));
+    transport.reset(new RpcsMockTransport(*asio_service_, repeat_factor_));
+    message_handler.reset(new MockMessageHandler(securifier,
+                                                 request_type_,
+                                                 result_type_));
     transport->on_message_received()->connect(
         boost::bind(&MessageHandler::OnMessageReceived,
                     message_handler.get(), _1, _2, _3, _4));
     transport->on_error()->connect(
-        boost::bind(&MessageHandler::OnError, message_handler.get(), _1));
+        boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
   }
+
  protected:
   IoServicePtr asio_service_;
   SecurifierPtr securifier_;
@@ -295,10 +311,8 @@ class MockRpcsTest : public testing::Test {
  public:
   MockRpcsTest()
           : asio_service_(new boost::asio::io_service),
-            securifier_(),
-            peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)) {
-    securifier_.reset(new Securifier("", "", ""));
-  }
+            securifier_(new Securifier("", "", "")),
+            peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)) {}
 
   ~MockRpcsTest() {}
 
@@ -342,23 +356,28 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kPingRequest, repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kPingRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::PingFunctor pf = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                        &b, &m, &result);
-    boost::thread t1(&Rpcs::Ping, rpcs_, securifier_, peer_, pf, kTcp);
+    rpcs->Ping(securifier_, peer_, pf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
-      b2 = b;
+      {
+        boost::mutex::scoped_lock loch_lomond(m);
+        b2 = b;
+      }
     }
     switch (i) {
       case 0: {
@@ -369,7 +388,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -379,7 +398,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -396,25 +415,29 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kStoreRequest, repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kStoreRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::StoreFunctor sf = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                        &b, &m, &result);
-    boost::thread t1(&Rpcs::Store, rpcs_, NodeId(NodeId::kRandomId), "",
-                     "", boost::posix_time::seconds(1), securifier_,
-                     peer_, sf, kTcp);
+    rpcs->Store(NodeId(NodeId::kRandomId), "", "",
+                boost::posix_time::seconds(1), securifier_, peer_, sf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
-      b2 = b;
+      {
+        boost::mutex::scoped_lock loch_lomond(m);
+        b2 = b;
+      }
     }
     switch (i) {
       case 0: {
@@ -425,7 +448,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -435,7 +458,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -452,21 +475,22 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kStoreRefreshRequest,
-                                                   repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kStoreRefreshRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::StoreRefreshFunctor srf = boost::bind(&MockRpcsTest::Callback, this,
                                                 _1, _2, &b, &m, &result);
-    boost::thread t1(&Rpcs::StoreRefresh, rpcs_, "", "", securifier_, peer_,
-                     srf, kTcp);
+    rpcs->StoreRefresh("", "", securifier_, peer_, srf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
@@ -481,7 +505,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -491,7 +515,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -508,21 +532,22 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kDeleteRequest,
-                                                   repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kDeleteRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+        &TestMockRpcs::MockPrepare, rpcs.get(), _1, _2, _3, _4))));
 
     Rpcs::DeleteFunctor df = boost::bind(&MockRpcsTest::Callback, this, _1, _2,
                                          &b, &m, &result);
-    boost::thread t1(&Rpcs::Delete, rpcs_, NodeId(NodeId::kRandomId), "",
-                     "", securifier_, peer_, df, kTcp);
+    rpcs->Delete(NodeId(NodeId::kRandomId), "", "",
+                 securifier_, peer_, df, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
@@ -537,7 +562,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -547,7 +572,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -564,21 +589,22 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kDeleteRefreshRequest,
-                                                   repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kDeleteRefreshRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::DeleteRefreshFunctor drf = boost::bind(&MockRpcsTest::Callback, this,
                                                  _1, _2, &b, &m, &result);
-    boost::thread t1(&Rpcs::DeleteRefresh, rpcs_, "", "", securifier_, peer_,
-                     drf, kTcp);
+    rpcs->DeleteRefresh("", "", securifier_, peer_, drf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
@@ -593,7 +619,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -603,7 +629,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -620,22 +646,23 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kFindNodesRequest,
-                                                   repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kFindNodesRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::FindNodesFunctor fnf = boost::bind(&MockRpcsTest::FindNodesCallback,
                                              this, _1, _2, _3, &b, &m, &result);
 
-    boost::thread t1(&Rpcs::FindNodes, rpcs_, NodeId(NodeId::kRandomId),
-                     securifier_, peer_, fnf, kTcp);
+    rpcs->FindNodes(NodeId(NodeId::kRandomId), securifier_, peer_, fnf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
@@ -650,7 +677,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -660,7 +687,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -677,23 +704,24 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
   int repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
-    boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                   kFindValueRequest,
-                                                   repeat_factor,
-                                                   result_type));
+    std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
+                                                        securifier_,
+                                                        kFindValueRequest,
+                                                        repeat_factor,
+                                                        result_type));
     bool b(false), b2(false);
     int result(999);
     boost::mutex m;
-    EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-        &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+    EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+        .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+            boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                        _1, _2, _3, _4))));
 
     Rpcs::FindValueFunctor fvf = boost::bind(&MockRpcsTest::FindValueCallback,
                                              this, _1, _2, _3, _4, _5, &b, &m,
                                              &result);
 
-    boost::thread t1(&Rpcs::FindValue, rpcs_, NodeId(NodeId::kRandomId),
-                     securifier_, peer_, fvf, kTcp);
+    rpcs->FindValue(NodeId(NodeId::kRandomId), securifier_, peer_, fvf, kTcp);
     while (!b2) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
@@ -708,7 +736,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
       case 1: {
         ASSERT_EQ(transport::kError, result);
         result_type = 1;
-        repeat_factor = mock_rpcs::kFailureTolerance;
+        repeat_factor = kFailureTolerance;
         break;
       }
       case 2: {
@@ -718,7 +746,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
       }
       case 3: {
         ASSERT_EQ(transport::kError, result);
-        repeat_factor = mock_rpcs::kFailureTolerance - 1;
+        repeat_factor = kFailureTolerance - 1;
         break;
       }
       case 4: {
@@ -738,16 +766,16 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
   std::vector<NodeId> node_ids;
   NodeId node_id(NodeId::kRandomId);
   node_ids.push_back(node_id);
-  boost::shared_ptr<MockRpcs> rpcs_(new MockRpcs(asio_service_, securifier_,
-                                                 kDownlistNotification,
-                                                 mock_rpcs::kFailureTolerance,
-                                                 1));
-  EXPECT_CALL(*rpcs_, Prepare(testing::_, testing::_, testing::_, testing::_))
-      .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(boost::bind(
-      &MockRpcs::MockPrepare, rpcs_.get(), _1, _2, _3, _4))));
+  std::shared_ptr<TestMockRpcs> rpcs(
+      new TestMockRpcs(asio_service_, securifier_, kDownlistNotification,
+                       kFailureTolerance, 1));
+  EXPECT_CALL(*rpcs, Prepare(testing::_, testing::_, testing::_, testing::_))
+      .WillOnce(testing::WithArgs<0, 1, 2, 3>(testing::Invoke(
+          boost::bind(&TestMockRpcs::MockPrepare, rpcs.get(),
+                      _1, _2, _3, _4))));
 
-  boost::thread t1(&Rpcs::Downlist, rpcs_, node_ids, securifier_, peer_, kTcp);
-  t1.join();
+  rpcs->Downlist(node_ids, securifier_, peer_, kTcp);
+//  t1.join();
 }
 
 }   // namespace maidsafe

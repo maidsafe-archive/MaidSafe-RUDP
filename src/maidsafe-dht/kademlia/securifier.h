@@ -34,8 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
-typedef boost::function<void(const std::string&, const std::string)>
-    GetPublicKeyAndValidationCallback;
+typedef boost::function<void(const std::string&, const std::string&)>
+        GetPublicKeyAndValidationCallback;
 
 /** Base class used to cryptographically secure and validate values and
  *  messages. */

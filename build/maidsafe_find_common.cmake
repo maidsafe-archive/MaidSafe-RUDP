@@ -43,17 +43,20 @@
 #                                                                              #
 #  Variables set and cached by this module are:                                #
 #    MaidSafeCommon_INCLUDE_DIR, MaidSafeCommon_MODULES_DIR,                   #
-#    MaidSafeCommon_TOOLS_DIR and MaidSafeCommon_VERSION.                      #
+#    MaidSafeCommon_TOOLS_DIR and MAIDSAFE_COMMON_VERSION.                     #
 #                                                                              #
 #==============================================================================#
 
 UNSET(MaidSafeCommon_INCLUDE_DIR CACHE)
 UNSET(MaidSafeCommon_MODULES_DIR CACHE)
 UNSET(MaidSafeCommon_TOOLS_DIR CACHE)
-UNSET(MaidSafeCommon_VERSION CACHE)
 
-IF(NOT MAIDSAFE_COMMON_INSTALL_DIR AND DEFAULT_THIRD_PARTY_ROOT)
-  SET(MAIDSAFE_COMMON_INSTALL_DIR ${DEFAULT_THIRD_PARTY_ROOT})
+IF(NOT MAIDSAFE_COMMON_INSTALL_DIR)
+  IF(DEFAULT_THIRD_PARTY_ROOT)
+    SET(MAIDSAFE_COMMON_INSTALL_DIR ${DEFAULT_THIRD_PARTY_ROOT})
+  ELSE()
+    SET(MAIDSAFE_COMMON_INSTALL_DIR ${PROJECT_SOURCE_DIR}/../MaidSafe-Common/installed)
+  ENDIF()
 ENDIF()
 
 SET(MAIDSAFE_PATH_SUFFIX share/maidsafe)
@@ -90,9 +93,5 @@ IF(NOT MaidSafeCommon_INCLUDE_DIR OR NOT MaidSafeCommon_MODULES_DIR OR NOT MaidS
   MESSAGE(FATAL_ERROR "${ERROR_MESSAGE}")
 ENDIF()
 
-FILE(STRINGS ${MaidSafeCommon_INCLUDE_DIR}/maidsafe/common/version.h MaidSafeCommon_VERSION
-       REGEX "VERSION [0-9]+$")
-STRING(REGEX MATCH "[0-9]+$" MaidSafeCommon_VERSION ${MaidSafeCommon_VERSION})
-
-MESSAGE("-- Found MaidSafe Common library (version ${MaidSafeCommon_VERSION})")
-MESSAGE("-- Found MaidSafe Common Debug library (version ${MaidSafeCommon_VERSION})")
+MESSAGE("-- Found MaidSafe Common library (version ${MAIDSAFE_COMMON_VERSION})")
+MESSAGE("-- Found MaidSafe Common Debug library (version ${MAIDSAFE_COMMON_VERSION})")

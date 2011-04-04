@@ -25,64 +25,72 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_TCP_TRANSPORT_H_
-#define MAIDSAFE_DHT_TRANSPORT_TCP_TRANSPORT_H_
+#ifndef MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
+#define MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
 
+#include <unordered_map>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 #include "boost/asio/io_service.hpp"
+#include "boost/asio/ip/udp.hpp"
 #include "boost/asio/strand.hpp"
+#include "boost/cstdint.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/tcp_connection.h"
+#include "maidsafe-dht/transport/udp_request.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class MessageHandler;
-
-class TcpTransport : public Transport,
-                     public std::enable_shared_from_this<TcpTransport> {
+class UdpTransport : public Transport,
+                     public std::enable_shared_from_this<UdpTransport> {
  public:
-  explicit TcpTransport(boost::asio::io_service &asio_service);  // NOLINT
-  ~TcpTransport();
+  explicit UdpTransport(boost::asio::io_service &asio_service);  // NOLINT
+  ~UdpTransport();
+
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
   virtual void StopListening();
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
-  static DataSize kMaxTransportMessageSize() { return 67108864; }
 
  private:
-  TcpTransport(const TcpTransport&);
-  TcpTransport& operator=(const TcpTransport&);
-  friend class TcpConnection;
-  typedef std::shared_ptr<boost::asio::ip::tcp::acceptor> AcceptorPtr;
-  typedef std::shared_ptr<TcpConnection> ConnectionPtr;
-  typedef std::set<ConnectionPtr> ConnectionSet;
-  static void CloseAcceptor(AcceptorPtr acceptor);
-  void HandleAccept(AcceptorPtr acceptor, ConnectionPtr connection,
-                    const boost::system::error_code &ec);
+  UdpTransport(const UdpTransport&);
+  UdpTransport &operator=(const UdpTransport&);
 
-  void InsertConnection(ConnectionPtr connection);
-  void DoInsertConnection(ConnectionPtr connection);
-  void RemoveConnection(ConnectionPtr connection);
-  void DoRemoveConnection(ConnectionPtr connection);
+  typedef std::shared_ptr<boost::asio::ip::udp::socket> SocketPtr;
+  typedef std::shared_ptr<boost::asio::ip::udp::endpoint> EndpointPtr;
+  typedef std::shared_ptr<std::vector<unsigned char>> BufferPtr;
+  typedef std::shared_ptr<UdpRequest> RequestPtr;
+  typedef std::unordered_map<boost::uint64_t, RequestPtr> RequestMap;
 
-  AcceptorPtr acceptor_;
+  void DoSend(RequestPtr request);
+  static void CloseSocket(SocketPtr socket);
 
-  // Because the connections can be in an idle initial state with no pending
-  // async operations (after calling PrepareSend()), they are kept alive with
-  // a shared_ptr in this map, as well as in the async operation handlers.
-  ConnectionSet connections_;
+  void StartRead();
+  void HandleRead(SocketPtr socket,
+                  BufferPtr read_buffer,
+                  EndpointPtr sender_endpoint,
+                  const boost::system::error_code &ec,
+                  size_t bytes_transferred);
+  void DispatchMessage(const std::string &data,
+                       const Info &info,
+                       boost::uint64_t reply_to_id);
+  void HandleTimeout(boost::uint64_t request_id,
+                     const boost::system::error_code &ec);
+
   boost::asio::io_service::strand strand_;
+  SocketPtr socket_;
+  BufferPtr read_buffer_;
+  EndpointPtr sender_endpoint_;
+  boost::uint64_t next_request_id_;
+  RequestMap outstanding_requests_;
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_TCP_TRANSPORT_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_

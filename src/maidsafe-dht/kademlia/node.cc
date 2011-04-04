@@ -35,6 +35,7 @@ namespace kademlia {
 
 Node::Node(IoServicePtr asio_service,
            TransportPtr listening_transport,
+           MessageHandlerPtr message_handler,
            SecurifierPtr default_securifier,
            AlternativeStorePtr alternative_store,
            bool client_only_node,
@@ -42,9 +43,9 @@ Node::Node(IoServicePtr asio_service,
            const boost::uint16_t &alpha,
            const boost::uint16_t &beta,
            const boost::posix_time::time_duration &mean_refresh_interval)
-    : pimpl_(new Impl(asio_service, listening_transport, default_securifier,
-                      alternative_store, client_only_node, k, alpha, beta,
-                      mean_refresh_interval)) {}
+    : pimpl_(new Impl(asio_service, listening_transport, message_handler,
+                      default_securifier, alternative_store, client_only_node,
+                      k, alpha, beta, mean_refresh_interval)) {}
 
 Node::~Node() {}
 

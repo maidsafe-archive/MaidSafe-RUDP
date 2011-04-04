@@ -90,22 +90,38 @@ void Service::ConnectToSignals(TransportPtr transport,
           &MessageHandler::OnMessageReceived, message_handler.get(),
           _1, _2, _3, _4).track_foreign(message_handler));
   // Connect service to message handler for incoming parsed requests
-  message_handler->on_ping_request()->connect(boost::bind(
-      &Service::Ping, this, _1, _2, _3, _4));
-  message_handler->on_find_value_request()->connect(boost::bind(
-      &Service::FindValue, this, _1, _2, _3, _4));
-  message_handler->on_find_nodes_request()->connect(boost::bind(
-      &Service::FindNodes, this, _1, _2, _3, _4));
-  message_handler->on_store_request()->connect(boost::bind(
-      &Service::Store, this, _1, _2, _3, _4, _5, _6));
-  message_handler->on_store_refresh_request()->connect(boost::bind(
-      &Service::StoreRefresh, this, _1, _2, _3, _4));
-  message_handler->on_delete_request()->connect(boost::bind(
-      &Service::Delete, this, _1, _2, _3, _4, _5, _6));
-  message_handler->on_delete_refresh_request()->connect(boost::bind(
-      &Service::DeleteRefresh, this, _1, _2, _3, _4));
-  message_handler->on_downlist_notification()->connect(boost::bind(
-      &Service::Downlist, this, _1, _2, _3));
+  message_handler->on_ping_request()->connect(
+      MessageHandler::PingReqSigPtr::element_type::slot_type(
+          &Service::Ping, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
+  message_handler->on_find_value_request()->connect(
+      MessageHandler::FindValueReqSigPtr::element_type::slot_type(
+          &Service::FindValue, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
+  message_handler->on_find_nodes_request()->connect(
+      MessageHandler::FindNodesReqSigPtr::element_type::slot_type(
+          &Service::FindNodes, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
+  message_handler->on_store_request()->connect(
+      MessageHandler::StoreReqSigPtr::element_type::slot_type(
+          &Service::Store, this, _1, _2, _3, _4, _5, _6).track_foreign(
+              shared_from_this()));
+  message_handler->on_store_refresh_request()->connect(
+      MessageHandler::StoreRefreshReqSigPtr::element_type::slot_type(
+          &Service::StoreRefresh, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
+  message_handler->on_delete_request()->connect(
+      MessageHandler::DeleteReqSigPtr::element_type::slot_type(
+          &Service::Delete, this, _1, _2, _3, _4, _5, _6).track_foreign(
+              shared_from_this()));
+  message_handler->on_delete_refresh_request()->connect(
+      MessageHandler::DeleteRefreshReqSigPtr::element_type::slot_type(
+          &Service::DeleteRefresh, this, _1, _2, _3, _4).track_foreign(
+              shared_from_this()));
+  message_handler->on_downlist_notification()->connect(
+      MessageHandler::DownlistNtfSigPtr::element_type::slot_type(
+          &Service::Downlist, this, _1, _2, _3).track_foreign(
+              shared_from_this()));
 }
 
 void Service::Ping(const transport::Info &info,
@@ -199,8 +215,21 @@ void Service::Store(const transport::Info &info,
     DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                              request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(request.key(),
-      request.signed_value().value(), request.signed_value().signature());
+                                        request.signed_value().value(),
+                                        request.signed_value().signature());
+
   RequestAndSignature request_signature(message, message_signature);
   TaskCallback store_cb = boost::bind(&Service::StoreCallback, this, _1,
                                       request, _2, _3, _4, _5);
@@ -228,11 +257,24 @@ void Service::StoreRefresh(const transport::Info &info,
     return;
   if (request.serialised_store_request().empty() ||
       request.serialised_store_request_signature().empty() || !securifier_) {
-    DLOG(WARNING) << "StoreFresh Input Error" << std::endl;
+    DLOG(WARNING) << "StoreRefresh Input Error" << std::endl;
     return;
   }
+
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
+
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(ori_store_request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                              ori_store_request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(ori_store_request.key(),
                         ori_store_request.signed_value().value(),
                         ori_store_request.signed_value().signature());
@@ -265,7 +307,7 @@ void Service::StoreCallback(KeyValueSignature key_value_signature,
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
-      public_key, public_key_validation, false))
+                       public_key, public_key_validation, false))
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
 }
@@ -300,7 +342,7 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                                const bool is_refresh) {
   if (!securifier_->Validate(key_value_signature.value,
                              key_value_signature.signature,
-                             request.signing_public_key_id(),
+                             request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
                              request.key() ) ) {
@@ -330,9 +372,20 @@ void Service::Delete(const transport::Info &info,
     DLOG(WARNING) << "Delete Input Error" << std::endl;
     return;
   }
+
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(request.key()))
     return;
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                              request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
     // Only the signer of the value can delete it.
     // this will be done in message_handler, no need to do it here
 //   if (!crypto::AsymCheckSig(message, message_signature,
@@ -372,12 +425,24 @@ void Service::DeleteRefresh(const transport::Info &info,
   }
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(ori_delete_request.key()))
     return;
+  // Check if same private key signs other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (datastore_->GetValues(ori_delete_request.key(), &values)) {
+    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
+                              ori_delete_request.sender().public_key())) {
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
+      return;
+    }
+  }
+
   KeyValueSignature key_value_signature(ori_delete_request.key(),
                         ori_delete_request.signed_value().value(),
-                        ori_delete_request.signed_value().signature());
+                            ori_delete_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
   TaskCallback delete_refresh_cb = boost::bind(&Service::DeleteRefreshCallback,
@@ -444,7 +509,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                                 const bool is_refresh) {
   if (!securifier_->Validate(key_value_signature.value,
                              key_value_signature.signature,
-                             request.signing_public_key_id(),
+                             request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
                              request.key() ) ) {

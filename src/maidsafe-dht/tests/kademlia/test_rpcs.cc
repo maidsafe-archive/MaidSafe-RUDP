@@ -368,10 +368,6 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
     store_request.mutable_signed_value()->set_signature(kvs.signature);
     store_request.mutable_signed_value()->set_value(kvs.value);
     store_request.set_ttl(3600*24);
-    store_request.set_signing_public_key_id(
-        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-            crypto::AsymSign(crypto_key_data.public_key(),
-                             crypto_key_data.private_key())));
     return store_request;
   }
 
@@ -383,10 +379,6 @@ class RpcsTest: public CreateContactAndNodeId, public testing::Test {
     delete_request.set_key(kvs.key);
     delete_request.mutable_signed_value()->set_signature(kvs.signature);
     delete_request.mutable_signed_value()->set_value(kvs.value);
-    delete_request.set_signing_public_key_id(
-        crypto::Hash<crypto::SHA512>(crypto_key_data.public_key() +
-            crypto::AsymSign(crypto_key_data.public_key(),
-                            crypto_key_data.private_key())));
     return delete_request;
   }
 
@@ -599,7 +591,7 @@ TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
   while (it != contact_list.end()) {
     if ((*it).node_id() == service_contact_.node_id())
       found = true;
-    for (int i = 0; i < contacts_.size(); i++) {
+    for (size_t i = 0; i < contacts_.size(); i++) {
       if ((*it).node_id() == contacts_[i].node_id())
         contacts_.erase(contacts_.begin()+i);
       }
@@ -639,7 +631,7 @@ TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
   while (it != contact_list.end()) {
     if ((*it).node_id() == service_contact_.node_id())
       found = true;
-    for (int i = 0; i < contacts_.size(); i++) {
+    for (size_t i = 0; i < contacts_.size(); i++) {
       if ((*it).node_id() == contacts_[i].node_id())
         contacts_.erase(contacts_.begin()+i);
       }
