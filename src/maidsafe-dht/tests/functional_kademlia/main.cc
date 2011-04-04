@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
 
-#include "test_node_environment.h"
+#include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
 
 int main(int argc, char **argv) {
   // Initialising logging
@@ -41,7 +41,8 @@ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
 //   ::testing::FLAGS_gtest_filter = "NodeTest*";
   ::testing::AddGlobalTestEnvironment(
-        new EnvironmentNodes(2, 2, 1, 1, 1, bptime::seconds(3600)));
+      new maidsafe::kademlia::test::EnvironmentNodes(3, 2, 1, 1, 3,
+                                                     bptime::seconds(3600)));
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
   return (test_count == 0) ? -1 : result;

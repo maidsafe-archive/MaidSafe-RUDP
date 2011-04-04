@@ -40,20 +40,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/alternative_store.h"
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/utils.h"
-// #include "maidsafe-dht/kademlia/rpcs.h"
 #include "maidsafe-dht/kademlia/contact.h"
-// #include "maidsafe-dht/kademlia/routing_table.h"
-// #include "maidsafe-dht/kademlia/datastore.h"
-// #include "maidsafe-dht/kademlia/service.h"
-// #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/transport/tcp_transport.h"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/kademlia/message_handler.h"
 #include "maidsafe-dht/transport/utils.h"
 
 namespace fs = boost::filesystem;
+namespace maidsafe {
 
+namespace kademlia {
+
+namespace test {
+
+typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 class EnvironmentNodes : public ::testing::Environment {
  public:
   EnvironmentNodes(boost::uint16_t num_of_nodes,
@@ -64,6 +67,11 @@ class EnvironmentNodes : public ::testing::Environment {
       const boost::posix_time::time_duration &mean_refresh_interval);
  protected:
   virtual void SetUp();
-
   virtual void TearDown();
 };
+
+}   //  namespace test
+
+}   //  namespace kademlia
+
+}   //   namespace maidsafe

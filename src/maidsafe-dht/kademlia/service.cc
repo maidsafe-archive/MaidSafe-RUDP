@@ -179,6 +179,7 @@ void Service::FindNodes(const transport::Info &info,
                         const protobuf::FindNodesRequest &request,
                         protobuf::FindNodesResponse *response,
                         transport::Timeout*) {
+  std::cout<<"\nServices findNodes\n";
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -199,6 +200,7 @@ void Service::FindNodes(const transport::Info &info,
   }
   response->set_result(true);
   routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
+  std::cout<<"\nresponse_result::"<<response->result();
 }
 
 void Service::Store(const transport::Info &info,
