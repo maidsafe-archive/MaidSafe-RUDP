@@ -735,7 +735,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(downlist, kp.public_key());
- ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(downlist, kp.public_key());
   std::string manual_encrypt =
