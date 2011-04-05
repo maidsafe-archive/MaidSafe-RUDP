@@ -227,7 +227,6 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     while (listening_transports_itr != listening_transports_.end()) {
       for (int i = 0 ; i < num_messages; ++i) {
         if (thread_size > kThreadGroupSize) {
-          // std::cout<<"\nthread_size::"<<thread_size<<std::endl;
           asio_service_2_->post(boost::bind(
               &transport::test::TransportAPITest<T>::SendRPC, this,
               *sending_transports_itr, *listening_transports_itr));

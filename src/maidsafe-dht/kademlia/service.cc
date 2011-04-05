@@ -152,7 +152,6 @@ void Service::FindValue(const transport::Info &info,
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
   }
-
   // Do we have the values?
   if (datastore_->GetValues(key, &values_str)) {
     for (unsigned int i = 0; i < values_str.size(); i++) {
@@ -320,6 +319,11 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
                                    std::string public_key_validation) {
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
+  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
+                            public_key)) {
+    DLOG(WARNING) << "Failed to validate request_signature";
+    return;
+  }
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, ori_store_request, info,
