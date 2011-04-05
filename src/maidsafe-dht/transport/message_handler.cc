@@ -50,7 +50,7 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   SecurityType security_type = request.at(0);
   if (security_type && !securifier_)
     return;
-  std::string serialised_message;
+  std::string serialised_message(request.substr(1));
   if (security_type & kAsymmetricEncrypt) {
     std::string encrypt_aes_seed = request.substr(1, 512);
     encrypt_aes_seed = (securifier_->AsymmetricDecrypt(encrypt_aes_seed));
@@ -154,7 +154,6 @@ void MessageHandler::ProcessSerialisedMessage(
     Timeout *timeout) {
   message_response->clear();
   *timeout = kImmediateTimeout;
-
   switch (message_type) {
     case kManagedEndpointMessage: {
       protobuf::ManagedEndpointMessage request;
