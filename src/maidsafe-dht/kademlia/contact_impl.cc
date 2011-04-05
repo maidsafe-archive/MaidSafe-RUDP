@@ -195,7 +195,6 @@ Contact::Impl& Contact::Impl::operator=(const Contact::Impl &other) {
 }
 
 bool Contact::Impl::operator==(const Contact::Impl &other) const {
-  std::cout << "AAAAAAAaa" << std::endl;
   if (node_id_ == other.node_id_)
     return (node_id_.String() != kZeroId) ||
            (endpoint_.ip == other.endpoint_.ip);
