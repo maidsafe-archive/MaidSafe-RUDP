@@ -251,17 +251,16 @@ class MockMessageHandler : public MessageHandler {
     }
     case kDownlistNotification: {
       protobuf::DownlistNotification request;
-      transport::protobuf::WrapperMessage wrapper;
-      std::string serialised_message(payload.substr(1));
-      wrapper.ParseFromString(serialised_message);
-      if (request.ParseFromString(wrapper.payload()))
-        ASSERT_EQ(size_t(1), request.node_ids_size());
+      EXPECT_TRUE(request.ParseFromString(payload));
+      EXPECT_EQ(size_t(1), request.node_ids_size());
+      ops_completion_flag = true;
       break;
     }
     default:
       break;
   }
 }
+  static volatile bool ops_completion_flag;
  protected:
   SecurifierPtr securifier_;
   int request_type_;
@@ -269,6 +268,7 @@ class MockMessageHandler : public MessageHandler {
 };
 
 typedef std::shared_ptr<MockMessageHandler> MockMessageHandlerPtr;
+volatile bool MockMessageHandler::ops_completion_flag = false;
 
 class TestMockRpcs : public Rpcs {
  public:
@@ -278,6 +278,8 @@ class TestMockRpcs : public Rpcs {
     : Rpcs(asio_service, securifier),
       asio_service_(asio_service),
       securifier_(securifier),
+      local_t_(),
+      local_mh_(),
       request_type_(request_type),
       result_type_(result_type),
       repeat_factor_(repeat_factor) {}
@@ -299,11 +301,17 @@ class TestMockRpcs : public Rpcs {
                     message_handler.get(), _1, _2, _3, _4));
     transport->on_error()->connect(
         boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
+    if (request_type_ == kDownlistNotification) {
+      local_t_ = transport;
+      local_mh_ = message_handler;
+    }
   }
 
  protected:
   IoServicePtr asio_service_;
   SecurifierPtr securifier_;
+  TransportPtr local_t_;
+  MessageHandlerPtr local_mh_;
   int request_type_, result_type_, repeat_factor_;
 };
 
@@ -775,7 +783,10 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
                       _1, _2, _3, _4))));
 
   rpcs->Downlist(node_ids, securifier_, peer_, kTcp);
-//  t1.join();
+  while (!MockMessageHandler::ops_completion_flag) {
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
+  MockMessageHandler::ops_completion_flag = false;
 }
 
 }   // namespace maidsafe
