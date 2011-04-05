@@ -36,6 +36,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/transport/rudp_transport.h"
+#include "maidsafe-dht/transport/udp_transport.h"
 
 namespace maidsafe {
 
@@ -96,8 +99,10 @@ class TransportAPITest: public testing::Test {
   // (if zero) if listen == true.  If not, only a transport is created, and the
   // test member asio_service_ is used.
   void SetupTransport(bool listen, Port lport);
-  void RunTransportTest(const int &num_messages);
-  void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt);
+  void RunTransportTest(const int &num_messages,
+                        const int &messages_length = 4);
+  void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt,
+               const int &messages_length);
   void CheckMessages();
 
   IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
@@ -113,6 +118,11 @@ class TransportAPITest: public testing::Test {
   boost::mutex mutex_;
   std::vector<std::string> request_messages_;
   boost::uint16_t count_;
+};
+
+class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {
+ public:
+  RUDPSingleTransportAPITest() {}
 };
 
 TYPED_TEST_CASE_P(TransportAPITest);

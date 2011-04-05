@@ -29,9 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/thread.hpp"
-#include "maidsafe-dht/transport/tcp_transport.h"
-#include "maidsafe-dht/transport/rudp_transport.h"
-#include "maidsafe-dht/transport/udp_transport.h"
+
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
@@ -199,7 +197,8 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
 }
 
 template <typename T>
-void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
+void TransportAPITest<T>::RunTransportTest(const int &num_messages,
+    const int &messages_length) {
   Endpoint endpoint;
   endpoint.ip = kIP;
   std::vector<TestMessageHandlerPtr> msg_handlers;
@@ -238,11 +237,13 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
           // std::cout<<"\nthread_size::"<<thread_size<<std::endl;
           asio_service_2_->post(boost::bind(
             &transport::test::TransportAPITest<T>::SendRPC, this,
-            *sending_transports_itr, *listening_transports_itr));
+            *sending_transports_itr, *listening_transports_itr,
+            messages_length));
         } else {
           asio_service_1_->post(boost::bind(
             &transport::test::TransportAPITest<T>::SendRPC, this,
-            *sending_transports_itr, *listening_transports_itr));
+            *sending_transports_itr, *listening_transports_itr,
+            messages_length));
         }
         thread_size++;
       }
@@ -290,11 +291,12 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
 
 template <typename T>
 void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
-                               TransportPtr listener_pt) {
-  std::string request(RandomString(11));
+    TransportPtr listener_pt, const int &messages_length) {
+  std::string request(RandomString(1));
+  for (int i = 0; i < messages_length; ++i)
+    request = request + request;
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
                   bptime::seconds(2));
-
   boost::mutex::scoped_lock lock(mutex_);
   (request_messages_).push_back(request);
 }
@@ -497,6 +499,13 @@ REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
 INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
 INSTANTIATE_TYPED_TEST_CASE_P(RUDP, TransportAPITest, RudpTransport);
 INSTANTIATE_TYPED_TEST_CASE_P(UDP, TransportAPITest, UdpTransport);
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSingleLargeMessage) {
+  this->SetupTransport(false, 0);
+  this->SetupTransport(true, 0);
+  // Send out a message with upto 32MB = 2^25
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 25));
+}
 
 }  // namespace test
 
