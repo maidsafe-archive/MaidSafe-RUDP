@@ -61,9 +61,9 @@ inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   *priv_key = kp.private_key();
 }
 
-class ServiceMockTransport : public transport::Transport {
+class MockTransportServiceTest : public transport::Transport {
  public:
-  explicit ServiceMockTransport(boost::asio::io_service &asio_service)  // NOLINT
+  explicit MockTransportServiceTest(boost::asio::io_service &asio_service)  // NOLINT
       : transport::Transport(asio_service) {}
   virtual transport::TransportCondition StartListening(
       const transport::Endpoint &) { return transport::kSuccess; }
@@ -1975,7 +1975,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
 TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   MessageHandlerPtr message_handler_ptr(new MessageHandler(securifier_));
   boost::asio::io_service ioservice;
-  TransportPtr transport_ptr(new ServiceMockTransport(ioservice));
+  TransportPtr transport_ptr(new MockTransportServiceTest(ioservice));
   // Connecting to Signals
   service_->ConnectToSignals(transport_ptr, message_handler_ptr);
   // Data
