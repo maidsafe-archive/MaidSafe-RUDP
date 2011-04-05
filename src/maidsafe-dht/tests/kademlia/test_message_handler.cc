@@ -73,23 +73,33 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   template<class T>
   T GetWrapper(std::string encrypted, std::string key) {
-    std::string amended(encrypted, 1, encrypted.size() - 1);
-//    std::string decrypted = crypto::AsymDecrypt(amended, key);
+    std::string encrypt_aes_seed = encrypted.substr(1, 512);
+    encrypt_aes_seed = crypto::AsymDecrypt(encrypt_aes_seed, key);
+    std::string aes_key = encrypt_aes_seed.substr(0, 32);
+    std::string kIV = encrypt_aes_seed.substr(32, 16);
+    std::string serialised_message =
+        crypto::SymmDecrypt(encrypted.substr(513), aes_key, kIV);
     transport::protobuf::WrapperMessage decrypted_msg;
-    decrypted_msg.ParseFromString(amended);
+    decrypted_msg.ParseFromString(serialised_message);
     T result;
     result.ParseFromString(decrypted_msg.payload());
     return result;
   }
   template<class T>
   std::string EncryptMessage(T request,
-                             std::string,
+                             std::string publick_key,
                              MessageType request_type) {
     transport::protobuf::WrapperMessage message;
     message.set_msg_type(request_type);
     message.set_payload(request.SerializeAsString());
-    std::string result(1, kNone);
-    result += message.SerializeAsString();
+    std::string result(1, kAsymmetricEncrypt);
+    std::string seed = RandomString(48);
+    std::string key = seed.substr(0, 32);
+    std::string kIV = seed.substr(32, 16);
+    std::string encrypt_message =
+        crypto::SymmEncrypt(message.SerializeAsString(), key, kIV);
+    std::string encrypt_aes_seed = crypto::AsymEncrypt(seed, publick_key);
+    result += encrypt_aes_seed + encrypt_message;
     return result;
   }
 
@@ -491,15 +501,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(ping_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(ping_rqst, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::PingRequest>(ping_rqst, kp.public_key(),
                                             kPingRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::PingRequest decrypted_function_ping =
@@ -522,7 +532,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(value_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(value_rqst, kp.public_key());
@@ -530,8 +540,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueRequest) {
       EncryptMessage<protobuf::FindValueRequest>(value_rqst,
                                           kp.public_key(),
                                           kFindValueRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::FindValueRequest decrypted_function_value =
@@ -556,7 +566,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(nodes_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(nodes_rqst, kp.public_key());
@@ -564,8 +574,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesRequest) {
       EncryptMessage<protobuf::FindNodesRequest>(nodes_rqst,
                                           kp.public_key(),
                                           kFindNodesRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
 
   // decrypt for comparison test
   protobuf::FindNodesRequest decrypted_function_value =
@@ -595,7 +605,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(store_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
 
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(store_rqst, kp.public_key());
@@ -603,8 +613,8 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRequest) {
       EncryptMessage<protobuf::StoreRequest>(store_rqst,
                                       kp.public_key(),
                                       kStoreRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
 
   protobuf::StoreRequest decrypted_function_value =
       GetWrapper<protobuf::StoreRequest>(function_encrypt, kp.private_key());
@@ -630,15 +640,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(refresh_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(refresh_rqst, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::StoreRefreshRequest>(refresh_rqst,
                                              kp.public_key(),
                                              kStoreRefreshRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::StoreRefreshRequest decrypted_function_value =
       GetWrapper<protobuf::StoreRefreshRequest>(function_encrypt,
                                                  kp.private_key());
@@ -664,15 +674,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(delete_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(delete_rqst, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::DeleteRequest>(delete_rqst,
                                        kp.public_key(),
                                        kDeleteRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::DeleteRequest decrypted_function_value =
       GetWrapper<protobuf::DeleteRequest>(function_encrypt, kp.private_key());
   protobuf::DeleteRequest decrypted_manual_value =
@@ -696,15 +706,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshRequest) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(delrefresh_rqst, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(delrefresh_rqst, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::DeleteRefreshRequest>(delrefresh_rqst,
                                               kp.public_key(),
                                               kDeleteRefreshRequest);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::DeleteRefreshRequest decrypted_function_value =
       GetWrapper<protobuf::DeleteRefreshRequest>(function_encrypt,
                                                   kp.private_key());
@@ -725,15 +735,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(downlist, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+ ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(downlist, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::DownlistNotification>(downlist,
                                               kp.public_key(),
                                               kDownlistNotification);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::DownlistNotification decrypted_function_value =
       GetWrapper<protobuf::DownlistNotification>(function_encrypt,
                                                   kp.private_key());
@@ -752,15 +762,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::PingResponse>(response,
                                       kp.public_key(),
                                       kPingResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::PingResponse decrypted_function_value =
       GetWrapper<protobuf::PingResponse>(function_encrypt, kp.private_key());
   protobuf::PingResponse decrypted_manual_value =
@@ -777,23 +787,23 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::FindValueResponse>(response,
                                            kp.public_key(),
                                            kFindValueResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::FindValueResponse decrypted_function_value =
       GetWrapper<protobuf::FindValueResponse>(function_encrypt,
                                                kp.private_key());
   protobuf::FindValueResponse decrypted_manual_value =
       GetWrapper<protobuf::FindValueResponse>(manual_encrypt,
                                                kp.private_key());
-  ASSERT_TRUE(decrypted_manual_value.result());
-  ASSERT_TRUE(decrypted_function_value.result());
+  EXPECT_TRUE(decrypted_manual_value.result());
+  EXPECT_TRUE(decrypted_function_value.result());
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesResponse) {
@@ -804,15 +814,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::FindNodesResponse>(response,
                                            kp.public_key(),
                                            kFindNodesResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::FindNodesResponse decrypted_function_value =
       GetWrapper<protobuf::FindNodesResponse>(function_encrypt,
                                                kp.private_key());
@@ -831,15 +841,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::StoreResponse>(response,
                                        kp.public_key(),
                                        kStoreResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::StoreResponse decrypted_function_value =
       GetWrapper<protobuf::StoreResponse>(function_encrypt, kp.private_key());
   protobuf::StoreResponse decrypted_manual_value =
@@ -856,15 +866,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::StoreRefreshResponse>(response,
                                               kp.public_key(),
                                               kStoreRefreshResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::StoreRefreshResponse decrypted_function_value =
       GetWrapper<protobuf::StoreRefreshResponse>(function_encrypt,
                                                   kp.private_key());
@@ -883,15 +893,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::DeleteResponse>(response,
                                         kp.public_key(),
                                         kDeleteResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::DeleteResponse decrypted_function_value =
       GetWrapper<protobuf::DeleteResponse>(function_encrypt,
                                             kp.private_key());
@@ -909,15 +919,15 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshResponse) {
   kp.GenerateKeys(4096);
   std::string result_no_securifier =
       msg_hndlr_no_securifier_.WrapMessage(response, kp.public_key());
-//  ASSERT_EQ("", result_no_securifier);
+  ASSERT_EQ("", result_no_securifier);
   std::string function_encrypt =
       msg_hndlr_.WrapMessage(response, kp.public_key());
   std::string manual_encrypt =
       EncryptMessage<protobuf::DeleteRefreshResponse>(response,
                                                kp.public_key(),
                                                kDeleteRefreshResponse);
-//  EXPECT_NE(manual_encrypt, function_encrypt);
-  EXPECT_EQ(manual_encrypt, function_encrypt);
+  EXPECT_NE(manual_encrypt, function_encrypt);
+//   EXPECT_EQ(manual_encrypt, function_encrypt);
   protobuf::DeleteRefreshResponse decrypted_function_value =
       GetWrapper<protobuf::DeleteRefreshResponse>(function_encrypt,
                                                    kp.private_key());
@@ -950,6 +960,12 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRqst) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kPingRequest);
   int total = (*it).second;
+  ASSERT_EQ(0U, total);
+  msg_hndlr_.ProcessSerialisedMessage(message_type, payload, kAsymmetricEncrypt,
+                                      message_signature, info,
+                                      message_response, timeout);
+  it = invoked_slots_->find(kPingRequest);
+  total = (*it).second;
   ASSERT_EQ(1U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
@@ -982,7 +998,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kPingResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -990,7 +1006,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) {
                                       message_response, timeout);
   it = invoked_slots_->find(kPingResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
@@ -1015,7 +1031,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kFindValueRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1023,7 +1039,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kFindValueRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
@@ -1047,7 +1063,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kFindValueResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1055,7 +1071,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
                                       message_response, timeout);
   it = invoked_slots_->find(kFindValueResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
@@ -1080,7 +1096,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kFindNodesRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1088,7 +1104,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kFindNodesRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
@@ -1112,7 +1128,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kFindNodesResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1120,7 +1136,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
                                       message_response, timeout);
   it = invoked_slots_->find(kFindNodesResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
@@ -1152,7 +1168,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kStoreRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kSignAndAsymEncrypt,
@@ -1160,7 +1176,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 
   message_signature.clear();
   while (message_signature.empty())
@@ -1175,7 +1191,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreRequest);
   total = (*it).second;
-  ASSERT_EQ(3U, total);
+  ASSERT_EQ(2U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
@@ -1199,7 +1215,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kStoreResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1207,7 +1223,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst) {  // NOLINT
@@ -1231,7 +1247,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst)
                                       message_response, timeout);
   auto it = invoked_slots_->find(kStoreRefreshRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1239,7 +1255,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst)
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreRefreshRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) {  // NOLINT
@@ -1263,7 +1279,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) 
                                       message_response, timeout);
   auto it = invoked_slots_->find(kStoreRefreshResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1271,7 +1287,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) 
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreRefreshResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
@@ -1302,7 +1318,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kDeleteRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kSignAndAsymEncrypt,
@@ -1310,7 +1326,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 
   message_signature = crypto::AsymSign((boost::lexical_cast<std::string>
                                        (message_type) + payload),
@@ -1323,7 +1339,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteRequest);
   total = (*it).second;
-  ASSERT_EQ(3U, total);
+  ASSERT_EQ(2U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
@@ -1347,7 +1363,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kDeleteResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1355,7 +1371,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst) {  // NOLINT
@@ -1379,7 +1395,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst
                                       message_response, timeout);
   auto it = invoked_slots_->find(kDeleteRefreshRequest);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1387,7 +1403,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteRefreshRequest);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp) {  // NOLINT
@@ -1411,7 +1427,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp)
                                       message_response, timeout);
   auto it = invoked_slots_->find(kDeleteRefreshResponse);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1419,7 +1435,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp)
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteRefreshResponse);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
@@ -1443,7 +1459,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
                                       message_response, timeout);
   auto it = invoked_slots_->find(kDownlistNotification);
   int total = (*it).second;
-  ASSERT_EQ(1U, total);
+  ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
                                       kAsymmetricEncrypt,
@@ -1451,7 +1467,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
                                       message_response, timeout);
   it = invoked_slots_->find(kDownlistNotification);
   total = (*it).second;
-  ASSERT_EQ(2U, total);
+  ASSERT_EQ(1U, total);
 }
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_ThreadedMessageHandling) {
