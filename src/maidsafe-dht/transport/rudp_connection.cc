@@ -247,8 +247,10 @@ void RudpConnection::StartReadData() {
                                            arg::_1, arg::_2)));
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-  timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
-  timeout_state_ = kReceiving;
+  Timeout tm_out(bptime::milliseconds(std::max(
+      static_cast<boost::int64_t>(data_size_ * kTimeoutFactor),
+      kMinTimeout.total_milliseconds())));
+  timer_.expires_at(now + tm_out);
 }
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
