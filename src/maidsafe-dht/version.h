@@ -28,11 +28,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_VERSION_H_
 #define MAIDSAFE_DHT_VERSION_H_
 
-#define MAIDSAFE_DHT_VERSION 27
+#define MAIDSAFE_DHT_VERSION 28
 
 #include "maidsafe/common/version.h"
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 5
+#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 6
 #if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
 #error This API is not compatible with the installed library.\
   Please update the maidsafe-common library.

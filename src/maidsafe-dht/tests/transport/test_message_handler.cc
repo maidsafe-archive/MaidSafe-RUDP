@@ -56,14 +56,22 @@ class TestSecurifier : public Securifier {
 
 class TransportMessageHandlerTest : public testing::Test {
  public:
-  TransportMessageHandlerTest() : sec_ptr_(new TestSecurifier("", "", "")),
+  TransportMessageHandlerTest() : sec_ptr_(),
                                   msg_hndlr_(sec_ptr_),
                                   securifier_null_(),
                                   msg_hndlr_no_securifier_(securifier_null_),
                                   invoked_slots_(),
                                   slots_mutex_(),
                                   error_count_(0) {}
-  virtual void SetUp() { }
+  static void SetUpTestCase() {
+    crypto_key_pair_.GenerateKeys(4096);
+  }
+
+  virtual void SetUp() {
+    sec_ptr_ = std::shared_ptr<TestSecurifier>(
+        new TestSecurifier("", crypto_key_pair_.public_key(),
+                        crypto_key_pair_.private_key()));
+  }
   virtual void TearDown() { }
 
   template<class T>
@@ -285,6 +293,7 @@ class TransportMessageHandlerTest : public testing::Test {
   int error_count() { return error_count_; }
 
  protected:
+  static crypto::RsaKeyPair crypto_key_pair_;
   std::shared_ptr<Securifier> sec_ptr_;
   MessageHandler msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
@@ -293,6 +302,8 @@ class TransportMessageHandlerTest : public testing::Test {
   boost::mutex slots_mutex_;
   int error_count_;
 };
+
+crypto::RsaKeyPair TransportMessageHandlerTest::crypto_key_pair_;
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnError) {
   ConnectToHandlerSignals();
