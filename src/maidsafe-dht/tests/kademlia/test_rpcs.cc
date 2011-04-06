@@ -47,6 +47,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -506,7 +508,7 @@ TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
   int response_code(0);
 
   rpcs_->Ping(rpcs_securifier_, rpcs_contact_,
-              boost::bind(&TestCallback, _1, _2, &done, &response_code),
+              std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code),
               kTcp);
   asio_service_->run();
 
@@ -520,10 +522,10 @@ TEST_F(RpcsTest, BEH_KAD_PingNoTarget) {
 TEST_F(RpcsTest, BEH_KAD_PingTarget) {
   bool done(false);
   int response_code(0);
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
 
   rpcs_->Ping(rpcs_securifier_, service_contact_,
-              boost::bind(&TestCallback, _1, _2, &done, &response_code),
+              std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code),
               kTcp);
   asio_service_->run();
 
@@ -542,11 +544,11 @@ TEST_F(RpcsTest, BEH_KAD_FindNodesEmptyRT) {
   int response_code(0);
   std::vector<Contact> contact_list;
   Key key = service_contact_.node_id();
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
 
   rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindNodesCallback, _1, _2, _3,
-                               &contact_list, &done, &response_code),
+                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                             &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
 
@@ -568,11 +570,11 @@ TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
   std::vector<Contact> contact_list;
   PopulateRoutingTable(2*k);
   Key key = service_contact_.node_id();
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
 
   rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindNodesCallback, _1, _2, _3,
-                               &contact_list, &done, &response_code),
+                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                             &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
 
@@ -609,11 +611,11 @@ TEST_F(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
   std::vector<Contact> contact_list;
   AddContact(service_contact_, rank_info_);
   Key key = service_contact_.node_id();
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
 
   rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindNodesCallback, _1, _2, _3,
-                               &contact_list, &done, &response_code),
+                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                             &contact_list, &done, &response_code),
                    kTcp);
   asio_service_->run();
 
@@ -645,7 +647,7 @@ TEST_F(RpcsTest, BEH_KAD_StoreAndFindValue) {
   int response_code(0);
   PopulateRoutingTable(2*k);
   Key key = rpcs_contact_.node_id();
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
                                   key.String(), "");
   boost::posix_time::seconds ttl(3600);
@@ -656,10 +658,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreAndFindValue) {
   done = false;
   response_code = 0;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -671,8 +672,8 @@ TEST_F(RpcsTest, BEH_KAD_StoreAndFindValue) {
 
   rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
                service_contact_,
-               boost::bind(&TestCallback, _1, _2,
-                           &done, &response_code),
+               std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                         &response_code),
                kTcp);
   asio_service_->run();
   while (!done)
@@ -687,10 +688,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreAndFindValue) {
   done = false;
   response_code = 0;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -714,12 +714,12 @@ TEST_F(RpcsTest, BEH_KAD_StoreMalicious) {
       MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
   AddTestValidation(rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Malicious sender sends fake public_key
   rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
                service_contact_,
-               boost::bind(&TestCallback, _1, _2,
-                           &done, &response_code),
+               std::bind(&TestCallback, arg::_1, arg::_2,
+                         &done, &response_code),
                kTcp);
   asio_service_->run();
   while (!done)
@@ -734,10 +734,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreMalicious) {
   done = false;
   response_code = 0;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -769,17 +768,16 @@ TEST_F(RpcsTest, BEH_KAD_StoreMultipleRequest) {
                     sender_crypto_key_id_.public_key());
   std::string signature("");
 
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   for (size_t i = 0; i< 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
       signature = kvs_vector[i].signature;
     rpcs_->Store(key, kvs_vector[i].value, signature, ttl, rpcs_securifier_,
-                 service_contact_,
-                 boost::bind(&TestCallback, _1, _2,
-                             &status_response[i].first,
-                             &status_response[i].second),
+                 service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                             &status_response[i].first,
+                                             &status_response[i].second),
                  kTcp);
   }
   asio_service_->run();
@@ -825,12 +823,11 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   AddTestValidation(rpcs_contact_.node_id().String(),
                     sender_crypto_key_id_.public_key());
 
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // send original store request
   rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_,
-               boost::bind(&TestCallback, _1, _2,
-                           &done, &response_code),
+               service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                           &done, &response_code),
                kTcp);
   asio_service_->run();
   while (!done)
@@ -845,8 +842,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   done = false;
   response_code = 0;
   rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
-                      service_contact_,
-                      boost::bind(&TestCallback, _1, _2, &done, &response_code),
+                      service_contact_, std::bind(&TestCallback, arg::_1,
+                                                  arg::_2, &done,
+                                                  &response_code),
                       kTcp);
   asio_service_->run();
   while (!done)
@@ -861,10 +859,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   return_values.clear();
   return_contacts.clear();
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -882,7 +879,8 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   response_code = 0;
   rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
                       service_contact_,
-                      boost::bind(&TestCallback, _1, _2, &done, &response_code),
+                      std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                &response_code),
                       kTcp);
   asio_service_->run();
   while (!done)
@@ -896,10 +894,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefresh) {
   return_values.clear();
   return_contacts.clear();
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -935,7 +932,7 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMultipleRequests) {
     refresh_time_old_vector.push_back(GetRefreshTime(kvs_vector[i]));
     AddTestValidation(sender_id.String(), sender_crypto_key_id_.public_key());
   }
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Store Refresh rpc
   std::string req_signature;
   boost::this_thread::sleep(boost::posix_time::seconds(2));
@@ -946,9 +943,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMultipleRequests) {
       req_signature = req_sig_vector[i].second;
     rpcs_->StoreRefresh(req_sig_vector[i].first, req_signature,
                         rpcs_securifier_, service_contact_,
-                        boost::bind(&TestCallback, _1, _2,
-                                    &status_response[i].first,
-                                    &status_response[i].second),
+                        std::bind(&TestCallback, arg::_1, arg::_2,
+                                  &status_response[i].first,
+                                  &status_response[i].second),
                         kTcp);
   }
   asio_service_->run();
@@ -991,11 +988,11 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   AddTestValidation(rpcs_contact_.node_id().String(),
                     sender_crypto_key_id_.public_key());
 
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
                service_contact_,
-               boost::bind(&TestCallback, _1, _2,
-                           &done, &response_code),
+               std::bind(&TestCallback, arg::_1, arg::_2,
+                         &done, &response_code),
                kTcp);
   asio_service_->run();
   while (!done)
@@ -1013,8 +1010,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   done = false;
   response_code = 0;
   rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
-                      service_contact_,
-                      boost::bind(&TestCallback, _1, _2, &done, &response_code),
+                      service_contact_, std::bind(&TestCallback, arg::_1,
+                                                  arg::_2, &done,
+                                                  &response_code),
                       kTcp);
   asio_service_->run();
   while (!done)
@@ -1030,10 +1028,9 @@ TEST_F(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   done = false;
   response_code = 0;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -1062,10 +1059,11 @@ TEST_F(RpcsTest, BEH_KAD_Delete) {
   ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
   AddTestValidation(rpcs_contact_.node_id().String(),
                     sender_crypto_key_id_.public_key());
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, boost::bind(&TestCallback, _1, _2, &done,
-                                              &response_code), kTcp);
+                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                            &done, &response_code),
+                kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1078,10 +1076,9 @@ TEST_F(RpcsTest, BEH_KAD_Delete) {
   done = false;
   response_code = 0;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -1109,11 +1106,12 @@ TEST_F(RpcsTest, BEH_KAD_DeleteMalicious) {
   ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
   AddTestValidation(rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Malicious sender sends fake public_key
   rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, boost::bind(&TestCallback, _1, _2, &done,
-                                              &response_code), kTcp);
+                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                            &done, &response_code),
+                kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1129,10 +1127,9 @@ TEST_F(RpcsTest, BEH_KAD_DeleteMalicious) {
   done = false;
   response_code = -1;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -1158,10 +1155,11 @@ TEST_F(RpcsTest, BEH_KAD_DeleteNonExistingKey) {
   AddTestValidation(rpcs_contact_.node_id().String(),
                     sender_crypto_key_id_.public_key());
 
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, boost::bind(&TestCallback, _1, _2, &done,
-                                              &response_code), kTcp);
+                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                            &done, &response_code),
+                kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1193,16 +1191,17 @@ TEST_F(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
   AddTestValidation(rpcs_contact_.node_id().String(),
                     sender_crypto_key_id_.public_key());
   std::string signature("");
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   for (size_t i = 0; i< 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
       signature = "";
-    rpcs_->Delete(key, kvs_vector[i].value, signature,
-        rpcs_securifier_, service_contact_, boost::bind(&TestCallback,
-            _1, _2, &status_response[i].first, &status_response[i].second),
-                kTcp);
+    rpcs_->Delete(key, kvs_vector[i].value, signature, rpcs_securifier_,
+                  service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
+                                              &status_response[i].first,
+                                              &status_response[i].second),
+                  kTcp);
   }
   asio_service_->run();
   while (!done) {
@@ -1250,10 +1249,12 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefresh) {
   DeleteFromReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
   ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
   bptime::ptime refresh_time_old = GetRefreshTime(kvs);
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-      rpcs_securifier_, service_contact_, boost::bind(&TestCallback, _1, _2,
-          &done, &response_code), kTcp);
+                       rpcs_securifier_, service_contact_,
+                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                 &response_code),
+                       kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1267,10 +1268,9 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefresh) {
   done = false;
   response_code = -1;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -1307,11 +1307,13 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
   RequestAndSignature request_signature("", "");
   ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
   bptime::ptime refresh_time_old = GetRefreshTime(kvs);
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Delete refresh without deleting
   rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-      rpcs_securifier_, service_contact_, boost::bind(&TestCallback, _1, _2,
-          &done, &response_code), kTcp);
+                       rpcs_securifier_, service_contact_,
+                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                 &response_code),
+                       kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1325,10 +1327,9 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
   done = false;
   response_code = -1;
   rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   boost::bind(&TestFindValueCallback, _1, _2, _3, _4, _5,
-                               &return_values,
-                               &return_contacts,
-                               &done, &response_code),
+                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
+                             arg::_4, arg::_5, &return_values, &return_contacts,
+                             &done, &response_code),
                    kTcp);
   asio_service_->run();
   while (!done)
@@ -1367,11 +1368,13 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshMalicious) {
 
   AddTestValidation(sender_id.String(),
                     "Different Public Key found on Network Lookup!!");
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Malicious sender sends fake public_key
   rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-      rpcs_securifier_, service_contact_, boost::bind(&TestCallback, _1, _2,
-          &done, &response_code), kTcp);
+                       rpcs_securifier_, service_contact_,
+                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                 &response_code),
+                       kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1400,11 +1403,13 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshNonExistingKey) {
   std::string delete_message_sig =
         crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Sending delete refresh
   rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-      rpcs_securifier_, service_contact_, boost::bind(&TestCallback, _1, _2,
-          &done, &response_code), kTcp);
+                       rpcs_securifier_, service_contact_,
+                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                 &response_code),
+                       kTcp);
   asio_service_->run();
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -1445,7 +1450,7 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
     refresh_time_old_vector.push_back(GetRefreshTime(kvs_vector[i]));
     AddTestValidation(sender_id.String(), crypto_key_data.public_key());
   }
-  boost::thread th(boost::bind(&RpcsTest::ListenPort, this));
+  boost::thread th(std::bind(&RpcsTest::ListenPort, this));
   // Delete Refresh rpc
   std::string req_signature;
   for (size_t i = 0; i< 10; ++i) {
@@ -1455,9 +1460,9 @@ TEST_F(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
       req_signature = req_sig_vector[i].second;
     rpcs_->DeleteRefresh(req_sig_vector[i].first, req_signature,
                          rpcs_securifier_, service_contact_,
-                         boost::bind(&TestCallback, _1, _2,
-                                     &status_response[i].first,
-                                     &status_response[i].second),
+                         std::bind(&TestCallback, arg::_1, arg::_2,
+                                   &status_response[i].first,
+                                   &status_response[i].second),
                          kTcp);
   }
   asio_service_->run();

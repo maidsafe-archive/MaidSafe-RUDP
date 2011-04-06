@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/datastore.h"
 
+namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -1014,9 +1015,9 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   auto it = key_value_index_->begin();
   for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
     key_value_index_->modify(it,
-           boost::bind(&KeyValueTuple::UpdateStatus, _1,
-                       (*it).expire_time, now, now + kPendingConfirmDuration,
-                       (*it).request_and_signature, (*it).deleted));
+           std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
+                     (*it).expire_time, now, now + kPendingConfirmDuration,
+                     (*it).request_and_signature, (*it).deleted));
   }
   data_store_->Refresh(&returned_kvts);
   ASSERT_EQ((kTotalEntries + kRepeatedValues) / 2, returned_kvts.size());
@@ -1026,9 +1027,9 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   it = key_value_index_->begin();
   for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
     key_value_index_->modify(it,
-           boost::bind(&KeyValueTuple::UpdateStatus, _1,
-                       (*it).expire_time, now + data_store_->refresh_interval(),
-                       now, (*it).request_and_signature, (*it).deleted));
+           std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
+                     (*it).expire_time, now + data_store_->refresh_interval(),
+                     now, (*it).request_and_signature, (*it).deleted));
   }
   data_store_->Refresh(&returned_kvts);
   ASSERT_TRUE(returned_kvts.empty());
@@ -1039,9 +1040,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
   const size_t kValuesPerEntry(4);
 
-  boost::shared_ptr<boost::asio::io_service> asio_service(
-      new boost::asio::io_service);
-
+  IoServicePtr asio_service(new boost::asio::io_service);
   for (size_t i = 0; i != kSigners; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -1106,7 +1105,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   size_t returned_size(stored_then_deleted_kvts.size() + stored_kvts.size());
   std::vector<std::vector<std::pair<std::string, std::string>>> returned_values(  // NOLINT (Fraser)
       returned_size, std::vector<std::pair<std::string, std::string>>());  // NOLINT (Fraser)
-  std::vector<std::tr1::function<bool()>> functors;
+  std::vector<std::function<bool()>> functors;
   functors.reserve(3 * returned_size);
   auto returned_itr = returned_values.begin();
   for (auto it = stored_then_deleted_kvts.begin();
@@ -1147,8 +1146,8 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   // Run threads
   boost::thread_group asio_thread_group;
   for (size_t i = 0; i != kThreadCount; ++i) {
-    asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
-                                                asio_service));
+    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
+                                              asio_service));
   }
   asio_thread_group.join_all();
 
