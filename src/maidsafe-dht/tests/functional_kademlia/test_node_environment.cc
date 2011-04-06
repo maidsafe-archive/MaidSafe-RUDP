@@ -184,6 +184,7 @@ void EnvironmentNodes::SetUp() {
     TransportPtr local_transport(new transport::TcpTransport(*local_asio));
     EXPECT_EQ(transport::kSuccess, local_transport->StartListening(
         transport::Endpoint("127.0.0.1", 5000 + i)));
+    
     transports_.push_back(local_transport);
     AlternativeStorePtr alternative_store;
     alternative_stores_.push_back(alternative_store);
@@ -220,12 +221,17 @@ void EnvironmentNodes::SetUp() {
     dbs_.push_back(db_local);
     bool done(false);
     int response_code(-3);
-    nodes_[i]->Join(node_ids_[i], ports_[i], bootstrap_contacts_,
+    nodes_[i]->Join(node_ids_[i], bootstrap_contacts_,
                     boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());
+    if (i < kNumServers_)
+      EXPECT_FALSE(nodes_[i]->client_only_node());
+    else
+      EXPECT_TRUE(nodes_[i]->client_only_node());
   }
+  
   // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
   // joined before others. However, it depends on what to be tested
 }

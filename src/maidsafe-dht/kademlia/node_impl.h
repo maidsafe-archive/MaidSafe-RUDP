@@ -97,7 +97,6 @@ class Node::Impl {
   // rather than polluting this with friend tests.
   virtual ~Impl();
   void Join(const NodeId &node_id,
-            const Port &port,
             const std::vector<Contact> &bootstrap_contacts,
             JoinFunctor callback);
   void Leave(std::vector<Contact> *bootstrap_contacts);

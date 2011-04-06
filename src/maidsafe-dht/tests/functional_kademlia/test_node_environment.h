@@ -55,6 +55,7 @@ namespace kademlia {
 
 namespace test {
 
+
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 class EnvironmentNodes : public ::testing::Environment {

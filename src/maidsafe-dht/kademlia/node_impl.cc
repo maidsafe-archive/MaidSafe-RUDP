@@ -88,7 +88,6 @@ Node::Impl::~Impl() {
 }
 
 void Node::Impl::Join(const NodeId &node_id,
-                      const Port &port,
                       const std::vector<Contact> &bootstrap_contacts,
                       JoinFunctor callback) {
   if (bootstrap_contacts.empty() ||
@@ -96,14 +95,27 @@ void Node::Impl::Join(const NodeId &node_id,
     callback(-1);
     return;
   }
+  //  Need to update code for local endpoints.
+  std::vector<transport::Endpoint> local_endpoints;
   // Create contact_ inforrmation for node and set contact for Rpcs
-  Contact contact(node_id, listening_transport_->transport_details().endpoint,
-                  listening_transport_->transport_details().local_endpoints,
+  transport::Endpoint endpoint;
+  endpoint.ip = listening_transport_->transport_details().endpoint.ip;
+  endpoint.port = listening_transport_->transport_details().endpoint.port;
+  local_endpoints.push_back(endpoint);
+  Contact contact(node_id, endpoint,
+                  local_endpoints,
                   listening_transport_->transport_details().rendezvous_endpoint,
                   false, false, default_securifier_->kSigningKeyId(),
                   default_securifier_->kSigningPublicKey(), "");
   contact_ = contact;
   rpcs_->set_contact(contact_);
+  if (!routing_table_) {
+    routing_table_.reset(new RoutingTable(node_id, k_));
+    routing_table_->validate_contact()->connect(
+        boost::bind(&Node::Impl::ValidateContact, this, _1));
+    routing_table_->ping_oldest_contact()->connect(
+          boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
+  }
   if (bootstrap_contacts.size() == 1 &&
       bootstrap_contacts[0].node_id() == node_id) {
     std::vector<Contact> contacts;
@@ -148,9 +160,7 @@ void Node::Impl::JoinFindNodesCallback(
     AddContactsToContainer<FindNodesArgs>(search_contact, fna);
     IterativeSearch<FindNodesArgs>(fna);
   } else {
-     joined_ = true;
-     if (!routing_table_)
-        routing_table_.reset(new RoutingTable(node_id, k_));
+    joined_ = true;
     thread_group_.reset(new boost::thread_group());
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
@@ -164,10 +174,6 @@ void Node::Impl::JoinFindNodesCallback(
       report_down_contact_->connect(
           ReportDownContactPtr::element_type::slot_type(
               &Node::Impl::ReportDownContact, this, _1));
-      routing_table_->ping_oldest_contact()->connect(
-          boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
-      routing_table_->validate_contact()->connect(
-          boost::bind(&Node::Impl::ValidateContact, this, _1));
       // Startup the thread to monitor the downlist queue
       thread_group_->create_thread(
           boost::bind(&Node::Impl::MonitoringDownlistThread, this));
@@ -705,7 +711,6 @@ void Node::Impl::FindNodes(const Key &key, FindNodesFunctor callback) {
   // initialize with local k closest as a seed
   routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
   AddContactsToContainer<FindNodesArgs>(close_nodes, fna);
-
   IterativeSearch<FindNodesArgs>(fna);
 }
 
@@ -718,7 +723,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   int num_of_candidates = std::distance(pit.first, pit.second);
 
   if (num_of_candidates == 0) {
-    // All contacted or in waitingresponse state, then just do nothing here
+     // All contacted or in waitingresponse state, then just do nothing here
     return;
   }
   // find Alpha closest contacts to enquire
@@ -852,6 +857,8 @@ void Node::Impl::IterativeSearchNodeResponse(
     }
   } else {
     AddContactsToContainer<FindNodesArgs>(contacts, fna);
+    for (size_t i = 0; i < contacts.size(); ++i)
+      routing_table_->AddContact(contacts[i], rank_info);
   }
 
   if (!HandleIterationStructure<FindNodesArgs>(fnrpc->contact, fna, mark,
