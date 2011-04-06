@@ -383,7 +383,9 @@ class RpcsTest: public CreateContactAndNodeId,
         value += temp;
       value = value.substr(0, value_size);
     }
-    std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    std::string signature;
+    while (signature.empty())
+      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     return KeyValueSignature(key, value, signature);
   }
 
@@ -414,8 +416,10 @@ class RpcsTest: public CreateContactAndNodeId,
                               RequestAndSignature& request_signature) {
     protobuf::StoreRequest store_request = MakeStoreRequest(contact, kvs);
     std::string store_message = store_request.SerializeAsString();
-    std::string store_message_sig =
-        crypto::AsymSign(store_message, crypto_key_data.private_key());
+    std::string store_message_sig;
+    while (store_message_sig.empty())
+      store_message_sig = crypto::AsymSign(store_message,
+                                           crypto_key_data.private_key());
     bptime::time_duration ttl(bptime::pos_infin);
     request_signature = std::make_pair(store_message, store_message_sig);
     EXPECT_TRUE(data_store_->StoreValue(kvs, ttl, request_signature,
@@ -429,8 +433,10 @@ class RpcsTest: public CreateContactAndNodeId,
                                    RequestAndSignature& request_signature) {
     protobuf::DeleteRequest delete_request = MakeDeleteRequest(contact, kvs);
     std::string delete_message = delete_request.SerializeAsString();
-    std::string delete_message_sig =
-        crypto::AsymSign(delete_message, crypto_key_data.private_key());
+    std::string delete_message_sig;
+    while (delete_message_sig.empty())
+      delete_message_sig = crypto::AsymSign(delete_message,
+                                            crypto_key_data.private_key());
     request_signature = std::make_pair(delete_message, delete_message_sig);
     EXPECT_TRUE(data_store_->DeleteValue(kvs, request_signature, false));
   }
@@ -1343,8 +1349,10 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshNonExistingKey) {
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   AddTestValidation(sender_id.String(), crypto_key_data.public_key());
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig =
-        crypto::AsymSign(delete_message, crypto_key_data.private_key());
+  std::string delete_message_sig;
+  while (delete_message_sig.empty())
+    delete_message_sig = crypto::AsymSign(delete_message,
+                                          crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   // Sending delete refresh
   rpcs_->DeleteRefresh(request_signature.first, request_signature.second,

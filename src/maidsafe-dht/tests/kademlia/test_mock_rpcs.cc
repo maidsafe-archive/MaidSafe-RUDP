@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/transport.pb.h"
 
 #include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 
@@ -319,12 +320,20 @@ class MockRpcsTest : public testing::Test {
  public:
   MockRpcsTest()
           : asio_service_(new boost::asio::io_service),
-            securifier_(new Securifier("", "", "")),
+            securifier_(),
             peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)) {}
 
   ~MockRpcsTest() {}
 
-  void SetUp() {}
+  static void SetUpTestCase() {
+    crypto_key_pair_.GenerateKeys(4096);
+  }
+
+  virtual void SetUp() {
+    securifier_ = std::shared_ptr<Securifier>(
+        new Securifier("", crypto_key_pair_.public_key(),
+                        crypto_key_pair_.private_key()));
+  }
 
   Contact ComposeContact(const NodeId& node_id, boost::uint16_t port) {
     std::string ip("127.0.0.1");
@@ -332,7 +341,7 @@ class MockRpcsTest : public testing::Test {
     transport::Endpoint end_point(ip, port);
     local_endpoints.push_back(end_point);
     Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, "", "", "");
+                    false, "", crypto_key_pair_.public_key(), "");
     return contact;
   }
 
@@ -355,10 +364,13 @@ class MockRpcsTest : public testing::Test {
     Callback(rank_info, result, b, m, query_result);
   }
   protected:
+  static crypto::RsaKeyPair crypto_key_pair_;
   IoServicePtr asio_service_;
   SecurifierPtr securifier_;
   Contact peer_;
 };
+
+crypto::RsaKeyPair MockRpcsTest::crypto_key_pair_;
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
   int repeat_factor(1);
