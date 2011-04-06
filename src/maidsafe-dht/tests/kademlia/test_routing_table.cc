@@ -907,8 +907,6 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
       ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
                                                 close_contacts.end(),
                                                 (*it).contact));
-      // std::cout<<(*it).contact.node_id().ToStringEncoded(NodeId::kBinary)
-      // <<std::endl;
       ++counter;
       ++it;
     }

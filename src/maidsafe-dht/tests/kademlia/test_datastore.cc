@@ -900,8 +900,8 @@ TEST_F(DataStoreTest, BEH_KAD_GetValues) {
 TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
-  bptime::time_duration two_seconds(bptime::seconds(6));
-  bptime::time_duration four_seconds(bptime::seconds(12));
+  bptime::time_duration two_seconds(bptime::seconds(3));
+  bptime::time_duration four_seconds(bptime::seconds(6));
   std::vector<KeyValueTuple> kvts, returned_kvts;
   const size_t kTotalEntries(100), kRepeatedValues(16);
   // kRepeatedValues must be a multiple of 2 for the test to succeed.
@@ -910,32 +910,14 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   // Create first key
   kvts.push_back(MakeKVT(crypto_keys, 1024, four_seconds, "", ""));
   std::string common_key(kvts.at(0).key_value_signature.key);
-  std::cout << EncodeToHex(common_key) << std::endl;
-
-  // Test on empty data_store
-  returned_kvts.push_back(MakeKVT(crypto_keys, 1, two_seconds, "", ""));
-  data_store_->Refresh(NULL);
-  data_store_->Refresh(&returned_kvts);
-  ASSERT_TRUE(returned_kvts.empty());
-  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
-
-  // Store first key and create and store other values under same key
-  ASSERT_TRUE(data_store_->StoreValue(
-                  kvts.at(0).key_value_signature,
-                  four_seconds, kvts.at(0).request_and_signature,
-                  crypto_keys.public_key(),
-                  false));
+  // Create other values under same key
   std::string value = kvts.at(0).key_value_signature.value;
   for (size_t i = 1; i != kRepeatedValues; ++i) {
     value += "a";
     kvts.push_back(MakeKVT(crypto_keys, 0,
                            ((i % 2) ? two_seconds : four_seconds),
                            common_key, value));
-    ASSERT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature,
-        ((i % 2) ? two_seconds : four_seconds),
-        kvts.at(i).request_and_signature, crypto_keys.public_key(), false));
   }
-
   // Create unique key,values (no repeated keys)
   // Use std::set of keys to ensure uniqueness of keys
   std::set<std::string> keys;
@@ -952,14 +934,35 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
       it = keys.insert(kvt.key_value_signature.key);
       unique = it.second;
     }
-    ASSERT_TRUE(data_store_->StoreValue(kvt.key_value_signature,
-                                        ((i % 2) ? two_seconds : four_seconds),
-                                        kvt.request_and_signature,
-                                        crypto_keys.public_key(),
-                                        false));
     kvts.push_back(kvt);
   }
+  // Test on empty data_store
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1, two_seconds, "", ""));
+  data_store_->Refresh(NULL);
+  data_store_->Refresh(&returned_kvts);
+  ASSERT_TRUE(returned_kvts.empty());
+  returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
 
+  // Store first key and other values under same key
+  ASSERT_TRUE(data_store_->StoreValue(
+                  kvts.at(0).key_value_signature,
+                  four_seconds, kvts.at(0).request_and_signature,
+                  crypto_keys.public_key(),
+                  false));
+  for (size_t i = 1; i != kRepeatedValues; ++i) {
+    ASSERT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature,
+        ((i % 2) ? two_seconds : four_seconds),
+        kvts.at(i).request_and_signature, crypto_keys.public_key(), false));
+  }
+  // Store unique key,values (no repeated keys)
+  for (size_t i = kRepeatedValues; i != (kTotalEntries + kRepeatedValues);
+      ++i) {
+    ASSERT_TRUE(data_store_->StoreValue(kvts.at(i).key_value_signature,
+                                        ((i % 2) ? two_seconds : four_seconds),
+                                        kvts.at(i).request_and_signature,
+                                        crypto_keys.public_key(),
+                                        false));
+  }
   // Call Refresh and check no values are erased or marked as deleted
   data_store_->Refresh(&returned_kvts);
   ASSERT_TRUE(returned_kvts.empty());
