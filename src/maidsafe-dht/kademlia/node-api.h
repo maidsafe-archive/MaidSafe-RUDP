@@ -112,7 +112,6 @@ class Node {
   // bootstrap_contacts should be directly-connected peers to allow successful
   // NAT detection.
   void Join(const NodeId &node_id,
-            const Port &port,
             const std::vector<Contact> &bootstrap_contacts,
             JoinFunctor callback);
 

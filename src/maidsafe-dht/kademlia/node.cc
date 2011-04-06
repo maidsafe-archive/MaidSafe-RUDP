@@ -50,10 +50,9 @@ Node::Node(IoServicePtr asio_service,
 Node::~Node() {}
 
 void Node::Join(const NodeId &node_id,
-                const Port &port,
                 const std::vector<Contact> &bootstrap_contacts,
                 JoinFunctor callback) {
-  pimpl_->Join(node_id, port, bootstrap_contacts, callback);
+  pimpl_->Join(node_id, bootstrap_contacts, callback);
 }
 
 void Node::Leave(std::vector<Contact> *bootstrap_contacts) {

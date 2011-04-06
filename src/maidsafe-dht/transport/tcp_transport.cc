@@ -91,6 +91,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
                                       boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
   transport_details_.endpoint.port = listening_port_;
+  transport_details_.endpoint.ip = endpoint.ip;
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.
@@ -146,7 +147,6 @@ void TcpTransport::HandleAccept(AcceptorPtr acceptor,
 void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
-                          std::cout<<"\nsend TCPTransport\n";
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
   ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
                                                            tcp_endpoint));

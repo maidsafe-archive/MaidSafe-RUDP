@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
 //   ::testing::FLAGS_gtest_filter = "NodeTest*";
   ::testing::AddGlobalTestEnvironment(
-      new maidsafe::kademlia::test::EnvironmentNodes(3, 2, 1, 1, 3,
+      new maidsafe::kademlia::test::EnvironmentNodes(10, 2, 1, 1, 10,
                                                      bptime::seconds(3600)));
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();

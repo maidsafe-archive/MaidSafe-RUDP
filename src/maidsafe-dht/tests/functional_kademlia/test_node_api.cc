@@ -41,7 +41,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
 
-
 namespace maidsafe {
 
 namespace kademlia {
@@ -53,6 +52,7 @@ namespace node_api_test {
 namespace test {
 
 extern std::vector<std::shared_ptr<maidsafe::kademlia::Node> > nodes_;
+extern std::vector<NodeId> node_ids_;
 extern boost::uint16_t kNetworkSize;
 extern std::vector<maidsafe::kademlia::Contact> bootstrap_contacts_;
 
@@ -99,8 +99,27 @@ class NodeApiTest: public testing::Test {
   MessageHandlerPtr message_handler_;
   AlternativeStorePtr alternative_store_;
  public:
-  void Callback(const int &result, bool *done) {
+  void JoinCallback(const int &result, bool *done) {
     *done = true;
+  }
+  void FindNodesCallback(const int &result,
+                         std::vector<Contact> contacts, const int &node_id_pos,
+                         bool *done) {
+    *done = true;
+    EXPECT_EQ(result, contacts.size());
+    EXPECT_GE(nodes_[kNetworkSize - 1]->k(), contacts.size());
+    size_t i(0);
+    bool own_contact_found(false);
+    for (i = 0; i < contacts.size(); ++i) {
+      auto it = std::find(node_ids_.begin(), node_ids_.end(),
+                          contacts[i].node_id());
+      if (node_ids_[node_id_pos] == contacts[i].node_id())
+        own_contact_found = true;
+      if (it == node_ids_.end())
+        break;
+    }
+    EXPECT_EQ(i, contacts.size());
+    EXPECT_TRUE(own_contact_found);
   }
 };
 
@@ -113,16 +132,12 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
   nodes_.push_back(node);
   ++kNetworkSize;
   bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
-  node->Join(node_id, 8000, bootstrap_contacts_, jf);
+  JoinFunctor jf = boost::bind(&NodeApiTest::JoinCallback, this, _1, &done);
+  node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(size_t(kNetworkSize), nodes_.size());
-  for (size_t i = 0; i < nodes_.size() - 1; ++i) {
-    EXPECT_TRUE(nodes_[i]->joined());
-    ASSERT_FALSE(nodes_[i]->client_only_node());
-  }
   ASSERT_TRUE(nodes_[kNetworkSize -1]->client_only_node());
   ASSERT_TRUE(nodes_[kNetworkSize -1]->joined());
   nodes_[kNetworkSize - 1]->Leave(NULL);
@@ -137,22 +152,49 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
                             bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
   bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
-  node->Join(node_id, 8000, bootstrap_contacts_, jf);
+  JoinFunctor jf = boost::bind(&NodeApiTest::JoinCallback, this, _1, &done);
+  node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
   EXPECT_EQ(size_t(kNetworkSize), nodes_.size());
-  for (size_t i = 0; i < nodes_.size(); ++i) {
-    EXPECT_TRUE(nodes_[i]->joined());
-    ASSERT_FALSE(nodes_[i]->client_only_node());
-  }
+
   ASSERT_FALSE(node->client_only_node());
   ASSERT_TRUE(node->joined());
   ASSERT_TRUE(node->refresh_thread_running());
   ASSERT_TRUE(node->downlist_thread_running());
   node->Leave(NULL);
+}
+
+TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
+  std::shared_ptr<Node> node;
+  node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
+                      alternative_store_, true, 2, 1, 1,
+                      bptime::seconds(3600)));
+  NodeId node_id(NodeId::kRandomId);
+  node_ids_.push_back(node_id);
+  nodes_.push_back(node);
+  ++kNetworkSize;
+  bool done(false);
+  JoinFunctor jf = boost::bind(&NodeApiTest::JoinCallback, this, _1, &done);
+  node->Join(node_id, bootstrap_contacts_, jf);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  done = false;
+  //  set node_id_pos for node to be searched and latter check for this node
+  //  into list of output contacts
+  int node_id_pos(0);
+  FindNodesFunctor fnf = boost::bind(&NodeApiTest::FindNodesCallback, this, _1,
+                                     _2, node_id_pos, &done);
+  nodes_[kNetworkSize - 1]->FindNodes(nodes_[node_id_pos]->contact().node_id(),
+                                      fnf);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  nodes_[kNetworkSize - 1]->Leave(NULL);
+  nodes_.pop_back();
+  node_ids_.pop_back();
+  --kNetworkSize;
 }
 
 

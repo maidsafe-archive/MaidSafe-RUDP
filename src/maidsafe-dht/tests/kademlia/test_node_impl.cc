@@ -976,7 +976,7 @@ TEST_F(NodeImplTest, BEH_KAD_Join) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             boost::bind(&MockRpcs::FindNodeResponseClose,
                         new_rpcs.get(), _1, _2))));
-    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     ASSERT_LT(0U, result);
@@ -1004,7 +1004,7 @@ TEST_F(NodeImplTest, BEH_KAD_Join) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             boost::bind(&MockRpcs::FindNodeResponseClose,
                         new_rpcs.get(), _1, _2))));
-    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     ASSERT_LT(0U, result);
@@ -1038,7 +1038,7 @@ TEST_F(NodeImplTest, BEH_KAD_Join) {
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
             boost::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), _1,
                         _2))));
-    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     ASSERT_EQ(transport::kError, result);
@@ -1081,7 +1081,7 @@ TEST_F(NodeImplTest, BEH_KAD_Join) {
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             boost::bind(&MockRpcs::StoreRefreshCallback,
                         new_rpcs.get(), _1))));
-    node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+    node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
@@ -1128,7 +1128,7 @@ TEST_F(NodeImplTest, BEH_KAD_Leave) {
       .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
           boost::bind(&MockRpcs::FindNodeResponseClose,
                       new_rpcs.get(), _1, _2))));
-  node_->Join(node_id_, 6300, bootstrap_contacts, callback);
+  node_->Join(node_id_, bootstrap_contacts, callback);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   ASSERT_LT(0U, result);
