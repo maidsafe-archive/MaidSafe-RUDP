@@ -1163,9 +1163,9 @@ TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
                                  this, contact_1));
   }
   // Running the threads
+  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
   for (size_t i = 0; i < kNumberOfThreads; ++i) {
-    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
-                                              asio_service));
+    asio_thread_group.create_thread(std::bind(fn, asio_service));
   }
   asio_thread_group.join_all();
   node_ids_stored.insert(node_ids_stored.end(), node_ids_to_be_stored.begin(),

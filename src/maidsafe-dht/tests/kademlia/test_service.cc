@@ -1939,9 +1939,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
                                "DoDeleteRefresh"));
   // Running the threads
+  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
   for (size_t i = 0; i < kNumberOfThreads; ++i)
-    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
-                                              asio_service));
+    asio_thread_group.create_thread(std::bind(fn, asio_service));
   // Check results
   asio_thread_group.join_all();
   JoinNetworkLookup(securifier_);
