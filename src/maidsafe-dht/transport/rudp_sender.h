@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_ack_packet.h"
 #include "maidsafe-dht/transport/rudp_data_packet.h"
 #include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_shutdown_packet.h"
 #include "maidsafe-dht/transport/rudp_sliding_window.h"
 
 namespace maidsafe {
@@ -58,6 +59,9 @@ class RudpSender {
 
   // Adds some application data to be sent. Returns number of bytes copied.
   size_t AddData(const boost::asio::const_buffer &data);
+
+  // Notify the other side that the current connection is to be dropped
+  void NotifyClose();
 
   // Handle an acknowlegement packet.
   void HandleAck(const RudpAckPacket &packet);

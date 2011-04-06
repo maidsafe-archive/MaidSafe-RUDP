@@ -91,6 +91,7 @@ bool RudpSocket::IsOpen() const {
 
 void RudpSocket::Close() {
   if (session_.IsOpen()) {
+    sender_.NotifyClose();
     congestion_control_.OnClose();
     dispatcher_.RemoveSocket(session_.Id());
   }
@@ -218,6 +219,7 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
     RudpAckOfAckPacket ack_of_ack_packet;
     RudpNegativeAckPacket negative_ack_packet;
     RudpHandshakePacket handshake_packet;
+    RudpShutdownPacket shutdown_packet;
     if (data_packet.Decode(data)) {
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
@@ -228,6 +230,8 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
       HandleNegativeAck(negative_ack_packet);
     } else if (handshake_packet.Decode(data)) {
       HandleHandshake(handshake_packet);
+    } else if (shutdown_packet.Decode(data)) {
+      Close();
     } else {
       DLOG(ERROR) << "Socket " << session_.Id()
                   << " ignoring invalid packet from "

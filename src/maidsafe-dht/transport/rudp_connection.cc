@@ -121,19 +121,20 @@ void RudpConnection::DoStartSending() {
 
 void RudpConnection::CheckTimeout() {
   // If the socket is closed, it means the connection has been shut down.
-  if (!socket_.IsOpen())
+  if (!socket_.IsOpen()) {
+    if (timeout_state_ == kSending)
+      CloseOnError(kSendStalled);
+    else
+      CloseOnError(kReceiveStalled);
     return;
+  }
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
     // Time has run out.
-    if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
-      Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-      if (timeout_state_ == kSending)
-        (*transport->on_error_)(kSendTimeout, ep);
-      else
-        (*transport->on_error_)(kReceiveTimeout, ep);
-    }
-    DoClose();
+    if (timeout_state_ == kSending)
+      CloseOnError(kSendTimeout);
+    else
+      CloseOnError(kReceiveTimeout);
   }
 
   // Keep processing timeouts until the socket is completely closed.
@@ -215,13 +216,11 @@ void RudpConnection::StartReadSize() {
 }
 
 void RudpConnection::HandleReadSize(const bs::error_code &ec) {
-  if (Stopped()) {
-    return;
-  }
+  if (Stopped())
+    return CloseOnError(kNoConnection);
 
-  if (ec) {
+  if (ec)
     return CloseOnError(kReceiveFailure);
-  }
 
   DataSize size = (((((buffer_.at(0) << 8) | buffer_.at(1)) << 8) |
                     buffer_.at(2)) << 8) | buffer_.at(3);
@@ -233,7 +232,8 @@ void RudpConnection::HandleReadSize(const bs::error_code &ec) {
 }
 
 void RudpConnection::StartReadData() {
-  assert(!Stopped());
+  if (Stopped())
+    return CloseOnError(kNoConnection);
 
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t>(kMaxTransportChunkSize),
@@ -254,13 +254,11 @@ void RudpConnection::StartReadData() {
 }
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
-  if (Stopped()) {
-    return;
-  }
+  if (Stopped())
+    return CloseOnError(kNoConnection);
 
-  if (ec) {
+  if (ec)
     return CloseOnError(kReceiveFailure);
-  }
 
   data_received_ += length;
 
@@ -307,10 +305,7 @@ void RudpConnection::EncodeData(const std::string &data) {
           static_cast<size_t>(RudpTransport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << RudpTransport::kMaxTransportMessageSize() << ")" << std::endl;
-    if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
-      Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-      (*transport->on_error_)(kMessageSizeTooLarge, ep);
-    }
+    CloseOnError(kMessageSizeTooLarge);
     return;
   }
 
@@ -321,9 +316,8 @@ void RudpConnection::EncodeData(const std::string &data) {
 }
 
 void RudpConnection::StartWrite() {
-  if (Stopped()) {
-    return;
-  }
+  if (Stopped())
+    return CloseOnError(kNoConnection);
 
 //  timeout_for_response_ = kImmediateTimeout;
   Timeout tm_out(bptime::milliseconds(std::max(
@@ -339,13 +333,11 @@ void RudpConnection::StartWrite() {
 }
 
 void RudpConnection::HandleWrite(const bs::error_code &ec) {
-  if (Stopped()) {
-    return;
-  }
+  if (Stopped())    
+    return CloseOnError(kNoConnection);
 
-  if (ec) {
+  if (ec)
     return CloseOnError(kSendFailure);
-  }
 
   // Start receiving response
   if (timeout_for_response_ != kImmediateTimeout) {

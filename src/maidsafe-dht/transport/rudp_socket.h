@@ -52,6 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp_flush_op.h"
 #include "maidsafe-dht/transport/rudp_handshake_packet.h"
 #include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
+#include "maidsafe-dht/transport/rudp_shutdown_packet.h"
 #include "maidsafe-dht/transport/rudp_peer.h"
 #include "maidsafe-dht/transport/rudp_read_op.h"
 #include "maidsafe-dht/transport/rudp_receiver.h"

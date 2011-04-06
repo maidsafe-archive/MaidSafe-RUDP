@@ -184,6 +184,12 @@ void RudpSender::DoSend() {
   }
 }
 
+void RudpSender::NotifyClose() {
+  RudpShutdownPacket shut_down_packet;
+  shut_down_packet.SetDestinationSocketId(peer_.Id());
+  peer_.Send(shut_down_packet);
+}
+
 }  // namespace transport
 
 }  // namespace maidsafe
