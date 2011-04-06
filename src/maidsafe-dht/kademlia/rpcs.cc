@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/tcp_transport.h"
 
+namespace arg = std::placeholders;
 // TODO(Fraser#5#): 2011-01-30 - Handle sending to port-restricted peers.
 namespace maidsafe {
 
@@ -62,12 +63,13 @@ void Rpcs::Ping(SecurifierPtr securifier,
 
   // Connect callback to message handler for incoming parsed response or error
   message_handler->on_ping_response()->connect(
-      boost::bind(&Rpcs::PingCallback, this, random_data, transport::kSuccess,
-                  _1, _2, object_indx, callback, message, rpcs_failure_peer));
+      std::bind(&Rpcs::PingCallback, this, random_data, transport::kSuccess,
+                arg::_1, arg::_2, object_indx, callback, message,
+                rpcs_failure_peer));
   message_handler->on_error()->connect(
-      boost::bind(&Rpcs::PingCallback, this, random_data, _1, transport::Info(),
-                  protobuf::PingResponse(), object_indx, callback, message,
-                  rpcs_failure_peer));
+      std::bind(&Rpcs::PingCallback, this, random_data, arg::_1,
+                transport::Info(), protobuf::PingResponse(), object_indx,
+                callback, message, rpcs_failure_peer));
   transport->Send(message,
                   peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
@@ -93,11 +95,11 @@ void Rpcs::FindValue(const Key &key,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_find_value_response()->connect(boost::bind(
-      &Rpcs::FindValueCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_find_value_response()->connect(std::bind(
+      &Rpcs::FindValueCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::FindValueCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::FindValueCallback, this, arg::_1, transport::Info(),
       protobuf::FindValueResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -124,11 +126,11 @@ void Rpcs::FindNodes(const Key &key,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_find_nodes_response()->connect(boost::bind(
-      &Rpcs::FindNodesCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_find_nodes_response()->connect(std::bind(
+      &Rpcs::FindNodesCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::FindNodesCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::FindNodesCallback, this, arg::_1, transport::Info(),
       protobuf::FindNodesResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -163,11 +165,11 @@ void Rpcs::Store(const Key &key,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_store_response()->connect(boost::bind(
-      &Rpcs::StoreCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_store_response()->connect(std::bind(
+      &Rpcs::StoreCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::StoreCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::StoreCallback, this, arg::_1, transport::Info(),
       protobuf::StoreResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -197,11 +199,11 @@ void Rpcs::StoreRefresh(const std::string &serialised_store_request,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_store_refresh_response()->connect(boost::bind(
-      &Rpcs::StoreRefreshCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_store_refresh_response()->connect(std::bind(
+      &Rpcs::StoreRefreshCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::StoreRefreshCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::StoreRefreshCallback, this, arg::_1, transport::Info(),
       protobuf::StoreRefreshResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -234,11 +236,11 @@ void Rpcs::Delete(const Key &key,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_delete_response()->connect(boost::bind(
-      &Rpcs::DeleteCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_delete_response()->connect(std::bind(
+      &Rpcs::DeleteCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::DeleteCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::DeleteCallback, this, arg::_1, transport::Info(),
       protobuf::DeleteResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -268,11 +270,11 @@ void Rpcs::DeleteRefresh(const std::string &serialised_delete_request,
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
-  message_handler->on_delete_refresh_response()->connect(boost::bind(
-      &Rpcs::DeleteRefreshCallback, this, transport::kSuccess, _1, _2,
+  message_handler->on_delete_refresh_response()->connect(std::bind(
+      &Rpcs::DeleteRefreshCallback, this, transport::kSuccess, arg::_1, arg::_2,
       object_indx, callback, message, rpcs_failure_peer));
-  message_handler->on_error()->connect(boost::bind(
-      &Rpcs::DeleteRefreshCallback, this, _1, transport::Info(),
+  message_handler->on_error()->connect(std::bind(
+      &Rpcs::DeleteRefreshCallback, this, arg::_1, transport::Info(),
       protobuf::DeleteRefreshResponse(), object_indx, callback, message,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
@@ -537,10 +539,11 @@ void Rpcs::Prepare(TransportType type,
                                                        default_securifier_));
   // Connect message handler to transport for incoming raw messages
   transport->on_message_received()->connect(
-      boost::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
-                  _1, _2, _3, _4));
+      std::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
+                arg::_1, arg::_2, arg::_3, arg::_4));
   transport->on_error()->connect(
-      boost::bind(&MessageHandler::OnError, message_handler.get(), _1, _2));
+      std::bind(&MessageHandler::OnError, message_handler.get(), arg::_1,
+                arg::_2));
 }
 
 }  // namespace kademlia

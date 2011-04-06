@@ -26,12 +26,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <algorithm>
-#include "boost/bind.hpp"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/kademlia.pb.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/transport/transport.h"
+
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
@@ -115,10 +116,10 @@ void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
   if (!contacts || contacts->empty())
     return;
   std::sort(contacts->begin(), contacts->end(),
-      boost::bind(static_cast<bool(*)(const Contact&,  // NOLINT
-                                      const Contact&,
-                                      const NodeId&)>(&CloserToTarget),
-                  _1, _2, target_key));
+      std::bind(static_cast<bool(*)(const Contact&,  // NOLINT
+                                    const Contact&,
+                                    const NodeId&)>(&CloserToTarget),
+                arg::_1, arg::_2, target_key));
 }
 
 // void SortLookupContact(const Key &target_key,
