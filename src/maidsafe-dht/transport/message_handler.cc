@@ -54,7 +54,7 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   if (security_type & kAsymmetricEncrypt) {
     std::string aes_seed = request.substr(1, 512);
     std::string encrypt_aes_seed;
-    while(encrypt_aes_seed.empty())
+    while (encrypt_aes_seed.empty())
       encrypt_aes_seed = securifier_->AsymmetricDecrypt(aes_seed);
     std::string aes_key = encrypt_aes_seed.substr(0, 32);
     std::string kIV = encrypt_aes_seed.substr(32, 16);
@@ -258,8 +258,9 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
     std::string encrypt_message =
         crypto::SymmEncrypt(wrapper_message.SerializeAsString(), key, kIV);
     std::string encrypt_aes_seed;
-    while(encrypt_aes_seed.empty())
-      encrypt_aes_seed = securifier_->AsymmetricEncrypt(seed, recipient_public_key);
+    while (encrypt_aes_seed.empty())
+      encrypt_aes_seed = securifier_->AsymmetricEncrypt(seed,
+                                                        recipient_public_key);
     final_message += encrypt_aes_seed + encrypt_message;
   } else {
     final_message += wrapper_message.SerializeAsString();

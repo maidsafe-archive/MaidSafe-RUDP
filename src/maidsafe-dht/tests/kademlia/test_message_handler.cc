@@ -67,9 +67,10 @@ class KademliaMessageHandlerTest: public testing::Test {
                                  securifier_null_(),
                                  msg_hndlr_no_securifier_(securifier_null_),
                                  invoked_slots_(),
-                                 slots_mutex_() {  }
-  virtual void SetUp() { }
-  virtual void TearDown() { }
+                                 slots_mutex_() {}
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+  static void SetUpTestCase() { rsa_keypair_.GenerateKeys(4096); }
 
   template<class T>
   T GetWrapper(std::string encrypted, std::string key) {
@@ -309,6 +310,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
     protobuf::Contact contact;
     contact.set_node_id("test");
+    contact.set_public_key(rsa_keypair_.public_key());
     p_req.set_ping("ping");
     p_req.mutable_sender()->CopyFrom(contact);
     p_rsp.set_echo("pong");
@@ -488,7 +490,10 @@ class KademliaMessageHandlerTest: public testing::Test {
   MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
+  static crypto::RsaKeyPair rsa_keypair_;
 };
+
+crypto::RsaKeyPair KademliaMessageHandlerTest::rsa_keypair_;
 
 TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingRequest) {
   protobuf::PingRequest ping_rqst;
@@ -944,6 +949,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRqst) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1015,6 +1021,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1080,6 +1087,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1147,6 +1155,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1232,6 +1241,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst)
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1298,6 +1308,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1380,6 +1391,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
@@ -1444,6 +1456,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
   transport::Info info;
   protobuf::Contact contact;
   contact.set_node_id("test");
+  contact.set_public_key(rsa_keypair_.public_key());
   std::string message_signature;
   std::string *message_response = new std::string;
   transport::Timeout *timeout = new transport::Timeout;
