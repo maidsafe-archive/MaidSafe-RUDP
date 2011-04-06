@@ -210,7 +210,7 @@ void RudpConnection::StartReadSize() {
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
   response_deadline_ = now + timeout_for_response_;
-  timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
+  timer_.expires_at(std::max(response_deadline_, now + kStallTimeout));
   timeout_state_ = kReceiving;
 }
 
