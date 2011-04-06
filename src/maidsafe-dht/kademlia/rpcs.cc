@@ -539,11 +539,13 @@ void Rpcs::Prepare(TransportType type,
                                                        default_securifier_));
   // Connect message handler to transport for incoming raw messages
   transport->on_message_received()->connect(
-      std::bind(&MessageHandler::OnMessageReceived, message_handler.get(),
-                arg::_1, arg::_2, arg::_3, arg::_4));
+      transport::OnMessageReceived::element_type::slot_type(
+          &MessageHandler::OnMessageReceived, message_handler.get(),
+          _1, _2, _3, _4).track_foreign(message_handler));
   transport->on_error()->connect(
-      std::bind(&MessageHandler::OnError, message_handler.get(), arg::_1,
-                arg::_2));
+      transport::OnError::element_type::slot_type(
+          &MessageHandler::OnError, message_handler.get(),
+          _1, _2).track_foreign(message_handler));
 }
 
 }  // namespace kademlia
