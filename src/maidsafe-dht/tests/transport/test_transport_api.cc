@@ -261,9 +261,9 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages,
       if (!(*it)->finished_)
         waiting = true;
     }
-  } while (waiting && (i < 10));
+  } while (waiting && (i < 10 * messages_length));
   // without this sleep, test of RUDP/ManyToManyMultiMessage will fail,
-  // reporting received responses numatch with the expected
+  // reporting received responses not match with the expected
   // Note: only RUDP has this problem. TCP and UDP will not fail even without
   //       this sleep
   boost::this_thread::sleep(boost::posix_time::seconds(1));
@@ -291,12 +291,18 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages,
 
 template <typename T>
 void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
-    TransportPtr listener_pt, const int &messages_length) {
+    TransportPtr listener_pt, int &messages_length) {
   std::string request(RandomString(1));
+  // Cap the length of the msg to 64MB - 100,
+  // As during the test, the response will be the send append with a head
+  if (messages_length > 26)
+    messages_length = 26;
   for (int i = 0; i < messages_length; ++i)
     request = request + request;
+  if (messages_length == 26)
+    request = request.substr(0, request.size() - 100);
   sender_pt->Send(request, Endpoint(kIP, listener_pt->listening_port()),
-                  bptime::seconds(2));
+                  bptime::seconds(messages_length));
   boost::mutex::scoped_lock lock(mutex_);
   (request_messages_).push_back(request);
 }
@@ -503,8 +509,8 @@ INSTANTIATE_TYPED_TEST_CASE_P(UDP, TransportAPITest, UdpTransport);
 TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSingleLargeMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
-  // Send out a message with upto 32MB = 2^25
-  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 25));
+  // Send out a message with upto 64MB = 2^26
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 26));
 }
 
 }  // namespace test

@@ -102,7 +102,7 @@ class TransportAPITest: public testing::Test {
   void RunTransportTest(const int &num_messages,
                         const int &messages_length = 4);
   void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt,
-               const int &messages_length);
+               int &messages_length);
   void CheckMessages();
 
   IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
