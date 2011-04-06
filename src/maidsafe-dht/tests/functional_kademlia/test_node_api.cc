@@ -320,6 +320,54 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   --kNetworkSize;
 }
 
+TEST_F(NodeApiTest, BEH_KAD_Delete) {
+  std::shared_ptr<Node> node;
+  node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
+                      alternative_store_, true, 2, 1, 1,
+                      bptime::seconds(3600)));
+  NodeId node_id(NodeId::kRandomId);
+  node_ids_.push_back(node_id);
+  nodes_.push_back(node);
+  ++kNetworkSize;
+  bool done(false);
+  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  node->Join(node_id, bootstrap_contacts_, jf);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  done = false;
+  int num_store_values(10);
+  std::vector<KeyValueSignature> key_value_signatures;
+  crypto::RsaKeyPair rsa_key_pair;
+  rsa_key_pair.GenerateKeys(4096);
+  bptime::time_duration ttl(bptime::pos_infin);
+  for (int i = 0; i < num_store_values; ++i) {
+    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair, 1111 + i);
+    key_value_signatures.push_back(key_value_signature);
+  }
+  StoreFunctor sf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  for (size_t i = 0; i < key_value_signatures.size(); ++i) {
+    done = false;
+    nodes_[kNetworkSize - 1]->Store(NodeId(key_value_signatures[i].key),
+      key_value_signatures[i].signature, key_value_signatures[i].value, ttl,
+      securifier_, sf);
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
+  done = false;
+  DeleteFunctor df = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+
+  nodes_[kNetworkSize - 1]->Delete(NodeId(key_value_signatures[0].key),
+                                   key_value_signatures[0].value,
+                                   key_value_signatures[0].signature,
+                                   securifier_, df);
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  nodes_[kNetworkSize - 1]->Leave(NULL);
+  nodes_.pop_back();
+  node_ids_.pop_back();
+  --kNetworkSize;
+}
+
 }  // namespace test
 
 }  // namespace kademlia
