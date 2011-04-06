@@ -61,8 +61,12 @@ bool RudpSender::Flushed() const {
 }
 
 size_t RudpSender::AddData(const asio::const_buffer &data) {
-  unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
-
+  if ((congestion_control_.SendWindowSize() == 0) &&
+      (unacked_packets_.Size() == 0)) {
+    unacked_packets_.SetMaximumSize(16);
+  } else {
+    unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
+  }
   const unsigned char *begin = asio::buffer_cast<const unsigned char*>(data);
   const unsigned char *ptr = begin;
   const unsigned char *end = begin + asio::buffer_size(data);
