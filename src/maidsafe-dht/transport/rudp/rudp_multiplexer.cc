@@ -25,11 +25,11 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_multiplexer.h"
+#include "rudp_multiplexer.h"
 
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_packet.h"
+#include "rudp_packet.h"
 #include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;

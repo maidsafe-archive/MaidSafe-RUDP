@@ -29,9 +29,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe-dht/transport/rudp_acceptor.h"
-#include "maidsafe-dht/transport/rudp_multiplexer.h"
-#include "maidsafe-dht/transport/rudp_socket.h"
+#include "maidsafe-dht/transport/rudp/rudp_acceptor.h"
+#include "maidsafe-dht/transport/rudp/rudp_multiplexer.h"
+#include "maidsafe-dht/transport/rudp/rudp_socket.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

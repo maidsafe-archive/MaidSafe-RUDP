@@ -25,14 +25,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_session.h"
+#include "rudp_session.h"
 
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_peer.h"
-#include "maidsafe-dht/transport/rudp_sliding_window.h"
-#include "maidsafe-dht/transport/rudp_tick_timer.h"
+#include "rudp_data_packet.h"
+#include "rudp_peer.h"
+#include "rudp_sliding_window.h"
+#include "rudp_tick_timer.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

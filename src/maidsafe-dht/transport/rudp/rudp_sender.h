@@ -32,11 +32,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "maidsafe-dht/transport/rudp_ack_packet.h"
-#include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
-#include "maidsafe-dht/transport/rudp_shutdown_packet.h"
-#include "maidsafe-dht/transport/rudp_sliding_window.h"
+#include "rudp_ack_packet.h"
+#include "rudp_data_packet.h"
+#include "rudp_negative_ack_packet.h"
+#include "rudp_shutdown_packet.h"
+#include "rudp_sliding_window.h"
 
 namespace maidsafe {
 

@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe-dht/transport/rudp_sliding_window.h"
+#include "maidsafe-dht/transport/rudp/rudp_sliding_window.h"
 
 namespace maidsafe {
 

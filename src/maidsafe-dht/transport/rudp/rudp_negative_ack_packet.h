@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/asio/buffer.hpp"
-#include "maidsafe-dht/transport/rudp_control_packet.h"
+#include "rudp_control_packet.h"
 
 namespace maidsafe {
 

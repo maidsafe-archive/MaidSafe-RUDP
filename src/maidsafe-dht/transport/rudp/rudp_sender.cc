@@ -25,15 +25,15 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_sender.h"
+#include "rudp_sender.h"
 
 #include <algorithm>
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
-#include "maidsafe-dht/transport/rudp_congestion_control.h"
-#include "maidsafe-dht/transport/rudp_peer.h"
-#include "maidsafe-dht/transport/rudp_tick_timer.h"
+#include "rudp_ack_of_ack_packet.h"
+#include "rudp_congestion_control.h"
+#include "rudp_peer.h"
+#include "rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;

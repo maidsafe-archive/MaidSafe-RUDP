@@ -42,7 +42,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/rudp_accept_op.h"
+
+#include "rudp_accept_op.h"
 
 namespace maidsafe {
 

@@ -27,15 +27,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe-dht/transport/rudp_packet.h"
-#include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_control_packet.h"
-#include "maidsafe-dht/transport/rudp_ack_packet.h"
-#include "maidsafe-dht/transport/rudp_handshake_packet.h"
-#include "maidsafe-dht/transport/rudp_keepalive_packet.h"
-#include "maidsafe-dht/transport/rudp_shutdown_packet.h"
-#include "maidsafe-dht/transport/rudp_ack_of_ack_packet.h"
-#include "maidsafe-dht/transport/rudp_negative_ack_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_data_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_control_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_ack_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_handshake_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_keepalive_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_shutdown_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_ack_of_ack_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_negative_ack_packet.h"
 
 namespace maidsafe {
 

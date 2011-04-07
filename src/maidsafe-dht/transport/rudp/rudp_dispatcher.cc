@@ -25,13 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_dispatcher.h"
+#include "rudp_dispatcher.h"
 
 #include <cassert>
 
-#include "maidsafe-dht/transport/rudp_acceptor.h"
-#include "maidsafe-dht/transport/rudp_packet.h"
-#include "maidsafe-dht/transport/rudp_socket.h"
+#include "rudp_acceptor.h"
+#include "rudp_packet.h"
+#include "rudp_socket.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 

@@ -25,13 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_congestion_control.h"
-
 #include <algorithm>
 #include <cmath>
 
-#include "maidsafe-dht/transport/rudp_data_packet.h"
-#include "maidsafe-dht/transport/rudp_tick_timer.h"
+#include "rudp_congestion_control.h"
+#include "rudp_data_packet.h"
+#include "rudp_tick_timer.h"
 
 namespace bptime = boost::posix_time;
 

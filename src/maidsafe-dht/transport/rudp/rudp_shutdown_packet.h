@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
-#include "maidsafe-dht/transport/rudp_control_packet.h"
+#include "rudp_control_packet.h"
 
 namespace maidsafe {
 

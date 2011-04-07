@@ -25,8 +25,6 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe-dht/transport/rudp_connection.h"
-
 #include <algorithm>
 #include <array>  // NOLINT
 #include <functional>
@@ -34,8 +32,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
-#include "maidsafe-dht/transport/rudp_multiplexer.h"
-#include "maidsafe-dht/transport/rudp_transport.h"
+#include "rudp_connection.h"
+#include "rudp_multiplexer.h"
+#include "rudp_transport.h"
+
 #include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
