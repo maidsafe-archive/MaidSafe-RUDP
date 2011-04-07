@@ -28,13 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_SECURIFIER_H_
 #define MAIDSAFE_DHT_KADEMLIA_SECURIFIER_H_
 
+#include <functional>
 #include <string>
 #include <vector>
-#include "boost/function.hpp"
 
 namespace maidsafe {
 
-typedef boost::function<void(const std::string&, const std::string&)>
+typedef std::function<void(const std::string&, const std::string&)>
         GetPublicKeyAndValidationCallback;
 
 /** Base class used to cryptographically secure and validate values and

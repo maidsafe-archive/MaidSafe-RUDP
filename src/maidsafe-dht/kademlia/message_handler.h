@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/concept_check.hpp>
 #include <memory>
 #include <string>
-#include "boost/function.hpp"
 #include "boost/signals2/signal.hpp"
 #include "maidsafe-dht/transport/message_handler.h"
 

@@ -44,6 +44,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -389,7 +391,7 @@ class ServicesTest: public testing::Test {
     return delete_refresh_response.result();
   }
 
-  void DoOps(boost::function<bool()> ops, bool expectation, std::string op) {
+  void DoOps(std::function<bool()> ops, bool expectation, std::string op) {
     EXPECT_EQ(expectation, ops()) <<"For: " << op;
   }
 
@@ -1896,51 +1898,50 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_EQ(6U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
 
-  boost::shared_ptr<boost::asio::io_service> asio_service(
-      new boost::asio::io_service);
+  IoServicePtr asio_service(new boost::asio::io_service);
   boost::thread_group asio_thread_group;
-  boost::function<bool()> ops;
+  std::function<bool()> ops;
   // Posting jobs
   // Store
-  ops = boost::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v1,
-                    crypto_key_data_1);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStore"));
-  ops = boost::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v2,
-                    crypto_key_data_1);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStore"));
+  ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v1,
+                  crypto_key_data_1);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStore"));
+  ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v2,
+                  crypto_key_data_1);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStore"));
   // Store Refresh
-  ops = boost::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
-                    crypto_key_data_4, sender_id_2, k2_v1, crypto_key_data_2);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStoreRefresh"));
-  ops = boost::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
-                    crypto_key_data_4, sender_id_2, k2_v2, crypto_key_data_2);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStoreRefresh"));
+  ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
+                  crypto_key_data_4, sender_id_2, k2_v1, crypto_key_data_2);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStoreRefresh"));
+  ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
+                  crypto_key_data_4, sender_id_2, k2_v2, crypto_key_data_2);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStoreRefresh"));
   // Delete
-  ops = boost::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v1,
-                    crypto_key_data_3);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDelete"));
-  ops = boost::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v2,
-                    crypto_key_data_3);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDelete"));
+  ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v1,
+                  crypto_key_data_3);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDelete"));
+  ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v2,
+                  crypto_key_data_3);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDelete"));
   // Delete refresh
-  ops = boost::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
-                    crypto_key_data_2, sender_id_4, k4_v1, crypto_key_data_4);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDeleteRefresh"));
-  ops = boost::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
-                    crypto_key_data_2, sender_id_4, k4_v2, crypto_key_data_4);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDeleteRefresh"));
+  ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
+                  crypto_key_data_2, sender_id_4, k4_v1, crypto_key_data_4);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDeleteRefresh"));
+  ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
+                  crypto_key_data_2, sender_id_4, k4_v2, crypto_key_data_4);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDeleteRefresh"));
   // Running the threads
+  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
   for (size_t i = 0; i < kNumberOfThreads; ++i)
-    asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
-                                                asio_service));
+    asio_thread_group.create_thread(std::bind(fn, asio_service));
   // Check results
   asio_thread_group.join_all();
   JoinNetworkLookup(securifier_);
