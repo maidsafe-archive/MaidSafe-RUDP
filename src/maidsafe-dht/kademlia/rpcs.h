@@ -80,19 +80,19 @@ struct RpcsFailurePeer {
 
 class Rpcs {
  public:
-  typedef boost::function<void(RankInfoPtr, const int&)> PingFunctor,
-                                                         StoreFunctor,
-                                                         StoreRefreshFunctor,
-                                                         DeleteFunctor,
-                                                         DeleteRefreshFunctor;
-  typedef boost::function<void(RankInfoPtr,
-                               const int&,
-                               const std::vector<std::string>&,
-                               const std::vector<Contact>&,
-                               const Contact&)> FindValueFunctor;
-  typedef boost::function<void(RankInfoPtr,
-                               const int&,
-                               const std::vector<Contact>&)> FindNodesFunctor;
+  typedef std::function<void(RankInfoPtr, const int&)> PingFunctor,
+                                                       StoreFunctor,
+                                                       StoreRefreshFunctor,
+                                                       DeleteFunctor,
+                                                       DeleteRefreshFunctor;
+  typedef std::function<void(RankInfoPtr,
+                             const int&,
+                             const std::vector<std::string>&,
+                             const std::vector<Contact>&,
+                             const Contact&)> FindValueFunctor;
+  typedef std::function<void(RankInfoPtr,
+                             const int&,
+                             const std::vector<Contact>&)> FindNodesFunctor;
 
   Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
       : asio_service_(asio_service),

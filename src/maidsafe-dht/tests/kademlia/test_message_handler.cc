@@ -39,6 +39,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.pb.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -253,42 +255,50 @@ class KademliaMessageHandlerTest: public testing::Test {
   }
 
   void ConnectToHandlerSignals() {
-    msg_hndlr_.on_ping_request()->connect(boost::bind(
-        &KademliaMessageHandlerTest::PingRequestSlot, this, _1, _2, _3, _4));
-    msg_hndlr_.on_ping_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::PingResponseSlot, this, _1, _2));
-    msg_hndlr_.on_find_value_request()->connect(boost::bind(
+    msg_hndlr_.on_ping_request()->connect(std::bind(
+        &KademliaMessageHandlerTest::PingRequestSlot, this, arg::_1, arg::_2,
+        arg::_3, arg::_4));
+    msg_hndlr_.on_ping_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::PingResponseSlot, this, arg::_1, arg::_2));
+    msg_hndlr_.on_find_value_request()->connect(std::bind(
         &KademliaMessageHandlerTest::FindValueRequestSlot,
-        this, _1, _2, _3, _4));
-    msg_hndlr_.on_find_value_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::FindValueResponseSlot, this, _1, _2));
-    msg_hndlr_.on_find_nodes_request()->connect(boost::bind(
+        this, arg::_1, arg::_2, arg::_3, arg::_4));
+    msg_hndlr_.on_find_value_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::FindValueResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_find_nodes_request()->connect(std::bind(
         &KademliaMessageHandlerTest::FindNodesRequestSlot,
-        this, _1, _2, _3, _4));
-    msg_hndlr_.on_find_nodes_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::FindNodesResponseSlot, this, _1, _2));
-    msg_hndlr_.on_store_request()->connect(boost::bind(
+        this, arg::_1, arg::_2, arg::_3, arg::_4));
+    msg_hndlr_.on_find_nodes_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::FindNodesResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_store_request()->connect(std::bind(
         &KademliaMessageHandlerTest::StoreRequestSlot, this,
-        _1, _2, _3, _4, _5, _6));
-    msg_hndlr_.on_store_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::StoreResponseSlot, this, _1, _2));
-    msg_hndlr_.on_store_refresh_request()->connect(boost::bind(
+        arg::_1, arg::_2, arg::_3, arg::_4, arg::_5, arg::_6));
+    msg_hndlr_.on_store_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::StoreResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_store_refresh_request()->connect(std::bind(
         &KademliaMessageHandlerTest::StoreRefreshRequestSlot,
-        this, _1, _2, _3, _4));
-    msg_hndlr_.on_store_refresh_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::StoreRefreshResponseSlot, this, _1, _2));
-    msg_hndlr_.on_delete_request()->connect(boost::bind(
+        this, arg::_1, arg::_2, arg::_3, arg::_4));
+    msg_hndlr_.on_store_refresh_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::StoreRefreshResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_delete_request()->connect(std::bind(
         &KademliaMessageHandlerTest::DeleteRequestSlot, this,
-        _1, _2, _3, _4, _5, _6));
-    msg_hndlr_.on_delete_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::DeleteResponseSlot, this, _1, _2));
-    msg_hndlr_.on_delete_refresh_request()->connect(boost::bind(
+        arg::_1, arg::_2, arg::_3, arg::_4, arg::_5, arg::_6));
+    msg_hndlr_.on_delete_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::DeleteResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_delete_refresh_request()->connect(std::bind(
         &KademliaMessageHandlerTest::DeleteRefreshRequestSlot,
-        this, _1, _2, _3, _4));
-    msg_hndlr_.on_delete_refresh_response()->connect(boost::bind(
-        &KademliaMessageHandlerTest::DeleteRefreshResponseSlot, this, _1, _2));
-    msg_hndlr_.on_downlist_notification()->connect(boost::bind(
-        &KademliaMessageHandlerTest::DownlistNotificationSlot, this, _1, _2));
+        this, arg::_1, arg::_2, arg::_3, arg::_4));
+    msg_hndlr_.on_delete_refresh_response()->connect(std::bind(
+        &KademliaMessageHandlerTest::DeleteRefreshResponseSlot, this, arg::_1,
+        arg::_2));
+    msg_hndlr_.on_downlist_notification()->connect(std::bind(
+        &KademliaMessageHandlerTest::DownlistNotificationSlot, this, arg::_1,
+        arg::_2));
   }
 
   std::vector<std::string> CreateMessages() {

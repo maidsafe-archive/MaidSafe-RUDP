@@ -28,9 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_SENDER_TASK_H_
 #define MAIDSAFE_DHT_KADEMLIA_SENDER_TASK_H_
 
+#include <functional>
 #include <string>
-
-#include "boost/function.hpp"
 
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/transport/transport.h"
@@ -49,8 +48,8 @@ class SenderTaskTest_FUNC_KAD_SenderTaskCallbackMulthiThreaded_Test;
 
 class Service;
 
-typedef boost::function<void(const KeyValueSignature, transport::Info,
-                             RequestAndSignature, std::string, std::string)>
+typedef std::function<void(const KeyValueSignature, transport::Info,
+                           RequestAndSignature, std::string, std::string)>
         TaskCallback;
 
 struct Task {
