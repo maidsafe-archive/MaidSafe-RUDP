@@ -60,7 +60,7 @@ void TestMessageHandler::DoOnRequestReceived(const std::string &request,
   *response = "Replied to " + request + " (Id = " + boost::lexical_cast<
               std::string>(requests_received_.size()) + ")";
   responses_sent_.push_back(*response);
-  *timeout = kImmediateTimeout;
+  *timeout = kStallTimeout;
   DLOG(INFO) << this_id_ << " - Received request: \"" << request
               << "\".  Responding with \"" << *response << "\"" << std::endl;
 }
