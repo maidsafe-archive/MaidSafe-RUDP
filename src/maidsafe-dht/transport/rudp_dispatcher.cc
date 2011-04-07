@@ -89,7 +89,9 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       if (socket_iter != sockets_.end()) {
         socket_iter->second->HandleReceiveFrom(data, endpoint);
       } else {
-        DLOG(ERROR) << "Received a packet for unknown connection "
+        const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
+        DLOG(ERROR) << "Received a packet \"" << *p
+                    << "\" for unknown connection "
                     << id << " from " << endpoint << std::endl;
       }
     }

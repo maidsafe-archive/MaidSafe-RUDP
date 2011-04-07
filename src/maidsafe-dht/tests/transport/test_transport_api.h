@@ -67,6 +67,10 @@ class TestMessageHandler {
                            const Info &info,
                            std::string *response,
                            Timeout *timeout);
+  void DoTimeOutOnRequestReceived(const std::string &request,
+                                  const Info &info,
+                                  std::string *response,
+                                  Timeout *timeout);
   void DoOnResponseReceived(const std::string &request,
                             const Info &info,
                             std::string *response,

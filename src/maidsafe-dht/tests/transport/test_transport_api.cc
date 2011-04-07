@@ -65,6 +65,20 @@ void TestMessageHandler::DoOnRequestReceived(const std::string &request,
               << "\".  Responding with \"" << *response << "\"" << std::endl;
 }
 
+void TestMessageHandler::DoTimeOutOnRequestReceived(const std::string &request,
+                                                    const Info &info,
+                                                    std::string *response,
+                                                    Timeout *timeout) {
+  DLOG(INFO) << "Mocking a timedout response" << std::endl;
+  boost::this_thread::sleep(boost::posix_time::seconds(5));
+  boost::mutex::scoped_lock lock(mutex_);
+  requests_received_.push_back(std::make_pair(request, info));
+  *response = "Timed out reply to " + request + " (Id = " + boost::lexical_cast<
+              std::string>(requests_received_.size()) + ")";
+  responses_sent_.push_back(*response);
+  *timeout = kImmediateTimeout;
+}
+
 void TestMessageHandler::DoOnResponseReceived(const std::string &request,
                                               const Info &info,
                                               std::string *response,
@@ -81,7 +95,8 @@ void TestMessageHandler::DoOnResponseReceived(const std::string &request,
 void TestMessageHandler::DoOnError(const TransportCondition &tc) {
   boost::mutex::scoped_lock lock(mutex_);
   results_.push_back(tc);
-  DLOG(INFO) << this_id_ << " - Error: " << tc << std::endl;
+  DLOG(ERROR) << this_id_ << " - Error: " << tc << std::endl;
+  finished_ = true;
 }
 
 void TestMessageHandler::ClearContainers() {
@@ -258,7 +273,8 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages,
     boost::this_thread::sleep(boost::posix_time::seconds(1));
     ++i;
     for (auto it = msg_handlers.begin(); it != msg_handlers.end(); ++it){
-      if (!(*it)->finished_)
+      if ((!(*it)->finished_) ||
+          ((*it)->responses_received().size() < num_messages))
         waiting = true;
     }
   } while (waiting && (i < 10 * messages_length));
@@ -424,11 +440,14 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
             msgh_sender->responses_received().at(0).first);
 
   // Timeout scenario
+  listener->on_message_received()->connect(
+      boost::bind(&TestMessageHandler::DoTimeOutOnRequestReceived,
+                  msgh_listener, _1, _2, _3, _4));
   request = RandomString(29);
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                bptime::milliseconds(2));
   timeout = 100;
-  while (msgh_listener->requests_received().size() < 2 && timeout < 2000) {
+  while ((msgh_sender->results().size() == 0) && timeout < 5000) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     timeout +=100;
   }
