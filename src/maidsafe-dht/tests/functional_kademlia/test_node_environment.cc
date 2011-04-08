@@ -28,6 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ShlObj.h>
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -222,7 +224,8 @@ void EnvironmentNodes::SetUp() {
     bool done(false);
     int response_code(-3);
     nodes_[i]->Join(node_ids_[i], bootstrap_contacts_,
-                    boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+                    std::bind(&ErrorCodeCallback, arg::_1, &done,
+                    &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());

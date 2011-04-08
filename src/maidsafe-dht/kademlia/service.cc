@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/crypto.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -152,7 +154,6 @@ void Service::FindValue(const transport::Info &info,
     routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
     return;
   }
-
   // Do we have the values?
   if (datastore_->GetValues(key, &values_str)) {
     for (unsigned int i = 0; i < values_str.size(); i++) {
@@ -179,7 +180,6 @@ void Service::FindNodes(const transport::Info &info,
                         const protobuf::FindNodesRequest &request,
                         protobuf::FindNodesResponse *response,
                         transport::Timeout*) {
-  std::cout<<"\nServices findNodes\n";
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -200,7 +200,6 @@ void Service::FindNodes(const transport::Info &info,
   }
   response->set_result(true);
   routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
-  std::cout<<"\nresponse_result::"<<response->result();
 }
 
 void Service::Store(const transport::Info &info,
@@ -233,16 +232,16 @@ void Service::Store(const transport::Info &info,
                                         request.signed_value().signature());
 
   RequestAndSignature request_signature(message, message_signature);
-  TaskCallback store_cb = boost::bind(&Service::StoreCallback, this, _1,
-                                      request, _2, _3, _4, _5);
+  TaskCallback store_cb = std::bind(&Service::StoreCallback, this, arg::_1,
+                              request, arg::_2, arg::_3, arg::_4, arg::_5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             request.sender().public_key_id(), store_cb,
                             is_new_id)) {
     if (is_new_id) {  // If public_key_id is new
       GetPublicKeyAndValidationCallback cb =
-          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
+          std::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                    request.sender().public_key_id(), arg::_1, arg::_2);
       securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
                                              cb);
     }
@@ -282,17 +281,18 @@ void Service::StoreRefresh(const transport::Info &info,
                         ori_store_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_store_request(),
                           request.serialised_store_request_signature());
-  TaskCallback store_refresh_cb = boost::bind(&Service::StoreRefreshCallback,
-                                              this, _1, request, _2, _3,
-                                              _4, _5);
+  TaskCallback store_refresh_cb = std::bind(&Service::StoreRefreshCallback,
+                                            this, arg::_1, request, arg::_2,
+                                            arg::_3, arg::_4, arg::_5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             ori_store_request.sender().public_key_id(),
                             store_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
-          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      ori_store_request.sender().public_key_id(), _1, _2);
+          std::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                    ori_store_request.sender().public_key_id(), arg::_1,
+                    arg::_2);
       securifier_->GetPublicKeyAndValidation(
           ori_store_request.sender().public_key_id(), cb);
     }
@@ -322,6 +322,11 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
                                    std::string public_key_validation) {
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
+  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
+                            public_key)) {
+    DLOG(WARNING) << "Failed to validate request_signature";
+    return;
+  }
   // no matter the store succeed or not, once validated, the sender shall
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, ori_store_request, info,
@@ -391,16 +396,17 @@ void Service::Delete(const transport::Info &info,
   KeyValueSignature key_value_signature(request.key(),
       request.signed_value().value(), request.signed_value().signature());
   RequestAndSignature request_signature(message, message_signature);
-  TaskCallback delete_cb = boost::bind(&Service::DeleteCallback, this, _1,
-                                       request, _2, _3, _4, _5);
+  TaskCallback delete_cb = std::bind(&Service::DeleteCallback, this, arg::_1,
+                                     request, arg::_2, arg::_3, arg::_4,
+                                     arg::_5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             request.sender().public_key_id(), delete_cb,
                             is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
-          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      request.sender().public_key_id(), _1, _2);
+          std::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                    request.sender().public_key_id(), arg::_1, arg::_2);
       securifier_->GetPublicKeyAndValidation(request.sender().public_key_id(),
                                              cb);
     }
@@ -442,17 +448,18 @@ void Service::DeleteRefresh(const transport::Info &info,
                             ori_delete_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
-  TaskCallback delete_refresh_cb = boost::bind(&Service::DeleteRefreshCallback,
-                                               this, _1, request, _2, _3, _4,
-                                               _5);
+  TaskCallback delete_refresh_cb = std::bind(&Service::DeleteRefreshCallback,
+                                             this, arg::_1, request, arg::_2,
+                                             arg::_3, arg::_4, arg::_5);
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             ori_delete_request.sender().public_key_id(),
                             delete_refresh_cb, is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
-          boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                      ori_delete_request.sender().public_key_id(), _1, _2);
+          std::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                    ori_delete_request.sender().public_key_id(), arg::_1,
+                    arg::_2);
       securifier_->GetPublicKeyAndValidation(
           ori_delete_request.sender().public_key_id(), cb);
     }

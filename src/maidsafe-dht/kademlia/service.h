@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/cstdint.hpp"
-#include "boost/function.hpp"
 
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
@@ -314,7 +313,7 @@ class Service : public std::enable_shared_from_this<Service> {
   /** Singal handler */
   PingDownListContactsPtr ping_down_list_contacts_;
   /** sender task */
-  boost::shared_ptr<SenderTask> sender_task_;
+  std::shared_ptr<SenderTask> sender_task_;
 };
 
 }  // namespace kademlia

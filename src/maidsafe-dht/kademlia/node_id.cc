@@ -48,7 +48,7 @@ NodeId::NodeId(const KadIdType &type) : raw_id_(kKeySizeBytes, -1) {
       break;  // already set
     case kRandomId :
       std::generate(raw_id_.begin(), raw_id_.end(),
-                    boost::bind(&SRandomUint32));
+                    std::bind(&SRandomUint32));
       break;
     default :
       break;

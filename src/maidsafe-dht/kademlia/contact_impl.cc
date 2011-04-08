@@ -28,7 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/contact_impl.h"
 #include <algorithm>
 #include <string>
-#include "boost/bind.hpp"
 #include "maidsafe-dht/kademlia/utils.h"
 
 #ifdef __MSVC__
@@ -41,6 +40,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include "maidsafe/common/utils.h"
+
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
@@ -150,7 +151,7 @@ bool Contact::Impl::SetPreferredEndpoint(const transport::IP &ip) {
 
 bool Contact::Impl::MoveLocalEndpointToFirst(const transport::IP &ip) {
   auto it = std::find_if(local_endpoints_.begin(), local_endpoints_.end(),
-            boost::bind(&Contact::Impl::IpMatchesEndpoint, this, ip, _1));
+            std::bind(&Contact::Impl::IpMatchesEndpoint, this, ip, arg::_1));
   if (it == local_endpoints_.end()) {
     return false;
   } else {
@@ -195,7 +196,6 @@ Contact::Impl& Contact::Impl::operator=(const Contact::Impl &other) {
 }
 
 bool Contact::Impl::operator==(const Contact::Impl &other) const {
-  std::cout << "AAAAAAAaa" << std::endl;
   if (node_id_ == other.node_id_)
     return (node_id_.String() != kZeroId) ||
            (endpoint_.ip == other.endpoint_.ip);

@@ -501,7 +501,7 @@ class Node::Impl {
 
   /** The thread group to hold all monitoring treads
    *  Used by: MonitoringDownlistThread */
-  boost::shared_ptr<boost::thread_group> thread_group_;
+  std::shared_ptr<boost::thread_group> thread_group_;
   bool refresh_thread_running_, downlist_thread_running_;
 };
 
