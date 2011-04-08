@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
-#include "boost/function.hpp"
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/composite_key.hpp"
 #include "boost/multi_index/ordered_index.hpp"

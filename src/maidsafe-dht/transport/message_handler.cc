@@ -56,7 +56,13 @@ void MessageHandler::OnMessageReceived(const std::string &request,
 
   std::string serialised_message(request.substr(1));
   if (security_type & kAsymmetricEncrypt) {
-    serialised_message = (securifier_->AsymmetricDecrypt(serialised_message));
+    std::string aes_seed = request.substr(1, 512);
+    std::string encrypt_aes_seed;
+    while (encrypt_aes_seed.empty())
+      encrypt_aes_seed = securifier_->AsymmetricDecrypt(aes_seed);
+    std::string aes_key = encrypt_aes_seed.substr(0, 32);
+    std::string kIV = encrypt_aes_seed.substr(32, 16);
+    serialised_message = crypto::SymmDecrypt(request.substr(513), aes_key, kIV);
   }
 
   protobuf::WrapperMessage wrapper;
@@ -252,9 +258,16 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   // Handle encryption
   std::string final_message(1, security_type);
   if (security_type & kAsymmetricEncrypt) {
-    final_message +=
-        securifier_->AsymmetricEncrypt(wrapper_message.SerializeAsString(),
-                                       recipient_public_key);
+    std::string seed = RandomString(48);
+    std::string key = seed.substr(0, 32);
+    std::string kIV = seed.substr(32, 16);
+    std::string encrypt_message =
+        crypto::SymmEncrypt(wrapper_message.SerializeAsString(), key, kIV);
+    std::string encrypt_aes_seed;
+    while (encrypt_aes_seed.empty())
+      encrypt_aes_seed = securifier_->AsymmetricEncrypt(seed,
+                                                        recipient_public_key);
+    final_message += encrypt_aes_seed + encrypt_message;
   } else {
     final_message += wrapper_message.SerializeAsString();
   }

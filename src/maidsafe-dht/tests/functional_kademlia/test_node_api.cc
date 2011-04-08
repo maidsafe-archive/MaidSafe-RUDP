@@ -46,12 +46,12 @@ namespace maidsafe {
 namespace kademlia {
 
 namespace node_api_test {
-  const boost::uint16_t kThreadGroupSize = 3;
+const boost::uint16_t kThreadGroupSize = 3;
 }   // namespace node_api_test
 
 namespace test {
 
-extern std::vector<std::shared_ptr<maidsafe::kademlia::Node> > nodes_;
+extern std::vector<std::shared_ptr<maidsafe::kademlia::Node>> nodes_;
 extern std::vector<NodeId> node_ids_;
 extern boost::uint16_t kNetworkSize;
 extern std::vector<maidsafe::kademlia::Contact> bootstrap_contacts_;
@@ -60,7 +60,8 @@ extern std::vector<crypto::RsaKeyPair> crypto_key_pairs_;
 class NodeApiTest: public testing::Test {
  protected:
   NodeApiTest()
-      : asio_service_(),
+      : rsa_key_pair_(),
+        asio_service_(),
         work_(),
         thread_group_(),
         securifier_(),
@@ -68,19 +69,20 @@ class NodeApiTest: public testing::Test {
         message_handler_(),
         alternative_store_() {}
   void SetUp() {
-    rsa_key_pair.GenerateKeys(4096);
+    rsa_key_pair_.GenerateKeys(4096);
     asio_service_.reset(new boost::asio::io_service);
     work_.reset(new boost::asio::io_service::work(*asio_service_));
     thread_group_.reset(new boost::thread_group());
     for (size_t i = 0; i < node_api_test::kThreadGroupSize; ++i)
-      thread_group_->create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
+      thread_group_->create_thread(std::bind(
+          static_cast<std::size_t(boost::asio::io_service::*)()>
               (&boost::asio::io_service::run), asio_service_));
     transport_.reset(new transport::TcpTransport(*asio_service_));
-    EXPECT_EQ(transport::kSuccess, transport_->StartListening(
-        transport::Endpoint("127.0.0.1", 8000)));
-    securifier_.reset(new Securifier("", rsa_key_pair.public_key(),
-                                     rsa_key_pair.private_key()));
+    EXPECT_EQ(transport::kSuccess,
+              transport_->StartListening(transport::Endpoint("127.0.0.1",
+                                                             8000)));
+    securifier_.reset(new Securifier("", rsa_key_pair_.public_key(),
+                                     rsa_key_pair_.private_key()));
     message_handler_.reset(new MessageHandler(securifier_));
   }
   void TearDown() {
@@ -91,7 +93,7 @@ class NodeApiTest: public testing::Test {
   }
   ~NodeApiTest() {}
 
-  crypto::RsaKeyPair rsa_key_pair;
+  crypto::RsaKeyPair rsa_key_pair_;
   IoServicePtr asio_service_;
   WorkPtr work_;
   ThreadGroupPtr thread_group_;
@@ -101,7 +103,7 @@ class NodeApiTest: public testing::Test {
   AlternativeStorePtr alternative_store_;
  public:
   KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
-                             const size_t &value_size) {
+                            const size_t &value_size) {
     std::string key = crypto::Hash<crypto::SHA512>(RandomString(1024));
     std::string value;
     value.reserve(value_size);

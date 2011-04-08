@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 
+namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -148,9 +149,9 @@ bool DataStore::StoreValue(
   if (!is_refresh) {
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     return index_by_key.modify(itr_pair.first,
-        boost::bind(&KeyValueTuple::UpdateStatus, _1, now + ttl,
-                    now + refresh_interval_, now + kPendingConfirmDuration,
-                    store_request_and_signature, false));
+        std::bind(&KeyValueTuple::UpdateStatus, arg::_1, now + ttl,
+                  now + refresh_interval_, now + kPendingConfirmDuration,
+                  store_request_and_signature, false));
   }
 
   // For refreshing, only the refresh time can be reset, and only for
@@ -159,8 +160,8 @@ bool DataStore::StoreValue(
     return false;
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   return index_by_key.modify(itr_pair.first,
-      boost::bind(&KeyValueTuple::set_refresh_time, _1,
-                  now + refresh_interval_));
+      std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
+                now + refresh_interval_));
 }
 
 bool DataStore::DeleteValue(
@@ -189,8 +190,8 @@ bool DataStore::DeleteValue(
   if (is_refresh && (*it).deleted) {
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     return index_by_key_value.modify(it,
-        boost::bind(&KeyValueTuple::set_refresh_time, _1,
-                    now + refresh_interval_));
+        std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
+                  now + refresh_interval_));
   }
 
   // Allow original signer to modify it or if value isn't marked as deleted, but
@@ -198,9 +199,9 @@ bool DataStore::DeleteValue(
   if (!is_refresh || ((*it).confirm_time < now)) {
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     return index_by_key_value.modify(it,
-        boost::bind(&KeyValueTuple::UpdateStatus, _1, (*it).expire_time,
-                    now + refresh_interval_, now + kPendingConfirmDuration,
-                    delete_request_and_signature, true));
+        std::bind(&KeyValueTuple::UpdateStatus, arg::_1, (*it).expire_time,
+                  now + refresh_interval_, now + kPendingConfirmDuration,
+                  delete_request_and_signature, true));
   } else {
     return false;
   }
@@ -253,10 +254,10 @@ void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
   while (it_expire != it_expire_upper_bound) {
     if (!(*it_expire).deleted) {
       index_by_expire_time.modify(it_expire,
-           boost::bind(&KeyValueTuple::UpdateStatus, _1,
-                       (*it_expire).expire_time, (*it_expire).refresh_time,
-                       now + kPendingConfirmDuration,
-                       (*it_expire).request_and_signature, true));
+           std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
+                     (*it_expire).expire_time, (*it_expire).refresh_time,
+                     now + kPendingConfirmDuration,
+                     (*it_expire).request_and_signature, true));
     }
     ++it_expire;
   }

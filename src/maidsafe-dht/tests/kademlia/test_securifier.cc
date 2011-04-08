@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/securifier.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -138,8 +140,8 @@ TEST_F(SecurifierTest, BEH_KAD_GetPublicKeyAndValidation) {
   test_pubk_ = "test_pubk_";
   std::string test_pubkv("test_pubkv");
   securifier_->GetPublicKeyAndValidation(test_pubki_,
-                                         boost::bind(&TestCb, _1, _2,
-                                                     &test_pubk_, &test_pubkv));
+                                         std::bind(&TestCb, arg::_1, arg::_2,
+                                                   &test_pubk_, &test_pubkv));
   ASSERT_EQ("", test_pubk_);
   ASSERT_EQ("", test_pubkv);
 }

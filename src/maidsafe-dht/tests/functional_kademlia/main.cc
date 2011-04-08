@@ -39,9 +39,8 @@ int main(int argc, char **argv) {
   // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
   FLAGS_minloglevel = 3;
   testing::InitGoogleTest(&argc, argv);
-//   ::testing::FLAGS_gtest_filter = "NodeTest*";
   ::testing::AddGlobalTestEnvironment(
-      new maidsafe::kademlia::test::EnvironmentNodes(10, 2, 1, 1, 10,
+      new maidsafe::kademlia::test::EnvironmentNodes(10, 4, 3, 2, 10,
                                                      bptime::seconds(3600)));
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();

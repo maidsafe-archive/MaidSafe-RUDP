@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/kademlia/utils.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -128,12 +130,12 @@ void Node::Impl::Join(const NodeId &node_id,
   temp_bootstrap_contacts.assign(bootstrap_contacts.begin(),
                                  bootstrap_contacts.end());
   std::sort(temp_bootstrap_contacts.begin(), temp_bootstrap_contacts.end(),
-            boost::bind(&Node::Impl::SortByDistance, this, _1, _2));
+            std::bind(&Node::Impl::SortByDistance, this, arg::_1, arg::_2));
   std::vector<Contact> search_contact;
   search_contact.push_back(temp_bootstrap_contacts.front());
   temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
-  fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
-                           _1, _2, temp_bootstrap_contacts, node_id, callback);
+  fncallback = std::bind(&Node::Impl::JoinFindNodesCallback, this, arg::_1,
+                         arg::_2, temp_bootstrap_contacts, node_id, callback);
   std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
   AddContactsToContainer<FindNodesArgs>(search_contact, fna);
   IterativeSearch<FindNodesArgs>(fna);
@@ -154,8 +156,8 @@ void Node::Impl::JoinFindNodesCallback(
     search_contact.push_back(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindNodesFunctor fncallback;
-    fncallback = boost::bind(&Node::Impl::JoinFindNodesCallback, this,
-                             _1, _2, bootstrap_contacts, node_id, callback);
+    fncallback = std::bind(&Node::Impl::JoinFindNodesCallback, this, arg::_1,
+                           arg::_2, bootstrap_contacts, node_id, callback);
     std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(node_id, fncallback));
     AddContactsToContainer<FindNodesArgs>(search_contact, fna);
     IterativeSearch<FindNodesArgs>(fna);
@@ -167,16 +169,21 @@ void Node::Impl::JoinFindNodesCallback(
                                  alternative_store_, default_securifier_, k_));
       service_->set_node_joined(true);
       service_->ConnectToSignals(listening_transport_, message_handler_);
-      thread_group_->create_thread(boost::bind(&Node::Impl::RefreshDataStore,
-                                   this));
+      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
+                                             this));
       refresh_thread_running_ = true;
       // Connect the ReportDown Signal
       report_down_contact_->connect(
           ReportDownContactPtr::element_type::slot_type(
               &Node::Impl::ReportDownContact, this, _1));
+      routing_table_->ping_oldest_contact()->connect(
+          std::bind(&Node::Impl::PingOldestContact, this, arg::_1, arg::_2,
+                    arg::_3));
+      routing_table_->validate_contact()->connect(
+          std::bind(&Node::Impl::ValidateContact, this, arg::_1));
       // Startup the thread to monitor the downlist queue
       thread_group_->create_thread(
-          boost::bind(&Node::Impl::MonitoringDownlistThread, this));
+          std::bind(&Node::Impl::MonitoringDownlistThread, this));
       downlist_thread_running_ = true;
     }
     callback(result);
@@ -195,72 +202,6 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
 }
 
-void Node::Impl::StoreResponse(RankInfoPtr rank_info,
-                               int response_code,
-                               std::shared_ptr<RpcArgs> srpc,
-                               const Key &key,
-                               const std::string &value,
-                               const std::string &signature,
-                               SecurifierPtr securifier) {
-  std::shared_ptr<StoreArgs> sa =
-      std::static_pointer_cast<StoreArgs> (srpc->rpc_a);
-  boost::mutex::scoped_lock loch_surlaplage(sa->mutex);
-  NodeSearchState mark(kContacted);
-  if (response_code < 0) {
-    mark = kDown;
-    // fire a signal here to notify this contact is down
-    (*report_down_contact_)(srpc->contact);
-  }
-  // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = sa->nc.get<nc_id>();
-  auto it_tuple = key_node_indx.find(srpc->contact.node_id());
-  key_node_indx.modify(it_tuple, ChangeState(mark));
-
-  auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
-
-  auto pit_contacted = sa->nc.get<nc_state>().equal_range(kContacted);
-  int num_of_contacted= std::distance(pit_contacted.first,
-                                      pit_contacted.second);
-
-  auto pit_down = sa->nc.get<nc_state>().equal_range(kDown);
-  int num_of_down= std::distance(pit_down.first, pit_down.second);
-
-  if (!sa->calledback) {
-    if (num_of_down > (k_ - threshold_)) {
-      // report back a failure once has more down contacts than the margin
-      sa->callback(-2);
-      sa->calledback = true;
-    }
-    if (num_of_contacted >= threshold_) {
-      // report back once has enough succeed contacts
-      sa->callback(num_of_contacted);
-      sa->calledback = true;
-    }
-  }
-  // delete those succeeded contacts if a failure was report back
-  // the response for the last responded contact shall be responsible to do it
-  if ((num_of_pending == 0) && (num_of_contacted < threshold_)) {
-    auto it = pit_down.first;
-    while (it != pit_down.second) {
-      rpcs_->Delete(key, value, signature, securifier, (*it).contact,
-                    boost::bind(&Node::Impl::SingleDeleteResponse,
-                                this, _1, _2, (*it).contact),
-                    kTcp);
-      ++it;
-    }
-  }
-}
-
-void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
-                                      int response_code,
-                                      const Contact &contact) {
-  if (response_code < 0) {
-    // fire a signal here to notify this contact is down
-    (*report_down_contact_)(contact);
-  }
-}
-
 void Node::Impl::Store(const Key &key,
                        const std::string &value,
                        const std::string &signature,
@@ -268,10 +209,10 @@ void Node::Impl::Store(const Key &key,
                        SecurifierPtr securifier,
                        StoreFunctor callback) {
   std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
-  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<StoreArgs>,
-                             this, _1, _2,
-                             key, value, signature, ttl,
-                             securifier, sa));
+  FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<StoreArgs>, this,
+                           arg::_1, arg::_2,
+                           key, value, signature, ttl,
+                           securifier, sa));
 }
 
 void Node::Impl::Delete(const Key &key,
@@ -281,10 +222,10 @@ void Node::Impl::Delete(const Key &key,
                         DeleteFunctor callback) {
   std::shared_ptr<DeleteArgs> da(new DeleteArgs(callback));
   boost::posix_time::time_duration ttl;
-  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<DeleteArgs>,
-                             this, _1, _2,
-                             key, value, signature, ttl,
-                             securifier, da));
+  FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<DeleteArgs>, this,
+                           arg::_1, arg::_2,
+                           key, value, signature, ttl,
+                           securifier, da));
 }
 
 void Node::Impl::Update(const Key &key,
@@ -298,10 +239,10 @@ void Node::Impl::Update(const Key &key,
   std::shared_ptr<UpdateArgs> ua(new UpdateArgs(new_value, new_signature,
                                                  old_value, old_signature,
                                                  callback));
-  FindNodes(key, boost::bind(&Node::Impl::OperationFindNodesCB<UpdateArgs>,
-                             this, _1, _2,
-                             key, "", "", ttl,
-                             securifier, ua));
+  FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<UpdateArgs>, this,
+                           arg::_1, arg::_2,
+                           key, "", "", ttl,
+                           securifier, ua));
 }
 
 template <class T>
@@ -336,16 +277,16 @@ void Node::Impl::OperationFindNodesCB(int result_size,
       switch (args->operation_type) {
         case kOpDelete:
           rpcs_->Delete(key, value, signature, securifier, (*it),
-                        boost::bind(&Node::Impl::DeleteResponse<DeleteArgs>,
-                                    this, _1, _2, rpc),
+                        std::bind(&Node::Impl::DeleteResponse<DeleteArgs>, this,
+                                  arg::_1, arg::_2, rpc),
                         kTcp);
           break;
         case kOpStore: {
           boost::posix_time::seconds ttl_s(ttl.seconds());
           rpcs_->Store(key, value, signature, ttl_s, securifier, (*it),
-                       boost::bind(&Node::Impl::StoreResponse,
-                                   this, _1, _2, rpc, key, value,
-                                   signature, securifier),
+                       std::bind(&Node::Impl::StoreResponse, this,
+                                 arg::_1, arg::_2, rpc, key, value,
+                                 signature, securifier),
                        kTcp);
           }
           break;
@@ -355,8 +296,8 @@ void Node::Impl::OperationFindNodesCB(int result_size,
           boost::posix_time::seconds ttl_s(ttl.seconds());
           rpcs_->Store(key, ua->new_value, ua->new_signature, ttl_s,
                       securifier, (*it),
-                      boost::bind(&Node::Impl::UpdateStoreResponse,
-                                  this, _1, _2, rpc, key, securifier),
+                      std::bind(&Node::Impl::UpdateStoreResponse, this,
+                                arg::_1, arg::_2, rpc, key, securifier),
                       kTcp);
           }
           break;
@@ -364,6 +305,74 @@ void Node::Impl::OperationFindNodesCB(int result_size,
       }
       ++it;
     }
+  }
+}
+
+void Node::Impl::StoreResponse(RankInfoPtr rank_info,
+                               int response_code,
+                               std::shared_ptr<RpcArgs> srpc,
+                               const Key &key,
+                               const std::string &value,
+                               const std::string &signature,
+                               SecurifierPtr securifier) {
+  std::shared_ptr<StoreArgs> sa =
+      std::static_pointer_cast<StoreArgs> (srpc->rpc_a);
+  boost::mutex::scoped_lock loch_surlaplage(sa->mutex);
+  NodeSearchState mark(kContacted);
+  if (response_code < 0) {
+    mark = kDown;
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(srpc->contact);
+  } else {
+    routing_table_->AddContact(srpc->contact, RankInfoPtr());
+  }
+  // Mark the enquired contact
+  NodeContainerByNodeId key_node_indx = sa->nc.get<nc_id>();
+  auto it_tuple = key_node_indx.find(srpc->contact.node_id());
+  key_node_indx.modify(it_tuple, ChangeState(mark));
+
+  auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+
+  auto pit_contacted = sa->nc.get<nc_state>().equal_range(kContacted);
+  int num_of_contacted= std::distance(pit_contacted.first,
+                                      pit_contacted.second);
+
+  auto pit_down = sa->nc.get<nc_state>().equal_range(kDown);
+  int num_of_down= std::distance(pit_down.first, pit_down.second);
+
+  if (!sa->calledback) {
+    if (num_of_down > (k_ - threshold_)) {
+      // report back a failure once has more down contacts than the margin
+      sa->callback(-2);
+      sa->calledback = true;
+    }
+    if (num_of_contacted >= threshold_) {
+      // report back once has enough succeed contacts
+      sa->callback(num_of_contacted);
+      sa->calledback = true;
+    }
+  }
+  // delete those succeeded contacts if a failure was report back
+  // the response for the last responded contact shall be responsible to do it
+  if ((num_of_pending == 0) && (num_of_contacted < threshold_)) {
+    auto it = pit_down.first;
+    while (it != pit_down.second) {
+      rpcs_->Delete(key, value, signature, securifier, (*it).contact,
+                    std::bind(&Node::Impl::SingleDeleteResponse,
+                              this, arg::_1, arg::_2, (*it).contact),
+                    kTcp);
+      ++it;
+    }
+  }
+}
+
+void Node::Impl::SingleDeleteResponse(RankInfoPtr rank_info,
+                                      int response_code,
+                                      const Contact &contact) {
+  if (response_code < 0) {
+    // fire a signal here to notify this contact is down
+    (*report_down_contact_)(contact);
   }
 }
 
@@ -382,6 +391,8 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
     mark = kDown;
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(drpc->contact);
+  } else {
+    routing_table_->AddContact(drpc->contact, RankInfoPtr());
   }
   // Mark the enquired contact
   NodeContainerByNodeId key_node_indx = drpc->rpc_a->nc.get<nc_id>();
@@ -440,10 +451,11 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(urpc->contact);
   } else {
+    routing_table_->AddContact(urpc->contact, RankInfoPtr());
     rpcs_->Delete(key, ua->old_value, ua->old_signature,
                   securifier, urpc->contact,
-                  boost::bind(&Node::Impl::DeleteResponse<UpdateArgs>,
-                              this, _1, _2, urpc),
+                  std::bind(&Node::Impl::DeleteResponse<UpdateArgs>, this,
+                            arg::_1, arg::_2, urpc),
                   kTcp);
   }
 }
@@ -463,8 +475,8 @@ void Node::Impl::FindValue(const Key &key,
 void Node::Impl::GetContact(const NodeId &node_id,
                             GetContactFunctor callback) {
   FindNodes(node_id,
-            boost::bind(&Node::Impl::GetContactCallBack,
-                        this, _1, _2, node_id, callback));
+            std::bind(&Node::Impl::GetContactCallBack, this,
+                      arg::_1, arg::_2, node_id, callback));
 }
 
 void Node::Impl::GetContactCallBack(int result_size,
@@ -577,12 +589,12 @@ void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
 void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
   std::vector<Contact> closest_contacts;
   std::vector<Contact> exclude_contacts;
-  StoreRefreshFunctor sf = boost::bind(&Node::Impl::StoreRefreshCallback, this,
-                                       _1, _2);
+  StoreRefreshFunctor sf = std::bind(&Node::Impl::StoreRefreshCallback, this,
+                                     arg::_1, arg::_2);
   routing_table_->GetContactsClosestToOwnId(k_, exclude_contacts,
                                             &closest_contacts);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
-    asio_service_->post(boost::bind(
+    asio_service_->post(std::bind(
         &Rpcs::StoreRefresh, rpcs_.get(), key_value_tuple.key(),
         key_value_tuple.key_value_signature.signature, default_securifier_,
         closest_contacts[i], sf, kTcp));
@@ -595,20 +607,21 @@ void Node::Impl::RefreshDataStore() {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
     data_store_->Refresh(&key_value_tuples);
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
-                  boost::bind(&Node::Impl::PostStoreRefresh, this, _1));
+                  std::bind(&Node::Impl::PostStoreRefresh, this, arg:: _1));
   }
 }
 
 void Node::Impl::EnablePingOldestContact() {
   // Connect the ping_oldest_contact signal in the routing table
-  routing_table_->ping_oldest_contact()->connect(boost::bind(
-                      &Node::Impl::PingOldestContact, this, _1, _2, _3));
+  routing_table_->ping_oldest_contact()->connect(std::bind(
+                      &Node::Impl::PingOldestContact, this, arg::_1, arg::_2,
+                          arg::_3));
 }
 
 void Node::Impl::EnableValidateContact() {
   // Connect the validate_contact signal in the routing table
-  routing_table_->validate_contact()->connect(boost::bind(
-                      &Node::Impl::ValidateContact, this, _1));
+  routing_table_->validate_contact()->connect(std::bind(
+                      &Node::Impl::ValidateContact, this, arg::_1));
 }
 
 // TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest
@@ -757,8 +770,8 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     switch (fa->operation_type) {
       case kOpFindNode: {
         rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
-                         boost::bind(&Node::Impl::IterativeSearchNodeResponse,
-                                     this, _1, _2, _3, frpc),
+                         std::bind(&Node::Impl::IterativeSearchNodeResponse,
+                                   this, arg::_1, arg::_2, arg::_3, frpc),
                          kTcp);
         }
         break;
@@ -766,8 +779,8 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
         std::shared_ptr<FindValueArgs> fva =
           std::dynamic_pointer_cast<FindValueArgs> (fa);
         rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
-                  boost::bind(&Node::Impl::IterativeSearchValueResponse,
-                              this, _1, _2, _3, _4, _5, frpc),
+                  std::bind(&Node::Impl::IterativeSearchValueResponse, this,
+                      arg::_1, arg::_2, arg::_3, arg::_4, arg::_5, frpc),
                   kTcp);
         }
         break;
@@ -777,12 +790,12 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
 }
 
 void Node::Impl::IterativeSearchValueResponse(
-                                  RankInfoPtr rank_info,
-                                  int result,
-                                  const std::vector<std::string> &values,
-                                  const std::vector<Contact> &contacts,
-                                  const Contact &alternative_store,
-                                  std::shared_ptr<RpcArgs> frpc) {
+    RankInfoPtr rank_info,
+    int result,
+    const std::vector<std::string> &values,
+    const std::vector<Contact> &contacts,
+    const Contact &alternative_store,
+    std::shared_ptr<RpcArgs> frpc) {
   std::shared_ptr<FindValueArgs> fva =
       std::static_pointer_cast<FindValueArgs> (frpc->rpc_a);
   if (fva->calledback)
@@ -802,6 +815,7 @@ void Node::Impl::IterativeSearchValueResponse(
       // fire a signal here to notify this contact is down
       (*report_down_contact_)(frpc->contact);
     } else {
+      routing_table_->AddContact(frpc->contact, RankInfoPtr());
       AddContactsToContainer<FindValueArgs>(contacts, fva);
     }
 
@@ -829,10 +843,10 @@ void Node::Impl::IterativeSearchValueResponse(
 }
 
 void Node::Impl::IterativeSearchNodeResponse(
-                                  RankInfoPtr rank_info,
-                                  int result,
-                                  const std::vector<Contact> &contacts,
-                                  std::shared_ptr<RpcArgs> fnrpc) {
+    RankInfoPtr rank_info,
+    int result,
+    const std::vector<Contact> &contacts,
+    std::shared_ptr<RpcArgs> fnrpc) {
   std::shared_ptr<FindNodesArgs> fna =
       std::static_pointer_cast<FindNodesArgs> (fnrpc->rpc_a);
 
@@ -856,9 +870,10 @@ void Node::Impl::IterativeSearchNodeResponse(
       return;
     }
   } else {
+    routing_table_->AddContact(fnrpc->contact, RankInfoPtr());
     AddContactsToContainer<FindNodesArgs>(contacts, fna);
-    for (size_t i = 0; i < contacts.size(); ++i)
-      routing_table_->AddContact(contacts[i], rank_info);
+//    for (size_t i = 0; i < contacts.size(); ++i)
+//      routing_table_->AddContact(contacts[i], rank_info);
   }
 
   if (!HandleIterationStructure<FindNodesArgs>(fnrpc->contact, fna, mark,
@@ -882,10 +897,10 @@ void Node::Impl::IterativeSearchNodeResponse(
 void Node::Impl::PingOldestContact(const Contact &oldest_contact,
                                    const Contact &replacement_contact,
                                    RankInfoPtr replacement_rank_info) {
-  Rpcs::PingFunctor callback(boost::bind(&Node::Impl::PingOldestContactCallback,
-                                         this, oldest_contact, _1, _2,
-                                         replacement_contact,
-                                         replacement_rank_info));
+  Rpcs::PingFunctor callback(std::bind(&Node::Impl::PingOldestContactCallback,
+                                       this, oldest_contact, arg::_1, arg::_2,
+                                       replacement_contact,
+                                       replacement_rank_info));
   rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kTcp);
 }
 
@@ -935,7 +950,8 @@ void Node::Impl::MonitoringDownlistThread() {
 
 void Node::Impl::ValidateContact(const Contact &contact) {
   GetPublicKeyAndValidationCallback callback(
-      boost::bind(&Node::Impl::ValidateContactCallback, this, contact, _1, _2));
+      std::bind(&Node::Impl::ValidateContactCallback, this, contact, arg::_1,
+                arg::_2));
   default_securifier_->GetPublicKeyAndValidation(contact.public_key_id(),
                                                  callback);
 }
@@ -951,14 +967,14 @@ void Node::Impl::ValidateContactCallback(Contact contact,
 
 void Node::Impl::SetService(std::shared_ptr<Service> service) {
   service_ = service;
-  service_->GetPingDownListSignalHandler()->connect(boost::bind(
-                      &Node::Impl::PingDownlistContact, this, _1));
+  service_->GetPingDownListSignalHandler()->connect(std::bind(
+                      &Node::Impl::PingDownlistContact, this, arg::_1));
 }
 
 void Node::Impl::PingDownlistContact(const Contact &contact) {
-  Rpcs::PingFunctor callback(boost::bind(
+  Rpcs::PingFunctor callback(std::bind(
                                 &Node::Impl::PingDownlistContactCallback,
-                                this, contact, _1, _2));
+                                this, contact, arg::_1, arg::_2));
   rpcs_->Ping(SecurifierPtr(), contact, callback, kTcp);
 }
 

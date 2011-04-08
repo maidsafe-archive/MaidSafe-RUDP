@@ -35,6 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/sender_task.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -124,9 +126,8 @@ class SenderTaskTest: public testing::Test {
   // Dummy function to imitate Securifier::GetPublicKeyAndValidation
   void GetPublicKeyAndValidation(const std::string & public_key_id,
                                  GetPublicKeyAndValidationCallback callback) {
-    asio_thread_group_.create_thread(boost::bind(&SenderTaskTest::DummyFind,
-                                                 this, public_key_id,
-                                                 callback));
+    asio_thread_group_.create_thread(std::bind(&SenderTaskTest::DummyFind,
+                                               this, public_key_id, callback));
   }
 
   void DummyFind(const std::string&,
@@ -137,7 +138,7 @@ class SenderTaskTest: public testing::Test {
   }
 
   transport::Info info_;
-  boost::shared_ptr<SenderTask> sender_task_;
+  std::shared_ptr<SenderTask> sender_task_;
   volatile boost::uint16_t count_callback_1_, count_callback_2_;
   boost::thread_group asio_thread_group_;
 };
@@ -147,8 +148,9 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
   crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb = boost::bind(&SenderTaskTest::TestTaskCallBack1, this,
-                                     _1, "request", _2, _3, "response", _4, _5);
+  TaskCallback task_cb = std::bind(&SenderTaskTest::TestTaskCallBack1, this,
+                                   arg::_1, "request", arg::_2, arg::_3,
+                                   "response", arg::_4, arg::_5);
   bool is_new_id(true);
   // Invalid tasks
   EXPECT_FALSE(sender_task_->AddTask(KeyValueSignature("", "", ""), info_,
@@ -204,9 +206,9 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
   }
   // Adding new task with different callback
   {
-    TaskCallback task_cb = boost::bind(&SenderTaskTest::TestTaskCallBack2,
-                                       this, _1, "request", _2, _3, "response",
-                                       _4, _5);
+    TaskCallback task_cb = std::bind(&SenderTaskTest::TestTaskCallBack2,
+                                     this, arg::_1, "request", arg::_2,
+                                     arg::_3, "response", arg::_4, arg::_5);
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
@@ -220,13 +222,13 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
 TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb_1 = boost::bind(&SenderTaskTest::TestTaskCallBack1,
-                                       this, _1, "request", _2, _3, "response",
-                                       _4, _5);
+  TaskCallback task_cb_1 = std::bind(&SenderTaskTest::TestTaskCallBack1,
+                                     this, arg::_1, "request", arg::_2,
+                                     arg::_3, "response", arg::_4, arg::_5);
   bool is_new_id(true);
   GetPublicKeyAndValidationCallback sender_task_cb_1 =
-      boost::bind(&SenderTask::SenderTaskCallback, sender_task_,
-                  "public_key_id_1", _1, _2);
+      std::bind(&SenderTask::SenderTaskCallback, sender_task_,
+                "public_key_id_1", arg::_1, arg::_2);
   // Invalid data
   crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
@@ -261,12 +263,12 @@ TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
 TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
-  TaskCallback task_cb_1 = boost::bind(&SenderTaskTest::TestTaskCallBack1,
-                                       this, _1, "request", _2, _3, "response",
-                                       _4, _5);
-  TaskCallback task_cb_2 = boost::bind(&SenderTaskTest::TestTaskCallBack2,
-                                       this, _1, "request", _2, _3, "response",
-                                       _4, _5);
+  TaskCallback task_cb_1 = std::bind(&SenderTaskTest::TestTaskCallBack1,
+                                     this, arg::_1, "request", arg::_2,
+                                     arg::_3, "response", arg::_4, arg::_5);
+  TaskCallback task_cb_2 = std::bind(&SenderTaskTest::TestTaskCallBack2,
+                                     this, arg::_1, "request", arg::_2, arg::_3,
+                                     "response", arg::_4, arg::_5);
   bool is_new_id(true);
   boost::uint16_t i(0);
   // Tasks to be executed and removed
@@ -299,33 +301,33 @@ TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     kvs_vector.push_back(kvs);
-    asio_thread_group_.create_thread(boost::bind(&SenderTask::AddTask,
-                                                 sender_task_, kvs,
-                                                 info_, request_signature,
-                                                 "public_key_id_3", task_cb_1,
-                                                 is_new_id));
+    asio_thread_group_.create_thread(std::bind(&SenderTask::AddTask,
+                                               sender_task_, kvs,
+                                               info_, request_signature,
+                                               "public_key_id_3", task_cb_1,
+                                               is_new_id));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     kvs_vector.push_back(kvs);
-    asio_thread_group_.create_thread(boost::bind(&SenderTask::AddTask,
-                                                 sender_task_, kvs,
-                                                 info_, request_signature,
-                                                 "public_key_id_4", task_cb_2,
-                                                 is_new_id));
+    asio_thread_group_.create_thread(std::bind(&SenderTask::AddTask,
+                                               sender_task_, kvs,
+                                               info_, request_signature,
+                                               "public_key_id_4", task_cb_2,
+                                               is_new_id));
   }
   asio_thread_group_.join_all();
 
   // Calling SenderTaskCallback
-  asio_thread_group_.create_thread(boost::bind(&SenderTask::SenderTaskCallback,
-                                               sender_task_,
-                                               "public_key_id_1",
-                                               "public_key",
-                                               "public_key_validation"));
-  asio_thread_group_.create_thread(boost::bind(&SenderTask::SenderTaskCallback,
-                                               sender_task_,
-                                               "public_key_id_2",
-                                               "public_key",
-                                               "public_key_validation"));
+  asio_thread_group_.create_thread(std::bind(&SenderTask::SenderTaskCallback,
+                                             sender_task_,
+                                             "public_key_id_1",
+                                             "public_key",
+                                             "public_key_validation"));
+  asio_thread_group_.create_thread(std::bind(&SenderTask::SenderTaskCallback,
+                                             sender_task_,
+                                             "public_key_id_2",
+                                             "public_key",
+                                             "public_key_validation"));
   asio_thread_group_.join_all();
 
   EXPECT_EQ(20u , count_callback_1_);
