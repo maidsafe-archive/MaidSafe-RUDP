@@ -25,6 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
+
 #include "gtest/gtest.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe-dht/transport/rudp/rudp_sliding_window.h"
