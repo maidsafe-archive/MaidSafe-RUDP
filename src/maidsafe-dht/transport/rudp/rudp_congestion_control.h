@@ -33,6 +33,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
+#include "rudp_sliding_window.h"
+#include "rudp_data_packet.h"
+#include "rudp_tick_timer.h"
+
 namespace maidsafe {
 
 namespace transport {

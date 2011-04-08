@@ -29,8 +29,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cmath>
 
 #include "rudp_congestion_control.h"
-#include "rudp_data_packet.h"
-#include "rudp_tick_timer.h"
 
 namespace bptime = boost::posix_time;
 
@@ -69,6 +67,7 @@ void RudpCongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
   bptime::ptime now = RudpTickTimer::Now();
 
   if ((seqnum % 16 == 1) && !arrival_times_.empty()) {
+    // The pushed in interval is the interval between every 16 arrived packets
     packet_pair_intervals_.push_back(now - arrival_times_.back());
     while (packet_pair_intervals_.size() > kMaxPacketPairIntervals)
       packet_pair_intervals_.pop_front();
@@ -154,9 +153,6 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
   ack_delay_ += bptime::microseconds(round_trip_time_variance_);
   ack_delay_ += kSynPeriod;
 
-  send_window_size_ = (available_buffer_size + 1) /
-                      RudpDataPacket::kMaxDataSize;
-
   if (packets_receiving_rate) {
     boost::uint64_t tmp = packets_receiving_rate_ * UINT64_C(7);
     tmp = (tmp + packets_receiving_rate) / 8;
@@ -167,6 +163,21 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
     boost::uint64_t tmp = estimated_link_capacity_ * UINT64_C(7);
     tmp = (tmp + estimated_link_capacity) / 8;
     estimated_link_capacity_ = static_cast<boost::uint32_t>(tmp);
+  }
+  // If the other side still has some available buffer size, then the speed
+  // can be increased this side. Otherwise, the sender's speed shall be reduced
+  // To prevent osillator:
+  //    a minum margin of 8 * kMaxDataSize for increase is taken
+  //    a step of 20% for reducing window size is defined
+  if (available_buffer_size > (8 * RudpDataPacket::kMaxDataSize)) {
+    send_window_size_ += (available_buffer_size + 1) /
+                         RudpDataPacket::kMaxDataSize;
+    if (send_window_size_ > RudpSlidingWindow<int>::kMaximumWindowSize)
+      send_window_size_ = RudpSlidingWindow<int>::kMaximumWindowSize;
+  } else {
+    send_window_size_ = 0.8 * send_window_size_;
+    if (send_window_size_ < 8 )
+      send_window_size_ = 0;
   }
 }
 
