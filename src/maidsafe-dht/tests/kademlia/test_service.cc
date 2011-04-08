@@ -44,6 +44,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -61,9 +63,9 @@ inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   *priv_key = kp.private_key();
 }
 
-class MockTransport : public transport::Transport {
+class MockTransportServiceTest : public transport::Transport {
  public:
-  explicit MockTransport(boost::asio::io_service &asio_service)  // NOLINT
+  explicit MockTransportServiceTest(boost::asio::io_service &asio_service)  // NOLINT
       : transport::Transport(asio_service) {}
   virtual transport::TransportCondition StartListening(
       const transport::Endpoint &) { return transport::kSuccess; }
@@ -389,7 +391,7 @@ class ServicesTest: public testing::Test {
     return delete_refresh_response.result();
   }
 
-  void DoOps(boost::function<bool()> ops, bool expectation, std::string op) {
+  void DoOps(std::function<bool()> ops, bool expectation, std::string op) {
     EXPECT_EQ(expectation, ops()) <<"For: " << op;
   }
 
@@ -825,10 +827,11 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     // but the routingtable already contains the sender
     AddContact(new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
-
     protobuf::StoreRefreshResponse store_refresh_response;
     service_->StoreRefresh(info_, store_refresh_request,
                            &store_refresh_response, &time_out);
+    AddTestValidation(securifier_, sender_id.String(),
+                      crypto_key_data.public_key());
     EXPECT_TRUE(store_refresh_response.result());
     EXPECT_EQ(1U, GetSenderTaskSize());
     JoinNetworkLookup(securifier_);
@@ -864,183 +867,185 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
 }
 
 TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
-//  crypto::RsaKeyPair crypto_key_data;
-//  crypto_key_data.GenerateKeys(4096);
-//  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-//  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
-//
-//  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
-//
-//  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
-//  std::string store_message = store_request.SerializeAsString();
-//  std::string store_message_sig;
-//  while (store_message_sig.empty())
-//    store_message_sig = crypto::AsymSign(store_message,
-//                                         crypto_key_data.private_key());
-//
-//  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
-//  std::string delete_message = delete_request.SerializeAsString();
-//  std::string delete_message_sig;
-//  while (delete_message_sig.empty())
-//    delete_message_sig = crypto::AsymSign(delete_message,
-//                                          crypto_key_data.private_key());
-//  RequestAndSignature request_signature(delete_message, delete_message_sig);
-//  bptime::time_duration old_ttl(bptime::pos_infin);
-//
-//  crypto::RsaKeyPair new_crypto_key_id;
-//  new_crypto_key_id.GenerateKeys(4096);
-//  NodeId new_sender_id = GenerateUniqueRandomId(node_id_, 502);
-//  Contact new_sender = ComposeContactWithKey(new_sender_id, 5001,
-//                                             new_crypto_key_id);
-//  protobuf::DeleteRefreshRequest delete_refresh_request;
-//  delete_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(new_sender));
-//  {
-//    service_->set_node_joined(false);
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service_->DeleteRefresh(info_, delete_refresh_request,
-//                            &delete_refresh_response, &time_out);
-//    EXPECT_FALSE(delete_refresh_response.result());
-//    service_->set_node_joined(true);
-//  }
-//  Clear();
-//  {
-//    // Try to deleterefresh with empty message and mesaage_sig
-//    // from empty datastore and empty routingtable
-//    std::string empty;
-//    delete_refresh_request.set_serialised_delete_request(empty);
-//    delete_refresh_request.set_serialised_delete_request_signature(empty);
-//
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service_->DeleteRefresh(info_, delete_refresh_request,
-//                            &delete_refresh_response, &time_out);
-//    EXPECT_FALSE(delete_refresh_response.result());
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    ASSERT_EQ(0U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-//    ASSERT_EQ(0U, CountUnValidatedContacts());
-//  }
-//  Clear();
-//  delete_refresh_request.set_serialised_delete_request(delete_message);
-//  delete_refresh_request.
-//      set_serialised_delete_request_signature(delete_message_sig);
-//  {
-//    // Try to deleterefresh an in-valid tuple
-//    // from populated datastore and empty routingtable
-//    SecurifierPtr securifier_local(new SecurifierValidateFalse(
-//        sender.public_key_id(), sender.public_key(), sender.other_info()));
-//    Service service(routing_table_, data_store_,
-//                    alternative_store_, securifier_local);
-//    service.set_node_joined(true);
-//
-//    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
-//                                        crypto_key_data.public_key(), false));
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service.DeleteRefresh(info_, delete_refresh_request,
-//                          &delete_refresh_response, &time_out);
-//    EXPECT_TRUE(delete_refresh_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize(service));
-//    JoinNetworkLookup(securifier_local);
-//    EXPECT_EQ(0U, GetSenderTaskSize(service));
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-//    ASSERT_EQ(0U, CountUnValidatedContacts());
-//  }
-//  Clear();
-//  {
-//    // Try to deleterefresh a validated tuple
-//    // from empty datastore, but the routingtable already contains the sender
-//    AddContact(sender, rank_info_);
-//    ASSERT_EQ(1U, GetRoutingTableSize());
-//    ASSERT_EQ(0U, CountUnValidatedContacts());
-//
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service_->DeleteRefresh(info_, delete_refresh_request,
-//                            &delete_refresh_response, &time_out);
-//    EXPECT_FALSE(delete_refresh_response.result());
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    ASSERT_EQ(0U, GetDataStoreSize());
-//    ASSERT_EQ(1U, GetRoutingTableSize());
-//    ASSERT_EQ(0U, CountUnValidatedContacts());
-//  }
-//  Clear();
-//  {
-//    // Try to deleterefresh a validated tuple, from the datastore already
-//    // containing it
-//    protobuf::StoreResponse store_response;
-//    service_->Store(info_, store_request, store_message,
-//                    store_message_sig, &store_response, &time_out);
-//    ASSERT_TRUE(store_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    bptime::ptime refresh_time_old = GetRefreshTime(kvs);
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-//    ASSERT_EQ(1U, CountUnValidatedContacts());
-//
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service_->DeleteRefresh(info_, delete_refresh_request,
-//                            &delete_refresh_response, &time_out);
-//    // If the entry was not marked as deleted yet, trying to deleterefresh it
-//    // will fail, but the sender will be added into the routing table
-//    EXPECT_TRUE(delete_refresh_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    bptime::ptime refresh_time_new = GetRefreshTime(kvs);
-//    EXPECT_EQ(refresh_time_new, refresh_time_old);
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-////    ASSERT_EQ(2U, CountUnValidatedContacts());
-//  }
-//  Clear();
-//  {
-//    // Try to deleterefresh a validated tuple, make a delete before doing the
-//    // deleterefresh, to mark the entry to be deleted
-//    protobuf::StoreResponse store_response;
-//    service_->Store(info_, store_request, store_message,
-//                    store_message_sig, &store_response, &time_out);
-//    ASSERT_TRUE(store_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-//    ASSERT_EQ(1U, CountUnValidatedContacts());
-//
-//    // delete the entry, mark it as "deleted"
-//    protobuf::DeleteResponse delete_response;
-//    service_->Delete(info_, delete_request, delete_message,
-//                     delete_message_sig, &delete_response, &time_out);
-//    EXPECT_TRUE(delete_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    bptime::ptime refresh_time_old = GetRefreshTime(kvs);
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    // data_store_ will only mark the entry as deleted, but still keep it
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-//    ASSERT_EQ(1U, CountUnValidatedContacts());
-//
-//    protobuf::DeleteRefreshResponse delete_refresh_response;
-//    service_->DeleteRefresh(info_, delete_refresh_request,
-//                            &delete_refresh_response, &time_out);
-//    // If the entry was marked as deleted yet, trying to deleterefresh it
-//    // will refresh its ttl
-//    EXPECT_TRUE(delete_refresh_response.result());
-//    EXPECT_EQ(1U, GetSenderTaskSize());
-//    JoinNetworkLookup(securifier_);
-//    bptime::ptime refresh_time_new = GetRefreshTime(kvs);
-//    EXPECT_GT(refresh_time_new, refresh_time_old);
-//    EXPECT_EQ(0U, GetSenderTaskSize());
-//    ASSERT_EQ(1U, GetDataStoreSize());
-//    ASSERT_EQ(0U, GetRoutingTableSize());
-////    ASSERT_EQ(2U, CountUnValidatedContacts());
-//  }
+  crypto::RsaKeyPair crypto_key_data;
+  crypto_key_data.GenerateKeys(4096);
+  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+
+  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
+
+  protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
+  std::string store_message = store_request.SerializeAsString();
+  std::string store_message_sig;
+  while (store_message_sig.empty())
+    store_message_sig = crypto::AsymSign(store_message,
+                                          crypto_key_data.private_key());
+
+  protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
+  std::string delete_message = delete_request.SerializeAsString();
+  std::string delete_message_sig;
+  while (delete_message_sig.empty())
+    delete_message_sig = crypto::AsymSign(delete_message,
+                                          crypto_key_data.private_key());
+  RequestAndSignature request_signature(delete_message, delete_message_sig);
+  bptime::time_duration old_ttl(bptime::pos_infin);
+
+  crypto::RsaKeyPair new_crypto_key_id;
+  new_crypto_key_id.GenerateKeys(4096);
+  NodeId new_sender_id = GenerateUniqueRandomId(node_id_, 502);
+  Contact new_sender = ComposeContactWithKey(new_sender_id, 5001,
+                                              new_crypto_key_id);
+  protobuf::DeleteRefreshRequest delete_refresh_request;
+  AddTestValidation(securifier_, sender_id.String(),
+                    crypto_key_data.public_key());
+  delete_refresh_request.mutable_sender()->CopyFrom(ToProtobuf(new_sender));
+  {
+    service_->set_node_joined(false);
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    EXPECT_FALSE(delete_refresh_response.result());
+    service_->set_node_joined(true);
+  }
+  Clear();
+  {
+    // Try to deleterefresh with empty message and mesaage_sig
+    // from empty datastore and empty routingtable
+    std::string empty;
+    delete_refresh_request.set_serialised_delete_request(empty);
+    delete_refresh_request.set_serialised_delete_request_signature(empty);
+
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
+  }
+  Clear();
+  delete_refresh_request.set_serialised_delete_request(delete_message);
+  delete_refresh_request.
+      set_serialised_delete_request_signature(delete_message_sig);
+  {
+    // Try to deleterefresh an in-valid tuple
+    // from populated datastore and empty routingtable
+    SecurifierPtr securifier_local(new SecurifierValidateFalse(
+        sender.public_key_id(), sender.public_key(), sender.other_info()));
+    Service service(routing_table_, data_store_,
+                    alternative_store_, securifier_local);
+    service.set_node_joined(true);
+
+    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                        crypto_key_data.public_key(), false));
+    ASSERT_EQ(1U, GetDataStoreSize());
+
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service.DeleteRefresh(info_, delete_refresh_request,
+                          &delete_refresh_response, &time_out);
+    EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize(service));
+    JoinNetworkLookup(securifier_local);
+    EXPECT_EQ(0U, GetSenderTaskSize(service));
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
+  }
+  Clear();
+  {
+    // Try to deleterefresh a validated tuple
+    // from empty datastore, but the routingtable already contains the sender
+    AddContact(sender, rank_info_);
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
+
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetRoutingTableSize());
+    ASSERT_EQ(0U, CountUnValidatedContacts());
+  }
+  Clear();
+  {
+    // Try to deleterefresh a validated tuple, from the datastore already
+    // containing it
+    protobuf::StoreResponse store_response;
+    service_->Store(info_, store_request, store_message,
+                    store_message_sig, &store_response, &time_out);
+    ASSERT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
+
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    // If the entry was not marked as deleted yet, trying to deleterefresh it
+    // will fail, but the sender will be added into the routing table
+    EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    bptime::ptime refresh_time_new = GetRefreshTime(kvs);
+    EXPECT_EQ(refresh_time_new, refresh_time_old);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  //    ASSERT_EQ(2U, CountUnValidatedContacts());
+  }
+  Clear();
+  {
+    // Try to deleterefresh a validated tuple, make a delete before doing the
+    // deleterefresh, to mark the entry to be deleted
+    protobuf::StoreResponse store_response;
+    service_->Store(info_, store_request, store_message,
+                    store_message_sig, &store_response, &time_out);
+    ASSERT_TRUE(store_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
+
+    // delete the entry, mark it as "deleted"
+    protobuf::DeleteResponse delete_response;
+    service_->Delete(info_, delete_request, delete_message,
+                      delete_message_sig, &delete_response, &time_out);
+    EXPECT_TRUE(delete_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    // data_store_ will only mark the entry as deleted, but still keep it
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+    ASSERT_EQ(1U, CountUnValidatedContacts());
+
+    protobuf::DeleteRefreshResponse delete_refresh_response;
+    service_->DeleteRefresh(info_, delete_refresh_request,
+                            &delete_refresh_response, &time_out);
+    // If the entry was marked as deleted yet, trying to deleterefresh it
+    // will refresh its ttl
+    EXPECT_TRUE(delete_refresh_response.result());
+    EXPECT_EQ(1U, GetSenderTaskSize());
+    JoinNetworkLookup(securifier_);
+    bptime::ptime refresh_time_new = GetRefreshTime(kvs);
+    EXPECT_GT(refresh_time_new, refresh_time_old);
+    EXPECT_EQ(0U, GetSenderTaskSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
+    ASSERT_EQ(0U, GetRoutingTableSize());
+  //    ASSERT_EQ(2U, CountUnValidatedContacts());
+  }
 }
 
 TEST_F(ServicesTest, BEH_KAD_FindNodes) {
@@ -1893,51 +1898,50 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_EQ(6U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
 
-  boost::shared_ptr<boost::asio::io_service> asio_service(
-      new boost::asio::io_service);
+  IoServicePtr asio_service(new boost::asio::io_service);
   boost::thread_group asio_thread_group;
-  boost::function<bool()> ops;
+  std::function<bool()> ops;
   // Posting jobs
   // Store
-  ops = boost::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v1,
-                    crypto_key_data_1);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStore"));
-  ops = boost::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v2,
-                    crypto_key_data_1);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStore"));
+  ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v1,
+                  crypto_key_data_1);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStore"));
+  ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v2,
+                  crypto_key_data_1);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStore"));
   // Store Refresh
-  ops = boost::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
-                    crypto_key_data_4, sender_id_2, k2_v1, crypto_key_data_2);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStoreRefresh"));
-  ops = boost::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
-                    crypto_key_data_4, sender_id_2, k2_v2, crypto_key_data_2);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoStoreRefresh"));
+  ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
+                  crypto_key_data_4, sender_id_2, k2_v1, crypto_key_data_2);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStoreRefresh"));
+  ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
+                  crypto_key_data_4, sender_id_2, k2_v2, crypto_key_data_2);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoStoreRefresh"));
   // Delete
-  ops = boost::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v1,
-                    crypto_key_data_3);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDelete"));
-  ops = boost::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v2,
-                    crypto_key_data_3);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDelete"));
+  ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v1,
+                  crypto_key_data_3);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDelete"));
+  ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v2,
+                  crypto_key_data_3);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDelete"));
   // Delete refresh
-  ops = boost::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
-                    crypto_key_data_2, sender_id_4, k4_v1, crypto_key_data_4);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDeleteRefresh"));
-  ops = boost::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
-                    crypto_key_data_2, sender_id_4, k4_v2, crypto_key_data_4);
-  asio_service->post(boost::bind(&ServicesTest::DoOps, this, ops, true,
-                                 "DoDeleteRefresh"));
+  ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
+                  crypto_key_data_2, sender_id_4, k4_v1, crypto_key_data_4);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDeleteRefresh"));
+  ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
+                  crypto_key_data_2, sender_id_4, k4_v2, crypto_key_data_4);
+  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                               "DoDeleteRefresh"));
   // Running the threads
+  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
   for (size_t i = 0; i < kNumberOfThreads; ++i)
-    asio_thread_group.create_thread(boost::bind(&boost::asio::io_service::run,
-                                                asio_service));
+    asio_thread_group.create_thread(std::bind(fn, asio_service));
   // Check results
   asio_thread_group.join_all();
   JoinNetworkLookup(securifier_);
@@ -1972,7 +1976,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
 TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   MessageHandlerPtr message_handler_ptr(new MessageHandler(securifier_));
   boost::asio::io_service ioservice;
-  TransportPtr transport_ptr(new MockTransport(ioservice));
+  TransportPtr transport_ptr(new MockTransportServiceTest(ioservice));
   // Connecting to Signals
   service_->ConnectToSignals(transport_ptr, message_handler_ptr);
   // Data

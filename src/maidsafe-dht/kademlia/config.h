@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_CONFIG_H_
 #define MAIDSAFE_DHT_KADEMLIA_CONFIG_H_
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -36,7 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
-#include "boost/function.hpp"
 #ifdef __MSVC__
 #pragma warning(push)
 #pragma warning(disable:4512)
@@ -70,26 +70,26 @@ typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
 
 // Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
 // return code.
-typedef boost::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,  // NOLINT (Fraser)
-                                   UpdateFunctor;
+typedef std::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,  // NOLINT (Fraser)
+                                 UpdateFunctor;
 
 // Functor for use in Node::FindValue.  Parameters in order are: return code,
 // value(s) if found, k closest nodes if value not found, contact details of
 // node holding value in its alternative_store, and contact details of node
 // needing a cache copy of the values.
-typedef boost::function<void(int,
-                             std::vector<std::string>,
-                             std::vector<Contact>,
-                             Contact,
-                             Contact)> FindValueFunctor;
+typedef std::function<void(int,
+                           std::vector<std::string>,
+                           std::vector<Contact>,
+                           Contact,
+                           Contact)> FindValueFunctor;
 
 // Functor for use in Node::FindNodes.  Parameters in order are: return code,
 // k closest nodes.
-typedef boost::function<void(int, std::vector<Contact>)> FindNodesFunctor;
+typedef std::function<void(int, std::vector<Contact>)> FindNodesFunctor;
 
 // Functor for use in Node::GetContact.  Parameters in order are: return code,
 // node's contact details.
-typedef boost::function<void(int, Contact)> GetContactFunctor;
+typedef std::function<void(int, Contact)> GetContactFunctor;
 
 
 typedef NodeId Key;

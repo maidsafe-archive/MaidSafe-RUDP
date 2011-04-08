@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/utils.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -148,10 +150,10 @@ bool NodeWithinClosest(const NodeId &node_id,
                        const std::vector<Contact> &closest_contacts,
                        const NodeId &target) {
   return std::find_if(closest_contacts.rbegin(), closest_contacts.rend(),
-      boost::bind(static_cast<bool(*)(const NodeId&,  // NOLINT
-                                      const Contact&,
-                                      const NodeId&)>(&CloserToTarget),
-                  node_id, _1, target)) != closest_contacts.rend();
+      std::bind(static_cast<bool(*)(const NodeId&,  // NOLINT
+                                    const Contact&,
+                                    const NodeId&)>(&CloserToTarget),
+                node_id, arg::_1, target)) != closest_contacts.rend();
 }
 
 bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
@@ -159,7 +161,7 @@ bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
     return false;
   size_t size_before(contacts->size());
   contacts->erase(std::remove_if(contacts->begin(), contacts->end(),
-                                 boost::bind(&HasId, _1, node_id)),
+                                 std::bind(&HasId, arg::_1, node_id)),
                   contacts->end());
   return contacts->size() != size_before;
 }
