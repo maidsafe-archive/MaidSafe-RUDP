@@ -223,6 +223,7 @@ class Node {
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_BEH_KAD_Join_Test;
   friend class test::NodeApiTest_BEH_KAD_Join_Server_Test;
+
  private:
   class Impl;
   boost::scoped_ptr<Impl> pimpl_;

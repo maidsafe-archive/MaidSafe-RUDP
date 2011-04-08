@@ -49,23 +49,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/utils.h"
 
 namespace fs = boost::filesystem;
+namespace bptime = boost::posix_time;
+
 namespace maidsafe {
 
 namespace kademlia {
 
 namespace test {
 
-
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
+
 class EnvironmentNodes : public ::testing::Environment {
  public:
-  EnvironmentNodes(boost::uint16_t num_of_nodes,
+  EnvironmentNodes(
+      boost::uint16_t num_of_nodes,
       boost::uint16_t k,
       boost::uint16_t alpha,
       boost::uint16_t beta,
       boost::uint16_t num_of_servers,
-      const boost::posix_time::time_duration &mean_refresh_interval);
+      const bptime::time_duration &mean_refresh_interval);
+
  protected:
   virtual void SetUp();
   virtual void TearDown();

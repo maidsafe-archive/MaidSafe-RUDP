@@ -26,7 +26,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
 
+#ifdef WIN32
 #include <ShlObj.h>
+#endif
 
 namespace maidsafe {
 
@@ -123,7 +125,8 @@ std::string get_app_directory() {
   return app_path.string();
 }
 
-EnvironmentNodes::EnvironmentNodes(boost::uint16_t num_of_nodes,
+EnvironmentNodes::EnvironmentNodes(
+    boost::uint16_t num_of_nodes,
     boost::uint16_t k,
     boost::uint16_t alpha,
     boost::uint16_t beta,
@@ -174,7 +177,7 @@ void EnvironmentNodes::SetUp() {
 
     local_thread_group.reset(new boost::thread_group());
 
-    for (int i = 0; i < kThreadGroupSize; ++i)
+    for (int j = 0; j < kThreadGroupSize; ++j)
        local_thread_group->create_thread(std::bind(static_cast<
           std::size_t(boost::asio::io_service::*)()>
               (&boost::asio::io_service::run), local_asio));
@@ -184,7 +187,7 @@ void EnvironmentNodes::SetUp() {
     TransportPtr local_transport(new transport::TcpTransport(*local_asio));
     EXPECT_EQ(transport::kSuccess, local_transport->StartListening(
         transport::Endpoint("127.0.0.1", 5000 + i)));
-    
+
     transports_.push_back(local_transport);
     AlternativeStorePtr alternative_store;
     alternative_stores_.push_back(alternative_store);
@@ -231,7 +234,7 @@ void EnvironmentNodes::SetUp() {
     else
       EXPECT_TRUE(nodes_[i]->client_only_node());
   }
-  
+
   // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
   // joined before others. However, it depends on what to be tested
 }
@@ -239,6 +242,9 @@ void EnvironmentNodes::SetUp() {
 void EnvironmentNodes::TearDown() {
     DLOG(INFO) << "TestNode, TearDown Starting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(1));
+
+    for (boost::int16_t n = kNetworkSize - 1; n >= 0; --n)
+      transports_[n]->StopListening();
 
     for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
       DLOG(INFO) << "stopping node " << i << std::endl;
