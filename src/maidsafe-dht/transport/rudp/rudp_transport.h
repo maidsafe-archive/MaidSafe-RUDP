@@ -56,9 +56,11 @@ class RudpTransport : public Transport,
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
   virtual void StopListening();
-  // This timeout define the max allowed interval between to packets
-  // If the received to be expected respond slow (say because of the large msg
-  // to be processed), this timeout shall be given a larger number
+  // This timeout define the max allowed duration for the receiver to respond
+  // a received request. If the receiver is to be expected respond slow
+  // (say because of the large request msg to be processed), a long duration
+  // shall be given for this timeout.
+  // If no response to be expected, kImmediateTimeout shall be given.
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);

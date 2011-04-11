@@ -70,12 +70,13 @@ void TestMessageHandler::DoTimeOutOnRequestReceived(const std::string &request,
                                                     std::string *response,
                                                     Timeout *timeout) {
   DLOG(INFO) << "Mocking a timedout response" << std::endl;
-  boost::this_thread::sleep(boost::posix_time::seconds(5));
   boost::mutex::scoped_lock lock(mutex_);
   requests_received_.push_back(std::make_pair(request, info));
   *response = "Timed out reply to " + request + " (Id = " + boost::lexical_cast<
               std::string>(requests_received_.size()) + ")";
   responses_sent_.push_back(*response);
+  lock.unlock();
+  boost::this_thread::sleep(boost::posix_time::seconds(5));
   *timeout = kImmediateTimeout;
 }
 
@@ -416,7 +417,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
       _2, _3, _4));
   sender->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
-  listener->on_message_received()->connect(
+  auto it_connection = listener->on_message_received()->connect(
       boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1,
       _2, _3, _4));
   listener->on_error()->connect(
@@ -440,6 +441,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
             msgh_sender->responses_received().at(0).first);
 
   // Timeout scenario
+  it_connection.disconnect();
   listener->on_message_received()->connect(
       boost::bind(&TestMessageHandler::DoTimeOutOnRequestReceived,
                   msgh_listener, _1, _2, _3, _4));
