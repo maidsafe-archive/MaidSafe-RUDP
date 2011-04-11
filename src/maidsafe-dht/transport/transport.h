@@ -51,7 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(pop)
 #endif
 
-#include "maidsafe-dht/transport/service.h"
+// #include "maidsafe-dht/transport/service.h"
 
 /* #if MAIDSAFE_DHT_VERSION < 25
    #error This API is not compatible with the installed library.\
