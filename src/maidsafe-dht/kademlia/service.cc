@@ -64,7 +64,8 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       node_contact_(),
       k_(k),
       ping_down_list_contacts_(new PingDownListContactsPtr::element_type),
-      sender_task_(new SenderTask) {}
+      sender_task_(new SenderTask),
+      client_node_id_(NodeId().String()) {}
 
 Service::Service(std::shared_ptr<RoutingTable> routing_table,
                  std::shared_ptr<DataStore> data_store,
@@ -132,8 +133,10 @@ void Service::Ping(const transport::Info &info,
   if (request.ping() != "ping")
     return;
   response->set_echo("pong");
-  routing_table_->AddContact(FromProtobuf(request.sender()),
-                             RankInfoPtr(new transport::Info(info)));
+  if (request.sender().node_id() != client_node_id_) {
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+  }
 }
 
 void Service::FindValue(const transport::Info &info,
@@ -173,14 +176,15 @@ void Service::FindValue(const transport::Info &info,
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
   }
   response->set_result(true);
-  routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
+  if (sender.node_id().String() != client_node_id_)
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::FindNodes(const transport::Info &info,
                         const protobuf::FindNodesRequest &request,
                         protobuf::FindNodesResponse *response,
                         transport::Timeout*) {
-  std::cout<<"\nServices findNodes\n";
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -200,8 +204,10 @@ void Service::FindNodes(const transport::Info &info,
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
   }
   response->set_result(true);
-  routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
-  std::cout<<"\nresponse_result::"<<response->result();
+  if (sender.node_id().String() != client_node_id_) {
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+  }
 }
 
 void Service::Store(const transport::Info &info,
@@ -312,8 +318,9 @@ void Service::StoreCallback(KeyValueSignature key_value_signature,
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
                        public_key, public_key_validation, false))
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
+    if (request.sender().node_id() != client_node_id_)
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
@@ -333,8 +340,9 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
   // always be add into the routing table
   if (ValidateAndStore(key_value_signature, ori_store_request, info,
       request_signature, public_key, public_key_validation, true))
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
+    if (request.sender().node_id() != client_node_id_)
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
 }
 
 bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
@@ -479,8 +487,9 @@ void Service::DeleteCallback(KeyValueSignature key_value_signature,
   // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, request, info, request_signature,
                         public_key, public_key_validation, false))
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
+    if (request.sender().node_id() != client_node_id_)
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
 }
 
 void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
@@ -501,8 +510,9 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
   if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
                         request_signature, public_key, public_key_validation,
                         true)) {
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
+    if (request.sender().node_id() != client_node_id_)
+      routing_table_->AddContact(FromProtobuf(request.sender()),
+                                 RankInfoPtr(new transport::Info(info)));
   }
 }
 
@@ -554,7 +564,7 @@ void Service::Downlist(const transport::Info &/*info*/,
   }
 }
 
-PingDownListContactsPtr  Service::GetPingDownListSignalHandler() {
+PingDownListContactsPtr Service::GetPingDownListSignalHandler() {
   return this->ping_down_list_contacts_;
 }
 

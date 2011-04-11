@@ -38,8 +38,9 @@ ConnectedObjectsList::ConnectedObjectsList()
 
 ConnectedObjectsList::~ConnectedObjectsList() {}
 
-boost::uint32_t ConnectedObjectsList::AddObject(const TransportPtr transport,
-                    const MessageHandlerPtr message_handler) {
+boost::uint32_t ConnectedObjectsList::AddObject(
+    const TransportPtr transport,
+    const MessageHandlerPtr message_handler) {
   ConnectedObject object(transport, message_handler, index_);
   UniqueLock unique_lock(shared_mutex_);
   ConnectedObjectsContainer::index<TagIndexId>::type& index_by_index_id =
@@ -73,6 +74,11 @@ TransportPtr ConnectedObjectsList::GetTransport(boost::uint32_t index) {
   if (it == index_by_index_id.end())
     return TransportPtr();
   return (*it).transport_ptr;
+}
+
+size_t ConnectedObjectsList::Size() {
+  SharedLock shared_lock(shared_mutex_);
+  return objects_container_->size();
 }
 
 }  // namespace kademlia

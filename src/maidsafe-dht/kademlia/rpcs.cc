@@ -36,12 +36,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/udp_transport.h"
 
 namespace arg = std::placeholders;
+
 // TODO(Fraser#5#): 2011-01-30 - Handle sending to port-restricted peers.
 namespace maidsafe {
 
 namespace kademlia {
 
 const boost::uint16_t kFailureTolerance = 2;
+
+Rpcs::~Rpcs() {
+  size_t pending(connected_objects_.Size()), zero(0);
+  while (pending != zero) {
+    pending = connected_objects_.Size();
+    boost::this_thread::sleep(boost::posix_time::milliseconds(250));
+  }
+}
 
 void Rpcs::Ping(SecurifierPtr securifier,
                 const Contact &peer,
@@ -313,9 +322,9 @@ void Rpcs::PingCallback(
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
     ++(rpcs_failure_peer->rpcs_failure);
     TransportPtr transport = connected_objects_.GetTransport(index);
-    transport->Send(
-        message, rpcs_failure_peer->peer.PreferredEndpoint(),
-        transport::kDefaultInitialTimeout);
+    transport->Send(message,
+                    rpcs_failure_peer->peer.PreferredEndpoint(),
+                    transport::kDefaultInitialTimeout);
   } else {
     connected_objects_.RemoveObject(index);
     if (transport_condition != transport::kSuccess) {
@@ -540,7 +549,7 @@ void Rpcs::Prepare(TransportType type,
       break;
   }
   message_handler.reset(new MessageHandler(securifier ? securifier :
-                                                       default_securifier_));
+                                                        default_securifier_));
   // Connect message handler to transport for incoming raw messages
   transport->on_message_received()->connect(
       transport::OnMessageReceived::element_type::slot_type(

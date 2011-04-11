@@ -41,6 +41,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -51,6 +53,7 @@ const boost::uint16_t kThreadGroupSize = 3;
 
 namespace test {
 
+extern boost::uint16_t kK_;
 extern std::vector<std::shared_ptr<maidsafe::kademlia::Node>> nodes_;
 extern std::vector<NodeId> node_ids_;
 extern boost::uint16_t kNetworkSize;
@@ -68,6 +71,7 @@ class NodeApiTest: public testing::Test {
         transport_(),
         message_handler_(),
         alternative_store_() {}
+
   void SetUp() {
     rsa_key_pair_.GenerateKeys(4096);
     asio_service_.reset(new boost::asio::io_service);
@@ -81,17 +85,18 @@ class NodeApiTest: public testing::Test {
     EXPECT_EQ(transport::kSuccess,
               transport_->StartListening(transport::Endpoint("127.0.0.1",
                                                              8000)));
-    securifier_.reset(new Securifier("", rsa_key_pair_.public_key(),
+    securifier_.reset(new Securifier("",
+                                     rsa_key_pair_.public_key(),
                                      rsa_key_pair_.private_key()));
     message_handler_.reset(new MessageHandler(securifier_));
   }
+
   void TearDown() {
     work_.reset();
     asio_service_->stop();
     thread_group_->join_all();
     thread_group_.reset();
   }
-  ~NodeApiTest() {}
 
   crypto::RsaKeyPair rsa_key_pair_;
   IoServicePtr asio_service_;
@@ -101,6 +106,7 @@ class NodeApiTest: public testing::Test {
   TransportPtr transport_;
   MessageHandlerPtr message_handler_;
   AlternativeStorePtr alternative_store_;
+
  public:
   KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
                             const size_t &value_size) {
@@ -116,16 +122,18 @@ class NodeApiTest: public testing::Test {
       signature = crypto::AsymSign(value, rsa_key_pair.private_key());
     return KeyValueSignature(key, value, signature);
   }
-  void Callback(const int &result, bool *done) {
+
+  void Callback(const int &result, volatile bool *done) {
     *done = true;
     // EXPECT_LE(int(0), result);
   }
+
   void FindNodesCallback(const int &result,
-                         std::vector<Contact> contacts, const int &node_id_pos,
-                         bool *done) {
-    *done = true;
+                         std::vector<Contact> contacts,
+                         const int &node_id_pos,
+                         volatile bool *done) {
     EXPECT_EQ(result, contacts.size());
-    EXPECT_GE(nodes_[kNetworkSize - 1]->k(), contacts.size());
+    EXPECT_EQ(kK_, contacts.size());
     size_t i(0);
     bool own_contact_found(false);
     for (i = 0; i < contacts.size(); ++i) {
@@ -138,11 +146,14 @@ class NodeApiTest: public testing::Test {
     }
     EXPECT_EQ(i, contacts.size());
     EXPECT_TRUE(own_contact_found);
+    *done = true;
   }
+
   void FindValueCallback(int result, std::vector<std::string> values,
-                          std::vector<Contact> closest_contacts,
-                          Contact alternative_value_holder,
-                          Contact contact_to_cache, bool *done) {
+                         std::vector<Contact> closest_contacts,
+                         Contact alternative_value_holder,
+                         Contact contact_to_cache,
+                         volatile bool *done) {
     *done = true;
     // EXPECT_LE(int(0), result);
     auto it = std::find(node_ids_.begin(), node_ids_.end(),
@@ -150,7 +161,7 @@ class NodeApiTest: public testing::Test {
     if (result < 0) {
       if (it == node_ids_.end()) {
         EXPECT_EQ(size_t(0), values.size());
-        EXPECT_GE(nodes_[kNetworkSize - 1]->k(), closest_contacts.size());
+        EXPECT_GE(kK_, closest_contacts.size());
       } else {
         EXPECT_EQ(size_t(0), values.size());
         EXPECT_EQ(size_t(0), closest_contacts.size());
@@ -165,33 +176,29 @@ class NodeApiTest: public testing::Test {
 TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 2, 1, 1,
+                      alternative_store_, true, 10, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  nodes_.push_back(node);
-  ++kNetworkSize;
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(size_t(kNetworkSize), nodes_.size());
-  ASSERT_TRUE(nodes_[kNetworkSize -1]->client_only_node());
-  ASSERT_TRUE(nodes_[kNetworkSize -1]->joined());
-  nodes_[kNetworkSize - 1]->Leave(NULL);
-  nodes_.pop_back();
-  --kNetworkSize;
+  ASSERT_TRUE(node->client_only_node());
+  ASSERT_TRUE(node->joined());
+  node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
-  std::shared_ptr<Node::Impl> node;
-  node.reset(new Node::Impl(asio_service_, transport_, message_handler_,
-                            securifier_, alternative_store_, false, 2, 1, 1,
-                            bptime::seconds(3600)));
+  std::shared_ptr<Node> node;
+  node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
+                      alternative_store_, true, 10, 3, 2,
+                      bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
@@ -201,22 +208,17 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
 
   ASSERT_FALSE(node->client_only_node());
   ASSERT_TRUE(node->joined());
-  ASSERT_TRUE(node->refresh_thread_running());
-  ASSERT_TRUE(node->downlist_thread_running());
   node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 2, 1, 1,
+                      alternative_store_, true, kK_, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  node_ids_.push_back(node_id);
-  nodes_.push_back(node);
-  ++kNetworkSize;
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -224,29 +226,24 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   //  set node_id_pos for node to be searched and latter check for this node
   //  into list of output contacts
   int node_id_pos(0);
-  FindNodesFunctor fnf = boost::bind(&NodeApiTest::FindNodesCallback, this, _1,
-                                     _2, node_id_pos, &done);
-  nodes_[kNetworkSize - 1]->FindNodes(nodes_[node_id_pos]->contact().node_id(),
-                                      fnf);
+  FindNodesFunctor fnf = std::bind(&NodeApiTest::FindNodesCallback, this,
+                                   arg::_1, arg::_2, node_id_pos, &done);
+  node->FindNodes(nodes_[node_id_pos]->contact().node_id(), fnf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  nodes_[kNetworkSize - 1]->Leave(NULL);
-  nodes_.pop_back();
-  node_ids_.pop_back();
-  --kNetworkSize;
+
+  transport_->StopListening();
+  node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Store) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 2, 1, 1,
+                      alternative_store_, true, 10, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  node_ids_.push_back(node_id);
-  nodes_.push_back(node);
-  ++kNetworkSize;
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -260,32 +257,27 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
     KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair, 1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
-  StoreFunctor sf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
-    nodes_[kNetworkSize - 1]->Store(NodeId(key_value_signatures[i].key),
-      key_value_signatures[i].signature, key_value_signatures[i].value, ttl,
-      securifier_, sf);
+    node->Store(NodeId(key_value_signatures[i].key),
+                key_value_signatures[i].signature,
+                key_value_signatures[i].value,
+                ttl, securifier_, sf);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   }
-  nodes_[kNetworkSize - 1]->Leave(NULL);
-  nodes_.pop_back();
-  node_ids_.pop_back();
-  --kNetworkSize;
+  node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 2, 1, 1,
+                      alternative_store_, true, 10, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  node_ids_.push_back(node_id);
-  nodes_.push_back(node);
-  ++kNetworkSize;
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -299,40 +291,35 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
     KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair, 1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
-  StoreFunctor sf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
-    nodes_[kNetworkSize - 1]->Store(NodeId(key_value_signatures[i].key),
-      key_value_signatures[i].signature, key_value_signatures[i].value, ttl,
-      securifier_, sf);
+    node->Store(NodeId(key_value_signatures[i].key),
+                key_value_signatures[i].signature,
+                key_value_signatures[i].value,
+                ttl, securifier_, sf);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   }
   done = false;
-  FindValueFunctor fvf = boost::bind(&NodeApiTest::FindValueCallback, this, _1,
-                                      _2, _3, _4, _5, &done);
+  FindValueFunctor fvf = std::bind(&NodeApiTest::FindValueCallback, this,
+                                   arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
+                                   &done);
 
-  nodes_[kNetworkSize - 1]->FindValue(NodeId(key_value_signatures[0].key),
-                                      securifier_, fvf);
+  node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
   while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  nodes_[kNetworkSize - 1]->Leave(NULL);
-  nodes_.pop_back();
-  node_ids_.pop_back();
-  --kNetworkSize;
+  node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Delete) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 2, 1, 1,
+                      alternative_store_, true, 10, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
-  node_ids_.push_back(node_id);
-  nodes_.push_back(node);
-  ++kNetworkSize;
-  bool done(false);
-  JoinFunctor jf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  volatile bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
@@ -346,28 +333,26 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
     KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair, 1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
-  StoreFunctor sf = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
-    nodes_[kNetworkSize - 1]->Store(NodeId(key_value_signatures[i].key),
-      key_value_signatures[i].signature, key_value_signatures[i].value, ttl,
-      securifier_, sf);
+    node->Store(NodeId(key_value_signatures[i].key),
+                key_value_signatures[i].signature,
+                key_value_signatures[i].value,
+                ttl, securifier_, sf);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   }
   done = false;
-  DeleteFunctor df = boost::bind(&NodeApiTest::Callback, this, _1, &done);
+  DeleteFunctor df = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
 
-  nodes_[kNetworkSize - 1]->Delete(NodeId(key_value_signatures[0].key),
-                                   key_value_signatures[0].value,
-                                   key_value_signatures[0].signature,
-                                   securifier_, df);
+  node->Delete(NodeId(key_value_signatures[0].key),
+               key_value_signatures[0].value,
+               key_value_signatures[0].signature,
+               securifier_, df);
   while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  nodes_[kNetworkSize - 1]->Leave(NULL);
-  nodes_.pop_back();
-  node_ids_.pop_back();
-  --kNetworkSize;
+  node->Leave(NULL);
 }
 
 }  // namespace test

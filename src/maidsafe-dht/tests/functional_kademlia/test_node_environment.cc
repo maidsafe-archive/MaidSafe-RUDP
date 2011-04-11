@@ -30,6 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ShlObj.h>
 #endif
 
+namespace arg = std::placeholders;
+
 namespace maidsafe {
 
 namespace kademlia {
@@ -178,15 +180,16 @@ void EnvironmentNodes::SetUp() {
     local_thread_group.reset(new boost::thread_group());
 
     for (int j = 0; j < kThreadGroupSize; ++j)
-       local_thread_group->create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
+      local_thread_group->create_thread(std::bind(
+          static_cast<std::size_t(boost::asio::io_service::*)()>
               (&boost::asio::io_service::run), local_asio));
 
     thread_groups_.push_back(local_thread_group);
 
     TransportPtr local_transport(new transport::TcpTransport(*local_asio));
-    EXPECT_EQ(transport::kSuccess, local_transport->StartListening(
-        transport::Endpoint("127.0.0.1", 5000 + i)));
+    EXPECT_EQ(transport::kSuccess,
+              local_transport->StartListening(transport::Endpoint("127.0.0.1",
+                                                                  5000 + i)));
 
     transports_.push_back(local_transport);
     AlternativeStorePtr alternative_store;
@@ -208,7 +211,8 @@ void EnvironmentNodes::SetUp() {
       local_endpoints.push_back(end_point);
       Contact contact(node_ids_[i], end_point, local_endpoints, end_point,
                       false, false, "", rsa_key_pair.public_key(), "");
-      bootstrap_contacts_.push_back(contact);
+      if (i == 0)
+        bootstrap_contacts_.push_back(contact);
     }
     std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
                                             message_handler,
@@ -225,14 +229,19 @@ void EnvironmentNodes::SetUp() {
     bool done(false);
     int response_code(-3);
     nodes_[i]->Join(node_ids_[i], bootstrap_contacts_,
-                    boost::bind(&ErrorCodeCallback, _1, &done, &response_code));
+                    std::bind(&ErrorCodeCallback, arg::_1, &done,
+                    &response_code));
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());
+    std::cout << "Joined node " << node_ids_[i].ToStringEncoded(NodeId::kHex)
+              << std::endl << std::endl;
     if (i < kNumServers_)
       EXPECT_FALSE(nodes_[i]->client_only_node());
     else
       EXPECT_TRUE(nodes_[i]->client_only_node());
+
+//    std::cout << "Done node " << i<< std::endl;
   }
 
   // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
@@ -240,14 +249,15 @@ void EnvironmentNodes::SetUp() {
 }
 
 void EnvironmentNodes::TearDown() {
-    DLOG(INFO) << "TestNode, TearDown Starting..." << std::endl;
+//    std::cout << "TestNode, TearDown Starting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(1));
 
     for (boost::int16_t n = kNetworkSize - 1; n >= 0; --n)
       transports_[n]->StopListening();
 
     for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
-      DLOG(INFO) << "stopping node " << i << std::endl;
+//      std::cout << "stopping node "
+//                << node_ids_[i].ToStringEncoded(NodeId::kHex) << std::endl;
       std::vector<Contact> local_boostrap_contacts;
       nodes_[i]->Leave(&local_boostrap_contacts);
       EXPECT_FALSE(nodes_[i]->joined());

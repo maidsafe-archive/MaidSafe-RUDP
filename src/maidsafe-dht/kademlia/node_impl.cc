@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/kademlia/node_impl.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/kademlia/kademlia.pb.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/rpcs.h"
 #include "maidsafe-dht/kademlia/routing_table.h"
@@ -104,19 +105,28 @@ void Node::Impl::Join(const NodeId &node_id,
   endpoint.ip = listening_transport_->transport_details().endpoint.ip;
   endpoint.port = listening_transport_->transport_details().endpoint.port;
   local_endpoints.push_back(endpoint);
-  Contact contact(node_id, endpoint,
-                  local_endpoints,
+  Contact contact(node_id, endpoint, local_endpoints,
                   listening_transport_->transport_details().rendezvous_endpoint,
                   false, false, default_securifier_->kSigningKeyId(),
                   default_securifier_->kSigningPublicKey(), "");
   contact_ = contact;
-  rpcs_->set_contact(contact_);
+
+  if (!client_only_node_) {
+    rpcs_->set_contact(contact_);
+  } else {
+    protobuf::Contact proto_c(ToProtobuf(contact_));
+    proto_c.set_node_id(NodeId().String());
+    Contact c = FromProtobuf(proto_c);
+    rpcs_->set_contact(c);
+  }
+
   if (!routing_table_) {
     routing_table_.reset(new RoutingTable(node_id, k_));
-    routing_table_->validate_contact()->connect(
-        boost::bind(&Node::Impl::ValidateContact, this, _1));
     routing_table_->ping_oldest_contact()->connect(
-          boost::bind(&Node::Impl::PingOldestContact, this, _1, _2, _3));
+        std::bind(&Node::Impl::PingOldestContact, this, arg::_1, arg::_2,
+                  arg::_3));
+    routing_table_->validate_contact()->connect(
+        std::bind(&Node::Impl::ValidateContact, this, arg::_1));
   }
   if (bootstrap_contacts.size() == 1 &&
       bootstrap_contacts[0].node_id() == node_id) {
@@ -172,20 +182,15 @@ void Node::Impl::JoinFindNodesCallback(
       thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
                                              this));
       refresh_thread_running_ = true;
-      // Connect the ReportDown Signal
-      report_down_contact_->connect(
-          ReportDownContactPtr::element_type::slot_type(
-              &Node::Impl::ReportDownContact, this, _1));
-      routing_table_->ping_oldest_contact()->connect(
-          std::bind(&Node::Impl::PingOldestContact, this, arg::_1, arg::_2,
-                    arg::_3));
-      routing_table_->validate_contact()->connect(
-          std::bind(&Node::Impl::ValidateContact, this, arg::_1));
-      // Startup the thread to monitor the downlist queue
-      thread_group_->create_thread(
-          std::bind(&Node::Impl::MonitoringDownlistThread, this));
-      downlist_thread_running_ = true;
     }
+    // Connect the ReportDown Signal
+    report_down_contact_->connect(
+        ReportDownContactPtr::element_type::slot_type(
+            &Node::Impl::ReportDownContact, this, _1));
+    // Startup the thread to monitor the downlist queue
+    thread_group_->create_thread(
+        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+    downlist_thread_running_ = true;
     callback(result);
   }
 }
@@ -200,6 +205,12 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   refresh_thread_running_ = false;
   downlist_thread_running_ = false;
   routing_table_->GetBootstrapContacts(bootstrap_contacts);
+  if (!rpcs_)
+    rpcs_.reset();
+  if (!service_)
+    service_.reset();
+  if (!routing_table_)
+    routing_table_.reset();
 }
 
 void Node::Impl::Store(const Key &key,
@@ -613,15 +624,15 @@ void Node::Impl::RefreshDataStore() {
 
 void Node::Impl::EnablePingOldestContact() {
   // Connect the ping_oldest_contact signal in the routing table
-  routing_table_->ping_oldest_contact()->connect(std::bind(
-                      &Node::Impl::PingOldestContact, this, arg::_1, arg::_2,
-                          arg::_3));
+//  routing_table_->ping_oldest_contact()->connect(
+//      std::bind(&Node::Impl::PingOldestContact,
+//                this, arg::_1, arg::_2, arg::_3));
 }
 
 void Node::Impl::EnableValidateContact() {
   // Connect the validate_contact signal in the routing table
-  routing_table_->validate_contact()->connect(std::bind(
-                      &Node::Impl::ValidateContact, this, arg::_1));
+//  routing_table_->validate_contact()->connect(std::bind(
+//                      &Node::Impl::ValidateContact, this, arg::_1));
 }
 
 // TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest
@@ -643,13 +654,14 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
 }
 
 template <class T>
-bool Node::Impl::HandleIterationStructure(const Contact &contact,
-                                    std::shared_ptr<T> fa,
-                                    NodeSearchState mark,
-                                    int *response_code,
-                                    std::vector<Contact> *closest_contacts,
-                                    bool *cur_iteration_done,
-                                    bool *calledback) {
+bool Node::Impl::HandleIterationStructure(
+    const Contact &contact,
+    std::shared_ptr<T> fa,
+    NodeSearchState mark,
+    int *response_code,
+    std::vector<Contact> *closest_contacts,
+    bool *cur_iteration_done,
+    bool *calledback) {
   bool result = false;
   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
 
@@ -680,10 +692,10 @@ bool Node::Impl::HandleIterationStructure(const Contact &contact,
                  boost::make_tuple(kSelectedAlpha, fa->round));
   int num_of_round_pending = std::distance(pit.first, pit.second);
   if (num_of_round_pending <= (kAlpha_ - kBeta_))
-      *cur_iteration_done = true;
+    *cur_iteration_done = true;
 
-  auto pit_pending = fa->nc.template get<nc_state>().equal_range(
-                                                              kSelectedAlpha);
+  auto pit_pending =
+      fa->nc.template get<nc_state>().equal_range(kSelectedAlpha);
   int num_of_total_pending = std::distance(pit_pending.first,
                                            pit_pending.second);
   {
@@ -769,19 +781,20 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     std::shared_ptr<RpcArgs> frpc(new RpcArgs((*it_tuple).contact, fa));
     switch (fa->operation_type) {
       case kOpFindNode: {
-        rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
-                         std::bind(&Node::Impl::IterativeSearchNodeResponse,
-                                   this, arg::_1, arg::_2, arg::_3, frpc),
-                         kTcp);
+          rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
+                           std::bind(&Node::Impl::IterativeSearchNodeResponse,
+                                     this, arg::_1, arg::_2, arg::_3, frpc),
+                           kTcp);
         }
         break;
       case kOpFindValue: {
-        std::shared_ptr<FindValueArgs> fva =
-          std::dynamic_pointer_cast<FindValueArgs> (fa);
-        rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
-                  std::bind(&Node::Impl::IterativeSearchValueResponse, this,
-                      arg::_1, arg::_2, arg::_3, arg::_4, arg::_5, frpc),
-                  kTcp);
+          std::shared_ptr<FindValueArgs> fva =
+              std::dynamic_pointer_cast<FindValueArgs>(fa);
+          rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
+                           std::bind(&Node::Impl::IterativeSearchValueResponse,
+                                     this, arg::_1, arg::_2, arg::_3, arg::_4,
+                                     arg::_5, frpc),
+                           kTcp);
         }
         break;
       default: break;
@@ -824,7 +837,7 @@ void Node::Impl::IterativeSearchValueResponse(
                                                  &closest_contacts,
                                                  &curr_iteration_done,
                                                  &calledback)) {
-      printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
+      DLOG(ERROR) << "Structure handling in iteration failed";
     }
     response_code = -2;
     if ((!calledback) && (curr_iteration_done))
@@ -874,6 +887,8 @@ void Node::Impl::IterativeSearchNodeResponse(
     AddContactsToContainer<FindNodesArgs>(contacts, fna);
 //    for (size_t i = 0; i < contacts.size(); ++i)
 //      routing_table_->AddContact(contacts[i], rank_info);
+//    RankInfoPtr rank_info;
+//    routing_table_->AddContact(fnrpc->contact, rank_info);
   }
 
   if (!HandleIterationStructure<FindNodesArgs>(fnrpc->contact, fna, mark,
@@ -908,13 +923,13 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
                                            RankInfoPtr oldest_rank_info,
                                            const int &result,
                                            Contact replacement_contact,
-                                           RankInfoPtr
-                                             replacement_rank_info) {
+                                           RankInfoPtr replacement_rank_info) {
   if (result < 0) {
     // Increase the RPCfailure of the oldest_contact by one, and then try to
     // add the new contact again
     routing_table_->IncrementFailedRpcCount(oldest_contact.node_id());
-    routing_table_->AddContact(replacement_contact, replacement_rank_info);
+//    routing_table_->SetValidated(replacement_contact.node_id(), true);
+//    routing_table_->AddContact(replacement_contact, replacement_rank_info);
   } else {
     // Add the oldest_contact again to update its last_seen to now
     routing_table_->AddContact(oldest_contact, oldest_rank_info);
