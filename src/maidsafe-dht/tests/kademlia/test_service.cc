@@ -43,6 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/rpcs.pb.h"
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace maidsafe {
 
@@ -50,9 +51,7 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t k = 16;
 boost::posix_time::time_duration time_out = transport::kDefaultInitialTimeout;
-const boost::posix_time::milliseconds kNetworkDelay(500);
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
@@ -75,53 +74,6 @@ class MockTransportServiceTest : public transport::Transport {
   virtual void Send(const std::string &,
                     const transport::Endpoint &,
                     const transport::Timeout &) {}
-};
-
-class SecurifierGetPublicKeyAndValidation: public Securifier {
- public:
-  SecurifierGetPublicKeyAndValidation(const std::string &public_key_id,
-                                      const std::string &public_key,
-                                      const std::string &private_key)
-      : Securifier(public_key_id, public_key, private_key),
-        public_key_id_map_(), thread_group_() {}
-  // Immitating a non-blocking function
-  void GetPublicKeyAndValidation(const std::string &public_key_id,
-                                 GetPublicKeyAndValidationCallback callback) {
-    thread_group_.add_thread(
-        new boost::thread(&SecurifierGetPublicKeyAndValidation::DummyFind,
-                          this, public_key_id, callback));
-  }
-
-  void Join() {
-    thread_group_.join_all();
-  }
-  // This method will validate the network lookup for given public_key_id
-  bool AddTestValidation(const std::string &public_key_id,
-                         const std::string &public_key) {
-    auto itr = public_key_id_map_.insert(std::make_pair(public_key_id,
-                                                        public_key));
-    return itr.second;
-  }
-
-  void ClearTestValidationMap() {
-    public_key_id_map_.erase(public_key_id_map_.begin(),
-                             public_key_id_map_.end());
-  }
-
- private:
-  void DummyFind(std::string public_key_id,
-                 GetPublicKeyAndValidationCallback callback) {
-    // Imitating delay in lookup for kNetworkDelay seconds
-    boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
-    std::map<std::string, std::string>::iterator  itr;
-    itr = public_key_id_map_.find(public_key_id);
-    if (itr != public_key_id_map_.end())
-      callback((*itr).second, "");
-    else
-      callback("", "");
-  }
-  std::map<std::string, std::string> public_key_id_map_;
-  boost::thread_group thread_group_;
 };
 
 class SecurifierValidateFalse: public SecurifierGetPublicKeyAndValidation {
@@ -161,7 +113,8 @@ class AlternativeStoreFalse: public AlternativeStore {
 typedef std::shared_ptr<AlternativeStoreTrue> AlternativeStoreTruePtr;
 typedef std::shared_ptr<AlternativeStoreFalse> AlternativeStoreFalsePtr;
 
-class ServicesTest: public testing::Test {
+class ServicesTest: public CreateContactAndNodeId,
+                    public testing::Test {
  public:
   ServicesTest() : contact_(), node_id_(NodeId::kRandomId),
                    data_store_(new kademlia::DataStore(bptime::seconds(3600))),
@@ -179,95 +132,6 @@ class ServicesTest: public testing::Test {
   virtual void SetUp() {
   }
 
-  NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
-    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    NodeId new_node;
-    std::string new_node_string;
-    bool repeat(true);
-    boost::uint16_t times_of_try(0);
-    // generate a random ID and make sure it has not been geneated previously
-    do {
-      new_node = NodeId(NodeId::kRandomId);
-      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-      std::bitset<kKeySizeBits> binary_bitset(new_id);
-      for (int i = kKeySizeBits - 1; i >= pos; --i)
-        binary_bitset[i] = holder_id_binary_bitset[i];
-      binary_bitset[pos].flip();
-      new_node_string = binary_bitset.to_string();
-      new_node = NodeId(new_node_string, NodeId::kBinary);
-      // make sure the new contact not already existed in the routing table
-      Contact result;
-      routing_table_->GetContact(new_node, &result);
-      if (result == Contact())
-        repeat = false;
-      ++times_of_try;
-    } while (repeat && (times_of_try < 1000));
-    // prevent deadlock, throw out an error message in case of deadlock
-    if (times_of_try == 1000)
-      EXPECT_LT(1000, times_of_try);
-    return new_node;
-  }
-
-  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
-                            const size_t &value_size,
-                            std::string key,
-                            std::string value) {
-    while (key.empty())
-      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    while (value.empty()) {
-      value.reserve(value_size);
-      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-      while (value.size() < value_size)
-        value += temp;
-      value = value.substr(0, value_size);
-    }
-    std::string signature;
-    while (signature.empty())
-      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-    return KeyValueSignature(key, value, signature);
-  }
-
-  KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
-                        const size_t &value_size,
-                        const bptime::time_duration &ttl,
-                        std::string key,
-                        std::string value) {
-    KeyValueSignature kvs = MakeKVS(rsa_key_pair, value_size, key, value);
-    bptime::ptime now = bptime::microsec_clock::universal_time();
-    bptime::ptime expire_time = now + ttl;
-    bptime::ptime refresh_time = now + bptime::minutes(30);
-    std::string request;
-    while (request.empty())
-      request = RandomString(1024);
-    std::string req_sig;
-    while (req_sig.empty())
-     req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
-    return KeyValueTuple(kvs, expire_time, refresh_time,
-                         RequestAndSignature(request, req_sig), false);
-  }
-
-  protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-                                          const KeyValueSignature& kvs) {
-    protobuf::StoreRequest store_request;
-    store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    store_request.set_key(kvs.key);
-    store_request.mutable_signed_value()->set_signature(kvs.signature);
-    store_request.mutable_signed_value()->set_value(kvs.value);
-    store_request.set_ttl(3600*24);
-    return store_request;
-  }
-
-  protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                                            const KeyValueSignature& kvs) {
-    protobuf::DeleteRequest delete_request;
-    delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-    delete_request.set_key(kvs.key);
-    delete_request.mutable_signed_value()->set_signature(kvs.signature);
-    delete_request.mutable_signed_value()->set_value(kvs.value);
-    return delete_request;
-  }
-
   void FakePingContact(Contact contact) {
     ++num_of_pings_;
   }
@@ -276,19 +140,6 @@ class ServicesTest: public testing::Test {
     routing_table_->Clear();
     data_store_->key_value_index_->clear();
     num_of_pings_ = 0;
-  }
-
-  void JoinNetworkLookup(SecurifierPtr securifier) {
-    SecurifierGPKPtr securifier_gpkv = std::static_pointer_cast
-        <SecurifierGetPublicKeyAndValidation>(securifier);
-    securifier_gpkv->Join();
-  }
-
-  bool AddTestValidation(SecurifierPtr securifier, std::string public_key_id,
-                         std::string public_key) {
-    SecurifierGPKPtr securifier_gpkv = std::static_pointer_cast
-        <SecurifierGetPublicKeyAndValidation>(securifier);
-    return securifier_gpkv->AddTestValidation(public_key_id, public_key);
   }
 
   size_t GetSenderTaskSize() {
@@ -396,26 +247,6 @@ class ServicesTest: public testing::Test {
   virtual void TearDown() {}
 
  protected:
-  Contact ComposeContact(const NodeId& node_id, boost::uint16_t port) {
-    std::string ip("127.0.0.1");
-    std::vector<transport::Endpoint> local_endpoints;
-    transport::Endpoint end_point(ip, port);
-    local_endpoints.push_back(end_point);
-    Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, "", "", "");
-    return contact;
-  }
-
-  Contact ComposeContactWithKey(const NodeId& node_id, boost::uint16_t port,
-                                const crypto::RsaKeyPair& crypto_key) {
-    std::string ip("127.0.0.1");
-    std::vector<transport::Endpoint> local_endpoints;
-    transport::Endpoint end_point(ip, port);
-    local_endpoints.push_back(end_point);
-    Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, node_id.String(), crypto_key.public_key(), "");
-    return contact;
-  }
 
   void PopulateDataStore(boost::uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
@@ -432,20 +263,15 @@ class ServicesTest: public testing::Test {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
-      AddContact(contact, rank_info_);
+      AddContact(routing_table_, contact, rank_info_);
     }
   }
   void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);
-      AddContact(contact, rank_info_);
+      AddContact(routing_table_, contact, rank_info_);
     }
-  }
-
-  void AddContact(const Contact& contact, const RankInfoPtr rank_info) {
-    routing_table_->AddContact(contact, rank_info);
-    routing_table_->SetValidated(contact.node_id(), true);
   }
 
   size_t GetRoutingTableSize() const {
@@ -485,8 +311,6 @@ class ServicesTest: public testing::Test {
       return bptime::neg_infin;
     return (*it).refresh_time;
   }
-
-  typedef std::shared_ptr<SecurifierGetPublicKeyAndValidation> SecurifierGPKPtr;
 
   Contact contact_;
   kademlia::NodeId node_id_;
@@ -591,7 +415,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   {
     // Try to store a validated tuple
     // into empty datastore, but the routingtable already contains the sender
-    AddContact(sender, rank_info_);
+    AddContact(routing_table_, sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::StoreResponse store_response;
@@ -705,7 +529,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
   {
     // Try to delete a validated tuple
     // from empty datastore, but the routingtable already contains the sender
-    AddContact(sender, rank_info_);
+    AddContact(routing_table_, sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
 
     protobuf::DeleteResponse delete_response;
@@ -823,7 +647,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   {
     // Try to storerefresh a validated tuple into empty datastore,
     // but the routingtable already contains the sender
-    AddContact(new_sender, rank_info_);
+    AddContact(routing_table_, new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
     protobuf::StoreRefreshResponse store_refresh_response;
     service_->StoreRefresh(info_, store_refresh_request,
@@ -955,7 +779,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
   {
     // Try to deleterefresh a validated tuple
     // from empty datastore, but the routingtable already contains the sender
-    AddContact(sender, rank_info_);
+    AddContact(routing_table_, sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
 
@@ -1106,7 +930,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     // (containing the target)
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k - 1, 501);
-    AddContact(target, rank_info_);
+    AddContact(routing_table_, target, rank_info_);
     EXPECT_EQ(2 * test::k, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
@@ -1130,7 +954,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
     // (containing the sender, but not containing the target)
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k, 501);
-    AddContact(sender, rank_info_);
+    AddContact(routing_table_, sender, rank_info_);
     EXPECT_EQ(2 * test::k + 1, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
@@ -1176,7 +1000,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // no alternative_store_
     PopulateRoutingTable(test::k, 500);
     PopulateRoutingTable(test::k, 501);
-    AddContact(target, rank_info_);
+    AddContact(routing_table_, target, rank_info_);
 
     protobuf::FindValueResponse find_value_rsp;
     service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
@@ -1310,7 +1134,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
       downlist_request.add_node_ids(contact_id.String());
-      AddContact(contact, rank_info_);
+      AddContact(routing_table_, contact, rank_info_);
     }
     service_->Downlist(info_, downlist_request, &time_out);
     ASSERT_EQ(test::k, num_of_pings_);

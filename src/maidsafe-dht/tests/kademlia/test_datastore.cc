@@ -45,6 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/datastore.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace bptime = boost::posix_time;
 
@@ -64,34 +65,7 @@ class DataStoreTest: public testing::Test {
       : data_store_(new kademlia::DataStore(bptime::seconds(3600))),
         key_value_index_(data_store_->key_value_index_),
         crypto_keys_() {}
-  KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
-                        const size_t &value_size,
-                        const bptime::time_duration &ttl,
-                        std::string key,
-                        std::string value) {
-    if (key.empty())
-      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    if (value.empty()) {
-      value.reserve(value_size);
-      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-      while (value.size() < value_size)
-        value += temp;
-      value = value.substr(0, value_size);
-    }
-    std::string signature;
-    while (signature.empty())
-      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-    bptime::ptime now = bptime::microsec_clock::universal_time();
-    bptime::ptime expire_time = now + ttl;
-    bptime::ptime refresh_time = now + bptime::minutes(30);
-    std::string request = RandomString(1024);
-    std::string req_sig;
-    while (req_sig.empty())
-      req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
-    return KeyValueTuple(KeyValueSignature(key, value, signature),
-                         expire_time, refresh_time,
-                         RequestAndSignature(request, req_sig), false);
-  }
+
   bool FindValue(std::pair<std::string, std::string> element,
                  std::pair<std::string, std::string> value) {
     return ((element.first == value.first) && (element.second == value.second));
