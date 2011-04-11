@@ -34,14 +34,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/datastore.h"
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/sender_task.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace maidsafe {
 
 namespace kademlia {
 
 namespace test {
-
-const boost::posix_time::milliseconds kNetworkDelay(200);
 
 class SenderTaskTest: public testing::Test {
  public:
@@ -54,27 +53,6 @@ class SenderTaskTest: public testing::Test {
   }
 
   virtual void SetUp() {}
-
-  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
-                            const size_t &value_size,
-                            std::string key,
-                            std::string value) {
-    while (key.empty()) {
-      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    }
-    while (value.empty()) {
-      value.reserve(value_size);
-      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-      while (value.size() < value_size)
-        value += temp;
-      value = value.substr(0, value_size);
-    }
-    std::string signature;
-    while (signature.empty()) {
-      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-    }
-    return KeyValueSignature(key, value, signature);
-  }
 
   bool HasDataInIndex(KeyValueSignature key_value_signature,
                       const RequestAndSignature request_signature,

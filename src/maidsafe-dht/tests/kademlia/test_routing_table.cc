@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/routing_table.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/transport/utils.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace maidsafe {
 
@@ -48,10 +49,10 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t k = 16;
 static const boost::uint16_t kThreadBarrierSize = 2;
 
-class RoutingTableTest : public testing::TestWithParam<int> {
+class RoutingTableTest : public CreateContactAndNodeId,
+                         public testing::TestWithParam<int> {
  public:
   RoutingTableTest()
     : rank_info_(),
@@ -62,35 +63,6 @@ class RoutingTableTest : public testing::TestWithParam<int> {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
 
-  NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
-    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    NodeId new_node;
-    std::string new_node_string;
-    bool repeat(true);
-    boost::uint16_t times_of_try(0);
-    // generate a random ID and make sure it has not been generated previously
-    do {
-      new_node = NodeId(NodeId::kRandomId);
-      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-      std::bitset<kKeySizeBits> binary_bitset(new_id);
-      for (int i = kKeySizeBits - 1; i >= pos; --i)
-        binary_bitset[i] = holder_id_binary_bitset[i];
-      binary_bitset[pos].flip();
-      new_node_string = binary_bitset.to_string();
-      new_node = NodeId(new_node_string, NodeId::kBinary);
-      // make sure the new contact not already existed in the routing table
-      Contact result;
-      routing_table_.GetContact(new_node, &result);
-      if (result == Contact())
-        repeat = false;
-      ++times_of_try;
-    } while (repeat && (times_of_try < 1000));
-    // prevent deadlock, throw out an error message in case of deadlock
-    if (times_of_try == 1000)
-      EXPECT_LT(1000, times_of_try);
-    return new_node;
-  }
   // Methods for multithreaded test
   void DoAddContact(Contact contact) {
     thread_barrier_->wait();
@@ -148,16 +120,6 @@ class RoutingTableTest : public testing::TestWithParam<int> {
 
  protected:
   void SetUp() {}
-
-  Contact ComposeContact(const NodeId& node_id, boost::uint16_t port) {
-    std::string ip("127.0.0.1");
-    std::vector<transport::Endpoint> local_endpoints;
-    transport::Endpoint end_point(ip, port);
-    local_endpoints.push_back(end_point);
-    Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, "", "", "");
-    return contact;
-  }
 
   boost::uint16_t GetKBucketCount() const {
     return routing_table_.KBucketCount();
