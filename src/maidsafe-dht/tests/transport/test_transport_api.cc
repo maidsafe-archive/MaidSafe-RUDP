@@ -278,7 +278,7 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages,
           ((*it)->responses_received().size() < num_messages))
         waiting = true;
     }
-  } while (waiting && (i < 10 * messages_length));
+  } while (waiting && (i < 10 * (num_messages + 1) * messages_length));
   // without this sleep, test of RUDP/ManyToManyMultiMessage will fail,
   // reporting received responses not match with the expected
   // Note: only RUDP has this problem. TCP and UDP will not fail even without
@@ -532,6 +532,43 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSingleLargeMessage) {
   this->SetupTransport(true, 0);
   // Send out a message with upto 64MB = 2^26
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 26));
+}
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
+  TransportPtr sender(new RudpTransport(*this->asio_service_));
+  TransportPtr listener(new RudpTransport(*this->asio_service_));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
+  TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
+  sender->on_message_received()->connect(
+      boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender, _1,
+      _2, _3, _4));
+  sender->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
+  listener->on_message_received()->connect(
+      boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1,
+      _2, _3, _4));
+  listener->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+
+  for (int j = 0; j < 5; ++j) {
+    std::string request(RandomString(1));
+    for (int i = 0; i < 24; ++i)
+      request = request + request;
+    sender->Send(request, Endpoint(kIP, listener->listening_port()),
+                 bptime::seconds(24));
+    while (!msgh_sender->finished_) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    }
+    msgh_sender->finished_ = false;
+  }
+
+  ASSERT_EQ(size_t(0), msgh_sender->results().size());
+  ASSERT_EQ(size_t(5), msgh_listener->requests_received().size());
+  ASSERT_EQ(size_t(5), msgh_listener->responses_sent().size());
+  ASSERT_EQ(size_t(5), msgh_sender->responses_received().size());
+  ASSERT_EQ(msgh_listener->responses_sent().at(0),
+            msgh_sender->responses_received().at(0).first);
 }
 
 }  // namespace test
