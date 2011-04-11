@@ -289,17 +289,18 @@ typedef boost::multi_index_container<
 > UnValidatedContactsContainer;
 
 typedef UnValidatedContactsContainer::index<NodeIdTag>::type&
-    UnValidatedContactsById;
+        UnValidatedContactsById;
 
 
-typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
-    const Contact&, RankInfoPtr)>> PingOldestContactPtr;
+typedef std::shared_ptr<boost::signals2::signal<
+            void(const Contact&, const Contact&, RankInfoPtr)>>
+        PingOldestContactPtr;
 
-typedef std::shared_ptr<boost::signals2::signal<  // NOLINT
-    void(const Contact&)>> ValidateContactPtr;
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
+        ValidateContactPtr;
 
 /** Object containing a node's Kademlia Routing Table and all its contacts.
- *  @class RoutingTable */    
+ *  @class RoutingTable */
 class RoutingTable {
  public:
   /** Constructor.  To create a routing table, in all cases the node ID and
@@ -312,7 +313,7 @@ class RoutingTable {
   /** Add the given contact to the correct k-bucket; if it already
    *  exists, its status will be updated.  If the given k-bucket is full and not
    *  splittable, the signal ping_oldest_contact_ will be fired which will
-   *  ultimately resolve whether the contact is added or not. 
+   *  ultimately resolve whether the contact is added or not.
    *  @param[in] contact The new contact which needs to be added.
    *  @param[in] rank_info The contact's rank_info. */
   void AddContact(const Contact &contact, RankInfoPtr rank_info);
@@ -352,7 +353,7 @@ class RoutingTable {
   int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
   /** Set one node's preferred endpoint.
    *  @param[in] node_id The Kademlia ID of the target node.
-   *  @param[in] ip The new preferred endpoint. 
+   *  @param[in] ip The new preferred endpoint.
    *  @return Error code, 0 for success, -1 for failure */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
   /** Set one node's validation status.

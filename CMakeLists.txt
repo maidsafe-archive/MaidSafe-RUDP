@@ -301,6 +301,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_routing_table.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_datastore.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_api.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_environment.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/main.cc
                               # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
@@ -309,7 +310,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_mock_rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
- 			      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc

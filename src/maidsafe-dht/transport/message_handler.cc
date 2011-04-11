@@ -45,14 +45,11 @@ void MessageHandler::OnMessageReceived(const std::string &request,
                                        const Info &info,
                                        std::string *response,
                                        Timeout *timeout) {
-  std::cout<<"\n**********On Message Received**************\n";
   if (request.empty())
     return;
-  std::cout<<"\nONMESS000000000000000\n";
   SecurityType security_type = request.at(0);
   if (security_type && !securifier_)
     return;
-  std::cout<<"\nONMESS11111111111\n";
 
   std::string serialised_message(request.substr(1));
   if (security_type & kAsymmetricEncrypt) {
@@ -160,7 +157,6 @@ void MessageHandler::ProcessSerialisedMessage(
     Timeout *timeout) {
   message_response->clear();
   *timeout = kImmediateTimeout;
-  std::cout<<"\ntransport ProcessSerialisedMessage \n";
 
   switch (message_type) {
     case kManagedEndpointMessage: {
