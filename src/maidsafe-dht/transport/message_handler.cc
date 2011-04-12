@@ -246,11 +246,9 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   if (security_type & kSign) {
     wrapper_message.set_message_signature(securifier_->Sign(
         boost::lexical_cast<std::string>(message_type) + payload));
-    std::cout<<"\nSign msg\n";
   } else if (security_type & kSignWithParameters) {
     wrapper_message.set_message_signature(securifier_->SignWithParameters(
         boost::lexical_cast<std::string>(message_type) + payload));
-    std::cout<<"\nSign msg for kSignWithParameters\n";
   }
 
   // Handle encryption

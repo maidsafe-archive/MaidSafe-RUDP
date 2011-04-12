@@ -140,12 +140,9 @@ void RoutingTable::GetCloseContacts(
     const size_t &count,
     const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
-      std::cout<<"\n0000000000000\n";
   if (!close_contacts)
     return;
-  std::cout<<"\n00000000000001111111111\n";
   SharedLock shared_lock(shared_mutex_);
-  std::cout<<"\n000000022222222222222\n";
   // the search will begin from a bucket having the similiar k-distance as the
   // target node to the current holder
   // then extend the range follows the rule:
@@ -156,15 +153,12 @@ void RoutingTable::GetCloseContacts(
   boost::uint16_t end_kbucket_index = start_kbucket_index +1;
 
   boost::uint32_t potential_size = KBucketSizeForKey(start_kbucket_index);
-  std::cout<<"\n000000022222222222222\n";
   boost::uint32_t target_size = count + exclude_contacts.size();
-  std::cout<<"\n11111\n";
   // extend the search range step 1: add all kbuckets containing more
   // common heading bits, the bucket contains the holder will always be the last
   while (end_kbucket_index <= bucket_of_holder_) {
     potential_size = potential_size + KBucketSizeForKey(end_kbucket_index);
     ++end_kbucket_index;
-    std::cout<<"\n2222222222222\n";
   }
   // extend the search range step 2:recursively add kbuckets containing
   // less common heading bits till reach the count cap
@@ -172,8 +166,6 @@ void RoutingTable::GetCloseContacts(
     --start_kbucket_index;
     potential_size = potential_size + KBucketSizeForKey(start_kbucket_index);
   }
-  std::cout<<"\n333333333333\n";
-
   // once we have the search range, put all contacts in the range buckets into
   // a candidate container, using target_id to re-calculate the distance
   RoutingTableContactsContainer candidate_contacts;
@@ -197,7 +189,6 @@ void RoutingTable::GetCloseContacts(
     }
     ++start_kbucket_index;
   }
-  std::cout<<"\n444444444\n";
   // populate the result with the count defined top contacts
   // indexed by the new calculated distance
   ContactsByDistanceToThisId key_dist_indx
@@ -385,11 +376,9 @@ Contact RoutingTable::GetLastSeenContact(const boost::uint16_t &kbucket_index) {
 boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
 //   if (key > NodeId::kMaxId)
 //     return -1;
-  std::cout<<"\nKBucketIndex\n";
   boost::uint16_t common_leading_bits = KDistanceTo(key);
   if (common_leading_bits > bucket_of_holder_)
     common_leading_bits = bucket_of_holder_;
-  std::cout<<"\nKBucketIndex end\n";
   return common_leading_bits;
 }
 
