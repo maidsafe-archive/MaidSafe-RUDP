@@ -571,6 +571,77 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
             msgh_sender->responses_received().at(0).first);
 }
 
+// TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSimMultipleLargeMessage) {
+//   this->SetupTransport(false, 0);
+//   this->SetupTransport(true, 0);
+//   // Send out a bunch of messages simultaneously, each one is 16MB = 2^24
+//   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(5, 24));
+// }
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
+  TransportPtr sender(new RudpTransport(*this->asio_service_));
+  TransportPtr listener(new RudpTransport(*this->asio_service_));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
+  TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
+  sender->on_message_received()->connect(
+      boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender, _1,
+      _2, _3, _4));
+  sender->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
+  listener->on_message_received()->connect(
+      boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1,
+      _2, _3, _4));
+  listener->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+
+  std::string request(RandomString(1));
+  for (int i = 0; i < 23; ++i)
+    request = request + request;
+  {
+    // Detect a dropped connection while sending (receiver dropped)
+    sender->Send(request, Endpoint(kIP, listener->listening_port()),
+                 bptime::seconds(23));
+    int waited_seconds(0);
+    while ((!msgh_sender->finished_) && (waited_seconds < 10)) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      ++ waited_seconds;
+      if (waited_seconds == 5)
+          listener->StopListening();
+    }
+    EXPECT_GT(10, waited_seconds);
+  }
+}
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
+  TransportPtr sender(new RudpTransport(*this->asio_service_));
+  TransportPtr listener(new RudpTransport(*this->asio_service_));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
+  TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
+  sender->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
+  listener->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+
+  std::string request(RandomString(1));
+  for (int i = 0; i < 23; ++i)
+    request = request + request;
+  {
+    // Detect a dropped connection while receiving (sender dropped)
+    sender->Send(request, Endpoint(kIP, listener->listening_port()),
+                 bptime::seconds(23));
+    int waited_seconds(0);
+    while ((!msgh_listener->finished_) && (waited_seconds < 10)) {
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      ++ waited_seconds;
+      if (waited_seconds == 5)
+          sender->StopListening();
+    }
+    EXPECT_GT(10, waited_seconds);
+  }
+}
+
 }  // namespace test
 
 }  // namespace transport
