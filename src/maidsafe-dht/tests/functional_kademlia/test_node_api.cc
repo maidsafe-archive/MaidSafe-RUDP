@@ -82,10 +82,8 @@ class NodeApiTest: public testing::Test {
           static_cast<std::size_t(boost::asio::io_service::*)()>
               (&boost::asio::io_service::run), asio_service_));
     transport_.reset(new transport::TcpTransport(*asio_service_));
-    EXPECT_EQ(transport::kSuccess,
-              transport_->StartListening(transport::Endpoint("127.0.0.1",
-                                                             8000)));
-    securifier_.reset(new Securifier("",
+
+    securifier_.reset(new Securifier("any_id",
                                      rsa_key_pair_.public_key(),
                                      rsa_key_pair_.private_key()));
     message_handler_.reset(new MessageHandler(securifier_));
@@ -193,8 +191,11 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
 
 TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
   std::shared_ptr<Node> node;
+  EXPECT_EQ(transport::kSuccess,
+              transport_->StartListening(transport::Endpoint("127.0.0.1",
+                                                             8000)));
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 10, 3, 2,
+                      alternative_store_, false, kK_, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
   volatile bool done(false);
@@ -232,14 +233,14 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
-  transport_->StopListening();
+  //transport_->StopListening();
   node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Store) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 10, 3, 2,
+                      alternative_store_, true, kK_, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
   volatile bool done(false);
@@ -257,6 +258,7 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
     KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair, 1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
+
   StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
@@ -268,12 +270,13 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   }
   node->Leave(NULL);
+  boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 10, 3, 2,
+                      alternative_store_, true, kK_, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
   volatile bool done(false);
@@ -308,14 +311,14 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
 
   node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
   while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   node->Leave(NULL);
 }
 
 TEST_F(NodeApiTest, BEH_KAD_Delete) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
-                      alternative_store_, true, 10, 3, 2,
+                      alternative_store_, true, kK_, 3, 2,
                       bptime::seconds(3600)));
   NodeId node_id(NodeId::kRandomId);
   volatile bool done(false);
@@ -351,7 +354,7 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
                key_value_signatures[0].signature,
                securifier_, df);
   while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   node->Leave(NULL);
 }
 

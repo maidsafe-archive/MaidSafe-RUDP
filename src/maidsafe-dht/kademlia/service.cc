@@ -217,11 +217,12 @@ void Service::Store(const transport::Info &info,
                     protobuf::StoreResponse *response,
                     transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_)
+  if (!node_joined_) {
     return;
+  }
+
   if (!securifier_ || message.empty() ||
       (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
-    DLOG(WARNING) << "Store Input Error" << std::endl;
     return;
   }
   // Check if same private key signs other values under same key in datastore
