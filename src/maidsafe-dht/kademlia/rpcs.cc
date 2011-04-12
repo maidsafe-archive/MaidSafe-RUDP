@@ -26,6 +26,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe-dht/kademlia/rpcs.h"
+
+#include "boost/thread.hpp"
+
 #include "maidsafe/common/utils.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/message_handler.h"
@@ -34,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/utils.h"
 #include "maidsafe-dht/transport/tcp_transport.h"
 #include "maidsafe-dht/transport/udp_transport.h"
+
 
 namespace arg = std::placeholders;
 
