@@ -106,8 +106,7 @@ class NodeApiTest: public testing::Test {
   AlternativeStorePtr alternative_store_;
 
  public:
-  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
-                            const size_t &value_size) {
+  KeyValueSignature MakeKVS(const size_t &value_size) {
     std::string key = crypto::Hash<crypto::SHA512>(RandomString(1024));
     std::string value;
     value.reserve(value_size);
@@ -117,13 +116,13 @@ class NodeApiTest: public testing::Test {
     value = value.substr(0, value_size);
     std::string signature;
     while (signature.empty())
-      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+      signature = crypto::AsymSign(value, rsa_key_pair_.private_key());
     return KeyValueSignature(key, value, signature);
   }
 
   void Callback(const int &result, bool *done) {
     *done = true;
-    EXPECT_LE(int(0), result);
+    EXPECT_LE(static_cast<int>(0), result);
   }
 
   void StoreCallback(const int &result, bool *done, boost::mutex *m) {
@@ -241,8 +240,6 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   node->FindNodes(nodes_[node_id_pos]->contact().node_id(), fnf);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-
-  //transport_->StopListening();
   node->Leave(NULL);
 }
 
@@ -264,19 +261,18 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_, 1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
-  //StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
     StoreFunctor sf = std::bind(&NodeApiTest::StoreCallback, this, arg::_1,
                                 &done, &m);
     sfs.push_back(sf);
     node->Store(NodeId(key_value_signatures[i].key),
-                key_value_signatures[i].signature,
                 key_value_signatures[i].value,
+                key_value_signatures[i].signature,
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
@@ -306,19 +302,18 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_, 1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
-  //StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
     StoreFunctor sf = std::bind(&NodeApiTest::StoreCallback, this, arg::_1,
                                 &done, &m);
     sfs.push_back(sf);
     node->Store(NodeId(key_value_signatures[i].key),
-                key_value_signatures[i].signature,
                 key_value_signatures[i].value,
+                key_value_signatures[i].signature,
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
@@ -360,19 +355,18 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_, 1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
-  //StoreFunctor sf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     done = false;
     StoreFunctor sf = std::bind(&NodeApiTest::StoreCallback, this, arg::_1,
                                 &done, &m);
     sfs.push_back(sf);
     node->Store(NodeId(key_value_signatures[i].key),
-                key_value_signatures[i].signature,
                 key_value_signatures[i].value,
+                key_value_signatures[i].signature,
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
