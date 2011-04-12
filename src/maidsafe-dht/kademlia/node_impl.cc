@@ -76,7 +76,6 @@ Node::Impl::Impl(IoServicePtr asio_service,
       joined_(false),
       refresh_routine_started_(false),
       stopping_(false),
-//       routing_table_connection_(),
       report_down_contact_(new ReportDownContactPtr::element_type),
       mutex_(),
       condition_downlist_(),
@@ -93,11 +92,16 @@ Node::Impl::~Impl() {
 void Node::Impl::Join(const NodeId &node_id,
                       const std::vector<Contact> &bootstrap_contacts,
                       JoinFunctor callback) {
-  if (bootstrap_contacts.empty() ||
-      listening_transport_->listening_port() == 0) {
+  if (bootstrap_contacts.empty()) {
     callback(-1);
     return;
   }
+
+  if (!client_only_node_ && listening_transport_->listening_port() == 0) {
+    callback(-1);
+    return;
+  }
+
   //  Need to update code for local endpoints.
   std::vector<transport::Endpoint> local_endpoints;
   // Create contact_ inforrmation for node and set contact for Rpcs
@@ -182,6 +186,7 @@ void Node::Impl::JoinFindNodesCallback(
       thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
                                              this));
       refresh_thread_running_ = true;
+
     }
     // Connect the ReportDown Signal
     report_down_contact_->connect(
@@ -355,13 +360,13 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   if (!sa->calledback) {
     if (num_of_down > (k_ - threshold_)) {
       // report back a failure once has more down contacts than the margin
+      sa->calledback = true;
       sa->callback(-2);
-      sa->calledback = true;
-    }
-    if (num_of_contacted >= threshold_) {
+    } else if (num_of_contacted >= threshold_) {
       // report back once has enough succeed contacts
-      sa->callback(num_of_contacted);
       sa->calledback = true;
+      sa->callback(num_of_contacted);
+      return;
     }
   }
   // delete those succeeded contacts if a failure was report back

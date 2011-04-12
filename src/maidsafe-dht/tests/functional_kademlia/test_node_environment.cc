@@ -30,6 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ShlObj.h>
 #endif
 
+#include "maidsafe/common/log.h"
+
 namespace arg = std::placeholders;
 
 namespace maidsafe {
@@ -47,7 +49,6 @@ boost::posix_time::time_duration kMeanRefresh_;
 const boost::uint16_t kThreadGroupSize = 3;
 
 std::string test_dir_;
-std::string kad_config_file_;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 
@@ -153,7 +154,6 @@ EnvironmentNodes::EnvironmentNodes(
 void EnvironmentNodes::SetUp() {
   test_dir_ = fs::path(fs::unique_path(fs::temp_directory_path() /
                        "MaidSafe_Test_Kad_API_%%%%-%%%%-%%%%")).string();
-  kad_config_file_ = test_dir_ + std::string("/.kadconfig");
   try {
     if (fs::exists(test_dir_))
       fs::remove_all(test_dir_);
@@ -234,14 +234,12 @@ void EnvironmentNodes::SetUp() {
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());
-    std::cout << "Joined node " << node_ids_[i].ToStringEncoded(NodeId::kHex)
-              << std::endl << std::endl;
+    DLOG(INFO) << "Joined node " << node_ids_[i].ToStringEncoded(NodeId::kHex)
+               << std::endl;
     if (i < kNumServers_)
       EXPECT_FALSE(nodes_[i]->client_only_node());
     else
       EXPECT_TRUE(nodes_[i]->client_only_node());
-
-//    std::cout << "Done node " << i<< std::endl;
   }
 
   // TODO(qi.ma@maidsafe.net): the first bootstrap contact may need to be
@@ -249,15 +247,12 @@ void EnvironmentNodes::SetUp() {
 }
 
 void EnvironmentNodes::TearDown() {
-//    std::cout << "TestNode, TearDown Starting..." << std::endl;
     boost::this_thread::sleep(boost::posix_time::seconds(1));
 
     for (boost::int16_t n = kNetworkSize - 1; n >= 0; --n)
       transports_[n]->StopListening();
 
     for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
-//      std::cout << "stopping node "
-//                << node_ids_[i].ToStringEncoded(NodeId::kHex) << std::endl;
       std::vector<Contact> local_boostrap_contacts;
       nodes_[i]->Leave(&local_boostrap_contacts);
       EXPECT_FALSE(nodes_[i]->joined());
