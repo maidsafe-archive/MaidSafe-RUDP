@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/kademlia/service.h"
 #include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace arg = std::placeholders;
 
@@ -56,7 +57,7 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t k = 8;
+// static const boost::uint16_t k = 8;
 static const boost::uint16_t alpha = 3;
 static const boost::uint16_t beta = 2;
 static const boost::uint16_t randomnoresponserate = 20;  // in percentage
@@ -126,125 +127,6 @@ void GetContactCallback(int error_code,
   *response_code = error_code;
   *result = contact;
 }
-
-class CreateContactAndNodeId {
- public:
-  CreateContactAndNodeId() : contact_(), node_id_(NodeId::kRandomId),
-                   routing_table_(new RoutingTable(node_id_, test::k)) {}
-
-  NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
-    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    NodeId new_node;
-    std::string new_node_string;
-    bool repeat(true);
-    boost::uint16_t times_of_try(0);
-    // generate a random ID and make sure it has not been generated previously
-    do {
-      new_node = NodeId(NodeId::kRandomId);
-      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-      std::bitset<kKeySizeBits> binary_bitset(new_id);
-      for (int i = kKeySizeBits - 1; i >= pos; --i)
-        binary_bitset[i] = holder_id_binary_bitset[i];
-      binary_bitset[pos].flip();
-      new_node_string = binary_bitset.to_string();
-      new_node = NodeId(new_node_string, NodeId::kBinary);
-      // make sure the new contact not already existed in the routing table
-      Contact result;
-      routing_table_->GetContact(new_node, &result);
-      if (result == Contact())
-        repeat = false;
-      ++times_of_try;
-    } while (repeat && (times_of_try < 1000));
-    // prevent deadlock, throw out an error message in case of deadlock
-    if (times_of_try == 1000)
-      EXPECT_LT(1000, times_of_try);
-    return new_node;
-  }
-
-  Contact GenerateUniqueContact(const NodeId& holder, const int& pos,
-                                RoutingTableContactsContainer& gnerated_nodes,
-                                NodeId target) {
-    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    NodeId new_node;
-    std::string new_node_string;
-    bool repeat(true);
-    boost::uint16_t times_of_try(0);
-    Contact new_contact;
-    // generate a random contact and make sure it has not been generated
-    // within the previously record
-    do {
-      new_node = NodeId(NodeId::kRandomId);
-      std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-      std::bitset<kKeySizeBits> binary_bitset(new_id);
-      for (int i = kKeySizeBits - 1; i >= pos; --i)
-        binary_bitset[i] = holder_id_binary_bitset[i];
-      binary_bitset[pos].flip();
-      new_node_string = binary_bitset.to_string();
-      new_node = NodeId(new_node_string, NodeId::kBinary);
-
-      // make sure the new one hasn't been set as down previously
-      ContactsById key_indx = gnerated_nodes.get<NodeIdTag>();
-      auto it = key_indx.find(new_node);
-      if (it == key_indx.end()) {
-        new_contact = ComposeContact(new_node, 5000);
-        RoutingTableContact new_routing_table_contact(new_contact,
-                                                      target,
-                                                      0);
-        gnerated_nodes.insert(new_routing_table_contact);
-        repeat = false;
-      }
-      ++times_of_try;
-    } while (repeat && (times_of_try < 1000));
-    // prevent deadlock, throw out an error message in case of deadlock
-    if (times_of_try == 1000)
-      EXPECT_LT(1000, times_of_try);
-    return new_contact;
-  }
-
-  NodeId GenerateRandomId(const NodeId& holder, const int& pos) {
-    std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
-    NodeId new_node;
-    std::string new_node_string;
-
-    new_node = NodeId(NodeId::kRandomId);
-    std::string new_id = new_node.ToStringEncoded(NodeId::kBinary);
-    std::bitset<kKeySizeBits> binary_bitset(new_id);
-    for (int i = kKeySizeBits - 1; i >= pos; --i)
-      binary_bitset[i] = holder_id_binary_bitset[i];
-    binary_bitset[pos].flip();
-    new_node_string = binary_bitset.to_string();
-    new_node = NodeId(new_node_string, NodeId::kBinary);
-
-    return new_node;
-  }
-
-  Contact ComposeContact(const NodeId& node_id, boost::uint16_t port) {
-    std::string ip("127.0.0.1");
-    std::vector<transport::Endpoint> local_endpoints;
-    transport::Endpoint end_point(ip, port);
-    local_endpoints.push_back(end_point);
-    Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                    false, "", "", "");
-    return contact;
-  }
-
-  void PopulateContactsVector(int count,
-                              const int& pos,
-                              std::vector<Contact> *contacts) {
-    for (int i = 0; i < count; ++i) {
-      NodeId contact_id = GenerateRandomId(node_id_, pos);
-      Contact contact = ComposeContact(contact_id, 5000);
-      contacts->push_back(contact);
-    }
-  }
-
-  Contact contact_;
-  kademlia::NodeId node_id_;
-  std::shared_ptr<RoutingTable> routing_table_;
-};
 
 class MockTransport : public transport::Transport {
  public:
@@ -319,7 +201,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);
-      AddContact(contact, rank_info_);
+      AddContact(routing_table_, contact, rank_info_);
     }
   }
 
@@ -327,12 +209,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     std::vector<Contact> contacts;
     routing_table_->GetAllContacts(&contacts);
     std::for_each(contacts.begin(), contacts.end(),
-        std::bind(&NodeImplTest::AddContact, this, arg::_1, rank_info_));
-  }
-
-  void AddContact(const Contact& contact, const RankInfoPtr rank_info) {
-    routing_table_->AddContact(contact, rank_info);
-    routing_table_->SetValidated(contact.node_id(), true);
+                  std::bind(&AddContact, routing_table_, arg::_1, rank_info_));
   }
 
   std::shared_ptr<Rpcs> GetRpc() {
@@ -345,25 +222,6 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
   void SetLocalRpc(std::shared_ptr<Rpcs> rpc) {
     local_node_->rpcs_ = rpc;
-  }
-
-  KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
-                            const size_t &value_size,
-                            std::string key,
-                            std::string value) {
-    while (key.empty())
-      key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    while (value.empty()) {
-      value.reserve(value_size);
-      std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-      while (value.size() < value_size)
-        value += temp;
-      value = value.substr(0, value_size);
-    }
-    std::string signature;
-    while (signature.empty())
-      signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-    return KeyValueSignature(key, value, signature);
   }
 
   std::shared_ptr<DataStore> data_store_;
@@ -853,7 +711,7 @@ TEST_F(NodeImplTest, BEH_KAD_GetContact) {
     EXPECT_EQ(Contact(), result);
   }
   Contact target = ComposeContact(target_id, 5000);
-  AddContact(target, rank_info_);
+  AddContact(routing_table_, target, rank_info_);
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
@@ -909,7 +767,7 @@ TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
         .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
             std::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
                       new_rpcs.get(), arg::_1, arg::_2))));
-    AddContact(new_contact, rank_info_);
+    AddContact(routing_table_, new_contact, rank_info_);
     // need to sleep for a while
     boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 
@@ -923,7 +781,7 @@ TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
         .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
             std::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>,
                       new_rpcs.get(), arg::_1, arg::_2))));
-    AddContact(new_contact, rank_info_);
+    AddContact(routing_table_, new_contact, rank_info_);
 
     Contact result_new;
     // may need to put a timer to prevent deadlock
@@ -2437,7 +2295,7 @@ TEST_F(NodeImplTest, BEH_KAD_DownlistServer) {
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
     Contact contact = ComposeContact(contact_id, 5000);
     downlist_request.add_node_ids(contact_id.String());
-    AddContact(contact, rank_info_);
+    AddContact(routing_table_, contact, rank_info_);
   }
   transport::Info info;
   {
@@ -2486,7 +2344,7 @@ TEST_F(NodeImplTest, BEH_KAD_SetLastSeenToNow) {
   routing_table_->GetContact(target_id, &result);
   EXPECT_EQ(Contact(), result);
   // Try to set an existing contact
-  AddContact(target, rank_info_);
+  AddContact(routing_table_, target, rank_info_);
   node_->SetLastSeenToNow(target);
   routing_table_->GetContact(target_id, &result);
   EXPECT_EQ(target, result);
@@ -2497,7 +2355,7 @@ TEST_F(NodeImplTest, BEH_KAD_IncrementFailedRpcs) {
   Contact target = ComposeContact(target_id, 5000);
   // Keep increasing the num_of_failed_rpcs of the target contact, till it got
   // removed from the routing table
-  AddContact(target, rank_info_);
+  AddContact(routing_table_, target, rank_info_);
   for (int i = 0; i <= kFailedRpcTolerance; ++i)
     node_->IncrementFailedRpcs(target);
   Contact result;
@@ -2508,7 +2366,7 @@ TEST_F(NodeImplTest, BEH_KAD_IncrementFailedRpcs) {
 TEST_F(NodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
   NodeId target_id = GenerateRandomId(node_id_, 498);
   Contact target = ComposeContact(target_id, 5000);
-  AddContact(target, rank_info_);
+  AddContact(routing_table_, target, rank_info_);
   // Update the rank_info of the target contact
   RankInfoPtr new_rank_info(new(transport::Info));
   new_rank_info->rtt = 13313;
