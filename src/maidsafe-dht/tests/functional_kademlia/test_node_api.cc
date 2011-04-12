@@ -156,10 +156,15 @@ class NodeApiTest: public testing::Test {
                          std::vector<Contact> closest_contacts,
                          Contact alternative_value_holder,
                          Contact contact_to_cache,
-                         bool *done, boost::mutex *m) {
+                         bool *done, bool check_pass, boost::mutex *m) {
     boost::mutex::scoped_lock loch_lomond(*m);
     *done = true;
-    // EXPECT_LE(int(0), result);
+    dones.push_back(done);
+    if (!check_pass) {
+      EXPECT_EQ(static_cast<int>(-2), result);
+      return;
+    }
+    EXPECT_LE(static_cast<int>(0), result);
     auto it = std::find(node_ids_.begin(), node_ids_.end(),
                           alternative_value_holder.node_id());
     if (result < 0) {
@@ -174,7 +179,6 @@ class NodeApiTest: public testing::Test {
       EXPECT_EQ(it, node_ids_.end());
       EXPECT_LT(size_t(0), values.size());
     }
-    dones.push_back(*done);
   }
 };
 
@@ -324,15 +328,20 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   dones.clear();
   done = false;
   std::vector<FindValueFunctor> fvfs;
+  bool check_pass(true);
   for (size_t i = 0; i < key_value_signatures.size(); ++i) {
     FindValueFunctor fvf = std::bind(&NodeApiTest::FindValueCallback, this,
                                      arg::_1, arg::_2, arg::_3, arg::_4,
-                                     arg::_5, &done, &m);
+                                     arg::_5, &done, check_pass, &m);
     fvfs.push_back(fvf);
     node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
   }
-  while (!done)
+  while (dones.size() != fvfs.size())
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  for (size_t i = 0; i < dones.size(); ++i)
+    EXPECT_TRUE(dones[i]);
+
   node->Leave(NULL);
   dones.clear();
 }
@@ -383,6 +392,108 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
                securifier_, df);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  node->Leave(NULL);
+  dones.clear();
+}
+
+TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
+  std::shared_ptr<Node> node;
+  node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
+                      alternative_store_, true, kK_, 3, 2,
+                      bptime::seconds(3600)));
+  NodeId node_id(NodeId::kRandomId);
+  bool done(false);
+  JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
+  node->Join(node_id, bootstrap_contacts_, jf);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  EXPECT_TRUE(node->joined());
+
+  int num_store_values(10);
+  std::vector<KeyValueSignature> key_value_signatures;
+  bptime::time_duration ttl(bptime::pos_infin);
+  for (int i = 0; i < num_store_values; ++i) {
+    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
+    key_value_signatures.push_back(key_value_signature);
+  }
+  done = false;
+  boost::mutex m;
+  //  Call FindValue when no value exist
+  {
+    bool check_pass(false);
+    std::vector<FindValueFunctor> fvfs;
+    for (size_t i = 0; i < key_value_signatures.size(); ++i) {
+      FindValueFunctor fvf = std::bind(&NodeApiTest::FindValueCallback, this,
+                                       arg::_1, arg::_2, arg::_3, arg::_4,
+                                       arg::_5, &done, check_pass, &m);
+      fvfs.push_back(fvf);
+      node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
+    }
+    while (dones.size() != fvfs.size())
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    for (size_t i = 0; i < dones.size(); ++i)
+      EXPECT_TRUE(dones[i]);
+    dones.clear();
+  }
+
+  std::vector<StoreFunctor> sfs;
+  for (size_t i = 0; i < key_value_signatures.size(); ++i) {
+    done = false;
+    StoreFunctor sf = std::bind(&NodeApiTest::StoreCallback, this, arg::_1,
+                                &done, &m);
+    sfs.push_back(sf);
+    node->Store(NodeId(key_value_signatures[i].key),
+                key_value_signatures[i].value,
+                key_value_signatures[i].signature,
+                ttl, securifier_, sfs[i]);
+  }
+  while (dones.size() != sfs.size())
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  for (size_t i = 0; i < dones.size(); ++i)
+      EXPECT_TRUE(dones[i]);
+  dones.clear();
+  //  Call FindValue when value exist
+  {
+    done = false;
+    bool check_pass(true);
+    std::vector<FindValueFunctor> fvfs;
+    for (size_t i = 0; i < key_value_signatures.size(); ++i) {
+      FindValueFunctor fvf = std::bind(&NodeApiTest::FindValueCallback, this,
+                                       arg::_1, arg::_2, arg::_3, arg::_4,
+                                       arg::_5, &done, check_pass, &m);
+      fvfs.push_back(fvf);
+      node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
+    }
+    while (dones.size() != fvfs.size())
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    for (size_t i = 0; i < dones.size(); ++i)
+      EXPECT_TRUE(dones[i]);
+    dones.clear();
+  }
+
+  done = false;
+  DeleteFunctor df = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
+
+  node->Delete(NodeId(key_value_signatures[0].key),
+               key_value_signatures[0].value,
+               key_value_signatures[0].signature,
+               securifier_, df);
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+  //  Call FindValue when value deleted
+  {
+    done = false;
+    bool check_pass(false);
+    FindValueFunctor fvf = std::bind(&NodeApiTest::FindValueCallback, this,
+                                       arg::_1, arg::_2, arg::_3, arg::_4,
+                                       arg::_5, &done, check_pass, &m);
+    node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
   node->Leave(NULL);
   dones.clear();
 }
