@@ -63,11 +63,14 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
     waiting_read_ec_(),
     waiting_read_bytes_transferred_(0),
     waiting_flush_(multiplexer.socket_.get_io_service()),
-    waiting_flush_ec_() {
+    waiting_flush_ec_(),
+    timer_ (multiplexer.socket_.get_io_service()) {
   waiting_connect_.expires_at(boost::posix_time::pos_infin);
   waiting_write_.expires_at(boost::posix_time::pos_infin);
   waiting_read_.expires_at(boost::posix_time::pos_infin);
   waiting_flush_.expires_at(boost::posix_time::pos_infin);
+  timer_.expires_at(boost::posix_time::pos_infin);
+  timer_.async_wait(std::bind(&RudpSocket::CheckTimeout, this));
 }
 
 RudpSocket::~RudpSocket() {
@@ -111,6 +114,7 @@ void RudpSocket::Close() {
   waiting_read_.cancel();
   waiting_flush_ec_ = asio::error::operation_aborted;
   waiting_flush_.cancel();
+  timer_.cancel();
 }
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
@@ -134,6 +138,7 @@ void RudpSocket::StartWrite(const asio::const_buffer &data) {
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
     waiting_write_.cancel();
+    timer_.expires_from_now(kStallTimeout);
     return;
   }
 
@@ -154,6 +159,8 @@ void RudpSocket::ProcessWrite() {
   size_t length = sender_.AddData(waiting_write_buffer_);
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
+  if (length > 0)
+    timer_.expires_from_now(kStallTimeout);
 
   // If we have finished writing all of the data then it's time to trigger the
   // write's completion handler.
@@ -170,7 +177,8 @@ void RudpSocket::StartRead(const asio::mutable_buffer &data,
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
     waiting_read_.cancel();
-    return;
+    timer_.expires_from_now(kStallTimeout);
+    return; 
   }
 
   // Try processing the read immediately. If there's available data then the
@@ -191,6 +199,8 @@ void RudpSocket::ProcessRead() {
   size_t length = receiver_.ReadData(waiting_read_buffer_);
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;
+  if (length > 0)
+    timer_.expires_from_now(kStallTimeout);
 
   // If we have filled the buffer, or read more than the minimum number of
   // bytes required, then it's time to trigger the read's completion handler.
@@ -300,6 +310,14 @@ void RudpSocket::HandleTick() {
   } else {
     session_.HandleTick();
   }
+}
+
+void RudpSocket::CheckTimeout() {
+  if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
+    Close();
+    return;
+  }
+  timer_.async_wait(std::bind(&RudpSocket::CheckTimeout, this));
 }
 
 }  // namespace transport

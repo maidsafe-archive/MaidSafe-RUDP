@@ -192,6 +192,8 @@ class RudpSocket {
   void HandleTick();
   friend void DispatchTick(RudpSocket *socket) { socket->HandleTick(); }
 
+  void CheckTimeout();
+
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;
 
@@ -243,6 +245,8 @@ class RudpSocket {
   // intended for its completion handler.
   boost::asio::deadline_timer waiting_flush_;
   boost::system::error_code waiting_flush_ec_;
+
+  boost::asio::deadline_timer timer_;
 };
 
 }  // namespace transport
