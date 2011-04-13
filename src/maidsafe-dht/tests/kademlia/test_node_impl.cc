@@ -773,7 +773,7 @@ TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
 
     Contact result_new;
     routing_table_->GetContact(new_contact.node_id(), &result_new);
-//    EXPECT_EQ(Contact(), result_new);
+    EXPECT_EQ(Contact(), result_new);
   }
   {
     // Ping failed
@@ -787,7 +787,7 @@ TEST_F(NodeImplTest, BEH_KAD_PingOldestContact) {
     // may need to put a timer to prevent deadlock
     do {
       routing_table_->GetContact(new_contact.node_id(), &result_new);
-      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+      boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
     } while (result_new == Contact());
     EXPECT_EQ(new_contact, result_new);
   }

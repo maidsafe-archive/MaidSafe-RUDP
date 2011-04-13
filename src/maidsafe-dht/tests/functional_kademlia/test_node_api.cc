@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 
 #include "maidsafe-dht/tests/functional_kademlia/test_node_environment.h"
+#include "maidsafe-dht/tests/kademlia/utils.h"
 
 namespace arg = std::placeholders;
 
@@ -60,6 +61,7 @@ extern boost::uint16_t kNetworkSize;
 extern std::vector<maidsafe::kademlia::Contact> bootstrap_contacts_;
 extern std::vector<crypto::RsaKeyPair> crypto_key_pairs_;
 std::vector<bool> dones;
+
 class NodeApiTest: public testing::Test {
  protected:
   NodeApiTest()
@@ -106,20 +108,6 @@ class NodeApiTest: public testing::Test {
   AlternativeStorePtr alternative_store_;
 
  public:
-  KeyValueSignature MakeKVS(const size_t &value_size) {
-    std::string key = crypto::Hash<crypto::SHA512>(RandomString(1024));
-    std::string value;
-    value.reserve(value_size);
-    std::string temp = RandomString((value_size > 1024) ? 1024 : value_size);
-    while (value.size() < value_size)
-       value += temp;
-    value = value.substr(0, value_size);
-    std::string signature;
-    while (signature.empty())
-      signature = crypto::AsymSign(value, rsa_key_pair_.private_key());
-    return KeyValueSignature(key, value, signature);
-  }
-
   void Callback(const int &result, bool *done) {
     *done = true;
     EXPECT_LE(static_cast<int>(0), result);
@@ -265,7 +253,8 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_,
+                                                    1111 + i, "", "");
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
@@ -306,7 +295,8 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_,
+                                                    1111 + i, "", "");
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
@@ -364,7 +354,8 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_,
+                                                    1111 + i, "", "");
     key_value_signatures.push_back(key_value_signature);
   }
   std::vector<StoreFunctor> sfs;
@@ -413,7 +404,8 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
   std::vector<KeyValueSignature> key_value_signatures;
   bptime::time_duration ttl(bptime::pos_infin);
   for (int i = 0; i < num_store_values; ++i) {
-    KeyValueSignature key_value_signature = MakeKVS(1111 + i);
+    KeyValueSignature key_value_signature = MakeKVS(rsa_key_pair_,
+                                                    1111 + i, "", "");
     key_value_signatures.push_back(key_value_signature);
   }
   done = false;

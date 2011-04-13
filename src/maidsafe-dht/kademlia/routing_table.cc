@@ -283,7 +283,8 @@ int RoutingTable::SetValidated(const NodeId &node_id,
     // remove it from un-validated container and insert it into routing_table.
     // Otherwise, the entry shall be dropped.
     if (validated) {
-      InsertContact((*it_contact).contact, (*it_contact).rank_info,
+      InsertContact((*it_contact).contact,
+                    (*it_contact).rank_info,
                     upgrade_lock);
     }
     UpgradeToUniqueLock unique_lock(*upgrade_lock);

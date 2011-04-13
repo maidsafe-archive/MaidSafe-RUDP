@@ -154,7 +154,9 @@ FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/t
 FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/demo/*.cc"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/demo/*.h")
 FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.cc"
-                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.h")
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/utils.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/utils.cc")
 LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_functional.cc")
 LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.cc"

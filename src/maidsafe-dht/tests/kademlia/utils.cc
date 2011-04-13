@@ -239,7 +239,7 @@ KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
   }
   std::string signature;
   while (signature.empty()) {
-  signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+    signature = crypto::AsymSign(value, rsa_key_pair.private_key());
   }
   return KeyValueSignature(key, value, signature);
 }
@@ -308,7 +308,8 @@ bool AddTestValidation(SecurifierPtr securifier, std::string public_key_id,
 }
 
 void AddContact(std::shared_ptr<RoutingTable> routing_table,
-                const Contact& contact, const RankInfoPtr rank_info) {
+                const Contact& contact,
+                const RankInfoPtr rank_info) {
   routing_table->AddContact(contact, rank_info);
   routing_table->SetValidated(contact.node_id(), true);
 }
