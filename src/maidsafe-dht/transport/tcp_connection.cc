@@ -235,7 +235,6 @@ void TcpConnection::EncodeData(const std::string &data) {
   } else {
     return;
   }
-
   for (int i = 0; i != 4; ++i)
     size_buffer_.at(i) = static_cast<char>(msg_size >> (8 * (3 - i)));
   data_buffer_.assign(data.begin(), data.end());

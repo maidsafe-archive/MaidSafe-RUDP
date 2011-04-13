@@ -63,9 +63,9 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
                       TaskCallback ops_callback, bool & is_new_id) {
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
       key_value_signature.signature.empty() || public_key_id.empty() ||
-      request_signature.first.empty() || /*request_signature.second.empty() ||*/
-      ops_callback == NULL)
+      request_signature.first.empty() || ops_callback == NULL) {
     return false;
+  }
 
   Task task(key_value_signature, info, request_signature, public_key_id,
             ops_callback);
@@ -81,8 +81,9 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
       task_index_->get<TagTaskKey>();
   auto itr = index_by_key.find(key_value_signature.key);
   if (itr != index_by_key.end()) {
-    if ((*itr).public_key_id != public_key_id)
+    if ((*itr).public_key_id != public_key_id) {
       return false;
+    }
   }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   auto itr_return = index_by_public_key_id.insert(task);

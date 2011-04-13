@@ -91,6 +91,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
                                       boost::asio::ip::tcp::endpoint()));
   listening_port_ = acceptor_->local_endpoint().port();
   transport_details_.endpoint.port = listening_port_;
+  transport_details_.endpoint.ip = endpoint.ip;
 
   // The connection object is kept alive in the acceptor handler until
   // HandleAccept() is called.

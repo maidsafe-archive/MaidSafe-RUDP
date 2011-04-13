@@ -154,8 +154,11 @@ FILE(GLOB ALL_FILES_TEST_BENCHMARK_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/t
 FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/demo/*.cc"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/demo/*.h")
 FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.cc"
-                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.h")
-LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/testnodefunctional.cc")
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/*.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/utils.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/utils.cc")
+LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_functional.cc")
+LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/*.h")
 # FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/*.cc"
@@ -174,7 +177,8 @@ ENDIF()
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTkademlia_api ${ALL_FILES_TEST_NODE_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+#### ADD_EXECUTABLE(TESTnode EXCLUDE_FROM_ALL ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 # ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
 # ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
@@ -189,7 +193,8 @@ ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 RENAME_EXECUTABLE(TESTkademlia)
-RENAME_EXECUTABLE(TESTnode)
+RENAME_EXECUTABLE(TESTkademlia_api)
+#### RENAME_EXECUTABLE(TESTnode)
 RENAME_EXECUTABLE(TESTtransport)
 # RENAME_EXECUTABLE(TESTnatpmp)
 # RENAME_EXECUTABLE(TESTupnp)
@@ -200,7 +205,7 @@ IF(Mysqlpp_FOUND)
 ENDIF()
 
 # SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
-SET(TEST_TARGETS TESTnode TESTkademlia TESTtransport)
+SET(TEST_TARGETS TESTkademlia TESTtransport TESTkademlia_api)
 SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static PROPERTIES FOLDER "Tests")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
@@ -230,7 +235,8 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gmock_static)
-TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTkademlia_api maidsafe_dht_static gtest_static)
+# TARGET_LINK_LIBRARIES(TESTnode maidsafe_dht_static gtest_static)
 # TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_static)
 # TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(KademliaDemo maidsafe_dht_static boost_program_options)
@@ -269,7 +275,7 @@ IF(MSVC)
                                 PROPERTIES COMPILE_FLAGS "/W0")
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
-  SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTtransport KademliaDemo benchmark_static PROPERTIES
+  SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTkademlia_api KademliaDemo benchmark_static PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
@@ -297,13 +303,16 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_routing_table.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_datastore.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_contact.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/test_node_environment.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/functional_kademlia/main.cc
                               # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/nat-pmp/test_natpmp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_tcp_transport.cc
                               # ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/upnp/test_upnp.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_mock_rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/kademlia/test_rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_udp_transport.cc
- 			      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/rpcs.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/service.cc
@@ -311,7 +320,6 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/tcp_connection.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/transport/udp_request.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/tests/transport/test_transport_api.cc
                               PROPERTIES COMPILE_FLAGS "-Wno-effc++")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 ENDIF()
@@ -322,7 +330,7 @@ ENDIF()
 ###################################################################################################
 IF(PYTHONINTERP_FOUND)
   IF(UNIX)
-    ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
+    ADD_TEST(STYLE_CHECK_KAD python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_KADEMLIA} ${ALL_FILES_TEST_KADEMLIA_DIR} ${ALL_FILES_TEST_NODE_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_KAD PROPERTY LABELS Functional Kademlia CodingStyle)
     ADD_TEST(STYLE_CHECK_TRANSPORT python ${MaidSafeCommon_TOOLS_DIR}/cpplint.py ${STYLE_TRANSPORT} ${ALL_FILES_TEST_TRANSPORT_DIR})
     SET_PROPERTY(TEST STYLE_CHECK_TRANSPORT PROPERTY LABELS Functional Transport CodingStyle)
@@ -351,6 +359,7 @@ SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/contact.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/node_id.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/message_handler.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/alternative_store.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/kademlia/securifier.h)
 SET(MAIDSAFE_MAIN_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe-dht/maidsafe-dht.h
