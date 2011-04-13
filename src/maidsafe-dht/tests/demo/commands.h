@@ -28,58 +28,84 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TESTS_DEMO_COMMANDS_H_
 #define MAIDSAFE_DHT_TESTS_DEMO_COMMANDS_H_
 
-#include <map>
 #include <string>
-#include "boost/function.hpp"
+#include<vector>
+
+#include "boost/date_time/posix_time/posix_time_types.hpp"
+
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe-dht/kademlia/config.h"
+#include "maidsafe-dht/kademlia/securifier.h"
+
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace rpcprotocol {
-class ChannelManager;
-class NodeId;
-typedef std::map<std::string, Stats<boost::uint64_t> > RpcStatsMap;
-}  // namespace rpcprotocol
-
 namespace kademlia {
-class Node;
+
 class NodeId;
-}  // namespace kademlia
+class Node;
 
 namespace kaddemo {
 
 class Commands {
  public:
-  Commands(boost::shared_ptr<kademlia::Node> node,
-           boost::shared_ptr<rpcprotocol::ChannelManager> chmanager,
+  Commands(std::shared_ptr<Node> node,
+           std::shared_ptr<Securifier> securifier,
            const boost::uint16_t &K);
   void Run();
  private:
-  void FindValueCallback(const std::string &result, const kademlia::NodeId &key,
-                         const bool &write_to_file, const std::string &path);
-  void StoreCallback(const std::string &result, const kademlia::NodeId &key,
-                     const boost::int32_t &ttl);
-  void PingCallback(const std::string &result, const kademlia::NodeId &id);
-  void GetNodeContactDetailsCallback(const std::string &result,
-                                     const kademlia::NodeId &id);
-  void ProcessCommand(const std::string &cmdline, bool *wait_for_cb);
-  void PrintUsage();
-  bool ReadFile(const std::string &path, std::string *content);
-  void WriteToFile(const std::string &path, const std::string &content);
-  void Store50Values(const std::string &prefix);
-  void Store50Callback(const std::string &result, const std::string &key,
+  void print_node_info(const Contact &contact);
+
+  void Store(const std::vector<std::string> &args, bool *wait_for_cb,
+             bool read_from_file);
+
+  void FindValue(const std::vector<std::string> &args, bool *wait_for_cb,
+                 bool read_from_file);
+
+  void GetContact(const std::vector<std::string> &args, bool *wait_for_cb);
+
+  void FindNodes(const std::vector<std::string> &args, bool *wait_for_cb,
+                 bool write_to_file);
+
+  void Store50Values(const std::vector<std::string> &args,  bool *wait_for_cb);
+
+  void StoreCallback(const int& result, const NodeId& key,
+                     const bptime::time_duration &ttl);
+
+  void FindValueCallback(int result, std::vector<std::string> values,
+                         std::vector<Contact> closest_contacts,
+                         Contact alternative_value_holder,
+                         Contact contact_to_cache, std::string path);
+
+  void GetContactsCallback(const int &result, Contact contact);
+
+  void FindNodesCallback(const int &result, std::vector<Contact> contacts,
+                         std::string path);
+
+  void Store50Callback(const int& result, const std::string &key,
                        bool *arrived);
+  bool ReadFile(const std::string &path, std::string *content);
+
+  void WriteToFile(const std::string &path, const std::string &content);
+
+  void PrintUsage();
+
+  void ProcessCommand(const std::string &cmdline, bool *wait_for_cb);
+
   void PrintRpcTimings();
-  boost::shared_ptr<kademlia::Node> node_;
-  boost::shared_ptr<rpcprotocol::ChannelManager> chmanager_;
+
+  std::shared_ptr<Node> node_;
+  std::shared_ptr<Securifier> securifier_;
   bool result_arrived_, finish_;
   double min_succ_stores_;
-//  crypto::Crypto cryobj_;
 };
 
 }  // namespace kaddemo
+
+}  // namespace kademlia
 
 }  // namespace maidsafe
 

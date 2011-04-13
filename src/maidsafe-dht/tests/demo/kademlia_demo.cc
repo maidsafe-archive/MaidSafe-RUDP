@@ -27,44 +27,179 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <signal.h>
 #include <iostream>  //  NOLINT
-
+#include <functional>
+#include <memory>
 #include "boost/program_options.hpp"
 #include "boost/filesystem/fstream.hpp"
 #include "boost/filesystem.hpp"
+#include "boost/format.hpp"
 #include "boost/shared_ptr.hpp"
 #include "boost/thread/thread.hpp"
 #include "boost/lexical_cast.hpp"
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe-dht/kademlia/config.h"
 #include "maidsafe-dht/kademlia/contact.h"
 #include "maidsafe-dht/kademlia/node_id.h"
 #include "maidsafe-dht/kademlia/node-api.h"
 #include "maidsafe-dht/kademlia/node_impl.h"
+#include "maidsafe-dht/kademlia/securifier.h"
 #include "maidsafe-dht/tests/demo/commands.h"
+#include "maidsafe-dht/transport/transport.h"
+#include "maidsafe-dht/transport/tcp_transport.h"
+#include "maidsafe-dht/transport/udp_transport.h"
 
+namespace arg = std::placeholders;
+namespace bptime = boost::posix_time;
 namespace po = boost::program_options;
+namespace mk = maidsafe::kademlia;
 
 namespace maidsafe {
 
+namespace kademlia {
+
 namespace test_kaddemo {
 
-static const boost::uint16_t K = 16;
-
-class JoinCallback {
+class KademliaDemoUtils {
  public:
-  JoinCallback() : result_arrived_(false), success_(false) {}
-  void Callback(const std::string &/*result*/) {
-//    GeneralResponse msg;
-//    if (!msg.ParseFromString(result))
-      success_ = false;
-//    else
-//      success_ = msg.result();
-    result_arrived_ = true;
+  KademliaDemoUtils()
+    : transport_type_(kTcp), asio_service_(), work_(), end_point_(),
+      rsa_key_pair_(), securifier_(), message_handler_(), alternative_store_(),
+      node_(), client_only_node_(true), k_(2), alpha_(1), beta_(1),
+      mean_refresh_interval_(3600), bootstrap_contacts_() {
   }
-  bool result_arrived() const { return result_arrived_; }
-  bool success() const { return success_; }
+
+  transport::TransportCondition SetUpTransport(const TransportType& type,
+      const transport::Endpoint& endpoint) {
+    end_point_ = endpoint;
+    transport_type_ = type;
+    asio_service_.reset(new boost::asio::io_service);
+    work_.reset(new boost::asio::io_service::work(*asio_service_));
+    boost::thread_group thread_group_;
+    size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
+    thread_group_.create_thread(std::bind(fn, asio_service_));
+    switch (transport_type_) {
+      case kTcp:
+        transport_.reset(new transport::TcpTransport(*asio_service_));
+        break;
+      case kUdp:
+        transport_.reset(new transport::UdpTransport(*asio_service_));
+        break;
+      default:
+        return transport::kError;
+    }
+    // Start Listening
+    return transport_->StartListening(end_point_);
+  }
+
+  void StopListeningTransport() {
+    transport_->StopListening();
+  }
+
+  void SetUpNode(const bool &client_only_node, const boost::uint16_t &k,
+                 const boost::uint16_t &alpha, const boost::uint16_t &beta,
+                 bptime::seconds &mean_refresh_interval, const bool &secure) {
+    client_only_node_ = client_only_node;
+    k_ = k;
+    alpha_ = alpha;
+    beta_ = beta;
+    mean_refresh_interval_ = mean_refresh_interval;
+    if (secure) {
+      rsa_key_pair_.GenerateKeys(4096);
+      securifier_.reset(new maidsafe::Securifier("", rsa_key_pair_.public_key(),
+                                                 rsa_key_pair_.private_key()));
+    } else {
+      securifier_.reset(new maidsafe::Securifier("", "", ""));
+    }
+    message_handler_.reset(new MessageHandler(securifier_));
+    node_.reset(new Node(asio_service_, transport_, message_handler_,
+                         securifier_, alternative_store_, client_only_node,
+                         k_, alpha_, beta_, mean_refresh_interval));
+  }
+
+  int JoinNode(const NodeId &node_id,
+               const std::vector<Contact> &bootstrap_contacts) {
+    bool done(false);
+    int response(-1);
+    JoinFunctor callback = std::bind(&KademliaDemoUtils::Callback, this,
+                                     arg::_1, &done, &response);
+    JoinNode(node_id, bootstrap_contacts, callback);
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    return response;
+  }
+
+  void JoinNode(const NodeId &node_id,
+                const std::vector<Contact> &bootstrap_contacts,
+                JoinFunctor callback) {
+    bootstrap_contacts_ = bootstrap_contacts;
+    node_->Join(node_id, 0, bootstrap_contacts_, callback);
+  }
+
+  void LeaveNode(std::vector<Contact> *bootstrap_contacts) {
+    node_->Leave(bootstrap_contacts);
+  }
+
+  void Callback(const int &result, bool *done, int *response_code) {
+    *done = true;
+    *response_code = result;
+  }
+
+  void print_node_info(Contact contact) {
+    std::cout <<
+      boost::format("Node id: [ %1% ] \nNode ip: [%2%] Node port: [%3%]\n")
+        % contact.node_id().ToStringEncoded(NodeId::kHex)
+        % contact.endpoint().ip.to_string()
+        % contact.endpoint().port;
+    std::cout << std::endl;
+  }
+
+  std::shared_ptr<Node> get_node() {
+    return node_;
+  }
+
+  std::shared_ptr<Securifier> get_securifier() {
+    return securifier_;
+  }
+
+  Contact ComposeContact(const NodeId& node_id,
+                         const transport::Endpoint& end_point) {
+    std::vector<transport::Endpoint> local_endpoints;
+    local_endpoints.push_back(end_point);
+    Contact contact(node_id, end_point, local_endpoints, end_point, false,
+                    false, "", "", "");
+    return contact;
+  }
+
+  Contact ComposeContactWithKey(const NodeId& node_id,
+                                const transport::Endpoint& end_point,
+                                const crypto::RsaKeyPair& crypto_key) {
+    std::vector<transport::Endpoint> local_endpoints;
+    local_endpoints.push_back(end_point);
+    Contact contact(node_id, end_point, local_endpoints, end_point, false,
+                    false, node_id.String(), crypto_key.public_key(), "");
+    return contact;
+  }
+
  private:
-  bool result_arrived_, success_;
+  typedef std::shared_ptr<Node> NodePtr;
+  TransportType transport_type_;
+  IoServicePtr asio_service_;
+  TransportPtr transport_;
+  std::shared_ptr<boost::asio::io_service::work> work_;
+  transport::Endpoint end_point_;
+  crypto::RsaKeyPair rsa_key_pair_;
+  SecurifierPtr securifier_;
+  MessageHandlerPtr message_handler_;
+  AlternativeStorePtr alternative_store_;
+  std::shared_ptr<Node> node_;
+  bool client_only_node_;
+  boost::uint16_t k_;
+  boost::uint16_t alpha_;
+  boost::uint16_t beta_;
+  bptime::seconds mean_refresh_interval_;
+  std::vector<Contact> bootstrap_contacts_;
 };
 
 void conflicting_options(const po::variables_map& vm, const char* opt1,
@@ -85,58 +220,9 @@ void option_dependency(const po::variables_map& vm,
           + "' requires option '" + required_option + "'.");
 }
 
-bool kadconfig_empty(const std::string &/*path*/) {
-//  KadConfig kadconfig;
-//  try {
-//    boost::filesystem::ifstream input(path.c_str(),
-//                                      std::ios::in | std::ios::binary);
-//    if (!kadconfig.ParseFromIstream(&input)) {;
-//      return true;
-//    }
-//    input.close();
-//    if (kadconfig.contact_size() == 0)
-//      return true;
-//  }
-//  catch(const std::exception &) {
-//    return true;
-//
-  return false;
-}
-
-bool write_to_kadconfig(const std::string &path,
-                        const std::string &/*node_id*/,
-                        const std::string &/*ip*/,
-                        const boost::uint16_t &/*port*/,
-                        const std::string &/*local_ip*/,
-                        const boost::uint16_t &/*local_port*/) {
-//  KadConfig kadconfig;
-//  try {
-//    KadConfig::Contact *ctc = kadconfig.add_contact();
-//    ctc->set_ip(ip);
-//    ctc->set_node_id(node_id);
-//    ctc->set_port(port);
-//    ctc->set_local_ip(local_ip);
-//    ctc->set_local_port(local_port);
-//    boost::filesystem::fstream output(path.c_str(), std::ios::out |
-//                                      std::ios::trunc | std::ios::binary);
-//    if (!kadconfig.SerializeToOstream(&output)) {
-//      output.close();
-//      return false;
-//    }
-//    output.close();
-//  }
-//    catch(const std::exception &) {
-//    return false;
-//  }
-  return boost::filesystem::exists(path);
-}
-
-void printf_info(kademlia::Contact info) {
-  kademlia::Contact ctc/*(info)*/;
-//  printf("Node info: %s", ctc.DebugString().c_str());
-}
-
 }  // namespace test_kaddemo
+
+}  // namespace kademlia
 
 }  // namespace maidsafe
 
@@ -151,113 +237,72 @@ int main(int argc, char **argv) {
   try {
     std::string logpath, kadconfigpath, bs_ip, bs_id, ext_ip, configfile,
                 bs_local_ip, thisnodekconfigpath, idpath;
-    boost::uint16_t bs_port(0), bs_local_port(0), port(0), ext_port(0);
-    boost::uint32_t refresh_time(0);
-    bool first_node = false;
+    boost::uint16_t bs_port(0), port(0);
+    boost::uint16_t type(0), k(2), alpha(1), beta(1);
+    boost::uint32_t refresh_interval(0);
+
     po::options_description desc("Options");
     desc.add_options()
       ("help,h", "Print options information and exit.")
       ("logfilepath,l", po::value(&logpath), "Path of logfile")
       ("verbose,v", po::bool_switch(), "Print log to console.")
-      ("kadconfigfile,k",
+      ("kadconfigfile,g",
         po::value(&kadconfigpath)->default_value(kadconfigpath),
         "Complete pathname of kadconfig file. Default is Node<port>/."
         "kadconfig")
-      ("client,c", po::bool_switch(), "Start the node as a client node->")
+      ("client,c", po::bool_switch(), "Start the node as a client node.")
+      ("first_node,f", po::bool_switch(), "First node of the network.")
+      ("type,t", po::value(&type)->default_value(type),
+        "Type of transport Tcp(0), Udt(1), Other(2) -> Default is Tcp.")
       ("port,p", po::value(&port)->default_value(port),
         "Local port to start node->  Default is 0, that starts in random port.")
       ("bs_ip", po::value(&bs_ip), "Bootstrap node ip.")
       ("bs_port", po::value(&bs_port), "Bootstrap node port.")
-      ("bs_local_ip", po::value(&bs_local_ip), "Bootstrap node local ip.")
-      ("bs_local_port", po::value(&bs_local_port), "Bootstrap node local port.")
       ("bs_id", po::value(&bs_id), "Bootstrap node id.")
+      ("k", po::value(&k)->default_value(k),
+       "Kademlia k, Number of contacts returned from a Find RPC")
+      ("alpha,a", po::value(&alpha)->default_value(alpha),
+        "Kademlia alpha, parallel level of Find RPCs")
+      ("beta,b", po::value(&beta)->default_value(beta),
+        "Kademlia beta, Number of returned Find RPCs required to start a "
+        "subsequent iteration")
       ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
       ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
       ("secure", po::bool_switch(),
        "Node with keys. Can only communicate with other secure nodes")
-      ("externalip", po::value(&ext_ip),
-        "Node's external ip. "
-        "Use only when it is the first node in the network.")
-      ("externalport", po::value(&ext_port),
-          "Node's external port. "
-          "Use only when it is the first node in the network.")
       ("noconsole", po::bool_switch(),
-        "Do not have access to Kademlia functions (store/load/ping) "
+        "Do not have access to Kademlia functions (store/findvalue/findnode) "
         "after node startup.")
       ("nodeinfopath", po::value(&thisnodekconfigpath),
         "Writes to this path a kadconfig file (with name .kadconfig) with this"
         " node's information.")
       ("append_id", po::value(&idpath),
         "Appends to the text file at this path the node's ID in a new line.")
-      ("refresh_time,r", po::value(&refresh_time),
-          "Time in minutes to refresh values and kbuckets.");
+      ("refresh_intv,r", po::value(&refresh_interval),
+        "Average interval time in minutes to refresh values.");
+
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     if (vm.count("help")) {
       std::cout << desc << "\n";
       return 0;
     }
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_id", "bs_ip");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_ip", "bs_id");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_id", "bs_port");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_port", "bs_id");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_id", "bs_local_ip");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_id", "bs_local_port");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_local_ip", "bs_id");
-    maidsafe::test_kaddemo::option_dependency(vm, "bs_local_port", "bs_id");
-    maidsafe::test_kaddemo::option_dependency(vm, "externalip", "externalport");
-    maidsafe::test_kaddemo::option_dependency(vm, "externalport", "externalip");
-    maidsafe::test_kaddemo::option_dependency(vm, "externalport", "port");
-    maidsafe::test_kaddemo::conflicting_options(vm, "upnp", "port_fw");
-    maidsafe::test_kaddemo::conflicting_options(vm, "client", "noconsole");
-    maidsafe::test_kaddemo::conflicting_options(vm, "bs_id", "externalip");
-    maidsafe::test_kaddemo::conflicting_options(vm, "verbose", "logfilepath");
+    mk::test_kaddemo::option_dependency(vm, "bs_id", "bs_ip");
+    mk::test_kaddemo::option_dependency(vm, "bs_ip", "bs_id");
+    mk::test_kaddemo::option_dependency(vm, "bs_id", "bs_port");
+    mk::test_kaddemo::option_dependency(vm, "bs_port", "bs_id");
+    mk::test_kaddemo::conflicting_options(vm, "upnp", "port_fw");
+    mk::test_kaddemo::conflicting_options(vm, "client", "noconsole");
+    mk::test_kaddemo::conflicting_options(vm, "verbose", "logfilepath");
+    mk::test_kaddemo::conflicting_options(vm, "first_node", "bs_id");
+    mk::test_kaddemo::conflicting_options(vm, "first_node", "bs_ip");
+    mk::test_kaddemo::conflicting_options(vm, "first_node", "bs_port");
 
-    if (vm.count("externalip"))
-      first_node = true;
-
-    if (vm.count("refresh_time")) {
-      refresh_time = vm["refresh_time"].as<boost::uint32_t>();
-      refresh_time = refresh_time * 60;
-    } else {
-//      refresh_time = kademlia::kRefreshTime;
-    }
-
-    // checking if path of kadconfigfile exists
-    if (vm.count("kadconfigfile")) {
-      kadconfigpath = vm["kadconfigfile"].as<std::string>();
-      boost::filesystem::path kadconfig(kadconfigpath);
-      if (!boost::filesystem::exists(kadconfig.parent_path())) {
-        try {
-          boost::filesystem::create_directories(kadconfig.parent_path());
-          if (!first_node)
-            if (!vm.count("bs_id")) {
-              printf("No bootstrapping info.\n");
-              return 1;
-            }
-        }
-        catch(const std::exception &) {
-          if (!first_node)
-            if (!vm.count("bs_id")) {
-              printf("No bootstrapping info.\n");
-              return 1;
-            }
-        }
-      } else {
-        if (maidsafe::test_kaddemo::kadconfig_empty(kadconfigpath) &&
-            !vm.count("bs_id")) {
+    bool first_node(vm["first_node"].as<bool>());
+    if (!first_node && !vm.count("bs_id")) {
           printf("No bootstrapping info.\n");
           return 1;
-        }
-      }
-    } else {
-      if (!first_node)
-        if (!vm.count("bs_id")) {
-          printf("No bootstrapping info.\n");
-          return 1;
-        }
     }
-
     // setting log
 #ifndef HAVE_GLOG
     std::string FLAGS_log_dir;
@@ -280,129 +325,74 @@ int main(int argc, char **argv) {
     }
     google::InitGoogleLogging(argv[0]);
 
-    // Starting transport on port
-/*
+    std::shared_ptr<mk::test_kaddemo::KademliaDemoUtils>
+        kademlia_demo_utils(new mk::test_kaddemo::KademliaDemoUtils);
+    // Transport Setup
+    type = (vm["type"].as<boost::uint16_t>());
+    if (type > 2) {
+      printf("Invalid transport type %d.\n", type);
+      return 1;
+    }
+    mk::TransportType transport_type = (mk::TransportType)type;
     port = vm["port"].as<boost::uint16_t>();
-    boost::shared_ptr<transport::UdtTransport> tra(new transport::UdtTransport);
-    transport::TransportCondition tc;
-    tra->StartListening("", port, &tc);
-    if (transport::kSuccess != tc) {
-      printf("Node failed to start transport on port %d.\n", port);
+    maidsafe::transport::Endpoint end_point("127.0.0.1", port);
+    maidsafe::transport::TransportCondition tc;
+    tc = kademlia_demo_utils->SetUpTransport(transport_type, end_point);
+
+    if (maidsafe::transport::kSuccess != tc) {
+      printf("Node failed to start transport on port %d,", port);
+      printf(" with error code  %d.", tc);
       return 1;
     }
-    boost::shared_ptr<rpcprotocol::ChannelManager> cm(
-        new rpcprotocol::ChannelManager(tra));
-    if (0 != cm->Start()) {
-      printf("Node failed to start ChannelManager.\n");
-      tra->StopListening(port);
-      return 1;
-    }
-    kademlia::NodeConstructionParameters kcp;
-    kcp.alpha = kademlia::kAlpha;
-    kcp.beta = kademlia::kBeta;
-    kcp.k = maidsafe::test_kaddemo::K;
-    kcp.port_forwarded = false;
-    kcp.refresh_time = kademlia::kRefreshTime;
-    kcp.use_upnp = false;
-    if (vm["client"].as<bool>())
-      kcp.type = kademlia::CLIENT;
-    else
-      kcp.type = kademlia::VAULT;
-    kcp.port = port;
-    if (vm["secure"].as<bool>()) {
-      crypto::RsaKeyPair rsa_key_pair;
-      rsa_key_pair.GenerateKeys(4096);
-      kcp.public_key = rsa_key_pair.public_key();
-      kcp.private_key = rsa_key_pair.private_key();
-    }
-    boost::shared_ptr<kademlia::Node> node(new kademlia::Node(cm, tra, kcp));
 
-    // setting kadconfig file if it was not in the options
-    if (kadconfigpath.empty()) {
-      kadconfigpath = "NodeInfo" + boost::lexical_cast<std::string>(port);
-      boost::filesystem::create_directories(kadconfigpath);
-      kadconfigpath += "/.kadconfig";
+    // Node Setup
+    bool client_only_node(vm["client"].as<bool>());
+    if (vm.count("refresh_interval")) {
+      refresh_interval = vm["refresh_interval"].as<boost::uint32_t>();
+      refresh_interval = refresh_interval * 60;
+    } else {
+      refresh_interval = 3600;
     }
-
-    // if not the first vault, write to kadconfig file bootstrapping info
-    // if provided in options
-    if (!first_node && vm.count("bs_id")) {
-      if (!maidsafe::test_kaddemo::write_to_kadconfig(
-              kadconfigpath, vm["bs_id"].as<std::string>(),
-              vm["bs_ip"].as<std::string>(),
-              vm["bs_port"].as<boost::uint16_t>(),
-              vm["bs_local_ip"].as<std::string>(),
-              vm["bs_local_port"].as<boost::uint16_t>())) {
-        printf("Unable to write kadconfig file to %s\n", kadconfigpath.c_str());
-        tra->StopListening(port);
-        cm->Stop();
-        return 1;
-      }
-    }
+    bptime::seconds mean_refresh_interval(refresh_interval);
+    bool secure(vm["secure"].as<bool>());
+    kademlia_demo_utils->SetUpNode(client_only_node, k, alpha, beta,
+                                   mean_refresh_interval, secure);
 
     // Joining the node to the network
-    maidsafe::test_kaddemo::JoinCallback callback;
-    if (first_node)
-      node->JoinFirstNode(kadconfigpath, vm["externalip"].as<std::string>(),
-                          vm["externalport"].as<boost::uint16_t>(),
-                          boost::bind(&maidsafe::test_kaddemo::JoinCallback::Callback,
-                                      &callback, _1));
-    else
-      node->Join(kadconfigpath,
-                 boost::bind(&maidsafe::test_kaddemo::JoinCallback::Callback,
-                             &callback, _1));
-    while (!callback.result_arrived())
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-    // Checking result of callback
-    if (!callback.success()) {
-      printf("Node failed to join the network.\n");
-      tra->StopListening(port);
-      cm->Stop();
+    std::vector<maidsafe::kademlia::Contact> bootstrap_contacts;
+    int response;
+    if (first_node) {
+      mk::NodeId node_id(mk::NodeId::kRandomId);
+      mk::Contact contact = kademlia_demo_utils->ComposeContact(node_id,
+                                                                end_point);
+      bootstrap_contacts.push_back(contact);
+      response =  kademlia_demo_utils->JoinNode(node_id, bootstrap_contacts);
+    } else {
+      std::string bs_id(vm["bs_id"].as<std::string>());
+      mk::NodeId node_id(mk::NodeId::kRandomId);
+      mk::NodeId bs_node_id(bs_id);
+      maidsafe::transport::Endpoint end_point(vm["bs_ip"].as<std::string>(),
+          vm["bs_port"].as<boost::uint16_t>());
+      mk::Contact contact(kademlia_demo_utils->ComposeContact(bs_node_id,
+                                                              end_point));
+      bootstrap_contacts.push_back(contact);
+      response =  kademlia_demo_utils->JoinNode(node_id, bootstrap_contacts);
+    }
+
+    if (response != maidsafe::transport::kSuccess) {
+      printf("Node failed to join the network with return code <%d>.\n",
+             response);
+      kademlia_demo_utils->StopListeningTransport();
       return 1;
     }
+
     // Printing Node Info
-    maidsafe::test_kaddemo::printf_info(node->contact_info());
-
-    // append ID to text file
-    if (vm.count("append_id")) {
-      try {
-        boost::filesystem::ofstream of(vm["append_id"].as<std::string>(),
-                                       std::ios::out | std::ios::app);
-        of << node->node_id().ToStringEncoded(kademlia::NodeId::kHex) << "\n";
-        of.close();
-      }
-      catch(const std::exception &) {
-      }
-    }
-
-    // Creating a kadconfig file with this node's info
-    if (vm.count("nodeinfopath")) {
-      std::string thiskconfig = vm["nodeinfopath"].as<std::string>();
-      boost::filesystem::path thisconfig(thiskconfig);
-      if (!boost::filesystem::exists(thisconfig)) {
-        try {
-          boost::filesystem::create_directories(thisconfig);
-          thisconfig /= ".kadconfig";
-          maidsafe::test_kaddemo::write_to_kadconfig(
-              thisconfig.string(),
-              node->node_id().ToStringEncoded(kademlia::NodeId::kHex),
-              node->ip(), node->port(), node->local_ip(),
-              node->local_port());
-        }
-        catch(const std::exception &e) {
-        }
-      } else {
-        thisconfig /= ".kadconfig";
-        maidsafe::test_kaddemo::write_to_kadconfig(
-            thisconfig.string(),
-            node->node_id().ToStringEncoded(kademlia::NodeId::kHex),
-            node->ip(), node->port(), node->local_ip(),
-            node->local_port());
-      }
-    }
+    kademlia_demo_utils->print_node_info(
+        kademlia_demo_utils->get_node()->contact());
 
     if (!vm["noconsole"].as<bool>()) {
-      kaddemo::Commands cmds(node, cm, maidsafe::test_kaddemo::K);
+      mk::kaddemo::Commands cmds(kademlia_demo_utils->get_node(),
+                                 kademlia_demo_utils->get_securifier(), k);
       cmds.Run();
     } else {
       printf("=====================================\n");
@@ -413,17 +403,14 @@ int main(int argc, char **argv) {
         boost::this_thread::sleep(boost::posix_time::seconds(1));
       }
     }
-    node->Leave();
-    tra->StopListening(port);
-    cm->Stop();
+    bootstrap_contacts.clear();
+    kademlia_demo_utils->LeaveNode(&bootstrap_contacts);
+    kademlia_demo_utils->StopListeningTransport();
     printf("\nNode stopped successfully.\n");
-*/
   }
   catch(const std::exception &e) {
     printf("Error: %s\n", e.what());
     return 1;
   }
-
   return 0;
 }
-
