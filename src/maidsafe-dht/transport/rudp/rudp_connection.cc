@@ -126,8 +126,6 @@ void RudpConnection::CheckTimeout() {
   if (!socket_.IsOpen()) {
     if (timeout_state_ == kSending)
       CloseOnError(kSendStalled);
-    else
-      CloseOnError(kReceiveStalled);
     return;
   }
 
@@ -155,6 +153,10 @@ void RudpConnection::StartTick() {
 }
 
 void RudpConnection::HandleTick() {
+  if (timeout_state_ == kSending) {
+    if (socket_.SentLength() > 0)
+      timer_.expires_from_now(kStallTimeout);
+  }
   // We need to keep ticking during a graceful shutdown.
   if (socket_.IsOpen()) {
     StartTick();
@@ -230,6 +232,7 @@ void RudpConnection::HandleReadSize(const bs::error_code &ec) {
   data_size_ = size;
   data_received_ = 0;
 
+  timer_.expires_from_now(kStallTimeout);
   StartReadData();
 }
 
@@ -247,12 +250,6 @@ void RudpConnection::StartReadData() {
                     strand_.wrap(std::bind(&RudpConnection::HandleReadData,
                                            shared_from_this(),
                                            arg::_1, arg::_2)));
-
-  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-  Timeout tm_out(bptime::milliseconds(std::max(
-      static_cast<boost::int64_t>(data_size_ * kTimeoutFactor),
-      kMinTimeout.total_milliseconds())));
-  timer_.expires_at(now + tm_out);
 }
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
@@ -273,6 +270,8 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
                                             shared_from_this()));
   } else {
     // Need more data to complete the message.
+    if (length > 0)
+      timer_.expires_from_now(kStallTimeout);
     StartReadData();
   }
 }
@@ -320,17 +319,10 @@ void RudpConnection::EncodeData(const std::string &data) {
 void RudpConnection::StartWrite() {
   if (Stopped())
     return CloseOnError(kNoConnection);
-
-//  timeout_for_response_ = kImmediateTimeout;
-  Timeout tm_out(bptime::milliseconds(std::max(
-      static_cast<boost::int64_t>(buffer_.size() * kTimeoutFactor),
-      kMinTimeout.total_milliseconds())));
-
   socket_.AsyncWrite(asio::buffer(buffer_),
                      strand_.wrap(std::bind(&RudpConnection::HandleWrite,
                                             shared_from_this(), arg::_1)));
-
-  timer_.expires_from_now(tm_out);
+  timer_.expires_from_now(kStallTimeout);
   timeout_state_ = kSending;
 }
 
@@ -340,7 +332,9 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
 
   if (ec)
     return CloseOnError(kSendFailure);
-
+  // Once data sent out, stop the timer for the sending procedure
+  timer_.expires_at(boost::posix_time::pos_infin);
+  timeout_state_ = kNoTimeout;
   // Start receiving response
   if (timeout_for_response_ != kImmediateTimeout) {
     StartReadSize();

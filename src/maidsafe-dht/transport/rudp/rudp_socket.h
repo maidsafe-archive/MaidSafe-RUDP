@@ -91,6 +91,9 @@ class RudpSocket {
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 
+  // Return the length of data that successfully sent out during each operation
+  boost::uint32_t SentLength();
+
   // Asynchronously process one "tick". The internal tick size varies based on
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
@@ -192,8 +195,6 @@ class RudpSocket {
   void HandleTick();
   friend void DispatchTick(RudpSocket *socket) { socket->HandleTick(); }
 
-  void CheckTimeout();
-
   // The dispatcher that holds this sockets registration.
   RudpDispatcher &dispatcher_;
 
@@ -246,7 +247,7 @@ class RudpSocket {
   boost::asio::deadline_timer waiting_flush_;
   boost::system::error_code waiting_flush_ec_;
 
-  boost::asio::deadline_timer timer_;
+  size_t sent_length_;
 };
 
 }  // namespace transport
