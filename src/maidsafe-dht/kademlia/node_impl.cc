@@ -82,7 +82,8 @@ Node::Impl::Impl(IoServicePtr asio_service,
       down_contacts_(),
       thread_group_(),
       refresh_thread_running_(false),
-      downlist_thread_running_(false) {}
+      downlist_thread_running_(false),
+      validate_contact_running_(false) {}
 
 Node::Impl::~Impl() {
   if (joined_)
@@ -131,6 +132,7 @@ void Node::Impl::Join(const NodeId &node_id,
                   arg::_3));
     routing_table_->validate_contact()->connect(
         std::bind(&Node::Impl::ValidateContact, this, arg::_1));
+    validate_contact_running_ = true;
   }
   if (bootstrap_contacts.size() == 1 &&
       bootstrap_contacts[0].node_id() == node_id) {
@@ -186,7 +188,6 @@ void Node::Impl::JoinFindNodesCallback(
       thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
                                              this));
       refresh_thread_running_ = true;
-
     }
     // Connect the ReportDown Signal
     report_down_contact_->connect(
@@ -629,15 +630,21 @@ void Node::Impl::RefreshDataStore() {
 
 void Node::Impl::EnablePingOldestContact() {
   // Connect the ping_oldest_contact signal in the routing table
-//  routing_table_->ping_oldest_contact()->connect(
-//      std::bind(&Node::Impl::PingOldestContact,
-//                this, arg::_1, arg::_2, arg::_3));
+  if (!validate_contact_running_) {
+    routing_table_->ping_oldest_contact()->connect(
+        std::bind(&Node::Impl::PingOldestContact,
+                  this, arg::_1, arg::_2, arg::_3));
+    validate_contact_running_ = true;
+  }
 }
 
 void Node::Impl::EnableValidateContact() {
   // Connect the validate_contact signal in the routing table
-//  routing_table_->validate_contact()->connect(std::bind(
-//                      &Node::Impl::ValidateContact, this, arg::_1));
+  if (!validate_contact_running_) {
+    routing_table_->validate_contact()->connect(
+        std::bind(&Node::Impl::ValidateContact, this, arg::_1));
+    validate_contact_running_ = true;
+  }
 }
 
 // TODO(qi.ma@maidsafe.net): the info of the node reporting these k-closest
@@ -933,8 +940,9 @@ void Node::Impl::PingOldestContactCallback(Contact oldest_contact,
     // Increase the RPCfailure of the oldest_contact by one, and then try to
     // add the new contact again
     routing_table_->IncrementFailedRpcCount(oldest_contact.node_id());
-//    routing_table_->SetValidated(replacement_contact.node_id(), true);
-//    routing_table_->AddContact(replacement_contact, replacement_rank_info);
+    routing_table_->IncrementFailedRpcCount(oldest_contact.node_id());
+    routing_table_->AddContact(replacement_contact, replacement_rank_info);
+    routing_table_->SetValidated(replacement_contact.node_id(), true);
   } else {
     // Add the oldest_contact again to update its last_seen to now
     routing_table_->AddContact(oldest_contact, oldest_rank_info);

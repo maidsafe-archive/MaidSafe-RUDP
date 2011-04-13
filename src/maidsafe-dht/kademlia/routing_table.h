@@ -292,8 +292,9 @@ typedef UnValidatedContactsContainer::index<NodeIdTag>::type&
         UnValidatedContactsById;
 
 
-typedef std::shared_ptr<boost::signals2::signal<
-            void(const Contact&, const Contact&, RankInfoPtr)>>
+typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
+                                                     const Contact&,
+                                                     RankInfoPtr)>>
         PingOldestContactPtr;
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>

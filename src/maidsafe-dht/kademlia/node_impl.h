@@ -506,7 +506,9 @@ class Node::Impl {
   /** The thread group to hold all monitoring treads
    *  Used by: MonitoringDownlistThread */
   std::shared_ptr<boost::thread_group> thread_group_;
-  bool refresh_thread_running_, downlist_thread_running_;
+  bool refresh_thread_running_,
+       downlist_thread_running_,
+       validate_contact_running_;
 };
 
 }  // namespace kademlia
