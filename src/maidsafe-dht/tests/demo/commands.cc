@@ -389,7 +389,7 @@ void Commands::PrintUsage() {
   printf("\tfindnodesfile key filepath  Find k closest nodes to key & save.\n");
   printf("\tstore50values prefix        Store 50 key value pairs of for ");
   printf("(prefix[i],prefix[i]*100.\n");
-  printf("\ttimings                     Print statistics for RPC timings.\n");
+//  printf("\ttimings                     Print statistics for RPC timings.\n");
   printf("\texit                        Stop the node and exit.\n");
   printf("\n\tNOTE -- node_id should be input encoded.\n");
   printf("\t          If key is not a valid 512 hash key (encoded format),\n");

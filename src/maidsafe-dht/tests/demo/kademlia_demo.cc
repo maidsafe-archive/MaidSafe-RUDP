@@ -246,10 +246,10 @@ int main(int argc, char **argv) {
       ("help,h", "Print options information and exit.")
       ("logfilepath,l", po::value(&logpath), "Path of logfile")
       ("verbose,v", po::bool_switch(), "Print log to console.")
-      ("kadconfigfile,g",
-        po::value(&kadconfigpath)->default_value(kadconfigpath),
-        "Complete pathname of kadconfig file. Default is Node<port>/."
-        "kadconfig")
+//      ("kadconfigfile,g",
+//        po::value(&kadconfigpath)->default_value(kadconfigpath),
+//        "Complete pathname of kadconfig file. Default is Node<port>/."
+//        "kadconfig")
       ("client,c", po::bool_switch(), "Start the node as a client node.")
       ("first_node,f", po::bool_switch(), "First node of the network.")
       ("type,t", po::value(&type)->default_value(type),
@@ -266,18 +266,18 @@ int main(int argc, char **argv) {
       ("beta,b", po::value(&beta)->default_value(beta),
         "Kademlia beta, Number of returned Find RPCs required to start a "
         "subsequent iteration")
-      ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
-      ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
+//      ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
+//      ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
       ("secure", po::bool_switch(),
        "Node with keys. Can only communicate with other secure nodes")
       ("noconsole", po::bool_switch(),
         "Do not have access to Kademlia functions (store/findvalue/findnode) "
         "after node startup.")
-      ("nodeinfopath", po::value(&thisnodekconfigpath),
-        "Writes to this path a kadconfig file (with name .kadconfig) with this"
-        " node's information.")
-      ("append_id", po::value(&idpath),
-        "Appends to the text file at this path the node's ID in a new line.")
+//      ("nodeinfopath", po::value(&thisnodekconfigpath),
+//      "Writes to this path a kadconfig file (with name .kadconfig) with this"
+//        " node's information.")
+//      ("append_id", po::value(&idpath),
+//        "Appends to the text file at this path the node's ID in a new line.")
       ("refresh_intv,r", po::value(&refresh_interval),
         "Average interval time in minutes to refresh values.");
 
@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
     mk::test_kaddemo::option_dependency(vm, "bs_ip", "bs_id");
     mk::test_kaddemo::option_dependency(vm, "bs_id", "bs_port");
     mk::test_kaddemo::option_dependency(vm, "bs_port", "bs_id");
-    mk::test_kaddemo::conflicting_options(vm, "upnp", "port_fw");
+//    mk::test_kaddemo::conflicting_options(vm, "upnp", "port_fw");
     mk::test_kaddemo::conflicting_options(vm, "client", "noconsole");
     mk::test_kaddemo::conflicting_options(vm, "verbose", "logfilepath");
     mk::test_kaddemo::conflicting_options(vm, "first_node", "bs_id");
