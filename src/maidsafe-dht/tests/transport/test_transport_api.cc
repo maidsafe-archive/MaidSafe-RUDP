@@ -210,6 +210,7 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
       transport1 = TransportPtr(new T(*asio_service_2_));
     sending_transports_.push_back(transport1);
   }
+  ++count_;
 }
 
 template <typename T>
@@ -476,10 +477,8 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
   this->SetupTransport(false, 0);
-  this->count_ = 0;
   for (int i = 0; i < 16; ++i) {
     this->SetupTransport(true, 0);
-    this->count_++;
   }
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
@@ -550,11 +549,11 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
       _2, _3, _4));
   listener->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+  std::string request(RandomString(1));
+  for (int i = 0; i < 24; ++i)
+    request = request + request;
 
   for (int j = 0; j < 5; ++j) {
-    std::string request(RandomString(1));
-    for (int i = 0; i < 24; ++i)
-      request = request + request;
     sender->Send(request, Endpoint(kIP, listener->listening_port()),
                  bptime::seconds(24));
     while (!msgh_sender->finished_) {
@@ -584,14 +583,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
-  sender->on_message_received()->connect(
-      boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender, _1,
-      _2, _3, _4));
   sender->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
-  listener->on_message_received()->connect(
-      boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener, _1,
-      _2, _3, _4));
   listener->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
 
@@ -606,7 +599,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
     while ((!msgh_sender->finished_) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
-      if (waited_seconds == 5)
+      if (waited_seconds == 3)
           listener->StopListening();
     }
     EXPECT_GT(10, waited_seconds);
@@ -635,7 +628,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
     while ((!msgh_listener->finished_) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
-      if (waited_seconds == 5)
+      if (waited_seconds == 3)
           sender->StopListening();
     }
     EXPECT_GT(10, waited_seconds);
