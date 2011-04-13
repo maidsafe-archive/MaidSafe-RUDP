@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe-dht/transport/message_handler.h"
 #include "maidsafe-dht/transport/transport.pb.h"
+#include "maidsafe-dht/transport/tcp_connection.h"
 #include "maidsafe-dht/transport/utils.h"
 
 namespace asio = boost::asio;

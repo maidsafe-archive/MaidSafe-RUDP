@@ -63,14 +63,26 @@ namespace test_kaddemo {
 
 class KademliaDemoUtils {
  public:
-  KademliaDemoUtils()
-    : transport_type_(kTcp), asio_service_(), work_(), end_point_(),
-      rsa_key_pair_(), securifier_(), message_handler_(), alternative_store_(),
-      node_(), client_only_node_(true), k_(2), alpha_(1), beta_(1),
-      mean_refresh_interval_(3600), bootstrap_contacts_() {
+  KademliaDemoUtils() : transport_type_(kTcp),
+                        asio_service_(),
+                        transport_(),
+                        work_(),
+                        end_point_(),
+                        rsa_key_pair_(),
+                        securifier_(),
+                        message_handler_(),
+                        alternative_store_(),
+                        node_(),
+                        client_only_node_(false),
+                        k_(4),
+                        alpha_(3),
+                        beta_(2),
+                        mean_refresh_interval_(3600),
+                        bootstrap_contacts_() {
   }
 
-  transport::TransportCondition SetUpTransport(const TransportType& type,
+  transport::TransportCondition SetUpTransport(
+      const TransportType& type,
       const transport::Endpoint& endpoint) {
     end_point_ = endpoint;
     transport_type_ = type;
@@ -97,9 +109,12 @@ class KademliaDemoUtils {
     transport_->StopListening();
   }
 
-  void SetUpNode(const bool &client_only_node, const boost::uint16_t &k,
-                 const boost::uint16_t &alpha, const boost::uint16_t &beta,
-                 bptime::seconds &mean_refresh_interval, const bool &secure) {
+  void SetUpNode(const bool &client_only_node,
+                 const boost::uint16_t &k,
+                 const boost::uint16_t &alpha,
+                 const boost::uint16_t &beta,
+                 bptime::seconds &mean_refresh_interval,
+                 const bool &secure) {
     client_only_node_ = client_only_node;
     k_ = k;
     alpha_ = alpha;
@@ -107,7 +122,8 @@ class KademliaDemoUtils {
     mean_refresh_interval_ = mean_refresh_interval;
     if (secure) {
       rsa_key_pair_.GenerateKeys(4096);
-      securifier_.reset(new maidsafe::Securifier("", rsa_key_pair_.public_key(),
+      securifier_.reset(new maidsafe::Securifier("an_id",
+                                                 rsa_key_pair_.public_key(),
                                                  rsa_key_pair_.private_key()));
     } else {
       securifier_.reset(new maidsafe::Securifier("", "", ""));
@@ -134,7 +150,7 @@ class KademliaDemoUtils {
                 const std::vector<Contact> &bootstrap_contacts,
                 JoinFunctor callback) {
     bootstrap_contacts_ = bootstrap_contacts;
-    node_->Join(node_id, 0, bootstrap_contacts_, callback);
+    node_->Join(node_id, bootstrap_contacts_, callback);
   }
 
   void LeaveNode(std::vector<Contact> *bootstrap_contacts) {
@@ -202,7 +218,8 @@ class KademliaDemoUtils {
   std::vector<Contact> bootstrap_contacts_;
 };
 
-void conflicting_options(const po::variables_map& vm, const char* opt1,
+void conflicting_options(const po::variables_map& vm,
+                         const char* opt1,
                          const char* opt2) {
   if (vm.count(opt1) && !vm[opt1].defaulted()
       && vm.count(opt2) && !vm[opt2].defaulted())
@@ -213,7 +230,8 @@ void conflicting_options(const po::variables_map& vm, const char* opt1,
 // Function used to check that if 'for_what' is specified, then
 // 'required_option' is specified too.
 void option_dependency(const po::variables_map& vm,
-    const char* for_what, const char* required_option) {
+                       const char* for_what,
+                       const char* required_option) {
   if (vm.count(for_what) && !vm[for_what].defaulted())
     if (vm.count(required_option) == 0 || vm[required_option].defaulted())
       throw std::logic_error(std::string("Option '") + for_what
@@ -284,7 +302,7 @@ int main(int argc, char **argv) {
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     if (vm.count("help")) {
-      std::cout << desc << "\n";
+      std::cout << desc << std::endl;
       return 0;
     }
     mk::test_kaddemo::option_dependency(vm, "bs_id", "bs_ip");
@@ -300,8 +318,8 @@ int main(int argc, char **argv) {
 
     bool first_node(vm["first_node"].as<bool>());
     if (!first_node && !vm.count("bs_id")) {
-          printf("No bootstrapping info.\n");
-          return 1;
+      printf("No bootstrapping info.\n");
+      return 1;
     }
     // setting log
 #ifndef HAVE_GLOG

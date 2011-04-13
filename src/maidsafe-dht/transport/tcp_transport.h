@@ -34,13 +34,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
+#include "boost/asio/ip/tcp.hpp"
 #include "maidsafe-dht/transport/transport.h"
-#include "maidsafe-dht/transport/tcp_connection.h"
 
 namespace maidsafe {
 
 namespace transport {
 
+class TcpConnection;
 class MessageHandler;
 
 class TcpTransport : public Transport,
