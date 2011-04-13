@@ -901,7 +901,7 @@ void Node::Impl::IterativeSearchNodeResponse(
                                                &closest_contacts,
                                                &curr_iteration_done,
                                                &calledback)) {
-    printf("Well, that's just too freakishly odd. Daaaaamn, brotha!\n");
+    DLOG(WARNING) << "Failed to handle result for the iteration" << std::endl;
   }
 
   if (!calledback) {
