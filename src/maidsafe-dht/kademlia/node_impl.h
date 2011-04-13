@@ -71,6 +71,9 @@ class NodeImplTest_BEH_KAD_Join_Test;
 class NodeImplTest_BEH_KAD_Getters_Test;
 class NodeImplTest_BEH_KAD_Leave_Test;
 class NodeImplTest_BEH_KAD_DownlistClient_Test;
+class NodeApiTest_BEH_KAD_Join_Server_Test;
+class NodeImplTest_BEH_KAD_ValidateContact_Test;
+class NodeImplTest_BEH_KAD_PingOldestContact_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -95,7 +98,6 @@ class Node::Impl {
   // rather than polluting this with friend tests.
   virtual ~Impl();
   void Join(const NodeId &node_id,
-            const Port &port,
             const std::vector<Contact> &bootstrap_contacts,
             JoinFunctor callback);
   void Leave(std::vector<Contact> *bootstrap_contacts);
@@ -213,10 +215,6 @@ class Node::Impl {
   /** Setter. Will connect the signal in service as well.
    *  @param[in] service The service to connect */
   void SetService(std::shared_ptr<Service> service);
-  /** Setter. Will connect the ping_oldest_contact signal in routing table. */
-  void EnablePingOldestContact();
-  /** Setter. Will connect the validate_contact signal in routing table. */
-  void EnableValidateContact();
   bool refresh_thread_running() const;
   bool downlist_thread_running() const;
 
@@ -226,10 +224,17 @@ class Node::Impl {
   friend class test::NodeImplTest_BEH_KAD_Getters_Test;
   friend class test::NodeImplTest_BEH_KAD_Leave_Test;
   friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
+  friend class test::NodeImplTest_BEH_KAD_ValidateContact_Test;
+  friend class test::NodeImplTest_BEH_KAD_PingOldestContact_Test;
 
  private:
   Impl(const Impl&);
   Impl &operator=(const Impl&);
+
+  /** Setter. Will connect the ping_oldest_contact signal in routing table. */
+  void EnablePingOldestContact();
+  /** Setter. Will connect the validate_contact signal in routing table. */
+  void EnableValidateContact();
 
   /** Callback from the rpc->findnode request for GetContact.
    *  @param[in] result_size The number of closest contacts find.
@@ -501,7 +506,9 @@ class Node::Impl {
   /** The thread group to hold all monitoring treads
    *  Used by: MonitoringDownlistThread */
   std::shared_ptr<boost::thread_group> thread_group_;
-  bool refresh_thread_running_, downlist_thread_running_;
+  bool refresh_thread_running_,
+       downlist_thread_running_,
+       validate_contact_running_;
 };
 
 }  // namespace kademlia

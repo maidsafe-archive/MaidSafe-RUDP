@@ -314,6 +314,8 @@ class Service : public std::enable_shared_from_this<Service> {
   PingDownListContactsPtr ping_down_list_contacts_;
   /** sender task */
   std::shared_ptr<SenderTask> sender_task_;
+  /** client node id that gets ignored by RT **/
+  std::string client_node_id_;
 };
 
 }  // namespace kademlia

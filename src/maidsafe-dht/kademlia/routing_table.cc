@@ -166,7 +166,6 @@ void RoutingTable::GetCloseContacts(
     --start_kbucket_index;
     potential_size = potential_size + KBucketSizeForKey(start_kbucket_index);
   }
-
   // once we have the search range, put all contacts in the range buckets into
   // a candidate container, using target_id to re-calculate the distance
   RoutingTableContactsContainer candidate_contacts;
@@ -190,7 +189,6 @@ void RoutingTable::GetCloseContacts(
     }
     ++start_kbucket_index;
   }
-
   // populate the result with the count defined top contacts
   // indexed by the new calculated distance
   ContactsByDistanceToThisId key_dist_indx
@@ -285,7 +283,8 @@ int RoutingTable::SetValidated(const NodeId &node_id,
     // remove it from un-validated container and insert it into routing_table.
     // Otherwise, the entry shall be dropped.
     if (validated) {
-      InsertContact((*it_contact).contact, (*it_contact).rank_info,
+      InsertContact((*it_contact).contact,
+                    (*it_contact).rank_info,
                     upgrade_lock);
     }
     UpgradeToUniqueLock unique_lock(*upgrade_lock);

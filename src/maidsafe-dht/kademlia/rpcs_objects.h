@@ -71,6 +71,7 @@ typedef boost::multi_index::multi_index_container<
     >
   >
 > ConnectedObjectsContainer;
+
 // This class temporarily holds the connected objects of Rpcs to ensure all
 // resources can be correctly released and no memory leaked
 class ConnectedObjectsList  {
@@ -90,12 +91,15 @@ class ConnectedObjectsList  {
   // Return the TransportPtr of the index
   TransportPtr GetTransport(boost::uint32_t index);
 
+  // Returns the size of the connected objects MI
+  size_t Size();
+
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
   typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
-      UpgradeToUniqueLock;
+          UpgradeToUniqueLock;
 
   /**  Multi_index container of connected objects */
   std::shared_ptr<ConnectedObjectsContainer> objects_container_;
