@@ -167,8 +167,8 @@ void RudpSession::SendCookieResponse() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(RudpSlidingWindow<int>::kMaximumWindowSize);
+  packet.SetMaximumPacketSize(RudpParameters::kMaxSize);
+  packet.SetMaximumFlowWindowSize(RudpParameters::kMaximumWindowSize);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
@@ -188,8 +188,8 @@ void RudpSession::SendConnectionAccepted() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(RudpDataPacket::kMaxSize);
-  packet.SetMaximumFlowWindowSize(RudpSlidingWindow<int>::kMaximumWindowSize);
+  packet.SetMaximumPacketSize(RudpParameters::kMaxSize);
+  packet.SetMaximumFlowWindowSize(RudpParameters::kMaximumWindowSize);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());

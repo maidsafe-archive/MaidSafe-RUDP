@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "rudp_sliding_window.h"
 #include "rudp_data_packet.h"
 #include "rudp_tick_timer.h"
+#include "rudp_parameters.h"
 
 namespace maidsafe {
 

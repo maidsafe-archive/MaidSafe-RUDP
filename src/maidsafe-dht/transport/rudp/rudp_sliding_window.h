@@ -36,6 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "maidsafe/common/utils.h"
 
+#include "rudp_parameters.h"
+
 namespace maidsafe {
 
 namespace transport {
@@ -43,10 +45,6 @@ namespace transport {
 template <typename T>
 class RudpSlidingWindow {
  public:
-  // A constant that probably should be configurable.
-  enum { kDefaultWindowSize = 16 };
-  enum { kMaximumWindowSize = 128 };
-
   // The maximum possible sequence number. When reached, sequence numbers are
   // wrapped around to start from 0.
   enum { kMaxSequenceNumber = 0x7fffffff };
@@ -64,7 +62,7 @@ class RudpSlidingWindow {
   // Reset to empty starting with the specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
-    maximum_size_ = kDefaultWindowSize;
+    maximum_size_ = RudpParameters::kDefaultWindowSize;
     begin_ = end_ = initial_sequence_number;
     items_.clear();
   }
@@ -88,7 +86,8 @@ class RudpSlidingWindow {
   // end. This is used to filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
-    boost::uint32_t end = (begin + kMaximumWindowSize) % (kMaxSequenceNumber + 1);
+    boost::uint32_t end = (begin + RudpParameters::kMaximumWindowSize)
+                          % (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
   }
 
@@ -99,7 +98,8 @@ class RudpSlidingWindow {
 
   // Set the maximum size of the window.
   void SetMaximumSize(size_t size) {
-    maximum_size_ = size < kMaximumWindowSize ? size : kMaximumWindowSize;
+    maximum_size_ = size < RudpParameters::kMaximumWindowSize
+                    ? size : RudpParameters::kMaximumWindowSize;
   }
 
   // Get the current size of the window.

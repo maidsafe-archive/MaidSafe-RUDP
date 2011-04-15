@@ -36,6 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe-dht/transport/rudp/rudp_shutdown_packet.h"
 #include "maidsafe-dht/transport/rudp/rudp_ack_of_ack_packet.h"
 #include "maidsafe-dht/transport/rudp/rudp_negative_ack_packet.h"
+#include "maidsafe-dht/transport/rudp/rudp_parameters.h"
 
 namespace maidsafe {
 
@@ -82,7 +83,7 @@ class RudpDataPacketTest : public testing::Test {
 
   void TestEncodeDecode() {
     std::string data;
-    for (int i = 0; i < RudpPacket::kMaxSize; ++i)
+    for (int i = 0; i < RudpParameters::kMaxSize; ++i)
       data += "a";
     boost::uint32_t packet_sequence_number = 0x7fffffff;
     boost::uint32_t message_number = 0x1fffffff;
@@ -96,7 +97,7 @@ class RudpDataPacketTest : public testing::Test {
     data_packet_.SetDestinationSocketId(destination_socket_id);
 
 //    char char_array[RudpDataPacket::kHeaderSize + RudpSender::kMaxDataSize];
-    char char_array[RudpDataPacket::kHeaderSize + RudpPacket::kMaxSize];
+    char char_array[RudpDataPacket::kHeaderSize + RudpParameters::kMaxSize];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
     EXPECT_EQ(RudpDataPacket::kHeaderSize + data.size(),
               data_packet_.Encode(dbuffer));

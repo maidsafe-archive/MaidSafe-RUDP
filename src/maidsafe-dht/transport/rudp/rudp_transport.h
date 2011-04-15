@@ -38,6 +38,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/strand.hpp"
 #include "maidsafe-dht/transport/transport.h"
 
+#include "rudp_parameters.h"
+
 namespace maidsafe {
 
 namespace transport {

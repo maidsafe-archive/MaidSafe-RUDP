@@ -40,8 +40,6 @@ namespace transport {
 
 class RudpPacket {
  public:
-  // Maximum packet size permitted in this implementation.
-  enum { kMaxSize = 6550 };
 
   // Get the destination socket id from an encoded packet.
   static bool DecodeDestinationSocketId(boost::uint32_t *id,

@@ -25,75 +25,46 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_RUDP_PARAMETERS_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_RUDP_PARAMETERS_H_
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_DATA_PACKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_DATA_PACKET_H_
+#include <cassert>
+#include <deque>
 
-#include <string>
-
-#include "boost/asio/buffer.hpp"
 #include "boost/cstdint.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe-dht/transport/transport.h"
-#include "rudp_packet.h"
+#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 
 namespace transport {
 
-class RudpDataPacket : public RudpPacket {
+// This class provides the configurability to all traffic related parameters.
+class RudpParameters {
  public:
-  enum { kHeaderSize = 16 };
+  // Window size permitted in RUDP
+  static boost::uint32_t kDefaultWindowSize;
+  static boost::uint32_t kMaximumWindowSize;
 
-  RudpDataPacket();
+  // Packet size permitted in RUDP
+  // Shall not exceed the UDP payload, which is 65507
+  static boost::uint32_t kDefaultSize;
+  static boost::uint32_t kMaxSize;
+  enum { kUDPPayload = 65500 };
 
-  boost::uint32_t PacketSequenceNumber() const;
-  void SetPacketSequenceNumber(boost::uint32_t n);
 
-  bool FirstPacketInMessage() const;
-  void SetFirstPacketInMessage(bool b);
-
-  bool LastPacketInMessage() const;
-  void SetLastPacketInMessage(bool b);
-
-  bool InOrder() const;
-  void SetInOrder(bool b);
-
-  boost::uint32_t MessageNumber() const;
-  void SetMessageNumber(boost::uint32_t n);
-
-  boost::uint32_t TimeStamp() const;
-  void SetTimeStamp(boost::uint32_t n);
-
-  boost::uint32_t DestinationSocketId() const;
-  void SetDestinationSocketId(boost::uint32_t n);
-
-  const std::string &Data() const;
-  void SetData(const std::string &data);
-
-  template <typename Iterator>
-  void SetData(Iterator begin, Iterator end) {
-    data_.assign(begin, end);
-  }
-
-  static bool IsValid(const boost::asio::const_buffer &buffer);
-  bool Decode(const boost::asio::const_buffer &buffer);
-  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+  // Data Payload size permitted in RUDP
+  // Shall not exceed Packet Size defined 
+  static boost::uint32_t kDefaultDataSize;
+  static boost::uint32_t kMaxDataSize;
 
  private:
-  boost::uint32_t packet_sequence_number_;
-  bool first_packet_in_message_;
-  bool last_packet_in_message_;
-  bool in_order_;
-  boost::uint32_t message_number_;
-  boost::uint32_t time_stamp_;
-  boost::uint32_t destination_socket_id_;
-  std::string data_;
+  // Disallow copying and assignment.
+  RudpParameters(const RudpParameters&);
+  RudpParameters &operator=(const RudpParameters&);
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_DATA_PACKET_H_
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_RUDP_PARAMETERS_H_

@@ -39,6 +39,13 @@ namespace maidsafe {
 
 namespace transport {
 
+boost::uint32_t RudpParameters::kDefaultWindowSize = 16;
+boost::uint32_t RudpParameters::kMaximumWindowSize = 128;
+boost::uint32_t RudpParameters::kDefaultSize = 1400;
+boost::uint32_t RudpParameters::kMaxSize = 6400;
+boost::uint32_t RudpParameters::kDefaultDataSize = 1024;
+boost::uint32_t RudpParameters::kMaxDataSize = 6000;
+
 namespace test {
 
 TestMessageHandler::TestMessageHandler(const std::string &id)
@@ -599,7 +606,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
     while ((!msgh_sender->finished_) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
-      if (waited_seconds == 3)
+      if (waited_seconds == 1)
           listener->StopListening();
     }
     EXPECT_GT(10, waited_seconds);
@@ -628,7 +635,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
     while ((!msgh_listener->finished_) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
-      if (waited_seconds == 3)
+      if (waited_seconds == 1)
           sender->StopListening();
     }
     EXPECT_GT(10, waited_seconds);

@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "rudp_dispatch_op.h"
 #include "rudp_dispatcher.h"
 #include "rudp_packet.h"
+#include "rudp_parameters.h"
 
 namespace maidsafe {
 
@@ -76,8 +77,8 @@ class RudpMultiplexer {
   template <typename Packet>
   TransportCondition SendTo(const Packet &packet,
                             const boost::asio::ip::udp::endpoint &endpoint) {
-    std::array<unsigned char, RudpPacket::kMaxSize> data;
-    auto buffer = boost::asio::buffer(&data[0], RudpPacket::kMaxSize);
+    std::array<unsigned char, RudpParameters::kUDPPayload> data;
+    auto buffer = boost::asio::buffer(&data[0], RudpParameters::kMaxSize);
     if (size_t length = packet.Encode(buffer)) {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
