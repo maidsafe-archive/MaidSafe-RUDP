@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <utility>
 #include "gtest/gtest.h"
+#include "gtest/gtest-param-test.h"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe-dht/transport/transport.h"
@@ -94,10 +95,10 @@ class TestMessageHandler {
 
 
 template <typename T>
-class TransportAPITest: public testing::Test {
+class TransportAPI {
  public:
-  TransportAPITest();
-  ~TransportAPITest();
+  TransportAPI();
+  ~TransportAPI();
  protected:
   // Create a transport and an io_service listening on the given or random port
   // (if zero) if listen == true.  If not, only a transport is created, and the
@@ -124,9 +125,33 @@ class TransportAPITest: public testing::Test {
   boost::uint16_t count_;
 };
 
+template <typename T>
+class TransportAPITest : public TransportAPI<T>, public ::testing::Test {
+ public:
+  TransportAPITest() : TransportAPI<T>() {}
+};
+
 class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {
  public:
   RUDPSingleTransportAPITest() {}
+};
+
+class RUDPConfigurableTransportAPITest
+    : public TransportAPI<RudpTransport>,
+      public ::testing::TestWithParam<int> {
+ public:
+  RUDPConfigurableTransportAPITest() : TransportAPI<RudpTransport>() {
+    int configurations[3][6] = {{ 16,  128, 1400, 6400, 1024, 6000 },
+                                { 64,  256, 1400, 1400, 1024, 1024 },
+                                { 32,   64, 2800, 4800, 2038, 4076 }};
+    int config_selected = GetParam();
+    RudpParameters::kDefaultWindowSize = configurations[config_selected][0];
+    RudpParameters::kMaximumWindowSize = configurations[config_selected][1];
+    RudpParameters::kDefaultSize = configurations[config_selected][2];
+    RudpParameters::kMaxSize = configurations[config_selected][3];
+    RudpParameters::kDefaultDataSize = configurations[config_selected][4];
+    RudpParameters::kMaxDataSize = configurations[config_selected][5];
+  }
 };
 
 TYPED_TEST_CASE_P(TransportAPITest);

@@ -137,7 +137,7 @@ Results TestMessageHandler::results() {
 
 
 template <typename T>
-TransportAPITest<T>::TransportAPITest()
+TransportAPI<T>::TransportAPI()
     : asio_service_(new boost::asio::io_service),
       asio_service_1_(new boost::asio::io_service),
       asio_service_2_(new boost::asio::io_service),
@@ -177,7 +177,7 @@ TransportAPITest<T>::TransportAPITest()
 }
 
 template <typename T>
-TransportAPITest<T>::~TransportAPITest() {
+TransportAPI<T>::~TransportAPI() {
   work_.reset();
   work_1_.reset();
   work_2_.reset();
@@ -193,7 +193,7 @@ TransportAPITest<T>::~TransportAPITest() {
 }
 
 template <typename T>
-void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
+void TransportAPI<T>::SetupTransport(bool listen, Port lport) {
   if (listen) {
     TransportPtr transport1;
     if (count_ < 8)
@@ -221,7 +221,7 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
 }
 
 template <typename T>
-void TransportAPITest<T>::RunTransportTest(const int &num_messages,
+void TransportAPI<T>::RunTransportTest(const int &num_messages,
     const int &messages_length) {
   Endpoint endpoint;
   endpoint.ip = kIP;
@@ -315,7 +315,7 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages,
 }
 
 template <typename T>
-void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
+void TransportAPI<T>::SendRPC(TransportPtr sender_pt,
     TransportPtr listener_pt, int &messages_length) {
   std::string request(RandomString(1));
   // Cap the length of the msg to 64MB - 100,
@@ -333,7 +333,7 @@ void TransportAPITest<T>::SendRPC(TransportPtr sender_pt,
 }
 
 template <typename T>
-void TransportAPITest<T>::CheckMessages() {
+void TransportAPI<T>::CheckMessages() {
   bool found(false);
   // Compare Request
   std::vector<TestMessageHandlerPtr>::iterator listening_msg_handlers_itr(
@@ -640,6 +640,16 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
     }
     EXPECT_GT(10, waited_seconds);
   }
+}
+
+INSTANTIATE_TEST_CASE_P(ConfigurableTraffic, RUDPConfigurableTransportAPITest,
+                        testing::Range(0, 3));
+
+TEST_P(RUDPConfigurableTransportAPITest, BEH_TRANS_ConfigurableTraffic) {
+  this->SetupTransport(false, 0);
+  this->SetupTransport(true, 0);
+  // To save the test time, send out a message with 4MB = 2^22
+  ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 22));
 }
 
 }  // namespace test
