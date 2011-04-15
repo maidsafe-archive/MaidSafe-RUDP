@@ -46,9 +46,9 @@ RudpCongestionControl::RudpCongestionControl()
     round_trip_time_variance_(0),
     packets_receiving_rate_(0),
     estimated_link_capacity_(0),
-    send_window_size_(16),
-    receive_window_size_(16),
-    send_delay_(bptime::milliseconds(0)),
+    send_window_size_(RudpSlidingWindow<int>::kDefaultWindowSize),
+    receive_window_size_(RudpSlidingWindow<int>::kDefaultWindowSize),
+    send_delay_(bptime::milliseconds(5)),
     send_timeout_(bptime::milliseconds(100)),
     ack_delay_(bptime::milliseconds(10)),
     ack_timeout_(bptime::milliseconds(100)),
@@ -129,13 +129,14 @@ void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
                            (round_trip_time_ +
                             kSynPeriod.total_microseconds()) / 1000000;
     slow_start_phase_ = false;
-    return;
+  } else {
+    receive_window_size_ = (packets_receiving_rate_ *
+                            (round_trip_time_ +
+                            kSynPeriod.total_microseconds())) / 1000000 + 16;
   }
-
-  receive_window_size_ = (packets_receiving_rate_ *
-                          (round_trip_time_ +
-                          kSynPeriod.total_microseconds())) / 1000000 + 16;
-
+  if (receive_window_size_ > RudpSlidingWindow<int>::kMaximumWindowSize) {
+    receive_window_size_ = RudpSlidingWindow<int>::kMaximumWindowSize;
+  }
   // TODO calculate SND (send_delay_).
 }
 
@@ -229,6 +230,10 @@ size_t RudpCongestionControl::SendWindowSize() const {
 
 size_t RudpCongestionControl::ReceiveWindowSize() const {
   return receive_window_size_;
+}
+
+boost::uint32_t RudpCongestionControl::BestReadBufferSize() {
+  return receive_window_size_ * RudpDataPacket::kMaxDataSize;
 }
 
 boost::posix_time::time_duration RudpCongestionControl::SendDelay() const {

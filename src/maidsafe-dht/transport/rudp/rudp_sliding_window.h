@@ -44,8 +44,8 @@ template <typename T>
 class RudpSlidingWindow {
  public:
   // A constant that probably should be configurable.
-  enum { kDefaultWindowSize = 64 };
-  enum { kMaximumWindowSize = 64 };
+  enum { kDefaultWindowSize = 16 };
+  enum { kMaximumWindowSize = 128 };
 
   // The maximum possible sequence number. When reached, sequence numbers are
   // wrapped around to start from 0.

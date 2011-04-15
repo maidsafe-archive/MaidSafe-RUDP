@@ -165,16 +165,18 @@ void RudpSender::DoSend() {
     if (p.lost) {
       // Check whether we are allowed to send another packet at this time.
       bptime::time_duration send_delay = congestion_control_.SendDelay();
-      if (send_delay > bptime::milliseconds(0)) {
-        tick_timer_.TickAt(now + send_delay);
-        return;
-      }
+//       if (send_delay > bptime::milliseconds(0)) {
+//         tick_timer_.TickAt(now + send_delay);
+//         return;
+//       }
 
       // Send the packet.
       peer_.Send(p.packet);
       p.lost = false;
       p.last_send_time = now;
-      congestion_control_.OnDataPacketSent(n);
+//       tick_timer_.TickAt(now + send_delay);
+//       return;
+//       congestion_control_.OnDataPacketSent(n);
     }
   }
 

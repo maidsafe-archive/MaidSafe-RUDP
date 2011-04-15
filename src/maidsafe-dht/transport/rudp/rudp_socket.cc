@@ -87,6 +87,10 @@ boost::uint32_t RudpSocket::SentLength() {
   return sent_length;
 }
 
+boost::uint32_t RudpSocket::BestReadBufferSize() {
+  return congestion_control_.BestReadBufferSize();
+}
+
 boost::asio::ip::udp::endpoint RudpSocket::RemoteEndpoint() const {
   return peer_.Endpoint();
 }

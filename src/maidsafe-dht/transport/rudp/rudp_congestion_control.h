@@ -80,6 +80,9 @@ class RudpCongestionControl {
   boost::posix_time::time_duration AckTimeout() const;
   boost::uint32_t AckInterval() const;
 
+  // Return the best read-buffer size
+  boost::uint32_t BestReadBufferSize();
+
  private:
   // Disallow copying and assignment.
   RudpCongestionControl(const RudpCongestionControl&);

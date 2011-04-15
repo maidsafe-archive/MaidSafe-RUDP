@@ -47,7 +47,7 @@ class RudpDataPacket : public RudpPacket {
   enum { kHeaderSize = 16 };
 
   // This constant should probably should be configurable.
-  enum { kMaxDataSize = 1024 };
+  enum { kMaxDataSize = 6500 };
 
   RudpDataPacket();
 

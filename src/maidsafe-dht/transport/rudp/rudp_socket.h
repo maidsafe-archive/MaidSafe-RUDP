@@ -94,6 +94,9 @@ class RudpSocket {
   // Return the length of data that successfully sent out during each operation
   boost::uint32_t SentLength();
 
+  // Return the best read-buffer size calculated by congestion_control
+  boost::uint32_t BestReadBufferSize();
+
   // Asynchronously process one "tick". The internal tick size varies based on
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
