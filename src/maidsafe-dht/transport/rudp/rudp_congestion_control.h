@@ -75,6 +75,7 @@ class RudpCongestionControl {
   // Parameters that are altered based on level of congestion.
   size_t SendWindowSize() const;
   size_t ReceiveWindowSize() const;
+  size_t SendDataSize() const;
   boost::posix_time::time_duration SendDelay() const;
   boost::posix_time::time_duration SendTimeout() const;
   boost::posix_time::time_duration AckDelay() const;
@@ -98,11 +99,15 @@ class RudpCongestionControl {
 
   size_t send_window_size_;
   size_t receive_window_size_;
+  size_t send_data_size_;
   boost::posix_time::time_duration send_delay_;
   boost::posix_time::time_duration send_timeout_;
   boost::posix_time::time_duration ack_delay_;
   boost::posix_time::time_duration ack_timeout_;
   boost::uint32_t ack_interval_;
+
+  size_t lost_packets_;
+  size_t corrupted_packets_;
 
   enum { kMaxArrivalTimes = 16 + 1 };
   std::deque<boost::posix_time::ptime> arrival_times_;

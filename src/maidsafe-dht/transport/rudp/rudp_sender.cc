@@ -84,7 +84,8 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
     p.packet.SetMessageNumber(0);
     p.packet.SetTimeStamp(0);
     p.packet.SetDestinationSocketId(peer_.Id());
-    size_t length = std::min<size_t>(RudpParameters::kMaxDataSize, end - ptr);
+    size_t length = std::min<size_t>(congestion_control_.SendDataSize(),
+                                     end - ptr);
     p.packet.SetData(ptr, ptr + length);
     p.lost = true; // Mark as lost so that DoSend() will send it.
 

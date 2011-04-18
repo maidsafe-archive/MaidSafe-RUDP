@@ -48,11 +48,14 @@ RudpCongestionControl::RudpCongestionControl()
     estimated_link_capacity_(0),
     send_window_size_(RudpParameters::kDefaultWindowSize),
     receive_window_size_(RudpParameters::kDefaultWindowSize),
+    send_data_size_(RudpParameters::kDefaultDataSize),
     send_delay_(RudpParameters::kDefaultSendDelay),
     send_timeout_(RudpParameters::kDefaultSendTimeOut),
     ack_delay_(bptime::milliseconds(10)),
     ack_timeout_(RudpParameters::kDefaultAckTimeOut),
-    ack_interval_(16) {
+    ack_interval_(16),
+    lost_packets_(0),
+    corrupted_packets_(0) {
 }
 
 void RudpCongestionControl::OnOpen(boost::uint32_t send_seqnum,
@@ -123,20 +126,18 @@ void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
     estimated_link_capacity_ = (median > 0) ? (1000000 / median) : 0;
   }
 
-  // We can now end the slow start phase, if we're still in it.
-  if (slow_start_phase_ && (packets_receiving_rate_ > 0)) {
-    receive_window_size_ = packets_receiving_rate_ *
-                           (round_trip_time_ +
-                            kSynPeriod.total_microseconds()) / 1000000;
-    slow_start_phase_ = false;
-  } else {
-    receive_window_size_ = (packets_receiving_rate_ *
-                            (round_trip_time_ +
-                            kSynPeriod.total_microseconds())) / 1000000 + 16;
-  }
-  if (receive_window_size_ > RudpParameters::kMaximumWindowSize) {
-    receive_window_size_ = RudpParameters::kMaximumWindowSize;
-  }
+  // TODO (qi.ma@maidsafe.net) : The receive_window_size shall be based on the
+  // local processing power, i.e. the reading speed of the data flow
+  receive_window_size_ = RudpParameters::kMaximumWindowSize;
+//   receive_window_size_ = (packets_receiving_rate_ *
+//                           round_trip_time_) / 1000000;
+//   // The speed of generating Ack Packets shall be considered
+//   receive_window_size_ *= (1000 /
+//                            RudpParameters::kAckInterval.total_milliseconds());
+//   receive_window_size_ = std::max(receive_window_size_,
+//                                   RudpParameters::kDefaultWindowSize);
+//   receive_window_size_ = std::min(receive_window_size_,
+//                                   RudpParameters::kMaximumWindowSize);
   // TODO calculate SND (send_delay_).
 }
 
@@ -167,12 +168,26 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
     tmp = (tmp + estimated_link_capacity) / 8;
     estimated_link_capacity_ = static_cast<boost::uint32_t>(tmp);
   }
+  // Each time an ack packet received, we check whether during this interval,
+  // any packet reported to be lost or corrupted. If none, increase size,
+  // otherwise decrease size
+  if ((corrupted_packets_ > 0) || (lost_packets_ > 0)) {
+    send_data_size_ = 0.8 * send_data_size_;
+    send_data_size_ = std::max(RudpParameters::kDefaultDataSize,
+                               send_data_size_);
+  } else {
+    send_data_size_ = 1.5 * send_data_size_;
+    send_data_size_ = std::min(RudpParameters::kMaxDataSize,
+                               send_data_size_);
+  }
+  corrupted_packets_ = 0;
+  lost_packets_ = 0;
   // If the other side still has some available buffer size, then the speed
   // can be increased this side. Otherwise, the sender's speed shall be reduced
   // To prevent osillator:
   //    a minum margin of 8 * kMaxDataSize for increase is taken
   //    a step of 20% for reducing window size is defined
-  if (available_buffer_size > (8 * RudpParameters::kMaxDataSize)) {
+  if (available_buffer_size > (8 * send_data_size_)) {
     send_window_size_ += (available_buffer_size + 1) /
                          RudpParameters::kMaxDataSize;
     if (send_window_size_ > RudpParameters::kMaximumWindowSize)
@@ -185,9 +200,11 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
 }
 
 void RudpCongestionControl::OnNegativeAck(boost::uint32_t seqnum) {
+  ++corrupted_packets_;
 }
 
 void RudpCongestionControl::OnSendTimeout(boost::uint32_t seqnum) {
+  ++lost_packets_;
 }
 
 void RudpCongestionControl::OnAckOfAck(boost::uint32_t round_trip_time) {
@@ -230,6 +247,10 @@ size_t RudpCongestionControl::SendWindowSize() const {
 
 size_t RudpCongestionControl::ReceiveWindowSize() const {
   return receive_window_size_;
+}
+
+size_t RudpCongestionControl::SendDataSize() const {
+  return send_data_size_;
 }
 
 boost::uint32_t RudpCongestionControl::BestReadBufferSize() {
