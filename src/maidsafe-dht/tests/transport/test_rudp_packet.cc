@@ -96,9 +96,9 @@ class RudpDataPacketTest : public testing::Test {
     data_packet_.SetTimeStamp(time_stamp);
     data_packet_.SetDestinationSocketId(destination_socket_id);
 
-//    char char_array[RudpDataPacket::kHeaderSize + RudpSender::kMaxDataSize];
-    char char_array[RudpDataPacket::kHeaderSize + RudpParameters::kMaxSize];
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
+    char char_array[RudpParameters::kUDPPayload];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(&char_array[0],
+        RudpDataPacket::kHeaderSize + RudpParameters::kMaxSize));
     EXPECT_EQ(RudpDataPacket::kHeaderSize + data.size(),
               data_packet_.Encode(dbuffer));
     RestoreDefault();
