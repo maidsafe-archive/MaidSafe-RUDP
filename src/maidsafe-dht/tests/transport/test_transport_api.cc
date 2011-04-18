@@ -45,6 +45,14 @@ boost::uint32_t RudpParameters::kDefaultSize = 1400;
 boost::uint32_t RudpParameters::kMaxSize = 6400;
 boost::uint32_t RudpParameters::kDefaultDataSize = 1024;
 boost::uint32_t RudpParameters::kMaxDataSize = 6000;
+bptime::time_duration RudpParameters::kDefaultSendTimeOut =
+                                                    bptime::milliseconds(1000);
+bptime::time_duration RudpParameters::kDefaultAckTimeOut =
+                                                    bptime::milliseconds(1000);
+bptime::time_duration RudpParameters::kDefaultSendDelay =
+                                                    bptime::milliseconds(3);
+bptime::time_duration RudpParameters::kAckInterval =
+                                                    bptime::milliseconds(100);
 
 namespace test {
 

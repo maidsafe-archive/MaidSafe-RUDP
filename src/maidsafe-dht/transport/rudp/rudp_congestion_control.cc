@@ -48,10 +48,10 @@ RudpCongestionControl::RudpCongestionControl()
     estimated_link_capacity_(0),
     send_window_size_(RudpParameters::kDefaultWindowSize),
     receive_window_size_(RudpParameters::kDefaultWindowSize),
-    send_delay_(bptime::milliseconds(5)),
-    send_timeout_(bptime::milliseconds(100)),
+    send_delay_(RudpParameters::kDefaultSendDelay),
+    send_timeout_(RudpParameters::kDefaultSendTimeOut),
     ack_delay_(bptime::milliseconds(10)),
-    ack_timeout_(bptime::milliseconds(100)),
+    ack_timeout_(RudpParameters::kDefaultAckTimeOut),
     ack_interval_(16) {
 }
 

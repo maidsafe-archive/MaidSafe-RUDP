@@ -65,7 +65,7 @@ bool RudpSender::Flushed() const {
 size_t RudpSender::AddData(const asio::const_buffer &data) {
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
-    unacked_packets_.SetMaximumSize(16);
+    unacked_packets_.SetMaximumSize(RudpParameters::kDefaultWindowSize);
   } else {
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
   }
@@ -142,12 +142,15 @@ void RudpSender::HandleTick() {
     // Clear timeout. Will be reset next time a data packet is sent.
     send_timeout_ = bptime::pos_infin;
 
-    // Mark all unacknowledged packets as lost.
+    // Mark all timedout unacknowledged packets as lost.
     for (boost::uint32_t n = unacked_packets_.Begin();
         n != unacked_packets_.End();
         n = unacked_packets_.Next(n)) {
-      congestion_control_.OnSendTimeout(n);
-      unacked_packets_[n].lost = true;
+      if ((unacked_packets_[n].last_send_time
+           + congestion_control_.SendTimeout()) < tick_timer_.Now()) {
+        congestion_control_.OnSendTimeout(n);
+        unacked_packets_[n].lost = true;
+      }
     }
   }
 
@@ -161,25 +164,25 @@ void RudpSender::DoSend() {
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     UnackedPacket &p = unacked_packets_[n];
-
     if (p.lost) {
-      // Check whether we are allowed to send another packet at this time.
-      bptime::time_duration send_delay = congestion_control_.SendDelay();
-//       if (send_delay > bptime::milliseconds(0)) {
-//         tick_timer_.TickAt(now + send_delay);
-//         return;
-//       }
-
-      // Send the packet.
-      peer_.Send(p.packet);
-      p.lost = false;
-      p.last_send_time = now;
-//       tick_timer_.TickAt(now + send_delay);
-//       return;
-//       congestion_control_.OnDataPacketSent(n);
+      // peer_.Send is a blockable function call, it will only returned when
+      // the UDP socket sent out the packet successfully. So here the all
+      // un-acked packets can be sent out one-by-one in a bunch, i.e. the whole
+      // buffer (packet_size * window_size) will be sent out at once.
+      // If we make the Send to be unblockable, i.e. handled by a seperate
+      // thread, then we will need to first Check whether we are allowed to
+      // send another packet at this time, and then once request a packet to be
+      // sent, set the ticker to be with a fixed interval or
+      // tick_timer_.TickAt(now + congestion_control_.SendDelay());
+      if (peer_.Send(p.packet) == TransportCondition::kSuccess) {
+        p.lost = false;
+        p.last_send_time = now;
+        congestion_control_.OnDataPacketSent(n);
+        tick_timer_.TickAt(now + congestion_control_.SendDelay());
+        return;
+      }
     }
   }
-
   // Set the send timeout so that unacknowledged packets can be marked as lost.
   if (!unacked_packets_.IsEmpty()) {
     send_timeout_ = unacked_packets_.Front().last_send_time +
