@@ -51,11 +51,23 @@ class RudpParameters {
   static boost::uint32_t kMaxSize;
   enum { kUDPPayload = 65500 };
 
-
   // Data Payload size permitted in RUDP
   // Shall not exceed Packet Size defined 
   static boost::uint32_t kDefaultDataSize;
   static boost::uint32_t kMaxDataSize;
+
+  // Timeout defined for a packet to be resent
+  static boost::posix_time::time_duration kDefaultSendTimeOut;
+
+  // Machine dependent parameter of send delay,
+  // depending on computation power and I/O speed
+  static boost::posix_time::time_duration kDefaultSendDelay;
+
+  // Timeout defined for a Ack packet to be resent
+  static boost::posix_time::time_duration kDefaultAckTimeOut;
+
+  // Timeout defined the fixed interval between Ack packets
+  static boost::posix_time::time_duration kAckInterval;
 
  private:
   // Disallow copying and assignment.

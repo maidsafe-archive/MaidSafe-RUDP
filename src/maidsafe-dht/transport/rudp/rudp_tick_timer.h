@@ -58,6 +58,9 @@ class RudpTickTimer {
   }
 
   bool Expired() const {
+    // Infinate time out will be counted as expired
+    if (timer_.expires_at() == boost::posix_time::pos_infin)
+      return true;
     return Now() >= timer_.expires_at();
   }
 

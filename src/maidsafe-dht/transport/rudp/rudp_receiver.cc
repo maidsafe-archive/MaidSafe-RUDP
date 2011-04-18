@@ -116,12 +116,9 @@ void RudpReceiver::HandleData(const RudpDataPacket &packet) {
     }
   }
 
-  if (seqnum % congestion_control_.AckInterval() == 0) {
-    // Send acknowledgement packets immediately.
-    HandleTick();
-  } else {
-    // Schedule generation of acknowledgement packets for later.
-    tick_timer_.TickAfter(congestion_control_.AckDelay());
+  // Send out Ack packet with fixed interval
+  if (tick_timer_.Expired()) {
+    tick_timer_.TickAfter(RudpParameters::kAckInterval);
   }
 }
 
@@ -175,36 +172,35 @@ void RudpReceiver::HandleTick() {
   }
 
   if (!acks_.IsEmpty()) {
-    if (acks_.Back().send_time + congestion_control_.AckTimeout() > now) {
-      tick_timer_.TickAt(acks_.Back().send_time +
-                         congestion_control_.AckTimeout());
-    }
+    // Send out Ack packet with fixed interval
+    tick_timer_.TickAfter(RudpParameters::kAckInterval);
   }
 
-  // Generate a negative acknowledgement packet to request missing packets.
-  RudpNegativeAckPacket negative_ack;
-  negative_ack.SetDestinationSocketId(peer_.Id());
-  boost::uint32_t n = unread_packets_.Begin();
-  while (n != unread_packets_.End()) {
-    if (unread_packets_[n].lost) {
-      boost::uint32_t begin = n;
-      boost::uint32_t end;
-      do {
-        end = n;
-        n = unread_packets_.Next(n);
-      } while (n != unread_packets_.End() && unread_packets_[n].lost);
-      if (begin == end)
-        negative_ack.AddSequenceNumber(begin);
-      else
-        negative_ack.AddSequenceNumbers(begin, end);
-    } else {
-      n = unread_packets_.Next(n);
-    }
-  }
-  if (negative_ack.HasSequenceNumbers()) {
-    peer_.Send(negative_ack);
-    tick_timer_.TickAt(now + congestion_control_.AckTimeout());
-  }
+  // Generate a negative acknowledgement packet to request corruptted packets.
+  // The sender shall be responsible for resending lost packets
+//   RudpNegativeAckPacket negative_ack;
+//   negative_ack.SetDestinationSocketId(peer_.Id());
+//   boost::uint32_t n = unread_packets_.Begin();
+//   while (n != unread_packets_.End()) {
+//     if (unread_packets_[n].lost) {
+//       boost::uint32_t begin = n;
+//       boost::uint32_t end;
+//       do {
+//         end = n;
+//         n = unread_packets_.Next(n);
+//       } while (n != unread_packets_.End() && unread_packets_[n].lost);
+//       if (begin == end)
+//         negative_ack.AddSequenceNumber(begin);
+//       else
+//         negative_ack.AddSequenceNumbers(begin, end);
+//     } else {
+//       n = unread_packets_.Next(n);
+//     }
+//   }
+//   if (negative_ack.HasSequenceNumbers()) {
+//     peer_.Send(negative_ack);
+//     tick_timer_.TickAt(now + congestion_control_.AckTimeout());
+//   }
 }
 
 boost::uint32_t RudpReceiver::AvailableBufferSize() const {
