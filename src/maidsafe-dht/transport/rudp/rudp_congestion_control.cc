@@ -273,8 +273,12 @@ boost::posix_time::time_duration RudpCongestionControl::AckTimeout() const {
   return ack_timeout_;
 }
 
-boost::uint32_t RudpCongestionControl::AckInterval() const {
-  return ack_interval_;
+// boost::uint32_t RudpCongestionControl::AckInterval() const {
+//   return ack_interval_;
+// }
+
+boost::posix_time::time_duration RudpCongestionControl::AckInterval() const {
+  return RudpParameters::kAckInterval;
 }
 
 }  // namespace transport

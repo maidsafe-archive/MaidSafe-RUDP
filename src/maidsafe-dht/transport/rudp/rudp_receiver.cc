@@ -118,7 +118,7 @@ void RudpReceiver::HandleData(const RudpDataPacket &packet) {
 
   // Send out Ack packet with fixed interval
   if (tick_timer_.Expired()) {
-    tick_timer_.TickAfter(RudpParameters::kAckInterval);
+    tick_timer_.TickAfter(congestion_control_.AckInterval());
   }
 }
 
@@ -173,7 +173,7 @@ void RudpReceiver::HandleTick() {
 
   if (!acks_.IsEmpty()) {
     // Send out Ack packet with fixed interval
-    tick_timer_.TickAfter(RudpParameters::kAckInterval);
+    tick_timer_.TickAfter(congestion_control_.AckInterval());
   }
 
   // Generate a negative acknowledgement packet to request corruptted packets.
