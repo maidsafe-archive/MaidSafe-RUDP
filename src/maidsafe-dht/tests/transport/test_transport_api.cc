@@ -40,17 +40,19 @@ namespace maidsafe {
 namespace transport {
 
 boost::uint32_t RudpParameters::kDefaultWindowSize = 16;
-boost::uint32_t RudpParameters::kMaximumWindowSize = 128;
+boost::uint32_t RudpParameters::kMaximumWindowSize = 512;
 boost::uint32_t RudpParameters::kDefaultSize = 1400;
-boost::uint32_t RudpParameters::kMaxSize = 6400;
+boost::uint32_t RudpParameters::kMaxSize = 13000;
 boost::uint32_t RudpParameters::kDefaultDataSize = 1024;
-boost::uint32_t RudpParameters::kMaxDataSize = 6000;
+boost::uint32_t RudpParameters::kMaxDataSize = 12800;
 bptime::time_duration RudpParameters::kDefaultSendTimeOut =
                                                     bptime::milliseconds(1000);
+bptime::time_duration RudpParameters::kDefaultReceiveTimeOut =
+                                                    bptime::milliseconds(400);
 bptime::time_duration RudpParameters::kDefaultAckTimeOut =
                                                     bptime::milliseconds(1000);
 bptime::time_duration RudpParameters::kDefaultSendDelay =
-                                                    bptime::milliseconds(3);
+                                                    bptime::milliseconds(2);
 bptime::time_duration RudpParameters::kAckInterval =
                                                     bptime::milliseconds(100);
 

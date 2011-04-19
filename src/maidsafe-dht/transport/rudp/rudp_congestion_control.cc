@@ -51,6 +51,7 @@ RudpCongestionControl::RudpCongestionControl()
     send_data_size_(RudpParameters::kDefaultDataSize),
     send_delay_(RudpParameters::kDefaultSendDelay),
     send_timeout_(RudpParameters::kDefaultSendTimeOut),
+    receive_timeout_(RudpParameters::kDefaultReceiveTimeOut),
     ack_delay_(bptime::milliseconds(10)),
     ack_timeout_(RudpParameters::kDefaultAckTimeOut),
     ack_interval_(16),
@@ -263,6 +264,10 @@ boost::posix_time::time_duration RudpCongestionControl::SendDelay() const {
 
 boost::posix_time::time_duration RudpCongestionControl::SendTimeout() const {
   return send_timeout_;
+}
+
+boost::posix_time::time_duration RudpCongestionControl::ReceiveTimeout() const {
+  return receive_timeout_;
 }
 
 boost::posix_time::time_duration RudpCongestionControl::AckDelay() const {

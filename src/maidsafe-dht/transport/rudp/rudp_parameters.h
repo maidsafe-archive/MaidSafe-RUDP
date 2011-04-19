@@ -59,6 +59,10 @@ class RudpParameters {
   // Timeout defined for a packet to be resent
   static boost::posix_time::time_duration kDefaultSendTimeOut;
 
+  // Timeout defined for a neg-ack packet to be resent to request resent of an
+  // observed missing packet in receiver
+  static boost::posix_time::time_duration kDefaultReceiveTimeOut;
+
   // Machine dependent parameter of send delay,
   // depending on computation power and I/O speed
   static boost::posix_time::time_duration kDefaultSendDelay;

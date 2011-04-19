@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <deque>
 
 #include "boost/asio/buffer.hpp"
+#include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
@@ -94,10 +95,18 @@ class RudpReceiver {
   RudpCongestionControl &congestion_control_;
 
   struct UnreadPacket {
-    UnreadPacket() : lost(true), bytes_read(0) {}
+    UnreadPacket()
+        : lost(true), bytes_read(0),
+          reserve_time(boost::asio::deadline_timer::traits_type::now()) {}
     RudpDataPacket packet;
     bool lost;
     size_t bytes_read;
+    bptime::ptime reserve_time;
+
+    bool Missing(bptime::time_duration time_out) {
+      bptime::ptime now = boost::asio::deadline_timer::traits_type::now();
+      return (lost && ((reserve_time + time_out) < now));
+    }
   };
 
   // The receiver's window of unread packets. If this window fills up, any new
