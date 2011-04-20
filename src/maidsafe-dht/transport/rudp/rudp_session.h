@@ -61,6 +61,9 @@ class RudpSession {
   // Get the first sequence number for packets received.
   boost::uint32_t ReceivingSequenceNumber() const;
 
+  // Get the peer connection type.
+  boost::uint32_t PeerConnectionType() const;
+
   // Close the session. Clears the id.
   void Close();
 
@@ -96,6 +99,9 @@ class RudpSession {
 
   // The initial sequence number for packets received in this session.
   boost::uint32_t receiving_sequence_number_;
+
+  // The peer's connection type
+  boost::uint32_t peer_connection_type_;
 
   // Are we a client or a server?
   Mode mode_;

@@ -41,20 +41,22 @@ namespace transport {
 
 boost::uint32_t RudpParameters::kDefaultWindowSize = 16;
 boost::uint32_t RudpParameters::kMaximumWindowSize = 512;
-boost::uint32_t RudpParameters::kDefaultSize = 1400;
-boost::uint32_t RudpParameters::kMaxSize = 13000;
-boost::uint32_t RudpParameters::kDefaultDataSize = 1024;
-boost::uint32_t RudpParameters::kMaxDataSize = 12800;
+boost::uint32_t RudpParameters::kDefaultSize = 1480;
+boost::uint32_t RudpParameters::kMaxSize = 25980;
+boost::uint32_t RudpParameters::kDefaultDataSize = 1450;
+boost::uint32_t RudpParameters::kMaxDataSize = 25950;
 bptime::time_duration RudpParameters::kDefaultSendTimeOut =
                                                     bptime::milliseconds(1000);
 bptime::time_duration RudpParameters::kDefaultReceiveTimeOut =
-                                                    bptime::milliseconds(400);
+                                                    bptime::milliseconds(200);
 bptime::time_duration RudpParameters::kDefaultAckTimeOut =
                                                     bptime::milliseconds(1000);
 bptime::time_duration RudpParameters::kDefaultSendDelay =
-                                                    bptime::milliseconds(2);
+                                                    bptime::microseconds(1000);
 bptime::time_duration RudpParameters::kAckInterval =
                                                     bptime::milliseconds(100);
+RudpParameters::ConnectionType RudpParameters::kConnectionType =
+                                 RudpParameters::ConnectionType::kWireless;
 
 namespace test {
 

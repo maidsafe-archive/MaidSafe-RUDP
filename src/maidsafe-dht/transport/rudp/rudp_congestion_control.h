@@ -87,6 +87,10 @@ class RudpCongestionControl {
   // Return the best read-buffer size
   boost::uint32_t BestReadBufferSize();
 
+  // Connection type related
+  void SetPeerConnectionType(boost::uint32_t connection_type);
+  size_t AllowedLost() const;
+
  private:
   // Disallow copying and assignment.
   RudpCongestionControl(const RudpCongestionControl&);
@@ -117,6 +121,12 @@ class RudpCongestionControl {
 
   enum { kMaxPacketPairIntervals = 16 + 1 };
   std::deque<boost::posix_time::time_duration> packet_pair_intervals_;
+
+  // The peer's connection type
+  boost::uint32_t peer_connection_type_;
+
+  // Allowed num of lost packets between two ack packets
+  size_t allowed_lost_;
 };
 
 }  // namespace transport

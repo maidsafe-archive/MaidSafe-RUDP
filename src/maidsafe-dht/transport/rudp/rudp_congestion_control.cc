@@ -56,7 +56,9 @@ RudpCongestionControl::RudpCongestionControl()
     ack_timeout_(RudpParameters::kDefaultAckTimeOut),
     ack_interval_(16),
     lost_packets_(0),
-    corrupted_packets_(0) {
+    corrupted_packets_(0),
+    peer_connection_type_(0),
+    allowed_lost_(0) {
 }
 
 void RudpCongestionControl::OnOpen(boost::uint32_t send_seqnum,
@@ -172,8 +174,8 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
   // Each time an ack packet received, we check whether during this interval,
   // any packet reported to be lost or corrupted. If none, increase size,
   // otherwise decrease size
-  if ((corrupted_packets_ > 0) || (lost_packets_ > 0)) {
-    send_data_size_ = 0.8 * send_data_size_;
+  if ((corrupted_packets_ + lost_packets_) > AllowedLost()) {
+    send_data_size_ = 0.9 * send_data_size_;
     send_data_size_ = std::max(RudpParameters::kDefaultDataSize,
                                send_data_size_);
   } else {
@@ -191,12 +193,12 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
   if (available_buffer_size > (8 * send_data_size_)) {
     send_window_size_ += (available_buffer_size + 1) /
                          RudpParameters::kMaxDataSize;
-    if (send_window_size_ > RudpParameters::kMaximumWindowSize)
-      send_window_size_ = RudpParameters::kMaximumWindowSize;
+    send_window_size_ = std::min(send_window_size_,
+                                 RudpParameters::kMaximumWindowSize);
   } else {
-    send_window_size_ = 0.8 * send_window_size_;
-    if (send_window_size_ < 8 )
-      send_window_size_ = 0;
+    send_window_size_ = 0.9 * send_window_size_;
+    send_window_size_ = std::max(send_window_size_,
+                                 RudpParameters::kDefaultWindowSize);
   }
 }
 
@@ -224,6 +226,24 @@ void RudpCongestionControl::OnAckOfAck(boost::uint32_t round_trip_time) {
   ack_delay_ = bptime::microseconds(UINT64_C(4) * round_trip_time_);
   ack_delay_ += bptime::microseconds(round_trip_time_variance_);
   ack_delay_ += kSynPeriod;
+}
+
+void RudpCongestionControl::SetPeerConnectionType(uint32_t connection_type) {
+  peer_connection_type_ = connection_type;
+  boost::uint32_t local_connection_type = RudpParameters::kConnectionType;
+  boost::uint32_t worst_connection_type =
+      std::min (peer_connection_type_, local_connection_type);
+  if (worst_connection_type <= RudpParameters::kWireless) {
+    allowed_lost_ = 5;
+  } else if (worst_connection_type <= RudpParameters::kE1) {
+    allowed_lost_ = 2;
+  } else if (worst_connection_type <= RudpParameters::k1GEthernet) {
+    allowed_lost_ = 1;
+  }
+}
+
+size_t RudpCongestionControl::AllowedLost() const {
+  return allowed_lost_;
 }
 
 boost::uint32_t RudpCongestionControl::RoundTripTime() const {

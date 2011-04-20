@@ -264,6 +264,7 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   if (!was_connected && session_.IsConnected()) {
     congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
                                session_.ReceivingSequenceNumber());
+    congestion_control_.SetPeerConnectionType(session_.PeerConnectionType());
     receiver_.Reset(session_.ReceivingSequenceNumber());
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();

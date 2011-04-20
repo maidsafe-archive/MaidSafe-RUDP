@@ -73,6 +73,17 @@ class RudpParameters {
   // Timeout defined the fixed interval between Ack packets
   static boost::posix_time::time_duration kAckInterval;
 
+  // Defined connection types
+  enum ConnectionType {
+    kWireless = 0x0fffffff,
+    kT1 = 0xf0ffffff,
+    kE1 = 0xf1ffffff,
+    k10MEthernet = 0xff0fffff,
+    k100MEthernet = 0xff1fffff,
+    k1GEthernet = 0xff2fffff
+  };
+  static RudpParameters::ConnectionType kConnectionType;
+
  private:
   // Disallow copying and assignment.
   RudpParameters(const RudpParameters&);
