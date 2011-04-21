@@ -92,6 +92,11 @@ class RudpCongestionControl {
   void SetPeerConnectionType(boost::uint32_t connection_type);
   size_t AllowedLost() const;
 
+  // Calculate if the transmission speed is too slow
+  bool IsSlowTransmission(size_t length);
+  // In b/s
+  boost::uint32_t TransmissionSpeed() const;
+
  private:
   // Disallow copying and assignment.
   RudpCongestionControl(const RudpCongestionControl&);
@@ -129,6 +134,12 @@ class RudpCongestionControl {
 
   // Allowed num of lost packets between two ack packets
   size_t allowed_lost_;
+
+  // Speed calculation related;
+  boost::uint32_t transmitted_bits_;
+  boost::posix_time::ptime last_record_transmit_time_;
+  // in b/s
+  boost::uint32_t transmission_speed_;
 };
 
 }  // namespace transport

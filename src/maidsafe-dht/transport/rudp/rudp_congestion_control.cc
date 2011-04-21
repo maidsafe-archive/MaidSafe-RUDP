@@ -59,14 +59,19 @@ RudpCongestionControl::RudpCongestionControl()
     lost_packets_(0),
     corrupted_packets_(0),
     peer_connection_type_(0),
-    allowed_lost_(0) {
+    allowed_lost_(0),
+    transmitted_bits_(0),
+    last_record_transmit_time_(),
+    transmission_speed_(0) {
 }
 
 void RudpCongestionControl::OnOpen(boost::uint32_t send_seqnum,
                                    boost::uint32_t receive_seqnum) {
+  transmitted_bits_ = 0;
 }
 
 void RudpCongestionControl::OnClose() {
+  transmitted_bits_ = 0;
 }
 
 void RudpCongestionControl::OnDataPacketSent(boost::uint32_t seqnum) {
@@ -241,6 +246,34 @@ void RudpCongestionControl::SetPeerConnectionType(uint32_t connection_type) {
   } else if (worst_connection_type <= RudpParameters::k1GEthernet) {
     allowed_lost_ = 1;
   }
+}
+
+bool RudpCongestionControl::IsSlowTransmission(size_t length) {
+  // if length keeps to be zero, socket will have timeout eventually
+  // so don't need to worry about all 0 situation here
+  if (transmitted_bits_ == 0) {
+    transmitted_bits_ = transmitted_bits_ + length * 8;
+    last_record_transmit_time_ = RudpTickTimer::Now();
+  } else {
+    transmitted_bits_ = transmitted_bits_ + length * 8;
+    // only calculate speed every calculation interval
+    boost::posix_time::time_duration duration = RudpTickTimer::Now() -
+                                                last_record_transmit_time_;
+    if (duration > RudpParameters::kSpeedCalculateInverval) {
+      transmission_speed_ = 1000 * transmitted_bits_ /
+                            duration.total_milliseconds();
+      // be different to the initial state
+      transmitted_bits_ = 1;
+      last_record_transmit_time_ = RudpTickTimer::Now();
+      if (transmission_speed_ < RudpParameters::SlowSpeedThreshold)
+        return true;
+    }
+  }
+  return false;
+}
+
+boost::uint32_t RudpCongestionControl::TransmissionSpeed() const {
+  return transmission_speed_;
 }
 
 size_t RudpCongestionControl::AllowedLost() const {

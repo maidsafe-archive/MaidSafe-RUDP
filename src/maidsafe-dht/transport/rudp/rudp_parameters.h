@@ -77,6 +77,12 @@ class RudpParameters {
   // Timeout defined the fixed interval between Ack packets
   static boost::posix_time::time_duration kAckInterval;
 
+  // Interval to calculate speed
+  static boost::posix_time::time_duration kSpeedCalculateInverval;
+
+  // Slow speed threshold to force the socket closed, in b/s
+  static boost::uint32_t SlowSpeedThreshold;
+
   // Defined connection types
   enum ConnectionType {
     kWireless = 0x0fffffff,

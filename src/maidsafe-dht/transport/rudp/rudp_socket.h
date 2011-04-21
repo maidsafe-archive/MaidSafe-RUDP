@@ -97,6 +97,11 @@ class RudpSocket {
   // Return the best read-buffer size calculated by congestion_control
   boost::uint32_t BestReadBufferSize();
 
+  // Calculate if the transmission speed is too slow
+  bool IsSlowTransmission(size_t length) {
+    return congestion_control_.IsSlowTransmission(length);
+  }
+
   // Asynchronously process one "tick". The internal tick size varies based on
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>

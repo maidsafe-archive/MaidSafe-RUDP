@@ -158,8 +158,13 @@ void RudpConnection::StartTick() {
 // 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
 void RudpConnection::HandleTick() {
   if (timeout_state_ == kSending) {
-    if (socket_.SentLength() > 0)
+    boost::uint32_t sent_length = socket_.SentLength();
+    if (sent_length > 0)
       timer_.expires_from_now(kStallTimeout);
+    // If transmission speed is too slow, the socket shall be forced closed
+    if (socket_.IsSlowTransmission(sent_length)) {
+      CloseOnError(kSendTimeout);
+    }
   }
   // We need to keep ticking during a graceful shutdown.
   if (socket_.IsOpen()) {
@@ -275,6 +280,10 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
     // Need more data to complete the message.
     if (length > 0)
       timer_.expires_from_now(kStallTimeout);
+    // If transmission speed is too slow, the socket shall be forced closed
+    if (socket_.IsSlowTransmission(length)) {
+      CloseOnError(kReceiveTimeout);
+    }
     StartReadData();
   }
 }
