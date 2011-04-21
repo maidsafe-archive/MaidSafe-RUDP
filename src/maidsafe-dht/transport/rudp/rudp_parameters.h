@@ -67,6 +67,10 @@ class RudpParameters {
   // depending on computation power and I/O speed
   static boost::posix_time::time_duration kDefaultSendDelay;
 
+  // Machine dependent parameter of receive delay,
+  // depending on computation power and I/O speed
+  static boost::posix_time::time_duration kDefaultReceiveDelay;
+
   // Timeout defined for a Ack packet to be resent
   static boost::posix_time::time_duration kDefaultAckTimeOut;
 

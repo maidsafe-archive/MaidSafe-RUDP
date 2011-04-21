@@ -152,6 +152,10 @@ void RudpConnection::StartTick() {
   socket_.AsyncTick(handler);
 }
 
+// During sending : average one tick every 1.22ms (range from 1.1 to 1.4)
+// 1.22ms = 1ms (congestion_control.SendDelay()) + system variant process time
+// During receiving : averagle one tick every 140ms
+// 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
 void RudpConnection::HandleTick() {
   if (timeout_state_ == kSending) {
     if (socket_.SentLength() > 0)

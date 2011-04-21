@@ -188,7 +188,6 @@ void RudpSender::DoSend() {
   if (!unacked_packets_.IsEmpty()) {
     send_timeout_ = unacked_packets_.Front().last_send_time +
                     congestion_control_.SendTimeout();
-    tick_timer_.TickAt(send_timeout_);
   }
 }
 

@@ -78,6 +78,7 @@ class RudpCongestionControl {
   size_t SendDataSize() const;
   boost::posix_time::time_duration SendDelay() const;
   boost::posix_time::time_duration SendTimeout() const;
+  boost::posix_time::time_duration ReceiveDelay() const;
   boost::posix_time::time_duration ReceiveTimeout() const;
   boost::posix_time::time_duration AckDelay() const;
   boost::posix_time::time_duration AckTimeout() const;
@@ -108,6 +109,7 @@ class RudpCongestionControl {
   size_t send_data_size_;
   boost::posix_time::time_duration send_delay_;
   boost::posix_time::time_duration send_timeout_;
+  boost::posix_time::time_duration receive_delay_;
   boost::posix_time::time_duration receive_timeout_;
   boost::posix_time::time_duration ack_delay_;
   boost::posix_time::time_duration ack_timeout_;

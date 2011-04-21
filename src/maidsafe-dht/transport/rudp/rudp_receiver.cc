@@ -55,7 +55,8 @@ RudpReceiver::RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
     congestion_control_(congestion_control),
     unread_packets_(),
     acks_(),
-    last_ack_packet_sequence_number_(0) {
+    last_ack_packet_sequence_number_(0),
+    ack_sent_time_(tick_timer_.Now()) {
 }
 
 void RudpReceiver::Reset(boost::uint32_t initial_sequence_number) {
@@ -123,10 +124,8 @@ void RudpReceiver::HandleData(const RudpDataPacket &packet) {
       p.bytes_read = 0;
     }
   }
-
-  // Send out Ack packet with fixed interval
   if (tick_timer_.Expired()) {
-    tick_timer_.TickAfter(congestion_control_.AckInterval());
+    tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
   }
 }
 
@@ -149,39 +148,36 @@ void RudpReceiver::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
 
 void RudpReceiver::HandleTick() {
   bptime::ptime now = tick_timer_.Now();
-
-  // Generate an acknowledgement only if the latest sequence number has
-  // changed, or if it has been too long since the last unacknowledged
-  // acknowledgement.
-  boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
-  if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
-      (!acks_.IsEmpty() &&
-       (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
-    if (acks_.IsFull())
-      acks_.Remove();
-    congestion_control_.OnGenerateAck(ack_packet_seqnum);
-    boost::uint32_t n = acks_.Append();
-    Ack& a = acks_[n];
-    a.packet.SetDestinationSocketId(peer_.Id());
-    a.packet.SetAckSequenceNumber(n);
-    a.packet.SetPacketSequenceNumber(ack_packet_seqnum);
-    a.packet.SetHasOptionalFields(true);
-    a.packet.SetRoundTripTime(congestion_control_.RoundTripTime());
-    a.packet.SetRoundTripTimeVariance(
-        congestion_control_.RoundTripTimeVariance());
-    a.packet.SetAvailableBufferSize(AvailableBufferSize());
-    a.packet.SetPacketsReceivingRate(
-        congestion_control_.PacketsReceivingRate());
-    a.packet.SetEstimatedLinkCapacity(
-        congestion_control_.EstimatedLinkCapacity());
-    a.send_time = now;
-    peer_.Send(a.packet);
-    last_ack_packet_sequence_number_ = ack_packet_seqnum;
-  }
-
-  if (!acks_.IsEmpty()) {
-    // Send out Ack packet with fixed interval
-    tick_timer_.TickAfter(congestion_control_.AckInterval());
+  if (ack_sent_time_ < now) {
+    ack_sent_time_ = now + congestion_control_.AckInterval();
+    // Generate an acknowledgement only if the latest sequence number has
+    // changed, or if it has been too long since the last unacknowledged
+    // acknowledgement.
+    boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
+    if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
+        (!acks_.IsEmpty() &&
+        (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
+      if (acks_.IsFull())
+        acks_.Remove();
+      congestion_control_.OnGenerateAck(ack_packet_seqnum);
+      boost::uint32_t n = acks_.Append();
+      Ack& a = acks_[n];
+      a.packet.SetDestinationSocketId(peer_.Id());
+      a.packet.SetAckSequenceNumber(n);
+      a.packet.SetPacketSequenceNumber(ack_packet_seqnum);
+      a.packet.SetHasOptionalFields(true);
+      a.packet.SetRoundTripTime(congestion_control_.RoundTripTime());
+      a.packet.SetRoundTripTimeVariance(
+          congestion_control_.RoundTripTimeVariance());
+      a.packet.SetAvailableBufferSize(AvailableBufferSize());
+      a.packet.SetPacketsReceivingRate(
+          congestion_control_.PacketsReceivingRate());
+      a.packet.SetEstimatedLinkCapacity(
+          congestion_control_.EstimatedLinkCapacity());
+      a.send_time = now;
+      peer_.Send(a.packet);
+      last_ack_packet_sequence_number_ = ack_packet_seqnum;
+    }
   }
 
   // Generate a negative acknowledgement packet to request corruptted packets.
@@ -210,6 +206,10 @@ void RudpReceiver::HandleTick() {
     peer_.Send(negative_ack);
 //     tick_timer_.TickAt(now + congestion_control_.AckTimeout());
   }
+
+  // Arrange another read event, if there is any packet not have been read
+  if (!unread_packets_.IsEmpty())
+    tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
 }
 
 boost::uint32_t RudpReceiver::AvailableBufferSize() const {

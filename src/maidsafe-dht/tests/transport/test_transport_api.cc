@@ -53,6 +53,8 @@ bptime::time_duration RudpParameters::kDefaultAckTimeOut =
                                                     bptime::milliseconds(1000);
 bptime::time_duration RudpParameters::kDefaultSendDelay =
                                                     bptime::microseconds(1000);
+bptime::time_duration RudpParameters::kDefaultReceiveDelay =
+                                                    bptime::milliseconds(100);
 bptime::time_duration RudpParameters::kAckInterval =
                                                     bptime::milliseconds(100);
 RudpParameters::ConnectionType RudpParameters::kConnectionType =
@@ -608,14 +610,14 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
 
   std::string request(RandomString(1));
-  for (int i = 0; i < 23; ++i)
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while sending (receiver dropped)
     sender->Send(request, Endpoint(kIP, listener->listening_port()),
-                 bptime::seconds(23));
+                 bptime::seconds(26));
     int waited_seconds(0);
-    while ((!msgh_sender->finished_) && (waited_seconds < 10)) {
+    while ((msgh_sender->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
       if (waited_seconds == 1)
@@ -637,14 +639,14 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
 
   std::string request(RandomString(1));
-  for (int i = 0; i < 23; ++i)
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while receiving (sender dropped)
     sender->Send(request, Endpoint(kIP, listener->listening_port()),
-                 bptime::seconds(23));
+                 bptime::seconds(26));
     int waited_seconds(0);
-    while ((!msgh_listener->finished_) && (waited_seconds < 10)) {
+    while ((msgh_listener->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
       ++ waited_seconds;
       if (waited_seconds == 1)

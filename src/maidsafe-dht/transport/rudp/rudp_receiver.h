@@ -127,6 +127,9 @@ class RudpReceiver {
 
   // The last packet sequence number to have been acknowledged.
   boost::uint32_t last_ack_packet_sequence_number_;
+
+  // Next time the ack packet shall be sent
+  boost::posix_time::ptime ack_sent_time_;
 };
 
 }  // namespace transport
