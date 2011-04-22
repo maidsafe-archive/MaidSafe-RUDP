@@ -560,7 +560,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSingleLargeMessage) {
 TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
   TransportPtr sender(new RudpTransport(*this->asio_service_));
   TransportPtr listener(new RudpTransport(*this->asio_service_));
-  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2001)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
   sender->on_message_received()->connect(
@@ -666,30 +666,34 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
 }
 
 TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowSendSpeed) {
+  // Global Static Parameter set in the previous test will still valid
+  // need to reset here
+  RudpParameters::kSpeedCalculateInverval = bptime::seconds(1);
+
   TransportPtr sender(new RudpTransport(*this->asio_service_));
   TransportPtr listener(new RudpTransport(*this->asio_service_));
-  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2010)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
   sender->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
   listener->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
-// slow send speed
-RudpParameters::kDefaultSendDelay = bptime::milliseconds(1000);
-RudpParameters::kAckInterval = bptime::milliseconds(500);
-RudpParameters::kDefaultReceiveDelay = bptime::milliseconds(100);
-RudpParameters::kDefaultWindowSize = 16;
-RudpParameters::kMaximumWindowSize = 16;
-RudpParameters::kDefaultSize = 1480;
-RudpParameters::kMaxSize = 1480;
-RudpParameters::kDefaultDataSize = 1450;
-RudpParameters::kMaxDataSize = 1450;
+  // slow send speed
+  RudpParameters::kDefaultSendDelay = bptime::milliseconds(1000);
+  RudpParameters::kAckInterval = bptime::milliseconds(500);
+  RudpParameters::kDefaultReceiveDelay = bptime::milliseconds(100);
+  RudpParameters::kDefaultWindowSize = 16;
+  RudpParameters::kMaximumWindowSize = 16;
+  RudpParameters::kDefaultSize = 1480;
+  RudpParameters::kMaxSize = 1480;
+  RudpParameters::kDefaultDataSize = 1450;
+  RudpParameters::kMaxDataSize = 1450;
 
-// max speed limit will be 16 * 1450 * 8 / 1 = 185600 b/s
-// observed speed: first second 197200 b/s (counted one more packet),
-//                 then 69600 b/s
-RudpParameters::SlowSpeedThreshold = 200000;
+  // max speed limit will be 16 * 1450 * 8 / 1 = 185600 b/s
+  // observed speed: first second 197200 b/s (counted one more packet),
+  //                 then 69600 b/s
+  RudpParameters::SlowSpeedThreshold = 200000;
 
   std::string request(RandomString(1));
   for (int i = 0; i < 26; ++i)
@@ -708,29 +712,33 @@ RudpParameters::SlowSpeedThreshold = 200000;
 }
 
 TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowReceiveSpeed) {
+  // Global Static Parameter set in the previous test will still valid
+  // need to reset here
+  RudpParameters::kSpeedCalculateInverval = bptime::seconds(1);
+
   TransportPtr sender(new RudpTransport(*this->asio_service_));
   TransportPtr listener(new RudpTransport(*this->asio_service_));
-  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2100)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
   sender->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
   listener->on_error()->connect(
       boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
-RudpParameters::kDefaultSendDelay = bptime::milliseconds(100);
-// slow receive speed
-RudpParameters::kAckInterval = bptime::milliseconds(500);
-RudpParameters::kDefaultReceiveDelay = bptime::milliseconds(100);
-RudpParameters::kDefaultWindowSize = 16;
-RudpParameters::kMaximumWindowSize = 16;
-RudpParameters::kDefaultSize = 1480;
-RudpParameters::kMaxSize = 1480;
-RudpParameters::kDefaultDataSize = 1450;
-RudpParameters::kMaxDataSize = 1450;
+  RudpParameters::kDefaultSendDelay = bptime::milliseconds(100);
+  // slow receive speed
+  RudpParameters::kAckInterval = bptime::milliseconds(500);
+  RudpParameters::kDefaultReceiveDelay = bptime::milliseconds(100);
+  RudpParameters::kDefaultWindowSize = 16;
+  RudpParameters::kMaximumWindowSize = 16;
+  RudpParameters::kDefaultSize = 1480;
+  RudpParameters::kMaxSize = 1480;
+  RudpParameters::kDefaultDataSize = 1450;
+  RudpParameters::kMaxDataSize = 1450;
 
-// max speed limit will be 16 * 1450 * 8 / 0.5 = 371200 b/s
-// observed speed around 359600 b/s
-RudpParameters::SlowSpeedThreshold = 371200;
+  // max speed limit will be 16 * 1450 * 8 / 0.5 = 371200 b/s
+  // observed speed around 359600 b/s
+  RudpParameters::SlowSpeedThreshold = 371200;
 
   std::string request(RandomString(1));
   for (int i = 0; i < 26; ++i)
