@@ -32,10 +32,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "maidsafe/dht/transport/utils.h"
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/crypto.h"
-#include "maidsafe/dht/kademlia/alternative_store.h"
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/datastore.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
@@ -47,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/transport/transport.h"
+#include "maidsafe/dht/transport/utils.h"
 #include "maidsafe/dht/tests/kademlia/utils.h"
 
 namespace arg = std::placeholders;

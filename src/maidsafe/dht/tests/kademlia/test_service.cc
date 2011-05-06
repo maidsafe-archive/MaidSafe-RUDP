@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 #include "boost/thread.hpp"
 
-#include "maidsafe/dht/kademlia/alternative_store.h"
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
@@ -101,17 +101,13 @@ class SecurifierValidateFalse: public SecurifierGetPublicKeyAndValidation {
 class AlternativeStoreTrue: public AlternativeStore {
  public:
   virtual ~AlternativeStoreTrue() {}
-  virtual bool Has(const std::string&) {
-    return true;
-  }
+  virtual bool Has(const std::string&) const { return true; }
 };
 
 class AlternativeStoreFalse: public AlternativeStore {
  public:
   virtual ~AlternativeStoreFalse() {}
-  virtual bool Has(const std::string&) {
-    return false;
-  }
+  virtual bool Has(const std::string&) const { return false; }
 };
 
 typedef std::shared_ptr<AlternativeStoreTrue> AlternativeStoreTruePtr;

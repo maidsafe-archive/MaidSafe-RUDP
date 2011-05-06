@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/version.h"
 
-#include "maidsafe/dht/kademlia/alternative_store.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/contact.h"

@@ -38,10 +38,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 #include "boost/asio/io_service.hpp"
 
+#include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/kademlia/config.h"
-#include "maidsafe/dht/kademlia/alternative_store.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/contact.h"
