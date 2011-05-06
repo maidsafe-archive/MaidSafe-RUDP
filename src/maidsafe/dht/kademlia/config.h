@@ -48,6 +48,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+class AlternativeStore;
+
 namespace dht {
 
 class Securifier;
@@ -60,7 +62,6 @@ struct Info;
 
 namespace kademlia {
 
-class AlternativeStore;
 class NodeId;
 class Contact;
 class MessageHandler;
