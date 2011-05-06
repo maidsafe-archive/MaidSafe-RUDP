@@ -93,6 +93,7 @@ class TransportMessageHandlerTest_BEH_TRANS_WrapMessageNatDetectionResponse_Test
 class TransportMessageHandlerTest_BEH_TRANS_WrapMessageProxyConnectResponse_Test;  // NOLINT
 class TransportMessageHandlerTest_BEH_TRANS_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
 class TransportMessageHandlerTest_BEH_TRANS_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
+class TransportMessageHandlerTest_BEH_TRANS_MakeSerialisedWrapperMessage_Test;  // NOLINT
 }  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -213,6 +214,7 @@ class MessageHandler {
   friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageProxyConnectResponse_Test;  // NOLINT
   friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
   friend class test::TransportMessageHandlerTest_BEH_TRANS_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
+  friend class test::TransportMessageHandlerTest_BEH_TRANS_MakeSerialisedWrapperMessage_Test;  // NOLINT
 
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);

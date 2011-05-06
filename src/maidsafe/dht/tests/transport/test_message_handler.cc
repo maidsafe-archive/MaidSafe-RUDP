@@ -47,9 +47,9 @@ namespace test {
 class TestSecurifier : public Securifier {
  public:
   TestSecurifier(const std::string &public_key_id,
-                          const std::string &public_key,
-                          const std::string &private_key) :
-      Securifier(public_key_id, public_key, private_key) {}
+                 const std::string &public_key,
+                 const std::string &private_key)
+      : Securifier(public_key_id, public_key, private_key) {}
 
   bool Validate(const std::string&, const std::string&,
                 const std::string&, const std::string&,
@@ -59,7 +59,7 @@ class TestSecurifier : public Securifier {
 class TransportMessageHandlerTest : public testing::Test {
  public:
   TransportMessageHandlerTest() : sec_ptr_(),
-                                  msg_hndlr_(sec_ptr_),
+                                  msg_hndlr_(),
                                   securifier_null_(),
                                   msg_hndlr_no_securifier_(securifier_null_),
                                   invoked_slots_(),
@@ -70,11 +70,12 @@ class TransportMessageHandlerTest : public testing::Test {
   }
 
   virtual void SetUp() {
-    sec_ptr_ = std::shared_ptr<TestSecurifier>(
-        new TestSecurifier("", crypto_key_pair_.public_key(),
-                        crypto_key_pair_.private_key()));
+    sec_ptr_.reset(new TestSecurifier("",
+                                      crypto_key_pair_.public_key(),
+                                      crypto_key_pair_.private_key()));
+    msg_hndlr_.reset(new MessageHandler(sec_ptr_));
   }
-  virtual void TearDown() { }
+  virtual void TearDown() {}
 
   template<class T>
   T GetWrapper(std::string encrypted, std::string key) {
@@ -162,26 +163,26 @@ class TransportMessageHandlerTest : public testing::Test {
   void ErrorSlot(const TransportCondition &tc) { error_count_ += tc; }
 
   void ConnectToHandlerSignals() {
-    msg_hndlr_.on_managed_endpoint_message()->connect(boost::bind(
+    msg_hndlr_->on_managed_endpoint_message()->connect(boost::bind(
         &TransportMessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
-    msg_hndlr_.on_nat_detection_request()->connect(boost::bind(
+    msg_hndlr_->on_nat_detection_request()->connect(boost::bind(
         &TransportMessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3));
-    msg_hndlr_.on_nat_detection_response()->connect(boost::bind(
+    msg_hndlr_->on_nat_detection_response()->connect(boost::bind(
         &TransportMessageHandlerTest::NatDetectionRspSlot, this, _1));
-    msg_hndlr_.on_proxy_connect_request()->connect(boost::bind(
+    msg_hndlr_->on_proxy_connect_request()->connect(boost::bind(
         &TransportMessageHandlerTest::ProxyConnectReqSlot, this, _1, _2, _3));
-    msg_hndlr_.on_proxy_connect_response()->connect(boost::bind(
+    msg_hndlr_->on_proxy_connect_response()->connect(boost::bind(
         &TransportMessageHandlerTest::ProxyConnectRspSlot, this, _1));
-    msg_hndlr_.on_forward_rendezvous_request()->connect(boost::bind(
+    msg_hndlr_->on_forward_rendezvous_request()->connect(boost::bind(
         &TransportMessageHandlerTest::ForwardRendezvousReqSlot,
         this, _1, _2, _3));
-    msg_hndlr_.on_forward_rendezvous_response()->connect(boost::bind(
+    msg_hndlr_->on_forward_rendezvous_response()->connect(boost::bind(
         &TransportMessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
-    msg_hndlr_.on_rendezvous_request()->connect(boost::bind(
+    msg_hndlr_->on_rendezvous_request()->connect(boost::bind(
         &TransportMessageHandlerTest::RendezvousReqSlot, this, _1));
-    msg_hndlr_.on_rendezvous_acknowledgement()->connect(boost::bind(
+    msg_hndlr_->on_rendezvous_acknowledgement()->connect(boost::bind(
         &TransportMessageHandlerTest::RendezvousAckSlot, this, _1));
-    msg_hndlr_.on_error()->connect(boost::bind(
+    msg_hndlr_->on_error()->connect(boost::bind(
         &TransportMessageHandlerTest::ErrorSlot, this, _1));
   }
   void InitialiseMap() {
@@ -284,8 +285,8 @@ class TransportMessageHandlerTest : public testing::Test {
     for (int a = 0; a < rounds; ++a) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(random_sleep));
       for (size_t n = 0; n < messages_copy.size(); ++n)
-        msg_hndlr_.OnMessageReceived(messages_copy[n], info, &response,
-                                     &timeout);
+        msg_hndlr_->OnMessageReceived(messages_copy[n], info, &response,
+                                      &timeout);
     }
   }
 
@@ -297,7 +298,7 @@ class TransportMessageHandlerTest : public testing::Test {
  protected:
   static crypto::RsaKeyPair crypto_key_pair_;
   std::shared_ptr<Securifier> sec_ptr_;
-  MessageHandler msg_hndlr_;
+  std::shared_ptr<MessageHandler> msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
   MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots_;
@@ -314,7 +315,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnError) {
   for (int tc = transport::kError;
        tc != transport::kMessageSizeTooLarge; --tc) {
     errors += tc;
-    msg_hndlr_.OnError(transport::TransportCondition(tc), Endpoint());
+    msg_hndlr_->OnError(transport::TransportCondition(tc), Endpoint());
   }
 
   ASSERT_EQ(errors, error_count());
@@ -340,7 +341,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
   slots->clear();
   InitialiseMap();
   for (size_t n = 0; n < messages.size(); ++n)
-    msg_hndlr_.OnMessageReceived(
+    msg_hndlr_->OnMessageReceived(
         std::string(1, kAsymmetricEncrypt) + messages[n],
         info, &response, &timeout);
   for (auto it = slots->begin(); it != slots->end(); ++it)
@@ -349,7 +350,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
   slots->clear();
   InitialiseMap();
   for (size_t n = 0; n < messages.size(); ++n)
-    msg_hndlr_.OnMessageReceived("", info, &response, &timeout);
+    msg_hndlr_->OnMessageReceived("", info, &response, &timeout);
   for (auto it = slots->begin(); it != slots->end(); ++it)
     ASSERT_EQ(boost::uint16_t(0), (*it).second);
 }
@@ -358,7 +359,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage)
   protobuf::ManagedEndpointMessage managed_endpoint_message;
   ASSERT_TRUE(managed_endpoint_message.IsInitialized());
 
-  std::string function(msg_hndlr_.WrapMessage(managed_endpoint_message));
+  std::string function(msg_hndlr_->WrapMessage(managed_endpoint_message));
   std::string manual(EncryptMessage<protobuf::ManagedEndpointMessage>(
                          managed_endpoint_message, kManagedEndpointMessage));
   EXPECT_EQ(manual, function);
@@ -370,7 +371,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionRequest) {
   nat_detection_rqst.set_local_port(12345);
   ASSERT_TRUE(nat_detection_rqst.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(nat_detection_rqst));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(nat_detection_rqst));
   std::string manual_encrypt(
       EncryptMessage<protobuf::NatDetectionRequest>(nat_detection_rqst,
                                                     kNatDetectionRequest));
@@ -385,7 +386,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectRequest) {
   proxy_connect_rqst.set_rendezvous_connect(true);
   ASSERT_TRUE(proxy_connect_rqst.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(proxy_connect_rqst));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(proxy_connect_rqst));
   std::string manual_encrypt(
       EncryptMessage<protobuf::ProxyConnectRequest>(proxy_connect_rqst,
                                                     kProxyConnectRequest));
@@ -399,7 +400,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousReques
   ep->set_port(12345);
   ASSERT_TRUE(forward_rdvz_rqst.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(forward_rdvz_rqst));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(forward_rdvz_rqst));
   std::string manual_encrypt(EncryptMessage<protobuf::ForwardRendezvousRequest>(
                                  forward_rdvz_rqst, kForwardRendezvousRequest));
   EXPECT_EQ(manual_encrypt, function_encrypt);
@@ -412,7 +413,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousRequest) {
   ep->set_port(12345);
   ASSERT_TRUE(rdvz_rqst.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(rdvz_rqst));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(rdvz_rqst));
   std::string manual_encrypt(EncryptMessage<protobuf::RendezvousRequest>(
                                  rdvz_rqst, kRendezvousRequest));
   EXPECT_EQ(manual_encrypt, function_encrypt);
@@ -423,7 +424,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionResponse) {
   nat_detection_resp.set_nat_type(12345);
   ASSERT_TRUE(nat_detection_resp.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(nat_detection_resp));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(nat_detection_resp));
   std::string manual_encrypt(
       EncryptMessage<protobuf::NatDetectionResponse>(nat_detection_resp,
                                                     kNatDetectionResponse));
@@ -435,7 +436,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectResponse) {
   proxy_connect_resp.set_result(true);
   ASSERT_TRUE(proxy_connect_resp.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(proxy_connect_resp));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(proxy_connect_resp));
   std::string manual_encrypt(
       EncryptMessage<protobuf::ProxyConnectResponse>(proxy_connect_resp,
                                                      kProxyConnectResponse));
@@ -450,7 +451,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousRespon
   ep->set_port(12345);
   ASSERT_TRUE(forward_rdvz_resp.IsInitialized());
 
-  std::string function_encrypt(msg_hndlr_.WrapMessage(forward_rdvz_resp));
+  std::string function_encrypt(msg_hndlr_->WrapMessage(forward_rdvz_resp));
   std::string manual_encrypt(
       EncryptMessage<protobuf::ForwardRendezvousResponse>(
           forward_rdvz_resp, kForwardRendezvousResponse));
@@ -465,7 +466,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgeme
   ep->set_port(12345);
   ASSERT_TRUE(rdvz_ack_message.IsInitialized());
 
-  std::string function(msg_hndlr_.WrapMessage(rdvz_ack_message));
+  std::string function(msg_hndlr_->WrapMessage(rdvz_ack_message));
   std::string manual(EncryptMessage<protobuf::RendezvousAcknowledgement>(
                          rdvz_ack_message, kRendezvousAcknowledgement));
   EXPECT_EQ(manual, function);
@@ -480,7 +481,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
   std::string response;
   Timeout timeout;
   for (size_t n = 0; n < messages.size(); ++n)
-    msg_hndlr_.OnMessageReceived(messages[n], info, &response, &timeout);
+    msg_hndlr_->OnMessageReceived(messages[n], info, &response, &timeout);
 
   std::shared_ptr<std::map<MessageType,
                   boost::uint16_t>> slots = invoked_slots();
@@ -508,6 +509,33 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
                   boost::uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
     ASSERT_EQ(boost::uint16_t(total_messages), (*it).second);
+}
+
+TEST_F(TransportMessageHandlerTest, BEH_TRANS_MakeSerialisedWrapperMessage) {
+  std::string payload(RandomString(5 * 1024));
+  ASSERT_EQ("",
+            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
+                0, payload, kAsymmetricEncrypt, crypto_key_pair_.public_key()));
+  ASSERT_EQ("",
+            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
+                0, payload, kSignAndAsymEncrypt,
+                crypto_key_pair_.public_key()));
+
+  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
+                                                         payload,
+                                                         kAsymmetricEncrypt,
+                                                         ""));
+  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
+                                                         payload,
+                                                         kSignAndAsymEncrypt,
+                                                         ""));
+
+  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
+                    0, payload, kAsymmetricEncrypt,
+                    crypto_key_pair_.public_key()));
+  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
+                    0, payload, kSignAndAsymEncrypt,
+                    crypto_key_pair_.public_key()));
 }
 
 }  // namespace test
