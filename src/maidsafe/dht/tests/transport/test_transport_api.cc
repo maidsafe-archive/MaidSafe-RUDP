@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/transport/udp_transport.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 #include "maidsafe/common/utils.h"
 
 namespace bptime = boost::posix_time;

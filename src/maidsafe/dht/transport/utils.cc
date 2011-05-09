@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //  #include "maidsafe/dht/cryptopp/base32.h"
 //  #include "maidsafe/dht/cryptopp/base64.h"
 //  #include "maidsafe/dht/cryptopp/hex.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 #include "maidsafe/dht/transport/network_interface.h"
 
 namespace maidsafe {

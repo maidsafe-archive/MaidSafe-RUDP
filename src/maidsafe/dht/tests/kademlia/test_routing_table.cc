@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 
 #include "maidsafe/common/crypto.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/routing_table.h"

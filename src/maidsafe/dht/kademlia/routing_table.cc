@@ -28,7 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #pragma warning(disable:4996)
 #endif
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 #ifdef __MSVC__
 #pragma warning(default:4996)
 #endif

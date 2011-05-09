@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "gtest/gtest.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 
 #include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
 
@@ -37,7 +37,8 @@ int main(int argc, char **argv) {
   FLAGS_logtostderr = true;
   // If Google logging is linked in, log messages at or above this level.
   // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = 3;
+  FLAGS_minloglevel = google::ERROR;
+  FLAGS_ms_logging_common = false;
   testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(
       new maidsafe::dht::kademlia::test::EnvironmentNodes(
