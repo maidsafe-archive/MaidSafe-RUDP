@@ -159,9 +159,12 @@ class RpcsTest: public CreateContactAndNodeId,
       default:
         break;
     }
-    handler_ = std::shared_ptr<MessageHandler>(
-        new MessageHandler(service_securifier_));
-    service_->ConnectToSignals(transport_, handler_);
+    handler_.reset(new MessageHandler(service_securifier_));
+    service_->ConnectToSignals(handler_);
+    transport_->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, handler_.get(),
+            _1, _2, _3, _4).track_foreign(handler_));
     ASSERT_EQ(transport::kSuccess,
               transport_->StartListening(service_contact_.endpoint()));
   }

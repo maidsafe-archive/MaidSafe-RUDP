@@ -193,6 +193,10 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
     node_->routing_table_ = routing_table_;
     local_node_->routing_table_ = routing_table_;
     transport_->StartListening(transport::Endpoint("127.0.0.1", 6700));
+    transport_->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, message_handler_.get(),
+            _1, _2, _3, _4).track_foreign(message_handler_));
   }
 
   static void SetUpTestCase() {}
