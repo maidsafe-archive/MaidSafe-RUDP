@@ -1800,7 +1800,11 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   boost::asio::io_service ioservice;
   TransportPtr transport_ptr(new MockTransportServiceTest(ioservice));
   // Connecting to Signals
-  service_->ConnectToSignals(transport_ptr, message_handler_ptr);
+  service_->ConnectToSignals(message_handler_ptr);
+  transport_ptr->on_message_received()->connect(
+      transport::OnMessageReceived::element_type::slot_type(
+          &MessageHandler::OnMessageReceived, message_handler_ptr.get(),
+          _1, _2, _3, _4).track_foreign(message_handler_ptr));
   // Data
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);

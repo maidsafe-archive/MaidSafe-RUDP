@@ -186,7 +186,7 @@ void Node::Impl::JoinFindNodesCallback(
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
       service_->set_node_joined(true);
-      service_->ConnectToSignals(listening_transport_, message_handler_);
+      service_->ConnectToSignals(message_handler_);
       thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
                                              this));
       refresh_thread_running_ = true;

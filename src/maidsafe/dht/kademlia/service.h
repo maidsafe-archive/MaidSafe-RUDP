@@ -110,8 +110,7 @@ class Service : public std::enable_shared_from_this<Service> {
   /** Connect to Signals.
    *  @param transport The Transportor to link.
    *  @param message_handler The Message Handler to link. */
-  void ConnectToSignals(TransportPtr transport,
-                        MessageHandlerPtr message_handler);
+  void ConnectToSignals(MessageHandlerPtr message_handler);
   /** Handle Ping request.
    *  The request sender will be added into the routing table
    *  @param[in] info The rank info.

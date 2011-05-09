@@ -219,6 +219,10 @@ void EnvironmentNodes::SetUp() {
                       false, false, "", rsa_key_pair.public_key(), "");
       if (i == 0)
         bootstrap_contacts_.push_back(contact);
+      local_transport->on_message_received()->connect(
+          transport::OnMessageReceived::element_type::slot_type(
+              &MessageHandler::OnMessageReceived, message_handler.get(),
+              _1, _2, _3, _4).track_foreign(message_handler));
     }
     std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
                                             message_handler,
