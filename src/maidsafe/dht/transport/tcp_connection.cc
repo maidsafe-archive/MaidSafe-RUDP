@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/write.hpp"
 
 #include "maidsafe/dht/transport/tcp_transport.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;

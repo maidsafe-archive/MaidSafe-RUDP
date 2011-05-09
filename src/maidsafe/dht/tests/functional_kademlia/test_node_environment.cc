@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 
 namespace arg = std::placeholders;
 

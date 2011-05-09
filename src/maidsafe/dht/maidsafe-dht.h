@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_MAIDSAFE_DHT_H_
 
 #include "maidsafe/common/crypto.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/threadpool.h"
 #include "maidsafe/common/utils.h"

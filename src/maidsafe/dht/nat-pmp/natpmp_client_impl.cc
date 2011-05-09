@@ -33,7 +33,7 @@ Created by Julian Cain on 11/3/09.
 #include "boost/bind.hpp"
 
 #include "maidsafe/dht/transport/gateway.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 

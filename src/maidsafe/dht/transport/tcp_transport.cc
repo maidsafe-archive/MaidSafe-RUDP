@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/transport/tcp_transport.h"
 
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 
 #include "maidsafe/dht/transport/message_handler.h"
 #include "maidsafe/dht/transport/transport.pb.h"
