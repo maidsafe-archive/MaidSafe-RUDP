@@ -70,7 +70,7 @@ boost::asio::ip::address Gateway::DefaultRoute(
       ret.end(),
       boost::bind(
           &NetworkInterface::IsLoopback,
-          boost::bind(&NetworkInterface::destination, _1)));
+          boost::bind(&NetworkInterface::gateway, _1)) == false);
 #else
   std::vector<NetworkInterface>::iterator it = std::find_if(
       ret.begin(),
