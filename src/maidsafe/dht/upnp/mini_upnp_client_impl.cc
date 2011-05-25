@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/upnp/mini_upnp_client_impl.h"
 #include "boost/bind.hpp"
 #include "boost/assert.hpp"
+#include "boost/asio/ip/address.hpp"
 #include "boost/lexical_cast.hpp"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/libupnp/miniwget.h"
@@ -41,10 +42,11 @@ namespace upnp {
 UpnpIgdClientImpl::UpnpIgdClientImpl()
   : is_initialised_(false), has_services_(false),
     upnp_urls_(), igd_data_(),
-    port_mappings_(), timer_() {}
+//    port_mappings_(), timer_() {}
+    port_mappings_() {}
 
 UpnpIgdClientImpl::~UpnpIgdClientImpl() {
-  timer_.CancelAll();
+//  timer_.CancelAll();
   DeleteAllPortMappings();
 }
 
@@ -64,8 +66,8 @@ bool UpnpIgdClientImpl::InitControlPoint() {
 
   is_initialised_ = true;
 
-  timer_.AddCallLater(kLeaseDuration * 1000,
-                      boost::bind(&UpnpIgdClientImpl::RefreshCallback, this));
+//  timer_.AddCallLater(kLeaseDuration * 1000,
+//                      boost::bind(&UpnpIgdClientImpl::RefreshCallback, this));
 
   return is_initialised_;  // && has_services_;
 }
@@ -221,8 +223,8 @@ void UpnpIgdClientImpl::RefreshCallback() {
     }
   }
 
-  timer_.AddCallLater(kLeaseDuration * 1000,
-                      boost::bind(&UpnpIgdClientImpl::RefreshCallback, this));
+//  timer_.AddCallLater(kLeaseDuration * 1000,
+//                      boost::bind(&UpnpIgdClientImpl::RefreshCallback, this));
 }
 
 }  // namespace upnp
