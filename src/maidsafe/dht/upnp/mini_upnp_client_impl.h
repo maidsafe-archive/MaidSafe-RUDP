@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 #include "maidsafe/dht/upnp/upnp_config.h"
 #include "maidsafe/dht/libupnp/miniupnpc.h"
-#include "maidsafe/common/call_later_timer.h"
+// #include "maidsafe/common/call_later_timer.h"
 
 namespace maidsafe {
 
@@ -88,7 +88,7 @@ class UpnpIgdClientImpl {
   UPNPUrls upnp_urls_;
   IGDdatas igd_data_;
   std::list<PortMapping> port_mappings_;
-  CallLaterTimer timer_;
+//  CallLaterTimer timer_;
 };
 
 }  // namespace upnp
