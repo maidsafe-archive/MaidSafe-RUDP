@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <algorithm>
 
+#include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
 #include "maidsafe/dht/kademlia/datastore.h"
 #include "maidsafe/dht/kademlia/kademlia.pb.h"
