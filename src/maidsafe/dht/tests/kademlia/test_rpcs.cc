@@ -59,6 +59,8 @@ namespace kademlia {
 
 namespace test {
 
+const int _RPCS_CLIENT_NO = 5;  
+
 void TestCallback(RankInfoPtr,
                   int callback_code,
                   bool *done,
@@ -115,11 +117,19 @@ class RpcsTest: public CreateContactAndNodeId,
     thread_group_.create_thread(std::bind(static_cast<
         std::size_t(boost::asio::io_service::*)()>
             (&boost::asio::io_service::run), local_asio_));
+    for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+      node_id_vec_.push_back(kademlia::NodeId(NodeId::kRandomId));
+    }
   }
 
   static void SetUpTestCase() {
     sender_crypto_key_id_.GenerateKeys(4096);
     receiver_crypto_key_id_.GenerateKeys(4096);
+    for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+      senders_crypto_key_id_.push_back(temp_key_pair);
+    }
   }
 
   virtual void SetUp() {
@@ -128,11 +138,27 @@ class RpcsTest: public CreateContactAndNodeId,
         new Securifier("", sender_crypto_key_id_.public_key(),
                         sender_crypto_key_id_.private_key()));
     rpcs_= std::shared_ptr<Rpcs>(new Rpcs(asio_service_, rpcs_securifier_));
+    for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+      SecurifierPtr securifier_ptr = std::shared_ptr<Securifier>(
+        new Securifier("", senders_crypto_key_id_[index].public_key(),
+                        senders_crypto_key_id_[index].private_key()));
+      rpcs_securifier_vec_.push_back(securifier_ptr);
+      rpcs_vector_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_, 
+                                                            rpcs_securifier_)));
+    }
+    
     NodeId rpcs_node_id = GenerateRandomId(node_id_, 502);
     rpcs_contact_ = ComposeContactWithKey(rpcs_node_id,
                                           5010,
                                           sender_crypto_key_id_);
     rpcs_->set_contact(rpcs_contact_);
+    for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+      NodeId node_id = GenerateRandomId(node_id_vec_[index], 504 + index);
+      rpc_contacts_vec_.push_back(ComposeContactWithKey(node_id, 
+          5012 + index,
+          senders_crypto_key_id_[index])); 
+      rpcs_vector_[index]->set_contact(rpc_contacts_vec_[index]);
+    }
     // service setup
     service_securifier_ = std::shared_ptr<Securifier>(
         new SecurifierGetPublicKeyAndValidation("",
@@ -283,20 +309,25 @@ class RpcsTest: public CreateContactAndNodeId,
  protected:
   typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 
-  kademlia::NodeId  node_id_;
+  kademlia::NodeId node_id_;
+  std::vector<kademlia::NodeId> node_id_vec_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<DataStore> data_store_;
   AlternativeStorePtr alternative_store_;
   SecurifierPtr service_securifier_;
   std::shared_ptr<Service> service_;
   SecurifierPtr rpcs_securifier_;
+  std::vector<SecurifierPtr> rpcs_securifier_vec_;
   IoServicePtr asio_service_;
   IoServicePtr local_asio_;
   std::shared_ptr<Rpcs> rpcs_;
+  std::vector<std::shared_ptr<Rpcs> > rpcs_vector_;
   Contact rpcs_contact_;
+  std::vector<Contact> rpc_contacts_vec_;
   Contact service_contact_;
   static crypto::RsaKeyPair sender_crypto_key_id_;
   static crypto::RsaKeyPair receiver_crypto_key_id_;
+  static std::vector<crypto::RsaKeyPair> senders_crypto_key_id_;
   RankInfoPtr rank_info_;
   std::vector<Contact> contacts_;
   TransportPtr transport_;
@@ -308,10 +339,32 @@ class RpcsTest: public CreateContactAndNodeId,
 };
 
 crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
+std::vector<crypto::RsaKeyPair> RpcsTest::senders_crypto_key_id_;
 crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
 
 INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsTest,
                         testing::Values(kTcp, kUdp));
+
+TEST_P(RpcsTest, BEH_KAD_MultipleRequests) {
+  bool done[_RPCS_CLIENT_NO];
+  int response_code(0);
+  int received_response(0);
+  
+  for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+    done[index] = false;
+    rpcs_vector_[index]->Ping(rpcs_securifier_vec_[index], rpc_contacts_vec_[index],
+                          std::bind(&TestCallback, arg::_1, arg::_2, &done[index], 
+                                    &response_code), transport_type_);
+  }
+  while (received_response < _RPCS_CLIENT_NO)
+    for (int index = 0; index < _RPCS_CLIENT_NO; ++index) {
+      received_response += (done[index])?1:0;
+    }
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  StopAndReset();
+
+  ASSERT_GT(0, response_code);
+}
 
 TEST_P(RpcsTest, BEH_KAD_PingNoTarget) {
   bool done(false);
