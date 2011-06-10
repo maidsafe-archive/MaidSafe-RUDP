@@ -437,12 +437,12 @@ class RpcsMultiNodesTest: public CreateContactAndNodeId,
     *done = false;
     *response_code = 0;
     rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                                   service_contact_,
-                                   std::bind(&TestFindValueCallback, arg::_1,
-                                             arg::_2, arg::_3, arg::_4, arg::_5,
-                                             &return_values, &return_contacts,
-                                             done, response_code),
-                                   transport_type_);
+                            service_contact_,
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                             transport_type_);
     while (!*done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     ASSERT_EQ(0, *response_code);
@@ -451,11 +451,11 @@ class RpcsMultiNodesTest: public CreateContactAndNodeId,
     *done = false;
     *response_code = 0;
     rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
-                               rpcs_securifier_[index],
-                               service_contact_,
-                               std::bind(&TestCallback, arg::_1, arg::_2, done,
-                                         response_code),
-                               transport_type_);
+                        rpcs_securifier_[index],
+                        service_contact_,
+                        std::bind(&TestCallback, arg::_1, arg::_2, done,
+                                  response_code),
+                        transport_type_);
     while (!*done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     ASSERT_EQ(0, *response_code);
@@ -467,12 +467,12 @@ class RpcsMultiNodesTest: public CreateContactAndNodeId,
     *done = false;
     *response_code = 0;
     rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                                   service_contact_,
-                                   std::bind(&TestFindValueCallback, arg::_1,
-                                             arg::_2, arg::_3, arg::_4, arg::_5,
-                                             &return_values, &return_contacts,
-                                             done, response_code),
-                                   transport_type_);
+                            service_contact_,
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                            transport_type_);
 
     while (!*done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(100));
