@@ -39,6 +39,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+namespace dht {
+
 namespace rpcprotocol {
 typedef std::map<std::string, Stats<boost::uint64_t>> RpcStatsMap;
 }  // namespace rpcprotocol
@@ -83,6 +85,8 @@ class Operations {
 };
 
 }  // namespace benchmark
+
+}  // dht
 
 }  // namespace maidsafe
 

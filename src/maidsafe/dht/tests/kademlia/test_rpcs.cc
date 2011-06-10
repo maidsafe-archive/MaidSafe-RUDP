@@ -659,7 +659,7 @@ TEST_P(RpcsMultiNodeTest, BEH_KAD_MultipleCleintRequests) {
   for (int index = 0; index < kRpcClientNo; ++index) {
     done[index] = false;
     response_code[index] = 0;
-    random_op = random() % kMaxOps;
+    //random_op = random() % kMaxOps;
     random_op = 0;
     // This is to enable having more than one operation
     switch (random_op) {
