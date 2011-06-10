@@ -48,6 +48,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+namespace dht {
+
 namespace benchmark {
 
 Operations::Operations(boost::shared_ptr<kademlia::Node> node)
@@ -319,5 +321,7 @@ void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {
 }
 
 }  // namespace benchmark
+
+}  // namespace dht
 
 }  // namespace maidsafe
