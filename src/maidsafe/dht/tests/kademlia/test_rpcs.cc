@@ -852,7 +852,7 @@ TEST_P(RpcsMultiServerNodesTest, BEH_KAD_MultipleServerOperations) {
   for (int index = 0; index < kRpcServersNo; ++index) {
     done[index] = false;
     response_code[index] = 0;
-    random_op = random() % kMaxOps;
+    //random_op = random() % kMaxOps;
     random_op = 0;
     // This is to enable having more than one operation
     switch (random_op) {
