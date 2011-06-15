@@ -919,7 +919,6 @@ TEST_P(RpcsTest, BEH_KAD_PingNoTarget) {
 TEST_P(RpcsTest, BEH_KAD_PingTarget) {
   bool done(false);
   int response_code(0);
-
   rpcs_->Ping(rpcs_securifier_, service_contact_,
               std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code),
               transport_type_);
