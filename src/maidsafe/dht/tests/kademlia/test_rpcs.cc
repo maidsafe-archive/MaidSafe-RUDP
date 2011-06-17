@@ -34,8 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/enable_shared_from_this.hpp"
 
-#include "maidsafe/dht/transport/tcp_transport.h"
-#include "maidsafe/dht/transport/udp_transport.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/config.h"
@@ -47,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/routing_table.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
+#include "maidsafe/dht/transport/tcp_transport.h"
+#include "maidsafe/dht/transport/udp_transport.h"
 #include "maidsafe/dht/tests/kademlia/utils.h"
 
 namespace arg = std::placeholders;
@@ -312,594 +312,11 @@ class RpcsTest: public CreateContactAndNodeId,
   WorkPtr work1_;
 };
 
-class RpcsMultiClientNodesTest: public CreateContactAndNodeId,
-                public testing::TestWithParam<TransportType> {
- public:
-  RpcsMultiClientNodesTest() : node_id_(NodeId::kRandomId),
-                routing_table_(new RoutingTable(node_id_, test::k)),
-                data_store_(new kademlia::DataStore(bptime::seconds(3600))),
-                alternative_store_(),
-                local_asio_(new boost::asio::io_service()),
-                rank_info_(),
-                contacts_(),
-                transport_(),
-                transport_type_(GetParam()),
-                thread_group_(),
-                work1_(new boost::asio::io_service::work(*local_asio_)) {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      IoServicePtr ioservice(new boost::asio::io_service());
-      asio_service_.push_back(ioservice);
-      WorkPtr workptr(new
-          boost::asio::io_service::work(*asio_service_[index]));
-      work_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), asio_service_[index]));
-    }
-    thread_group_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), local_asio_));
-  }
-
-  static void SetUpTestCase() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      crypto::RsaKeyPair temp_key_pair;
-      temp_key_pair.GenerateKeys(4096);
-      senders_crypto_key_id2_.push_back(temp_key_pair);
-    }
-    receiver_crypto_key_id2_.GenerateKeys(4096);
-  }
-
-  virtual void SetUp() {
-    // rpcs setup
-    for (int index = 0; index <kRpcClientNo; ++index) {
-      rpcs_securifier_.push_back(std::shared_ptr<Securifier>(
-          new Securifier("", senders_crypto_key_id2_[index].public_key(),
-                         senders_crypto_key_id2_[index].private_key())));
-      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
-                                                     rpcs_securifier_[index])));
-
-      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
-      kademlia::Contact rpcs_contact;
-      rpcs_contact = ComposeContactWithKey(rpcs_node_id,
-                                            5011 + index,
-                                            senders_crypto_key_id2_[index]);
-      rpcs_contact_.push_back(rpcs_contact);
-      rpcs_[index]->set_contact(rpcs_contact_[index]);
-    }
-    // service setup
-    service_securifier_ = std::shared_ptr<Securifier>(
-        new SecurifierGetPublicKeyAndValidation("",
-                receiver_crypto_key_id2_.public_key(),
-                    receiver_crypto_key_id2_.private_key()));
-    NodeId service_node_id = GenerateRandomId(node_id_, 502);
-    service_contact_ = ComposeContactWithKey(service_node_id,
-                                             5010,
-                                             receiver_crypto_key_id2_);
-    service_ = std::shared_ptr<Service>(new Service(routing_table_,
-                                                    data_store_,
-                                                    alternative_store_,
-                                                    service_securifier_,
-                                                    k));
-    service_->set_node_contact(service_contact_);
-    service_->set_node_joined(true);
-    switch (transport_type_) {
-      case kTcp:
-        transport_.reset(new transport::TcpTransport(*local_asio_));
-        break;
-      case kUdp:
-        transport_.reset(new transport::UdpTransport(*local_asio_));
-        break;
-      default:
-        break;
-    }
-    handler_.reset(new MessageHandler(service_securifier_));
-    service_->ConnectToSignals(handler_);
-    transport_->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, handler_.get(),
-            _1, _2, _3, _4).track_foreign(handler_));
-    ASSERT_EQ(transport::kSuccess,
-              transport_->StartListening(service_contact_.endpoint()));
-  }
-
-  virtual void TearDown() { }
-
-  ~RpcsMultiClientNodesTest() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
-      work_[index].reset();
-    }
-    work1_.reset();
-    local_asio_->stop();
-  }
-
-  void StopAndReset() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
-      work_[index].reset();
-    }
-    local_asio_->stop();
-    work1_.reset();
-    thread_group_.join_all();
-  }
-
-  void RpcOperations(const int index, bool* done, int* response_code) {
-    *done = false;
-    *response_code = 0;
-    Key key = rpcs_contact_[index].node_id();
-    KeyValueSignature kvs = MakeKVS(senders_crypto_key_id2_[index], 1024,
-                                    key.String(), "");
-    boost::posix_time::seconds ttl(3600);
-
-    // attempt to find value before any stored
-    std::vector<std::string> return_values;
-    std::vector<Contact> return_contacts;
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_,
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      done, response_code),
-                             transport_type_);
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(0, return_values.size());
-
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
-                        rpcs_securifier_[index],
-                        service_contact_,
-                        std::bind(&TestCallback, arg::_1, arg::_2, done,
-                                  response_code),
-                        transport_type_);
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    ASSERT_EQ(0, *response_code);
-    JoinNetworkLookup(service_securifier_);
-
-  // attempt to retrieve value stored
-    return_values.clear();
-    return_contacts.clear();
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_,
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      done, response_code),
-                            transport_type_);
-
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(kvs.value, return_values[0]);
-    ASSERT_EQ(0, return_contacts.size());
-
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->Delete(key, kvs.value, kvs.signature,
-                         rpcs_securifier_[index],
-                         service_contact_,
-                         std::bind(&TestCallback, arg::_1, arg::_2,
-                                   done, response_code),
-                         transport_type_);
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(transport::kSuccess, *response_code);
-    JoinNetworkLookup(service_securifier_);
-
-    return_values.clear();
-    return_contacts.clear();
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_,
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      done, response_code),
-                            transport_type_);
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  // Value deleted
-    EXPECT_EQ(transport::kSuccess, *response_code);
-    EXPECT_EQ(0, return_values.size());
-  }
-
- protected:
-  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
-
-  kademlia::NodeId node_id_;
-  std::shared_ptr<RoutingTable> routing_table_;
-  std::shared_ptr<DataStore> data_store_;
-  AlternativeStorePtr alternative_store_;
-  SecurifierPtr service_securifier_;
-  std::shared_ptr<Service> service_;
-  std::vector<SecurifierPtr> rpcs_securifier_;
-  std::vector<IoServicePtr> asio_service_;
-  IoServicePtr local_asio_;
-  std::vector<std::shared_ptr<Rpcs> > rpcs_;
-  std::vector<Contact> rpcs_contact_;
-  Contact service_contact_;
-  static std::vector<crypto::RsaKeyPair> senders_crypto_key_id2_;
-  static crypto::RsaKeyPair receiver_crypto_key_id2_;
-  RankInfoPtr rank_info_;
-  std::vector<Contact> contacts_;
-  TransportPtr transport_;
-  MessageHandlerPtr handler_;
-  TransportType transport_type_;
-  boost::thread_group thread_group_;
-  std::vector<WorkPtr> work_;
-  WorkPtr work1_;
-};
-
-class RpcsMultiServerNodesTest: public CreateContactAndNodeId,
-                public testing::TestWithParam<TransportType> {
- public:
-  RpcsMultiServerNodesTest() : node_id_(NodeId::kRandomId),
-                rank_info_(),
-                contacts_(),
-                transport_(),
-                dispatcher_(new boost::asio::io_service()),
-                transport_type_(GetParam()),
-                thread_group_(),
-                dispatcher_work_(
-                      new boost::asio::io_service::work(*dispatcher_)) {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      IoServicePtr ioservice(new boost::asio::io_service());
-      asio_service_.push_back(ioservice);
-      WorkPtr workptr(new
-          boost::asio::io_service::work(*asio_service_[index]));
-      work_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), asio_service_[index]));
-    }
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      NodeId service_node_id = GenerateRandomId(node_id_, 503 + kRpcClientNo +
-        kRpcServersNo + index);
-      RoutingTablePtr routing_table();
-      routing_table_.push_back(RoutingTablePtr(new RoutingTable(service_node_id,
-                                                                test::k)));
-      data_store_.push_back(DataStorePtr(new
-          kademlia::DataStore(bptime::seconds(3600))));
-      AlternativeStorePtr alternative_store;
-      alternative_store_.push_back(alternative_store);
-      IoServicePtr ioservice(new boost::asio::io_service());
-      local_asio_.push_back(ioservice);
-      WorkPtr workptr(new
-          boost::asio::io_service::work(*local_asio_[index]));
-      work1_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), local_asio_[index]));
-    }
-    thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), dispatcher_));
-  }
-
-  static void SetUpTestCase() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      crypto::RsaKeyPair temp_key_pair;
-      temp_key_pair.GenerateKeys(4096);
-      senders_crypto_key_id3_.push_back(temp_key_pair);
-    }
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      crypto::RsaKeyPair temp_key_pair;
-      temp_key_pair.GenerateKeys(4096);
-      receivers_crypto_key_id3_.push_back(temp_key_pair);
-    }
-  }
-
-  virtual void SetUp() {
-    // rpcs setup
-    for (int index = 0; index <kRpcClientNo; ++index) {
-      rpcs_securifier_.push_back(std::shared_ptr<Securifier>(
-          new Securifier("", senders_crypto_key_id3_[index].public_key(),
-                         senders_crypto_key_id3_[index].private_key())));
-      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
-                                                     rpcs_securifier_[index])));
-
-      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
-      kademlia::Contact rpcs_contact;
-      rpcs_contact = ComposeContactWithKey(rpcs_node_id,
-                                            5011 + index,
-                                            senders_crypto_key_id3_[index]);
-      rpcs_contact_.push_back(rpcs_contact);
-      rpcs_[index]->set_contact(rpcs_contact_[index]);
-    }
-    // service setup
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      services_securifier_.push_back(std::shared_ptr<Securifier>(
-          new SecurifierGetPublicKeyAndValidation("",
-                  receivers_crypto_key_id3_[index].public_key(),
-                  receivers_crypto_key_id3_[index].private_key())));
-      NodeId service_node_id = GenerateRandomId(node_id_, 503 + kRpcClientNo +
-                                                index);
-      service_contact_.push_back(ComposeContactWithKey(service_node_id,
-                                     5011 + kRpcClientNo + index,
-                                     receivers_crypto_key_id3_[index]));
-      service_.push_back(std::shared_ptr<Service>(
-          new Service(routing_table_[index], data_store_[index],
-                      alternative_store_[index],
-                      services_securifier_[index], k)));
-      service_[index]->set_node_contact(service_contact_[index]);
-      service_[index]->set_node_joined(true);
-      switch (transport_type_) {
-        case kTcp:
-          transport_.push_back(TransportPtr(
-              new transport::TcpTransport(*local_asio_[index])));
-          break;
-        case kUdp:
-          transport_.push_back(TransportPtr(
-              new transport::UdpTransport(*local_asio_[index])));
-          break;
-        default:
-          break;
-      }
-      handler_.push_back(MessageHandlerPtr(
-                             new MessageHandler(services_securifier_[index])));
-      service_[index]->ConnectToSignals(handler_[index]);
-      transport_[index]->on_message_received()->connect(
-          transport::OnMessageReceived::element_type::slot_type(
-              &MessageHandler::OnMessageReceived, handler_[index].get(),
-              _1, _2, _3, _4).track_foreign(handler_[index]));
-      ASSERT_EQ(transport::kSuccess,
-                transport_[index]->StartListening(
-                                       service_contact_[index].endpoint()));
-    }
-  }
-
-  virtual void TearDown() { }
-
-  ~RpcsMultiServerNodesTest() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
-      work_[index].reset();
-    }
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      local_asio_[index]->stop();
-      work1_[index].reset();
-    }
-    dispatcher_->stop();
-    dispatcher_work_.reset();
-  }
-
-  void StopAndReset() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
-      work_[index].reset();
-    }
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      local_asio_[index]->stop();
-      work1_[index].reset();
-    }
-    dispatcher_->stop();
-    dispatcher_work_.reset();
-    thread_group_.join_all();
-  }
-
-  void RpcOperations(const int index, const int server_index,
-                     bool* done, int* response_code) {
-    *done = false;
-    *response_code = 0;
-    bool ldone = false;
-    Key key = rpcs_contact_[index].node_id();
-    KeyValueSignature kvs = MakeKVS(senders_crypto_key_id3_[index], 1024,
-                                    key.String(), "");
-    boost::posix_time::seconds ttl(3600);
-    // attempt to find value before any stored
-    std::vector<std::string> return_values;
-    std::vector<Contact> return_contacts;
-    *done = false;
-    *response_code = 0;
-
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_[server_index],
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      &ldone, response_code),
-                             transport_type_);
-    while (!ldone) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-    }
-    ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(0, return_values.size());
-
-    ldone = false;
-    *response_code = 0;
-    rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
-                        rpcs_securifier_[index],
-                        service_contact_[server_index],
-                        std::bind(&TestCallback, arg::_1, arg::_2, &ldone,
-                                  response_code),
-                        transport_type_);
-    while (!ldone) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-    }
-    ASSERT_EQ(0, *response_code);
-    JoinNetworkLookup(services_securifier_[server_index]);
-
-  // attempt to retrieve value stored
-    return_values.clear();
-    return_contacts.clear();
-    ldone = false;
-    *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_[server_index],
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      &ldone, response_code),
-                            transport_type_);
-
-    while (!ldone) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    }
-    ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(kvs.value, return_values[0]);
-    ASSERT_EQ(0, return_contacts.size());
-
-    ldone = false;
-    *response_code = 0;
-    rpcs_[index]->Delete(key, kvs.value, kvs.signature,
-                         rpcs_securifier_[index],
-                         service_contact_[server_index],
-                         std::bind(&TestCallback, arg::_1, arg::_2,
-                                   &ldone, response_code),
-                         transport_type_);
-    while (!ldone)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(transport::kSuccess, *response_code);
-    JoinNetworkLookup(services_securifier_[server_index]);
-
-    return_values.clear();
-    return_contacts.clear();
-    *done = false;
-    *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
-                            service_contact_[server_index],
-                            std::bind(&TestFindValueCallback, arg::_1,
-                                      arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      done, response_code),
-                            transport_type_);
-    while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  // Value deleted
-    EXPECT_EQ(transport::kSuccess, *response_code);
-    EXPECT_EQ(0, return_values.size());
-  }
-
- protected:
-  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
-  typedef std::shared_ptr<DataStore> DataStorePtr;
-  typedef std::shared_ptr<RoutingTable> RoutingTablePtr;
-  typedef std::shared_ptr<Service> ServicePtr;
-
-  kademlia::NodeId node_id_;
-  std::vector<RoutingTablePtr> routing_table_;
-  std::vector<DataStorePtr> data_store_;
-  std::vector<AlternativeStorePtr> alternative_store_;
-  std::vector<SecurifierPtr> services_securifier_;
-  std::vector<ServicePtr> service_;
-  std::vector<SecurifierPtr> rpcs_securifier_;
-  std::vector<IoServicePtr> asio_service_;
-  std::vector<IoServicePtr> local_asio_;
-  IoServicePtr dispatcher_;
-  std::vector<std::shared_ptr<Rpcs> > rpcs_;
-  std::vector<Contact> rpcs_contact_;
-  std::vector<Contact> service_contact_;
-  static std::vector<crypto::RsaKeyPair> senders_crypto_key_id3_;
-  static std::vector<crypto::RsaKeyPair> receivers_crypto_key_id3_;
-  RankInfoPtr rank_info_;
-  std::vector<Contact> contacts_;
-  std::vector<TransportPtr> transport_;
-  std::vector<MessageHandlerPtr> handler_;
-  TransportType transport_type_;
-  boost::thread_group thread_group_;
-  std::vector<WorkPtr> work_;
-  std::vector<WorkPtr> work1_;
-  WorkPtr dispatcher_work_;
-};
-
-
 crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
 crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
-std::vector<crypto::RsaKeyPair>
-    RpcsMultiClientNodesTest::senders_crypto_key_id2_;
-crypto::RsaKeyPair RpcsMultiClientNodesTest::receiver_crypto_key_id2_;
-std::vector<crypto::RsaKeyPair>
-    RpcsMultiServerNodesTest::senders_crypto_key_id3_;
-std::vector<crypto::RsaKeyPair>
-    RpcsMultiServerNodesTest::receivers_crypto_key_id3_;
 
 INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsTest,
                         testing::Values(kTcp, kUdp));
-
-INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiClientNodesTest,
-                        testing::Values(kTcp, kUdp));
-
-INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiServerNodesTest,
-                        testing::Values(kTcp, kUdp));
-
-TEST_P(RpcsMultiServerNodesTest, BEH_KAD_MultipleServerOperations) {
-  bool done[kRpcClientNo][kRpcServersNo];
-  bool localdone = false;
-  int response_code[kRpcClientNo][kRpcServersNo];
-  int received_response(0);
-  int random_op = 0;
-  for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      done[client_index][index] = false;
-      response_code[client_index][index] = 0;
-      // This is to enable having more than one operation
-      dispatcher_->post(std::bind(&RpcsMultiServerNodesTest::RpcOperations,
-                                  this, client_index, index,
-                                  &done[client_index][index],
-                                  &response_code[client_index][index]));
-    }
-  }
-  while (!localdone) {
-    localdone = true;
-    for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
-      for (int index = 0; index < kRpcServersNo; ++index) {
-        localdone = localdone && done[client_index][index];
-      }
-    }
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
-  }
-  StopAndReset();
-}
-
-TEST_P(RpcsMultiClientNodesTest, BEH_KAD_MultipleClientOperations) {
-  bool done[kRpcClientNo];
-  int response_code[kRpcClientNo];
-  int received_response(0);
-  boost::thread_group thread_group;
-  int random_op = 0;
-  for (int index = 0; index < kRpcClientNo; ++index) {
-    done[index] = false;
-    response_code[index] = 0;
-    // random_op = random() % kMaxOps;
-    random_op = 0;
-    // This is to enable having more than one operation
-    switch (random_op) {
-      case 0: {
-        thread_group.create_thread(
-            std::bind(&RpcsMultiClientNodesTest::RpcOperations, this,
-                      index, &done[index], &response_code[index]));
-        break;
-      }
-/*      case 1: {
-        thread_group.create_thread(std::bind(&RpcsTest::DeleteRpCOperation,
-                                             this, index, done[index],
-                                            response_code[index]));
-        break;
-      }
-      case 2: {
-        thread_group.create_thread(std::bind(&RpcsTest::FindNodeRpCOperation,
-                                             this, index, done[index],
-                                            response_code[index]));
-        break;
-      }*/
-    }
-  }
-  thread_group.join_all();
-  for (int index = 0; index < kRpcClientNo; ++index) {
-    response_code[0] += response_code[index];
-  }
-  StopAndReset();
-  ASSERT_EQ(0, response_code[0]);
-}
 
 TEST_P(RpcsTest, BEH_KAD_PingNoTarget) {
   bool done(false);
@@ -1171,7 +588,6 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
 
   StopAndReset();
 }
-
 
 TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
   PopulateRoutingTable(2*k);
@@ -1903,6 +1319,596 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
     else
       EXPECT_GT(GetRefreshTime(kvs_vector[i]), refresh_time_old_vector[i]);
   }
+}
+
+
+class RpcsMultiClientNodesTest
+    : public CreateContactAndNodeId,
+      public testing::TestWithParam<TransportType> {
+ public:
+  RpcsMultiClientNodesTest()
+      : node_id_(NodeId::kRandomId),
+        routing_table_(new RoutingTable(node_id_, test::k)),
+        data_store_(new kademlia::DataStore(bptime::seconds(3600))),
+        alternative_store_(),
+        local_asio_(new boost::asio::io_service()),
+        rank_info_(),
+        contacts_(),
+        transport_(),
+        transport_type_(GetParam()),
+        thread_group_(),
+        work1_(new boost::asio::io_service::work(*local_asio_)) {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      IoServicePtr ioservice(new boost::asio::io_service());
+      asio_service_.push_back(ioservice);
+      WorkPtr workptr(new boost::asio::io_service::work(*asio_service_[index]));
+      work_.push_back(workptr);
+      thread_group_.create_thread(std::bind(static_cast<
+          std::size_t(boost::asio::io_service::*)()>
+              (&boost::asio::io_service::run), asio_service_[index]));
+    }
+    thread_group_.create_thread(std::bind(static_cast<
+        std::size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), local_asio_));
+  }
+
+  static void SetUpTestCase() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+      senders_crypto_key_id2_.push_back(temp_key_pair);
+    }
+    receiver_crypto_key_id2_.GenerateKeys(4096);
+  }
+
+  virtual void SetUp() {
+    // rpcs setup
+    for (int index = 0; index <kRpcClientNo; ++index) {
+      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
+      rpcs_securifier_.push_back(
+          SecurifierPtr(new Securifier(
+              rpcs_node_id.String(),
+              senders_crypto_key_id2_[index].public_key(),
+              senders_crypto_key_id2_[index].private_key())));
+      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
+                                                     rpcs_securifier_[index])));
+
+      kademlia::Contact rpcs_contact;
+      rpcs_contact = ComposeContactWithKey(rpcs_node_id,
+                                            5011 + index,
+                                            senders_crypto_key_id2_[index]);
+      rpcs_contact_.push_back(rpcs_contact);
+      rpcs_[index]->set_contact(rpcs_contact_[index]);
+    }
+    // service setup
+    NodeId service_node_id = GenerateRandomId(node_id_, 502);
+    service_securifier_ = SecurifierPtr(
+        new SecurifierGetPublicKeyAndValidation(
+            service_node_id.String(),
+            receiver_crypto_key_id2_.public_key(),
+            receiver_crypto_key_id2_.private_key()));
+    service_contact_ = ComposeContactWithKey(service_node_id,
+                                             5010,
+                                             receiver_crypto_key_id2_);
+    service_ = ServicePtr(new Service(routing_table_,
+                                      data_store_,
+                                      alternative_store_,
+                                      service_securifier_,
+                                      k));
+    service_->set_node_contact(service_contact_);
+    service_->set_node_joined(true);
+    switch (transport_type_) {
+      case kTcp:
+        transport_.reset(new transport::TcpTransport(*local_asio_));
+        break;
+      case kUdp:
+        transport_.reset(new transport::UdpTransport(*local_asio_));
+        break;
+      default:
+        break;
+    }
+    handler_.reset(new MessageHandler(service_securifier_));
+    service_->ConnectToSignals(handler_);
+    transport_->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, handler_.get(),
+            _1, _2, _3, _4).track_foreign(handler_));
+    ASSERT_EQ(transport::kSuccess,
+              transport_->StartListening(service_contact_.endpoint()));
+  }
+
+  virtual void TearDown() { }
+
+  ~RpcsMultiClientNodesTest() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      asio_service_[index]->stop();
+      work_[index].reset();
+    }
+    work1_.reset();
+    local_asio_->stop();
+  }
+
+  void StopAndReset() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      asio_service_[index]->stop();
+      work_[index].reset();
+    }
+    local_asio_->stop();
+    work1_.reset();
+    thread_group_.join_all();
+  }
+
+  void RpcOperations(const int index, bool* done, int* response_code) {
+    *done = false;
+    *response_code = 0;
+    Key key = rpcs_contact_[index].node_id();
+    KeyValueSignature kvs = MakeKVS(senders_crypto_key_id2_[index], 1024,
+                                    key.String(), "");
+    boost::posix_time::seconds ttl(3600);
+
+    // attempt to find value before any stored
+    std::vector<std::string> return_values;
+    std::vector<Contact> return_contacts;
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_,
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                            transport_type_);
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    ASSERT_EQ(0, *response_code);
+    ASSERT_EQ(0, return_values.size());
+
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
+                        rpcs_securifier_[index],
+                        service_contact_,
+                        std::bind(&TestCallback, arg::_1, arg::_2, done,
+                                  response_code),
+                        transport_type_);
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    ASSERT_EQ(0, *response_code);
+    JoinNetworkLookup(service_securifier_);
+
+    // attempt to retrieve value stored
+    return_values.clear();
+    return_contacts.clear();
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_,
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                            transport_type_);
+
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    ASSERT_EQ(0, *response_code);
+    ASSERT_EQ(kvs.value, return_values[0]);
+    ASSERT_EQ(0, return_contacts.size());
+
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->Delete(key, kvs.value, kvs.signature,
+                         rpcs_securifier_[index],
+                         service_contact_,
+                         std::bind(&TestCallback, arg::_1, arg::_2,
+                                   done, response_code),
+                         transport_type_);
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    EXPECT_EQ(transport::kSuccess, *response_code);
+    JoinNetworkLookup(service_securifier_);
+
+    return_values.clear();
+    return_contacts.clear();
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_,
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                            transport_type_);
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    // Value deleted
+    EXPECT_EQ(transport::kSuccess, *response_code);
+    EXPECT_EQ(0, return_values.size());
+  }
+
+ protected:
+  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+  typedef std::shared_ptr<Service> ServicePtr;
+
+  kademlia::NodeId node_id_;
+  std::shared_ptr<RoutingTable> routing_table_;
+  std::shared_ptr<DataStore> data_store_;
+  AlternativeStorePtr alternative_store_;
+  SecurifierPtr service_securifier_;
+  std::shared_ptr<Service> service_;
+  std::vector<SecurifierPtr> rpcs_securifier_;
+  std::vector<IoServicePtr> asio_service_;
+  IoServicePtr local_asio_;
+  std::vector<std::shared_ptr<Rpcs> > rpcs_;
+  std::vector<Contact> rpcs_contact_;
+  Contact service_contact_;
+  static std::vector<crypto::RsaKeyPair> senders_crypto_key_id2_;
+  static crypto::RsaKeyPair receiver_crypto_key_id2_;
+  RankInfoPtr rank_info_;
+  std::vector<Contact> contacts_;
+  TransportPtr transport_;
+  MessageHandlerPtr handler_;
+  TransportType transport_type_;
+  boost::thread_group thread_group_;
+  std::vector<WorkPtr> work_;
+  WorkPtr work1_;
+};
+
+class RpcsMultiServerNodesTest
+    : public CreateContactAndNodeId,
+      public testing::TestWithParam<TransportType> {
+ public:
+  RpcsMultiServerNodesTest()
+      : node_id_(NodeId::kRandomId),
+        routing_table_(),
+        data_store_(),
+        alternative_store_(),
+        services_securifier_(),
+        service_(),
+        rpcs_securifier_(),
+        asio_service_(),
+        local_asio_(),
+        dispatcher_(new boost::asio::io_service()),
+        rpcs_(),
+        rpcs_contact_(),
+        service_contact_(),
+        rank_info_(),
+        contacts_(),
+        transport_(),
+        handler_(),
+        transport_type_(GetParam()),
+        thread_group_(),
+        work_(),
+        work1_(),
+        dispatcher_work_(new boost::asio::io_service::work(*dispatcher_)) {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      IoServicePtr ioservice(new boost::asio::io_service());
+      asio_service_.push_back(ioservice);
+      WorkPtr workptr(new
+          boost::asio::io_service::work(*asio_service_[index]));
+      work_.push_back(workptr);
+      thread_group_.create_thread(std::bind(static_cast<
+          std::size_t(boost::asio::io_service::*)()>
+              (&boost::asio::io_service::run), asio_service_[index]));
+    }
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      NodeId service_node_id = GenerateRandomId(node_id_,
+                                                503 + kRpcClientNo +
+                                                    kRpcServersNo + index);
+      RoutingTablePtr routing_table();
+      routing_table_.push_back(RoutingTablePtr(new RoutingTable(service_node_id,
+                                                                test::k)));
+      data_store_.push_back(DataStorePtr(
+          new kademlia::DataStore(bptime::seconds(3600))));
+      AlternativeStorePtr alternative_store;
+      alternative_store_.push_back(alternative_store);
+      IoServicePtr ioservice(new boost::asio::io_service());
+      local_asio_.push_back(ioservice);
+      WorkPtr workptr(new boost::asio::io_service::work(*local_asio_[index]));
+      work1_.push_back(workptr);
+      thread_group_.create_thread(std::bind(static_cast<
+          std::size_t(boost::asio::io_service::*)()>
+              (&boost::asio::io_service::run), local_asio_[index]));
+    }
+    thread_group_.create_thread(std::bind(static_cast<
+          std::size_t(boost::asio::io_service::*)()>
+              (&boost::asio::io_service::run), dispatcher_));
+  }
+
+  static void SetUpTestCase() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+      senders_crypto_key_id3_.push_back(temp_key_pair);
+    }
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+      receivers_crypto_key_id3_.push_back(temp_key_pair);
+    }
+  }
+
+  virtual void SetUp() {
+    // rpcs setup
+    for (int index = 0; index <kRpcClientNo; ++index) {
+      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
+      rpcs_securifier_.push_back(std::shared_ptr<Securifier>(
+          new Securifier(rpcs_node_id.String(),
+                         senders_crypto_key_id3_[index].public_key(),
+                         senders_crypto_key_id3_[index].private_key())));
+      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
+                                                     rpcs_securifier_[index])));
+
+      kademlia::Contact rpcs_contact;
+      rpcs_contact = ComposeContactWithKey(rpcs_node_id,
+                                            5011 + index,
+                                            senders_crypto_key_id3_[index]);
+      rpcs_contact_.push_back(rpcs_contact);
+      rpcs_[index]->set_contact(rpcs_contact_[index]);
+    }
+    // service setup
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      NodeId service_node_id = GenerateRandomId(node_id_,
+                                                503 + kRpcClientNo + index);
+      service_contact_.push_back(
+          ComposeContactWithKey(service_node_id,
+                                5011 + kRpcClientNo + index,
+                                receivers_crypto_key_id3_[index]));
+      services_securifier_.push_back(
+          SecurifierPtr(new SecurifierGetPublicKeyAndValidation(
+              service_node_id.String(),
+              receivers_crypto_key_id3_[index].public_key(),
+              receivers_crypto_key_id3_[index].private_key())));
+      service_.push_back(
+          ServicePtr(new Service(routing_table_[index], data_store_[index],
+                                 alternative_store_[index],
+                                 services_securifier_[index], k)));
+      service_[index]->set_node_contact(service_contact_[index]);
+      service_[index]->set_node_joined(true);
+      switch (transport_type_) {
+        case kTcp:
+          transport_.push_back(TransportPtr(
+              new transport::TcpTransport(*local_asio_[index])));
+          break;
+        case kUdp:
+          transport_.push_back(TransportPtr(
+              new transport::UdpTransport(*local_asio_[index])));
+          break;
+        default:
+          break;
+      }
+      handler_.push_back(
+          MessageHandlerPtr(new MessageHandler(services_securifier_[index])));
+      service_[index]->ConnectToSignals(handler_[index]);
+      transport_[index]->on_message_received()->connect(
+          transport::OnMessageReceived::element_type::slot_type(
+              &MessageHandler::OnMessageReceived, handler_[index].get(),
+              _1, _2, _3, _4).track_foreign(handler_[index]));
+      ASSERT_EQ(transport::kSuccess,
+                transport_[index]->StartListening(
+                                       service_contact_[index].endpoint()));
+    }
+  }
+
+  virtual void TearDown() { }
+
+  ~RpcsMultiServerNodesTest() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      asio_service_[index]->stop();
+      work_[index].reset();
+    }
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      local_asio_[index]->stop();
+      work1_[index].reset();
+    }
+    dispatcher_->stop();
+    dispatcher_work_.reset();
+  }
+
+  void StopAndReset() {
+    for (int index = 0; index < kRpcClientNo; ++index) {
+      asio_service_[index]->stop();
+      work_[index].reset();
+    }
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      local_asio_[index]->stop();
+      work1_[index].reset();
+    }
+    dispatcher_->stop();
+    dispatcher_work_.reset();
+    thread_group_.join_all();
+  }
+
+  void RpcOperations(const int index, const int server_index,
+                     bool* done, int* response_code) {
+    *done = false;
+    *response_code = 0;
+    bool ldone = false;
+    Key key = rpcs_contact_[index].node_id();
+    KeyValueSignature kvs = MakeKVS(senders_crypto_key_id3_[index], 1024,
+                                    key.String(), "");
+    boost::posix_time::seconds ttl(3600);
+    // attempt to find value before any stored
+    std::vector<std::string> return_values;
+    std::vector<Contact> return_contacts;
+    *done = false;
+    *response_code = 0;
+
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_[server_index],
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      &ldone, response_code),
+                            transport_type_);
+    while (!ldone)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+
+    ASSERT_EQ(0, *response_code);
+    ASSERT_EQ(0, return_values.size());
+
+    ldone = false;
+    *response_code = 0;
+    rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
+                        rpcs_securifier_[index],
+                        service_contact_[server_index],
+                        std::bind(&TestCallback, arg::_1, arg::_2, &ldone,
+                                  response_code),
+                        transport_type_);
+    while (!ldone)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+
+    ASSERT_EQ(0, *response_code);
+    JoinNetworkLookup(services_securifier_[server_index]);
+
+    // attempt to retrieve value stored
+    return_values.clear();
+    return_contacts.clear();
+    ldone = false;
+    *response_code = 0;
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_[server_index],
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      &ldone, response_code),
+                            transport_type_);
+
+    while (!ldone)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    ASSERT_EQ(0, *response_code);
+    ASSERT_EQ(kvs.value, return_values[0]);
+    ASSERT_EQ(0, return_contacts.size());
+
+    ldone = false;
+    *response_code = 0;
+    rpcs_[index]->Delete(key, kvs.value, kvs.signature,
+                         rpcs_securifier_[index],
+                         service_contact_[server_index],
+                         std::bind(&TestCallback, arg::_1, arg::_2,
+                                   &ldone, response_code),
+                         transport_type_);
+    while (!ldone)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    EXPECT_EQ(transport::kSuccess, *response_code);
+    JoinNetworkLookup(services_securifier_[server_index]);
+
+    return_values.clear();
+    return_contacts.clear();
+    *done = false;
+    *response_code = 0;
+    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+                            service_contact_[server_index],
+                            std::bind(&TestFindValueCallback, arg::_1,
+                                      arg::_2, arg::_3, arg::_4, arg::_5,
+                                      &return_values, &return_contacts,
+                                      done, response_code),
+                            transport_type_);
+    while (!*done)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+    // Value deleted
+    EXPECT_EQ(transport::kSuccess, *response_code);
+    EXPECT_EQ(0, return_values.size());
+  }
+
+ protected:
+  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+  typedef std::shared_ptr<DataStore> DataStorePtr;
+  typedef std::shared_ptr<RoutingTable> RoutingTablePtr;
+  typedef std::shared_ptr<Service> ServicePtr;
+
+  kademlia::NodeId node_id_;
+  std::vector<RoutingTablePtr> routing_table_;
+  std::vector<DataStorePtr> data_store_;
+  std::vector<AlternativeStorePtr> alternative_store_;
+  std::vector<SecurifierPtr> services_securifier_;
+  std::vector<ServicePtr> service_;
+  std::vector<SecurifierPtr> rpcs_securifier_;
+  std::vector<IoServicePtr> asio_service_;
+  std::vector<IoServicePtr> local_asio_;
+  IoServicePtr dispatcher_;
+  std::vector<std::shared_ptr<Rpcs> > rpcs_;
+  std::vector<Contact> rpcs_contact_;
+  std::vector<Contact> service_contact_;
+  static std::vector<crypto::RsaKeyPair> senders_crypto_key_id3_;
+  static std::vector<crypto::RsaKeyPair> receivers_crypto_key_id3_;
+  RankInfoPtr rank_info_;
+  std::vector<Contact> contacts_;
+  std::vector<TransportPtr> transport_;
+  std::vector<MessageHandlerPtr> handler_;
+  TransportType transport_type_;
+  boost::thread_group thread_group_;
+  std::vector<WorkPtr> work_;
+  std::vector<WorkPtr> work1_;
+  WorkPtr dispatcher_work_;
+};
+
+std::vector<crypto::RsaKeyPair>
+    RpcsMultiClientNodesTest::senders_crypto_key_id2_;
+crypto::RsaKeyPair RpcsMultiClientNodesTest::receiver_crypto_key_id2_;
+std::vector<crypto::RsaKeyPair>
+    RpcsMultiServerNodesTest::senders_crypto_key_id3_;
+std::vector<crypto::RsaKeyPair>
+    RpcsMultiServerNodesTest::receivers_crypto_key_id3_;
+
+INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiClientNodesTest,
+                        testing::Values(kTcp, kUdp));
+
+INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiServerNodesTest,
+                        testing::Values(kTcp, kUdp));
+
+TEST_P(RpcsMultiServerNodesTest, BEH_KAD_MultipleServerOperations) {
+  bool done[kRpcClientNo][kRpcServersNo];
+  bool localdone = false;
+  int response_code[kRpcClientNo][kRpcServersNo];
+  int received_response(0);
+  int random_op = 0;
+  for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
+    for (int index = 0; index < kRpcServersNo; ++index) {
+      done[client_index][index] = false;
+      response_code[client_index][index] = 0;
+      // This is to enable having more than one operation
+      dispatcher_->post(std::bind(&RpcsMultiServerNodesTest::RpcOperations,
+                                  this, client_index, index,
+                                  &done[client_index][index],
+                                  &response_code[client_index][index]));
+    }
+  }
+  while (!localdone) {
+    localdone = true;
+    for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
+      for (int index = 0; index < kRpcServersNo; ++index) {
+        localdone = localdone && done[client_index][index];
+      }
+    }
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
+  StopAndReset();
+}
+
+TEST_P(RpcsMultiClientNodesTest, BEH_KAD_MultipleClientOperations) {
+  bool done[kRpcClientNo];
+  int response_code[kRpcClientNo];
+  int received_response(0);
+  boost::thread_group thread_group;
+  int random_op = 0;
+  for (int index = 0; index < kRpcClientNo; ++index) {
+    done[index] = false;
+    response_code[index] = 0;
+    thread_group.create_thread(
+        std::bind(&RpcsMultiClientNodesTest::RpcOperations, this,
+                  index, &done[index], &response_code[index]));
+  }
+  thread_group.join_all();
+  for (int index = 0; index < kRpcClientNo; ++index) {
+    response_code[0] += response_code[index];
+  }
+  StopAndReset();
+  ASSERT_EQ(0, response_code[0]);
 }
 
 }  // namespace test
