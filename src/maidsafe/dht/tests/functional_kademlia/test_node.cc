@@ -39,24 +39,277 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/progress.hpp"
 #include "boost/lexical_cast.hpp"
 
-#include "maidsafe-dht/common/crypto.h"
-#include "maidsafe-dht/common/log.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/log.h"
 // #include "maidsafe-dht/common/routing_table.h"
-#include "maidsafe-dht/kademlia/node-api.h"
-#include "maidsafe-dht/kademlia/node_impl.h"
-#include "maidsafe-dht/transport/udttransport.h"
-#include "maidsafe-dht/tests/validationimpl.h"
-// #include "maidsafe-dht/tests/kademlia/fake_callbacks.h"
+#include "maidsafe/dht/kademlia/node-api.h"
+#include "maidsafe/dht/kademlia/node_impl.h"
+#include "maidsafe/dht/transport/tcp_transport.h"
+#include "maidsafe/dht/kademlia/message_handler.h"
+#include "maidsafe/dht/kademlia/securifier.h"
 
 namespace fs = boost::filesystem;
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
 namespace kademlia {
 
 namespace test_node {
+  
+const int kNetworkSize = 20;
 
-/*
+struct NodeContainer {
+  NodeContainer()
+      : asio_service(),
+        work(),
+        thread_group(),
+        securifier(),
+        transport(),
+        message_handler(),
+        alternative_store(),
+        node() {}
+  NodeContainer(const std::string &key_id,
+                const std::string &public_key,
+                const std::string &private_key,
+                bool client_only_node,
+                uint16_t k,
+                uint16_t alpha,
+                uint16_t beta,
+                const boost::posix_time::time_duration &mean_refresh_interval)
+      : asio_service(),
+        work(),
+        thread_group(),
+        securifier(),
+        transport(),
+        message_handler(),
+        node() {
+    // set up ASIO service and thread pool
+    asio_service.reset(new boost::asio::io_service);
+    work.reset(
+        new boost::asio::io_service::work(*asio_service));
+    thread_group.reset(new boost::thread_group());
+    thread_group->create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), asio_service.get()));
+
+    // set up data containers
+    securifier.reset(new dht::Securifier(key_id, public_key, private_key));
+
+    // set up and connect transport and message handler
+    transport.reset(new dht::transport::TcpTransport(*asio_service));
+    message_handler.reset(new dht::kademlia::MessageHandler(securifier));
+    transport->on_message_received()->connect(
+        dht::transport::OnMessageReceived::element_type::slot_type(
+            &dht::kademlia::MessageHandler::OnMessageReceived, 
+            message_handler.get(),
+            _1, _2, _3, _4).track_foreign(message_handler));
+
+    // create actual node
+    node.reset(new dht::kademlia::Node(asio_service, transport, message_handler,
+                                       securifier, alternative_store,
+                                       client_only_node, k, alpha, beta,
+                                       mean_refresh_interval));
+  }
+  std::shared_ptr<boost::asio::io_service> asio_service;
+  std::shared_ptr<boost::asio::io_service::work> work;
+  std::shared_ptr<boost::thread_group> thread_group;
+  std::shared_ptr<dht::Securifier> securifier;
+  std::shared_ptr<dht::transport::Transport> transport;
+  std::shared_ptr<dht::kademlia::MessageHandler> message_handler;
+  dht::kademlia::AlternativeStorePtr alternative_store;  
+  std::shared_ptr<dht::kademlia::Node> node;
+};
+
+class NodeTest : public testing::Test {
+ protected:
+  NodeTest() : 
+    nodes_(),
+    kAlpha_(3),
+    kBeta_(2),
+    kReplicationFactor_(4),
+    kMeanRefreshInterval_(boost::posix_time::hours(1)),    
+    bootstrap_contacts_() {
+    }
+
+  static void SetUpTestCase() {
+    for (int index = 0; index < kNetworkSize; ++index) {
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+//      senders_crypto_key_id2_.push_back(temp_key_pair);
+    }
+  }
+  
+  virtual void SetUp() {
+    size_t joined_nodes(0), failed_nodes(0);
+    crypto::RsaKeyPair temp_key_pair;
+    temp_key_pair.GenerateKeys(4096);
+    nodes_.resize(kNetworkSize);
+    dht::kademlia::NodeId node_id(dht::kademlia::NodeId::kRandomId);    
+    nodes_[0] = NodeContainer(node_id.String(), temp_key_pair.public_key(), 
+                       temp_key_pair.private_key(), false, kReplicationFactor_,
+                       kAlpha_, kBeta_, kMeanRefreshInterval_);
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+        &cond_var_, &joined_nodes, &failed_nodes));
+    dht::transport::Endpoint endpoint("127.0.0.1", 8000);    
+    std::vector<dht::transport::Endpoint> local_endpoints;
+    local_endpoints.push_back(endpoint);
+    dht::kademlia::Contact contact(node_id, endpoint,
+                                   local_endpoints, endpoint, false, false,
+                                   node_id.String(), temp_key_pair.public_key(),
+                                   "");
+    bootstrap_contacts_.push_back(contact);
+    ASSERT_EQ(dht::transport::kSuccess, nodes_[0].transport->StartListening(endpoint));    
+    nodes_[0].node->Join(node_id, bootstrap_contacts_, join_callback);
+    for(int index = 1; index < kNetworkSize; ++index) {
+      crypto::RsaKeyPair tmp_key_pair;
+      tmp_key_pair.GenerateKeys(4096);
+      dht::kademlia::NodeId nodeid(dht::kademlia::NodeId::kRandomId);      
+      nodes_[index] = NodeContainer(nodeid.String(), temp_key_pair.public_key(),
+                         temp_key_pair.private_key(), false, 
+                         kReplicationFactor_,kAlpha_, kBeta_, 
+                         kMeanRefreshInterval_);
+      dht::transport::Endpoint endpoint("127.0.0.1", 8000 + index);      
+      ASSERT_EQ(dht::transport::kSuccess, 
+                nodes_[index].transport->StartListening(endpoint));      
+      std::vector<dht::kademlia::Contact> bootstrap_contacts;
+      {
+        boost::mutex::scoped_lock lock(mutex_);
+        bootstrap_contacts = bootstrap_contacts_;
+      }
+      nodes_[index].node->Join(nodeid, bootstrap_contacts, join_callback);
+      {
+        boost::mutex::scoped_lock lock(mutex_);
+        while (joined_nodes + failed_nodes <= index)
+          cond_var_.wait(lock);
+      }
+    }
+    
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      while (joined_nodes + failed_nodes < kNetworkSize)
+        cond_var_.wait(lock);
+    }
+    
+    ASSERT_EQ(0, failed_nodes);    
+  }  
+  
+/*  void GenerateNodesId() {
+    crypto::RsaKeyPair key_pair;
+    key_pair.GenerateKeys(4096);
+    dht::kademlia::NodeId(crypto::Hash<crypto::SHA512>(
+            key_pair.public_key() + crypto::AsymSign(key_pair.public_key(),
+                                                     key_pair.private_key()))),
+        key_pair.public_key(), key_pair.private_key());
+    boost::mutex::scoped_lock lock(mutex_);
+    vault_ids_.push_back(id);
+    cond_var_.notify_one();
+  }
+
+  /// Parallel generation of keys and PMIDs
+  void GenerateNodeIdentities() {
+    boost::mutex::scoped_lock lock(mutex_);
+    for (size_t i = 0; i < kNetworkSize; ++i)
+      asio_service_.post(std::bind(&NodeTest::GenerateNodesId, this));
+    while (vault_ids_.size() < kNetworkSize)
+      cond_var_.wait(lock);
+  }*/  
+  
+  void InitClients(const size_t &amount) {
+    size_t joined_nodes(0), failed_nodes(0);
+
+    // create the clients
+    nodes_.resize(amount);
+    for (size_t i = 0; i < amount; ++i) {
+      DLOG(INFO) << "Setting up client " << (i + 1) << " of " << amount << "nodes" << std::endl;
+      // set up node related objects
+      crypto::RsaKeyPair temp_key_pair;
+      temp_key_pair.GenerateKeys(4096);
+      nodes_[i] = NodeContainer(
+          "", temp_key_pair.public_key(),
+          temp_key_pair.private_key(), false, kReplicationFactor_, kAlpha_, 
+          kBeta_, kMeanRefreshInterval_);
+      // connect to network
+      dht::transport::Endpoint endpoint("127.0.0.1", 8000 + i);
+      ASSERT_EQ(dht::transport::kSuccess,
+                nodes_[i].transport->StartListening(endpoint));
+      dht::kademlia::JoinFunctor join_callback(std::bind(
+          &NodeTest::JoinCallback, this, i, arg::_1, &mutex_,
+          &cond_var_, &joined_nodes, &failed_nodes));
+      if (i == 0) {
+        std::vector<dht::transport::Endpoint> local_endpoints;
+        local_endpoints.push_back(endpoint);
+        dht::kademlia::NodeId nodeId(dht::kademlia::NodeId::kRandomId);
+        dht::kademlia::Contact contact(nodeId, endpoint,
+                                       local_endpoints, endpoint, false, false,
+                                       "", temp_key_pair.public_key(), "");
+        bootstrap_contacts_.push_back(contact);      
+      }
+    
+      std::vector<dht::kademlia::Contact> bootstrap_contacts;
+      {
+        boost::mutex::scoped_lock lock(mutex_);
+        bootstrap_contacts = bootstrap_contacts_;
+      }
+    
+      nodes_[i].node->Join(dht::kademlia::NodeId(),
+                           bootstrap_contacts, join_callback);
+      {
+        boost::mutex::scoped_lock lock(mutex_);
+        while (joined_nodes + failed_nodes <= i)
+          cond_var_.wait(lock);
+      }      
+    }
+    // wait for all nodes to join
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      while (joined_nodes + failed_nodes < amount)
+        cond_var_.wait(lock);
+    }
+
+    ASSERT_EQ(0, failed_nodes);
+  }    
+  
+  void JoinCallback(size_t index,
+                    int result,
+                    boost::mutex *mutex,
+                    boost::condition_variable *cond_var,
+                    size_t *joined_nodes,
+                    size_t *failed_nodes) {
+    boost::mutex::scoped_lock lock(*mutex);
+    if (result >= 0) {
+      if (index > 0 && index < kNetworkSize)
+        bootstrap_contacts_.push_back(
+            nodes_[index].node->contact());
+      DLOG(INFO) << "Node " << (index + 1) << " joined." << std::endl;
+      ++(*joined_nodes);
+    } else {
+      DLOG(ERROR) << "Node " << (index + 1) << " failed to join." << std::endl;
+      ++(*failed_nodes);
+    }
+    cond_var->notify_one();
+  }  
+  boost::mutex mutex_;
+  boost::condition_variable cond_var_;  
+  std::vector<NodeContainer> nodes_;
+  boost::thread_group thread_group_;  
+  const uint16_t kAlpha_;
+  const uint16_t kBeta_;
+  const uint16_t kReplicationFactor_;  
+  const boost::posix_time::time_duration kMeanRefreshInterval_;  
+  std::vector<dht::kademlia::Contact> bootstrap_contacts_;
+  std::vector<dht::kademlia::NodeId> nodes_id_;
+};
+
+TEST_F(NodeTest, BEH_KAD_TEST) {
+  for (int index = 0; index < kNetworkSize; ++index) {
+    nodes_[index].node->Store();
+  }
+  std::cout << "It works well. \n";
+}
+
+/*  
 static const boost::uint16_t K = 8;
 const boost::int16_t kNetworkSize = test_node::K + 1;
 const boost::int16_t kTestK = test_node::K;
@@ -113,28 +366,28 @@ class NodeTest: public testing::Test {
 };
 
 std::string kad_config_file_;
-std::vector<boost::shared_ptr<transport::UdtTransport> > transports_;
-std::vector<boost::shared_ptr<Node> > nodes_;
+std::vector<boost::shared_ptr<dht::transport::TcpTransport> > transports_;
+std::vector<boost::shared_ptr<dht::kademlia::Node> > nodes_;
 std::vector<std::string> dbs_;
-crypto::Crypto cry_obj_;
-GeneralKadCallback cb_;
-std::vector<NodeId> node_ids_;
+// M maidsafe::crypto:: cry_obj_;
+// M GeneralKadCallback cb_;
+std::vector<dht::kademlia::NodeId> node_ids_;
 std::set<boost::uint16_t> ports_;
 std::string test_dir_;
-base::TestValidator validator;
+//M base::TestValidator validator;
 
 class Env : public testing::Environment {
  public:
   Env() {
-    cry_obj_.set_symm_algorithm(crypto::AES_256);
-    cry_obj_.set_hash_algorithm(crypto::SHA_512);
+//    cry_obj_.set_symm_algorithm(crypto::AES_256);
+//    cry_obj_.set_hash_algorithm(crypto::SHA_512);
   }
 
   virtual ~Env() {}
 
   virtual void SetUp() {
     test_dir_ = std::string("temp/NodeTest") +
-                boost::lexical_cast<std::string>(base::RandomUint32());
+                boost::lexical_cast<std::string>(RandomUint32());
     kad_config_file_ = test_dir_ + std::string("/.kadconfig");
     try {
       if (fs::exists(test_dir_))
@@ -1553,8 +1806,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   SignedValue el_valiu = cb_1.signed_values()[0];
   ASSERT_EQ(new_sig_value.SerializeAsString(), el_valiu.SerializeAsString());
 }
-*/
 
+*/
 }  // namespace test_node
 
 }  // namespace kademlia
