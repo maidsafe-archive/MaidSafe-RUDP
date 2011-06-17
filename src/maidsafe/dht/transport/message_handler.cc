@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/transport/message_handler.h"
 #include "boost/lexical_cast.hpp"
+#include "maidsafe/dht/log.h"
 #ifdef __MSVC__
 #pragma warning(push)
 #pragma warning(disable:4244)
@@ -244,8 +245,11 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   wrapper_message.set_payload(payload);
 
   // If we asked for security but provided no securifier, fail.
-  if (security_type && !securifier_)
+  if (security_type && !securifier_) {
+    DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                << " - No securifier provided.";
     return "";
+  }
 
   // Handle signing
   if (security_type & kSign) {
@@ -259,8 +263,11 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   // Handle encryption
   std::string final_message(1, security_type);
   if (security_type & kAsymmetricEncrypt) {
-    if (recipient_public_key.empty())
+    if (recipient_public_key.empty()) {
+      DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                  << " - No public key for receiver provided.";
       return "";
+    }
     std::string seed = RandomString(48);
     std::string key = seed.substr(0, 32);
     std::string kIV = seed.substr(32, 16);
