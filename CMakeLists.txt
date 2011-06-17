@@ -157,8 +157,8 @@ FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/*.h"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/utils.h"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/utils.cc")
-LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_functional.cc")
-LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc")
+ LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_functional.cc")
+# LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.h")
 # FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/nat-pmp/*.cc"
@@ -304,6 +304,7 @@ ELSEIF(UNIX)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_datastore.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_contact.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_environment.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/main.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/demo/kademlia_demo.cc
