@@ -50,14 +50,6 @@ namespace kademlia {
 
 const boost::uint16_t kFailureTolerance = 2;
 
-Rpcs::~Rpcs() {
-  size_t pending(connected_objects_.Size()), zero(0);
-  while (pending != zero) {
-    pending = connected_objects_.Size();
-    boost::this_thread::sleep(boost::posix_time::milliseconds(250));
-  }
-}
-
 void Rpcs::Ping(SecurifierPtr securifier,
                 const Contact &peer,
                 PingFunctor callback,

@@ -160,15 +160,16 @@ class NodeTest : public testing::Test {
                                    node_id.String(), temp_key_pair.public_key(),
                                    "");
     bootstrap_contacts_.push_back(contact);
-    ASSERT_EQ(dht::transport::kSuccess, nodes_[0].transport->StartListening(endpoint));
+    ASSERT_EQ(dht::transport::kSuccess,
+              nodes_[0].transport->StartListening(endpoint));
     nodes_[0].node->Join(node_id, bootstrap_contacts_, join_callback);
-    for(int index = 1; index < kNetworkSize; ++index) {
+    for (int index = 1; index < kNetworkSize; ++index) {
       crypto::RsaKeyPair tmp_key_pair;
       tmp_key_pair.GenerateKeys(4096);
       dht::kademlia::NodeId nodeid(dht::kademlia::NodeId::kRandomId);
       nodes_[index] = NodeContainer(nodeid.String(), temp_key_pair.public_key(),
                          temp_key_pair.private_key(), false,
-                         kReplicationFactor_,kAlpha_, kBeta_,
+                         kReplicationFactor_, kAlpha_, kBeta_,
                          kMeanRefreshInterval_);
       dht::transport::Endpoint endpoint("127.0.0.1", 8000 + index);
       ASSERT_EQ(dht::transport::kSuccess,
@@ -222,7 +223,8 @@ class NodeTest : public testing::Test {
     // create the clients
     nodes_.resize(amount);
     for (size_t i = 0; i < amount; ++i) {
-      DLOG(INFO) << "Setting up client " << (i + 1) << " of " << amount << "nodes" << std::endl;
+      DLOG(INFO) << "Setting up client " << (i + 1) << " of " << amount
+                 << "nodes" << std::endl;
       // set up node related objects
       crypto::RsaKeyPair temp_key_pair;
       temp_key_pair.GenerateKeys(4096);

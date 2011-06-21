@@ -101,7 +101,7 @@ class Rpcs {
         contact_(),
         default_securifier_(default_securifier),
         connected_objects_() {}
-  virtual ~Rpcs();
+  virtual ~Rpcs() {}
   virtual void Ping(SecurifierPtr securifier,
                     const Contact &peer,
                     PingFunctor callback,
