@@ -175,13 +175,13 @@ class NodeTest : public testing::Test {
  protected:
   NodeTest() :
     nodes_(),
-    kAlpha_(2),
+    kAlpha_(3),
     kBeta_(2),
     kReplicationFactor_(4),
     kMeanRefreshInterval_(boost::posix_time::hours(1)),
     bootstrap_contacts_(),
     kNetworkSize(17) {
-    }
+  }
 
   virtual void SetUp() {
     size_t joined_nodes(0), failed_nodes(0);
