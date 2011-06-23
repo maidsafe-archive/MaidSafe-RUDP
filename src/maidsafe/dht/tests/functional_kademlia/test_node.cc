@@ -263,7 +263,7 @@ class NodeTest : public testing::Test {
   size_t kNetworkSize;
 };
 
-TEST_F(NodeTest, BEH_KAD_FindNodeAnalysisTEST) {
+TEST_F(NodeTest, FUNC_KAD_FindNodeAnalysisTEST) {
   size_t joined_nodes(kNetworkSize), failed_nodes(0);
   bool done = false;
   std::vector<dht::kademlia::Key> new_keys;
@@ -320,7 +320,7 @@ TEST_F(NodeTest, BEH_KAD_FindNodeAnalysisTEST) {
                 != new_keys.end()));
 }
 
-TEST_F(NodeTest, BEH_KAD_MultipleNodesFindSingleNodeTEST) {
+TEST_F(NodeTest, FUNC_KAD_MultipleNodesFindSingleValueTEST) {
   bool done = false;
   std::vector<dht::kademlia::Key> keys;
   for (size_t index = 0; index < kNetworkSize; ++index) {
@@ -358,7 +358,7 @@ TEST_F(NodeTest, BEH_KAD_MultipleNodesFindSingleNodeTEST) {
   }
 }
 
-TEST_F(NodeTest, BEH_KAD_FindStoreDeleteTEST) {
+TEST_F(NodeTest, FUNC_KAD_FindStoreDeleteTEST) {
   bool done = false;
   for (size_t index = 0; index < kNetworkSize; ++index) {
     const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
