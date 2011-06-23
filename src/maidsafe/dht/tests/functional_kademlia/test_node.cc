@@ -343,7 +343,7 @@ TEST_F(NodeTest, BEH_KAD_MultipleNodesFindSingleNodeTEST) {
   int random_source = 0;
   for (int index = 0; index < kProbes; ++index) {
     random_source = ((RandomUint32() % (kNetworkSize - 1))
-        + random_target) % kNetworkSize;
+        + random_target + 1) % kNetworkSize;
     nodes_[random_source].node->FindValue(keys[random_target],
         nodes_[random_source].securifier,
         std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
