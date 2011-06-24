@@ -308,7 +308,7 @@ TEST_F(NodeTest, FUNC_KAD_FindNodeAnalysisTEST) {
     while (joined_nodes + failed_nodes < kNetworkSize*2)
       cond_var_.wait(lock);
   }
-  
+
   ASSERT_EQ(0, failed_nodes);
   dht::kademlia::Key closest_node;
   nodes_[0].node->FindNodes(key, std::bind(&NodeTest::FindNodesCallback,
@@ -653,7 +653,7 @@ class Env : public testing::Environment {
   }
 };
 
-TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_ClientNodeConnect) {
   NodeConstructionParameters kcp;
   ConstructKcp(&kcp);
 
@@ -871,7 +871,7 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   cm2->Stop();
 }
 
-TEST_F(NodeTest, FUNC_KAD_FindClosestNodes) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_FindClosestNodes) {
   NodeId key(cry_obj_.Hash("2evvnf3xssas21", "", crypto::STRING_STRING, false));
   FindCallback cb_1;
   nodes_[kTestK/2]->FindKClosestNodes(key,
@@ -909,7 +909,7 @@ TEST_F(NodeTest, FUNC_KAD_FindClosestNodes) {
   }
 }
 
-TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoadSmallValue) {
   // prepare small size of values
   NodeId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 5);  // 5KB
@@ -1003,7 +1003,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   cb_1.Reset();
 }
 
-TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoadBigValue) {
   // prepare big size of values
   NodeId key(cry_obj_.Hash("vcdrer43dccdwwt", "", crypto::STRING_STRING, false));
   std::string value = base::RandomString(1024 * 1024);  // 1MB
@@ -1136,7 +1136,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
   DLOG(INFO) << "Done." << std::endl;
 }
 
-TEST_F(NodeTest, FUNC_KAD_LoadNonExistingValue) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_LoadNonExistingValue) {
   NodeId key(cry_obj_.Hash("bbffddnnooo8822", "", crypto::STRING_STRING, false));
   // load the value from last node
   FindCallback cb_1;
@@ -1150,7 +1150,7 @@ TEST_F(NodeTest, FUNC_KAD_LoadNonExistingValue) {
   ASSERT_TRUE(cb_1.signed_values().empty());
 }
 
-TEST_F(NodeTest, FUNC_KAD_GetNodeContactDetails) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_GetNodeContactDetails) {
   // find an existing node
   NodeId node_id1(nodes_[kTestK / 3]->node_id());
   GetNodeContactDetailsCallback cb_1;
@@ -1177,7 +1177,7 @@ TEST_F(NodeTest, FUNC_KAD_GetNodeContactDetails) {
   ASSERT_FALSE(cb_2.result());
 }
 
-TEST_F(NodeTest, FUNC_KAD_Ping) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_Ping) {
   // ping by contact
   Contact remote(nodes_[kTestK * 3 / 4]->node_id(),
                       nodes_[kTestK * 3 / 4]->ip(),
@@ -1451,7 +1451,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   nodes_[r_node]->set_signature_validator(&validator);
 }
 
-TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreWithInvalidRequest) {
   NodeId key(cry_obj_.Hash("dccxxvdeee432cc", "", crypto::STRING_STRING, false));
   std::string value(base::RandomString(1024));  // 1KB
   SignedValue sig_value;
@@ -1492,7 +1492,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
   ASSERT_FALSE(cb_.result());
 }
 
-TEST_F(NodeTest, FUNC_KAD_AllDirectlyConnected) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_AllDirectlyConnected) {
   for (boost::int16_t i = 0; i < kNetworkSize; i++) {
     ASSERT_EQ(kDirectConnected, nodes_[i]->nat_type());
     std::vector<Contact> exclude_contacts;
@@ -1507,7 +1507,7 @@ TEST_F(NodeTest, FUNC_KAD_AllDirectlyConnected) {
   }
 }
 
-TEST_F(NodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_IncorrectNodeLocalAddrPing) {
   Contact remote(nodes_[kTestK * 3 / 4]->node_id(),
                       nodes_[kTestK * 3 / 4]->ip(),
                       nodes_[kTestK * 3 / 4]->port(),
@@ -1573,7 +1573,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   nodes_[r_node]->set_signature_validator(&validator);
 }
 
-TEST_F(NodeTest, FUNC_KAD_StartStopNode) {
+TEST_F(NodeTest, DISABLED_FUNC_KAD_StartStopNode) {
   boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 1);  // NOLINT (Fraser)
   std::string kadconfig_path(dbs_[r_node] + "/.kadconfig");
   nodes_[r_node]->Leave();
