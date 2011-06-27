@@ -124,7 +124,6 @@ struct NodeContainer {
 class NodeTest : public testing::Test {
  public:
   void StoreCallback(int result, bool* done, const int index) {
-//    std::cout << "StoreCallback done! " << index << std::endl;
     ASSERT_LT(0, result);
     *done = true;
   }
@@ -180,7 +179,7 @@ class NodeTest : public testing::Test {
     kReplicationFactor_(4),
     kMeanRefreshInterval_(boost::posix_time::hours(1)),
     bootstrap_contacts_(),
-    kNetworkSize(17) {
+    kNetworkSize(5) {
   }
 
   virtual void SetUp() {
@@ -263,7 +262,44 @@ class NodeTest : public testing::Test {
   size_t kNetworkSize;
 };
 
-TEST_F(NodeTest, FUNC_KAD_FindNodeAnalysisTEST) {
+TEST_F(NodeTest, BEH_KAD_Join_Client) {
+  size_t joined_nodes(kNetworkSize), failed_nodes(0);
+  nodes_.resize(kNetworkSize + 1);
+  dht::kademlia::JoinFunctor join_callback(std::bind(
+      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &cond_var_, &joined_nodes, &failed_nodes));
+  crypto::RsaKeyPair key_pair;
+  key_pair.GenerateKeys(4096);
+  dht::kademlia::NodeId node_id(dht::kademlia::NodeId::kRandomId);
+  nodes_[kNetworkSize] = NodeContainer(node_id.String(), key_pair.public_key(),
+                             key_pair.private_key(), true,
+                             kReplicationFactor_, kAlpha_, kBeta_,
+                             kMeanRefreshInterval_);
+  dht::transport::Endpoint endpoint("127.0.0.1", 8000 + kNetworkSize);
+//  ASSERT_EQ(dht::transport::kSuccess,
+//      nodes_[kNetworkSize].transport->StartListening(endpoint));
+  std::vector<dht::kademlia::Contact> bootstrap_contacts;
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    bootstrap_contacts = bootstrap_contacts_;
+  }
+  nodes_[kNetworkSize].node->Join(node_id, bootstrap_contacts, join_callback);
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (joined_nodes + failed_nodes <= kNetworkSize)
+      cond_var_.wait(lock);
+  }
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (joined_nodes + failed_nodes < kNetworkSize + 1)
+      cond_var_.wait(lock);
+  }
+  kNetworkSize += 1;
+  ASSERT_EQ(0, failed_nodes);
+}
+
+TEST_F(NodeTest, BEH_KAD_FindClosestNodeAnalysisTEST) {
   size_t joined_nodes(kNetworkSize), failed_nodes(0);
   bool done = false;
   std::vector<dht::kademlia::Key> new_keys;
@@ -320,7 +356,7 @@ TEST_F(NodeTest, FUNC_KAD_FindNodeAnalysisTEST) {
                 != new_keys.end()));
 }
 
-TEST_F(NodeTest, FUNC_KAD_MultipleNodesFindSingleValueTEST) {
+TEST_F(NodeTest, BEH_KAD_MultipleNodesFindSingleValueTEST) {
   bool done = false;
   std::vector<dht::kademlia::Key> keys;
   for (size_t index = 0; index < kNetworkSize; ++index) {
@@ -358,7 +394,7 @@ TEST_F(NodeTest, FUNC_KAD_MultipleNodesFindSingleValueTEST) {
   }
 }
 
-TEST_F(NodeTest, FUNC_KAD_FindStoreDeleteTEST) {
+TEST_F(NodeTest, BEH_KAD_FindStoreDeleteTEST) {
   bool done = false;
   for (size_t index = 0; index < kNetworkSize; ++index) {
     const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
@@ -1928,3 +1964,4 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
 }  // namespace kademlia
 
 }  // namespace maidsafe
+

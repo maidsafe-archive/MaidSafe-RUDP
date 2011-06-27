@@ -37,14 +37,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
+
 #ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4512)
+#  pragma warning(push)
+#  pragma warning(disable:4512)
 #endif
 #include "boost/signals2/signal.hpp"
 #ifdef __MSVC__
-#pragma warning(pop)
+#  pragma warning(pop)
 #endif
+
+#include "maidsafe/dht/version.h"
+
+#if MAIDSAFE_DHT_VERSION != 3000
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-dht library.
+#endif
+
 
 namespace maidsafe {
 
