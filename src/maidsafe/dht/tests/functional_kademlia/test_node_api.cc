@@ -172,7 +172,7 @@ class NodeApiTest: public testing::Test {
   }
 };
 
-TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Join_Client) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
@@ -190,7 +190,7 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
   node->Leave(NULL);
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Join_Server) {
   std::shared_ptr<Node> node;
   EXPECT_EQ(transport::kSuccess,
               transport_->StartListening(transport::Endpoint("127.0.0.1",
@@ -213,7 +213,7 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
   node->Leave(NULL);
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Find_Nodes) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
@@ -237,7 +237,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   node->Leave(NULL);
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Store) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Store) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
@@ -279,7 +279,7 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
   dones.clear();
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Find_Value) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
@@ -338,7 +338,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   dones.clear();
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Delete) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Delete) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
@@ -389,7 +389,7 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
   dones.clear();
 }
 
-TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
+TEST_F(NodeApiTest, DISABLED_BEH_KAD_Alternate_API_Calls) {
   std::shared_ptr<Node> node;
   node.reset(new Node(asio_service_, transport_, message_handler_, securifier_,
                       alternative_store_, true, kK_, 3, 2,
