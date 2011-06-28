@@ -318,7 +318,7 @@ crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
 INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsTest,
                         testing::Values(kTcp, kUdp));
 
-TEST_P(RpcsTest, BEH_KAD_PingNoTarget) {
+TEST_P(RpcsTest, FUNC_KAD_PingNoTarget) {
   bool done(false);
   int response_code(0);
 
@@ -779,7 +779,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
   StopAndReset();
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreRefreshMultipleRequests) {
+TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
   bool done(false);
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
@@ -1363,8 +1363,10 @@ class RpcsMultiClientNodesTest
 
   virtual void SetUp() {
     // rpcs setup
-    for (int index = 0; index <kRpcClientNo; ++index) {
-      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
+    const int kMinClientPositionOffset(kKeySizeBits - kRpcClientNo);
+    for (int index = 0; index != kRpcClientNo; ++index) {
+      NodeId rpcs_node_id = GenerateRandomId(node_id_,
+                                             kMinClientPositionOffset + index);
       rpcs_securifier_.push_back(
           SecurifierPtr(new Securifier(
               rpcs_node_id.String(),
@@ -1592,10 +1594,10 @@ class RpcsMultiServerNodesTest
           std::size_t(boost::asio::io_service::*)()>
               (&boost::asio::io_service::run), asio_service_[index]));
     }
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      NodeId service_node_id = GenerateRandomId(node_id_,
-                                                503 + kRpcClientNo +
-                                                    kRpcServersNo + index);
+    const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
+    for (int index = 0; index != kRpcServersNo; ++index) {
+      NodeId service_node_id =
+          GenerateRandomId(node_id_, kMinServerPositionOffset + index);
       RoutingTablePtr routing_table();
       routing_table_.push_back(RoutingTablePtr(new RoutingTable(service_node_id,
                                                                 test::k)));
@@ -1631,8 +1633,10 @@ class RpcsMultiServerNodesTest
 
   virtual void SetUp() {
     // rpcs setup
-    for (int index = 0; index <kRpcClientNo; ++index) {
-      NodeId rpcs_node_id = GenerateRandomId(node_id_, 503 + index);
+    const int kMinClientPositionOffset(kKeySizeBits - kRpcClientNo);
+    for (int index = 0; index != kRpcClientNo; ++index) {
+      NodeId rpcs_node_id =
+          GenerateRandomId(node_id_, kMinClientPositionOffset + index);
       rpcs_securifier_.push_back(std::shared_ptr<Securifier>(
           new Securifier(rpcs_node_id.String(),
                          senders_crypto_key_id3_[index].public_key(),
@@ -1648,9 +1652,10 @@ class RpcsMultiServerNodesTest
       rpcs_[index]->set_contact(rpcs_contact_[index]);
     }
     // service setup
-    for (int index = 0; index < kRpcServersNo; ++index) {
-      NodeId service_node_id = GenerateRandomId(node_id_,
-                                                503 + kRpcClientNo + index);
+    const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
+    for (int index = 0; index != kRpcServersNo; ++index) {
+      NodeId service_node_id =
+          GenerateRandomId(node_id_, kMinServerPositionOffset + index);
       service_contact_.push_back(
           ComposeContactWithKey(service_node_id,
                                 5011 + kRpcClientNo + index,
@@ -1861,7 +1866,7 @@ INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiClientNodesTest,
 INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiServerNodesTest,
                         testing::Values(kTcp, kUdp));
 
-TEST_P(RpcsMultiServerNodesTest, BEH_KAD_MultipleServerOperations) {
+TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
   bool done[kRpcClientNo][kRpcServersNo];
   bool localdone = false;
   int response_code[kRpcClientNo][kRpcServersNo];
