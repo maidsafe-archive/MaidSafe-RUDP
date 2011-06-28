@@ -135,9 +135,10 @@ class NodeTest : public testing::Test {
   }
 
   void FindNodesCallback(int results, std::vector<dht::kademlia::Contact> nodes,
-                         bool* done, dht::kademlia::Key* node_id) {
-    if (!nodes.empty())
-      *node_id = nodes[0].node_id();
+                         bool* done,
+                         std::vector<dht::kademlia::Key>* nodes_id) {
+    for (size_t index = 0; index < nodes.size(); ++index)
+      nodes_id->push_back(nodes[index].node_id());
     *done = true;
   }
 
@@ -151,6 +152,16 @@ class NodeTest : public testing::Test {
     }
     *done = true;
   }
+
+  void FindAndGetValueCallback(int result, std::vector<std::string> values,
+      std::vector<dht::kademlia::Contact> contacts,
+      dht::kademlia::Contact node,
+      dht::kademlia::Contact cache, bool* done, std::string* value) {
+    *value = values[0];
+    ASSERT_LT(0, result);
+    *done = true;
+  }
+
   void JoinCallback(size_t index,
                     int result,
                     boost::mutex *mutex,
@@ -171,6 +182,13 @@ class NodeTest : public testing::Test {
     cond_var->notify_one();
   }
 
+  void GetContactCallback(int result, dht::kademlia::Contact contact,
+      dht::kademlia::Contact* out_contact, bool* done) {
+    ASSERT_LT(0, result);
+    *out_contact = contact;
+    *done = true;
+  }
+
  protected:
   NodeTest() :
     nodes_(),
@@ -179,7 +197,7 @@ class NodeTest : public testing::Test {
     kReplicationFactor_(4),
     kMeanRefreshInterval_(boost::posix_time::hours(1)),
     bootstrap_contacts_(),
-    kNetworkSize(5) {
+    kNetworkSize(17) {
   }
 
   virtual void SetUp() {
@@ -299,6 +317,176 @@ TEST_F(NodeTest, BEH_KAD_Join_Client) {
   ASSERT_EQ(0, failed_nodes);
 }
 
+TEST_F(NodeTest, FUNC_KAD_GetNodeContactDetails) {
+  size_t joined_nodes(kNetworkSize), failed_nodes(0);
+  bool done(false);
+  std::vector<dht::kademlia::Key> new_keys;
+  nodes_.resize(kNetworkSize*2);
+  dht::kademlia::JoinFunctor join_callback(std::bind(
+      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &cond_var_, &joined_nodes, &failed_nodes));
+  for (size_t index = kNetworkSize; index < kNetworkSize*2; ++index) {
+    crypto::RsaKeyPair key_pair;
+    std::string key_string(63, '\0');
+    char last_char = 60 + index;
+    key_string += last_char;
+    key_pair.GenerateKeys(4096);
+    dht::kademlia::NodeId node_id(key_string);
+    new_keys.push_back(node_id);
+    nodes_[index] = NodeContainer(node_id.String(), key_pair.public_key(),
+                                  key_pair.private_key(), false,
+                                  kReplicationFactor_, kAlpha_, kBeta_,
+                                  kMeanRefreshInterval_);
+    dht::transport::Endpoint endpoint("127.0.0.1", 8000 + index);
+    ASSERT_EQ(dht::transport::kSuccess,
+        nodes_[index].transport->StartListening(endpoint));
+    std::vector<dht::kademlia::Contact> bootstrap_contacts;
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      bootstrap_contacts = bootstrap_contacts_;
+    }
+    nodes_[index].node->Join(node_id, bootstrap_contacts, join_callback);
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      while (joined_nodes + failed_nodes <= index)
+        cond_var_.wait(lock);
+    }
+  }
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (joined_nodes + failed_nodes < kNetworkSize*2)
+      cond_var_.wait(lock);
+  }
+  ASSERT_EQ(0, failed_nodes);
+  dht::kademlia::Contact contact;
+  int random_node = RandomUint32() % kNetworkSize;
+  nodes_[0].node->GetContact(new_keys[random_node],
+      std::bind(&NodeTest::GetContactCallback, this, arg::_1, arg::_2, &contact,
+                &done));
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+  ASSERT_EQ(contact.endpoint().port, 8000 + random_node + kNetworkSize);
+  kNetworkSize *= 2;
+}
+
+TEST_F(NodeTest, FUNC_KAD_LoadNonExistingValue) {
+  bool done(false);
+  int result = -1;
+  const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
+      + boost::lexical_cast<std::string>(kNetworkSize)));
+  const std::string value(std::string(
+      boost::lexical_cast<std::string>(kNetworkSize)));
+  int random_source = RandomUint32() % kNetworkSize;
+  nodes_[random_source].node->FindValue(key, nodes_[random_source].securifier,
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
+                arg::_4, arg::_5, &done, &result));
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+  ASSERT_EQ(-1, result);
+}
+
+TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
+  bool done(false);
+  int random_node = RandomUint32() % kNetworkSize;
+  const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432"));
+  const std::string value = RandomString(1024 * 5);  // 5KB
+  nodes_[random_node].node->Store(key, value, "", boost::posix_time::pos_infin,
+    nodes_[random_node].securifier, std::bind(&NodeTest::StoreCallback, this,
+                                        arg::_1, &done, random_node));
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::millisec(200));
+
+  done =false;
+  std::string found_value;
+  random_node = RandomUint32() % kNetworkSize;
+  nodes_[random_node].node->FindValue(key, nodes_[random_node].securifier,
+      std::bind(&NodeTest::FindAndGetValueCallback, this, arg::_1, arg::_2,
+                arg::_3, arg::_4, arg::_5, &done, &found_value));
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::millisec(200));
+  ASSERT_EQ(value, found_value);
+}
+
+TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
+  bool done(false);
+  int random_node = RandomUint32() % kNetworkSize;
+  const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432"));
+  const std::string value = RandomString(1024 * 1024);  // 5KB
+  nodes_[random_node].node->Store(key, value, "", boost::posix_time::pos_infin,
+    nodes_[random_node].securifier, std::bind(&NodeTest::StoreCallback, this,
+                                        arg::_1, &done, random_node));
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::millisec(200));
+
+  done =false;
+  std::string found_value;
+  random_node = RandomUint32() % kNetworkSize;
+  nodes_[random_node].node->FindValue(key, nodes_[random_node].securifier,
+      std::bind(&NodeTest::FindAndGetValueCallback, this, arg::_1, arg::_2,
+                arg::_3, arg::_4, arg::_5, &done, &found_value));
+  while (!done)
+    boost::this_thread::sleep(boost::posix_time::millisec(200));
+  ASSERT_EQ(value, found_value);
+}
+
+TEST_F(NodeTest, DISABLED_FUNC_KAD_FindClosestNodes) {
+  size_t joined_nodes(kNetworkSize), failed_nodes(0);
+  bool done(false);
+  std::vector<dht::kademlia::Key> new_keys;
+  std::string key_string(63, '\0');
+  char last_char = 91 + kNetworkSize;
+  key_string += last_char;
+  dht::kademlia::Key key(key_string);
+  nodes_.resize(kNetworkSize*2);
+  dht::kademlia::JoinFunctor join_callback(std::bind(
+      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &cond_var_, &joined_nodes, &failed_nodes));
+  for (size_t index = kNetworkSize; index < kNetworkSize*2; ++index) {
+    crypto::RsaKeyPair key_pair;
+    std::string key_string(63, '\0');
+    char last_char = 60 + index;
+    key_string += last_char;
+    key_pair.GenerateKeys(4096);
+    dht::kademlia::NodeId node_id(key_string);
+    nodes_[index] = NodeContainer(node_id.String(), key_pair.public_key(),
+                                  key_pair.private_key(), false,
+                                  kReplicationFactor_, kAlpha_, kBeta_,
+                                  kMeanRefreshInterval_);
+    dht::transport::Endpoint endpoint("127.0.0.1", 8000 + index);
+    ASSERT_EQ(dht::transport::kSuccess,
+        nodes_[index].transport->StartListening(endpoint));
+    std::vector<dht::kademlia::Contact> bootstrap_contacts;
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      bootstrap_contacts = bootstrap_contacts_;
+    }
+    nodes_[index].node->Join(node_id, bootstrap_contacts, join_callback);
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      while (joined_nodes + failed_nodes <= index)
+        cond_var_.wait(lock);
+    }
+  }
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (joined_nodes + failed_nodes < kNetworkSize*2)
+      cond_var_.wait(lock);
+  }
+
+  ASSERT_EQ(0, failed_nodes);
+  std::vector<dht::kademlia::Key> closest_nodes;
+  nodes_[0].node->FindNodes(key, std::bind(&NodeTest::FindNodesCallback,
+      this, arg::_1, arg::_2, &done, &closest_nodes));
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+  kNetworkSize *= 2;
+  for (size_t index = 0; index < closest_nodes.size(); ++index)
+    ASSERT_TRUE((std::find(new_keys.begin(), new_keys.end(),
+                           closest_nodes[index]) != new_keys.end()));
+}
+
 TEST_F(NodeTest, BEH_KAD_FindClosestNodeAnalysisTEST) {
   size_t joined_nodes(kNetworkSize), failed_nodes(0);
   bool done = false;
@@ -346,18 +534,121 @@ TEST_F(NodeTest, BEH_KAD_FindClosestNodeAnalysisTEST) {
   }
 
   ASSERT_EQ(0, failed_nodes);
-  dht::kademlia::Key closest_node;
+  std::vector<dht::kademlia::Key> closest_nodes;
   nodes_[0].node->FindNodes(key, std::bind(&NodeTest::FindNodesCallback,
-      this, arg::_1, arg::_2, &done, &closest_node));
+      this, arg::_1, arg::_2, &done, &closest_nodes));
   while (!done)
       boost::this_thread::sleep(boost::posix_time::millisec(200));
   kNetworkSize *= 2;
-  ASSERT_EQ(true, (std::find(new_keys.begin(), new_keys.end(), closest_node)
+  ASSERT_TRUE((std::find(new_keys.begin(), new_keys.end(), closest_nodes[0])
                 != new_keys.end()));
 }
 
+/** The test doubles up the number of nodes in the network, the 
+ * newly added nodes are assigned close keys. Two nodes, not from the newly
+ *  added ones, search for a node with a key close to the keys of the newly
+ *  added nodes. The responses shoud be equal.*/
+TEST_F(NodeTest, BEH_KAD_MultipleNodesFindClosestNodesTEST) {
+  size_t joined_nodes(kNetworkSize), failed_nodes(0);
+  bool done(false);
+  std::string key_string(63, '\0');
+  char last_char = 91 + kNetworkSize;
+  key_string += last_char;
+  dht::kademlia::Key key(key_string);
+  nodes_.resize(kNetworkSize*2);
+  dht::kademlia::JoinFunctor join_callback(std::bind(
+      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &cond_var_, &joined_nodes, &failed_nodes));
+  for (size_t index = kNetworkSize; index < kNetworkSize*2; ++index) {
+    crypto::RsaKeyPair key_pair;
+    std::string key_string(63, '\0');
+    char last_char = 60 + index;
+    key_string += last_char;
+    key_pair.GenerateKeys(4096);
+    dht::kademlia::NodeId node_id(key_string);
+    nodes_[index] = NodeContainer(node_id.String(), key_pair.public_key(),
+                                  key_pair.private_key(), false,
+                                  kReplicationFactor_, kAlpha_, kBeta_,
+                                  kMeanRefreshInterval_);
+    dht::transport::Endpoint endpoint("127.0.0.1", 8000 + index);
+    ASSERT_EQ(dht::transport::kSuccess,
+        nodes_[index].transport->StartListening(endpoint));
+    std::vector<dht::kademlia::Contact> bootstrap_contacts;
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      bootstrap_contacts = bootstrap_contacts_;
+    }
+    nodes_[index].node->Join(node_id, bootstrap_contacts, join_callback);
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      while (joined_nodes + failed_nodes <= index)
+        cond_var_.wait(lock);
+    }
+  }
+
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (joined_nodes + failed_nodes < kNetworkSize*2)
+      cond_var_.wait(lock);
+  }
+
+  ASSERT_EQ(0, failed_nodes);
+  std::vector<dht::kademlia::Key> closest_nodes0, closest_nodes1;
+  nodes_[0].node->FindNodes(key, std::bind(&NodeTest::FindNodesCallback,
+      this, arg::_1, arg::_2, &done, &closest_nodes0));
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+  done = false;
+  nodes_[kNetworkSize/2].node->FindNodes(
+      key, std::bind(&NodeTest::FindNodesCallback, this, arg::_1, arg::_2,
+                     &done, &closest_nodes1));
+  while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+  kNetworkSize *= 2;
+  for (size_t index = 0; index < closest_nodes0.size(); ++index)
+    ASSERT_TRUE((std::find(closest_nodes0.begin(), closest_nodes0.end(),
+                           closest_nodes1[index]) != closest_nodes0.end()));
+}
+
+TEST_F(NodeTest, BEH_KAD_StoreAndLoad100Values) {
+  bool done(false);
+  std::vector<dht::kademlia::Key> keys;
+  size_t count(100);
+  size_t random_node(0);
+  for (size_t index = 0; index < count; ++index) {
+    const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
+        + boost::lexical_cast<std::string>(index)));
+    keys.push_back(key);
+    const std::string value(std::string(
+        boost::lexical_cast<std::string>(index)));
+    random_node = RandomUint32() % kNetworkSize;
+    nodes_[random_node].node->Store(key, value, "",
+                                    boost::posix_time::pos_infin,
+                                    nodes_[random_node].securifier,
+                                    std::bind(&NodeTest::StoreCallback, this,
+                                              arg::_1, &done, index));
+    while (!done) {
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+    }
+    done = false;
+  }
+  int found_value;
+  done = false;
+  random_node = RandomUint32() % kNetworkSize;
+  for (size_t index = 0; index < count; ++index) {
+    nodes_[random_node].node->FindValue(keys[index],
+        nodes_[random_node].securifier,
+        std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
+                  arg::_3, arg::_4, arg::_5, &done, &found_value));
+    while (!done)
+      boost::this_thread::sleep(boost::posix_time::millisec(200));
+    ASSERT_EQ(index, found_value);
+    done = false;
+  }
+}
+
 TEST_F(NodeTest, BEH_KAD_MultipleNodesFindSingleValueTEST) {
-  bool done = false;
+  bool done(false);
   std::vector<dht::kademlia::Key> keys;
   for (size_t index = 0; index < kNetworkSize; ++index) {
     const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
