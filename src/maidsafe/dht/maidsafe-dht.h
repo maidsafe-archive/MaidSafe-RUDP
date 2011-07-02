@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/log.h"
 #include "maidsafe/common/platform_config.h"
-#include "maidsafe/common/threadpool.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/version.h"
 

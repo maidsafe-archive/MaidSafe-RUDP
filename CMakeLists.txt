@@ -252,8 +252,6 @@ ENDIF()
 INCLUDE(maidsafe_standard_flags)
 
 IF(MSVC)
-  ADD_DEFINITIONS(-DUDT_STATIC)
-
   # warning 4503 disabled due to excessive generation through use of Boost multi_index
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/routing_table.cc
@@ -273,6 +271,8 @@ IF(MSVC)
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/kademlia.pb.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs.pb.cc
                                 PROPERTIES COMPILE_FLAGS "/W0")
+
+  SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES COMPILE_FLAGS "/bigobj")
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
   SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTkademlia_api KademliaDemo benchmark_static PROPERTIES
@@ -295,8 +295,7 @@ ELSEIF(UNIX)
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
-  SET_SOURCE_FILES_PROPERTIES(
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/main.cc
+  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/main.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_node_id.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_service.cc
