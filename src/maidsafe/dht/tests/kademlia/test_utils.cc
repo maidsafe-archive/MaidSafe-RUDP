@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/utils.h"
-#include "maidsafe/dht/tests/kademlia/utils.h"
+#include "maidsafe/dht/tests/kademlia/test_utils.h"
 
 namespace maidsafe {
 

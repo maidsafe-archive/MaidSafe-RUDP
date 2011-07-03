@@ -155,10 +155,10 @@ FILE(GLOB ALL_FILES_TEST_DEMO_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/demo/*.h")
 FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/*.cc"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/*.h"
-                                  "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/utils.h"
-                                  "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/utils.cc")
- LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_functional.cc")
-# LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc")
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_utils.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_utils.cc")
+ LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_functional_test.cc")
+# LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_test.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.h")
 # FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/nat-pmp/*.cc"
@@ -255,9 +255,8 @@ IF(MSVC)
   # warning 4503 disabled due to excessive generation through use of Boost multi_index
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/routing_table.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_contact.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc
-                              # ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/nat-pmp/test_natpmp.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/contact_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_test.cc
                                 PROPERTIES COMPILE_FLAGS "/wd4503")
 
   # warnings 4503, 4512 & 4996 disabled due to generation through use of Boost Signals2
@@ -295,32 +294,30 @@ ELSEIF(UNIX)
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
-  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/main.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_node_impl.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_node_id.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_service.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_routing_table.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_datastore.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_contact.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_api.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_environment.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/main.cc
+  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/test_main.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/demo/kademlia_demo.cc
-                              # ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/nat-pmp/test_natpmp.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/test_tcp_transport.cc
-                              # ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/upnp/test_upnp.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_mock_rpcs.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_rpcs.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/test_udp_transport.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/test_transport_api.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_api_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_main.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/test_node_environment.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/contact_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/datastore_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/mock_rpcs_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/node_id_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/node_impl_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/routing_table_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/rpcs_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/service_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/tcp_transport_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/transport_api_test.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/transport/udp_transport_test.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/service.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_impl.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_connection.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_transport.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_request.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.cc
                               PROPERTIES COMPILE_FLAGS "-Wno-effc++")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 ENDIF()

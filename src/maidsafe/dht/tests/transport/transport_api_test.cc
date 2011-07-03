@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/dht/tests/transport/test_transport_api.h"
+#include "maidsafe/dht/tests/transport/transport_api_test.h"
 #include <functional>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/thread.hpp"

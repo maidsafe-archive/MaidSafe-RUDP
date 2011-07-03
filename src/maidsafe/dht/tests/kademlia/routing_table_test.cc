@@ -41,7 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/routing_table.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/transport/utils.h"
-#include "maidsafe/dht/tests/kademlia/utils.h"
+#include "maidsafe/dht/tests/kademlia/test_utils.h"
 
 namespace maidsafe {
 
@@ -361,7 +361,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
       AddContact(contact);
     }
 
-    // remove contact from bucket with common_heading_bit(507, 506)
+    // remove contact from bucket with common_leading_bit(507, 506)
     for (int i = 0; i < k_ - (k_ / 2 - 2); ++i) {
       auto pit_2 = routing_table_.contacts_.get<KBucketTag>().equal_range(4);
       routing_table_.SetValidated((*pit_2.first).node_id, false);
