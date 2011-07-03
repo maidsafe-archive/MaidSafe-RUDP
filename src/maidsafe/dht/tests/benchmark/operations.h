@@ -45,12 +45,10 @@ namespace rpcprotocol {
 typedef std::map<std::string, Stats<boost::uint64_t>> RpcStatsMap;
 }  // namespace rpcprotocol
 
-namespace dht {
-  namespace kademlia {
-    class Node;
-    class NodeId;
-  }  // namespace kademlia
-} // namespace dht
+namespace kademlia {
+class Node;
+class NodeId;
+}  // namespace kademlia
 
 namespace benchmark {
 
@@ -65,12 +63,12 @@ struct CallbackData {
 
 class Operations {
  public:
-  explicit Operations(boost::shared_ptr<dht::kademlia::Node> node);
-  void TestFindAndPing(const std::vector<dht::kademlia::NodeId> &nodes,
+  explicit Operations(boost::shared_ptr<kademlia::Node> node);
+  void TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
                        const int &iterations);
-  void TestStoreAndFind(const std::vector<dht::kademlia::NodeId> &nodes,
+  void TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
                         const int &iterations, const bool &sign);
-  static dht::kademlia::NodeId GetModId(int iteration);
+  static kademlia::NodeId GetModId(int iteration);
   static void PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings);
  private:
   void PingCallback(const std::string &result,
@@ -81,7 +79,7 @@ class Operations {
                      boost::shared_ptr<CallbackData> data);
   void FindValueCallback(const std::string &result,
                          boost::shared_ptr<CallbackData> data);
-  boost::shared_ptr<dht::kademlia::Node> node_;
+  boost::shared_ptr<kademlia::Node> node_;
 //  crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_validation_;
 };
