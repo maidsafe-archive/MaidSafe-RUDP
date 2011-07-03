@@ -32,9 +32,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include <utility>
-#include "gtest/gtest.h"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
+#include "maidsafe/common/test.h"
 #include "maidsafe/dht/transport/transport.h"
 
 namespace maidsafe {

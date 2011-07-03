@@ -32,12 +32,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <vector>
 
-#include "gtest/gtest.h"
 #include "boost/asio.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/progress.hpp"
 #include "boost/lexical_cast.hpp"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
 #include "maidsafe/dht/tests/kademlia/utils.h"
 

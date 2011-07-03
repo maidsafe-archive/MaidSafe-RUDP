@@ -25,9 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
+#include "maidsafe/common/test.h"
 #include "maidsafe/dht/log.h"
-
 #include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
 
 int main(int argc, char **argv) {

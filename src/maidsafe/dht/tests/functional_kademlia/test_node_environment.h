@@ -31,13 +31,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bitset>
 #include <memory>
 
-#include "gtest/gtest.h"
-
 #include "boost/filesystem.hpp"
 #include "boost/lexical_cast.hpp"
 #include "boost/thread.hpp"
 #include "boost/asio/io_service.hpp"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/crypto.h"

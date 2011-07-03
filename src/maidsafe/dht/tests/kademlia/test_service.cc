@@ -27,10 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <bitset>
 
-#include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
 #include "boost/thread.hpp"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/log.h"
