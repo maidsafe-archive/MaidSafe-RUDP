@@ -25,11 +25,12 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
-
 #include "boost/thread.hpp"
 #include "boost/thread/mutex.hpp"
+#include "maidsafe/common/test.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/transport/message_handler.h"
 #include "maidsafe/dht/kademlia/message_handler.cc"
@@ -39,8 +40,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/transport/transport.pb.h"
 
-#include "maidsafe/common/crypto.h"
-#include "maidsafe/common/utils.h"
 
 namespace arg = std::placeholders;
 

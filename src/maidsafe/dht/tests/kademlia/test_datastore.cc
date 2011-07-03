@@ -37,8 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "gtest/gtest.h"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"

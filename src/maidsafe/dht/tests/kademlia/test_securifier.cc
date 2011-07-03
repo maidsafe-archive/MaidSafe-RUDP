@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/config.h"

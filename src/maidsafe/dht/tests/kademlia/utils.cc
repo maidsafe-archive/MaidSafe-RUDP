@@ -26,13 +26,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <bitset>
-#include "gtest/gtest.h"
 
+#include "maidsafe/common/test.h"
+#include "maidsafe/common/crypto.h"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/tests/kademlia/utils.h"
-#include "maidsafe/common/crypto.h"
-#include "maidsafe/common/utils.h"
 
 namespace maidsafe {
 

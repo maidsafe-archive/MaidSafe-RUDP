@@ -27,13 +27,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bitset>
 #include <memory>
 
-#include "gtest/gtest.h"
 #include "boost/lexical_cast.hpp"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/enable_shared_from_this.hpp"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/config.h"

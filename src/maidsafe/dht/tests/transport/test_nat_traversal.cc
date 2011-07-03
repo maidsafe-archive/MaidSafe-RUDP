@@ -94,7 +94,7 @@ Succeeds                                                           Succeeds
 */
 /*
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "maidsafe/common/test.h"
 #include "maidsafe/dht/transport/udt_transport.h"
 
 namespace maidsafe {

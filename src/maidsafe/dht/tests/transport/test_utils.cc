@@ -28,8 +28,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cstdlib>
 #include <set>
-#include "gtest/gtest.h"
 #include "boost/scoped_array.hpp"
+#include "maidsafe/common/test.h"
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/transport/utils.h"
 

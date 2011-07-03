@@ -30,8 +30,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 #include "boost/thread.hpp"
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/crypto.h"
