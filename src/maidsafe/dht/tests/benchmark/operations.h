@@ -85,7 +85,7 @@ class Operations {
 
 }  // namespace benchmark
 
-}  // dht
+}  // namespace dht
 
 }  // namespace maidsafe
 
