@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 #include <map>
-#include "boost/function.hpp"
+#include <functional>
 
 namespace maidsafe {
 
@@ -47,7 +47,7 @@ enum ProtocolType {
 };
 
 // params: port, protocol
-typedef boost::function<void(const int&, const ProtocolType&)> upnp_callback;
+typedef std::function<void(const int&, const ProtocolType&)> upnp_callback;
 
 struct PortMapping {
   PortMapping(const int &port_,

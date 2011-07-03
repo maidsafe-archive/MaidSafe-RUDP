@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <string>
 #include <vector>
-#include "boost/function.hpp"
 #include "boost/thread/condition_variable.hpp"
 #include "boost/thread/locks.hpp"
 #include "maidsafe/common/crypto.h"

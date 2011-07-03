@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_UPNP_UPNP_CLIENT_H_
 
 #include <string>
-#include "boost/shared_ptr.hpp"
+#include "boost/scoped_ptr.hpp"
 // #include "maidsafe/dht/upnp/upnp_client_impl.h"
 #include "maidsafe/dht/upnp/mini_upnp_client_impl.h"
 
@@ -56,7 +56,7 @@ class UpnpIgdClient {
   void SetLostMappingCallback(const upnp_callback &lost_mapping_callback);
   void SetFailedMappingCallback(const upnp_callback &failed_mapping_callback);
  private:
-  boost::shared_ptr<UpnpIgdClientImpl> pimpl_;
+  boost::scoped_ptr<UpnpIgdClientImpl> pimpl_;
 };
 
 }  // namespace upnp

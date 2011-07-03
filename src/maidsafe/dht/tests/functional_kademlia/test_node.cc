@@ -34,7 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "boost/progress.hpp"
 #include "boost/lexical_cast.hpp"
 
 #include "maidsafe/common/test.h"
