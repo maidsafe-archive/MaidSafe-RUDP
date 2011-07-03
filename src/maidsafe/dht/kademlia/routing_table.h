@@ -407,10 +407,10 @@ class RoutingTable {
    *  @return The index of the k-bucket which is in responsible. */
   uint16_t KBucketIndex(const NodeId &key);
   /** Calculate the index of the k-bucket which is responsible for
-   *  the specified common_heading_bits.
-   *  @param[in] common_heading_bits The common_heading_bits the target node.
+   *  the specified common_leading_bits.
+   *  @param[in] common_leading_bits The common_heading_bits the target node.
    *  @return The index of the k-bucket which is in responsible. */
-  uint16_t KBucketIndex(const uint16_t &common_heading_bits);
+  uint16_t KBucketIndex(const uint16_t &common_leading_bits);
   /** Getter.
    *  @return Num of kbuckets in the routing table. */
   uint16_t KBucketCount() const;

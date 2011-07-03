@@ -44,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/datastore.h"
-#include "maidsafe/dht/tests/kademlia/utils.h"
+#include "maidsafe/dht/tests/kademlia/test_utils.h"
 
 namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;

@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
-#include "maidsafe/dht/tests/kademlia/utils.h"
+#include "maidsafe/dht/tests/kademlia/test_utils.h"
 
 namespace arg = std::placeholders;
 
