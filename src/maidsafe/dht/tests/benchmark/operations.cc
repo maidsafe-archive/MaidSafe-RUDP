@@ -52,7 +52,7 @@ namespace dht {
 
 namespace benchmark {
 
-Operations::Operations(boost::shared_ptr<kademlia::Node> node)
+Operations::Operations(boost::shared_ptr<dht::kademlia::Node> node)
     : node_(node), private_key_(), public_key_(), public_key_validation_() {
 //  cryobj_.set_symm_algorithm(crypto::AES_256);
 //  cryobj_.set_hash_algorithm(crypto::SHA_512);
@@ -62,9 +62,9 @@ Operations::Operations(boost::shared_ptr<kademlia::Node> node)
   private_key_ = kp.private_key();
 }
 
-void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
+void Operations::TestFindAndPing(const std::vector<dht::kademlia::NodeId> &nodes,
                                  const int &iterations) {
-  std::vector<kademlia::Contact> contacts;
+  std::vector<dht::kademlia::Contact> contacts;
   {
     printf("Finding %d nodes...\n", nodes.size());
 
@@ -81,7 +81,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
 //      while (static_cast<size_t>(data->returned_count) <= i)
 //        data->condition.wait(lock);
 //      stats.Add(GetEpochMilliseconds() - t);
-      kademlia::Contact ctc;
+      dht::kademlia::Contact ctc;
 //      ctc.ParseFromString(data->content);
       contacts.push_back(ctc);
     }
@@ -128,7 +128,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
   }
 }
 
-void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
+void Operations::TestStoreAndFind(const std::vector<dht::kademlia::NodeId> &nodes,
                                   const int &iterations, const bool &/*sign*/) {
   for (int val = 0; val < 4; ++val) {
     std::string size, value;
@@ -217,7 +217,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
       boost::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-        kademlia::NodeId mod =
+        dht::kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
 //        boost::uint64_t t = GetEpochMilliseconds();
 //        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
@@ -295,15 +295,15 @@ void Operations::FindValueCallback(const std::string &/*result*/,
  * Calculates a Kademlia ID with smallest possible distance from 000..000,
  * with a unique value for each (positive) iteration number.
  */
-kademlia::NodeId Operations::GetModId(int iteration) {
-  boost::uint16_t bits = kademlia::kKeySizeBits - 1;
-  kademlia::NodeId id;
+dht::kademlia::NodeId Operations::GetModId(int iteration) {
+  boost::uint16_t bits = dht::kademlia::kKeySizeBits - 1;
+  dht::kademlia::NodeId id;
   while (iteration > bits) {
-    id = id ^ kademlia::NodeId(bits);
+    id = id ^ dht::kademlia::NodeId(bits);
     iteration -= (bits + 1);
     --bits;
   }
-  return id ^ kademlia::NodeId(static_cast<uint16_t>(iteration));
+  return id ^ dht::kademlia::NodeId(static_cast<uint16_t>(iteration));
 }
 
 void Operations::PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings) {

@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 
 #include "maidsafe/common/utils.h"
+#include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/rpcs.pb.h"
@@ -153,6 +154,7 @@ void Rpcs::Store(const Key &key,
                  const Contact &peer,
                  StoreFunctor callback,
                  TransportType type) {
+  std::cout << "Rpcs::Store called" << std::endl;
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
@@ -169,6 +171,7 @@ void Rpcs::Store(const Key &key,
   signed_value->set_value(value);
   signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
                               signature);
+  std::cout << "Rpcs::Store signed" << std::endl;
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
@@ -182,6 +185,7 @@ void Rpcs::Store(const Key &key,
       rpcs_failure_peer));
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
+  std::cout << "Rpcs::Store sent" << std::endl;
 }
 
 void Rpcs::StoreRefresh(const std::string &serialised_store_request,
@@ -428,8 +432,11 @@ void Rpcs::StoreCallback(
     StoreFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
+  DLOG(INFO) << "Rpcs::StoreCallback " << rpcs_failure_peer->peer.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8)
+            << " result " << transport_condition;
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    DLOG(INFO) << "Rpcs::StoreCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " sending"; 
     ++(rpcs_failure_peer->rpcs_failure);
     TransportPtr transport = connected_objects_.GetTransport(index);
     transport->Send(
@@ -438,13 +445,17 @@ void Rpcs::StoreCallback(
   } else {
     connected_objects_.RemoveObject(index);
     if (transport_condition != transport::kSuccess) {
+      DLOG(INFO) << "Rpcs::StoreCallback transport condition fail " << transport_condition;
       callback(RankInfoPtr(new transport::Info(info)), transport_condition);
       return;
     }
-    if (response.IsInitialized() && response.result())
+    if (response.IsInitialized() && response.result()) {
+      DLOG(INFO) << "Rpcs::StoreCallback invoking callback success"; 
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-    else
+    } else {
+      DLOG(INFO) << "Rpcs::StoreCallback invoking callback fail"; 
       callback(RankInfoPtr(new transport::Info(info)), -1);
+    }
   }
 }
 
@@ -458,21 +469,26 @@ void Rpcs::StoreRefreshCallback(
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    DLOG(INFO) << "Rpcs::StoreRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " sending"; 
     ++(rpcs_failure_peer->rpcs_failure);
     TransportPtr transport = connected_objects_.GetTransport(index);
     transport->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
   } else {
+    DLOG(INFO) << "Rpcs::StoreRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " removing"; 
     connected_objects_.RemoveObject(index);
     if (transport_condition != transport::kSuccess) {
       callback(RankInfoPtr(new transport::Info(info)), transport_condition);
       return;
     }
-    if (response.IsInitialized() && response.result())
+    if (response.IsInitialized() && response.result()) {
+      DLOG(INFO) << "Rpcs::StoreRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " invoking callback success"; 
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-    else
+    } else {
+      DLOG(INFO) << "Rpcs::StoreRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " invoking callback fail"; 
       callback(RankInfoPtr(new transport::Info(info)), -1);
+    }
   }
 }
 
@@ -514,21 +530,27 @@ void Rpcs::DeleteRefreshCallback(
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
   if ((transport_condition != transport::kSuccess) &&
       (rpcs_failure_peer->rpcs_failure < kFailureTolerance)) {
+    DLOG(INFO) << "Rpcs::DeleteRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " sending"; 
     ++(rpcs_failure_peer->rpcs_failure);
     TransportPtr transport = connected_objects_.GetTransport(index);
     transport->Send(
         message, rpcs_failure_peer->peer.PreferredEndpoint(),
         transport::kDefaultInitialTimeout);
   } else {
+    DLOG(INFO) << "Rpcs::DeleteRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " removing"; 
     connected_objects_.RemoveObject(index);
     if (transport_condition != transport::kSuccess) {
+      DLOG(INFO) << "Rpcs::DeleteFreshCallback transport condition " << transport_condition;
       callback(RankInfoPtr(new transport::Info(info)), transport_condition);
       return;
     }
-    if (response.IsInitialized() && response.result())
+    if (response.IsInitialized() && response.result()) {
+      DLOG(INFO) << "Rpcs::DeleteRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " invoking callback success"; 
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
-    else
+    } else {
+      DLOG(INFO) << "Rpcs::DeleteRefreshCallback transport condition " << transport_condition << " failure count " << rpcs_failure_peer->rpcs_failure << " invoking callback fail"; 
       callback(RankInfoPtr(new transport::Info(info)), -1);
+    }
   }
 }
 

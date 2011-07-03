@@ -204,6 +204,8 @@ void TcpConnection::DispatchMessage() {
     std::string response;
     Timeout response_timeout(kImmediateTimeout);
     Info info;
+    // info.endpoint.ip = remote_endpoint_.address();
+    // info.endpoint.port = remote_endpoint_.port();
     // TODO(Fraser#5#): 2011-01-18 - Add info details.
     (*transport->on_message_received_)(std::string(data_buffer_.begin(),
                                                    data_buffer_.end()),
@@ -212,6 +214,7 @@ void TcpConnection::DispatchMessage() {
                                        &response_timeout);
     if (response.empty()) {
       Close();
+      // std::cout << "Empty response !!!!¬!¬!!!" << std::endl;
       return;
     }
 
@@ -255,10 +258,12 @@ void TcpConnection::StartConnect() {
 void TcpConnection::HandleConnect(const bs::error_code &ec) {
   // If the socket is closed, it means the timeout has been triggered.
   if (!socket_.is_open()) {
+    std::cout << "TcpConnection::HandleConnect socket closed" << std::endl;
     return CloseOnError(kSendTimeout);
   }
 
   if (ec) {
+    std::cout << "TcpConnection::HandleConnect error code set" << ec.value() << std::endl;
     return CloseOnError(kSendFailure);
   }
 

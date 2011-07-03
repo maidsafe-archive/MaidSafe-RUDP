@@ -441,7 +441,7 @@ class RoutingTable {
    *  @param[in] target_bucket The kbucket shall in responsible of the new
    *  contact
    *  @param[in] upgrade_lock An UpgradeLock held on shared_mutex_
-   *  @return Error Code:  0   for succeed,
+   *  @return Error Code:   0  for succeed,
    *                       -1  for No brother bucket
    *                       -2  for v==0
    *                       -3  for Not in Brother Bucket
