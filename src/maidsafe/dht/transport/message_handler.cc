@@ -48,23 +48,17 @@ void MessageHandler::OnMessageReceived(const std::string &request,
                                        const Info &info,
                                        std::string *response,
                                        Timeout *timeout) {
-  if (request.empty()) {
-    std::cout << "MessageHandler::OnMessageReceived empty message" << std::endl;
+  if (request.empty())
     return;
-  }
   SecurityType security_type = request.at(0);
-  if (security_type && !securifier_) {
-    std::cout << "MessageHandler::OnMessageReceived wrong security type" << std::endl;
+  if (security_type && !securifier_)
     return;
-  }
 
   std::string serialised_message(request.substr(1));
   if (security_type & kAsymmetricEncrypt) {
     std::string aes_seed = request.substr(1, 512);
-    if (aes_seed.size() != 512) {
-      std::cout << "MessageHandler::OnMessageReceived seed size wrong" << std::endl;
+    if (aes_seed.size() != 512)
       return;
-    }
 
     std::string encrypt_aes_seed;
     while (encrypt_aes_seed.empty())
@@ -80,7 +74,6 @@ void MessageHandler::OnMessageReceived(const std::string &request,
                                     security_type, wrapper.message_signature(),
                                     info, response, timeout);
   }
-  std::cout << "MessageHandler::OnMessageReceived finished" << std::endl;
 }
 
 void MessageHandler::OnError(const TransportCondition &transport_condition,

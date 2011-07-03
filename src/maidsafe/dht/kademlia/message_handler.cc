@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/rpcs.pb.h"
 #include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 
@@ -167,7 +166,6 @@ void MessageHandler::ProcessSerialisedMessage(
   *timeout = transport::kImmediateTimeout;
   switch (message_type) {
     case kPingRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kPingRequest";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::PingRequest request;
@@ -180,7 +178,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kPingResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kPingResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::PingResponse response;
@@ -189,7 +186,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kFindValueRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kFindValueRequest";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::FindValueRequest request;
@@ -202,7 +198,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kFindValueResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kFindValueResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::FindValueResponse response;
@@ -211,7 +206,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kFindNodesRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kFindNodesRequest";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::FindNodesRequest request;
@@ -224,7 +218,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kFindNodesResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kFindNodesResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::FindNodesResponse response;
@@ -233,7 +226,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kStoreRequest";
       if ((security_type != (kSign | kAsymmetricEncrypt)) ||
           (message_signature.empty() && !securifier_->kSigningKeyId().empty()))
         return;
@@ -265,7 +257,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kStoreResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::StoreResponse response;
@@ -274,7 +265,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRefreshRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kStoreRefreshRequest";
       if (message_signature.empty() &&
           !securifier_->kSigningKeyId().empty())
         return;
@@ -305,7 +295,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRefreshResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kStoreRefreshResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::StoreRefreshResponse response;
@@ -314,7 +303,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kDeleteRequest";
       if ((security_type != (kSign | kAsymmetricEncrypt)) ||
           (message_signature.empty() && !securifier_->kSigningKeyId().empty()))
         return;
@@ -346,7 +334,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kDeleteResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::DeleteResponse response;
@@ -355,7 +342,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRefreshRequest: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kDeleteRefreshRequest";
       if (message_signature.empty() &&
           !securifier_->kSigningKeyId().empty())
         return;
@@ -386,7 +372,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRefreshResponse: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kDeleteRefreshResponse";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::DeleteRefreshResponse response;
@@ -395,7 +380,6 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDownlistNotification: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage kDownlistNotification";
       if (security_type != kAsymmetricEncrypt)
         return;
       protobuf::DownlistNotification request;
@@ -403,8 +387,7 @@ void MessageHandler::ProcessSerialisedMessage(
         (*on_downlist_notification_)(info, request, timeout);
       break;
     }
-    default: {
-      DLOG(INFO) << "MessageHandler::ProcessSerialisedMessage default";
+    default:
       transport::MessageHandler::ProcessSerialisedMessage(message_type,
                                                           payload,
                                                           security_type,
@@ -412,7 +395,6 @@ void MessageHandler::ProcessSerialisedMessage(
                                                           info,
                                                           message_response,
                                                           timeout);
-    }
   }
 }
 
