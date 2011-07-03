@@ -26,6 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <bitset>
+
 #include "gtest/gtest.h"
 
 #include "maidsafe/dht/kademlia/node_id.h"
@@ -314,6 +315,18 @@ void AddContact(std::shared_ptr<RoutingTable> routing_table,
                 const RankInfoPtr rank_info) {
   routing_table->AddContact(contact, rank_info);
   routing_table->SetValidated(contact.node_id(), true);
+}
+
+void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids) {
+  if (!node_ids || node_ids->empty())
+    return;
+  std::sort(node_ids->begin(), node_ids->end(),
+      std::bind(static_cast<bool(*)(const NodeId&,  // NOLINT
+                                    const NodeId&,
+                                    const NodeId&)>(&NodeId::CloserToTarget),
+                std::placeholders::_1,
+                std::placeholders::_2,
+                target_key));
 }
 
 }  // namespace test

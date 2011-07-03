@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
   FLAGS_logtostderr = true;
   // If Google logging is linked in, log messages at or above this level.
   // Severity levels are INFO, WARNING, ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = google::ERROR;
+  FLAGS_minloglevel = google::INFO; // google::ERROR;
   FLAGS_ms_logging_common = false;
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());
