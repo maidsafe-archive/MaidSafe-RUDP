@@ -151,9 +151,9 @@ void NatPmpClientImpl::DoSendMappingRequest(uint32_t protocol,
     r.buffer[2] = 0;
     r.buffer[3] = 0;
 
-    *((uint16_t *)(r.buffer + 4)) = htons(private_port);
-    *((uint16_t *)(r.buffer + 6)) = htons(public_port);
-    *((uint32_t *)(r.buffer + 8)) = htonl(lifetime);
+    *(reinterpret_cast<uint16_t*>((r.buffer + 4))) = htons(private_port);
+    *(reinterpret_cast<uint16_t*>((r.buffer + 6))) = htons(public_port);
+    *(reinterpret_cast<uint32_t*>((r.buffer + 8))) = htonl(lifetime);
 
     r.length = 12;
     r.retry_count = 0;
@@ -319,9 +319,9 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
   Protocol::MappingResponse response;
 
   if (endpoint_.address() == m_gateway_address_) {
-    response.result_code = ntohs(*((uint16_t *)(buf + 2)));
+    response.result_code = ntohs(*(reinterpret_cast<const uint16_t*>(buf + 2)));
 
-    response.epoch = ntohl(*((uint32_t *)(buf + 4)));
+    response.epoch = ntohl(*(reinterpret_cast<const uint32_t*>(buf + 4)));
 
     if (buf[0] != 0) {
       opcode = Protocol::kResultUnsupportedVersion;
@@ -353,7 +353,7 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
       response.type = static_cast<unsigned char>(buf[1]) & 0x7f;
 
       if (static_cast<unsigned char> (buf[1]) == 128) {
-        uint32_t ip = ntohl(*((uint32_t *)(buf + 8)));
+        uint32_t ip = ntohl(*(reinterpret_cast<const uint32_t*>(buf + 8)));
 
         response.public_address = boost::asio::ip::address_v4(ip);
 
@@ -372,11 +372,14 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
         */
         SendQueuedRequests();
       } else {
-        response.private_port = ntohs(*((uint16_t *)(buf + 8)));
+        response.private_port =
+            ntohs(*(reinterpret_cast<const uint16_t*>(buf + 8)));
 
-        response.public_port = ntohs(*((uint16_t *)(buf + 10)));
+        response.public_port =
+            ntohs(*(reinterpret_cast<const uint16_t*>(buf + 10)));
 
-        response.lifetime = ntohl(*((uint32_t *)(buf + 12)));
+        response.lifetime =
+            ntohl(*(reinterpret_cast<const uint32_t*>(buf + 12)));
 
         Protocol::MappingRequest request = request_queue_.front();
 
