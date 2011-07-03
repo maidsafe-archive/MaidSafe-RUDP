@@ -101,7 +101,7 @@ void NatPmpClientImpl::Stop() {
 
     for (; it != mappings_.end(); ++it) {
       DLOG(INFO) << "Removing NAT-PMP mapping: " <<
-          static_cast<boost::uint32_t>((*it).first.buffer[1]) << ":" <<
+          static_cast<uint32_t>((*it).first.buffer[1]) << ":" <<
           (*it).second.private_port << ":" << (*it).second.public_port <<
           std::endl;
 
@@ -127,18 +127,18 @@ void NatPmpClientImpl::SetMapPortSuccessCallback(
   nat_pmp_map_port_success_cb_ = map_port_success_cb;
 }
 
-void NatPmpClientImpl::SendMappingRequest(boost::uint32_t protocol,
-                                          boost::uint16_t private_port,
-                                          boost::uint16_t public_port,
-                                          boost::uint32_t lifetime) {
+void NatPmpClientImpl::SendMappingRequest(uint32_t protocol,
+                                          uint16_t private_port,
+                                          uint16_t public_port,
+                                          uint32_t lifetime) {
   io_service_->post(boost::bind(&NatPmpClientImpl::DoSendMappingRequest,
       this, protocol, private_port, public_port, lifetime));
 }
 
-void NatPmpClientImpl::DoSendMappingRequest(boost::uint32_t protocol,
-                                            boost::uint16_t private_port,
-                                            boost::uint16_t public_port,
-                                            boost::uint32_t lifetime) {
+void NatPmpClientImpl::DoSendMappingRequest(uint32_t protocol,
+                                            uint16_t private_port,
+                                            uint16_t public_port,
+                                            uint32_t lifetime) {
   if (socket_ && socket_->is_open()) {
     DLOG(INFO) << "Queueing mapping request for protocol = " << protocol <<
         ", private_port = " << private_port << ", public_port = " <<
@@ -151,9 +151,9 @@ void NatPmpClientImpl::DoSendMappingRequest(boost::uint32_t protocol,
     r.buffer[2] = 0;
     r.buffer[3] = 0;
 
-    *((boost::uint16_t *)(r.buffer + 4)) = htons(private_port);
-    *((boost::uint16_t *)(r.buffer + 6)) = htons(public_port);
-    *((boost::uint32_t *)(r.buffer + 8)) = htonl(lifetime);
+    *((uint16_t *)(r.buffer + 4)) = htons(private_port);
+    *((uint16_t *)(r.buffer + 6)) = htons(public_port);
+    *((uint32_t *)(r.buffer + 8)) = htonl(lifetime);
 
     r.length = 12;
     r.retry_count = 0;
@@ -205,7 +205,7 @@ void NatPmpClientImpl::RetransmitPublicAdddressRequest(
   SendRequest(public_ip_request_);
 
   DLOG(INFO) << "Retransmitting public address request, retry = " <<
-      (boost::uint32_t)public_ip_request_.retry_count << "." << std::endl;
+      (uint32_t)public_ip_request_.retry_count << "." << std::endl;
 
   retry_timer_.expires_from_now(boost::posix_time::milliseconds(
       250 * public_ip_request_.retry_count));
@@ -314,14 +314,14 @@ void NatPmpClientImpl::HandleReceiveFrom(const boost::system::error_code & ec,
 }
 
 void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
-  boost::uint32_t opcode = 0;
+  uint32_t opcode = 0;
 
   Protocol::MappingResponse response;
 
   if (endpoint_.address() == m_gateway_address_) {
-    response.result_code = ntohs(*((boost::uint16_t *)(buf + 2)));
+    response.result_code = ntohs(*((uint16_t *)(buf + 2)));
 
-    response.epoch = ntohl(*((boost::uint32_t *)(buf + 4)));
+    response.epoch = ntohl(*((uint32_t *)(buf + 4)));
 
     if (buf[0] != 0) {
       opcode = Protocol::kResultUnsupportedVersion;
@@ -353,7 +353,7 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
       response.type = static_cast<unsigned char>(buf[1]) & 0x7f;
 
       if (static_cast<unsigned char> (buf[1]) == 128) {
-        boost::uint32_t ip = ntohl(*((boost::uint32_t *)(buf + 8)));
+        uint32_t ip = ntohl(*((uint32_t *)(buf + 8)));
 
         response.public_address = boost::asio::ip::address_v4(ip);
 
@@ -372,11 +372,11 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
         */
         SendQueuedRequests();
       } else {
-        response.private_port = ntohs(*((boost::uint16_t *)(buf + 8)));
+        response.private_port = ntohs(*((uint16_t *)(buf + 8)));
 
-        response.public_port = ntohs(*((boost::uint16_t *)(buf + 10)));
+        response.public_port = ntohs(*((uint16_t *)(buf + 10)));
 
-        response.lifetime = ntohl(*((boost::uint32_t *)(buf + 12)));
+        response.lifetime = ntohl(*((uint32_t *)(buf + 12)));
 
         Protocol::MappingRequest request = request_queue_.front();
 

@@ -270,7 +270,7 @@ void TcpConnection::StartWrite() {
 
 //  timeout_for_response_ = kImmediateTimeout;
   Timeout tm_out(bptime::milliseconds(std::max(
-      static_cast<boost::int64_t>(data_buffer_.size() * kTimeoutFactor),
+      static_cast<int64_t>(data_buffer_.size() * kTimeoutFactor),
       kMinTimeout.total_milliseconds())));
 
   std::array<boost::asio::const_buffer, 2> asio_buffer;

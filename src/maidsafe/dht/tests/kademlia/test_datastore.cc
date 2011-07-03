@@ -25,14 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <cstdint>
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "boost/tr1/functional.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/thread/thread.hpp"
 #include "boost/thread/barrier.hpp"
 #include "boost/lexical_cast.hpp"
@@ -59,8 +58,8 @@ namespace kademlia {
 namespace test {
 
 typedef std::vector<std::pair<std::string, std::string>> KeyValuePairGroup;
-const boost::uint16_t kIteratorSize = 23;
-const boost::uint16_t kThreadBarrierSize = 5;
+const uint16_t kIteratorSize = 23;
+const uint16_t kThreadBarrierSize = 5;
 
 class DataStoreTest: public testing::Test {
  public:
@@ -1037,7 +1036,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
     const crypto::RsaKeyPair &crypto_keys(crypto_keys_.at(signer));
 
     for (size_t entry = 0; entry != kEntriesPerSigner; ++entry) {
-      boost::uint32_t rand_num(RandomUint32());
+      uint32_t rand_num(RandomUint32());
       KeyValueTuple kvt =
           MakeKVT(crypto_keys, ((rand_num % 500) + 500), ttl, "", "");
       // Ensure key is unique

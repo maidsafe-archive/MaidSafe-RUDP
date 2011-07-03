@@ -75,10 +75,10 @@ void NatPmpClient::SetMapPortSuccessCallback(
   }
 }
 
-void NatPmpClient::MapPort(boost::uint32_t protocol,
-                           boost::uint16_t private_port,
-                           boost::uint16_t public_port,
-                           boost::uint32_t lifetime) {
+void NatPmpClient::MapPort(uint32_t protocol,
+                           uint16_t private_port,
+                           uint16_t public_port,
+                           uint32_t lifetime) {
   if (protocol != Protocol::kTcp && protocol != Protocol::kUdp) {
     throw std::runtime_error(
         Protocol::StringFromOpcode(Protocol::kErrorInvalidArgs));

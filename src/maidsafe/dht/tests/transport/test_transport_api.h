@@ -48,7 +48,7 @@ namespace test {
 class TestMessageHandler;
 
 static const IP kIP(boost::asio::ip::address_v4::loopback());
-static const boost::uint16_t kThreadGroupSize = 8;
+static const uint16_t kThreadGroupSize = 8;
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<Transport> TransportPtr;
@@ -113,7 +113,7 @@ class TransportAPITest: public testing::Test {
   boost::thread_group thread_group_3_;
   boost::mutex mutex_;
   std::vector<std::string> request_messages_;
-  boost::uint16_t count_;
+  uint16_t count_;
 };
 
 TYPED_TEST_CASE_P(TransportAPITest);

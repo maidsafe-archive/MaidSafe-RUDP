@@ -69,11 +69,11 @@ typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 class EnvironmentNodes : public ::testing::Environment {
  public:
   EnvironmentNodes(
-      boost::uint16_t num_of_nodes,
-      boost::uint16_t k,
-      boost::uint16_t alpha,
-      boost::uint16_t beta,
-      boost::uint16_t num_of_servers,
+      uint16_t num_of_nodes,
+      uint16_t k,
+      uint16_t alpha,
+      uint16_t beta,
+      uint16_t num_of_servers,
       const bptime::time_duration &mean_refresh_interval);
 
  protected:

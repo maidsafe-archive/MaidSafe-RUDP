@@ -56,7 +56,7 @@ class Commands {
  public:
   Commands(std::shared_ptr<Node> node,
            std::shared_ptr<Securifier> securifier,
-           const boost::uint16_t &K);
+           const uint16_t &K);
   void Run();
  private:
   void print_node_info(const Contact &contact);

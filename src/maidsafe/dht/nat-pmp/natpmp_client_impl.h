@@ -31,13 +31,13 @@ Created by Julian Cain on 11/3/09.
 #ifndef MAIDSAFE_DHT_NAT_PMP_NATPMP_CLIENT_IMPL_H_
 #define MAIDSAFE_DHT_NAT_PMP_NATPMP_CLIENT_IMPL_H_
 
+#include <cstdint>
 #include <deque>
+#include <functional>
 #include <utility>
 #include <vector>
 
 #include "boost/asio.hpp"
-#include "boost/cstdint.hpp"
-#include "boost/function.hpp"
 
 #include "maidsafe/dht/nat-pmp/natpmp_protocol.h"
 
@@ -48,9 +48,9 @@ namespace dht {
 namespace natpmp {
 
 typedef boost::function <void (
-    boost::uint16_t protocol,
-    boost::uint16_t private_port,
-    boost::uint16_t public_port)> NatPmpMapPortSuccessCbType;
+    uint16_t protocol,
+    uint16_t private_port,
+    uint16_t public_port)> NatPmpMapPortSuccessCbType;
 
 /**
 * Implements the underlying NAT-PMP client implementation.
@@ -95,10 +95,10 @@ class NatPmpClientImpl {
   * @param lifetime
   * @note thread-safe
   */
-  void SendMappingRequest(boost::uint32_t protocol,
-                          boost::uint16_t private_port,
-                          boost::uint16_t public_port,
-                          boost::uint32_t lifetime);
+  void SendMappingRequest(uint32_t protocol,
+                          uint16_t private_port,
+                          uint16_t public_port,
+                          uint32_t lifetime);
 
  private:
 
@@ -108,10 +108,10 @@ class NatPmpClientImpl {
   /**
   * Sends a mapping.
   */
-  void DoSendMappingRequest(boost::uint32_t protocol,
-                            boost::uint16_t private_port,
-                            boost::uint16_t public_port,
-                            boost::uint32_t lifetime);
+  void DoSendMappingRequest(uint32_t protocol,
+                            uint16_t private_port,
+                            uint16_t public_port,
+                            uint32_t lifetime);
 
   /**
   * Sends a public address request to the gateway.

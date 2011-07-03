@@ -42,7 +42,7 @@ namespace maidsafe {
 namespace dht {
 
 namespace rpcprotocol {
-typedef std::map<std::string, Stats<boost::uint64_t>> RpcStatsMap;
+typedef std::map<std::string, Stats<uint64_t>> RpcStatsMap;
 }  // namespace rpcprotocol
 
 namespace kademlia {
@@ -63,7 +63,7 @@ struct CallbackData {
 
 class Operations {
  public:
-  explicit Operations(boost::shared_ptr<kademlia::Node> node);
+  explicit Operations(std::shared_ptr<kademlia::Node> node);
   void TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
                        const int &iterations);
   void TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
@@ -72,14 +72,14 @@ class Operations {
   static void PrintRpcTimings(const rpcprotocol::RpcStatsMap &rpc_timings);
  private:
   void PingCallback(const std::string &result,
-                    boost::shared_ptr<CallbackData> data);
+                    std::shared_ptr<CallbackData> data);
   void GetNodeContactDetailsCallback(const std::string &result,
-                                     boost::shared_ptr<CallbackData> data);
+                                     std::shared_ptr<CallbackData> data);
   void StoreCallback(const std::string &result,
-                     boost::shared_ptr<CallbackData> data);
+                     std::shared_ptr<CallbackData> data);
   void FindValueCallback(const std::string &result,
-                         boost::shared_ptr<CallbackData> data);
-  boost::shared_ptr<kademlia::Node> node_;
+                         std::shared_ptr<CallbackData> data);
+  std::shared_ptr<kademlia::Node> node_;
 //  crypto::Crypto cryobj_;
   std::string private_key_, public_key_, public_key_validation_;
 };

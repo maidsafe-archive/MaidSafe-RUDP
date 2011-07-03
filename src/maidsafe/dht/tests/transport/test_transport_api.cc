@@ -222,7 +222,7 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     listening_message_handlers_.push_back(msg_h);
     ++listening_transports_itr;
   }
-  boost::uint16_t thread_size(0);
+  uint16_t thread_size(0);
   sending_transports_itr = sending_transports_.begin();
   while (sending_transports_itr != sending_transports_.end()) {
     listening_transports_itr = listening_transports_.begin();
@@ -372,12 +372,12 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   std::string request(RandomString(23));
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                bptime::seconds(1));
-  boost::uint16_t timeout = 100;
+  uint16_t timeout = 100;
   while (msgh_sender->responses_received().size() == 0 && timeout < 1100) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     timeout +=100;
   }
-  EXPECT_GE(boost::uint16_t(1000), timeout);
+  EXPECT_GE(uint16_t(1000), timeout);
   ASSERT_EQ(size_t(0), msgh_sender->results().size());
   ASSERT_EQ(size_t(1), msgh_listener->requests_received().size());
   ASSERT_EQ(request, msgh_listener->requests_received().at(0).first);
@@ -441,15 +441,15 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
-  boost::uint8_t num_sender_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
-  boost::uint8_t num_listener_transports(
-      static_cast<boost::uint8_t>(RandomUint32() % 5 + 3));
-  boost::uint8_t num_messages(
-      static_cast<boost::uint8_t>(RandomUint32() % 10 + 1));
-  for (boost::uint8_t i = 0; i < num_sender_transports; ++i)
+  uint8_t num_sender_transports(
+      static_cast<uint8_t>(RandomUint32() % 5 + 3));
+  uint8_t num_listener_transports(
+      static_cast<uint8_t>(RandomUint32() % 5 + 3));
+  uint8_t num_messages(
+      static_cast<uint8_t>(RandomUint32() % 10 + 1));
+  for (uint8_t i = 0; i < num_sender_transports; ++i)
     this->SetupTransport(false, 0);
-  for (boost::uint8_t i = 0; i < num_listener_transports; ++i)
+  for (uint8_t i = 0; i < num_listener_transports; ++i)
     this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(num_messages));
 }

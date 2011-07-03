@@ -51,7 +51,7 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t kThreadBarrierSize = 2;
+static const uint16_t kThreadBarrierSize = 2;
 
 class RoutingTableTest : public CreateContactAndNodeId,
                          public testing::TestWithParam<int> {
@@ -59,7 +59,7 @@ class RoutingTableTest : public CreateContactAndNodeId,
   RoutingTableTest()
     : rank_info_(),
       holder_id_(NodeId::kRandomId),
-      k_(static_cast<boost::uint16_t>(GetParam())),
+      k_(static_cast<uint16_t>(GetParam())),
       routing_table_(holder_id_, k_),
       thread_barrier_(new boost::barrier(kThreadBarrierSize)) {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
@@ -89,7 +89,7 @@ class RoutingTableTest : public CreateContactAndNodeId,
     EXPECT_EQ(size_t(count), close_contacts.size());
   }
 
-  void DoGetContactsClosestToOwnId(const boost::uint32_t &count) {
+  void DoGetContactsClosestToOwnId(const uint32_t &count) {
     std::vector<Contact> close_contacts;
     std::vector<Contact> exclude_contacts;
     thread_barrier_->wait();
@@ -123,11 +123,11 @@ class RoutingTableTest : public CreateContactAndNodeId,
  protected:
   void SetUp() {}
 
-  boost::uint16_t GetKBucketCount() const {
+  uint16_t GetKBucketCount() const {
     return routing_table_.KBucketCount();
   }
 
-  boost::uint16_t GetKBucketSizeForKey(const boost::uint16_t &key) {
+  uint16_t GetKBucketSizeForKey(const uint16_t &key) {
     return routing_table_.KBucketSizeForKey(key);
   }
 
@@ -166,12 +166,12 @@ class RoutingTableTest : public CreateContactAndNodeId,
     NodeId node_id = GenerateUniqueRandomId(holder_id_, 1);
     Contact contact = ComposeContact(node_id, 4323);
     AddContact(contact);
-    boost::uint16_t distance = routing_table_.KDistanceTo(node_id);
+    uint16_t distance = routing_table_.KDistanceTo(node_id);
     EXPECT_EQ(kKeySizeBits - 2, distance);
   }
 
   void FillContactToRoutingTable() {
-    for (boost::uint16_t i = 0; i < k_; ++i) {
+    for (uint16_t i = 0; i < k_; ++i) {
       Contact contact = ComposeContact(NodeId(NodeId::kRandomId), i + 6111);
       (i == (k_ -1) ) ? AddContact(contact_) :
           AddContact(contact);
@@ -186,7 +186,7 @@ class RoutingTableTest : public CreateContactAndNodeId,
 
   RankInfoPtr rank_info_;
   NodeId holder_id_;
-  boost::uint16_t k_;
+  uint16_t k_;
   RoutingTable routing_table_;
   Contact contact_;
   std::shared_ptr<boost::barrier> thread_barrier_;
@@ -289,7 +289,7 @@ TEST_P(RoutingTableTest, BEH_KAD_SetValidated) {
 
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   // Compose contact with random common_leading_bits
-  for (boost::uint16_t i = 0; i < k_; ++i) {
+  for (uint16_t i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_,
                                             511 - (RandomUint32() % 511));
     Contact contact = ComposeContact(node_id, 5111 + i);
@@ -299,9 +299,9 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
   NodeId node_id = GenerateUniqueRandomId(holder_id_, 511 - 9);
   Contact contact = ComposeContact(node_id, 5113);
   AddContact(contact);
-  boost::uint16_t num_of_contacts(0);
-  for (boost::uint16_t i = 0; i < GetKBucketCount(); ++i) {
-    boost::uint16_t contacts_in_bucket = GetKBucketSizeForKey(i);
+  uint16_t num_of_contacts(0);
+  for (uint16_t i = 0; i < GetKBucketCount(); ++i) {
+    uint16_t contacts_in_bucket = GetKBucketSizeForKey(i);
     EXPECT_GE(k_, contacts_in_bucket);
     num_of_contacts += contacts_in_bucket;
   }
@@ -312,7 +312,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForRandomCommonLeadingBits) {
 TEST_P(RoutingTableTest, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   // GenerateUniqueRandomId will flip the bit specified by the position
   // so the i=0 one will be the different to the holderId
-  for (boost::uint16_t i = 0; i < k_; ++i) {
+  for (uint16_t i = 0; i < k_; ++i) {
     NodeId node_id = GenerateUniqueRandomId(holder_id_, i);
     Contact contact = ComposeContact(node_id, 5111 + i);
     AddContact(contact);
@@ -322,7 +322,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContactForHigherCommonLeadingBits) {
   Contact contact = ComposeContact(node_id, 5113);
   AddContact(contact);
   EXPECT_EQ(k_ + 1, GetSize());
-  boost::uint16_t expected_kbucket_count = kKeySizeBits - (k_ - 2);
+  uint16_t expected_kbucket_count = kKeySizeBits - (k_ - 2);
   if (k_ <= 9 )
     expected_kbucket_count = kKeySizeBits - 9 + 1;
   EXPECT_EQ(expected_kbucket_count, GetKBucketCount());
@@ -490,7 +490,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
         contact_id))).last_seen);
   }
   Clear();
-  boost::uint16_t i(0);
+  uint16_t i(0);
   {
     // create a list contacts having 3 common leading bits with the holder
     // and add them into the routing table
@@ -551,7 +551,7 @@ TEST_P(RoutingTableTest, BEH_KAD_AddContact) {
     bool replaced(false);
     bool not_replaced(false);
     // To prevent test hanging
-    boost::uint16_t times_of_try(0);
+    uint16_t times_of_try(0);
     while (((!not_replaced) || (!replaced)) && (times_of_try < 60000)) {
       NodeId contact_id = GenerateUniqueRandomId(holder_id_, 508);
       Contact contact = ComposeContact(contact_id, (5000 + i + times_of_try));
@@ -592,9 +592,9 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_AddContactPerformance8000RandomFill) {
     Contact contact = ComposeContact(contact_id, 5000);
     AddContact(contact);
 
-    boost::uint32_t contacts_in_table(0);
-    for (boost::uint16_t i = 0; i < GetKBucketCount(); ++i) {
-      boost::uint32_t contacts_in_bucket = GetKBucketSizeForKey(i);
+    uint32_t contacts_in_table(0);
+    for (uint16_t i = 0; i < GetKBucketCount(); ++i) {
+      uint32_t contacts_in_bucket = GetKBucketSizeForKey(i);
       ASSERT_GE(k_, contacts_in_bucket);
       contacts_in_table += contacts_in_bucket;
     }
@@ -865,7 +865,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetCloseContacts) {
 
     ContactsByDistanceToThisId key_dist_indx
       = target_routingtable.get<DistanceToThisIdTag>();
-    boost::uint32_t counter(0);
+    uint32_t counter(0);
     auto it = key_dist_indx.begin();
     while ((counter < (k_ + 21u)) && (it != key_dist_indx.end())) {
       ASSERT_NE(close_contacts.end(), std::find(close_contacts.begin(),
@@ -943,7 +943,7 @@ TEST_P(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
   this->FillContactToRoutingTable();
   EXPECT_EQ(-1, routing_table_.IncrementFailedRpcCount(
       NodeId(NodeId::kRandomId)));
-  EXPECT_EQ(boost::uint16_t(0), (*(GetContainer().get<NodeIdTag>().find(
+  EXPECT_EQ(uint16_t(0), (*(GetContainer().get<NodeIdTag>().find(
      contact_.node_id()))).num_failed_rpcs);
   ASSERT_EQ((*(GetContainer().get<NodeIdTag>().find(
       contact_.node_id()))).num_failed_rpcs,
@@ -952,7 +952,7 @@ TEST_P(RoutingTableTest, BEH_KAD_IncrementFailedRpcCount) {
     // keep increasing one contact's failed RPC counter
     // till it gets removed
     size_t ori_size = GetSize();
-    boost::uint16_t times_of_try = 0;
+    uint16_t times_of_try = 0;
     do {
       ++times_of_try;
     } while ((routing_table_.IncrementFailedRpcCount(contact_.node_id()) != -1)
@@ -1040,7 +1040,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetLocalRankInfo) {
 
 TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
   const size_t kNumberOfThreads(10);
-  const boost::uint16_t kIterartorSize(10);
+  const uint16_t kIterartorSize(10);
   IoServicePtr asio_service(new boost::asio::io_service);
   boost::thread_group asio_thread_group;
   std::vector<NodeId> node_ids_stored, node_ids_to_be_stored;
@@ -1048,7 +1048,7 @@ TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
   std::vector<boost::tuple<std::string, RankInfoPtr, IP>> stored_attrs;
   std::set <NodeId> unique_node_ids;
   bool unique(false);
-  for (boost::uint16_t i = 0; i < kIterartorSize; ++i) {
+  for (uint16_t i = 0; i < kIterartorSize; ++i) {
     // Node ids stored
     {
       NodeId node_id;
@@ -1100,7 +1100,7 @@ TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
   }
   EXPECT_EQ(node_ids_stored.size(), GetSize());
   // Posting all the jobs
-  for (boost::uint16_t i = 0; i < kIterartorSize; ++i) {
+  for (uint16_t i = 0; i < kIterartorSize; ++i) {
     Contact contact = ComposeContact(node_ids_to_be_stored[i], 6001 + i);
     asio_service->post(std::bind(&RoutingTableSingleKTest::DoAddContact, this,
                                  contact));
@@ -1136,7 +1136,7 @@ TEST_P(RoutingTableSingleKTest, BEH_KAD_MutexTestWithMultipleThread) {
                          node_ids_to_be_stored.end());
   // Varifying results
   ASSERT_EQ(node_ids_stored.size(), GetSize());
-  for (boost::uint16_t i = 0; i < node_ids_stored.size(); ++i) {
+  for (uint16_t i = 0; i < node_ids_stored.size(); ++i) {
     Contact result;
     routing_table_.GetContact(node_ids_stored[i], &result);
     EXPECT_EQ(node_ids_stored[i], result.node_id());

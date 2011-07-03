@@ -119,7 +119,7 @@ class SenderTaskTest: public testing::Test {
 
   transport::Info info_;
   std::shared_ptr<SenderTask> sender_task_;
-  volatile boost::uint16_t count_callback_1_, count_callback_2_;
+  volatile uint16_t count_callback_1_, count_callback_2_;
   boost::thread_group asio_thread_group_;
 };
 
@@ -250,7 +250,7 @@ TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
                                      this, arg::_1, "request", arg::_2, arg::_3,
                                      "response", arg::_4, arg::_5);
   bool is_new_id(true);
-  boost::uint16_t i(0);
+  uint16_t i(0);
   // Tasks to be executed and removed
   for (i = 0; i < 10; ++i) {
     crypto_key_data.GenerateKeys(4096);

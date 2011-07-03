@@ -140,7 +140,7 @@ TEST(NodeIdTest, BEH_KAD_StringCtr) {
 TEST(NodeIdTest, BEH_KAD_EncodingCtr) {
   std::string known_raw(kKeySizeBytes, 0);
   for (char c = 0; c < kKeySizeBytes; ++c)
-    known_raw.at(static_cast<boost::uint8_t>(c)) = c;
+    known_raw.at(static_cast<uint8_t>(c)) = c;
   for (int i = 0; i < 4; ++i) {
     std::string rand_str(RandomString(kKeySizeBytes));
     std::string bad_encoded("Bad Encoded"), encoded, known_encoded;
@@ -212,7 +212,7 @@ TEST(NodeIdTest, BEH_KAD_CtrPower) {
   node_id = NodeId(kKeySizeBits + 1);
   ASSERT_FALSE(node_id.IsValid());
   std::string bin_id(kKeySizeBits, '0');
-  for (boost::int16_t i = 0; i < kKeySizeBits; ++i) {
+  for (int16_t i = 0; i < kKeySizeBits; ++i) {
     NodeId node_id(i);
     bin_id[kKeySizeBits - 1 - i] = '1';
     ASSERT_EQ(bin_id, node_id.ToStringEncoded(NodeId::kBinary))
@@ -250,7 +250,7 @@ TEST(NodeIdTest, BEH_KAD_CtrBetweenIds) {
         << std::max(id1, id2).ToStringEncoded(NodeId::kBinary) << std::endl;
   }
   NodeId min_range, max_range(NodeId::kMaxId);
-  for (boost::uint16_t i = 0; i < kKeySizeBits - 1; ++i) {
+  for (uint16_t i = 0; i < kKeySizeBits - 1; ++i) {
     min_range = NodeId(i);
     max_range = NodeId(i + 1);
     id = NodeId(min_range, max_range);

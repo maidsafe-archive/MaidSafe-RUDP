@@ -151,7 +151,7 @@ class ServicesTest: public CreateContactAndNodeId,
   }
 
   void CheckServiceConstructAttributes(const Service& service,
-                                       boost::uint16_t k) {
+                                       uint16_t k) {
     EXPECT_EQ(0U, service.routing_table_->Size());
     EXPECT_EQ(0U, service.datastore_->key_value_index_->size());
     EXPECT_FALSE(service.node_joined_);
@@ -248,7 +248,7 @@ class ServicesTest: public CreateContactAndNodeId,
 
  protected:
 
-  void PopulateDataStore(boost::uint16_t count) {
+  void PopulateDataStore(uint16_t count) {
     bptime::time_duration old_ttl(bptime::pos_infin);
     crypto::RsaKeyPair crypto_key;
     crypto_key.GenerateKeys(4096);
@@ -259,14 +259,14 @@ class ServicesTest: public CreateContactAndNodeId,
     }
   }
 
-  void PopulateRoutingTable(boost::uint16_t count) {
+  void PopulateRoutingTable(uint16_t count) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
       AddContact(routing_table_, contact, rank_info_);
     }
   }
-  void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
+  void PopulateRoutingTable(uint16_t count, uint16_t pos) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);

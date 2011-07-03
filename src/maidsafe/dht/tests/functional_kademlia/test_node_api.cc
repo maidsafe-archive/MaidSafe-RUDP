@@ -25,16 +25,15 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <cstdint>
 #include <exception>
+#include <functional>
 #include <list>
 #include <set>
 #include <vector>
 
 #include "gtest/gtest.h"
 #include "boost/asio.hpp"
-#include "boost/bind.hpp"
-#include "boost/function.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/progress.hpp"
 #include "boost/lexical_cast.hpp"
@@ -51,15 +50,15 @@ namespace dht {
 namespace kademlia {
 
 namespace node_api_test {
-const boost::uint16_t kThreadGroupSize = 3;
+const uint16_t kThreadGroupSize = 3;
 }   // namespace node_api_test
 
 namespace test {
 
-extern boost::uint16_t kK_;
+extern uint16_t kK_;
 extern std::vector<std::shared_ptr<Node>> nodes_;
 extern std::vector<NodeId> node_ids_;
-extern boost::uint16_t kNetworkSize;
+extern uint16_t kNetworkSize;
 extern std::vector<Contact> bootstrap_contacts_;
 extern std::vector<crypto::RsaKeyPair> crypto_key_pairs_;
 std::vector<bool> dones;

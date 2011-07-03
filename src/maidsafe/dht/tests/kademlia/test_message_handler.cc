@@ -250,9 +250,9 @@ class KademliaMessageHandlerTest: public testing::Test {
   }
 
   void InitialiseMap() {
-    invoked_slots_.reset(new std::map<MessageType, boost::uint16_t>);
+    invoked_slots_.reset(new std::map<MessageType, uint16_t>);
     for (int n = kPingRequest; n <= kDownlistNotification; ++n)
-      invoked_slots_->insert(std::pair<MessageType, boost::uint16_t>(
+      invoked_slots_->insert(std::pair<MessageType, uint16_t>(
                                        MessageType(n), 0));
   }
 
@@ -460,14 +460,14 @@ class KademliaMessageHandlerTest: public testing::Test {
     return messages;
   }
 
-  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots() {
+  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots() {
     return invoked_slots_;
   }
 
   void ExecuteThread(std::vector<std::string> messages_copy,
                      int rounds,
                      crypto::RsaKeyPair kp) {
-    boost::uint32_t random_sleep((RandomUint32() % 100) + 100);
+    uint32_t random_sleep((RandomUint32() % 100) + 100);
     for (int a = 0; a < rounds; ++a) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(random_sleep));
       for (size_t n = 0; n < messages_copy.size(); ++n) {
@@ -500,7 +500,7 @@ class KademliaMessageHandlerTest: public testing::Test {
   MessageHandler msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
   MessageHandler msg_hndlr_no_securifier_;
-  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots_;
+  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
   static crypto::RsaKeyPair rsa_keypair_;
 };
@@ -1501,10 +1501,10 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ThreadedMessageHandling) {
   std::vector<std::string> messages(CreateMessages());
   crypto::RsaKeyPair kp;
   kp.GenerateKeys(4096);
-  boost::uint8_t thread_count((RandomUint32() % 5) + 4);
-  boost::uint16_t total_messages(0);
+  uint8_t thread_count((RandomUint32() % 5) + 4);
+  uint16_t total_messages(0);
   boost::thread_group thg;
-  for (boost::uint8_t n = 0; n < thread_count; ++n) {
+  for (uint8_t n = 0; n < thread_count; ++n) {
     int rounds((RandomUint32() % 5) + 4);
     thg.create_thread(std::bind(&KademliaMessageHandlerTest::ExecuteThread,
                                 this, messages, rounds, kp));
@@ -1513,9 +1513,9 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ThreadedMessageHandling) {
 
   thg.join_all();
   std::shared_ptr<std::map<MessageType,
-                  boost::uint16_t>> slots = invoked_slots();
+                  uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(total_messages), (*it).second);
+    ASSERT_EQ(uint16_t(total_messages), (*it).second);
 }
 
 }  // namespace test_service

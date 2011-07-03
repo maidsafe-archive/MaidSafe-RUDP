@@ -55,7 +55,7 @@ bool NetworkInterface::IsLocal(const boost::asio::ip::address & addr) {
   } else {
     boost::asio::ip::address_v4 a4 = addr.to_v4();
 
-    boost::uint32_t ip = a4.to_ulong();
+    uint32_t ip = a4.to_ulong();
 
     return (
         (ip & 0xff000000) == 0x0a000000 ||
