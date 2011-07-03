@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 #include <string>
-#include "boost/function.hpp"
 
 #ifdef __MSVC__
 #pragma warning(push)

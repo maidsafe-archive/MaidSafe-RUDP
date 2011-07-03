@@ -32,9 +32,6 @@ Created by Julian Cain on 11/3/09.
 #define MAIDSAFE_DHT_NAT_PMP_NATPMP_CLIENT_H_
 
 #include "boost/asio.hpp"
-#include "boost/function.hpp"
-#include "boost/shared_ptr.hpp"
-
 #include "maidsafe/dht/nat-pmp/natpmp_client_impl.h"
 
 namespace maidsafe {

@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/filesystem/fstream.hpp"
 #include "boost/filesystem.hpp"
 #include "boost/format.hpp"
-#include "boost/shared_ptr.hpp"
 #include "boost/thread/thread.hpp"
 #include "boost/lexical_cast.hpp"
 
