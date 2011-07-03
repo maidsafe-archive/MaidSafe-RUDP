@@ -144,7 +144,7 @@ class KademliaDemoUtils {
                                      arg::_1, &done, &response);
     JoinNode(node_id, bootstrap_contacts, callback);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     return response;
   }
 
@@ -422,7 +422,7 @@ int main(int argc, char **argv) {
       printf("=====================================\n\n");
       signal(SIGINT, ctrlc_handler);
       while (!ctrlc_pressed) {
-        boost::this_thread::sleep(boost::posix_time::seconds(1));
+        maidsafe::Sleep(boost::posix_time::seconds(1));
       }
     }
     bootstrap_contacts.clear();

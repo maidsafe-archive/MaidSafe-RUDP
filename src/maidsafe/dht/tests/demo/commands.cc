@@ -74,7 +74,7 @@ void Commands::Run() {
     ProcessCommand(cmdline, &wait);
     if (wait) {
       while (!result_arrived_)
-        boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+        Sleep(boost::posix_time::milliseconds(500));
       result_arrived_ = false;
     }
   }
@@ -313,7 +313,7 @@ void Commands::Store50Values(const std::vector<std::string> &args,
     std::string signature;
     node_->Store(key, value, signature, ttl, securifier_, callback);
     while (!arrived) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(500));
     }
   }
   result_arrived_ = true;

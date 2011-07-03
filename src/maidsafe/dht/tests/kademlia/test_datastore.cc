@@ -284,7 +284,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingKeyValue) {
   EXPECT_FALSE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, refresh-type store.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->StoreValue(new_good_refresh_kvt.key_value_signature,
       new_ttl, new_good_refresh_kvt.request_and_signature,
       crypto_keys_.at(0).public_key(), true));
@@ -302,7 +302,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingKeyValue) {
   EXPECT_FALSE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, publish-type store.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->StoreValue(new_good_store_kvt.key_value_signature,
       new_ttl, new_good_store_kvt.request_and_signature,
       crypto_keys_.at(0).public_key(), false));
@@ -394,7 +394,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, refresh-type store.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_FALSE(data_store_->StoreValue(new_good_refresh_kvt.key_value_signature,
       new_ttl, new_good_refresh_kvt.request_and_signature,
       crypto_keys_.at(0).public_key(), true));
@@ -411,7 +411,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, publish-type store.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->StoreValue(new_good_store_kvt.key_value_signature,
       new_ttl, new_good_store_kvt.request_and_signature,
       crypto_keys_.at(0).public_key(), false));
@@ -529,7 +529,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
 
   // Same key, same value, same signing private key, refresh-type delete,
   // confirm time not expired.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_FALSE(data_store_->DeleteValue(
       new_good_refresh_kvt.key_value_signature,
       new_good_refresh_kvt.request_and_signature, true));
@@ -550,7 +550,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
   KeyValueTuple temp = *key_value_index_->begin();
   temp.confirm_time = bptime::microsec_clock::universal_time();
   key_value_index_->replace(key_value_index_->begin(), temp);
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->DeleteValue(
       new_good_refresh_kvt.key_value_signature,
       new_good_refresh_kvt.request_and_signature, true));
@@ -576,7 +576,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
   temp = *key_value_index_->begin();
   temp.deleted = false;
   key_value_index_->replace(key_value_index_->begin(), temp);
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->DeleteValue(new_good_delete_kvt.key_value_signature,
               new_good_delete_kvt.request_and_signature, false));
   ASSERT_EQ(1U, key_value_index_->size());
@@ -666,7 +666,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, refresh-type delete.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->DeleteValue(
       new_good_refresh_kvt.key_value_signature,
       new_good_refresh_kvt.request_and_signature, true));
@@ -684,7 +684,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 
   // Same key, same value, same signing private key, publish-type delete.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   EXPECT_TRUE(data_store_->DeleteValue(new_good_delete_kvt.key_value_signature,
               new_good_delete_kvt.request_and_signature, false));
   ASSERT_EQ(1U, key_value_index_->size());
@@ -876,8 +876,8 @@ TEST_F(DataStoreTest, BEH_KAD_GetValues) {
 TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
-  bptime::time_duration two_seconds(bptime::seconds(3));
-  bptime::time_duration four_seconds(bptime::seconds(6));
+  bptime::time_duration two_seconds(bptime::seconds(2));
+  bptime::time_duration four_seconds(bptime::seconds(4));
   std::vector<KeyValueTuple> kvts, returned_kvts;
   const size_t kTotalEntries(100), kRepeatedValues(16);
   // kRepeatedValues must be a multiple of 2 for the test to succeed.
@@ -953,7 +953,7 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   }
 
   // Sleep for 2 seconds then Refresh again
-  boost::this_thread::sleep(two_seconds);
+  Sleep(two_seconds);
   data_store_->Refresh(&returned_kvts);
   ASSERT_TRUE(returned_kvts.empty());
   returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));
@@ -972,7 +972,7 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   ASSERT_EQ(kTotalEntries + kRepeatedValues, key_value_index_->size());
 
   // Sleep for 2 seconds then Refresh again
-  boost::this_thread::sleep(two_seconds);
+  Sleep(two_seconds);
   data_store_->Refresh(&returned_kvts);
   ASSERT_TRUE(returned_kvts.empty());
   returned_kvts.push_back(MakeKVT(crypto_keys, 1024, two_seconds, "", ""));

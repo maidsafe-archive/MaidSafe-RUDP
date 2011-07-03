@@ -81,7 +81,7 @@ void SecurifierGetPublicKeyAndValidation::
          DummyFind(std::string public_key_id,
                    GetPublicKeyAndValidationCallback callback) {
   // Imitating delay in lookup for kNetworkDelay seconds
-  boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
+  Sleep(boost::posix_time::milliseconds(kNetworkDelay));
   std::map<std::string, std::string>::iterator  itr;
   itr = public_key_id_map_.find(public_key_id);
   if (itr != public_key_id_map_.end())

@@ -283,7 +283,7 @@ class TransportMessageHandlerTest : public testing::Test {
 
     uint32_t random_sleep((RandomUint32() % 100) + 100);
     for (int a = 0; a < rounds; ++a) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(random_sleep));
+      Sleep(boost::posix_time::milliseconds(random_sleep));
       for (size_t n = 0; n < messages_copy.size(); ++n)
         msg_hndlr_->OnMessageReceived(messages_copy[n], info, &response,
                                       &timeout);

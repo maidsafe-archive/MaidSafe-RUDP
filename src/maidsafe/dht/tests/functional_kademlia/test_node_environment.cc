@@ -242,7 +242,7 @@ void EnvironmentNodes::SetUp() {
                     std::bind(&ErrorCodeCallback, arg::_1, &done,
                     &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());
     DLOG(INFO) << "Joined node " << node_ids_[i].ToStringEncoded(NodeId::kHex)
                << std::endl;
@@ -257,7 +257,7 @@ void EnvironmentNodes::SetUp() {
 }
 
 void EnvironmentNodes::TearDown() {
-    boost::this_thread::sleep(boost::posix_time::seconds(1));
+    Sleep(boost::posix_time::seconds(1));
 
     for (int16_t n = kNetworkSize - 1; n >= 0; --n)
       transports_[n]->StopListening();
