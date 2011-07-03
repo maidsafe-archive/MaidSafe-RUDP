@@ -624,7 +624,7 @@ void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
 void Node::Impl::RefreshDataStore() {
   std::vector<KeyValueTuple> key_value_tuples;
   while (joined_) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+    Sleep(boost::posix_time::milliseconds(10000));
     data_store_->Refresh(&key_value_tuples);
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   std::bind(&Node::Impl::PostStoreRefresh, this, arg:: _1));

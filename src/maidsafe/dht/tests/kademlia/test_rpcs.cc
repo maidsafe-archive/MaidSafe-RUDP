@@ -327,7 +327,7 @@ TEST_P(RpcsTest, FUNC_KAD_PingNoTarget) {
               transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   ASSERT_GT(0, response_code);
@@ -341,7 +341,7 @@ TEST_P(RpcsTest, BEH_KAD_PingTarget) {
               transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   ASSERT_EQ(0, response_code);
@@ -360,7 +360,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesEmptyRT) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   ASSERT_EQ(0, contact_list.size());
@@ -383,7 +383,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   bool found(false);
@@ -420,7 +420,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   bool found(false);
@@ -461,7 +461,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
   ASSERT_EQ(k, return_contacts.size());
@@ -475,7 +475,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
                transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -491,7 +491,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_EQ(0, return_contacts.size());
@@ -520,7 +520,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
   ASSERT_EQ(k, return_contacts.size());
@@ -534,7 +534,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
                transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -550,7 +550,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_EQ(0, return_contacts.size());
@@ -563,7 +563,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   done = false;
   response_code = 0;
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -578,7 +578,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
@@ -607,7 +607,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
                transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   // Sender receives kSuccess, but value not stored in receiver's datastore
   EXPECT_EQ(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
@@ -623,7 +623,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   // Value not stored in data store
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
@@ -663,7 +663,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
     for (size_t i = 0; i< 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(100));
         --i;
       }
     }
@@ -705,11 +705,11 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
                transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   JoinNetworkLookup(service_securifier_);
   bptime::ptime refresh_time_old = GetRefreshTime(kvs);
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
+  Sleep(boost::posix_time::seconds(1));
 
   // send store refresh request
   done = false;
@@ -721,7 +721,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
                       transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   JoinNetworkLookup(service_securifier_);
   ASSERT_EQ(0, response_code);
 
@@ -737,7 +737,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_EQ(0, return_contacts.size());
@@ -745,7 +745,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
 
   // attempt store refresh then find - ttl has expired so refresh should be
   // unsuccessful and find should fail
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
+  Sleep(boost::posix_time::seconds(1));
   done = false;
   response_code = 0;
   rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
@@ -755,7 +755,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
                       transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   JoinNetworkLookup(service_securifier_);
   ASSERT_EQ(0, response_code);
 
@@ -770,7 +770,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
   ASSERT_EQ(k, return_contacts.size());
@@ -803,7 +803,7 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
   }
   // Store Refresh rpc
   std::string req_signature;
-  boost::this_thread::sleep(boost::posix_time::seconds(2));
+  Sleep(boost::posix_time::seconds(2));
   for (size_t i = 0; i< 10; ++i) {
     if (i%2)
       req_signature = "Invalid Request Signature";
@@ -820,7 +820,7 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
     for (size_t i = 0; i< 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(100));
         --i;
       }
     }
@@ -860,15 +860,15 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
                transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(0, response_code);
   JoinNetworkLookup(service_securifier_);
 
   // Attempt refresh with fake key
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
+  Sleep(boost::posix_time::seconds(1));
   AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
-  boost::this_thread::sleep(boost::posix_time::seconds(1));
+  Sleep(boost::posix_time::seconds(1));
   done = false;
   response_code = 0;
   rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
@@ -878,7 +878,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
                       transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   JoinNetworkLookup(service_securifier_);
   ASSERT_EQ(0, response_code);
 
@@ -895,7 +895,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
   ASSERT_EQ(k, return_contacts.size());
@@ -925,7 +925,7 @@ TEST_P(RpcsTest, BEH_KAD_Delete) {
                 transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -940,7 +940,7 @@ TEST_P(RpcsTest, BEH_KAD_Delete) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
@@ -970,7 +970,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMalicious) {
                 transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   // Sender receives kSuccess, but value not deleted from receiver's datastore
   EXPECT_EQ(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
@@ -988,7 +988,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMalicious) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
   // Value not deleted from data store
   EXPECT_EQ(transport::kSuccess, response_code);
@@ -1014,7 +1014,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteNonExistingKey) {
                 transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
   EXPECT_NE(transport::kSuccess, response_code);
 
@@ -1056,7 +1056,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
     for (size_t i = 0; i< 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(100));
         --i;
       }
     }
@@ -1103,7 +1103,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefresh) {
                        transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -1118,7 +1118,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefresh) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
   EXPECT_EQ(transport::kSuccess, response_code);
@@ -1159,7 +1159,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
                        transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_NE(transport::kSuccess, response_code);
   JoinNetworkLookup(service_securifier_);
 
@@ -1174,7 +1174,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
                    transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
   // Value present in data store
   ASSERT_EQ(transport::kSuccess, response_code);
@@ -1214,7 +1214,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMalicious) {
                        transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
 
   StopAndReset();
@@ -1249,7 +1249,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshNonExistingKey) {
                        transport_type_);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_NE(transport::kSuccess, response_code);
 
   StopAndReset();
@@ -1303,7 +1303,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
     for (size_t i = 0; i< 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(100));
         --i;
       }
     }
@@ -1461,7 +1461,7 @@ class RpcsMultiClientNodesTest
                                       done, response_code),
                             transport_type_);
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     ASSERT_EQ(0, *response_code);
     ASSERT_EQ(0, return_values.size());
 
@@ -1474,7 +1474,7 @@ class RpcsMultiClientNodesTest
                                   response_code),
                         transport_type_);
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     ASSERT_EQ(0, *response_code);
     JoinNetworkLookup(service_securifier_);
 
@@ -1492,7 +1492,7 @@ class RpcsMultiClientNodesTest
                             transport_type_);
 
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     ASSERT_EQ(0, *response_code);
     ASSERT_EQ(kvs.value, return_values[0]);
     ASSERT_EQ(0, return_contacts.size());
@@ -1506,7 +1506,7 @@ class RpcsMultiClientNodesTest
                                    done, response_code),
                          transport_type_);
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(transport::kSuccess, *response_code);
     JoinNetworkLookup(service_securifier_);
 
@@ -1522,7 +1522,7 @@ class RpcsMultiClientNodesTest
                                       done, response_code),
                             transport_type_);
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     // Value deleted
     EXPECT_EQ(transport::kSuccess, *response_code);
@@ -1748,7 +1748,7 @@ class RpcsMultiServerNodesTest
                                       &ldone, response_code),
                             transport_type_);
     while (!ldone)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(500));
 
     ASSERT_EQ(0, *response_code);
     ASSERT_EQ(0, return_values.size());
@@ -1762,7 +1762,7 @@ class RpcsMultiServerNodesTest
                                   response_code),
                         transport_type_);
     while (!ldone)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(500));
 
     ASSERT_EQ(0, *response_code);
     JoinNetworkLookup(services_securifier_[server_index]);
@@ -1781,7 +1781,7 @@ class RpcsMultiServerNodesTest
                             transport_type_);
 
     while (!ldone)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     ASSERT_EQ(0, *response_code);
     ASSERT_EQ(kvs.value, return_values[0]);
@@ -1796,7 +1796,7 @@ class RpcsMultiServerNodesTest
                                    &ldone, response_code),
                          transport_type_);
     while (!ldone)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(transport::kSuccess, *response_code);
     JoinNetworkLookup(services_securifier_[server_index]);
@@ -1813,7 +1813,7 @@ class RpcsMultiServerNodesTest
                                       done, response_code),
                             transport_type_);
     while (!*done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     // Value deleted
     EXPECT_EQ(transport::kSuccess, *response_code);
@@ -1890,7 +1890,7 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
         localdone = localdone && done[client_index][index];
       }
     }
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   }
   StopAndReset();
 }

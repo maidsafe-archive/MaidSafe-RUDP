@@ -181,7 +181,7 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Client) {
   node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(size_t(kNetworkSize), nodes_.size());
   ASSERT_TRUE(node->client_only_node());
   ASSERT_TRUE(node->joined());
@@ -202,7 +202,7 @@ TEST_F(NodeApiTest, BEH_KAD_Join_Server) {
   node->Join(node_id, bootstrap_contacts_, jf);
 
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   EXPECT_EQ(size_t(kNetworkSize), nodes_.size());
 
@@ -221,7 +221,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
   JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node->joined());
   done = false;
   //  set node_id_pos for node to be searched and latter check for this node
@@ -231,7 +231,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Nodes) {
                                    arg::_1, arg::_2, node_id_pos, &done);
   node->FindNodes(nodes_[node_id_pos]->contact().node_id(), fnf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   node->Leave(NULL);
 }
 
@@ -245,7 +245,7 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
   JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node->joined());
   done = false;
   boost::mutex m;
@@ -269,7 +269,7 @@ TEST_F(NodeApiTest, BEH_KAD_Store) {
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   for (size_t i = 0; i < dones.size(); ++i)
     EXPECT_TRUE(dones[i]);
@@ -287,7 +287,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
   JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node->joined());
   done = false;
   boost::mutex m;
@@ -311,7 +311,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   for (size_t i = 0; i < dones.size(); ++i)
     EXPECT_TRUE(dones[i]);
@@ -327,7 +327,7 @@ TEST_F(NodeApiTest, BEH_KAD_Find_Value) {
     node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
   }
   while (dones.size() != fvfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   for (size_t i = 0; i < dones.size(); ++i)
     EXPECT_TRUE(dones[i]);
@@ -346,7 +346,7 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
   JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node->joined());
   done = false;
   boost::mutex m;
@@ -370,7 +370,7 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   for (size_t i = 0; i < dones.size(); ++i)
     EXPECT_TRUE(dones[i]);
@@ -382,7 +382,7 @@ TEST_F(NodeApiTest, BEH_KAD_Delete) {
                key_value_signatures[0].signature,
                securifier_, df);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   node->Leave(NULL);
   dones.clear();
 }
@@ -397,7 +397,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
   JoinFunctor jf = std::bind(&NodeApiTest::Callback, this, arg::_1, &done);
   node->Join(node_id, bootstrap_contacts_, jf);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node->joined());
 
   int num_store_values(10);
@@ -422,7 +422,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
       node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
     }
     while (dones.size() != fvfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
     for (size_t i = 0; i < dones.size(); ++i)
       EXPECT_TRUE(dones[i]);
@@ -441,7 +441,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
                 ttl, securifier_, sfs[i]);
   }
   while (dones.size() != sfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   for (size_t i = 0; i < dones.size(); ++i)
       EXPECT_TRUE(dones[i]);
   dones.clear();
@@ -458,7 +458,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
       node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
     }
     while (dones.size() != fvfs.size())
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
     for (size_t i = 0; i < dones.size(); ++i)
       EXPECT_TRUE(dones[i]);
@@ -473,7 +473,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
                key_value_signatures[0].signature,
                securifier_, df);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
 
   //  Call FindValue when value deleted
   {
@@ -484,7 +484,7 @@ TEST_F(NodeApiTest, BEH_KAD_Alternate_API_Calls) {
                                        arg::_5, &done, check_pass, &m);
     node->FindValue(NodeId(key_value_signatures[0].key), securifier_, fvf);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
   }
   node->Leave(NULL);
   dones.clear();

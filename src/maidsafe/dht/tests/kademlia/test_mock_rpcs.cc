@@ -80,12 +80,12 @@ class RpcsMockTransport : public transport::Transport {
     }
   }
   void SignalError() {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    Sleep(boost::posix_time::milliseconds(500));
     ++repeat_factor_;
     (*on_error())(transport::kError, transport::Endpoint());
   }
   void SignalMessageReceived(std::string data) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    Sleep(boost::posix_time::milliseconds(500));
     transport::Info info;
     transport::Timeout response_timeout(transport::kImmediateTimeout);
     std::string response("response");
@@ -399,7 +399,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
                                      arg::_2, &b, &m, &result);
     rpcs->Ping(securifier_, peer_, pf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       {
         boost::mutex::scoped_lock loch_lomond(m);
         b2 = b;
@@ -459,7 +459,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
     rpcs->Store(NodeId(NodeId::kRandomId), "", "",
                 boost::posix_time::seconds(1), securifier_, peer_, sf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       {
         boost::mutex::scoped_lock loch_lomond(m);
         b2 = b;
@@ -519,7 +519,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
                                               &result);
     rpcs->StoreRefresh("", "", securifier_, peer_, srf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
       b2 = b;
     }
@@ -577,7 +577,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
     rpcs->Delete(NodeId(NodeId::kRandomId), "", "",
                  securifier_, peer_, df, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
       b2 = b;
     }
@@ -635,7 +635,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
                                                &result);
     rpcs->DeleteRefresh("", "", securifier_, peer_, drf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
       b2 = b;
     }
@@ -694,7 +694,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
 
     rpcs->FindNodes(NodeId(NodeId::kRandomId), securifier_, peer_, fnf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
       b2 = b;
     }
@@ -753,7 +753,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
 
     rpcs->FindValue(NodeId(NodeId::kRandomId), securifier_, peer_, fvf, kTcp);
     while (!b2) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock loch_lomond(m);
       b2 = b;
     }
@@ -806,7 +806,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
 
   rpcs->Downlist(node_ids, securifier_, peer_, kTcp);
   while (!MockMessageHandler::ops_completion_flag) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
   }
   MockMessageHandler::ops_completion_flag = false;
 }

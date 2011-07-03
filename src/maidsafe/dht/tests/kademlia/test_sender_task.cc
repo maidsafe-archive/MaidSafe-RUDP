@@ -113,7 +113,7 @@ class SenderTaskTest: public testing::Test {
   void DummyFind(const std::string&,
                  GetPublicKeyAndValidationCallback callback) {
     // Imitating delay in lookup for kNetworkDelay seconds
-    boost::this_thread::sleep(boost::posix_time::milliseconds(kNetworkDelay));
+    Sleep(boost::posix_time::milliseconds(kNetworkDelay));
     callback("", "");
   }
 

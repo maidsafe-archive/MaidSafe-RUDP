@@ -56,7 +56,7 @@ void TestMessageHandler::DoOnRequestReceived(const std::string &request,
                                              const Info &info,
                                              std::string *response,
                                              Timeout *timeout) {
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+  Sleep(boost::posix_time::milliseconds(10));
   boost::mutex::scoped_lock lock(mutex_);
   requests_received_.push_back(std::make_pair(request, info));
   *response = "Replied to " + request + " (Id = " + boost::lexical_cast<
@@ -243,7 +243,7 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     }
     ++sending_transports_itr;
   }
-  boost::this_thread::sleep(boost::posix_time::seconds(10));
+  Sleep(boost::posix_time::seconds(10));
   work_.reset();
   work_1_.reset();
   work_2_.reset();
@@ -374,7 +374,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
                bptime::seconds(1));
   uint16_t timeout = 100;
   while (msgh_sender->responses_received().size() == 0 && timeout < 1100) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     timeout +=100;
   }
   EXPECT_GE(uint16_t(1000), timeout);
@@ -392,7 +392,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
                bptime::milliseconds(2));
   timeout = 100;
   while (msgh_listener->requests_received().size() < 2 && timeout < 2000) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     timeout +=100;
   }
   ASSERT_EQ(size_t(1), msgh_sender->results().size());

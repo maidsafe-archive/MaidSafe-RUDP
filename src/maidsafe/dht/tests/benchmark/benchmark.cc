@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     node->Join(kadconfigpath,
                boost::bind(&JoinCallback::Callback, &callback, _1));
     while (!callback.result_arrived())
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(500));
     // Checking result of callback
     if (!callback.success()) {
       printf("Node failed to join the network.\n");

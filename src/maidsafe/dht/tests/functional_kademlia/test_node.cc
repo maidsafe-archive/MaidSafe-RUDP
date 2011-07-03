@@ -492,7 +492,7 @@ class Env : public testing::Environment {
 
   virtual void TearDown() {
     DLOG(INFO) << "TestNode, TearDown Starting..." << std::endl;
-    boost::this_thread::sleep(boost::posix_time::seconds(5));
+    Sleep(boost::posix_time::seconds(5));
 
 #ifdef WIN32
     HANDLE hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -1158,7 +1158,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
     transports_[2 + i]->StopListening(transport_ports_[2 + i]);
     channel_managers_[2 + i]->Stop();
   }
-  boost::this_thread::sleep(boost::posix_time::seconds(2));
+  Sleep(boost::posix_time::seconds(2));
   // try to find value
   // load the value from no.20 node
   FindCallback cb_2;
@@ -1237,7 +1237,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
 }
 
 TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
-  boost::this_thread::sleep(boost::posix_time::seconds(2));
+  Sleep(boost::posix_time::seconds(2));
   // select a random node from node 1 to node kNetworkSize
   int r_node = 1 + base::RandomInt32() % (kNetworkSize - 1);
   NodeId r_node_id(nodes_[r_node]->node_id());
@@ -1303,7 +1303,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   ASSERT_TRUE(cb_1.result());
   // Wait for a RPC timeout interval until the downlist are handled in the
   // network
-  boost::this_thread::sleep(boost::posix_time::seconds(11));
+  Sleep(boost::posix_time::seconds(11));
   // Compute the sum of the nodes whose routing table contain r_node again
   int16_t sum_1(0);
   for (int16_t i = 1; i < kNetworkSize; i++) {
@@ -1440,7 +1440,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
       false);
   wait_result(&cb_1);
   ASSERT_FALSE(cb_1.result());
-  boost::this_thread::sleep(boost::posix_time::seconds(33));
+  Sleep(boost::posix_time::seconds(33));
   // Restart dead node
   DLOG(INFO) << "+++++++++++++++++ Restarting " << r_node << std::endl;
   transport::TransportCondition tc;
