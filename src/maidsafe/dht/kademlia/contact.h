@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 #include <vector>
-#include "boost/cstdint.hpp"
 #include "boost/scoped_ptr.hpp"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/version.h"

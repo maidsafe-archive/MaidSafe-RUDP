@@ -33,12 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_API_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_API_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/scoped_ptr.hpp"
 
@@ -104,9 +104,9 @@ class Node {
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
-       const boost::uint16_t &k,
-       const boost::uint16_t &alpha,
-       const boost::uint16_t &beta,
+       const std::uint16_t &k,
+       const uint16_t &alpha,
+       const uint16_t &beta,
        const boost::posix_time::time_duration &mean_refresh_interval);
 
   ~Node();
@@ -219,9 +219,9 @@ class Node {
   AlternativeStorePtr alternative_store();
   OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;
-  boost::uint16_t k() const;
-  boost::uint16_t alpha() const;
-  boost::uint16_t beta() const;
+  uint16_t k() const;
+  uint16_t alpha() const;
+  uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
 
   friend class test::NodeImplTest;

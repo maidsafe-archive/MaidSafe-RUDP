@@ -38,7 +38,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/multi_index/member.hpp"
 #include "boost/multi_index/mem_fun.hpp"
 #include "boost/multi_index/composite_key.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
 

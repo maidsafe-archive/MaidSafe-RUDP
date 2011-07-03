@@ -86,12 +86,12 @@ NodeId::NodeId(const std::string &id, const EncodingType &encoding_type)
     raw_id_.clear();
 }
 
-NodeId::NodeId(const boost::uint16_t &power) : raw_id_(kZeroId) {
+NodeId::NodeId(const uint16_t &power) : raw_id_(kZeroId) {
   if (power >= kKeySizeBits) {
     raw_id_.clear();
     return;
   }
-  boost::uint16_t shift = power % 8;
+  uint16_t shift = power % 8;
   if (shift != 0) {
     raw_id_[kKeySizeBytes - BitToByteCount(power)] += 1 << shift;
   } else {
@@ -169,7 +169,7 @@ bool NodeId::CloserToTarget(const NodeId &id1, const NodeId &id2,
   std::string raw_id1(id1.raw_id_);
   std::string raw_id2(id2.raw_id_);
   std::string raw_id_target(target_id.raw_id_);
-  for (boost::uint16_t i = 0; i < kKeySizeBytes; ++i) {
+  for (uint16_t i = 0; i < kKeySizeBytes; ++i) {
     unsigned char result1 = raw_id1[i] ^ raw_id_target[i];
     unsigned char result2 = raw_id2[i] ^ raw_id_target[i];
     if (result1 != result2)

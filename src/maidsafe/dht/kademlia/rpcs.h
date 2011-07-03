@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_RPCS_H_
 #define MAIDSAFE_DHT_KADEMLIA_RPCS_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -77,7 +78,7 @@ struct RpcsFailurePeer {
  public:
   RpcsFailurePeer() : peer(), rpcs_failure(1) {}
   Contact peer;
-  boost::uint16_t rpcs_failure;
+  uint16_t rpcs_failure;
 };
 
 class Rpcs {
@@ -166,7 +167,7 @@ class Rpcs {
                     const transport::TransportCondition &transport_condition,
                     const transport::Info &info,
                     const protobuf::PingResponse &response,
-                    const boost::uint32_t &index,
+                    const uint32_t &index,
                     PingFunctor callback,
                     const std::string &message,
                     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -175,7 +176,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindValueResponse &response,
-      const boost::uint32_t &index,
+      const uint32_t &index,
       FindValueFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -184,7 +185,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::FindNodesResponse &response,
-      const boost::uint32_t &index,
+      const uint32_t &index,
       FindNodesFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -192,7 +193,7 @@ class Rpcs {
   void StoreCallback(const transport::TransportCondition &transport_condition,
                      const transport::Info &info,
                      const protobuf::StoreResponse &response,
-                     const boost::uint32_t &index,
+                     const uint32_t &index,
                      StoreFunctor callback,
                      const std::string &message,
                      std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -201,7 +202,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::StoreRefreshResponse &response,
-      const boost::uint32_t &index,
+      const uint32_t &index,
       StoreRefreshFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -209,7 +210,7 @@ class Rpcs {
   void DeleteCallback(const transport::TransportCondition &transport_condition,
                       const transport::Info &info,
                       const protobuf::DeleteResponse &response,
-                      const boost::uint32_t &index,
+                      const uint32_t &index,
                       DeleteFunctor callback,
                       const std::string &message,
                       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);
@@ -218,7 +219,7 @@ class Rpcs {
       const transport::TransportCondition &transport_condition,
       const transport::Info &info,
       const protobuf::DeleteRefreshResponse &response,
-      const boost::uint32_t &index,
+      const uint32_t &index,
       DeleteRefreshFunctor callback,
       const std::string &message,
       std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer);

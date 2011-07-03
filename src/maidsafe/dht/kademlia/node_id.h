@@ -28,9 +28,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_ID_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_ID_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
-#include "boost/cstdint.hpp"
 #include "maidsafe/common/platform_config.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/version.h"
@@ -50,7 +50,7 @@ namespace kademlia {
 /**
 * The size of DHT keys and node IDs in bits.
 **/
-const boost::uint16_t kKeySizeBits = 8 * kKeySizeBytes;
+const uint16_t kKeySizeBits = 8 * kKeySizeBytes;
 
 const std::string kZeroId(kKeySizeBytes, 0);
 
@@ -100,7 +100,7 @@ class NodeId {
   * Constructor.  Creates a NodeId equal to 2 ^ power.
   * @param power < kKeySizeBytes.
   */
-  explicit NodeId(const boost::uint16_t &power);
+  explicit NodeId(const uint16_t &power);
 
   /**
   * Constructor.  Creates a random NodeId in range [lower ID, higher ID]

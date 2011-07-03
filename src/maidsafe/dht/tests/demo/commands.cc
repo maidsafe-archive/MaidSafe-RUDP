@@ -58,7 +58,7 @@ namespace kaddemo {
 
 Commands::Commands(std::shared_ptr<Node> node,
                    std::shared_ptr<Securifier> securifier,
-                   const boost::uint16_t &K)
+                   const uint16_t &K)
     : node_(node), securifier_(securifier), result_arrived_(false),
       finish_(false),
       min_succ_stores_(K * kMinSuccessfulPecentageStore) {}
@@ -109,7 +109,7 @@ void Commands::Store(const std::vector<std::string> &args, bool *wait_for_cb,
     if (args[2] == "-1")
       ttl = bptime::pos_infin;
     else
-      ttl = bptime::minutes(boost::lexical_cast<boost::int32_t>(args[2]));
+      ttl = bptime::minutes(boost::lexical_cast<int32_t>(args[2]));
     kademlia::Key key(std::string(args.at(0)), NodeId::kHex);
     if (!key.IsValid()) {
       key = kademlia::NodeId(crypto::Hash<crypto::SHA512>(args.at(0)));
@@ -298,7 +298,7 @@ void Commands::Store50Values(const std::vector<std::string> &args,
   *wait_for_cb = true;
   bool arrived;
   std::string value;
-  for (boost::uint16_t i = 0; i < 50; ++i) {
+  for (uint16_t i = 0; i < 50; ++i) {
     arrived = false;
     kademlia::NodeId key(crypto::Hash<crypto::SHA512>(prefix +
                          boost::lexical_cast<std::string>(i)));
@@ -342,7 +342,7 @@ bool Commands::ReadFile(const std::string &path, std::string *content) {
   }
   try {
     boost::filesystem::ifstream fin;
-    boost::uint64_t size = boost::filesystem::file_size(path);
+    uint64_t size = boost::filesystem::file_size(path);
     if (size == 0) {
       printf("File %s is empty\n", path.c_str());
     }

@@ -59,10 +59,10 @@ namespace kademlia {
 
 namespace test {
 
-// static const boost::uint16_t k = 8;
-static const boost::uint16_t alpha = 3;
-static const boost::uint16_t beta = 2;
-static const boost::uint16_t randomnoresponserate = 20;  // in percentage
+// static const uint16_t k = 8;
+static const uint16_t alpha = 3;
+static const uint16_t beta = 2;
+static const uint16_t randomnoresponserate = 20;  // in percentage
 
 class SecurifierValidateTrue: public Securifier {
  public:
@@ -203,7 +203,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
   static void TearDownTestCase() {}
 
-  void PopulateRoutingTable(boost::uint16_t count, boost::uint16_t pos) {
+  void PopulateRoutingTable(uint16_t count, uint16_t pos) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
       Contact contact = ComposeContact(contact_id, 5000);
@@ -436,14 +436,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 
   void FindNodeResponseThread(FindNodesFunctor callback,
                               std::vector<Contact> response_list) {
-    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
+    uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, response_list.size(), response_list);
   }
 
   void FindNodeNoResponseThread(FindNodesFunctor callback,
                                 std::vector<Contact> response_list) {
-    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    uint16_t interval(100 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, -1, response_list);
   }
@@ -516,7 +516,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   void FindValueResponseThread(Rpcs::FindValueFunctor callback,
                                std::vector<std::string> response_value_list,
                                std::vector<Contact> response_contact_list) {
-    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
+    uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
     callback(rank_info_, 0, response_value_list,
@@ -526,7 +526,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   void FindValueNoResponseThread(Rpcs::FindValueFunctor callback,
                                  std::vector<std::string> response_value_list,
                                  std::vector<Contact> response_contact_list) {
-    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    uint16_t interval(100 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
     callback(rank_info_, -1, response_value_list, response_contact_list,
@@ -549,7 +549,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
         new_routing_table_contact.num_failed_rpcs = 1;
         down_contacts_->insert(new_routing_table_contact);
       } else {
-        boost::uint16_t num_failed_rpcs = (*itr).num_failed_rpcs + 1;
+        uint16_t num_failed_rpcs = (*itr).num_failed_rpcs + 1;
         key_indx.modify(itr, ChangeNumFailedRpc(num_failed_rpcs));
       }
       ++it_node;
@@ -624,14 +624,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 
   template <class T>
   void CommonResponseThread(T callback) {
-    boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
+    uint16_t interval(10 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, RandomUint32() % test::k);
   }
 
   template <class T>
   void CommonNoResponseThread(T callback) {
-    boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
+    uint16_t interval(100 * (RandomUint32() % 5) + 1);
     boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, -1);
   }
@@ -656,10 +656,10 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   std::vector<Contact> node_list_;
   RankInfoPtr rank_info_;
 
-  boost::uint16_t num_of_acquired_;
-  boost::uint16_t num_of_deleted_;
-  boost::uint16_t respond_;
-  boost::uint16_t no_respond_;
+  uint16_t num_of_acquired_;
+  uint16_t num_of_deleted_;
+  uint16_t respond_;
+  uint16_t no_respond_;
 
   std::shared_ptr<RoutingTableContactsContainer> respond_contacts_;
   std::shared_ptr<RoutingTableContactsContainer> down_contacts_;

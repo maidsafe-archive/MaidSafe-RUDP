@@ -113,9 +113,9 @@ class KademliaDemoUtils {
   }
 
   void SetUpNode(const bool &client_only_node,
-                 const boost::uint16_t &k,
-                 const boost::uint16_t &alpha,
-                 const boost::uint16_t &beta,
+                 const uint16_t &k,
+                 const uint16_t &alpha,
+                 const uint16_t &beta,
                  bptime::seconds &mean_refresh_interval,
                  const bool &secure) {
     client_only_node_ = client_only_node;
@@ -214,9 +214,9 @@ class KademliaDemoUtils {
   AlternativeStorePtr alternative_store_;
   std::shared_ptr<Node> node_;
   bool client_only_node_;
-  boost::uint16_t k_;
-  boost::uint16_t alpha_;
-  boost::uint16_t beta_;
+  uint16_t k_;
+  uint16_t alpha_;
+  uint16_t beta_;
   bptime::seconds mean_refresh_interval_;
   std::vector<Contact> bootstrap_contacts_;
 };
@@ -260,9 +260,9 @@ int main(int argc, char **argv) {
   try {
     std::string logpath, kadconfigpath, bs_ip, bs_id, ext_ip, configfile,
                 bs_local_ip, thisnodekconfigpath, idpath;
-    boost::uint16_t bs_port(0), port(0);
-    boost::uint16_t type(0), k(2), alpha(1), beta(1);
-    boost::uint32_t refresh_interval(0);
+    uint16_t bs_port(0), port(0);
+    uint16_t type(0), k(2), alpha(1), beta(1);
+    uint32_t refresh_interval(0);
 
     po::options_description desc("Options");
     desc.add_options()
@@ -351,13 +351,13 @@ int main(int argc, char **argv) {
     std::shared_ptr<mk::test_kaddemo::KademliaDemoUtils>
         kademlia_demo_utils(new mk::test_kaddemo::KademliaDemoUtils);
     // Transport Setup
-    type = (vm["type"].as<boost::uint16_t>());
+    type = (vm["type"].as<uint16_t>());
     if (type > 2) {
       printf("Invalid transport type %d.\n", type);
       return 1;
     }
     mk::TransportType transport_type = (mk::TransportType)type;
-    port = vm["port"].as<boost::uint16_t>();
+    port = vm["port"].as<uint16_t>();
     mt::Endpoint end_point("127.0.0.1", port);
     mt::TransportCondition tc;
     tc = kademlia_demo_utils->SetUpTransport(transport_type, end_point);
@@ -371,7 +371,7 @@ int main(int argc, char **argv) {
     // Node Setup
     bool client_only_node(vm["client"].as<bool>());
     if (vm.count("refresh_interval")) {
-      refresh_interval = vm["refresh_interval"].as<boost::uint32_t>();
+      refresh_interval = vm["refresh_interval"].as<uint32_t>();
       refresh_interval = refresh_interval * 60;
     } else {
       refresh_interval = 3600;
@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
       mk::NodeId node_id(mk::NodeId::kRandomId);
       mk::NodeId bs_node_id(bs_id);
       mt::Endpoint end_point(vm["bs_ip"].as<std::string>(),
-                             vm["bs_port"].as<boost::uint16_t>());
+                             vm["bs_port"].as<uint16_t>());
       mk::Contact contact(kademlia_demo_utils->ComposeContact(bs_node_id,
                                                               end_point));
       bootstrap_contacts.push_back(contact);

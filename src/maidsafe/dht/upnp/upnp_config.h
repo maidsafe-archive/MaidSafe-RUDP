@@ -60,7 +60,7 @@ struct PortMapping {
   int external_port;
   ProtocolType protocol;
   bool enabled;
-  std::map<std::string, boost::uint32_t> last_refresh;
+  std::map<std::string, uint32_t> last_refresh;
 };
 
 }  // namespace upnp

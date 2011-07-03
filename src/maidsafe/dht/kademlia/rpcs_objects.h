@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_RPCS_OBJECTS_H_
 #define MAIDSAFE_DHT_KADEMLIA_RPCS_OBJECTS_H_
 
+#include <cstdint>
 #include <string>
 
 #include "boost/multi_index_container.hpp"
@@ -59,14 +60,14 @@ namespace kademlia {
 struct ConnectedObject {
   ConnectedObject(const TransportPtr transport,
        const MessageHandlerPtr message_handler,
-       const boost::uint32_t index)
+       const uint32_t index)
       : transport_ptr(transport),
         message_handler_ptr(message_handler),
         this_index(index) {}
 
   TransportPtr transport_ptr;
   MessageHandlerPtr message_handler_ptr;
-  boost::uint32_t this_index;
+  uint32_t this_index;
 };
 
 struct TagIndexId {};
@@ -76,7 +77,7 @@ typedef boost::multi_index::multi_index_container<
   boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<
       boost::multi_index::tag<TagIndexId>,
-      BOOST_MULTI_INDEX_MEMBER(ConnectedObject, boost::uint32_t, this_index)
+      BOOST_MULTI_INDEX_MEMBER(ConnectedObject, uint32_t, this_index)
     >
   >
 > ConnectedObjectsContainer;
@@ -90,15 +91,15 @@ class ConnectedObjectsList  {
   ~ConnectedObjectsList();
   // Adds a connected object into the multi index
   // return the index of those objects in the container
-  boost::uint32_t AddObject(const TransportPtr transport,
-                            const MessageHandlerPtr message_handler);
+  uint32_t AddObject(const TransportPtr transport,
+                     const MessageHandlerPtr message_handler);
 
   // Remove an object based on the index
   // Returns true if successfully removed or false otherwise.
-  bool RemoveObject(boost::uint32_t index);
+  bool RemoveObject(uint32_t index);
 
   // Return the TransportPtr of the index
-  TransportPtr GetTransport(boost::uint32_t index);
+  TransportPtr GetTransport(uint32_t index);
 
   // Returns the size of the connected objects MI
   size_t Size();
@@ -115,7 +116,7 @@ class ConnectedObjectsList  {
   /** Thread safe shared mutex */
   boost::shared_mutex shared_mutex_;
   /** Global Counter used as an index for each added object */
-  boost::uint32_t index_;
+  uint32_t index_;
 };
 
 }  // namespace kademlia

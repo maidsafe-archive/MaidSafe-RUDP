@@ -184,7 +184,7 @@ class RpcsTest: public CreateContactAndNodeId,
     local_asio_->stop();
   }
 
-  void PopulateRoutingTable(boost::uint16_t count) {
+  void PopulateRoutingTable(uint16_t count) {
     for (int num_contact = 0; num_contact < count; ++num_contact) {
       NodeId contact_id(NodeId::kRandomId);
       Contact contact = ComposeContact(contact_id, 5000);
@@ -246,8 +246,8 @@ class RpcsTest: public CreateContactAndNodeId,
     return (*it).refresh_time;
   }
 
-  boost::uint16_t KDistanceTo(const NodeId &lhs, const NodeId &rhs) {
-    boost::uint16_t distance = 0;
+  uint16_t KDistanceTo(const NodeId &lhs, const NodeId &rhs) {
+    uint16_t distance = 0;
     std::string this_id_binary = lhs.ToStringEncoded(NodeId::kBinary);
     std::string rhs_id_binary = rhs.ToStringEncoded(NodeId::kBinary);
     std::string::const_iterator this_it = this_id_binary.begin();
@@ -260,7 +260,7 @@ class RpcsTest: public CreateContactAndNodeId,
 
   int GetDistance(const std::vector<Contact> &list, int test) {
     int low(0), high(0);
-    boost::uint16_t distance = KDistanceTo(service_contact_.node_id(),
+    uint16_t distance = KDistanceTo(service_contact_.node_id(),
                                            list[0].node_id());
     low = distance;
     auto it = list.begin();

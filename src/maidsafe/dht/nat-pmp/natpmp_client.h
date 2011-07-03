@@ -85,10 +85,10 @@ class NatPmpClient {
   * @param public_port
   * @param lifetime
   */
-  void MapPort(boost::uint32_t protocol,
-               boost::uint16_t private_port,
-               boost::uint16_t public_port,
-               boost::uint32_t lifetime);
+  void MapPort(uint32_t protocol,
+               uint16_t private_port,
+               uint16_t public_port,
+               uint32_t lifetime);
 
  private:
 

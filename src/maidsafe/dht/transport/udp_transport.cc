@@ -150,7 +150,7 @@ void UdpTransport::DoSend(RequestPtr request) {
   }
 
   // Generate a new id for the message.
-  boost::uint64_t request_id = next_request_id_++;
+  uint64_t request_id = next_request_id_++;
   if (next_request_id_ == 0)
     ++next_request_id_;
 
@@ -161,7 +161,7 @@ void UdpTransport::DoSend(RequestPtr request) {
     size_buffer[i] = static_cast<char>(size >> (8 * (3 - i)));
 
   // There's no need to encode the ids as they are opaque to the peer.
-  std::array<boost::uint64_t, 2> ids;
+  std::array<uint64_t, 2> ids;
   ids[0] = request_id;
   ids[1] = request->ReplyToId();
 
@@ -171,7 +171,7 @@ void UdpTransport::DoSend(RequestPtr request) {
   asio_buffer[0] = boost::asio::buffer(size_buffer.data(),
                                        size_buffer.size());
   asio_buffer[1] = boost::asio::buffer(ids.data(),
-                                       ids.size() * sizeof(boost::uint64_t));
+                                       ids.size() * sizeof(uint64_t));
   asio_buffer[2] = boost::asio::buffer(request->Data());
   bs::error_code ec;
   socket_->send_to(asio_buffer, request->Endpoint(), 0, ec);
@@ -218,7 +218,7 @@ void UdpTransport::HandleRead(SocketPtr socket,
 
   // Ignore any message that is too short to contain all necessary fields.
   const size_t size_length = 4;
-  const size_t ids_length = 2 * sizeof(boost::uint64_t);
+  const size_t ids_length = 2 * sizeof(uint64_t);
   if (!ec && bytes_transferred >= size_length + ids_length) {
     DataSize size = (((((read_buffer->at(0) << 8) |
                       read_buffer->at(1)) << 8) |
@@ -228,10 +228,10 @@ void UdpTransport::HandleRead(SocketPtr socket,
     // Check the size matches the actual amount of data received.
     if (size_length + ids_length + size == bytes_transferred) {
       // There's no need to decode the ids as they treated as opaque values.
-      std::array<boost::uint64_t, 2> ids;
+      std::array<uint64_t, 2> ids;
       std::memcpy(ids.data(), &(*read_buffer)[size_length], ids_length);
-      boost::uint64_t request_id = ids[0];
-      boost::uint64_t reply_to_id = ids[1];
+      uint64_t request_id = ids[0];
+      uint64_t reply_to_id = ids[1];
 
       // If this is a reply we can remove the corresponding outstanding request.
       // Removal of the request will cancel the WaitForTimeout operation.
@@ -262,7 +262,7 @@ void UdpTransport::HandleRead(SocketPtr socket,
 
 void UdpTransport::DispatchMessage(const std::string &data,
                                    const Info &info,
-                                   boost::uint64_t reply_to_id) {
+                                   uint64_t reply_to_id) {
   std::string response;
   Timeout response_timeout(kImmediateTimeout);
   (*on_message_received_)(data, info, &response, &response_timeout);
@@ -278,7 +278,7 @@ void UdpTransport::DispatchMessage(const std::string &data,
   }
 }
 
-void UdpTransport::HandleTimeout(boost::uint64_t request_id,
+void UdpTransport::HandleTimeout(uint64_t request_id,
                                  const bs::error_code &ec) {
   if (!ec) {
     RequestMap::iterator request = outstanding_requests_.find(request_id);

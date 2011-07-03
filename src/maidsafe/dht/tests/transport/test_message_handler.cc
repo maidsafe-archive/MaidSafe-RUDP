@@ -186,9 +186,9 @@ class TransportMessageHandlerTest : public testing::Test {
         &TransportMessageHandlerTest::ErrorSlot, this, _1));
   }
   void InitialiseMap() {
-    invoked_slots_.reset(new std::map<MessageType, boost::uint16_t>);
+    invoked_slots_.reset(new std::map<MessageType, uint16_t>);
     for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement; ++n)
-      invoked_slots_->insert(std::pair<MessageType, boost::uint16_t>(
+      invoked_slots_->insert(std::pair<MessageType, uint16_t>(
                                        MessageType(n), 0));
   }
   std::vector<std::string> CreateMessages() {
@@ -281,7 +281,7 @@ class TransportMessageHandlerTest : public testing::Test {
     std::string response;
     Timeout timeout;
 
-    boost::uint32_t random_sleep((RandomUint32() % 100) + 100);
+    uint32_t random_sleep((RandomUint32() % 100) + 100);
     for (int a = 0; a < rounds; ++a) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(random_sleep));
       for (size_t n = 0; n < messages_copy.size(); ++n)
@@ -290,7 +290,7 @@ class TransportMessageHandlerTest : public testing::Test {
     }
   }
 
-  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots() {
+  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots() {
     return invoked_slots_;
   }
   int error_count() { return error_count_; }
@@ -301,7 +301,7 @@ class TransportMessageHandlerTest : public testing::Test {
   std::shared_ptr<MessageHandler> msg_hndlr_;
   std::shared_ptr<Securifier> securifier_null_;
   MessageHandler msg_hndlr_no_securifier_;
-  std::shared_ptr<std::map<MessageType, boost::uint16_t>> invoked_slots_;
+  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
   int error_count_;
 };
@@ -334,9 +334,9 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
         std::string(1, kAsymmetricEncrypt) + messages[n],
         info, &response, &timeout);
   std::shared_ptr<std::map<MessageType,
-                  boost::uint16_t>> slots = invoked_slots();
+                  uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+    ASSERT_EQ(uint16_t(0), (*it).second);
 
   slots->clear();
   InitialiseMap();
@@ -345,14 +345,14 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
         std::string(1, kAsymmetricEncrypt) + messages[n],
         info, &response, &timeout);
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+    ASSERT_EQ(uint16_t(0), (*it).second);
 
   slots->clear();
   InitialiseMap();
   for (size_t n = 0; n < messages.size(); ++n)
     msg_hndlr_->OnMessageReceived("", info, &response, &timeout);
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(0), (*it).second);
+    ASSERT_EQ(uint16_t(0), (*it).second);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage) {  // NOLINT
@@ -484,9 +484,9 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
     msg_hndlr_->OnMessageReceived(messages[n], info, &response, &timeout);
 
   std::shared_ptr<std::map<MessageType,
-                  boost::uint16_t>> slots = invoked_slots();
+                  uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(1), (*it).second);
+    ASSERT_EQ(uint16_t(1), (*it).second);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
@@ -494,10 +494,10 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
 
-  boost::uint8_t thread_count((RandomUint32() % 5) + 4);
-  boost::uint16_t total_messages(0);
+  uint8_t thread_count((RandomUint32() % 5) + 4);
+  uint16_t total_messages(0);
   boost::thread_group thg;
-  for (boost::uint8_t n = 0; n < thread_count; ++n) {
+  for (uint8_t n = 0; n < thread_count; ++n) {
     int rounds((RandomUint32() % 5) + 4);
     thg.create_thread(std::bind(&TransportMessageHandlerTest::ExecuteThread,
                                 this, messages, rounds));
@@ -506,9 +506,9 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
 
   thg.join_all();
   std::shared_ptr<std::map<MessageType,
-                  boost::uint16_t>> slots = invoked_slots();
+                  uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(boost::uint16_t(total_messages), (*it).second);
+    ASSERT_EQ(uint16_t(total_messages), (*it).second);
 }
 
 TEST_F(TransportMessageHandlerTest, BEH_TRANS_MakeSerialisedWrapperMessage) {

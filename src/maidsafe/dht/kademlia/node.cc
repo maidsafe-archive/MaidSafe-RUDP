@@ -41,9 +41,9 @@ Node::Node(IoServicePtr asio_service,
            SecurifierPtr default_securifier,
            AlternativeStorePtr alternative_store,
            bool client_only_node,
-           const boost::uint16_t &k,
-           const boost::uint16_t &alpha,
-           const boost::uint16_t &beta,
+           const uint16_t &k,
+           const uint16_t &alpha,
+           const uint16_t &beta,
            const boost::posix_time::time_duration &mean_refresh_interval)
     : pimpl_(new Impl(asio_service, listening_transport, message_handler,
                       default_securifier, alternative_store, client_only_node,
@@ -152,15 +152,15 @@ bool Node::client_only_node() const {
   return pimpl_->client_only_node();
 }
 
-boost::uint16_t Node::k() const {
+uint16_t Node::k() const {
   return pimpl_->k();
 }
 
-boost::uint16_t Node::alpha() const {
+uint16_t Node::alpha() const {
   return pimpl_->alpha();
 }
 
-boost::uint16_t Node::beta() const {
+uint16_t Node::beta() const {
   return pimpl_->beta();
 }
 

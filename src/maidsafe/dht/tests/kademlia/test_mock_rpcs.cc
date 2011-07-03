@@ -52,7 +52,7 @@ namespace kademlia {
 
 namespace test {
 
-const boost::uint16_t kFailureTolerance = 2;
+const uint16_t kFailureTolerance = 2;
 
 // Mock the TcpTransport class
 class RpcsMockTransport : public transport::Transport {
@@ -93,7 +93,7 @@ class RpcsMockTransport : public transport::Transport {
     (*on_message_received())(data, info, &response, &response_timeout);
   }
  protected:
-  boost::uint16_t repeat_factor_;
+  uint16_t repeat_factor_;
 };
 
 class MockMessageHandler : public MessageHandler {
@@ -342,7 +342,7 @@ class MockRpcsTest : public testing::Test {
                         crypto_key_pair_.private_key()));
   }
 
-  Contact ComposeContact(const NodeId& node_id, boost::uint16_t port) {
+  Contact ComposeContact(const NodeId& node_id, uint16_t port) {
     std::string ip("127.0.0.1");
     std::vector<transport::Endpoint> local_endpoints;
     transport::Endpoint end_point(ip, port);

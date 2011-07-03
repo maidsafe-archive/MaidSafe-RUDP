@@ -69,8 +69,8 @@ namespace dht {
 namespace transport {
 
 typedef boost::asio::ip::address IP;
-typedef boost::uint16_t Port;
-typedef boost::int32_t DataSize;
+typedef uint16_t Port;
+typedef int32_t DataSize;
 typedef bptime::time_duration Timeout;
 
 class MessageHandler;
@@ -142,7 +142,7 @@ struct Info {
   Info() : endpoint(), rtt(0) {}
   virtual ~Info() {}
   Endpoint endpoint;
-  boost::uint32_t rtt;
+  uint32_t rtt;
 };
 
 struct TransportDetails {

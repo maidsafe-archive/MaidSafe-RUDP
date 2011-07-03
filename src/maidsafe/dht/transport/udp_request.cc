@@ -40,7 +40,7 @@ UdpRequest::UdpRequest(const std::string &data,
                        const ip::udp::endpoint &endpoint,
                        asio::io_service &asio_service,
                        const Timeout &timeout,
-                       boost::uint64_t reply_to_id)
+                       uint64_t reply_to_id)
   : data_(data),
     endpoint_(endpoint),
     timer_(asio_service, timeout),
@@ -60,7 +60,7 @@ const Timeout& UdpRequest::ReplyTimeout() const {
   return reply_timeout_;
 }
 
-boost::uint64_t UdpRequest::ReplyToId() const {
+uint64_t UdpRequest::ReplyToId() const {
   return reply_to_id_;
 }
 

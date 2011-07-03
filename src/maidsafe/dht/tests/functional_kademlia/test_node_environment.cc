@@ -46,13 +46,13 @@ namespace kademlia {
 
 namespace test {
 
-boost::uint16_t kNetworkSize;
-boost::uint16_t kK_;
-boost::uint16_t kAlpha_;
-boost::uint16_t kBeta_;
-boost::uint16_t kNumServers_;
+uint16_t kNetworkSize;
+uint16_t kK_;
+uint16_t kAlpha_;
+uint16_t kBeta_;
+uint16_t kNumServers_;
 boost::posix_time::time_duration kMeanRefresh_;
-const boost::uint16_t kThreadGroupSize = 3;
+const uint16_t kThreadGroupSize = 3;
 
 std::string test_dir_;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
@@ -72,7 +72,7 @@ std::vector<std::string> dbs_;
 std::vector<Contact> bootstrap_contacts_;
 std::vector<crypto::RsaKeyPair> crypto_key_pairs_;
 
-std::vector<boost::uint16_t> ports_;
+std::vector<uint16_t> ports_;
 
 NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
@@ -80,7 +80,7 @@ NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
   NodeId new_node;
   std::string new_node_string;
   bool repeat(true);
-  boost::uint16_t times_of_try(0);
+  uint16_t times_of_try(0);
   // generate a random ID and make sure it has not been generated previously
   do {
     new_node = NodeId(NodeId::kRandomId);
@@ -135,11 +135,11 @@ std::string get_app_directory() {
 }
 
 EnvironmentNodes::EnvironmentNodes(
-    boost::uint16_t num_of_nodes,
-    boost::uint16_t k,
-    boost::uint16_t alpha,
-    boost::uint16_t beta,
-    boost::uint16_t num_of_servers,
+    uint16_t num_of_nodes,
+    uint16_t k,
+    uint16_t alpha,
+    uint16_t beta,
+    uint16_t num_of_servers,
     const boost::posix_time::time_duration &mean_refresh_interval) {
   kNetworkSize = num_of_nodes;
   kK_ = k;
@@ -173,7 +173,7 @@ void EnvironmentNodes::SetUp() {
   std::string priv_key, pub_key;
   NodeId seed_id(NodeId::kRandomId);
 
-  for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
+  for (int16_t  i = 0; i < kNetworkSize; ++i) {
     crypto::RsaKeyPair rsa_key_pair;
     rsa_key_pair.GenerateKeys(4096);
     crypto_key_pairs_.push_back(rsa_key_pair);
@@ -259,10 +259,10 @@ void EnvironmentNodes::SetUp() {
 void EnvironmentNodes::TearDown() {
     boost::this_thread::sleep(boost::posix_time::seconds(1));
 
-    for (boost::int16_t n = kNetworkSize - 1; n >= 0; --n)
+    for (int16_t n = kNetworkSize - 1; n >= 0; --n)
       transports_[n]->StopListening();
 
-    for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
+    for (int16_t i = kNetworkSize-1; i >= 0; i--) {
       std::vector<Contact> local_boostrap_contacts;
       nodes_[i]->Leave(&local_boostrap_contacts);
       EXPECT_FALSE(nodes_[i]->joined());

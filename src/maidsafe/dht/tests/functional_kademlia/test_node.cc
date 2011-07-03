@@ -25,6 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <cstdint>
+#include <functional>
 #include <exception>
 #include <list>
 #include <set>
@@ -32,9 +34,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "gtest/gtest.h"
 #include "boost/asio.hpp"
-#include "boost/bind.hpp"
-#include "boost/function.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/progress.hpp"
 #include "boost/lexical_cast.hpp"
@@ -312,9 +311,9 @@ TEST_F(NodeTest, DISABLED_BEH_KAD_TEST) {
 }
 
 /*
-static const boost::uint16_t K = 8;
-const boost::int16_t kNetworkSize = test_node::K + 1;
-const boost::int16_t kTestK = test_node::K;
+static const uint16_t K = 8;
+const int16_t kNetworkSize = test_node::K + 1;
+const int16_t kTestK = test_node::K;
 
 inline void create_rsakeys(std::string *pub_key, std::string *priv_key) {
   crypto::RsaKeyPair kp;
@@ -374,7 +373,7 @@ std::vector<std::string> dbs_;
 // M maidsafe::crypto:: cry_obj_;
 // M GeneralKadCallback cb_;
 std::vector<dht::kademlia::NodeId> node_ids_;
-std::set<boost::uint16_t> ports_;
+std::set<uint16_t> ports_;
 std::string test_dir_;
 //M base::TestValidator validator;
 
@@ -408,7 +407,7 @@ class Env : public testing::Environment {
     transport_ports_.resize(kNetworkSize);
     NodeConstructionParameters kcp;
     ConstructKcp(&kcp);
-    for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
+    for (int16_t  i = 0; i < kNetworkSize; ++i) {
       transports_[i].reset(new transport::UdtTransport);
       transport::TransportCondition tc;
       transport_ports_[i] = transports_[i]->StartListening("", 0, &tc);
@@ -456,7 +455,7 @@ class Env : public testing::Environment {
     kad_contact->set_local_ip(nodes_[0]->local_ip());
     kad_contact->set_local_port(nodes_[0]->local_port());
 
-    for (boost::int16_t i = 1; i < kNetworkSize; i++) {
+    for (int16_t i = 1; i < kNetworkSize; i++) {
       kad_config_file_ = dbs_[i] + "/.kadconfig";
       std::fstream output2(kad_config_file_.c_str(),
                            std::ios::out | std::ios::trunc | std::ios::binary);
@@ -465,7 +464,7 @@ class Env : public testing::Environment {
     }
 
     // start the rest of the nodes (including node 1 again)
-    for (boost::int16_t  i = 1; i < kNetworkSize; ++i) {
+    for (int16_t  i = 1; i < kNetworkSize; ++i) {
       cb_.Reset();
       kad_config_file_ = dbs_[i] + "/.kadconfig";
       nodes_[i]->Join(kad_config_file_,
@@ -500,7 +499,7 @@ class Env : public testing::Environment {
     HANDLE hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hconsole, 7 | 0 << 4);
 #endif
-    for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
+    for (int16_t i = kNetworkSize-1; i >= 0; i--) {
       DLOG(INFO) << "stopping node " << i << std::endl;
       cb_.Reset();
       nodes_[i]->Leave();
@@ -508,7 +507,7 @@ class Env : public testing::Environment {
       transports_[i]->StopListening(transport_ports_[i]);
       channel_managers_[i]->Stop();
     }
-    std::set<boost::uint16_t>::iterator it;
+    std::set<uint16_t>::iterator it;
     for (it = ports_.begin(); it != ports_.end(); it++) {
       // Deleting the DBs in the app dir
       fs::path db_dir(get_app_directory());
@@ -728,7 +727,7 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   }
   ASSERT_EQ(kTestK, closest_nodes.size());
   std::list<Contact> all_nodes;
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     Contact node(nodes_[i]->node_id(), nodes_[i]->ip(),
         nodes_[i]->port());
     all_nodes.push_back(node);
@@ -742,7 +741,7 @@ TEST_F(NodeTest, FUNC_KAD_ClientNodeConnect) {
   }
 
   // Checking no node has stored the clients node in its routing table
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     Contact client_node;
     ASSERT_FALSE(nodes_[i]->GetContact(node_local_1.node_id(), &client_node));
   }
@@ -781,7 +780,7 @@ TEST_F(NodeTest, FUNC_KAD_FindClosestNodes) {
   }
   ASSERT_EQ(kTestK, closest_nodes.size());
   std::list<Contact> all_nodes;
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     Contact node(nodes_[i]->node_id(), nodes_[i]->ip(),
         nodes_[i]->port(), nodes_[i]->local_ip(),
         nodes_[i]->local_port(), nodes_[i]->rendezvous_ip(),
@@ -832,13 +831,13 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
-  boost::int16_t number(0);
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  int16_t number(0);
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
     bool b = false;
     nodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
-      for (boost::uint32_t n = 0; n < values.size() && !b; ++n) {
+      for (uint32_t n = 0; n < values.size() && !b; ++n) {
         SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
@@ -848,7 +847,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadSmallValue) {
       }
     }
   }
-  boost::int16_t d = static_cast<boost::int16_t>
+  int16_t d = static_cast<int16_t>
     (kTestK * kMinSuccessfulPecentageStore);
   ASSERT_LE(d, number);
   // load the value from no.kNetworkSize-1 node
@@ -918,13 +917,13 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
-  boost::int16_t number = 0;
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  int16_t number = 0;
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     bool b = false;
     std::vector<std::string> values;
     nodes_[i]->FindValueLocal(key, &values);
     if (!values.empty()) {
-      for (boost::uint32_t n = 0; n < values.size(); ++n) {
+      for (uint32_t n = 0; n < values.size(); ++n) {
         SignedValue sig_value;
         ASSERT_TRUE(sig_value.ParseFromString(values[n]));
         if (value == sig_value.value()) {
@@ -934,7 +933,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
       }
     }
   }
-  boost::int16_t d(static_cast<boost::int16_t>
+  int16_t d(static_cast<int16_t>
     (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
   // load the value from the node
@@ -974,14 +973,14 @@ TEST_F(NodeTest, FUNC_KAD_StoreAndLoadBigValue) {
 }
 
 TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
-  boost::int16_t count(100);
+  int16_t count(100);
   std::vector<NodeId> keys(count);
   std::vector<SignedValue> values(count);
   std::vector<StoreValueCallback> cbs(count);
   std::string pub_key, priv_key, pub_key_val, sig_req;
   create_rsakeys(&pub_key, &priv_key);
   DLOG(INFO) << "Store..." << std::endl;
-  for (boost::int16_t n = 0; n < count; ++n) {
+  for (int16_t n = 0; n < count; ++n) {
     keys[n] = NodeId(cry_obj_.Hash("key" + base::IntToString(n), "",
                   crypto::STRING_STRING, false));
     values[n].set_value(base::RandomString(1024));
@@ -1003,13 +1002,13 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_StoreAndLoad100Values) {
                                        &cbs[n], _1));
   }
   DLOG(INFO) << "Load..." << std::endl;
-  for (boost::int16_t p = 0; p < count; ++p) {
+  for (int16_t p = 0; p < count; ++p) {
     wait_result(&cbs[p]);
     EXPECT_TRUE(cbs[p].result())
               << "Failed to store " << kMinSuccessfulPecentageStore
               << "% of K copies of the " << p << "th value";
   }
-  for (boost::int16_t p = 0; p < count; ++p) {
+  for (int16_t p = 0; p < count; ++p) {
     FindCallback cb_1;
     nodes_[kTestK / 2]->FindValue(keys[p], false,
                                    boost::bind(&FindCallback::CallbackFunc,
@@ -1085,7 +1084,7 @@ TEST_F(NodeTest, FUNC_KAD_Ping) {
   wait_result(&cb_2);
   // ASSERT_EQ(kRpcResultSuccess, cb_2.result());
   if (!cb_2.result()) {
-    for (boost::int16_t i = 0; i < kNetworkSize; ++i) {
+    for (int16_t i = 0; i < kNetworkSize; ++i) {
       Contact ctc;
       if (nodes_[i]->GetContact(remote_id, &ctc))
           DLOG(INFO) << "node " << i << " port " << nodes_[i]->port()
@@ -1101,8 +1100,8 @@ TEST_F(NodeTest, FUNC_KAD_Ping) {
   // ping a dead node
   NodeId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING, false));
 
-  boost::uint16_t port(4242);
-  std::set<boost::uint16_t>::iterator it;
+  uint16_t port(4242);
+  std::set<uint16_t>::iterator it;
   it = ports_.find(port);
 
   while (it != ports_.end()) {
@@ -1155,7 +1154,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   ASSERT_TRUE(cb_1.result());
   // kill k-1 nodes, there should be at least one node left which holds this
   // value
-  for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
+  for (int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
     nodes_[2 + i]->Leave();
     transports_[2 + i]->StopListening(transport_ports_[2 + i]);
     channel_managers_[2 + i]->Stop();
@@ -1180,7 +1179,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   if (!got_value) {
     FAIL();
   }
-  for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
+  for (int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
     Contact ctc(nodes_[2 + i]->node_id(),
                      nodes_[2 + i]->ip(),
                      nodes_[2 + i]->port(),
@@ -1213,7 +1212,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindValueWithDeadNodes) {
   kad_contact->set_local_ip(nodes_[0]->local_ip());
   kad_contact->set_local_port(nodes_[0]->local_port());
 
-  for (boost::int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
+  for (int16_t i = 0; i < kTestK - 2 && i < kNetworkSize - 2; ++i) {
     cb_.Reset();
     std::string conf_file = dbs_[2 + i] + "/.kadconfig";
 
@@ -1245,8 +1244,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   NodeId r_node_id(nodes_[r_node]->node_id());
   // Compute the sum of the nodes whose routing table contain r_node
   int sum_0 = 0;
-  std::vector<boost::int16_t> holders;
-  for (boost::int16_t i = 1; i < kNetworkSize; ++i) {
+  std::vector<int16_t> holders;
+  for (int16_t i = 1; i < kNetworkSize; ++i) {
     if (i != r_node) {
       Contact test_contact;
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
@@ -1259,7 +1258,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   }
   cb_.Reset();
   // finding the closest node to the dead node
-  boost::int16_t closest_node(0);
+  int16_t closest_node(0);
   NodeId holder_id(nodes_[holders[0]]->node_id());
   NodeId smallest_distance = r_node_id ^ holder_id;
   for (size_t i = 0; i < holders.size(); i++) {
@@ -1307,8 +1306,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Downlist) {
   // network
   boost::this_thread::sleep(boost::posix_time::seconds(11));
   // Compute the sum of the nodes whose routing table contain r_node again
-  boost::int16_t sum_1(0);
-  for (boost::int16_t i = 1; i < kNetworkSize; i++) {
+  int16_t sum_1(0);
+  for (int16_t i = 1; i < kNetworkSize; i++) {
     if (i != r_node) {
       Contact test_contact;
       if (nodes_[i]->GetContact(r_node_id, &test_contact)) {
@@ -1380,7 +1379,7 @@ TEST_F(NodeTest, FUNC_KAD_StoreWithInvalidRequest) {
 }
 
 TEST_F(NodeTest, FUNC_KAD_AllDirectlyConnected) {
-  for (boost::int16_t i = 0; i < kNetworkSize; i++) {
+  for (int16_t i = 0; i < kNetworkSize; i++) {
     ASSERT_EQ(kDirectConnected, nodes_[i]->nat_type());
     std::vector<Contact> exclude_contacts;
     std::vector<Contact> contacts;
@@ -1424,10 +1423,10 @@ TEST_F(NodeTest, FUNC_KAD_IncorrectNodeLocalAddrPing) {
 TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   // find an existing node that has gone down
   // select a random node from node 1 to node kNetworkSize
-  boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
+  uint16_t r_node = 1 + rand() % (kNetworkSize - 2);  // NOLINT (Fraser)
   DLOG(INFO) << "+++++++++++++++++ r_node = " << r_node << std::endl;
   NodeId r_node_id = nodes_[r_node]->node_id();
-  boost::uint16_t r_port = nodes_[r_node]->port();
+  uint16_t r_port = nodes_[r_node]->port();
   nodes_[r_node]->Leave();
   ASSERT_FALSE(nodes_[r_node]->is_joined());
   transports_[r_node]->StopListening(transport_ports_[r_node]);
@@ -1461,7 +1460,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
 }
 
 TEST_F(NodeTest, FUNC_KAD_StartStopNode) {
-  boost::uint16_t r_node = 1 + rand() % (kNetworkSize - 1);  // NOLINT (Fraser)
+  uint16_t r_node = 1 + rand() % (kNetworkSize - 1);  // NOLINT (Fraser)
   std::string kadconfig_path(dbs_[r_node] + "/.kadconfig");
   nodes_[r_node]->Leave();
   EXPECT_FALSE(nodes_[r_node]->is_joined());
@@ -1518,8 +1517,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   wait_result(&cb_);
   ASSERT_TRUE(cb_.result());
   // calculate number of nodes which hold this key/value pair
-  boost::uint16_t number = 0;
-  for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
+  uint16_t number = 0;
+  for (uint16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
     bool b = false;
     nodes_[i]->FindValueLocal(key, &values);
@@ -1534,7 +1533,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
       }
     }
   }
-  boost::uint16_t d(static_cast<boost::uint16_t>
+  uint16_t d(static_cast<uint16_t>
     (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
   // load the value from no.kNetworkSize-1 node
@@ -1565,7 +1564,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_DeleteValue) {
   wait_result(&del_cb);
   ASSERT_TRUE(del_cb.result());
   // Checking no node returns the value
-  for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
+  for (uint16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
     ASSERT_FALSE(nodes_[i]->FindValueLocal(key, &values));
     ASSERT_TRUE(values.empty());
@@ -1725,9 +1724,9 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   ASSERT_TRUE(svcb.result());
 
   // calculate number of nodes which hold this key/value pair
-  boost::uint16_t number(0);
-  boost::int16_t no_value_node(-1);
-  for (boost::uint16_t i = 0; i < kNetworkSize; i++) {
+  uint16_t number(0);
+  int16_t no_value_node(-1);
+  for (uint16_t i = 0; i < kNetworkSize; i++) {
     std::vector<std::string> values;
     bool b(false);
     nodes_[i]->FindValueLocal(key, &values);
@@ -1745,7 +1744,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
     }
   }
   ASSERT_NE(-1, no_value_node);
-  boost::uint16_t d(static_cast<boost::uint16_t>
+  uint16_t d(static_cast<uint16_t>
                     (kTestK * kMinSuccessfulPecentageStore));
   ASSERT_LE(d, number);
 
@@ -1779,7 +1778,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
   wait_result(&update_cb);
   ASSERT_TRUE(update_cb.result());
   number = 0;
-  for (boost::uint16_t i = 0; i < kNetworkSize; ++i) {
+  for (uint16_t i = 0; i < kNetworkSize; ++i) {
     std::vector<std::string> values;
     bool b(false);
     nodes_[i]->FindValueLocal(key, &values);
@@ -1794,7 +1793,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_UpdateValue) {
       }
     }
   }
-  d = static_cast<boost::uint16_t>(kTestK * kMinSuccessfulPecentageStore);
+  d = static_cast<uint16_t>(kTestK * kMinSuccessfulPecentageStore);
   ASSERT_LE(d, number);
 
   // trying to load the value from no.1 node

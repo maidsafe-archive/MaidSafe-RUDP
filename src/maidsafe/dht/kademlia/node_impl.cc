@@ -54,9 +54,9 @@ Node::Impl::Impl(IoServicePtr asio_service,
                  SecurifierPtr default_securifier,
                  AlternativeStorePtr alternative_store,
                  bool client_only_node,
-                 const boost::uint16_t &k,
-                 const boost::uint16_t &alpha,
-                 const boost::uint16_t &beta,
+                 const uint16_t &k,
+                 const uint16_t &alpha,
+                 const uint16_t &beta,
                  const boost::posix_time::time_duration &mean_refresh_interval)
     : asio_service_(asio_service),
       listening_transport_(listening_transport),
@@ -570,15 +570,15 @@ bool Node::Impl::client_only_node() const {
   return client_only_node_;
 }
 
-boost::uint16_t Node::Impl::k() const {
+uint16_t Node::Impl::k() const {
   return k_;
 }
 
-boost::uint16_t Node::Impl::alpha() const {
+uint16_t Node::Impl::alpha() const {
   return kAlpha_;
 }
 
-boost::uint16_t Node::Impl::beta() const {
+uint16_t Node::Impl::beta() const {
   return kBeta_;
 }
 
@@ -768,7 +768,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   }
   // find Alpha closest contacts to enquire
   // or all the left contacts if less than Alpha contacts haven't been tried
-  boost::uint16_t counter = 0;
+  uint16_t counter = 0;
   auto it_begin = pit.first;
   auto it_end = pit.second;
   std::vector<NodeId> to_contact;

@@ -42,7 +42,7 @@ namespace dht {
 
 namespace kademlia {
 
-RoutingTable::RoutingTable(const NodeId &this_id, const boost::uint16_t &k)
+RoutingTable::RoutingTable(const NodeId &this_id, const uint16_t &k)
     : kThisId_(this_id),
       k_(k),
       contacts_(),
@@ -93,9 +93,9 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
 void RoutingTable::InsertContact(const Contact &contact,
                                  RankInfoPtr rank_info,
                                  std::shared_ptr<UpgradeLock> upgrade_lock) {
-  boost::uint16_t common_leading_bits = KDistanceTo(contact.node_id());
-  boost::uint16_t target_kbucket_index = KBucketIndex(common_leading_bits);
-  boost::uint16_t k_bucket_size = KBucketSizeForKey(target_kbucket_index);
+  uint16_t common_leading_bits = KDistanceTo(contact.node_id());
+  uint16_t target_kbucket_index = KBucketIndex(common_leading_bits);
+  uint16_t k_bucket_size = KBucketSizeForKey(target_kbucket_index);
 
   // if the corresponding bucket is full
   if (k_bucket_size == k_) {
@@ -151,11 +151,11 @@ void RoutingTable::GetCloseContacts(
   //      all kbuckets contains more common leading bits shall be considered
   //      if the total still smaller than the count, then recursively add
   //      kbuckets containing less leading bits till reach the count cap
-  boost::uint16_t start_kbucket_index = KBucketIndex(target_id);
-  boost::uint16_t end_kbucket_index = start_kbucket_index +1;
+  uint16_t start_kbucket_index = KBucketIndex(target_id);
+  uint16_t end_kbucket_index = start_kbucket_index +1;
 
-  boost::uint32_t potential_size = KBucketSizeForKey(start_kbucket_index);
-  boost::uint32_t target_size = count + exclude_contacts.size();
+  uint32_t potential_size = KBucketSizeForKey(start_kbucket_index);
+  uint32_t target_size = count + exclude_contacts.size();
   // extend the search range step 1: add all kbuckets containing more
   // common heading bits, the bucket contains the holder will always be the last
   while (end_kbucket_index <= bucket_of_holder_) {
@@ -195,7 +195,7 @@ void RoutingTable::GetCloseContacts(
   // indexed by the new calculated distance
   ContactsByDistanceToThisId key_dist_indx
     = candidate_contacts.get<DistanceToThisIdTag>();
-  boost::uint32_t counter(0);
+  uint32_t counter(0);
   auto it = key_dist_indx.begin();
   while ((counter < count) && (it != key_dist_indx.end())) {
     close_contacts->push_back((*it).contact);
@@ -216,7 +216,7 @@ void RoutingTable::GetContactsClosestToOwnId(
   // indexed by the distance
   ContactsByDistanceToThisId key_dist_indx
     = contacts_.get<DistanceToThisIdTag>();
-  boost::uint32_t counter(0);
+  uint32_t counter(0);
   auto it = key_dist_indx.begin();
   while ((counter < count) && (it != key_dist_indx.end())) {
     // check if the candidate in the exclusion list
@@ -317,7 +317,7 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   auto it = key_indx.find(node_id);
   if (it == key_indx.end())
     return -1;
-  boost::uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;
+  uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   if (num_failed_rpcs > kFailedRpcTolerance)
     key_indx.erase(it);
@@ -370,39 +370,38 @@ ValidateContactPtr RoutingTable::validate_contact() {
   return validate_contact_;
 }
 
-Contact RoutingTable::GetLastSeenContact(const boost::uint16_t &kbucket_index) {
+Contact RoutingTable::GetLastSeenContact(const uint16_t &kbucket_index) {
   auto pit = contacts_.get<KBucketLastSeenTag>().equal_range(boost::make_tuple(
       kbucket_index));
   return (*pit.first).contact;
 }
 
-boost::uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
+uint16_t RoutingTable::KBucketIndex(const NodeId &key) {
 //   if (key > NodeId::kMaxId)
 //     return -1;
-  boost::uint16_t common_leading_bits = KDistanceTo(key);
+  uint16_t common_leading_bits = KDistanceTo(key);
   if (common_leading_bits > bucket_of_holder_)
     common_leading_bits = bucket_of_holder_;
   return common_leading_bits;
 }
 
-boost::uint16_t RoutingTable::KBucketIndex(
-    const boost::uint16_t &common_leading_bits) {
+uint16_t RoutingTable::KBucketIndex(const uint16_t &common_leading_bits) {
   if (common_leading_bits > bucket_of_holder_)
     return bucket_of_holder_;
   return common_leading_bits;
 }
 
-boost::uint16_t RoutingTable::KBucketCount() const {
+uint16_t RoutingTable::KBucketCount() const {
   return bucket_of_holder_+1;
 }
 
-boost::uint16_t RoutingTable::KBucketSizeForKey(const boost::uint16_t &key) {
+uint16_t RoutingTable::KBucketSizeForKey(const uint16_t &key) {
   if (key > bucket_of_holder_) {
     auto pit = contacts_.get<KBucketTag>().equal_range(bucket_of_holder_);
-    return static_cast<boost::uint16_t>(distance(pit.first, pit.second));
+    return static_cast<uint16_t>(distance(pit.first, pit.second));
   } else {
     auto pit = contacts_.get<KBucketTag>().equal_range(key);
-    return static_cast<boost::uint16_t>(distance(pit.first, pit.second));
+    return static_cast<uint16_t>(distance(pit.first, pit.second));
   }
 }
 
@@ -437,10 +436,10 @@ void RoutingTable::SplitKbucket(std::shared_ptr<UpgradeLock> upgrade_lock) {
 
 int RoutingTable::ForceKAcceptNewPeer(
     const Contact &new_contact,
-    const boost::uint16_t &target_bucket,
+    const uint16_t &target_bucket,
     RankInfoPtr rank_info,
     std::shared_ptr<UpgradeLock> upgrade_lock) {
-  boost::uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
+  uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
   int kclosest_bucket_index = GetLeastCommonHeadingBitInKClosestContact();
   if ((brother_bucket_of_holder != target_bucket) &&
       (kclosest_bucket_index != target_bucket)) {
@@ -492,7 +491,7 @@ int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
   GetCloseContacts(kThisId_, k_, exclude_contacts, &contacts);
   ContactsById key_id_indx = contacts_.get<NodeIdTag>();
   auto it = key_id_indx.find(contacts[0].node_id());
-  boost::uint16_t kclosest_bucket_index = (*it).common_leading_bits;
+  uint16_t kclosest_bucket_index = (*it).common_leading_bits;
   for (size_t i = 1; i < contacts.size(); ++i) {
     it = key_id_indx.find(contacts[i].node_id());
     if (kclosest_bucket_index > (*it).common_leading_bits)
@@ -501,8 +500,8 @@ int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
   return kclosest_bucket_index;
 }
 
-boost::uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
-  boost::uint16_t distance = 0;
+uint16_t RoutingTable::KDistanceTo(const NodeId &rhs) const {
+  uint16_t distance = 0;
   std::string this_id_binary = kThisId_.ToStringEncoded(NodeId::kBinary);
   std::string rhs_id_binary = rhs.ToStringEncoded(NodeId::kBinary);
   std::string::const_iterator this_it = this_id_binary.begin();

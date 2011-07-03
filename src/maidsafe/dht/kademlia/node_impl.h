@@ -28,12 +28,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
@@ -92,9 +92,9 @@ class Node::Impl {
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
-       const boost::uint16_t &k,
-       const boost::uint16_t &alpha,
-       const boost::uint16_t &beta,
+       const uint16_t &k,
+       const uint16_t &alpha,
+       const uint16_t &beta,
        const boost::posix_time::time_duration &mean_refresh_interval);
   // virtual destructor to allow tests to use a derived Impl and befriend it
   // rather than polluting this with friend tests.
@@ -204,13 +204,13 @@ class Node::Impl {
   bool client_only_node() const;
   /** Getter.
    *  @return The k_ */
-  boost::uint16_t k() const;
+  uint16_t k() const;
   /** Getter.
    *  @return The kAlpha_ */
-  boost::uint16_t alpha() const;
+  uint16_t alpha() const;
   /** Getter.
    *  @return The kBeta_ */
-  boost::uint16_t beta() const;
+  uint16_t beta() const;
   /** Getter.
    *  @return The kMeanRefreshInterval_ */
   boost::posix_time::time_duration mean_refresh_interval() const;
@@ -469,7 +469,7 @@ class Node::Impl {
   bool client_only_node_;
 
   /** Global K parameter */
-  const boost::uint16_t k_;
+  const uint16_t k_;
 
   /** Global threshold to define the number of succeed required to consider a
    *  Store, Delete or Update to be success */
@@ -477,11 +477,11 @@ class Node::Impl {
 
   /** Alpha parameter to define how many contacts to be enquired during one
    *  iteration */
-  const boost::uint16_t kAlpha_;
+  const uint16_t kAlpha_;
 
   /** Beta parameter to define how many contacted contacts required in one
    *  iteration before starting a new iteration */
-  const boost::uint16_t kBeta_;
+  const uint16_t kBeta_;
   const boost::posix_time::seconds kMeanRefreshInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;

@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_CONFIG_H_
 #define MAIDSAFE_DHT_KADEMLIA_CONFIG_H_
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -35,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/io_service.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 
 #ifdef __MSVC__
@@ -106,7 +106,7 @@ typedef std::function<void(int, Contact)> GetContactFunctor;
 
 typedef NodeId Key;
 typedef boost::asio::ip::address IP;
-typedef boost::uint16_t Port;
+typedef uint16_t Port;
 
 
 typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
@@ -118,7 +118,7 @@ typedef std::shared_ptr<transport::Info> RankInfoPtr;
 
 
 // The size of DHT keys and node IDs in bytes.
-const boost::uint16_t kKeySizeBytes(64);
+const uint16_t kKeySizeBytes(64);
 
 // The mean time between refreshes
 const boost::posix_time::seconds kMeanRefreshInterval(1800);
@@ -134,7 +134,7 @@ const double kMinSuccessfulPecentageUpdate(0.75);
 
 // The number of failed RPCs tolerated before a contact is removed from the
 // routing table.
-const boost::uint16_t kFailedRpcTolerance(2);
+const uint16_t kFailedRpcTolerance(2);
 
 }  // namespace kademlia
 

@@ -40,7 +40,7 @@ ConnectedObjectsList::ConnectedObjectsList()
 
 ConnectedObjectsList::~ConnectedObjectsList() {}
 
-boost::uint32_t ConnectedObjectsList::AddObject(
+uint32_t ConnectedObjectsList::AddObject(
     const TransportPtr transport,
     const MessageHandlerPtr message_handler) {
   ConnectedObject object(transport, message_handler, index_);
@@ -48,14 +48,14 @@ boost::uint32_t ConnectedObjectsList::AddObject(
   ConnectedObjectsContainer::index<TagIndexId>::type& index_by_index_id =
       objects_container_->get<TagIndexId>();
   index_by_index_id.insert(object);
-  boost::uint32_t result = index_;
+  uint32_t result = index_;
   // increment the counter
   // TODO(qi.ma@maidsafe.net): should some kind of range check to applied here?
   ++index_;
   return result;
 }
 
-bool ConnectedObjectsList::RemoveObject(boost::uint32_t index) {
+bool ConnectedObjectsList::RemoveObject(uint32_t index) {
   UpgradeLock upgrade_lock(shared_mutex_);
   ConnectedObjectsContainer::index<TagIndexId>::type& index_by_index_id =
       objects_container_->get<TagIndexId>();
@@ -68,7 +68,7 @@ bool ConnectedObjectsList::RemoveObject(boost::uint32_t index) {
   return true;
 }
 
-TransportPtr ConnectedObjectsList::GetTransport(boost::uint32_t index) {
+TransportPtr ConnectedObjectsList::GetTransport(uint32_t index) {
   SharedLock shared_lock(shared_mutex_);
   ConnectedObjectsContainer::index<TagIndexId>::type& index_by_index_id =
       objects_container_->get<TagIndexId>();

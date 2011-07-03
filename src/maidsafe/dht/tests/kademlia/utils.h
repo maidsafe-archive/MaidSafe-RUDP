@@ -45,7 +45,7 @@ namespace kademlia {
 
 namespace test {
 
-static const boost::uint16_t k = 16;
+static const uint16_t k = 16;
 const boost::posix_time::milliseconds kNetworkDelay(200);
 
 
@@ -87,10 +87,10 @@ class CreateContactAndNodeId {
   NodeId GenerateRandomId(const NodeId& holder, const int& pos);
 
   Contact ComposeContact(const NodeId& node_id,
-                         boost::uint16_t port);
+                         uint16_t port);
 
   Contact ComposeContactWithKey(const NodeId& node_id,
-                                boost::uint16_t port,
+                                uint16_t port,
                                 const crypto::RsaKeyPair& crypto_key);
 
   void PopulateContactsVector(int count,

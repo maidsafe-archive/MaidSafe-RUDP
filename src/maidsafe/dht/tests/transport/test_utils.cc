@@ -57,8 +57,8 @@ TEST(UtilsTest, BEH_COMMON_BytesAndAscii) {
 TEST(UtilsTest, BEH_COMMON_DecimalAndAscii) {
   std::string dotted("121.12.121.1");
   boost::scoped_array<char> ipbuf(new char[32]);
-  boost::uint32_t n = IpAsciiToNet(dotted.c_str());
-  boost::uint32_t g = 2030860545;
+  uint32_t n = IpAsciiToNet(dotted.c_str());
+  uint32_t g = 2030860545;
   EXPECT_EQ(g, n);
   IpNetToAscii(n, ipbuf.get());
   std::string reformed(ipbuf.get());
