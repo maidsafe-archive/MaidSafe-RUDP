@@ -28,16 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TESTS_DEMO_COMMANDS_H_
 #define MAIDSAFE_DHT_TESTS_DEMO_COMMANDS_H_
 
+#include <memory>
 #include <string>
-#include<vector>
+#include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/mutex.hpp"
 
-#include "maidsafe/common/platform_config.h"
-#include "maidsafe/common/crypto.h"
-#include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/config.h"
-#include "maidsafe/dht/kademlia/securifier.h"
 
 namespace bptime = boost::posix_time;
 
@@ -48,64 +47,51 @@ namespace dht {
 namespace kademlia {
 
 class NodeId;
-class Node;
+class DemoNode;
 
-namespace kaddemo {
+namespace demo {
 
 class Commands {
  public:
-  Commands(std::shared_ptr<Node> node,
-           std::shared_ptr<Securifier> securifier,
-           const uint16_t &K);
+  explicit Commands(std::shared_ptr<DemoNode> demo_node);
   void Run();
  private:
-  void print_node_info(const Contact &contact);
-
-  void Store(const std::vector<std::string> &args, bool *wait_for_cb,
-             bool read_from_file);
-
-  void FindValue(const std::vector<std::string> &args, bool *wait_for_cb,
-                 bool read_from_file);
-
-  void GetContact(const std::vector<std::string> &args, bool *wait_for_cb);
-
-  void FindNodes(const std::vector<std::string> &args, bool *wait_for_cb,
-                 bool write_to_file);
-
-  void Store50Values(const std::vector<std::string> &args,  bool *wait_for_cb);
-
-  void StoreCallback(const int& result, const NodeId& key,
+  typedef std::vector<std::string> Arguments;
+  void Store(const Arguments &args, bool read_from_file);
+  void StoreCallback(const int &result,
+                     const NodeId &key,
                      const bptime::time_duration &ttl);
-
-  void FindValueCallback(int result, std::vector<std::string> values,
+  void FindValue(const Arguments &args, bool write_to_file);
+  void FindValueCallback(const int &result,
+                         std::vector<std::string> values,
                          std::vector<Contact> closest_contacts,
                          Contact alternative_value_holder,
-                         Contact contact_to_cache, std::string path);
-
-  void GetContactsCallback(const int &result, Contact contact);
-
-  void FindNodesCallback(const int &result, std::vector<Contact> contacts,
+                         Contact contact_to_cache,
                          std::string path);
-
-  void Store50Callback(const int& result, const std::string &key,
-                       bool *arrived);
-  bool ReadFile(const std::string &path, std::string *content);
-
-  void WriteToFile(const std::string &path, const std::string &content);
-
+  void GetContact(const Arguments &args);
+  void GetContactsCallback(const int &result, Contact contact);
+  void FindNodes(const Arguments &args, bool write_to_file);
+  void FindNodesCallback(const int &result,
+                         std::vector<Contact> contacts,
+                         std::string path);
+  void Store50Values(const Arguments &args);
+  void Store50Callback(const int &result,
+                       const std::string &key,
+                       uint16_t *returned_count);
   void PrintUsage();
-
-  void ProcessCommand(const std::string &cmdline, bool *wait_for_cb);
-
+  void ProcessCommand(const std::string &cmdline);
   void PrintRpcTimings();
-
-  std::shared_ptr<Node> node_;
-  std::shared_ptr<Securifier> securifier_;
+  void MarkResultArrived();
+  bool ResultArrived() { return result_arrived_; }
+  std::shared_ptr<DemoNode> demo_node_;
+  SecurifierPtr null_securifier_;
   bool result_arrived_, finish_;
-  double min_succ_stores_;
+  boost::mutex wait_mutex_;
+  boost::condition_variable wait_cond_var_;
+  std::function<void()> mark_results_arrived_;
 };
 
-}  // namespace kaddemo
+}  // namespace demo
 
 }  // namespace kademlia
 

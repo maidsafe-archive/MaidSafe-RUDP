@@ -1720,50 +1720,51 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_EQ(6U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
 
-  IoServicePtr asio_service(new boost::asio::io_service);
+  AsioService asio_service;
   boost::thread_group asio_thread_group;
   std::function<bool()> ops;
   // Posting jobs
   // Store
   ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v1,
                   crypto_key_data_1);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoStore"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoStore"));
   ops = std::bind(&ServicesTest::DoStore, this, sender_id_1, k1_v2,
                   crypto_key_data_1);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoStore"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                             "DoStore"));
   // Store Refresh
   ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
                   crypto_key_data_4, sender_id_2, k2_v1, crypto_key_data_2);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoStoreRefresh"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoStoreRefresh"));
   ops = std::bind(&ServicesTest::DoStoreRefresh, this, sender_id_4,
                   crypto_key_data_4, sender_id_2, k2_v2, crypto_key_data_2);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoStoreRefresh"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoStoreRefresh"));
   // Delete
   ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v1,
                   crypto_key_data_3);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoDelete"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoDelete"));
   ops = std::bind(&ServicesTest::DoDelete, this, sender_id_3, k3_v2,
                   crypto_key_data_3);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoDelete"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoDelete"));
   // Delete refresh
   ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
                   crypto_key_data_2, sender_id_4, k4_v1, crypto_key_data_4);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoDeleteRefresh"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoDeleteRefresh"));
   ops = std::bind(&ServicesTest::DoDeleteRefresh, this, sender_id_2,
                   crypto_key_data_2, sender_id_4, k4_v2, crypto_key_data_4);
-  asio_service->post(std::bind(&ServicesTest::DoOps, this, ops, true,
-                               "DoDeleteRefresh"));
+  asio_service.post(std::bind(&ServicesTest::DoOps, this, ops, true,
+                              "DoDeleteRefresh"));
   // Running the threads
-  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
-  for (size_t i = 0; i < kNumberOfThreads; ++i)
-    asio_thread_group.create_thread(std::bind(fn, asio_service));
+  for (size_t i = 0; i < kNumberOfThreads; ++i) {
+    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
+                                              &asio_service));
+  }
   // Check results
   asio_thread_group.join_all();
   JoinNetworkLookup(securifier_);

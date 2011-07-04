@@ -76,14 +76,12 @@ class NodeApiTest: public testing::Test {
 
   void SetUp() {
     rsa_key_pair_.GenerateKeys(4096);
-    asio_service_.reset(new boost::asio::io_service);
-    work_.reset(new boost::asio::io_service::work(*asio_service_));
+    work_.reset(new boost::asio::io_service::work(asio_service_));
     thread_group_.reset(new boost::thread_group());
     for (size_t i = 0; i < node_api_test::kThreadGroupSize; ++i)
-      thread_group_->create_thread(std::bind(
-          static_cast<std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), asio_service_));
-    transport_.reset(new transport::TcpTransport(*asio_service_));
+      thread_group_->create_thread(std::bind(&boost::asio::io_service::run,
+                                             &asio_service_));
+    transport_.reset(new transport::TcpTransport(asio_service_));
 
     securifier_.reset(new Securifier("any_id",
                                      rsa_key_pair_.public_key(),
@@ -93,13 +91,13 @@ class NodeApiTest: public testing::Test {
 
   void TearDown() {
     work_.reset();
-    asio_service_->stop();
+    asio_service_.stop();
     thread_group_->join_all();
     thread_group_.reset();
   }
 
   crypto::RsaKeyPair rsa_key_pair_;
-  IoServicePtr asio_service_;
+  AsioService asio_service_;
   WorkPtr work_;
   ThreadGroupPtr thread_group_;
   SecurifierPtr securifier_;

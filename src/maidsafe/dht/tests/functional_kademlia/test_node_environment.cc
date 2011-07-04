@@ -58,7 +58,7 @@ std::string test_dir_;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 
-std::vector<IoServicePtr> asio_services_;
+std::vector<std::shared_ptr<AsioService>> asio_services_;
 std::vector<WorkPtr> works_;
 std::vector<ThreadGroupPtr> thread_groups_;
 std::vector<TransportPtr> transports_;
@@ -177,7 +177,7 @@ void EnvironmentNodes::SetUp() {
     crypto::RsaKeyPair rsa_key_pair;
     rsa_key_pair.GenerateKeys(4096);
     crypto_key_pairs_.push_back(rsa_key_pair);
-    IoServicePtr local_asio(new boost::asio::io_service());
+    std::shared_ptr<AsioService> local_asio(new AsioService);
     WorkPtr local_work(new boost::asio::io_service::work(*local_asio));
     works_.push_back(local_work);
     asio_services_.push_back(local_asio);
@@ -186,9 +186,8 @@ void EnvironmentNodes::SetUp() {
     local_thread_group.reset(new boost::thread_group());
 
     for (int j = 0; j < kThreadGroupSize; ++j)
-      local_thread_group->create_thread(std::bind(
-          static_cast<std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), local_asio));
+      local_thread_group->create_thread(std::bind(&boost::asio::io_service::run,
+                                                  local_asio));
 
     thread_groups_.push_back(local_thread_group);
 
@@ -224,7 +223,7 @@ void EnvironmentNodes::SetUp() {
               &MessageHandler::OnMessageReceived, message_handler.get(),
               _1, _2, _3, _4).track_foreign(message_handler));
     }
-    std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
+    std::shared_ptr<Node> cur_node(new Node(*local_asio, local_transport,
                                             message_handler,
                                             securifier,
                                             alternative_store,

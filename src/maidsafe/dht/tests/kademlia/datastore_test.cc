@@ -1015,7 +1015,7 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
   const size_t kValuesPerEntry(4);
 
-  IoServicePtr asio_service(new boost::asio::io_service);
+  AsioService asio_service;
   for (size_t i = 0; i != kSigners; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -1111,18 +1111,18 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
       (functors.size() / kValuesPerEntry) + 1, std::vector<KeyValueTuple>());
   int count(0);
   for (auto it = functors.begin(); it != functors.end(); ++it, ++count) {
-    asio_service->post(*it);
+    asio_service.post(*it);
     if ((count % kValuesPerEntry) == 0) {
-      asio_service->post(std::bind(&DataStore::Refresh, data_store_,
+      asio_service.post(std::bind(&DataStore::Refresh, data_store_,
           &returned_kvts.at(count / kValuesPerEntry)));
     }
   }
 
   // Run threads
   boost::thread_group asio_thread_group;
-  size_t(boost::asio::io_service::*fn)() = &boost::asio::io_service::run;
   for (size_t i = 0; i != kThreadCount; ++i) {
-    asio_thread_group.create_thread(std::bind(fn, asio_service));
+    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
+                                              &asio_service));
   }
   asio_thread_group.join_all();
 

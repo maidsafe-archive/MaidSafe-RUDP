@@ -235,7 +235,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
   SecurifierPtr securifier_;
   TransportPtr transport_;
   RankInfoPtr rank_info_;
-  std::shared_ptr<boost::asio::io_service> asio_service_;
+  boost::asio::io_service asio_service_;
   MessageHandlerPtr message_handler_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
@@ -250,8 +250,7 @@ class NodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
  public:
-  explicit MockRpcs(std::shared_ptr<boost::asio::io_service> asio_service,
-                    SecurifierPtr securifier)
+  MockRpcs(boost::asio::io_service &asio_service, SecurifierPtr securifier)  // NOLINT (Fraser)
       : Rpcs(asio_service, securifier),
         CreateContactAndNodeId(),
         node_list_mutex_(),
@@ -2399,10 +2398,6 @@ TEST_F(NodeImplTest, BEH_KAD_Getters) {
                                            &NodeImplTest::NodeImplJoinCallback,
                                            this, arg::_1, &result, &done));
     EXPECT_TRUE(local_node_->joined());
-  }
-  {
-    // asio_service()
-    EXPECT_EQ(asio_service_, node_->asio_service());
   }
   {
     // alternative_store()
