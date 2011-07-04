@@ -249,4 +249,3 @@ class MessageHandler {
 }  // namespace maidsafe
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_MESSAGE_HANDLER_H_
-
