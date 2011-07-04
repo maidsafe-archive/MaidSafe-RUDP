@@ -97,7 +97,7 @@ class Rpcs {
                              const int&,
                              const std::vector<Contact>&)> FindNodesFunctor;
 
-  Rpcs(IoServicePtr asio_service, SecurifierPtr default_securifier)
+  Rpcs(AsioService &asio_service, SecurifierPtr default_securifier)  // NOLINT (Fraser)
       : asio_service_(asio_service),
         contact_(),
         default_securifier_(default_securifier),
@@ -158,7 +158,7 @@ class Rpcs {
                        MessageHandlerPtr &message_handler);
 
  protected:
-  IoServicePtr asio_service_;
+  AsioService &asio_service_;
 
  private:
   Rpcs(const Rpcs&);

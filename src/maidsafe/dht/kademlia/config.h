@@ -109,7 +109,7 @@ typedef boost::asio::ip::address IP;
 typedef uint16_t Port;
 
 
-typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef boost::asio::io_service AsioService;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
 typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
 typedef std::shared_ptr<Securifier> SecurifierPtr;

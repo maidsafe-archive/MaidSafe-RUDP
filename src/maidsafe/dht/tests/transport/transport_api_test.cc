@@ -116,14 +116,14 @@ Results TestMessageHandler::results() {
 
 template <typename T>
 TransportAPITest<T>::TransportAPITest()
-    : asio_service_(new boost::asio::io_service),
-      asio_service_1_(new boost::asio::io_service),
-      asio_service_2_(new boost::asio::io_service),
-      asio_service_3_(new boost::asio::io_service),
-      work_(new boost::asio::io_service::work(*asio_service_)),
-      work_1_(new boost::asio::io_service::work(*asio_service_1_)),
-      work_2_(new boost::asio::io_service::work(*asio_service_2_)),
-      work_3_(new boost::asio::io_service::work(*asio_service_3_)),
+    : asio_service_(),
+      asio_service_1_(),
+      asio_service_2_(),
+      asio_service_3_(),
+      work_(new boost::asio::io_service::work(asio_service_)),
+      work_1_(new boost::asio::io_service::work(asio_service_1_)),
+      work_2_(new boost::asio::io_service::work(asio_service_2_)),
+      work_3_(new boost::asio::io_service::work(asio_service_3_)),
       listening_transports_(),
       listening_message_handlers_(),
       sending_transports_(),
@@ -136,21 +136,17 @@ TransportAPITest<T>::TransportAPITest()
       request_messages_(),
       count_(0) {
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), asio_service_));
+    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                          &asio_service_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_1_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), asio_service_1_));
+    thread_group_1_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            &asio_service_1_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_2_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), asio_service_2_));
+    thread_group_2_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            &asio_service_2_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_3_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), asio_service_3_));
+    thread_group_3_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            &asio_service_3_));
   // count_ = 0;
 }
 
@@ -160,10 +156,10 @@ TransportAPITest<T>::~TransportAPITest() {
   work_1_.reset();
   work_2_.reset();
   work_3_.reset();
-  asio_service_->stop();
-  asio_service_1_->stop();
-  asio_service_2_->stop();
-  asio_service_3_->stop();
+  asio_service_.stop();
+  asio_service_1_.stop();
+  asio_service_2_.stop();
+  asio_service_3_.stop();
   thread_group_.join_all();
   thread_group_1_.join_all();
   thread_group_2_.join_all();
@@ -175,9 +171,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   if (listen) {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(*asio_service_));
+      transport1 = TransportPtr(new T(asio_service_));
     else
-      transport1 = TransportPtr(new T(*asio_service_3_));
+      transport1 = TransportPtr(new T(asio_service_3_));
 
     if (lport != Port(0)) {
       EXPECT_EQ(kSuccess,
@@ -190,9 +186,9 @@ void TransportAPITest<T>::SetupTransport(bool listen, Port lport) {
   } else {
     TransportPtr transport1;
     if (count_ < 8)
-      transport1 = TransportPtr(new T(*asio_service_1_));
+      transport1 = TransportPtr(new T(asio_service_1_));
     else
-      transport1 = TransportPtr(new T(*asio_service_2_));
+      transport1 = TransportPtr(new T(asio_service_2_));
     sending_transports_.push_back(transport1);
   }
 }
@@ -229,11 +225,11 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     while (listening_transports_itr != listening_transports_.end()) {
       for (int i = 0 ; i < num_messages; ++i) {
         if (thread_size > kThreadGroupSize) {
-          asio_service_2_->post(boost::bind(
+          asio_service_2_.post(boost::bind(
               &transport::test::TransportAPITest<T>::SendRPC, this,
               *sending_transports_itr, *listening_transports_itr));
         } else {
-          asio_service_1_->post(boost::bind(
+          asio_service_1_.post(boost::bind(
               &transport::test::TransportAPITest<T>::SendRPC, this,
               *sending_transports_itr, *listening_transports_itr));
         }
@@ -248,10 +244,10 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
   work_1_.reset();
   work_2_.reset();
   work_3_.reset();
-  asio_service_->stop();
-  asio_service_1_->stop();
-  asio_service_2_->stop();
-  asio_service_3_->stop();
+  asio_service_.stop();
+  asio_service_1_.stop();
+  asio_service_2_.stop();
+  asio_service_3_.stop();
   thread_group_.join_all();
   thread_group_1_.join_all();
   thread_group_2_.join_all();
@@ -337,7 +333,7 @@ void TransportAPITest<T>::CheckMessages() {
 
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
-  TransportPtr transport(new TypeParam(*this->asio_service_));
+  TransportPtr transport(new TypeParam(this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
   EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 2277)));
@@ -353,8 +349,8 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
-  TransportPtr sender(new TypeParam(*this->asio_service_));
-  TransportPtr listener(new TypeParam(*this->asio_service_));
+  TransportPtr sender(new TypeParam(this->asio_service_));
+  TransportPtr listener(new TypeParam(this->asio_service_));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));

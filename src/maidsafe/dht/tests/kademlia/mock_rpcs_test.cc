@@ -276,9 +276,11 @@ volatile bool MockMessageHandler::ops_completion_flag = false;
 
 class TestMockRpcs : public Rpcs {
  public:
-  TestMockRpcs(IoServicePtr asio_service, SecurifierPtr securifier,
-           const int &request_type, const int &repeat_factor,
-           const int &result_type)
+  TestMockRpcs(AsioService &asio_service,                     // NOLINT (Fraser)
+               SecurifierPtr securifier,
+               const int &request_type,
+               const int &repeat_factor,
+               const int &result_type)
     : Rpcs(asio_service, securifier),
       asio_service_(asio_service),
       securifier_(securifier),
@@ -296,7 +298,7 @@ class TestMockRpcs : public Rpcs {
                    SecurifierPtr securifier,
                    TransportPtr &transport,
                    MessageHandlerPtr &message_handler) {
-    transport.reset(new RpcsMockTransport(*asio_service_, repeat_factor_));
+    transport.reset(new RpcsMockTransport(asio_service_, repeat_factor_));
     message_handler.reset(new MockMessageHandler(securifier,
                                                  request_type_,
                                                  result_type_));
@@ -315,7 +317,7 @@ class TestMockRpcs : public Rpcs {
   }
 
  protected:
-  IoServicePtr asio_service_;
+  AsioService &asio_service_;
   SecurifierPtr securifier_;
   TransportPtr local_t_;
   MessageHandlerPtr local_mh_;
@@ -325,7 +327,7 @@ class TestMockRpcs : public Rpcs {
 class MockRpcsTest : public testing::Test {
  public:
   MockRpcsTest()
-          : asio_service_(new boost::asio::io_service),
+          : asio_service_(),
             securifier_(),
             peer_(ComposeContact(NodeId(NodeId::kRandomId), 6789)) {}
 
@@ -371,7 +373,7 @@ class MockRpcsTest : public testing::Test {
   }
   protected:
   static crypto::RsaKeyPair crypto_key_pair_;
-  IoServicePtr asio_service_;
+  AsioService asio_service_;
   SecurifierPtr securifier_;
   Contact peer_;
 };

@@ -538,10 +538,10 @@ void Rpcs::Prepare(TransportType type,
                    MessageHandlerPtr &message_handler) {
   switch (type) {
     case kTcp:
-      transport.reset(new transport::TcpTransport(*asio_service_));
+      transport.reset(new transport::TcpTransport(asio_service_));
       break;
     case kUdp:
-      transport.reset(new transport::UdpTransport(*asio_service_));
+      transport.reset(new transport::UdpTransport(asio_service_));
       break;
     default:
       break;

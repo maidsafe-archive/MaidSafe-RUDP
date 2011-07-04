@@ -35,7 +35,7 @@ namespace dht {
 
 namespace kademlia {
 
-Node::Node(IoServicePtr asio_service,
+Node::Node(AsioService &asio_service,             // NOLINT (Fraser)
            TransportPtr listening_transport,
            MessageHandlerPtr message_handler,
            SecurifierPtr default_securifier,
@@ -134,10 +134,6 @@ Contact Node::contact() const {
 
 bool Node::joined() const {
   return pimpl_->joined();
-}
-
-IoServicePtr Node::asio_service() {
-  return pimpl_->asio_service();
 }
 
 AlternativeStorePtr Node::alternative_store() {

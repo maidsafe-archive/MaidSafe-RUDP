@@ -49,7 +49,7 @@ class TestMessageHandler;
 
 static const IP kIP(boost::asio::ip::address_v4::loopback());
 static const uint16_t kThreadGroupSize = 8;
-typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
+typedef boost::asio::io_service AsioService;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<Transport> TransportPtr;
 typedef boost::shared_ptr<TestMessageHandler> TestMessageHandlerPtr;
@@ -101,7 +101,7 @@ class TransportAPITest: public testing::Test {
   void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt);
   void CheckMessages();
 
-  IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
+  AsioService asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
   WorkPtr work_, work_1_, work_2_, work_3_;
   std::vector<TransportPtr> listening_transports_;
   std::vector<TestMessageHandlerPtr> listening_message_handlers_;

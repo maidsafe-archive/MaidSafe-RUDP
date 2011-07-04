@@ -157,7 +157,7 @@ FILE(GLOB ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/*.h"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_utils.h"
                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/test_utils.cc")
- LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_functional_test.cc")
+LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_functional_test.cc")
 # LIST(REMOVE_ITEM ALL_FILES_TEST_NODE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_test.cc")
 FILE(GLOB ALL_FILES_TEST_KADEMLIA_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.cc"
                                       "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/*.h")
@@ -216,9 +216,7 @@ ENDIF()
 ADD_LIBRARY(maidsafe_dht_static STATIC ${DHT_SOURCE_FILES})
 
 #Rename maidsafe_dht_static as maidsafe_dht on way out NOT in MSVC names clash of static and import lib
-#IF(NOT MSVC)
-  SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES OUTPUT_NAME maidsafe_dht)
-#ENDIF()
+SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES OUTPUT_NAME maidsafe_dht)
 
 SET_TARGET_PROPERTIES(maidsafe_dht_static PROPERTIES FOLDER "MaidSafe Libraries")
 

@@ -105,21 +105,19 @@ class RpcsTest: public CreateContactAndNodeId,
                routing_table_(new RoutingTable(node_id_, test::k)),
                data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                alternative_store_(),
-               asio_service_(new boost::asio::io_service()),
-               local_asio_(new boost::asio::io_service()),
+               asio_service_(),
+               local_asio_(),
                rank_info_(),
                contacts_(),
                transport_(),
                transport_type_(GetParam()),
                thread_group_(),
-               work_(new boost::asio::io_service::work(*asio_service_)),
-               work1_(new boost::asio::io_service::work(*local_asio_)) {
-    thread_group_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), asio_service_));
-    thread_group_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), local_asio_));
+               work_(new boost::asio::io_service::work(asio_service_)),
+               work1_(new boost::asio::io_service::work(local_asio_)) {
+    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                          &asio_service_));
+    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                          &local_asio_));
   }
 
   static void SetUpTestCase() {
@@ -157,10 +155,10 @@ class RpcsTest: public CreateContactAndNodeId,
     service_->set_node_joined(true);
     switch (transport_type_) {
       case kTcp:
-        transport_.reset(new transport::TcpTransport(*local_asio_));
+        transport_.reset(new transport::TcpTransport(local_asio_));
         break;
       case kUdp:
-        transport_.reset(new transport::UdpTransport(*local_asio_));
+        transport_.reset(new transport::UdpTransport(local_asio_));
         break;
       default:
         break;
@@ -180,8 +178,8 @@ class RpcsTest: public CreateContactAndNodeId,
   ~RpcsTest() {
     work_.reset();
     work1_.reset();
-    asio_service_->stop();
-    local_asio_->stop();
+    asio_service_.stop();
+    local_asio_.stop();
   }
 
   void PopulateRoutingTable(uint16_t count) {
@@ -279,8 +277,8 @@ class RpcsTest: public CreateContactAndNodeId,
   }
 
   void StopAndReset() {
-    asio_service_->stop();
-    local_asio_->stop();
+    asio_service_.stop();
+    local_asio_.stop();
     work_.reset();
     work1_.reset();
     thread_group_.join_all();
@@ -295,8 +293,8 @@ class RpcsTest: public CreateContactAndNodeId,
   SecurifierPtr service_securifier_;
   std::shared_ptr<Service> service_;
   SecurifierPtr rpcs_securifier_;
-  IoServicePtr asio_service_;
-  IoServicePtr local_asio_;
+  AsioService asio_service_;
+  AsioService local_asio_;
   std::shared_ptr<Rpcs> rpcs_;
   Contact rpcs_contact_;
   Contact service_contact_;
@@ -1331,25 +1329,23 @@ class RpcsMultiClientNodesTest
         routing_table_(new RoutingTable(node_id_, test::k)),
         data_store_(new kademlia::DataStore(bptime::seconds(3600))),
         alternative_store_(),
-        local_asio_(new boost::asio::io_service()),
+        local_asio_(),
         rank_info_(),
         contacts_(),
         transport_(),
         transport_type_(GetParam()),
         thread_group_(),
-        work1_(new boost::asio::io_service::work(*local_asio_)) {
+        work1_(new boost::asio::io_service::work(local_asio_)) {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      IoServicePtr ioservice(new boost::asio::io_service());
-      asio_service_.push_back(ioservice);
-      WorkPtr workptr(new boost::asio::io_service::work(*asio_service_[index]));
+      asio_services_.push_back(std::shared_ptr<AsioService>(new AsioService));
+      WorkPtr workptr(
+          new boost::asio::io_service::work(*asio_services_[index]));
       work_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), asio_service_[index]));
+      thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            asio_services_[index]));
     }
-    thread_group_.create_thread(std::bind(static_cast<
-        std::size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), local_asio_));
+    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                          &local_asio_));
   }
 
   static void SetUpTestCase() {
@@ -1372,7 +1368,7 @@ class RpcsMultiClientNodesTest
               rpcs_node_id.String(),
               senders_crypto_key_id2_[index].public_key(),
               senders_crypto_key_id2_[index].private_key())));
-      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
+      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(*asio_services_[index],
                                                      rpcs_securifier_[index])));
 
       kademlia::Contact rpcs_contact;
@@ -1401,10 +1397,10 @@ class RpcsMultiClientNodesTest
     service_->set_node_joined(true);
     switch (transport_type_) {
       case kTcp:
-        transport_.reset(new transport::TcpTransport(*local_asio_));
+        transport_.reset(new transport::TcpTransport(local_asio_));
         break;
       case kUdp:
-        transport_.reset(new transport::UdpTransport(*local_asio_));
+        transport_.reset(new transport::UdpTransport(local_asio_));
         break;
       default:
         break;
@@ -1423,19 +1419,19 @@ class RpcsMultiClientNodesTest
 
   ~RpcsMultiClientNodesTest() {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
+      asio_services_[index]->stop();
       work_[index].reset();
     }
     work1_.reset();
-    local_asio_->stop();
+    local_asio_.stop();
   }
 
   void StopAndReset() {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
+      asio_services_[index]->stop();
       work_[index].reset();
     }
-    local_asio_->stop();
+    local_asio_.stop();
     work1_.reset();
     thread_group_.join_all();
   }
@@ -1540,8 +1536,8 @@ class RpcsMultiClientNodesTest
   SecurifierPtr service_securifier_;
   std::shared_ptr<Service> service_;
   std::vector<SecurifierPtr> rpcs_securifier_;
-  std::vector<IoServicePtr> asio_service_;
-  IoServicePtr local_asio_;
+  std::vector<std::shared_ptr<AsioService>> asio_services_;
+  AsioService local_asio_;
   std::vector<std::shared_ptr<Rpcs> > rpcs_;
   std::vector<Contact> rpcs_contact_;
   Contact service_contact_;
@@ -1569,9 +1565,9 @@ class RpcsMultiServerNodesTest
         services_securifier_(),
         service_(),
         rpcs_securifier_(),
-        asio_service_(),
-        local_asio_(),
-        dispatcher_(new boost::asio::io_service()),
+        asio_services_(),
+        local_asios_(),
+        dispatcher_(),
         rpcs_(),
         rpcs_contact_(),
         service_contact_(),
@@ -1583,16 +1579,14 @@ class RpcsMultiServerNodesTest
         thread_group_(),
         work_(),
         work1_(),
-        dispatcher_work_(new boost::asio::io_service::work(*dispatcher_)) {
+        dispatcher_work_(new boost::asio::io_service::work(dispatcher_)) {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      IoServicePtr ioservice(new boost::asio::io_service());
-      asio_service_.push_back(ioservice);
+      asio_services_.push_back(std::shared_ptr<AsioService>(new AsioService));
       WorkPtr workptr(new
-          boost::asio::io_service::work(*asio_service_[index]));
+          boost::asio::io_service::work(*asio_services_[index]));
       work_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), asio_service_[index]));
+      thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            asio_services_[index]));
     }
     const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
     for (int index = 0; index != kRpcServersNo; ++index) {
@@ -1605,17 +1599,14 @@ class RpcsMultiServerNodesTest
           new kademlia::DataStore(bptime::seconds(3600))));
       AlternativeStorePtr alternative_store;
       alternative_store_.push_back(alternative_store);
-      IoServicePtr ioservice(new boost::asio::io_service());
-      local_asio_.push_back(ioservice);
-      WorkPtr workptr(new boost::asio::io_service::work(*local_asio_[index]));
+      local_asios_.push_back(std::shared_ptr<AsioService>(new AsioService));
+      WorkPtr workptr(new boost::asio::io_service::work(*local_asios_[index]));
       work1_.push_back(workptr);
-      thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), local_asio_[index]));
+      thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                            local_asios_[index]));
     }
-    thread_group_.create_thread(std::bind(static_cast<
-          std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), dispatcher_));
+    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
+                                          &dispatcher_));
   }
 
   static void SetUpTestCase() {
@@ -1641,7 +1632,7 @@ class RpcsMultiServerNodesTest
           new Securifier(rpcs_node_id.String(),
                          senders_crypto_key_id3_[index].public_key(),
                          senders_crypto_key_id3_[index].private_key())));
-      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(asio_service_[index],
+      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(*asio_services_[index],
                                                      rpcs_securifier_[index])));
 
       kademlia::Contact rpcs_contact;
@@ -1674,11 +1665,11 @@ class RpcsMultiServerNodesTest
       switch (transport_type_) {
         case kTcp:
           transport_.push_back(TransportPtr(
-              new transport::TcpTransport(*local_asio_[index])));
+              new transport::TcpTransport(*local_asios_[index])));
           break;
         case kUdp:
           transport_.push_back(TransportPtr(
-              new transport::UdpTransport(*local_asio_[index])));
+              new transport::UdpTransport(*local_asios_[index])));
           break;
         default:
           break;
@@ -1700,27 +1691,27 @@ class RpcsMultiServerNodesTest
 
   ~RpcsMultiServerNodesTest() {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
+      asio_services_[index]->stop();
       work_[index].reset();
     }
     for (int index = 0; index < kRpcServersNo; ++index) {
-      local_asio_[index]->stop();
+      local_asios_[index]->stop();
       work1_[index].reset();
     }
-    dispatcher_->stop();
+    dispatcher_.stop();
     dispatcher_work_.reset();
   }
 
   void StopAndReset() {
     for (int index = 0; index < kRpcClientNo; ++index) {
-      asio_service_[index]->stop();
+      asio_services_[index]->stop();
       work_[index].reset();
     }
     for (int index = 0; index < kRpcServersNo; ++index) {
-      local_asio_[index]->stop();
+      local_asios_[index]->stop();
       work1_[index].reset();
     }
-    dispatcher_->stop();
+    dispatcher_.stop();
     dispatcher_work_.reset();
     thread_group_.join_all();
   }
@@ -1833,9 +1824,9 @@ class RpcsMultiServerNodesTest
   std::vector<SecurifierPtr> services_securifier_;
   std::vector<ServicePtr> service_;
   std::vector<SecurifierPtr> rpcs_securifier_;
-  std::vector<IoServicePtr> asio_service_;
-  std::vector<IoServicePtr> local_asio_;
-  IoServicePtr dispatcher_;
+  std::vector<std::shared_ptr<AsioService>> asio_services_;
+  std::vector<std::shared_ptr<AsioService>> local_asios_;
+  AsioService dispatcher_;
   std::vector<std::shared_ptr<Rpcs> > rpcs_;
   std::vector<Contact> rpcs_contact_;
   std::vector<Contact> service_contact_;
@@ -1877,10 +1868,10 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
       done[client_index][index] = false;
       response_code[client_index][index] = 0;
       // This is to enable having more than one operation
-      dispatcher_->post(std::bind(&RpcsMultiServerNodesTest::RpcOperations,
-                                  this, client_index, index,
-                                  &done[client_index][index],
-                                  &response_code[client_index][index]));
+      dispatcher_.post(std::bind(&RpcsMultiServerNodesTest::RpcOperations,
+                                 this, client_index, index,
+                                 &done[client_index][index],
+                                 &response_code[client_index][index]));
     }
   }
   while (!localdone) {

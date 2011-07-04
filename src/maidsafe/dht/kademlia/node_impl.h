@@ -86,7 +86,7 @@ typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
 class Node::Impl {
  public:
-  Impl(IoServicePtr asio_service,
+  Impl(AsioService &asio_service,                             // NOLINT (Fraser)
        TransportPtr listening_transport,
        MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
@@ -190,9 +190,6 @@ class Node::Impl {
   /** Getter.
    *  @return The joined_ */
   bool joined() const;
-  /** Getter.
-   *  @return The asio_service_ */
-  IoServicePtr asio_service();
   /** Getter.
    *  @return The alternative_store_ */
   AlternativeStorePtr alternative_store();
@@ -457,7 +454,7 @@ class Node::Impl {
   void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
 
-  IoServicePtr asio_service_;
+  AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;
   SecurifierPtr default_securifier_;

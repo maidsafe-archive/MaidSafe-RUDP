@@ -71,7 +71,7 @@ class NodeApiTest_BEH_KAD_Join_Server_Test;
 class Node {
  public:
 
-  // asio_service is a pointer to a boost::asio::io_service instance which
+  // asio_service is a reference to a boost::asio::io_service instance which
   // should have at least 1 thread running io_service::run().
   //
   // listening_transport is responsible for listening only, not sending.  It
@@ -98,7 +98,7 @@ class Node {
   //
   // mean_refresh_interval indicates the average interval between calls to
   // refresh values.
-  Node(IoServicePtr asio_service,
+  Node(AsioService &asio_service,                             // NOLINT (Fraser)
        TransportPtr listening_transport,
        MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
@@ -215,7 +215,6 @@ class Node {
   bool joined() const;
 
   // Getters
-  IoServicePtr asio_service();
   AlternativeStorePtr alternative_store();
   OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;

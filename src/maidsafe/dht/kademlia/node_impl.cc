@@ -48,7 +48,7 @@ namespace kademlia {
 
 // some tools which will be used in the implementation of Node::Impl class
 
-Node::Impl::Impl(IoServicePtr asio_service,
+Node::Impl::Impl(AsioService &asio_service,                   // NOLINT (Fraser)
                  TransportPtr listening_transport,
                  MessageHandlerPtr message_handler,
                  SecurifierPtr default_securifier,
@@ -140,7 +140,8 @@ void Node::Impl::Join(const NodeId &node_id,
   if (bootstrap_contacts.size() == 1 &&
       bootstrap_contacts[0].node_id() == node_id) {
     std::vector<Contact> contacts;
-    JoinFindNodesCallback(1, contacts, bootstrap_contacts, node_id, callback);
+    boost::thread(&Node::Impl::JoinFindNodesCallback, this, 1, contacts,
+                  bootstrap_contacts, node_id, callback);
     return;
   }
 
@@ -554,10 +555,6 @@ bool Node::Impl::joined() const {
   return joined_;
 }
 
-IoServicePtr Node::Impl::asio_service() {
-  return asio_service_;
-}
-
 AlternativeStorePtr Node::Impl::alternative_store() {
   return alternative_store_;
 }
@@ -614,7 +611,7 @@ void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
   routing_table_->GetContactsClosestToOwnId(k_, exclude_contacts,
                                             &closest_contacts);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
-    asio_service_->post(std::bind(
+    asio_service_.post(std::bind(
         &Rpcs::StoreRefresh, rpcs_.get(), key_value_tuple.key(),
         key_value_tuple.key_value_signature.signature, default_securifier_,
         closest_contacts[i], sf, kTcp));
