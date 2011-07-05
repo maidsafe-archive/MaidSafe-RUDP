@@ -206,7 +206,6 @@ void Node::Impl::JoinFindNodesCallback(
 }
 
 void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
-  std::cout << "Node " << contact_.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << " leaving network" << std::endl;
   joined_ = false;
   if (thread_group_)  {
     thread_group_->interrupt_all();
@@ -230,7 +229,6 @@ void Node::Impl::Store(const Key &key,
                        const boost::posix_time::time_duration &ttl,
                        SecurifierPtr securifier,
                        StoreFunctor callback) {
-  DLOG(INFO) << "Node::Impl::Store " << key.ToStringEncoded(NodeId::kHex).substr(0, 8) << " duration " << ttl.total_seconds() << " seconds";
   if (!securifier)
     securifier = default_securifier_;
   std::shared_ptr<StoreArgs> sa(new StoreArgs(callback));
@@ -610,20 +608,18 @@ bool Node::Impl::SortByDistance(Contact contact_1, Contact contact_2) {
   return node_id2 < node_id1;
 }
 
-//void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
-//                                      const int &result) {
-//  //  if result is not success then make downlist
-//}
+//  void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
+//                                        const int &result) {
+//    //  if result is not success then make downlist
+//  }
 
 void Node::Impl::PostStoreRefresh(const KeyValueTuple &key_value_tuple) {
-  std::cout << "PostStoreRefresh called" << std::endl;
-  std::function<void(int, std::vector<Contact>)> store_callback = std::bind(
-      &Node::Impl::StoreRefresh, this, std::placeholders::_1,
-      std::placeholders::_2, key_value_tuple);
-  FindNodes(NodeId(key_value_tuple.key()), store_callback);
+  FindNodes(NodeId(key_value_tuple.key()), std::bind(
+      &Node::Impl::StoreRefresh, this, arg::_1, arg::_2, key_value_tuple));
 }
 
-void Node::Impl::StoreRefresh(int result, std::vector<Contact> contacts,
+void Node::Impl::StoreRefresh(int result,
+                              std::vector<Contact> contacts,
                               const KeyValueTuple &key_value_tuple) {
   // if (result != 0)
   //   return;
@@ -631,9 +627,9 @@ void Node::Impl::StoreRefresh(int result, std::vector<Contact> contacts,
   size_t size(contacts.size());
   for (size_t i = 0; i != size; ++i) {
     if (contacts[i].node_id() != contact_.node_id()) {
-      std::function<void(RankInfoPtr, const int&)> store_refresh = std::bind(
-              &Node::Impl::StoreRefreshCallback, this, std::placeholders::_1,
-              result, std::cref(contacts[i])); // std::placeholders::_2, std::cref(contacts[i]));
+      std::function<void(RankInfoPtr, const int&)> store_refresh =
+          std::bind(&Node::Impl::StoreRefreshCallback, this, arg::_1, result,
+                    std::cref(contacts[i]));
       rpcs_->StoreRefresh(key_value_tuple.request_and_signature.first,
                           key_value_tuple.request_and_signature.second,
                           default_securifier_, contacts[i], store_refresh,
@@ -645,14 +641,12 @@ void Node::Impl::StoreRefresh(int result, std::vector<Contact> contacts,
 void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info, const int &result,
                                       const Contact &contact) {
   if (result != 0) {
-    std::cout << "StoreRefreshCallback down contact" << contact.node_id().String() << std::endl;
     down_contacts_.push_back(contact.node_id());
     ReportDownContact(contact);
   }
 }
 
 void Node::Impl::RefreshDataStore() {
-  DLOG(INFO) << "Node::Impl::RefreshDataStore called";
   std::vector<KeyValueTuple> key_value_tuples;
   while (joined_) {
     boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
@@ -826,7 +820,6 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     std::shared_ptr<RpcArgs> frpc(new RpcArgs((*it_tuple).contact, fa));
     switch (fa->operation_type) {
       case kOpFindNode: {
-          DLOG(INFO) << "Node::Impl::IterativeSearch op kOpFindNode contact " << (*it_tuple).contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << " sending"; 
           rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
                            std::bind(&Node::Impl::IterativeSearchNodeResponse,
                                      this, arg::_1, arg::_2, arg::_3, frpc),
@@ -834,7 +827,6 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
         }
         break;
       case kOpFindValue: {
-          DLOG(INFO) << "Node::Impl::IterativeSearch op kOpFindValue contact " << (*it_tuple).contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << " sending"; 
           std::shared_ptr<FindValueArgs> fva =
               std::dynamic_pointer_cast<FindValueArgs>(fa);
           rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
@@ -997,7 +989,7 @@ void Node::Impl::MonitoringDownlistThread() {
     while (down_contacts_.empty() && joined_) {
       condition_downlist_.wait(loch_surlaplage);
     }
-    std::cout << "MonitoringDownlist downlist size " << down_contacts_.size() << std::endl;
+
     // report the downlist to local k-closest contacts
     std::vector<Contact> close_nodes, excludes;
     routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);

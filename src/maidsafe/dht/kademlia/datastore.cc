@@ -27,7 +27,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/datastore.h"
 #include <algorithm>
-#include "maidsafe/dht/log.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 
@@ -236,7 +235,6 @@ bool DataStore::GetValues(
 }
 
 void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
-  DLOG(INFO) << "DataStore::Refresh called key_value_tuples address " << key_value_tuples;
   KeyValueIndex::index<TagExpireTime>::type& index_by_expire_time =
       key_value_index_->get<TagExpireTime>();
   KeyValueIndex::index<TagRefreshTime>::type& index_by_refresh_time =
@@ -249,19 +247,13 @@ void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
   bptime::ptime now(bptime::microsec_clock::universal_time());
   auto it = index_by_confirm_time.begin();
   auto it_confirm_upper_bound = index_by_confirm_time.upper_bound(now);
-  while (it != it_confirm_upper_bound) {
-    if ((*it).deleted) { 
-      DLOG(INFO) << "DataStore::Refresh removing value " << (*it).value();
-      index_by_confirm_time.erase(it++);
-    } else
-      ++it;
-    // (*it).deleted ? index_by_confirm_time.erase(it++) : ++it;
-  }
+  while (it != it_confirm_upper_bound)
+    (*it).deleted ? index_by_confirm_time.erase(it++) : ++it;
+
   // Mark expired values as deleted.
   auto it_expire = index_by_expire_time.begin();
   auto it_expire_upper_bound = index_by_expire_time.upper_bound(now);
-  while (it_expire != it_expire_upper_bound) { 
-    DLOG(INFO) << "DataStore::Refresh marking expired values";
+  while (it_expire != it_expire_upper_bound) {
     if (!(*it_expire).deleted) {
       index_by_expire_time.modify(it_expire,
            std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
@@ -275,10 +267,8 @@ void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
   // Fill vector with all entries which have expired refresh times.
   if (!key_value_tuples)
     return;
-  DLOG(INFO) << "DataStore::Refresh filling vector with expired refresh time entries ";
   key_value_tuples->assign(index_by_refresh_time.begin(),
                            index_by_refresh_time.upper_bound(now));
-  DLOG(INFO) << "total number " << key_value_tuples->size();
 }
 
 bptime::seconds DataStore::refresh_interval() const {

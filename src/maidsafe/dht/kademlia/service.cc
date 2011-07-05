@@ -144,7 +144,6 @@ void Service::FindValue(const transport::Info &info,
                         const protobuf::FindValueRequest &request,
                         protobuf::FindValueResponse *response,
                         transport::Timeout*) {
-  std::cout << "Service FindValue" << std::endl;
   response->set_result(false);
   if (!node_joined_)
     return;
@@ -218,7 +217,6 @@ void Service::Store(const transport::Info &info,
                     const std::string &message_signature,
                     protobuf::StoreResponse *response,
                     transport::Timeout*) {
-  std::cout << "ServiceStore node id " << node_contact_.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << std::endl;
   response->set_result(false);
   if (!node_joined_) {
     return;
@@ -226,7 +224,6 @@ void Service::Store(const transport::Info &info,
 
   if (!securifier_ || message.empty() ||
       (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
-    std::cout << "ServiceStore line 227 fail " << node_contact_.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << std::endl;
     return;
   }
   // Check if same private key signs other values under same key in datastore
@@ -236,7 +233,6 @@ void Service::Store(const transport::Info &info,
                               request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
-      std::cout << "ServiceStore line 235 return " << node_contact_.node_id().ToStringEncoded(NodeId::kHex).substr(0, 8) << std::endl;
       return;
     }
   }
@@ -261,7 +257,6 @@ void Service::Store(const transport::Info &info,
     }
     response->set_result(true);
   }
-  std::cout << "ServiceStore response value " << std::boolalpha << response->result() << std::endl;
 }
 
 void Service::StoreRefresh(const transport::Info &info,
@@ -273,7 +268,7 @@ void Service::StoreRefresh(const transport::Info &info,
     return;
   if (request.serialised_store_request().empty() ||
       request.serialised_store_request_signature().empty() || !securifier_) {
-    DLOG(WARNING) << "Service::StoreRefresh Input Error";
+    DLOG(WARNING) << "StoreRefresh Input Error" << std::endl;
     return;
   }
 
@@ -287,7 +282,6 @@ void Service::StoreRefresh(const transport::Info &info,
                               ori_store_request.sender().public_key())) {
       routing_table_->AddContact(FromProtobuf(request.sender()),
                                  RankInfoPtr(new transport::Info(info)));
-      DLOG(INFO) << "Service::StoreRefresh failed to validate request_signature" << std::endl;
       return;
     }
   }
@@ -305,7 +299,6 @@ void Service::StoreRefresh(const transport::Info &info,
                             ori_store_request.sender().public_key_id(),
                             store_refresh_cb, is_new_id)) {
     if (is_new_id) {
-      DLOG(INFO) << "Service::StoreRefresh getting public key and validation from securifier, sender key id " << ori_store_request.sender().public_key_id() << std::endl;
       GetPublicKeyAndValidationCallback cb =
           std::bind(&SenderTask::SenderTaskCallback, sender_task_,
                     ori_store_request.sender().public_key_id(), arg::_1,
@@ -315,7 +308,6 @@ void Service::StoreRefresh(const transport::Info &info,
     }
     response->set_result(true);
   }
-  DLOG(INFO) << "Service::StoreRefresh response result " << response->result() << std::endl;
 }
 
 void Service::StoreCallback(KeyValueSignature key_value_signature,
@@ -343,7 +335,7 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
   ori_store_request.ParseFromString(request.serialised_store_request());
   if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
                             public_key)) {
-    DLOG(WARNING) << "Service::StoreRefreshCallback failed to validate request_signature";
+    DLOG(WARNING) << "Failed to validate request_signature";
     return;
   }
   // no matter the store succeed or not, once validated, the sender shall
@@ -438,13 +430,12 @@ void Service::DeleteRefresh(const transport::Info &info,
                             const protobuf::DeleteRefreshRequest &request,
                             protobuf::DeleteRefreshResponse *response,
                             transport::Timeout*) {
-  DLOG(WARNING) << "Service::DeleteFresh called .............................";
   response->set_result(false);
   if (!node_joined_ || !securifier_)
     return;
   if (request.serialised_delete_request().empty() ||
       request.serialised_delete_request_signature().empty()) {
-    DLOG(WARNING) << "Service::DeleteFresh Input Error" << std::endl;
+    DLOG(WARNING) << "DeleteFresh Input Error" << std::endl;
     return;
   }
   protobuf::DeleteRequest ori_delete_request;
@@ -513,7 +504,7 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
   ori_delete_request.ParseFromString(request.serialised_delete_request());
   if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
                             public_key)) {
-    DLOG(WARNING) << "Service::DeleteRefreshCallback. Failed to validate request_signature";
+    DLOG(WARNING) << "Failed to validate request_signature";
     return;
   }
   // no matter the store succeed or not, once validated, the sender shall
