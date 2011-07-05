@@ -32,9 +32,6 @@ Created by Julian Cain on 11/3/09.
 #define MAIDSAFE_DHT_NAT_PMP_NATPMP_CLIENT_H_
 
 #include "boost/asio.hpp"
-#include "boost/function.hpp"
-#include "boost/shared_ptr.hpp"
-
 #include "maidsafe/dht/nat-pmp/natpmp_client_impl.h"
 
 namespace maidsafe {
@@ -85,10 +82,10 @@ class NatPmpClient {
   * @param public_port
   * @param lifetime
   */
-  void MapPort(boost::uint32_t protocol,
-               boost::uint16_t private_port,
-               boost::uint16_t public_port,
-               boost::uint32_t lifetime);
+  void MapPort(uint32_t protocol,
+               uint16_t private_port,
+               uint16_t public_port,
+               uint32_t lifetime);
 
  private:
 

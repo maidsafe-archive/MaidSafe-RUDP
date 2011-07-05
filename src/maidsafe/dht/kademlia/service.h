@@ -28,11 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_SERVICE_H_
 #define MAIDSAFE_DHT_KADEMLIA_SERVICE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "boost/cstdint.hpp"
 
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/contact.h"
@@ -102,7 +101,7 @@ class Service : public std::enable_shared_from_this<Service> {
           std::shared_ptr<DataStore> data_store,
           AlternativeStorePtr alternative_store,
           SecurifierPtr securifier,
-          const boost::uint16_t &k);
+          const uint16_t &k);
 
   /** Dstructor. */
   ~Service();
@@ -310,7 +309,7 @@ class Service : public std::enable_shared_from_this<Service> {
   /** node contact */
   Contact node_contact_;
     /** k closest to the target */
-  const boost::uint16_t k_;
+  const uint16_t k_;
   /** Singal handler */
   PingDownListContactsPtr ping_down_list_contacts_;
   /** sender task */

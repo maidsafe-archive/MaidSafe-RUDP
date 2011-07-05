@@ -57,7 +57,7 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
                  std::shared_ptr<DataStore> data_store,
                  AlternativeStorePtr alternative_store,
                  SecurifierPtr securifier,
-                 const boost::uint16_t &k)
+                 const uint16_t &k)
     : routing_table_(routing_table),
       datastore_(data_store),
       alternative_store_(alternative_store),

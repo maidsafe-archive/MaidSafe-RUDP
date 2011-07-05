@@ -30,7 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 #include <string>
-#include "boost/function.hpp"
 
 #ifdef __MSVC__
 #pragma warning(push)
@@ -46,7 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/version.h"
 
-#if MAIDSAFE_DHT_VERSION != 3001
+#if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
 #endif
@@ -250,4 +249,3 @@ class MessageHandler {
 }  // namespace maidsafe
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_MESSAGE_HANDLER_H_
-

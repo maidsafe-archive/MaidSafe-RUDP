@@ -51,10 +51,10 @@ std::string IpAsciiToBytes(const std::string &decimal_ip);
 std::string IpBytesToAscii(const std::string &bytes_ip);
 
 // Convert an internet network address into dotted string format.
-void IpNetToAscii(boost::uint32_t address, char *ip_buffer);
+void IpNetToAscii(uint32_t address, char *ip_buffer);
 
 // Convert a dotted string format internet address into Ipv4 format.
-boost::uint32_t IpAsciiToNet(const char *buffer);
+uint32_t IpAsciiToNet(const char *buffer);
 
 // Return all local addresses
 std::vector<IP> GetLocalAddresses();

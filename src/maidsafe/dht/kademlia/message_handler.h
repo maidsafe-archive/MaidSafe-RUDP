@@ -28,14 +28,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 #define MAIDSAFE_DHT_KADEMLIA_MESSAGE_HANDLER_H_
 
-#include <boost/concept_check.hpp>
 #include <memory>
 #include <string>
+#include "boost/concept_check.hpp"
 #include "boost/signals2/signal.hpp"
 #include "maidsafe/dht/transport/message_handler.h"
 #include "maidsafe/dht/version.h"
 
-#if MAIDSAFE_DHT_VERSION != 3001
+#if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
 #endif

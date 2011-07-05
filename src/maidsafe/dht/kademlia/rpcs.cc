@@ -48,7 +48,7 @@ namespace dht {
 
 namespace kademlia {
 
-const boost::uint16_t kFailureTolerance = 2;
+const uint16_t kFailureTolerance = 2;
 
 void Rpcs::Ping(SecurifierPtr securifier,
                 const Contact &peer,
@@ -57,7 +57,7 @@ void Rpcs::Ping(SecurifierPtr securifier,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::PingRequest request;
@@ -91,7 +91,7 @@ void Rpcs::FindValue(const Key &key,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::FindValueRequest request;
@@ -122,7 +122,7 @@ void Rpcs::FindNodes(const Key &key,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::FindNodesRequest request;
@@ -156,7 +156,7 @@ void Rpcs::Store(const Key &key,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::StoreRequest request;
@@ -193,7 +193,7 @@ void Rpcs::StoreRefresh(const std::string &serialised_store_request,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::StoreRefreshRequest request;
@@ -228,7 +228,7 @@ void Rpcs::Delete(const Key &key,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::DeleteRequest request;
@@ -264,7 +264,7 @@ void Rpcs::DeleteRefresh(const std::string &serialised_delete_request,
   TransportPtr transport;
   MessageHandlerPtr message_handler;
   Prepare(type, securifier, transport, message_handler);
-  boost::uint32_t object_indx =
+  uint32_t object_indx =
       connected_objects_.AddObject(transport, message_handler);
 
   protobuf::DeleteRefreshRequest request;
@@ -312,7 +312,7 @@ void Rpcs::PingCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     PingFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -341,7 +341,7 @@ void Rpcs::FindValueCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindValueResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     FindValueFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -388,7 +388,7 @@ void Rpcs::FindNodesCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::FindNodesResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     FindNodesFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -424,7 +424,7 @@ void Rpcs::StoreCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     StoreFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -452,7 +452,7 @@ void Rpcs::StoreRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::StoreRefreshResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     StoreRefreshFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -480,7 +480,7 @@ void Rpcs::DeleteCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     DeleteFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -508,7 +508,7 @@ void Rpcs::DeleteRefreshCallback(
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::DeleteRefreshResponse &response,
-    const boost::uint32_t &index,
+    const uint32_t &index,
     DeleteRefreshFunctor callback,
     const std::string &message,
     std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer) {
@@ -538,10 +538,10 @@ void Rpcs::Prepare(TransportType type,
                    MessageHandlerPtr &message_handler) {
   switch (type) {
     case kTcp:
-      transport.reset(new transport::TcpTransport(*asio_service_));
+      transport.reset(new transport::TcpTransport(asio_service_));
       break;
     case kUdp:
-      transport.reset(new transport::UdpTransport(*asio_service_));
+      transport.reset(new transport::UdpTransport(asio_service_));
       break;
     default:
       break;

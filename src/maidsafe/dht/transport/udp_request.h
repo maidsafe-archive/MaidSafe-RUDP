@@ -28,11 +28,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDP_REQUEST_H_
 
+#include <cstdint>
 #include <string>
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
 #include "maidsafe/dht/transport/transport.h"
 
 namespace maidsafe {
@@ -47,12 +47,12 @@ class UdpRequest {
              const boost::asio::ip::udp::endpoint &endpoint,
              boost::asio::io_service &asio_service,
              const Timeout &timeout,
-             boost::uint64_t reply_to_id = 0);
+             uint64_t reply_to_id = 0);
 
   const std::string &Data() const;
   const boost::asio::ip::udp::endpoint& Endpoint() const;
   const Timeout& ReplyTimeout() const;
-  boost::uint64_t ReplyToId() const;
+  uint64_t ReplyToId() const;
 
   template <typename WaitHandler>
   void WaitForTimeout(WaitHandler handler) {
@@ -67,7 +67,7 @@ class UdpRequest {
   boost::asio::ip::udp::endpoint endpoint_;
   boost::asio::deadline_timer timer_;
   Timeout reply_timeout_;
-  boost::uint64_t reply_to_id_;
+  uint64_t reply_to_id_;
 };
 
 }  // namespace transport

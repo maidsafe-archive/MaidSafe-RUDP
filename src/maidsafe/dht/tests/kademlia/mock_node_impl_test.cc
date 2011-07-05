@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/transport/utils.h"
-#include "maidsafe/dht/tests/kademlia/utils.h"
+#include "maidsafe/dht/tests/kademlia/test_utils.h"
 
 namespace arg = std::placeholders;
 
@@ -236,7 +236,7 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
   SecurifierPtr securifier_;
   TransportPtr transport_;
   RankInfoPtr rank_info_;
-  std::shared_ptr<boost::asio::io_service> asio_service_;
+  boost::asio::io_service asio_service_;
   MessageHandlerPtr message_handler_;
   std::shared_ptr<Node::Impl> node_;
   int threshold_;
@@ -251,7 +251,7 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
 
 class MockRpcs : public Rpcs, public CreateContactAndNodeId {
  public:
-  explicit MockRpcs(std::shared_ptr<boost::asio::io_service> asio_service,
+  explicit MockRpcs(boost::asio::io_service &asio_service,  // NOLINT (Fraser)
                     SecurifierPtr securifier)
       : Rpcs(asio_service, securifier),
         CreateContactAndNodeId(),
@@ -2400,10 +2400,6 @@ TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
                                            &MockNodeImplTest::NodeImplJoinCallback,
                                            this, arg::_1, &result, &done));
     EXPECT_TRUE(local_node_->joined());
-  }
-  {
-    // asio_service()
-    EXPECT_EQ(asio_service_, node_->asio_service());
   }
   {
     // alternative_store()

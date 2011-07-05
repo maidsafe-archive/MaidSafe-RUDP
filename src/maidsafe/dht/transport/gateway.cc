@@ -142,7 +142,7 @@ int Gateway::ReadNetlinkSock(int sock, char * buf, int len, int seq, int pid) {
 
     nl_hdr = reinterpret_cast<nlmsghdr *>(buf);
 
-    if ((NLMSG_OK(nl_hdr, static_cast<boost::uint32_t>(read_len)) == 0) ||
+    if ((NLMSG_OK(nl_hdr, static_cast<uint32_t>(read_len)) == 0) ||
         (nl_hdr->nlmsg_type == NLMSG_ERROR)) {
       return -1;
     }
@@ -158,8 +158,8 @@ int Gateway::ReadNetlinkSock(int sock, char * buf, int len, int seq, int pid) {
     if ((nl_hdr->nlmsg_flags & NLM_F_MULTI) == 0) {
       break;
     }
-  } while ((nl_hdr->nlmsg_seq != boost::uint32_t(seq)) ||
-           (nl_hdr->nlmsg_pid != boost::uint32_t(pid)));
+  } while ((nl_hdr->nlmsg_seq != uint32_t(seq)) ||
+           (nl_hdr->nlmsg_pid != uint32_t(pid)));
 
   return msg_len;
 }
@@ -349,7 +349,7 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
     return std::vector<NetworkInterface>();
   }
 
-  for (; NLMSG_OK(nl_msg, static_cast<boost::uint32_t>(len));
+  for (; NLMSG_OK(nl_msg, static_cast<uint32_t>(len));
        nl_msg = NLMSG_NEXT(nl_msg, len)) {
     NetworkInterface intf;
 

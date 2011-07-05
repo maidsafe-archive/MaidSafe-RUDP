@@ -52,7 +52,7 @@ namespace dht {
 
 namespace benchmark {
 
-Operations::Operations(boost::shared_ptr<kademlia::Node> node)
+Operations::Operations(std::shared_ptr<kademlia::Node> node)
     : node_(node), private_key_(), public_key_(), public_key_validation_() {
 //  cryobj_.set_symm_algorithm(crypto::AES_256);
 //  cryobj_.set_hash_algorithm(crypto::SHA_512);
@@ -68,11 +68,11 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
   {
     printf("Finding %d nodes...\n", nodes.size());
 
-    Stats<boost::uint64_t> stats;
-    boost::shared_ptr<CallbackData> data(new CallbackData());
+    Stats<uint64_t> stats;
+    std::shared_ptr<CallbackData> data(new CallbackData());
     boost::mutex::scoped_lock lock(data->mutex);
     for (size_t i = 0; i < nodes.size(); ++i) {
-//     boost::uint64_t t = GetEpochMilliseconds();
+//     uint64_t t = GetEpochMilliseconds();
 //      node_->GetNodeContactDetails(
 //            nodes[i],
 //            boost::bind(&Operations::GetNodeContactDetailsCallback, this, _1,
@@ -96,13 +96,13 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
     printf("Pinging %d contacts, %d iterations...\n",
            contacts.size(), iterations);
 
-    Stats<boost::uint64_t> stats;
+    Stats<uint64_t> stats;
     for (size_t i = 0; i < contacts.size(); ++i) {
-      Stats<boost::uint64_t> it_stats;
-      boost::shared_ptr<CallbackData> data(new CallbackData());
+      Stats<uint64_t> it_stats;
+      std::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
-//        boost::uint64_t t = GetEpochMilliseconds();
+//        uint64_t t = GetEpochMilliseconds();
 //        node_->Ping(contacts[i], boost::bind(
 //            &Operations::PingCallback, this, _1, data));
         while (data->returned_count <= j)
@@ -154,10 +154,10 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
            size.c_str(), nodes.size(), iterations);
 
 
-    Stats<boost::uint64_t> store_stats;
+    Stats<uint64_t> store_stats;
     for (size_t i = 0; i < nodes.size(); ++i) {
-      Stats<boost::uint64_t> it_stats;
-      boost::shared_ptr<CallbackData> data(new CallbackData());
+      Stats<uint64_t> it_stats;
+      std::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
 //      for (int j = 0; j < iterations; ++j) {
 //        kademlia::NodeId mod =
@@ -181,7 +181,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
 ////          sig_req.set_public_key_validation(public_key_validation_);
 ////          sig_req.set_request_signature(req_sig);
 //        }
-//        boost::uint64_t t = GetEpochMilliseconds();
+//        uint64_t t = GetEpochMilliseconds();
 //        if (sign) {
 //          node_->StoreValue(key, sig_val, sig_req, 86400, boost::bind(
 //              &Operations::StoreCallback, this, _1, data));
@@ -211,15 +211,15 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
     printf("Loading %s value from %d closest nodes, %d iterations...\n",
            size.c_str(), nodes.size(), iterations);
 
-    Stats<boost::uint64_t> load_stats;
+    Stats<uint64_t> load_stats;
     for (size_t i = 0; i < nodes.size(); ++i) {
-      Stats<boost::uint64_t> it_stats;
-      boost::shared_ptr<CallbackData> data(new CallbackData());
+      Stats<uint64_t> it_stats;
+      std::shared_ptr<CallbackData> data(new CallbackData());
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
         kademlia::NodeId mod =
             GetModId(val * iterations * nodes.size() + i * iterations + j);
-//        boost::uint64_t t = GetEpochMilliseconds();
+//        uint64_t t = GetEpochMilliseconds();
 //        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
 //            &Operations::FindValueCallback, this, _1, data));
         while (data->returned_count <= j)
@@ -245,7 +245,7 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
 
 
 void Operations::PingCallback(const std::string &/*result*/,
-                              boost::shared_ptr<CallbackData> data) {
+                              std::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
@@ -256,7 +256,7 @@ void Operations::PingCallback(const std::string &/*result*/,
 }
 
 void Operations::GetNodeContactDetailsCallback(const std::string &/*result*/,
-                                  boost::shared_ptr<CallbackData> data) {
+                                  std::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
@@ -269,7 +269,7 @@ void Operations::GetNodeContactDetailsCallback(const std::string &/*result*/,
 }
 
 void Operations::StoreCallback(const std::string &/*result*/,
-                               boost::shared_ptr<CallbackData> data) {
+                               std::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
@@ -280,7 +280,7 @@ void Operations::StoreCallback(const std::string &/*result*/,
 }
 
 void Operations::FindValueCallback(const std::string &/*result*/,
-                                   boost::shared_ptr<CallbackData> data) {
+                                   std::shared_ptr<CallbackData> data) {
   boost::mutex::scoped_lock lock(data->mutex);
   data->content.clear();
   ++data->returned_count;
@@ -296,7 +296,7 @@ void Operations::FindValueCallback(const std::string &/*result*/,
  * with a unique value for each (positive) iteration number.
  */
 kademlia::NodeId Operations::GetModId(int iteration) {
-  boost::uint16_t bits = kademlia::kKeySizeBits - 1;
+  uint16_t bits = kademlia::kKeySizeBits - 1;
   kademlia::NodeId id;
   while (iteration > bits) {
     id = id ^ kademlia::NodeId(bits);

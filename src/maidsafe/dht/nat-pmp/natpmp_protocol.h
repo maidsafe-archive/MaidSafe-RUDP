@@ -109,14 +109,14 @@ class Protocol {
 
     std::size_t length;
     char buffer[12];
-    boost::uint8_t retry_count;
+    uint8_t retry_count;
   };
 
 /**
   * External ip address request structure.
   */
   struct ExternalAddressRequest {
-    boost::uint16_t opcode;
+    uint16_t opcode;
   };
 
 /**
@@ -131,8 +131,8 @@ class Protocol {
               public_port == other.public_port);
     }
 
-    boost::uint16_t type, result_code, private_port, public_port;
-    boost::uint32_t epoch, lifetime;
+    uint16_t type, result_code, private_port, public_port;
+    uint32_t epoch, lifetime;
     boost::asio::ip::address public_address;
   };
 

@@ -46,19 +46,19 @@ namespace kademlia {
 
 namespace test {
 
-boost::uint16_t kNetworkSize;
-boost::uint16_t kK_;
-boost::uint16_t kAlpha_;
-boost::uint16_t kBeta_;
-boost::uint16_t kNumServers_;
+uint16_t kNetworkSize;
+uint16_t kK_;
+uint16_t kAlpha_;
+uint16_t kBeta_;
+uint16_t kNumServers_;
 boost::posix_time::time_duration kMeanRefresh_;
-const boost::uint16_t kThreadGroupSize = 3;
+const uint16_t kThreadGroupSize = 3;
 
 std::string test_dir_;
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
 
-std::vector<IoServicePtr> asio_services_;
+std::vector<std::shared_ptr<AsioService>> asio_services_;
 std::vector<WorkPtr> works_;
 std::vector<ThreadGroupPtr> thread_groups_;
 std::vector<TransportPtr> transports_;
@@ -72,7 +72,7 @@ std::vector<std::string> dbs_;
 std::vector<Contact> bootstrap_contacts_;
 std::vector<crypto::RsaKeyPair> crypto_key_pairs_;
 
-std::vector<boost::uint16_t> ports_;
+std::vector<uint16_t> ports_;
 
 NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
@@ -80,7 +80,7 @@ NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos) {
   NodeId new_node;
   std::string new_node_string;
   bool repeat(true);
-  boost::uint16_t times_of_try(0);
+  uint16_t times_of_try(0);
   // generate a random ID and make sure it has not been generated previously
   do {
     new_node = NodeId(NodeId::kRandomId);
@@ -135,11 +135,11 @@ std::string get_app_directory() {
 }
 
 EnvironmentNodes::EnvironmentNodes(
-    boost::uint16_t num_of_nodes,
-    boost::uint16_t k,
-    boost::uint16_t alpha,
-    boost::uint16_t beta,
-    boost::uint16_t num_of_servers,
+    uint16_t num_of_nodes,
+    uint16_t k,
+    uint16_t alpha,
+    uint16_t beta,
+    uint16_t num_of_servers,
     const boost::posix_time::time_duration &mean_refresh_interval) {
   kNetworkSize = num_of_nodes;
   kK_ = k;
@@ -173,11 +173,11 @@ void EnvironmentNodes::SetUp() {
   std::string priv_key, pub_key;
   NodeId seed_id(NodeId::kRandomId);
 
-  for (boost::int16_t  i = 0; i < kNetworkSize; ++i) {
+  for (int16_t  i = 0; i < kNetworkSize; ++i) {
     crypto::RsaKeyPair rsa_key_pair;
     rsa_key_pair.GenerateKeys(4096);
     crypto_key_pairs_.push_back(rsa_key_pair);
-    IoServicePtr local_asio(new boost::asio::io_service());
+    std::shared_ptr<AsioService> local_asio(new AsioService);
     WorkPtr local_work(new boost::asio::io_service::work(*local_asio));
     works_.push_back(local_work);
     asio_services_.push_back(local_asio);
@@ -186,9 +186,8 @@ void EnvironmentNodes::SetUp() {
     local_thread_group.reset(new boost::thread_group());
 
     for (int j = 0; j < kThreadGroupSize; ++j)
-      local_thread_group->create_thread(std::bind(
-          static_cast<std::size_t(boost::asio::io_service::*)()>
-              (&boost::asio::io_service::run), local_asio));
+      local_thread_group->create_thread(std::bind(&boost::asio::io_service::run,
+                                                  local_asio));
 
     thread_groups_.push_back(local_thread_group);
 
@@ -224,7 +223,7 @@ void EnvironmentNodes::SetUp() {
               &MessageHandler::OnMessageReceived, message_handler.get(),
               _1, _2, _3, _4).track_foreign(message_handler));
     }
-    std::shared_ptr<Node> cur_node(new Node(local_asio, local_transport,
+    std::shared_ptr<Node> cur_node(new Node(*local_asio, local_transport,
                                             message_handler,
                                             securifier,
                                             alternative_store,
@@ -242,7 +241,7 @@ void EnvironmentNodes::SetUp() {
                     std::bind(&ErrorCodeCallback, arg::_1, &done,
                     &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_TRUE(nodes_[i]->joined());
     DLOG(INFO) << "Joined node " << node_ids_[i].ToStringEncoded(NodeId::kHex)
                << std::endl;
@@ -257,12 +256,12 @@ void EnvironmentNodes::SetUp() {
 }
 
 void EnvironmentNodes::TearDown() {
-    boost::this_thread::sleep(boost::posix_time::seconds(1));
+    Sleep(boost::posix_time::seconds(1));
 
-    for (boost::int16_t n = kNetworkSize - 1; n >= 0; --n)
+    for (int16_t n = kNetworkSize - 1; n >= 0; --n)
       transports_[n]->StopListening();
 
-    for (boost::int16_t i = kNetworkSize-1; i >= 0; i--) {
+    for (int16_t i = kNetworkSize-1; i >= 0; i--) {
       std::vector<Contact> local_boostrap_contacts;
       nodes_[i]->Leave(&local_boostrap_contacts);
       EXPECT_FALSE(nodes_[i]->joined());

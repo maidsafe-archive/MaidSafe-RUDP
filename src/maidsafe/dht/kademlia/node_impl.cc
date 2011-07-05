@@ -48,15 +48,15 @@ namespace kademlia {
 
 // some tools which will be used in the implementation of Node::Impl class
 
-Node::Impl::Impl(IoServicePtr asio_service,
+Node::Impl::Impl(AsioService &asio_service,                   // NOLINT (Fraser)
                  TransportPtr listening_transport,
                  MessageHandlerPtr message_handler,
                  SecurifierPtr default_securifier,
                  AlternativeStorePtr alternative_store,
                  bool client_only_node,
-                 const boost::uint16_t &k,
-                 const boost::uint16_t &alpha,
-                 const boost::uint16_t &beta,
+                 const uint16_t &k,
+                 const uint16_t &alpha,
+                 const uint16_t &beta,
                  const boost::posix_time::time_duration &mean_refresh_interval)
     : asio_service_(asio_service),
       listening_transport_(listening_transport),
@@ -140,7 +140,8 @@ void Node::Impl::Join(const NodeId &node_id,
   if (bootstrap_contacts.size() == 1 &&
       bootstrap_contacts[0].node_id() == node_id) {
     std::vector<Contact> contacts;
-    JoinFindNodesCallback(1, contacts, bootstrap_contacts, node_id, callback);
+    boost::thread(&Node::Impl::JoinFindNodesCallback, this, 1, contacts,
+                  bootstrap_contacts, node_id, callback);
     return;
   }
 
@@ -561,10 +562,6 @@ bool Node::Impl::joined() const {
   return joined_;
 }
 
-IoServicePtr Node::Impl::asio_service() {
-  return asio_service_;
-}
-
 AlternativeStorePtr Node::Impl::alternative_store() {
   return alternative_store_;
 }
@@ -577,15 +574,15 @@ bool Node::Impl::client_only_node() const {
   return client_only_node_;
 }
 
-boost::uint16_t Node::Impl::k() const {
+uint16_t Node::Impl::k() const {
   return k_;
 }
 
-boost::uint16_t Node::Impl::alpha() const {
+uint16_t Node::Impl::alpha() const {
   return kAlpha_;
 }
 
-boost::uint16_t Node::Impl::beta() const {
+uint16_t Node::Impl::beta() const {
   return kBeta_;
 }
 
@@ -649,7 +646,7 @@ void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info, const int &result,
 void Node::Impl::RefreshDataStore() {
   std::vector<KeyValueTuple> key_value_tuples;
   while (joined_) {
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+    Sleep(boost::posix_time::milliseconds(10000));
     data_store_->Refresh(&key_value_tuples);
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   std::bind(&Node::Impl::PostStoreRefresh, this, arg:: _1));
@@ -792,7 +789,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   }
   // find Alpha closest contacts to enquire
   // or all the left contacts if less than Alpha contacts haven't been tried
-  boost::uint16_t counter = 0;
+  uint16_t counter = 0;
   auto it_begin = pit.first;
   auto it_end = pit.second;
   std::vector<NodeId> to_contact;

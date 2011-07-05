@@ -26,11 +26,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <signal.h>
+#include <memory>
 #include <iostream>  //  NOLINT
 #include "boost/program_options.hpp"
 #include "boost/filesystem/fstream.hpp"
 #include "boost/filesystem.hpp"
-#include "boost/shared_ptr.hpp"
 #include "boost/lexical_cast.hpp"
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/node-api.h"
@@ -40,7 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace po = boost::program_options;
 
 namespace test_benchmark {
-  static const boost::uint16_t K = 16;
+  static const uint16_t K = 16;
 }  // namespace test_benchmark
 
 class JoinCallback {
@@ -98,8 +98,8 @@ bool kadconfig_empty(const std::string &/*path*/) {
 
 bool write_to_kadconfig(const std::string & path,
     const std::string &/*node_id*/, const std::string &/*ip*/,
-    const boost::uint16_t &/*port*/, const std::string &/*local_ip*/,
-    const boost::uint16_t &/*local_port*/) {
+    const uint16_t &/*port*/, const std::string &/*local_ip*/,
+    const uint16_t &/*local_port*/) {
 //  maidsafe::KadConfig kadconfig;
 //  try {
 //    maidsafe::KadConfig::Contact *ctc = kadconfig.add_contact();
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
   try {
     std::string logpath, kadconfigpath, bs_ip, bs_id, configfile,
         bs_local_ip, thisnodekconfigpath, idpath;
-    boost::uint16_t bs_port(0), bs_local_port(0), port(0);
+    uint16_t bs_port(0), bs_local_port(0), port(0);
     int iterations(5), max_nodes(5);
     po::options_description desc("Options");
     desc.add_options()
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
 
 /*
     // Starting transport on port
-    port = vm["port"].as<boost::uint16_t>();
+    port = vm["port"].as<uint16_t>();
     boost::shared_ptr<transport::UdtTransport> tra(new transport::UdtTransport);
     transport::TransportCondition tc;
     tra->StartListening("", port, &tc);
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     node->Join(kadconfigpath,
                boost::bind(&JoinCallback::Callback, &callback, _1));
     while (!callback.result_arrived())
-      boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(500));
     // Checking result of callback
     if (!callback.success()) {
       printf("Node failed to join the network.\n");

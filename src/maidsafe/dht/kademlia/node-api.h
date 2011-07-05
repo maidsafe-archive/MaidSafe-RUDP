@@ -33,12 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_API_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_API_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
-#include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/scoped_ptr.hpp"
 
@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/version.h"
 
-#if MAIDSAFE_DHT_VERSION != 3001
+#if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
 #endif
@@ -70,7 +70,7 @@ class NodeImplTest;
 class Node {
  public:
 
-  // asio_service is a pointer to a boost::asio::io_service instance which
+  // asio_service is a reference to a boost::asio::io_service instance which
   // should have at least 1 thread running io_service::run().
   //
   // listening_transport is responsible for listening only, not sending.  It
@@ -97,15 +97,15 @@ class Node {
   //
   // mean_refresh_interval indicates the average interval between calls to
   // refresh values.
-  Node(IoServicePtr asio_service,
+  Node(AsioService &asio_service,                             // NOLINT (Fraser)
        TransportPtr listening_transport,
        MessageHandlerPtr message_handler,
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
-       const boost::uint16_t &k,
-       const boost::uint16_t &alpha,
-       const boost::uint16_t &beta,
+       const std::uint16_t &k,
+       const uint16_t &alpha,
+       const uint16_t &beta,
        const boost::posix_time::time_duration &mean_refresh_interval);
 
   ~Node();
@@ -214,13 +214,12 @@ class Node {
   bool joined() const;
 
   // Getters
-  IoServicePtr asio_service();
   AlternativeStorePtr alternative_store();
   OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;
-  boost::uint16_t k() const;
-  boost::uint16_t alpha() const;
-  boost::uint16_t beta() const;
+  uint16_t k() const;
+  uint16_t alpha() const;
+  uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
 
   friend class test::MockNodeImplTest;
