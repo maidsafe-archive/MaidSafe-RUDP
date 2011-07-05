@@ -151,7 +151,7 @@ void EnvironmentNodes::SetUp() {
   std::string priv_key, pub_key;
   NodeId seed_id(NodeId::kRandomId);
 
-  for (int16_t  i = 0; i < kNetworkSize; ++i) {
+  for (int16_t i = 0; i < kNetworkSize; ++i) {
     crypto::RsaKeyPair rsa_key_pair;
     rsa_key_pair.GenerateKeys(4096);
     crypto_key_pairs_.push_back(rsa_key_pair);
@@ -164,8 +164,9 @@ void EnvironmentNodes::SetUp() {
     local_thread_group.reset(new boost::thread_group());
 
     for (int j = 0; j < kThreadGroupSize; ++j)
-      local_thread_group->create_thread(std::bind(&boost::asio::io_service::run,
-                                                  local_asio));
+      local_thread_group->create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), local_asio));
 
     thread_groups_.push_back(local_thread_group);
 

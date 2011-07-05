@@ -98,8 +98,9 @@ class NodeImplTest : public testing::Test {
           *services_[i])));
 
       for (int j = 0; j < kThreadGroupSize; ++j) {
-        local_thread_group->create_thread(std::bind(
-            &boost::asio::io_service::run, services_[i]));
+        local_thread_group->create_thread(
+            std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+                &boost::asio::io_service::run), services_[i]));
       }
 
       thread_groups_.push_back(local_thread_group);

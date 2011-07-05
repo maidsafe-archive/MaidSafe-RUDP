@@ -1769,8 +1769,9 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
                               "DoDeleteRefresh"));
   // Running the threads
   for (size_t i = 0; i < kNumberOfThreads; ++i) {
-    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
-                                              &asio_service));
+    asio_thread_group.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service));
   }
   // Check results
   asio_thread_group.join_all();
