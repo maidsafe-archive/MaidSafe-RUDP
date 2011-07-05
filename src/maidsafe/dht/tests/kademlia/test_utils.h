@@ -127,6 +127,8 @@ bool AddTestValidation(SecurifierPtr securifier, std::string public_key_id,
 void AddContact(std::shared_ptr<RoutingTable> routing_table,
                 const Contact& contact, const RankInfoPtr rank_info);
 
+void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids);
+
 }  // namespace test
 
 }  // namespace kademlia
