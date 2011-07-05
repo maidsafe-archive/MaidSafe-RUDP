@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/tests/demo/demo_node.h"
 #include <iostream>  //  NOLINT
 #include <functional>
+#include <string>
 #include "boost/format.hpp"
 
 #include "maidsafe/common/crypto.h"
@@ -81,7 +82,8 @@ int DemoNode::Init(const size_t &thread_count,
   // Create worker threads for asynchronous operations.
   for (size_t i(0); i != thread_count; ++i) {
     thread_group_.create_thread(
-        std::bind(&boost::asio::io_service::run, &asio_service_));
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_));
   }
 
   // If we want a secure network, reset the securifier with cryptographic keys.

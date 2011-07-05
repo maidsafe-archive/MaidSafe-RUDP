@@ -1128,8 +1128,9 @@ TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
   // Run threads
   boost::thread_group asio_thread_group;
   for (size_t i = 0; i != kThreadCount; ++i) {
-    asio_thread_group.create_thread(std::bind(&boost::asio::io_service::run,
-                                              &asio_service));
+    asio_thread_group.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service));
   }
   asio_thread_group.join_all();
 

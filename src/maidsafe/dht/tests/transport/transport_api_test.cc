@@ -143,17 +143,21 @@ TransportAPITest<T>::TransportAPITest()
       request_messages_(),
       count_(0) {
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                          &asio_service_));
+    thread_group_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_1_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            &asio_service_1_));
+    thread_group_1_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_1_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_2_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            &asio_service_2_));
+    thread_group_2_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_2_));
   for (int i = 0; i < kThreadGroupSize; ++i)
-    thread_group_3_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            &asio_service_3_));
+    thread_group_3_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_3_));
   // count_ = 0;
 }
 
