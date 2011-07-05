@@ -93,11 +93,10 @@ class CreateContactAndNodeId {
 
   NodeId GenerateRandomId(const NodeId& holder, const int& pos);
 
-  Contact ComposeContact(const NodeId& node_id,
-                         uint16_t port);
+  Contact ComposeContact(const NodeId& node_id, Port port);
 
   Contact ComposeContactWithKey(const NodeId& node_id,
-                                uint16_t port,
+                                Port port,
                                 const crypto::RsaKeyPair& crypto_key);
 
   void PopulateContactsVector(int count,

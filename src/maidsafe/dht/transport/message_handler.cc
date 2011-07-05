@@ -158,7 +158,7 @@ void MessageHandler::ProcessSerialisedMessage(
     const std::string &payload,
     const SecurityType &/*security_type*/,
     const std::string &/*message_signature*/,
-    const Info &info,
+    const Info &/*info*/,
     std::string *message_response,
     Timeout *timeout) {
   message_response->clear();

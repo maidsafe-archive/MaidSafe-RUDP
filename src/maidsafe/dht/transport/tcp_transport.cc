@@ -113,7 +113,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
 }
 
 TransportCondition TcpTransport::Bootstrap(
-    const std::vector<Endpoint> &candidates) {
+    const std::vector<Endpoint> &/*candidates*/) {
   return kSuccess;
 }
 

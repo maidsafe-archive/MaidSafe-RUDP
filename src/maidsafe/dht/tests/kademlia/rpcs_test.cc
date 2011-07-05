@@ -779,7 +779,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(0, return_values.size());
   ASSERT_EQ(k, return_contacts.size());
-  ASSERT_EQ(0, IsKeyValueInDataStore(kvs, data_store_));
+  ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
 
   StopAndReset();
 }
@@ -1366,7 +1366,6 @@ class RpcsMultiServerNodesTest
     for (int index = 0; index != kRpcServersNo; ++index) {
       NodeId service_node_id =
           GenerateRandomId(node_id_, kMinServerPositionOffset + index);
-      RoutingTablePtr routing_table();
       routing_table_.push_back(RoutingTablePtr(new RoutingTable(service_node_id,
                                                                 test::k)));
       data_store_.push_back(DataStorePtr(
@@ -1411,8 +1410,8 @@ class RpcsMultiServerNodesTest
 
       kademlia::Contact rpcs_contact;
       rpcs_contact = ComposeContactWithKey(rpcs_node_id,
-                                            5011 + index,
-                                            senders_crypto_key_id3_[index]);
+                                           static_cast<Port>(5011 + index),
+                                           senders_crypto_key_id3_[index]);
       rpcs_contact_.push_back(rpcs_contact);
       rpcs_[index]->set_contact(rpcs_contact_[index]);
     }
@@ -1423,7 +1422,7 @@ class RpcsMultiServerNodesTest
           GenerateRandomId(node_id_, kMinServerPositionOffset + index);
       service_contact_.push_back(
           ComposeContactWithKey(service_node_id,
-                                5011 + kRpcClientNo + index,
+                                static_cast<Port>(5011 + kRpcClientNo + index),
                                 receivers_crypto_key_id3_[index]));
       services_securifier_.push_back(
           SecurifierPtr(new SecurifierGetPublicKeyAndValidation(
@@ -1629,7 +1628,6 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
   bool done[kRpcClientNo][kRpcServersNo];
   bool localdone = false;
   int response_code[kRpcClientNo][kRpcServersNo];
-  int received_response(0);
   for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
     for (int index = 0; index < kRpcServersNo; ++index) {
       done[client_index][index] = false;

@@ -1512,7 +1512,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ThreadedMessageHandling) {
   uint16_t total_messages(0);
   boost::thread_group thg;
   for (uint8_t n = 0; n < thread_count; ++n) {
-    int rounds((RandomUint32() % 5) + 4);
+    uint16_t rounds((RandomUint32() % 5) + 4);
     thg.create_thread(std::bind(&KademliaMessageHandlerTest::ExecuteThread,
                                 this, messages, rounds, kp));
     total_messages += rounds;

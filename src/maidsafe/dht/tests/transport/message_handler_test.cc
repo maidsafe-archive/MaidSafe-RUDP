@@ -505,7 +505,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
   uint16_t total_messages(0);
   boost::thread_group thg;
   for (uint8_t n = 0; n < thread_count; ++n) {
-    int rounds((RandomUint32() % 5) + 4);
+    uint16_t rounds((RandomUint32() % 5) + 4);
     thg.create_thread(std::bind(&TransportMessageHandlerTest::ExecuteThread,
                                 this, messages, rounds));
     total_messages += rounds;

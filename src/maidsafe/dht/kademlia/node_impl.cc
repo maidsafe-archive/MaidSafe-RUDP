@@ -436,7 +436,7 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
 
   auto pit_pending =
       drpc->rpc_a->nc.get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+//  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
   auto pit_contacted = drpc->rpc_a->nc.get<nc_state>().equal_range(kContacted);
   int num_of_contacted= std::distance(pit_contacted.first,
@@ -514,13 +514,12 @@ void Node::Impl::GetContact(const NodeId &node_id,
                       arg::_1, arg::_2, node_id, callback));
 }
 
-void Node::Impl::GetContactCallBack(int result_size,
-                                    const std::vector<Contact> &cs,
+void Node::Impl::GetContactCallBack(int /*result_size*/,
+                                    const std::vector<Contact> &closest,
                                     const NodeId &node_id,
                                     GetContactFunctor callback) {
-  auto it = cs.begin();
-  auto it_end = cs.end();
-  while (it != it_end) {
+  auto it = closest.begin();
+  while (it != closest.end()) {
     if ((*it).node_id() == node_id) {
       callback(1, (*it));
       return;

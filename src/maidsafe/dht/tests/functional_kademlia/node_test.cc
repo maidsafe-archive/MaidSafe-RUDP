@@ -63,7 +63,7 @@ namespace kademlia {
 namespace test_node {
 
 const int kProbes = 4;
-const int kStaringPort = 8000;
+const dht::transport::Port kStartingPort = 8000;
 const std::string kLocalIp = "127.0.0.1";
 
 
@@ -143,7 +143,7 @@ class NodeTest : public testing::Test {
     *done = true;
   }
 
-  void FindNodesCallback(int results,
+  void FindNodesCallback(int /*results*/,
                          std::vector<dht::kademlia::Contact> nodes,
                          bool* done,
                          std::vector<dht::kademlia::Contact>* out_contacts) {
@@ -215,7 +215,7 @@ class NodeTest : public testing::Test {
     dht::kademlia::JoinFunctor join_callback(std::bind(
         &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
         &cond_var_, &joined_nodes, &failed_nodes));
-    dht::transport::Endpoint endpoint(kLocalIp, kStaringPort);
+    dht::transport::Endpoint endpoint(kLocalIp, kStartingPort);
     std::vector<dht::transport::Endpoint> local_endpoints;
     local_endpoints.push_back(endpoint);
     dht::kademlia::Contact contact(node_id, endpoint,
@@ -233,7 +233,8 @@ class NodeTest : public testing::Test {
           nodeid.String(), tmp_key_pair.public_key(),
           tmp_key_pair.private_key(), false, kReplicationFactor_, kAlpha_,
           kBeta_, kMeanRefreshInterval_));
-      dht::transport::Endpoint endpoint(kLocalIp, kStaringPort + index);
+      dht::transport::Endpoint endpoint(kLocalIp,
+          static_cast<dht::transport::Port>(kStartingPort + index));
       ASSERT_EQ(dht::transport::kSuccess,
                 nodes_[index]->transport->StartListening(endpoint));
       std::vector<dht::kademlia::Contact> bootstrap_contacts;
@@ -420,7 +421,7 @@ TEST_F(NodeTest, FUNC_GetNodeContactDetails) {
   for (size_t index = kNetworkSize_; index < kNetworkSize_*2; ++index) {
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
-    char last_char = 60 + index;
+    char last_char = static_cast<char>(60 + index);
     key_string += last_char;
     key_pair.GenerateKeys(4096);
     dht::kademlia::NodeId node_id(key_string);
@@ -428,7 +429,8 @@ TEST_F(NodeTest, FUNC_GetNodeContactDetails) {
     nodes_[index] = std::shared_ptr<NodeContainer>(new NodeContainer(
         node_id.String(), key_pair.public_key(), key_pair.private_key(), false,
         kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_));
-    dht::transport::Endpoint endpoint(kLocalIp, kStaringPort + index);
+    dht::transport::Endpoint endpoint(kLocalIp,
+        static_cast<dht::transport::Port>(kStartingPort + index));
     ASSERT_EQ(dht::transport::kSuccess,
         nodes_[index]->transport->StartListening(endpoint));
     std::vector<dht::kademlia::Contact> bootstrap_contacts;
@@ -457,7 +459,7 @@ TEST_F(NodeTest, FUNC_GetNodeContactDetails) {
                 &done));
   while (!done)
     Sleep(boost::posix_time::milliseconds(200));
-  ASSERT_EQ(contact.endpoint().port, kStaringPort + random_node + kNetworkSize_);
+  ASSERT_EQ(contact.endpoint().port, kStartingPort + random_node + kNetworkSize_);
 }
 
 TEST_F(NodeTest, FUNC_LoadNonExistingValue) {
@@ -644,7 +646,7 @@ TEST_F(NodeTest, FUNC_FindClosestNodes) {
   bool done(false);
   std::vector<dht::kademlia::Key> new_keys;
   std::string key_string(63, '\0');
-  char last_char = 91 + kNetworkSize_;
+  char last_char = static_cast<char>(91 + kNetworkSize_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
   nodes_.resize(kNetworkSize_*2);
@@ -654,14 +656,15 @@ TEST_F(NodeTest, FUNC_FindClosestNodes) {
   for (size_t index = kNetworkSize_; index < kNetworkSize_*2; ++index) {
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
-    char last_char = 60 + index;
+    char last_char = static_cast<char>(60 + index);
     key_string += last_char;
     key_pair.GenerateKeys(4096);
     dht::kademlia::NodeId node_id(key_string);
     nodes_[index] = std::shared_ptr<NodeContainer>(new NodeContainer(
         node_id.String(), key_pair.public_key(), key_pair.private_key(), false,
         kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_));
-    dht::transport::Endpoint endpoint(kLocalIp, kStaringPort + index);
+    dht::transport::Endpoint endpoint(kLocalIp,
+        static_cast<dht::transport::Port>(kStartingPort + index));
     ASSERT_EQ(dht::transport::kSuccess,
         nodes_[index]->transport->StartListening(endpoint));
     std::vector<dht::kademlia::Contact> bootstrap_contacts;
@@ -697,7 +700,7 @@ TEST_F(NodeTest, BEH_FindClosestNodeAnalysis) {
   bool done = false;
   std::vector<dht::kademlia::Key> new_keys;
   std::string key_string(63, '\0');
-  char last_char = 91 + kNetworkSize_;
+  char last_char = static_cast<char>(91 + kNetworkSize_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
   nodes_.resize(kNetworkSize_*2);
@@ -707,7 +710,7 @@ TEST_F(NodeTest, BEH_FindClosestNodeAnalysis) {
   for (size_t index = kNetworkSize_; index < kNetworkSize_*2; ++index) {
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
-    char last_char = 60 + index;
+    char last_char = static_cast<char>(60 + index);
     key_string += last_char;
     key_pair.GenerateKeys(4096);
     dht::kademlia::NodeId node_id(key_string);
@@ -715,7 +718,8 @@ TEST_F(NodeTest, BEH_FindClosestNodeAnalysis) {
     nodes_[index] = std::shared_ptr<NodeContainer>(new NodeContainer(
         node_id.String(), key_pair.public_key(), key_pair.private_key(), false,
         kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_));
-    dht::transport::Endpoint endpoint(kLocalIp, kStaringPort + index);
+    dht::transport::Endpoint endpoint(kLocalIp,
+        static_cast<dht::transport::Port>(kStartingPort + index));
     ASSERT_EQ(dht::transport::kSuccess,
         nodes_[index]->transport->StartListening(endpoint));
     std::vector<dht::kademlia::Contact> bootstrap_contacts;
@@ -755,7 +759,7 @@ TEST_F(NodeTest, BEH_MultipleNodesFindClosestNodes) {
   size_t joined_nodes(kNetworkSize_), failed_nodes(0);
   bool done(false);
   std::string key_string(63, '\0');
-  char last_char = 91 + kNetworkSize_;
+  char last_char = static_cast<char>(91 + kNetworkSize_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
   nodes_.resize(kNetworkSize_*2);
@@ -765,14 +769,15 @@ TEST_F(NodeTest, BEH_MultipleNodesFindClosestNodes) {
   for (size_t index = kNetworkSize_; index < kNetworkSize_*2; ++index) {
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
-    char last_char = 60 + index;
+    char last_char = static_cast<char>(60 + index);
     key_string += last_char;
     key_pair.GenerateKeys(4096);
     dht::kademlia::NodeId node_id(key_string);
     nodes_[index] = std::shared_ptr<NodeContainer>(new NodeContainer(
         node_id.String(), key_pair.public_key(), key_pair.private_key(), false,
         kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_));
-    dht::transport::Endpoint endpoint(kLocalIp, kStaringPort + index);
+    dht::transport::Endpoint endpoint(kLocalIp,
+        static_cast<dht::transport::Port>(kStartingPort + index));
     ASSERT_EQ(dht::transport::kSuccess,
         nodes_[index]->transport->StartListening(endpoint));
     std::vector<dht::kademlia::Contact> bootstrap_contacts;
@@ -877,7 +882,7 @@ TEST_F(NodeTest, FUNC_FindValueWithDeadNodes) {
   std::vector<size_t> contacts_index;
   contacts_index.resize(contacts.size() - 1);
   for (size_t index = 0; index < contacts.size() - 1; ++index) {
-    contacts_index[index] = contacts[index].endpoint().port - kStaringPort;
+    contacts_index[index] = contacts[index].endpoint().port - kStartingPort;
     nodes_[contacts_index[index]]->node->Leave(NULL);
     nodes_[contacts_index[index]]->work.reset();
     nodes_[contacts_index[index]]->asio_service.stop();
@@ -1022,27 +1027,6 @@ inline void create_req(const std::string &pub_key, const std::string &priv_key,
                        std::string *sig_req) {
 }
 
-std::string get_app_directory() {
-  boost::filesystem::path app_path;
-#if defined(MAIDSAFE_POSIX)
-  app_path = boost::filesystem::path("/var/cache/maidsafe/");
-#elif defined(MAIDSAFE_WIN32)
-  TCHAR szpth[MAX_PATH];
-  if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, 0, szpth))) {
-    std::ostringstream stm;
-    const std::ctype<char> &ctfacet =
-        std::use_facet< std::ctype<char> >(stm.getloc());
-    for (size_t i = 0; i < wcslen(szpth); ++i)
-      stm << ctfacet.narrow(szpth[i], 0);
-    app_path = boost::filesystem::path(stm.str());
-    app_path /= "maidsafe";
-  }
-#elif defined(MAIDSAFE_APPLE)
-  app_path = boost::filesystem::path("/Library/maidsafe/");
-#endif
-  return app_path.string();
-}
-
 void ConstructKcp(NodeConstructionParameters *kcp) {
   kcp->type = VAULT;
   kcp->alpha = kAlpha;
@@ -1068,7 +1052,7 @@ std::vector<std::string> dbs_;
 // M maidsafe::crypto:: cry_obj_;
 // M GeneralKadCallback cb_;
 std::vector<dht::kademlia::NodeId> node_ids_;
-std::set<uint16_t> ports_;
+std::set<dht::transport::Port> ports_;
 std::string test_dir_;
 //M base::TestValidator validator;
 
@@ -1198,7 +1182,7 @@ class Env : public testing::Environment {
       transports_[i]->StopListening(transport_ports_[i]);
       channel_managers_[i]->Stop();
     }
-    std::set<uint16_t>::iterator it;
+    std::set<dht::transport::Port>::iterator it;
     for (it = ports_.begin(); it != ports_.end(); it++) {
       // Deleting the DBs in the app dir
       fs::path db_dir(get_app_directory());
@@ -1790,8 +1774,8 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_Ping) {
   // ping a dead node
   NodeId dead_id(cry_obj_.Hash("bb446dx", "", crypto::STRING_STRING, false));
 
-  uint16_t port(4242);
-  std::set<uint16_t>::iterator it;
+  dht::transport::Port port(4242);
+  std::set<dht::transport::Port>::iterator it;
   it = ports_.find(port);
 
   while (it != ports_.end()) {
@@ -2116,7 +2100,7 @@ TEST_F(NodeTest, DISABLED_FUNC_KAD_FindDeadNode) {
   uint16_t r_node = 1 + rand() % (kNetworkSize_ - 2);  // NOLINT (Fraser)
   DLOG(INFO) << "+++++++++++++++++ r_node = " << r_node;
   NodeId r_node_id = nodes_[r_node]->node_id();
-  uint16_t r_port = nodes_[r_node]->port();
+  dht::transport::Port r_port = nodes_[r_node]->port();
   nodes_[r_node]->Leave();
   ASSERT_FALSE(nodes_[r_node]->is_joined());
   transports_[r_node]->StopListening(transport_ports_[r_node]);

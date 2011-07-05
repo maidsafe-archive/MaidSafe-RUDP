@@ -207,7 +207,14 @@ TEST(NodeIdTest, BEH_KAD_EncodingCtr) {
 }
 
 TEST(NodeIdTest, BEH_KAD_CtrPower) {
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4245)
+#endif
   NodeId node_id(-2);
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
   ASSERT_FALSE(node_id.IsValid());
   node_id = NodeId(kKeySizeBits + 1);
   ASSERT_FALSE(node_id.IsValid());
@@ -223,7 +230,14 @@ TEST(NodeIdTest, BEH_KAD_CtrPower) {
 
 TEST(NodeIdTest, BEH_KAD_CtrBetweenIds) {
   NodeId id1(NodeId::kRandomId), id2(NodeId::kRandomId);
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4245)
+#endif
   NodeId bad_id(-2);
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
   NodeId id(id1, bad_id);
   ASSERT_FALSE(id.IsValid());
   id = NodeId(bad_id, id2);

@@ -102,7 +102,7 @@ TransportCondition UdpTransport::StartListening(const Endpoint &endpoint) {
 }
 
 TransportCondition UdpTransport::Bootstrap(
-    const std::vector<Endpoint> &candidates) {
+    const std::vector<Endpoint> &/*candidates*/) {
   return kSuccess;
 }
 

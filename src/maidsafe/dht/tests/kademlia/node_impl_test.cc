@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 #include "boost/thread.hpp"
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "maidsafe/common/test.h"
 
 #include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
@@ -120,7 +120,8 @@ class NodeImplTest : public testing::Test {
           AlternativeStorePtr(new TestNodeAlternativeStore), false, kTest,
           alpha, beta, bptime::seconds(30))));  // 3600
 
-      transport::Endpoint endpoint("127.0.0.1", 50000 + i);
+      transport::Endpoint endpoint("127.0.0.1",
+          static_cast<transport::Port>(50000 + i));
       ASSERT_EQ(transport::kSuccess, transports_[i]->StartListening(endpoint));
       transports_[i]->on_message_received()->connect(
         transport::OnMessageReceived::element_type::slot_type(
@@ -164,12 +165,13 @@ class NodeImplTest : public testing::Test {
   }
 
  public:
-  void JoinFunction(int result) { 
+  void JoinFunction(int /*result*/) { 
     joined_ = true; 
   }
 
-  void FindNodesFunction(int result, std::vector<Contact> contacts,
-        std::vector<Contact>& k_closest) {
+  void FindNodesFunction(int /*result*/,
+                         std::vector<Contact> contacts,
+                         std::vector<Contact>& k_closest) {
     k_closest = contacts;
     found_nodes_ = true;
   }
@@ -180,9 +182,11 @@ class NodeImplTest : public testing::Test {
     stored_value_ = true;
   }
 
-  void FindValueFunction(int result, std::vector<std::string> values,
-      std::vector<Contact> k_closest, Contact store_contact,
-      Contact cache_contact) {
+  void FindValueFunction(int /*result*/,
+                         std::vector<std::string> /*values*/,
+                         std::vector<Contact> /*k_closest*/,
+                         Contact /*store_contact*/,
+                         Contact /*cache_contact*/) {
     found_value_ = true;
   }
 
@@ -192,7 +196,7 @@ class NodeImplTest : public testing::Test {
     deleted_value_ = true;
   }
 
-  void GetContactFunction(int result, Contact contact) {
+  void GetContactFunction(int /*result*/, Contact /*contact*/) {
     found_contact_ = true;
   }
 
@@ -456,7 +460,7 @@ TEST_F(NodeImplTest, BEH_KAD_DeleteRefresh) {
   
   size = RandomUint32() % (kTest - 1);
   std::size_t leave_node = number_of_nodes + 1;
-  std::array<std::size_t, kTest+1> nodevals1, nodevals2;
+  std::array<std::size_t, kTest+1> nodevals1;
   // Ensure k closest hold the value and tag the one to leave...
   for (size_t i = 0; i != kTest; ++i) {
     for (size_t j = 0; j != number_of_nodes; ++j) {
@@ -503,7 +507,7 @@ TEST_F(NodeImplTest, BEH_KAD_DeleteRefresh) {
   // Sleep for a while...
   boost::this_thread::sleep(boost::posix_time::seconds(360));
   // Now make sure the value has been deleted from all nodes in network...
-  for (size_t i = 0, j = 0; j != number_of_nodes; ++j) {
+  for (size_t j = 0; j != number_of_nodes; ++j) {
     ASSERT_FALSE(nodes_[j]->data_store_->HasKey(node_id.String()));
   }
 }
