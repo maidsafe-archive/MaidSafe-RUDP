@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "boost/thread/condition_variable.hpp"
 #include "boost/thread/mutex.hpp"
+#include "boost/thread.hpp"
 
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/transport/transport.h"
@@ -77,7 +78,7 @@ class DemoNode {
                     int *response_code,
                     boost::mutex *mutex,
                     boost::condition_variable *cond_var);
-  AsioService asio_service_;
+  boost::asio::io_service asio_service_;
   std::shared_ptr<boost::asio::io_service::work> work_;
   boost::thread_group thread_group_;
   TransportPtr listening_transport_;

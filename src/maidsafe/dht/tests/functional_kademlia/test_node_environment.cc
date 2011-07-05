@@ -186,8 +186,9 @@ void EnvironmentNodes::SetUp() {
     local_thread_group.reset(new boost::thread_group());
 
     for (int j = 0; j < kThreadGroupSize; ++j)
-      local_thread_group->create_thread(std::bind(&boost::asio::io_service::run,
-                                                  local_asio));
+        local_thread_group->create_thread(
+            std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+                &boost::asio::io_service::run), local_asio));
 
     thread_groups_.push_back(local_thread_group);
 

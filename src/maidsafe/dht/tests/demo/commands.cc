@@ -117,7 +117,7 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   else
     ttl = bptime::minutes(minutes_to_live);
 
-  Key key(std::string(args[0]), NodeId::kHex);
+  Key key(std::string(args.at(0)), NodeId::kHex);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
@@ -154,7 +154,7 @@ void Commands::FindValue(const Arguments &args, bool write_to_file) {
     }
   }
 
-  Key key(std::string(args[0]), NodeId::kHex);
+  Key key(std::string(args.at(0)), NodeId::kHex);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
@@ -194,7 +194,7 @@ void Commands::GetContact(const Arguments &args) {
     return demo_node_->asio_service_.post(mark_results_arrived_);
   }
 
-  kademlia::NodeId node_id(std::string(args[0]), NodeId::kHex);
+  kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID for getcontact command.";
     return demo_node_->asio_service_.post(mark_results_arrived_);
@@ -229,7 +229,7 @@ void Commands::FindNodes(const Arguments &args, bool write_to_file) {
     }
   }
 
-  kademlia::NodeId node_id(std::string(args[0]), NodeId::kHex);
+  kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID.";
     return demo_node_->asio_service_.post(mark_results_arrived_);
