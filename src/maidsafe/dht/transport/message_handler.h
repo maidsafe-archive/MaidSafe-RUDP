@@ -31,15 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 
-#ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4244)
-#endif
 #include "boost/signals2/signal.hpp"
-#ifdef __MSVC__
-#pragma warning(pop)
-#endif
-
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/transport/transport.h"

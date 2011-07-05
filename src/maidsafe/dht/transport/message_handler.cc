@@ -29,12 +29,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lexical_cast.hpp"
 #include "maidsafe/dht/log.h"
 #ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4244)
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
 #endif
 #include "maidsafe/dht/transport/transport.pb.h"
 #ifdef __MSVC__
-#pragma warning(pop)
+#  pragma warning(pop)
 #endif
 #include "maidsafe/dht/kademlia/securifier.h"
 

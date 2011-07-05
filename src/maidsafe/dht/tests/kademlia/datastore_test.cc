@@ -36,7 +36,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread/barrier.hpp"
 #include "boost/lexical_cast.hpp"
 #include "boost/asio/io_service.hpp"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127)
+#endif
 #include "boost/date_time/posix_time/posix_time.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/platform_config.h"

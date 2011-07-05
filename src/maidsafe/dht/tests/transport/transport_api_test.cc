@@ -27,7 +27,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/tests/transport/transport_api_test.h"
 #include <functional>
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127)
+#endif
 #include "boost/date_time/posix_time/posix_time.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "boost/thread.hpp"
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/transport/udp_transport.h"

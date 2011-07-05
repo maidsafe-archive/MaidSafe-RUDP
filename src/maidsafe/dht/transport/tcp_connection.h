@@ -28,14 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_TCP_CONNECTION_H_
 #define MAIDSAFE_DHT_TRANSPORT_TCP_CONNECTION_H_
 
-#ifdef __MSVC__
-#pragma warning(disable:4996)
-#endif
 #include <memory>
-#ifdef __MSVC__
-#pragma warning(default:4996)
-#endif
-
 #include <string>
 #include <vector>
 #include "boost/asio/deadline_timer.hpp"
