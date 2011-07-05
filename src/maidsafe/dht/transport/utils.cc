@@ -94,7 +94,7 @@ std::string IpBytesToAscii(const std::string &bytes_ip) {
   return "";
 }
 
-void IpNetToAscii(boost::uint32_t address, char *ip_buffer) {
+void IpNetToAscii(uint32_t address, char *ip_buffer) {
   // TODO(Team): warning thrown on 64-bit machine
   const int sizer = 15;
   #ifdef __MSVC__
@@ -107,15 +107,15 @@ void IpNetToAscii(boost::uint32_t address, char *ip_buffer) {
   #endif
 }
 
-boost::uint32_t IpAsciiToNet(const char *buffer) {
+uint32_t IpAsciiToNet(const char *buffer) {
   // net_server inexplicably doesn't have this function; so I'll just fake it
-  boost::uint32_t ret = 0;
+  uint32_t ret = 0;
   int shift = 24;  //  fill out the MSB first
   bool startQuad = true;
   while ((shift >= 0) && (*buffer)) {
     if (startQuad) {
       unsigned char quad = (unsigned char) atoi(buffer);
-      ret |= (((boost::uint32_t)quad) << shift);
+      ret |= (((uint32_t)quad) << shift);
       shift -= 8;
     }
     startQuad = (*buffer == '.');

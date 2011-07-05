@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
 #define MAIDSAFE_DHT_TRANSPORT_UDP_TRANSPORT_H_
 
+#include <cstdint>
 #include <unordered_map>
 #include <memory>
 #include <string>
@@ -35,12 +36,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/asio/strand.hpp"
-#include "boost/cstdint.hpp"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/transport/udp_request.h"
 #include "maidsafe/dht/version.h"
 
-#if MAIDSAFE_DHT_VERSION != 3001
+#if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
 #endif
@@ -73,7 +73,7 @@ class UdpTransport : public Transport,
   typedef std::shared_ptr<boost::asio::ip::udp::endpoint> EndpointPtr;
   typedef std::shared_ptr<std::vector<unsigned char>> BufferPtr;
   typedef std::shared_ptr<UdpRequest> RequestPtr;
-  typedef std::unordered_map<boost::uint64_t, RequestPtr> RequestMap;
+  typedef std::unordered_map<uint64_t, RequestPtr> RequestMap;
 
   void DoSend(RequestPtr request);
   static void CloseSocket(SocketPtr socket);
@@ -86,15 +86,15 @@ class UdpTransport : public Transport,
                   size_t bytes_transferred);
   void DispatchMessage(const std::string &data,
                        const Info &info,
-                       boost::uint64_t reply_to_id);
-  void HandleTimeout(boost::uint64_t request_id,
+                       uint64_t reply_to_id);
+  void HandleTimeout(uint64_t request_id,
                      const boost::system::error_code &ec);
 
   boost::asio::io_service::strand strand_;
   SocketPtr socket_;
   BufferPtr read_buffer_;
   EndpointPtr sender_endpoint_;
-  boost::uint64_t next_request_id_;
+  uint64_t next_request_id_;
   RequestMap outstanding_requests_;
 };
 

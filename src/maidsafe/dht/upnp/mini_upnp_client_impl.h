@@ -31,7 +31,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <list>
 #include <map>
-#include "boost/shared_ptr.hpp"
 #include "boost/thread.hpp"
 #include "maidsafe/dht/upnp/upnp_config.h"
 #include "maidsafe/dht/libupnp/miniupnpc.h"

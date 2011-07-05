@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,34 +25,20 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TESTS_FUNCTIONAL_KADEMLIA_TEST_NODE_ENVIRONMENT_H_
-#define MAIDSAFE_DHT_TESTS_FUNCTIONAL_KADEMLIA_TEST_NODE_ENVIRONMENT_H_
+#ifndef MAIDSAFE_DHT_TESTS_DEMO_DEMO_NODE_H_
+#define MAIDSAFE_DHT_TESTS_DEMO_DEMO_NODE_H_
 
-#include <bitset>
+#include <cstdint>
 #include <memory>
+#include <vector>
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/mutex.hpp"
 
-#include "boost/filesystem.hpp"
-#include "boost/lexical_cast.hpp"
-#include "boost/thread.hpp"
-#include "boost/asio/io_service.hpp"
-
-#include "maidsafe/common/test.h"
-#include "maidsafe/common/alternative_store.h"
-#include "maidsafe/common/utils.h"
-#include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/kademlia/config.h"
-#include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/kademlia/utils.h"
-#include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/node-api.h"
-#include "maidsafe/dht/kademlia/node_impl.h"
-#include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/transport/transport.h"
-#include "maidsafe/dht/kademlia/message_handler.h"
-#include "maidsafe/dht/transport/utils.h"
 
-namespace fs = boost::filesystem;
 namespace bptime = boost::posix_time;
+
 
 namespace maidsafe {
 
@@ -60,32 +46,50 @@ namespace dht {
 
 namespace kademlia {
 
-namespace test {
+namespace demo { class Commands; }
+class Node;
 
-typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
-typedef std::shared_ptr<boost::thread_group> ThreadGroupPtr;
+void PrintNodeInfo(const Contact &contact);
 
-class EnvironmentNodes : public ::testing::Environment {
+class DemoNode {
  public:
-  EnvironmentNodes(
-      uint16_t num_of_nodes,
-      uint16_t k,
-      uint16_t alpha,
-      uint16_t beta,
-      uint16_t num_of_servers,
-      const bptime::time_duration &mean_refresh_interval);
+  typedef std::shared_ptr<Node> KademliaNodePtr;
+  DemoNode();
+  int Init(const size_t &thread_count,
+           bool client_only_node,
+           const int &transport_type,
+           const transport::Endpoint &endpoint,
+           const uint16_t &k,
+           const uint16_t &alpha,
+           const uint16_t &beta,
+           const bptime::seconds &mean_refresh_interval,
+           bool secure);
+  int JoinNode(const NodeId &node_id,
+               const std::vector<Contact> &bootstrap_contacts);
+  void LeaveNode(std::vector<Contact> *bootstrap_contacts);
+  void StopListeningTransport();
+  KademliaNodePtr kademlia_node() { return kademlia_node_; }
+  SecurifierPtr securifier() { return securifier_; }
+  friend class demo::Commands;
 
- protected:
-  virtual void SetUp();
-  virtual void TearDown();
+ private:
+  void JoinCallback(const int &result,
+                    int *response_code,
+                    boost::mutex *mutex,
+                    boost::condition_variable *cond_var);
+  AsioService asio_service_;
+  std::shared_ptr<boost::asio::io_service::work> work_;
+  boost::thread_group thread_group_;
+  TransportPtr listening_transport_;
+  SecurifierPtr securifier_;
+  KademliaNodePtr kademlia_node_;
+  std::vector<Contact> bootstrap_contacts_;
 };
 
-}   //  namespace test
+}  // namespace kademlia
 
-}   //  namespace kademlia
+}  // namespace dht
 
-}   //  namespace dht
+}  // namespace maidsafe
 
-}   //   namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_TESTS_FUNCTIONAL_KADEMLIA_TEST_NODE_ENVIRONMENT_H_
+#endif  // MAIDSAFE_DHT_TESTS_DEMO_DEMO_NODE_H_

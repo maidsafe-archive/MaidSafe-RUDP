@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,46 +25,17 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
-#define MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
-
-#include <string>
-#include <map>
-#include <functional>
+#include "maidsafe/dht/transport/tcp_transport.h"
+#include "maidsafe/dht/tests/transport/transport_api_test.h"
 
 namespace maidsafe {
 
-namespace upnp {
+namespace transport {
 
-const int kSearchTime = 2;
-const int kLeaseDuration = 900;
-const int kRefreshThreshold = 10;
-const char kClientName[] = "maidsafe/dht";
+namespace test {
 
-enum ProtocolType {
-  kUdp = 0,
-  kTcp = 1
-};
+}  // namespace test
 
-// params: port, protocol
-typedef std::function<void(const int&, const ProtocolType&)> upnp_callback;
-
-struct PortMapping {
-  PortMapping(const int &port_,
-              const ProtocolType &protocol_): internal_port(port_),
-                                              external_port(port_),
-                                              protocol(protocol_),
-                                              enabled(false),
-                                              last_refresh() {}
-  int internal_port;
-  int external_port;
-  ProtocolType protocol;
-  bool enabled;
-  std::map<std::string, uint32_t> last_refresh;
-};
-
-}  // namespace upnp
+}  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_

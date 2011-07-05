@@ -26,7 +26,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/dht/upnp/mini_upnp_client_impl.h"
-#include "boost/bind.hpp"
 #include "boost/assert.hpp"
 #include "boost/asio/ip/address.hpp"
 #include "boost/lexical_cast.hpp"

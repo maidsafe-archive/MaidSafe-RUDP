@@ -25,46 +25,49 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
-#define MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
+#ifdef __MSVC__
+#  pragma warning(push, 1)
+#endif
+#include "boost/filesystem.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
+#include "maidsafe/common/test.h"
+#include "maidsafe/dht/log.h"
+#include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
 
-#include <string>
-#include <map>
-#include <functional>
+int main(int argc, char **argv) {
+  // Initialising logging
+  google::InitGoogleLogging(argv[0]);
 
-namespace maidsafe {
+  // Choose to direct output to stderr instead of logfiles.
+  FLAGS_logtostderr = true;
 
-namespace upnp {
+  // Choose to direct output to stderr as well as to logfiles.
+  FLAGS_alsologtostderr = false;
 
-const int kSearchTime = 2;
-const int kLeaseDuration = 900;
-const int kRefreshThreshold = 10;
-const char kClientName[] = "maidsafe/dht";
+  // Log messages at or above this level. Severity levels are INFO, WARNING,
+  // ERROR, and FATAL (0 to 3 respectively).
+  FLAGS_minloglevel = google::ERROR;
 
-enum ProtocolType {
-  kUdp = 0,
-  kTcp = 1
-};
+  // Prepend the log prefix to the start of each log line
+  FLAGS_log_prefix = true;
 
-// params: port, protocol
-typedef std::function<void(const int&, const ProtocolType&)> upnp_callback;
+  // Logfiles are written into this directory instead of the default logging one
+  boost::system::error_code error_code;
+  FLAGS_log_dir = boost::filesystem::temp_directory_path(error_code).string();
 
-struct PortMapping {
-  PortMapping(const int &port_,
-              const ProtocolType &protocol_): internal_port(port_),
-                                              external_port(port_),
-                                              protocol(protocol_),
-                                              enabled(false),
-                                              last_refresh() {}
-  int internal_port;
-  int external_port;
-  ProtocolType protocol;
-  bool enabled;
-  std::map<std::string, uint32_t> last_refresh;
-};
+  // Show all VLOG(m) messages for m <= this.
+  FLAGS_v = 0;
 
-}  // namespace upnp
+  // Log messages from MaidSafe-Common.
+  FLAGS_ms_logging_common = false;
 
-}  // namespace maidsafe
-
-#endif  // MAIDSAFE_DHT_UPNP_UPNP_CONFIG_H_
+  testing::InitGoogleTest(&argc, argv);
+  testing::AddGlobalTestEnvironment(
+      new maidsafe::dht::kademlia::test::EnvironmentNodes(
+          10, 4, 3, 2, 10, bptime::hours(1)));
+  int result(RUN_ALL_TESTS());
+  int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
+  return (test_count == 0) ? -1 : result;
+}
