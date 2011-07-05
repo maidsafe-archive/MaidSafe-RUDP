@@ -30,7 +30,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
 #include "maidsafe/dht/transport/transport.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 
 namespace bptime = boost::posix_time;
 

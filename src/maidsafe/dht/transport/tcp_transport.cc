@@ -32,7 +32,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/log.h"
 
 #include "maidsafe/dht/transport/message_handler.h"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
 #include "maidsafe/dht/transport/transport.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "maidsafe/dht/transport/tcp_connection.h"
 #include "maidsafe/dht/transport/utils.h"
 

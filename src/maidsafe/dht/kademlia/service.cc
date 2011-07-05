@@ -26,17 +26,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <utility>
-#ifdef __MSVC__
-#pragma warning(disable:4996)
-#endif
 #include <set>
-#ifdef __MSVC__
-#pragma warning(default:4996)
-#endif
 
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/kademlia/routing_table.h"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
 #include "maidsafe/dht/kademlia/rpcs.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/securifier.h"

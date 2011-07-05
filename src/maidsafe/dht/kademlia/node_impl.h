@@ -35,25 +35,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/signals2/connection.hpp"
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
 #include "boost/thread.hpp"
 #include "boost/enable_shared_from_this.hpp"
-
-#ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4512)
-#endif
-#include "boost/signals2/connection.hpp"
-#ifdef __MSVC__
-#pragma warning(pop)
-#endif
 
 #include "maidsafe/dht/kademlia/node_impl_structs.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/datastore.h"
+
 
 namespace maidsafe {
 

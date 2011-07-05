@@ -28,7 +28,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/contact.h"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
 #include "maidsafe/dht/kademlia/kademlia.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/transport/transport.h"
 

@@ -33,16 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-
-#ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4512)
-#endif
-#include "boost/signals2/connection.hpp"
-#ifdef __MSVC__
-#pragma warning(pop)
-#endif
-
 #include "boost/tuple/tuple.hpp"
 
 #include "maidsafe/dht/kademlia/config.h"
@@ -50,7 +40,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/kademlia/rpcs_objects.h"
 
-namespace bs2 = boost::signals2;
 
 namespace maidsafe {
 

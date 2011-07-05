@@ -29,14 +29,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <string>
 #include "maidsafe/dht/kademlia/utils.h"
-
 #ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4244)
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
 #endif
 #include "maidsafe/dht/kademlia/kademlia.pb.h"
 #ifdef __MSVC__
-#pragma warning(pop)
+#  pragma warning(pop)
 #endif
 
 #include "maidsafe/common/utils.h"

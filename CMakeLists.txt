@@ -244,20 +244,13 @@ ENDIF()
 INCLUDE(maidsafe_standard_flags)
 
 IF(MSVC)
-  # warning 4503 disabled due to excessive generation through use of Boost multi_index
-  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/routing_table.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/kademlia/contact_test.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/tests/functional_kademlia/node_test.cc
-                                PROPERTIES COMPILE_FLAGS "/wd4503")
+  # C4512 'assignment operator could not be generated' caused by boost signals2
+  # Disabled as per advice at http://lists.boost.org/boost-users/2009/01/44368.php
+  # C4503 'decorated name length exceeded' caused by boost multi-index and signals2
+  # Disabled as per advice at https://svn.boost.org/trac/boost/wiki/Guidelines/WarningsGuidelines
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4512 /wd4503")
 
-  # warnings 4503, 4512 & 4996 disabled due to generation through use of Boost Signals2
-  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/message_handler.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/message_handler.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/contact.cc
-                                PROPERTIES COMPILE_FLAGS "/wd4503 /wd4512 /wd4996")
-
-  # warning level set low for protocol buffer generated files
+  # Warnings switched off for protocol buffer generated files
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/transport.pb.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/kademlia.pb.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs.pb.cc

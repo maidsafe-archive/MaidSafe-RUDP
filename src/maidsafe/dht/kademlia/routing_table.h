@@ -35,16 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-
-#ifdef __MSVC__
-#pragma warning(push)
-#pragma warning(disable:4512)
-#endif
 #include "boost/signals2/signal.hpp"
-#ifdef __MSVC__
-#pragma warning(pop)
-#endif
-
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
 #include "boost/lambda/if.hpp"
@@ -59,6 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
+
 
 namespace bptime = boost::posix_time;
 namespace bmi = boost::multi_index;
