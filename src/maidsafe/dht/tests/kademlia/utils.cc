@@ -26,7 +26,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <bitset>
-
 #include "gtest/gtest.h"
 
 #include "maidsafe/dht/kademlia/node_id.h"
@@ -34,6 +33,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/tests/kademlia/utils.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
@@ -324,9 +325,7 @@ void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids) {
       std::bind(static_cast<bool(*)(const NodeId&,  // NOLINT
                                     const NodeId&,
                                     const NodeId&)>(&NodeId::CloserToTarget),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                target_key));
+                arg::_1, arg::_2, target_key));
 }
 
 }  // namespace test
