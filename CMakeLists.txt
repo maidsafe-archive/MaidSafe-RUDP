@@ -173,18 +173,18 @@ ENDIF()
 ###################################################################################################
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
-ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTfunctional ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-# ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-# ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_KADEMLIA_DIR})
+ADD_EXECUTABLE(TESTfunctional ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
+ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_TRANSPORT_DIR})
+# ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR})
+# ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR})
 # Need to use __declspec(dllimport) in all API header files before linking to SHARED library target
-#ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(KademliaDemo ${ALL_FILES_TEST_DEMO_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-#ADD_EXECUTABLE(benchmark ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
-ADD_EXECUTABLE(benchmark_static EXCLUDE_FROM_ALL ${ALL_FILES_TEST_BENCHMARK_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+#ADD_EXECUTABLE(kaddemo ${ALL_FILES_TEST_DEMO_DIR})
+ADD_EXECUTABLE(KademliaDemo ${ALL_FILES_TEST_DEMO_DIR})
+#ADD_EXECUTABLE(benchmark ${ALL_FILES_TEST_BENCHMARK_DIR})
+ADD_EXECUTABLE(benchmark_static EXCLUDE_FROM_ALL ${ALL_FILES_TEST_BENCHMARK_DIR})
 IF(Mysqlpp_FOUND)
-  ADD_EXECUTABLE(distributed_net_clients EXCLUDE_FROM_ALL ${ALL_FILES_NETWORK_TEST_DIR} ${HEADER_FILES_MAIDSAFE_DIR})
+  ADD_EXECUTABLE(distributed_net_clients EXCLUDE_FROM_ALL ${ALL_FILES_NETWORK_TEST_DIR})
 ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
@@ -244,16 +244,19 @@ ENDIF()
 INCLUDE(maidsafe_standard_flags)
 
 IF(MSVC)
-  # C4512 'assignment operator could not be generated' caused by boost signals2
-  # Disabled as per advice at http://lists.boost.org/boost-users/2009/01/44368.php
   # C4503 'decorated name length exceeded' caused by boost multi-index and signals2
   # Disabled as per advice at https://svn.boost.org/trac/boost/wiki/Guidelines/WarningsGuidelines
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4512 /wd4503")
+  # C4512 'assignment operator could not be generated' caused by boost signals2
+  # Disabled as per advice at http://lists.boost.org/boost-users/2009/01/44368.php
+  # C4996 'Function call with parameters that may be unsafe' caused by boost signals2
+  # Disabled as per advice at https://svn.boost.org/trac/boost/wiki/Guidelines/WarningsGuidelines
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4503 /wd4512 /wd4996")
 
-  # Warnings switched off for protocol buffer generated files
+  # Warnings switched off for protocol buffer generated files and libupnp files
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/transport.pb.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/kademlia.pb.cc
                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs.pb.cc
+                              ${ALL_FILES_LIBUPNP_DIR}
                                 PROPERTIES COMPILE_FLAGS "/W0")
 
   SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES COMPILE_FLAGS "/bigobj")

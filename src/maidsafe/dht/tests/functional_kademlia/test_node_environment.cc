@@ -112,28 +112,6 @@ void ErrorCodeCallback(int error_code,
   *response_code = error_code;
 }
 
-std::string get_app_directory() {
-  boost::filesystem::path app_path;
-#if defined(MAIDSAFE_POSIX)
-  app_path = fs::path("/var/cache/maidsafe/");
-#elif defined(MAIDSAFE_WIN32)
-  TCHAR szpth[MAX_PATH];
-  if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, 0, szpth))) {
-    std::ostringstream stm;
-    const std::ctype<char> &ctfacet =
-        std::use_facet< std::ctype<char> >(stm.getloc());
-    for (size_t i = 0; i < wcslen(szpth); ++i)
-      stm << ctfacet.narrow(szpth[i], 0);
-    app_path = fs::path(stm.str());
-    app_path /= "maidsafe";
-  }
-
-#elif defined(MAIDSAFE_APPLE)
-  app_path = fs::path("/Library/maidsafe/");
-#endif
-  return app_path.string();
-}
-
 EnvironmentNodes::EnvironmentNodes(
     uint16_t num_of_nodes,
     uint16_t k,
@@ -265,19 +243,6 @@ void EnvironmentNodes::TearDown() {
       std::vector<Contact> local_boostrap_contacts;
       nodes_[i]->Leave(&local_boostrap_contacts);
       EXPECT_FALSE(nodes_[i]->joined());
-    }
-
-    for (auto it = ports_.begin(); it != ports_.end(); ++it) {
-      // Deleting the DBs in the app dir
-      fs::path db_dir(get_app_directory());
-      db_dir /= boost::lexical_cast<std::string>(*it);
-      try {
-        if (fs::exists(db_dir))
-          fs::remove_all(db_dir);
-      }
-      catch(const std::exception &e) {
-        DLOG(ERROR) << "filesystem error: " << e.what() << std::endl;
-      }
     }
 
     try {

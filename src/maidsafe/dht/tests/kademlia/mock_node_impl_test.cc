@@ -28,9 +28,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bitset>
 
 #include "boost/lexical_cast.hpp"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4244)
+#endif
 #include "boost/thread.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "maidsafe/common/test.h"
 
 #include "maidsafe/common/alternative_store.h"
 #include "maidsafe/common/utils.h"
@@ -89,7 +96,7 @@ class SecurifierValidateTrue: public Securifier {
 };
 
 void FindNodeCallback(RankInfoPtr rank_info,
-                      int result_size,
+                      int /*result_size*/,
                       const std::vector<Contact> &cs,
                       bool *done,
                       std::vector<Contact> *contacts) {
@@ -108,8 +115,8 @@ struct FindValueResults {
 void FindValueCallback(int return_code,
                        const std::vector<std::string> &vs,
                        const std::vector<Contact> &cs,
-                       const Contact &alternative_store_contact,
-                       const Contact &cache_contact,
+                       const Contact &/*alternative_store_contact*/,
+                       const Contact &/*cache_contact*/,
                        bool *done,
                        FindValueResults *results) {
   results->values.clear();
@@ -141,18 +148,18 @@ class MockTransport : public transport::Transport {
  public:
   MockTransport() : transport::Transport(io_service_) {}
   virtual transport::TransportCondition StartListening(
-      const transport::Endpoint &endpoint) {
+      const transport::Endpoint &/*endpoint*/) {
     listening_port_ = 5483;
     return transport::kSuccess;
   }
   virtual transport::TransportCondition Bootstrap(
-      const std::vector<transport::Endpoint> &candidates) {
+      const std::vector<transport::Endpoint> &/*candidates*/) {
     return transport::kSuccess;
   }
   virtual void StopListening() { listening_port_ = 0; }
-  virtual void Send(const std::string &data,
-                    const transport::Endpoint &endpoint,
-                    const transport::Timeout &timeout) {}
+  virtual void Send(const std::string &/*data*/,
+                    const transport::Endpoint &/*endpoint*/,
+                    const transport::Timeout &/*timeout*/) {}
  private:
   boost::asio::io_service io_service_;
 };
@@ -367,7 +374,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     }
   }
 
-  void FindNodeResponseClose(const Contact &c,
+  void FindNodeResponseClose(const Contact &/*contact*/,
                              FindNodesFunctor callback) {
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
@@ -384,7 +391,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                callback, response_list));
   }
 
-  void FindNodeResponseNoClose(const Contact &c,
+  void FindNodeResponseNoClose(const Contact &/*contact*/,
                                FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
@@ -392,7 +399,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                callback, response_list));
   }
 
-  void FindNodeFirstNoResponse(const Contact &c,
+  void FindNodeFirstNoResponse(const Contact &/*contact*/,
                                FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
@@ -406,7 +413,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
-  void FindNodeFirstAndLastNoResponse(const Contact &c,
+  void FindNodeFirstAndLastNoResponse(const Contact &/*contact*/,
                                       FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
@@ -420,7 +427,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
-  void FindNodeSeveralResponseNoClose(const Contact &c,
+  void FindNodeSeveralResponseNoClose(const Contact &/*contact*/,
                                       FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
@@ -434,7 +441,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
-  void FindNodeNoResponse(const Contact &c,
+  void FindNodeNoResponse(const Contact &/*contact*/,
                           FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
@@ -456,7 +463,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     callback(rank_info_, -1, response_list);
   }
 
-  void FindValueNoResponse(const Contact &c,
+  void FindValueNoResponse(const Contact &/*contact*/,
                            Rpcs::FindValueFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_contact_list;
@@ -466,7 +473,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                response_contact_list));
   }
 
-  void FindValueResponseCloseOnly(const Contact &c,
+  void FindValueResponseCloseOnly(const Contact &/*contact*/,
                                   Rpcs::FindValueFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_contact_list;
@@ -481,7 +488,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                response_contact_list));
   }
 
-  void FindValueNthResponse(const Contact &c,
+  void FindValueNthResponse(const Contact &/*contact*/,
                             Rpcs::FindValueFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_contact_list;
@@ -505,7 +512,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                response_contact_list));
   }
 
-  void FindValueNoValueResponse(const Contact &c,
+  void FindValueNoValueResponse(const Contact &/*contact*/,
                                 Rpcs::FindValueFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_contact_list;
@@ -542,7 +549,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   void DownlistRecord(const std::vector<NodeId> &node_ids,
-                      const Contact &contact) {
+                      const Contact &/*contact*/) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     ContactsById key_indx = down_contacts_->get<NodeIdTag>();
     auto it_node = node_ids.begin();
@@ -564,7 +571,8 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     }
   }
 
-  void SingleDeleteResponse(const Contact &c, Rpcs::DeleteFunctor callback) {
+  void SingleDeleteResponse(const Contact &/*contact*/,
+                            Rpcs::DeleteFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     ++num_of_deleted_;
     boost::thread th(std::bind(
@@ -572,7 +580,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
-  void Response(const Contact &c, T callback) {
+  void Response(const Contact &/*contact*/, T callback) {
 // boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
 // ++respond_;
     boost::thread th(std::bind(&MockRpcs::CommonResponseThread<T>, this,
@@ -580,13 +588,13 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
-  void NoResponse(const Contact &c, T callback) {
+  void NoResponse(const Contact &/*contact*/, T callback) {
     boost::thread th(std::bind(&MockRpcs::CommonNoResponseThread<T>, this,
                                callback));
   }
 
   template <class T>
-  void FirstSeveralNoResponse(const Contact &c, T callback) {
+  void FirstSeveralNoResponse(const Contact &/*contact*/, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ > (test::k - threshold_)) {
       ++respond_;
@@ -601,7 +609,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
-  void LastSeveralNoResponse(const Contact &c, T callback) {
+  void LastSeveralNoResponse(const Contact &/*contact*/, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ < (threshold_ - 1)) {
       ++respond_;
@@ -616,7 +624,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   }
 
   template <class T>
-  void LastLessNoResponse(const Contact &c, T callback) {
+  void LastLessNoResponse(const Contact &/*contact*/, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (num_of_acquired_ < threshold_) {
       ++respond_;
@@ -852,7 +860,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_LT(0U, result);
+    ASSERT_LT(0, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -880,7 +888,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_LT(0U, result);
+    ASSERT_LT(0, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -958,7 +966,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     while (!done)
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
-    ASSERT_LT(0U, result);
+    ASSERT_LT(0, result);
     bootstrap_contacts.clear();
     ASSERT_TRUE(node_->refresh_thread_running());
     ASSERT_TRUE(node_->downlist_thread_running());
@@ -1004,7 +1012,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   node_->Join(node_id_, bootstrap_contacts, callback);
   while (!done)
     boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-  ASSERT_LT(0U, result);
+  ASSERT_LT(0, result);
   bootstrap_contacts.clear();
   node_->Leave(&bootstrap_contacts);
   ASSERT_FALSE(node_->joined());

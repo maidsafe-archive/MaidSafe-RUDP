@@ -194,7 +194,7 @@ NodeId CreateContactAndNodeId::GenerateRandomId(const NodeId& holder,
 }
 
 Contact CreateContactAndNodeId::ComposeContact(const NodeId& node_id,
-                      uint16_t port) {
+                                               Port port) {
   std::string ip("127.0.0.1");
   std::vector<transport::Endpoint> local_endpoints;
   transport::Endpoint end_point(ip, port);
@@ -204,9 +204,10 @@ Contact CreateContactAndNodeId::ComposeContact(const NodeId& node_id,
   return contact;
 }
 
-Contact CreateContactAndNodeId::ComposeContactWithKey(const NodeId& node_id,
-                              uint16_t port,
-                              const crypto::RsaKeyPair& crypto_key) {
+Contact CreateContactAndNodeId::ComposeContactWithKey(
+    const NodeId& node_id,
+    Port port,
+    const crypto::RsaKeyPair& crypto_key) {
   std::string ip("127.0.0.1");
   std::vector<transport::Endpoint> local_endpoints;
   transport::Endpoint end_point(ip, port);

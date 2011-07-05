@@ -64,22 +64,22 @@ const uint16_t kFailureTolerance = 2;
 class RpcsMockTransport : public transport::Transport {
  public:
   RpcsMockTransport(boost::asio::io_service &asio_service,  // NOLINT
-                    const int &repeat_factor)
+                    const uint16_t &repeat_factor)
       : Transport(asio_service),
         repeat_factor_(repeat_factor) {}
   ~RpcsMockTransport() {}
   virtual transport::TransportCondition StartListening(
-      const transport::Endpoint &endpoint) {
+      const transport::Endpoint &/*endpoint*/) {
     return transport::kSuccess;
   }
   virtual transport::TransportCondition Bootstrap(
-      const std::vector<transport::Endpoint>&) {
+      const std::vector<transport::Endpoint> &/*endpoints*/) {
     return transport::kSuccess;
   }
   virtual void StopListening() {}
   virtual void Send(const std::string &data,
-                    const transport::Endpoint &endpoint,
-                    const transport::Timeout &timeout) {
+                    const transport::Endpoint &/*endpoint*/,
+                    const transport::Timeout &/*timeout*/) {
     if (repeat_factor_ < kFailureTolerance) {
       boost::thread th(&RpcsMockTransport::SignalError, this);
     } else {
@@ -122,8 +122,8 @@ class MockMessageHandler : public MessageHandler {
   void ProcessSerialisedMessage(
     const int &message_type,
     const std::string &payload,
-    const SecurityType &security_type,
-    const std::string &message_signature,
+    const SecurityType &/*security_type*/,
+    const std::string &/*message_signature*/,
     const transport::Info &info,
     std::string *message_response,
     transport::Timeout* timeout) {
@@ -301,7 +301,7 @@ class TestMockRpcs : public Rpcs {
                              SecurifierPtr securifier,
                              TransportPtr &transport,
                              MessageHandlerPtr &message_handler));
-  void MockPrepare(TransportType type,
+  void MockPrepare(TransportType /*type*/,
                    SecurifierPtr securifier,
                    TransportPtr &transport,
                    MessageHandlerPtr &message_handler) {
@@ -366,15 +366,21 @@ class MockRpcsTest : public testing::Test {
     *b = true;
     *query_result = result;
   }
-  void FindNodesCallback(RankInfoPtr rank_info, const int &result,
-                         std::vector<Contact> contacts, bool *b,
-                         boost::mutex *m, int *query_result) {
+  void FindNodesCallback(RankInfoPtr rank_info,
+                         const int &result,
+                         std::vector<Contact> /*contacts*/,
+                         bool *b,
+                         boost::mutex *m,
+                         int *query_result) {
     Callback(rank_info, result, b, m, query_result);
   }
-  void FindValueCallback(RankInfoPtr rank_info, const int &result,
-                         const std::vector<std::string> &values,
-                         const std::vector<Contact> &contacts, const Contact
-                         &contact, bool *b, boost::mutex *m,
+  void FindValueCallback(RankInfoPtr rank_info,
+                         const int &result,
+                         const std::vector<std::string> &/*values*/,
+                         const std::vector<Contact> &/*contacts*/,
+                         const Contact &/*contact*/,
+                         bool *b,
+                         boost::mutex *m,
                          int *query_result) {
     Callback(rank_info, result, b, m, query_result);
   }
@@ -799,8 +805,6 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
-  bool b(false), b2(false);
-  int result(999);
   boost::mutex m;
   std::vector<NodeId> node_ids;
   NodeId node_id(NodeId::kRandomId);
