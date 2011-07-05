@@ -67,15 +67,19 @@ class RoutingTable;
 class Rpcs;
 
 namespace test {
-class NodeImplTest;
-class NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
-class NodeImplTest_BEH_KAD_Join_Test;
-class NodeImplTest_BEH_KAD_Getters_Test;
-class NodeImplTest_BEH_KAD_Leave_Test;
-class NodeImplTest_BEH_KAD_DownlistClient_Test;
-class NodeApiTest_BEH_KAD_Join_Server_Test;
-class NodeImplTest_BEH_KAD_ValidateContact_Test;
-class NodeImplTest_BEH_KAD_PingOldestContact_Test;
+class MockNodeImplTest;
+class MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
+class MockNodeImplTest_BEH_KAD_Join_Test;
+class MockNodeImplTest_BEH_KAD_Getters_Test;
+class MockNodeImplTest_BEH_KAD_Leave_Test;
+class MockNodeImplTest_BEH_KAD_DownlistClient_Test;
+class MockNodeApiTest_BEH_KAD_Join_Server_Test;
+class MockNodeImplTest_BEH_KAD_ValidateContact_Test;
+class MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
+
+class NodeImplTest_BEH_KAD_Store_Test;
+class NodeImplTest_BEH_KAD_StoreRefresh_Test;
+class NodeImplTest_BEH_KAD_DeleteRefresh_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -116,22 +120,19 @@ class Node::Impl {
              const boost::posix_time::time_duration &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
-  /** Function to UPDATE the content of a <key, value> in the Kademlia network.
+  /** Function to DELETE the content of a <key, value> in the Kademlia network.
    *  The operation will delete the original one then store the new one.
    *  @param[in] Key The key to find
-   *  @param[in] new_value The new_value to store.
-   *  @param[in] new_signature The new_signature to store.
-   *  @param[in] old_value The old_value to delete.
-   *  @param[in] old_signature The old_signature to delete.
-   *  @param[in] securifier The securifier to pass further.
-   *  @param[in] ttl The ttl for the new data.
+   *  @param[in] value The value to delete.
+   *  @param[in] signature The signature to delete.
+   *  @param[in] securifier The securifier to use.
    *  @param[in] callback The callback to report the results. */
   void Delete(const Key &key,
               const std::string &value,
               const std::string &signature,
               SecurifierPtr securifier,
               DeleteFunctor callback);
-  /** Function to DELETE the content of a <key, value> in the Kademlia network.
+  /** Function to UPDATE the content of a <key, value> in the Kademlia network.
    *  The operation will delete the original one then store the new one.
    *  @param[in] Key The key to find
    *  @param[in] new_value The new_value to store.
@@ -217,14 +218,18 @@ class Node::Impl {
   bool refresh_thread_running() const;
   bool downlist_thread_running() const;
 
-  friend class test::NodeImplTest;
-  friend class test::NodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
-  friend class test::NodeImplTest_BEH_KAD_Join_Test;
-  friend class test::NodeImplTest_BEH_KAD_Getters_Test;
-  friend class test::NodeImplTest_BEH_KAD_Leave_Test;
-  friend class test::NodeImplTest_BEH_KAD_DownlistClient_Test;
-  friend class test::NodeImplTest_BEH_KAD_ValidateContact_Test;
-  friend class test::NodeImplTest_BEH_KAD_PingOldestContact_Test;
+  friend class test::MockNodeImplTest;
+  friend class test::MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_Join_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_Getters_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_Leave_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_DownlistClient_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_ValidateContact_Test;
+  friend class test::MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
+
+  friend class test::NodeImplTest_BEH_KAD_Store_Test;
+  friend class test::NodeImplTest_BEH_KAD_StoreRefresh_Test;
+  friend class test::NodeImplTest_BEH_KAD_DeleteRefresh_Test;
 
  private:
   Impl(const Impl&);
@@ -451,9 +456,14 @@ class Node::Impl {
                              const NodeId &node_id,
                              JoinFunctor callback);
   void RefreshDataStore();
-  void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
+  // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
-
+  void StoreRefresh(int result, std::vector<Contact> contacts,
+                    const KeyValueTuple &key_value_tuple);
+  void StoreRefreshCallback(RankInfoPtr rank_info,
+                            const int &result,
+                            const Contact &contact);
+  
   AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;
