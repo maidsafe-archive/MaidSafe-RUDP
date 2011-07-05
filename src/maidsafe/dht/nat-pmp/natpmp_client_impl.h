@@ -47,7 +47,7 @@ namespace dht {
 
 namespace natpmp {
 
-typedef boost::function <void (
+typedef std::function <void (
     uint16_t protocol,
     uint16_t private_port,
     uint16_t public_port)> NatPmpMapPortSuccessCbType;

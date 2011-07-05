@@ -121,10 +121,12 @@ class RpcsTest: public CreateContactAndNodeId,
                thread_group_(),
                work_(new boost::asio::io_service::work(asio_service_)),
                work1_(new boost::asio::io_service::work(local_asio_)) {
-    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                          &asio_service_));
-    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                          &local_asio_));
+    thread_group_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &asio_service_));
+    thread_group_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &local_asio_));
   }
 
   static void SetUpTestCase() {
@@ -1359,8 +1361,9 @@ class RpcsMultiServerNodesTest
       WorkPtr workptr(new
           boost::asio::io_service::work(*asio_services_[index]));
       work_.push_back(workptr);
-      thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            asio_services_[index]));
+      thread_group_.create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), asio_services_[index]));
     }
     const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
     for (int index = 0; index != kRpcServersNo; ++index) {
@@ -1375,11 +1378,13 @@ class RpcsMultiServerNodesTest
       local_asios_.push_back(std::shared_ptr<AsioService>(new AsioService));
       WorkPtr workptr(new boost::asio::io_service::work(*local_asios_[index]));
       work1_.push_back(workptr);
-      thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                            local_asios_[index]));
+      thread_group_.create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), local_asios_[index]));
     }
-    thread_group_.create_thread(std::bind(&boost::asio::io_service::run,
-                                          &dispatcher_));
+    thread_group_.create_thread(
+        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+            &boost::asio::io_service::run), &dispatcher_));
   }
 
   static void SetUpTestCase() {

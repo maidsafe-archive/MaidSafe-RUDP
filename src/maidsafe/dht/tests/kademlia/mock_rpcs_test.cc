@@ -286,7 +286,7 @@ class TestMockRpcs : public Rpcs {
   TestMockRpcs(AsioService &asio_service,                     // NOLINT (Fraser)
                SecurifierPtr securifier,
                const int &request_type,
-               const int &repeat_factor,
+               const uint16_t &repeat_factor,
                const int &result_type)
     : Rpcs(asio_service, securifier),
       asio_service_(asio_service),
@@ -328,7 +328,8 @@ class TestMockRpcs : public Rpcs {
   SecurifierPtr securifier_;
   TransportPtr local_t_;
   MessageHandlerPtr local_mh_;
-  int request_type_, result_type_, repeat_factor_;
+  int request_type_, result_type_;
+  uint16_t repeat_factor_;
 };
 
 class MockRpcsTest : public testing::Test {
@@ -394,7 +395,7 @@ class MockRpcsTest : public testing::Test {
 crypto::RsaKeyPair MockRpcsTest::crypto_key_pair_;
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -453,7 +454,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -513,7 +514,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -571,7 +572,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -629,7 +630,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -687,7 +688,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
@@ -746,7 +747,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
 }
 
 TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
-  int repeat_factor(1);
+  uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
     std::shared_ptr<TestMockRpcs> rpcs(new TestMockRpcs(asio_service_,
