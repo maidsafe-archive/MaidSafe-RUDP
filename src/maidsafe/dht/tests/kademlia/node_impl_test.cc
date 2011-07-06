@@ -238,7 +238,7 @@ class NodeImplTest : public testing::Test {
 
   void TearDown() {
     for (std::size_t i = kNumberOfNodes - 1; i != -1; --i)
-      nodes_[i]->Leave(nullptr);
+      nodes_[i]->Leave(NULL);
   }
 
 
