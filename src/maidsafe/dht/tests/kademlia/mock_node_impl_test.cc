@@ -452,14 +452,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   void FindNodeResponseThread(FindNodesFunctor callback,
                               std::vector<Contact> response_list) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, response_list.size(), response_list);
   }
 
   void FindNodeNoResponseThread(FindNodesFunctor callback,
                                 std::vector<Contact> response_list) {
     boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, -1, response_list);
   }
 
@@ -532,7 +532,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                std::vector<std::string> response_value_list,
                                std::vector<Contact> response_contact_list) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
     callback(rank_info_, 0, response_value_list,
              response_contact_list, alternative_store);
@@ -542,7 +542,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                  std::vector<std::string> response_value_list,
                                  std::vector<Contact> response_contact_list) {
     boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
     callback(rank_info_, -1, response_value_list, response_contact_list,
              alternative_store);
@@ -641,14 +641,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   template <class T>
   void CommonResponseThread(T callback) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, RandomUint32() % test::k);
   }
 
   template <class T>
   void CommonNoResponseThread(T callback) {
     boost::uint16_t interval(100 * (RandomUint32() % 5) + 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(interval));
+    Sleep(boost::posix_time::milliseconds(interval));
     callback(rank_info_, -1);
   }
 
@@ -727,7 +727,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
                                            arg::_2, &result, &done,
                                            &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(-1, response_code);
     EXPECT_EQ(Contact(), result);
@@ -745,7 +745,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
                                            arg::_2, &result, &done,
                                            &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(1, response_code);
     EXPECT_EQ(target, result);
@@ -753,7 +753,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(boost::posix_time::milliseconds(1000));
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_ValidateContact) {
@@ -763,7 +763,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_ValidateContact) {
   {
     routing_table_->AddContact(contact, rank_info_);
     // need to sleep for a while
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     Contact result;
     routing_table_->GetContact(contact.node_id(), &result);
     EXPECT_EQ(contact, result);
@@ -791,7 +791,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_PingOldestContact) {
                       new_rpcs.get(), arg::_1, arg::_2))));
     AddContact(routing_table_, new_contact, rank_info_);
     // need to sleep for a while
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
+    Sleep(boost::posix_time::milliseconds(10000));
 
     Contact result_new;
     routing_table_->GetContact(new_contact.node_id(), &result_new);
@@ -809,7 +809,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_PingOldestContact) {
     // may need to put a timer to prevent deadlock
     do {
       routing_table_->GetContact(new_contact.node_id(), &result_new);
-      boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
+      Sleep(boost::posix_time::milliseconds(2000));
     } while (result_new == Contact());
     EXPECT_EQ(new_contact, result_new);
   }
@@ -859,7 +859,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
                       arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      Sleep(boost::posix_time::milliseconds(1000));
     ASSERT_LT(0, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
@@ -887,7 +887,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
                       arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      Sleep(boost::posix_time::milliseconds(1000));
     ASSERT_LT(0, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
@@ -921,7 +921,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
                       arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      Sleep(boost::posix_time::milliseconds(1000));
     ASSERT_EQ(transport::kError, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
@@ -964,7 +964,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
                       arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      Sleep(boost::posix_time::milliseconds(1000));
 
     ASSERT_LT(0, result);
     bootstrap_contacts.clear();
@@ -1011,7 +1011,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
                     arg::_1, arg::_2))));
   node_->Join(node_id_, bootstrap_contacts, callback);
   while (!done)
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    Sleep(boost::posix_time::milliseconds(1000));
   ASSERT_LT(0, result);
   bootstrap_contacts.clear();
   node_->Leave(&bootstrap_contacts);
@@ -1043,7 +1043,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
     node_->FindNodes(key, std::bind(&FindNodeCallback, rank_info_, arg::_1,
                                     arg::_2, &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(0, lcontacts.size());
   }
   new_rpcs->num_of_acquired_ = 0;
@@ -1061,7 +1061,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
                                &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(test::k - 1, lcontacts.size());
   }
   new_rpcs->num_of_acquired_ = 0;
@@ -1079,7 +1079,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
                                &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(test::k - 2, lcontacts.size());
   }
   {
@@ -1095,7 +1095,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
                                &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(test::k, lcontacts.size());
   }
   int count = 10 * test::k;
@@ -1119,7 +1119,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
                                arg::_2, &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(test::k, lcontacts.size());
     EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
     EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
@@ -1153,7 +1153,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
                                &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     if (new_rpcs->respond_contacts_->size() >= test::k) {
       EXPECT_EQ(test::k, lcontacts.size());
@@ -1179,7 +1179,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(boost::posix_time::milliseconds(1000));
   // SetRpc(old_rpcs);
 }
 
@@ -1432,7 +1432,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
   // sleep for a while to prevent the situation that resources got destructed
   // before call back completed. Which will cause "Segmentation Fault" in
   // execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  Sleep(boost::posix_time::milliseconds(100));
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_Store) {
@@ -1481,7 +1481,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(threshold_, response_code);
   }
@@ -1508,11 +1508,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
   }
   new_rpcs->SetCountersToZero();
@@ -1532,12 +1532,12 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
   }
   new_rpcs->SetCountersToZero();
@@ -1557,10 +1557,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(threshold_, response_code);
     // wait to ensure in case of wrong, the wrong deletion will be executed
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
   }
   new_rpcs->SetCountersToZero();
@@ -1583,7 +1583,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-3, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1591,7 +1591,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(boost::posix_time::milliseconds(1000));
 
   // SetRpc(old_rpcs);
 }
@@ -1637,7 +1637,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(threshold_, response_code);
   }
@@ -1658,11 +1658,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the all delete processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1682,12 +1682,12 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1707,7 +1707,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(threshold_, response_code);
   }
   new_rpcs->SetCountersToZero();
@@ -1730,7 +1730,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-3, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1738,7 +1738,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(boost::posix_time::milliseconds(1000));
 
   // SetRpc(old_rpcs);
 }
@@ -1793,7 +1793,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(threshold_, response_code);
   }
@@ -1822,10 +1822,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(-2, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
@@ -1855,10 +1855,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
@@ -1888,10 +1888,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
@@ -1921,10 +1921,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
@@ -1957,7 +1957,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-3, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1965,7 +1965,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+  Sleep(boost::posix_time::milliseconds(500));
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
@@ -1988,7 +1988,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                                arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
                                &done, &results));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, results.response_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(0, results.contacts.size());
@@ -2011,7 +2011,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                                arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
                                &done, &results));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, results.response_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(test::k, results.contacts.size());
@@ -2038,7 +2038,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                                arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
                                &done, &results));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(1, results.response_code);
     EXPECT_EQ(0, results.contacts.size());
@@ -2062,7 +2062,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                                &done, &results));
     // Prevent deadlock
     while ((!done) && (new_rpcs->num_of_acquired_ < (40 * test::k)))
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, results.response_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(test::k, results.contacts.size());
@@ -2071,7 +2071,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(boost::posix_time::milliseconds(1000));
 }  // FindValue test
 
 // This test will test the Downlist client handling in node_impl
@@ -2112,11 +2112,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
                                &done, &lcontacts));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(0, lcontacts.size());
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    Sleep(boost::posix_time::milliseconds(500));
     EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
     ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
     auto it = key_indx.begin();
@@ -2167,11 +2167,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
     ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
@@ -2200,12 +2200,12 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
     ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
@@ -2244,10 +2244,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+    Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(-2, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
@@ -2277,13 +2277,13 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                                arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
                                &done, &results));
     while (!done)
-      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(-2, results.response_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(0, results.contacts.size());
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
-    boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+    Sleep(boost::posix_time::milliseconds(500));
     EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
     ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
     auto it = key_indx.begin();
@@ -2296,7 +2296,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
-  boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+  Sleep(boost::posix_time::milliseconds(300));
 }  // DownListClient test
 
 // This test will test the Downlist server handling in node_impl
@@ -2333,7 +2333,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
     for (int i = 0; i <= kFailedRpcTolerance; ++i)
       local_service->Downlist(info, downlist_request, &time_out);
     // wait a reasonable time
-    boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+    Sleep(boost::posix_time::milliseconds(200));
     routing_table_->GetAllContacts(&contacts);
     EXPECT_EQ(test::k, contacts.size());
   }
@@ -2351,7 +2351,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
       local_service->Downlist(info, downlist_request, &time_out);
     // may need to put a timer to prevent deadlock
     do {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+      Sleep(boost::posix_time::milliseconds(200));
       routing_table_->GetAllContacts(&contacts);
     } while (contacts.size() != 0);
   }
