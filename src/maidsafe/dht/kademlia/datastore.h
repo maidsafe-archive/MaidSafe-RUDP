@@ -32,12 +32,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <utility>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4244)
+#endif
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/ordered_index.hpp"
 #include "boost/multi_index/identity.hpp"
 #include "boost/multi_index/member.hpp"
 #include "boost/multi_index/mem_fun.hpp"
 #include "boost/multi_index/composite_key.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
 

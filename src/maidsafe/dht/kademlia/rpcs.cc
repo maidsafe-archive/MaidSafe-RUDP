@@ -315,7 +315,7 @@ void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
 }
 
 void Rpcs::PingCallback(
-    const std::string &random_data,
+    const std::string &/*random_data*/,
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,

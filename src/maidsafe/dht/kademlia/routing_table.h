@@ -39,12 +39,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/lambda/lambda.hpp"
 #include "boost/lambda/bind.hpp"
 #include "boost/lambda/if.hpp"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4244)
+#endif
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/composite_key.hpp"
 #include "boost/multi_index/ordered_index.hpp"
 #include "boost/multi_index/identity.hpp"
 #include "boost/multi_index/member.hpp"
 #include "boost/multi_index/mem_fun.hpp"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
 

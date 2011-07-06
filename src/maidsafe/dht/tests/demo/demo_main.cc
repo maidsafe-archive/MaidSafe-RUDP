@@ -104,7 +104,8 @@ int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   try {
     std::string logfile, kadconfigpath, bootstrap_ip, bootstrap_id;
-    uint16_t bootstrap_port(0), listening_port(0), k(4), alpha(3), beta(2);
+    uint16_t bootstrap_port(8000), listening_port(8000), k(4), alpha(3),
+             beta(2);
     int type(0);
     uint32_t refresh_interval(3600);
     size_t thread_count(3);
@@ -124,7 +125,7 @@ int main(int argc, char **argv) {
         ("type,t", po::value(&type)->default_value(type),
             "Type of transport: 0 - TCP (default), 1 - UDP, 2 - Other.")
         ("port,p", po::value(&listening_port)->default_value(listening_port),
-            "Local listening port of node.  Default is 0 == random port.")
+            "Local listening port of node.  Default is 8000.")
         ("bootstrap_id", po::value(&bootstrap_id), "Bootstrap node ID.")
         ("bootstrap_ip", po::value(&bootstrap_ip), "Bootstrap node IP.")
         ("bootstrap_port", po::value(&bootstrap_port), "Bootstrap node port.")
