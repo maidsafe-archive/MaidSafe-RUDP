@@ -932,7 +932,7 @@ TEST_F(NodeTest, FUNC_FindValueWithDeadNodes) {
     nodes_[contacts_index[index]]->asio_service.stop();
     nodes_[contacts_index[index]]->thread_group->join_all();
     nodes_[contacts_index[index]]->thread_group.reset();
-    nodes_left_.push_back(contacts_index[index]);
+    nodes_left_.push_back(static_cast<int>(contacts_index[index]));
   }
   contacts.clear();
   std::vector<std::string> strings;

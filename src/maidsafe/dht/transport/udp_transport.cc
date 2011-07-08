@@ -155,7 +155,7 @@ void UdpTransport::DoSend(RequestPtr request) {
     ++next_request_id_;
 
   // Encode the size of the message data.
-  DataSize size = request->Data().size();
+  DataSize size = static_cast<DataSize>(request->Data().size());
   std::array<unsigned char, 4> size_buffer;
   for (int i = 0; i != 4; ++i)
     size_buffer[i] = static_cast<char>(size >> (8 * (3 - i)));

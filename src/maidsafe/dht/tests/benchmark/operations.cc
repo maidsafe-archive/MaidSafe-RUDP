@@ -218,7 +218,8 @@ void Operations::TestStoreAndFind(const std::vector<kademlia::NodeId> &nodes,
       boost::mutex::scoped_lock lock(data->mutex);
       for (int j = 0; j < iterations; ++j) {
         kademlia::NodeId mod =
-            GetModId(val * iterations * nodes.size() + i * iterations + j);
+            GetModId(val * iterations * static_cast<int>(nodes.size() + i) *
+                     iterations + j);
 //        uint64_t t = GetEpochMilliseconds();
 //        node_->FindValue(nodes[i] ^ mod, false, boost::bind(
 //            &Operations::FindValueCallback, this, _1, data));
