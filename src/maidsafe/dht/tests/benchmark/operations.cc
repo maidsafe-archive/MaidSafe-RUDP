@@ -92,7 +92,7 @@ void Operations::TestFindAndPing(const std::vector<kademlia::NodeId> &nodes,
             stats.Mean() / 1000.0,
             stats.Max() / 1000.0);
   }
-  if (contacts.size() > 0) {
+  if (!contacts.empty()) {
     printf("Pinging %d contacts, %d iterations...\n",
            contacts.size(), iterations);
 

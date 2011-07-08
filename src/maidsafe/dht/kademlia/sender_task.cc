@@ -33,10 +33,10 @@ namespace dht {
 
 namespace kademlia {
 
-Task::Task(KeyValueSignature key_value_signature,
-           const transport::Info info,
-           const RequestAndSignature request_signature,
-           const std::string public_key_id,
+Task::Task(const KeyValueSignature &key_value_signature,
+           const transport::Info &info,
+           const RequestAndSignature &request_signature,
+           const std::string &public_key_id,
            TaskCallback ops_callback)
     : key_value_signature(key_value_signature),
       info(info),
@@ -58,11 +58,12 @@ SenderTask::SenderTask()
 
 SenderTask::~SenderTask() {}
 
-bool SenderTask::AddTask(KeyValueSignature key_value_signature,
-                      const transport::Info info,
-                      const RequestAndSignature request_signature,
-                      const std::string public_key_id,
-                      TaskCallback ops_callback, bool & is_new_id) {
+bool SenderTask::AddTask(const KeyValueSignature &key_value_signature,
+                         const transport::Info &info,
+                         const RequestAndSignature &request_signature,
+                         const std::string &public_key_id,
+                         TaskCallback ops_callback,
+                         bool *is_new_id) {
   if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
       key_value_signature.signature.empty() || public_key_id.empty() ||
       request_signature.first.empty() || ops_callback == NULL) {
@@ -76,7 +77,7 @@ bool SenderTask::AddTask(KeyValueSignature key_value_signature,
       task_index_->get<TagPublicKeyId>();
 
   auto it = index_by_public_key_id.find(public_key_id);
-  is_new_id = (it == index_by_public_key_id.end());
+  *is_new_id = (it == index_by_public_key_id.end());
 
   // Rejecting if stored key is associated with different public_key_id
   TaskIndex::index<TagTaskKey>::type& index_by_key =

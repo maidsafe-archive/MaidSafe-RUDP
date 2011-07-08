@@ -43,9 +43,9 @@ namespace kademlia {
 namespace test {
 class SenderTaskTest;
 class ServicesTest;
-class SenderTaskTest_BEH_KAD_AddTask_Test;
-class SenderTaskTest_BEH_KAD_SenderTaskCallback_Test;
-class SenderTaskTest_FUNC_KAD_SenderTaskCallbackMulthiThreaded_Test;
+class SenderTaskTest_BEH_AddTask_Test;
+class SenderTaskTest_FUNC_SenderTaskCallback_Test;
+class SenderTaskTest_FUNC_SenderTaskCallbackMultiThreaded_Test;
 }
 
 class Service;
@@ -55,10 +55,10 @@ typedef std::function<void(const KeyValueSignature, transport::Info,
         TaskCallback;
 
 struct Task {
-  Task(KeyValueSignature key_value_signature,
-       const transport::Info info,
-       const RequestAndSignature request_signature,
-       const std::string public_key_id,
+  Task(const KeyValueSignature &key_value_signature,
+       const transport::Info &info,
+       const RequestAndSignature &request_signature,
+       const std::string &public_key_id,
        TaskCallback ops_callback);
 
   const std::string& key() const;
@@ -103,21 +103,20 @@ class SenderTask  {
   // public_key_id is not present in the  multi index.
   // Returns false if stored key is associated with different public_key_id.
   // Returns true if successfully added into the multi index or false otherwise.
-  bool AddTask(KeyValueSignature key_value_signature,
-               const transport::Info info,
-               const RequestAndSignature request_signature,
-               const std::string public_key_id,
+  bool AddTask(const KeyValueSignature &key_value_signature,
+               const transport::Info &info,
+               const RequestAndSignature &request_signature,
+               const std::string &public_key_id,
                TaskCallback ops_callback,
-               bool & is_new_id);
+               bool *is_new_id);
 
  private:
   friend class Service;
   friend class test::SenderTaskTest;
   friend class test::ServicesTest;
-  friend class test::SenderTaskTest_BEH_KAD_AddTask_Test;
-  friend class test::SenderTaskTest_BEH_KAD_SenderTaskCallback_Test;
-  friend class
-      test::SenderTaskTest_FUNC_KAD_SenderTaskCallbackMulthiThreaded_Test;
+  friend class test::SenderTaskTest_BEH_AddTask_Test;
+  friend class test::SenderTaskTest_FUNC_SenderTaskCallback_Test;
+  friend class test::SenderTaskTest_FUNC_SenderTaskCallbackMultiThreaded_Test;
 
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;

@@ -224,7 +224,7 @@ void TcpConnection::DispatchMessage() {
 
 void TcpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
-  DataSize msg_size = data.size();
+  DataSize msg_size = static_cast<DataSize>(data.size());
   if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
     if (msg_size > transport->kMaxTransportMessageSize()) {
       DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "

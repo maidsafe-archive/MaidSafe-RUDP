@@ -248,7 +248,7 @@ void Service::Store(const transport::Info &info,
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             request.sender().public_key_id(), store_cb,
-                            is_new_id)) {
+                            &is_new_id)) {
     if (is_new_id) {  // If public_key_id is new
       GetPublicKeyAndValidationCallback cb =
           std::bind(&SenderTask::SenderTaskCallback, sender_task_,
@@ -298,7 +298,7 @@ void Service::StoreRefresh(const transport::Info &info,
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             ori_store_request.sender().public_key_id(),
-                            store_refresh_cb, is_new_id)) {
+                            store_refresh_cb, &is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           std::bind(&SenderTask::SenderTaskCallback, sender_task_,
@@ -415,7 +415,7 @@ void Service::Delete(const transport::Info &info,
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             request.sender().public_key_id(), delete_cb,
-                            is_new_id)) {
+                            &is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           std::bind(&SenderTask::SenderTaskCallback, sender_task_,
@@ -467,7 +467,7 @@ void Service::DeleteRefresh(const transport::Info &info,
   bool is_new_id = true;
   if (sender_task_->AddTask(key_value_signature, info, request_signature,
                             ori_delete_request.sender().public_key_id(),
-                            delete_refresh_cb, is_new_id)) {
+                            delete_refresh_cb, &is_new_id)) {
     if (is_new_id) {
       GetPublicKeyAndValidationCallback cb =
           std::bind(&SenderTask::SenderTaskCallback, sender_task_,

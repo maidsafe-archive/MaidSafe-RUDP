@@ -58,9 +58,9 @@ class SenderTaskTest: public testing::Test {
 
   virtual void SetUp() {}
 
-  bool HasDataInIndex(KeyValueSignature key_value_signature,
-                      const RequestAndSignature request_signature,
-                      const std::string public_key_id) {
+  bool HasDataInIndex(const KeyValueSignature &key_value_signature,
+                      const RequestAndSignature &request_signature,
+                      const std::string &public_key_id) {
     if (key_value_signature.key.empty())
       return false;
     TaskIndex::index<TagTaskKey>::type& index_by_key =
@@ -123,7 +123,7 @@ class SenderTaskTest: public testing::Test {
   boost::thread_group asio_thread_group_;
 };
 
-TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
+TEST_F(SenderTaskTest, BEH_AddTask) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
@@ -135,32 +135,32 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
   // Invalid tasks
   EXPECT_FALSE(sender_task_->AddTask(KeyValueSignature("", "", ""), info_,
                                      request_signature, "public_key_id_1",
-                                     task_cb, is_new_id));
+                                     task_cb, &is_new_id));
   EXPECT_FALSE(sender_task_->AddTask(kvs, info_, RequestAndSignature("", ""),
-                                     "public_key_id_1", task_cb, is_new_id));
+                                     "public_key_id_1", task_cb, &is_new_id));
   EXPECT_FALSE(HasDataInIndex(kvs, RequestAndSignature("", ""),
                               "public_key_id_1"));
   EXPECT_FALSE(sender_task_->AddTask(kvs, info_, request_signature, "", task_cb,
-                                     is_new_id));
+                                     &is_new_id));
   EXPECT_FALSE(HasDataInIndex(kvs, request_signature, ""));
   EXPECT_FALSE(sender_task_->AddTask(kvs, info_, request_signature,
-                                     "public_key_id_1", NULL, is_new_id));
+                                     "public_key_id_1", NULL, &is_new_id));
   EXPECT_FALSE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
   // Valid task
   EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                    "public_key_id_1", task_cb, is_new_id));
+                                    "public_key_id_1", task_cb, &is_new_id));
   EXPECT_TRUE(is_new_id);
   EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
   EXPECT_EQ(size_t(1), GetSenderTaskSize());
   // Adding same task again
   EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                    "public_key_id_1", task_cb, is_new_id));
+                                    "public_key_id_1", task_cb, &is_new_id));
   EXPECT_FALSE(is_new_id);
   EXPECT_EQ(size_t(2), GetSenderTaskSize());
 
   // Adding new task with same key-value different public_key_id
   EXPECT_FALSE(sender_task_->AddTask(kvs, info_, request_signature,
-                                     "public_key_id_2", task_cb, is_new_id));
+                                     "public_key_id_2", task_cb, &is_new_id));
   EXPECT_TRUE(is_new_id);
   EXPECT_FALSE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
   EXPECT_EQ(size_t(2), GetSenderTaskSize());
@@ -169,7 +169,7 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb, is_new_id));
+                                      "public_key_id_1", task_cb, &is_new_id));
     EXPECT_FALSE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     EXPECT_EQ(size_t(3), GetSenderTaskSize());
@@ -179,7 +179,7 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_2", task_cb, is_new_id));
+                                      "public_key_id_2", task_cb, &is_new_id));
     EXPECT_TRUE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
     EXPECT_EQ(size_t(4), GetSenderTaskSize());
@@ -192,14 +192,14 @@ TEST_F(SenderTaskTest, BEH_KAD_AddTask) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb, is_new_id));
+                                      "public_key_id_1", task_cb, &is_new_id));
     EXPECT_FALSE(is_new_id);
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     EXPECT_EQ(size_t(5), GetSenderTaskSize());
   }
 }
 
-TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
+TEST_F(SenderTaskTest, FUNC_SenderTaskCallback) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
   TaskCallback task_cb_1 = std::bind(&SenderTaskTest::TestTaskCallBack1,
@@ -213,7 +213,7 @@ TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
   crypto_key_data.GenerateKeys(4096);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
   ASSERT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                    "public_key_id_1", task_cb_1, is_new_id));
+                                    "public_key_id_1", task_cb_1, &is_new_id));
   sender_task_->SenderTaskCallback("", "", "");
   EXPECT_EQ(size_t(1), GetSenderTaskSize());
   EXPECT_EQ(0u , count_callback_1_);
@@ -228,7 +228,7 @@ TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb_1, is_new_id));
+                                      "public_key_id_1", task_cb_1, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     EXPECT_EQ(size_t(i), GetSenderTaskSize());
   }
@@ -240,7 +240,7 @@ TEST_F(SenderTaskTest, BEH_KAD_SenderTaskCallback) {
   EXPECT_EQ(size_t(0), GetSenderTaskSize());
 }
 
-TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
+TEST_F(SenderTaskTest, FUNC_SenderTaskCallbackMultiThreaded) {
   crypto::RsaKeyPair crypto_key_data;
   RequestAndSignature request_signature("message", "message_signature");
   TaskCallback task_cb_1 = std::bind(&SenderTaskTest::TestTaskCallBack1,
@@ -256,22 +256,22 @@ TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb_1, is_new_id));
+                "public_key_id_1", task_cb_1, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb_2, is_new_id));
+                "public_key_id_1", task_cb_2, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_2", task_cb_1, is_new_id));
+                "public_key_id_2", task_cb_1, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_2", task_cb_2, is_new_id));
+                "public_key_id_2", task_cb_2, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_2"));
   }
   EXPECT_EQ(size_t(i * 4), GetSenderTaskSize());
@@ -285,7 +285,7 @@ TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
                                                sender_task_, kvs,
                                                info_, request_signature,
                                                "public_key_id_3", task_cb_1,
-                                               is_new_id));
+                                               &is_new_id));
     crypto_key_data.GenerateKeys(4096);
     kvs = MakeKVS(crypto_key_data, 1024, "", "");
     kvs_vector.push_back(kvs);
@@ -293,7 +293,7 @@ TEST_F(SenderTaskTest, FUNC_KAD_SenderTaskCallbackMulthiThreaded) {
                                                sender_task_, kvs,
                                                info_, request_signature,
                                                "public_key_id_4", task_cb_2,
-                                               is_new_id));
+                                               &is_new_id));
   }
   asio_thread_group_.join_all();
 
