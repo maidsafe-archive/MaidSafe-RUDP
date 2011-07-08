@@ -453,7 +453,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                               std::vector<Contact> response_list) {
     boost::uint16_t interval(10 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, response_list.size(), response_list);
+    callback(rank_info_, static_cast<int>(response_list.size()), response_list);
   }
 
   void FindNodeNoResponseThread(FindNodesFunctor callback,

@@ -148,7 +148,7 @@ void RoutingTable::GetCloseContacts(
   uint16_t end_kbucket_index = start_kbucket_index +1;
 
   uint32_t potential_size = KBucketSizeForKey(start_kbucket_index);
-  uint32_t target_size = count + exclude_contacts.size();
+  uint32_t target_size = static_cast<uint32_t>(count + exclude_contacts.size());
   // extend the search range step 1: add all kbuckets containing more
   // common leading bits, the bucket contains the holder will always be the last
   while (end_kbucket_index <= bucket_of_holder_) {

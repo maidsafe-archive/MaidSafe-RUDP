@@ -367,14 +367,16 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
   auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+  int num_of_pending =
+      static_cast<int>(std::distance(pit_pending.first, pit_pending.second));
 
   auto pit_contacted = sa->nc.get<nc_state>().equal_range(kContacted);
-  int num_of_contacted= std::distance(pit_contacted.first,
-                                      pit_contacted.second);
+  int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
+                                          pit_contacted.second));
 
   auto pit_down = sa->nc.get<nc_state>().equal_range(kDown);
-  int num_of_down= std::distance(pit_down.first, pit_down.second);
+  int num_of_down = static_cast<int>(std::distance(pit_down.first,
+                                                   pit_down.second));
 
   if (!sa->calledback) {
     if (num_of_down > (k_ - threshold_)) {
@@ -439,11 +441,12 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
 //  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
   auto pit_contacted = drpc->rpc_a->nc.get<nc_state>().equal_range(kContacted);
-  int num_of_contacted= std::distance(pit_contacted.first,
-                                      pit_contacted.second);
+  int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
+                                                        pit_contacted.second));
 
   auto pit_down = drpc->rpc_a->nc.get<nc_state>().equal_range(kDown);
-  int num_of_down= std::distance(pit_down.first, pit_down.second);
+  int num_of_down = static_cast<int>(std::distance(pit_down.first,
+                                                   pit_down.second));
 
   if (num_of_down > (k_ - threshold_)) {
     // report back a failure once has more down contacts than the margin
@@ -477,8 +480,8 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
 
     // ensure this down contact is not the last one, prevent a deadend
     auto pit_pending = ua->nc.get<nc_state>().equal_range(kSelectedAlpha);
-    int num_of_total_pending = std::distance(pit_pending.first,
-                                             pit_pending.second);
+    int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
+                                                pit_pending.second));
     if (num_of_total_pending == 0) {
       ua->callback(-2);
       ua->calledback = true;
@@ -733,14 +736,15 @@ bool Node::Impl::HandleIterationStructure(
   // always check with the latest round, no need to worry about the previous
   auto pit = fa->nc.template get<nc_state_round>().equal_range(
                  boost::make_tuple(kSelectedAlpha, fa->round));
-  int num_of_round_pending = std::distance(pit.first, pit.second);
+  int num_of_round_pending = static_cast<int>(std::distance(pit.first,
+                                                            pit.second));
   if (num_of_round_pending <= (kAlpha_ - kBeta_))
     *cur_iteration_done = true;
 
   auto pit_pending =
       fa->nc.template get<nc_state>().equal_range(kSelectedAlpha);
-  int num_of_total_pending = std::distance(pit_pending.first,
-                                           pit_pending.second);
+  int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
+                                              pit_pending.second));
   {
     //     no kNew contacts among the top K
     // And no kSelectedAlpha (pending) contacts in total
@@ -764,7 +768,7 @@ bool Node::Impl::HandleIterationStructure(
         closest_contacts->push_back((*it).contact);
       ++it;
     }
-    *response_code = closest_contacts->size();
+    *response_code = static_cast<int>(closest_contacts->size());
     // main part of memory resource in fa can be released here
     fa->nc.clear();
   }
@@ -787,7 +791,8 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
   auto pit = fa->nc. template get<nc_state_distance>().equal_range(
       boost::make_tuple(kNew));
-  int num_of_candidates = std::distance(pit.first, pit.second);
+  int num_of_candidates = static_cast<int>(std::distance(pit.first,
+                                                         pit.second));
 
   if (num_of_candidates == 0) {
      // All contacted or in waitingresponse state, then just do nothing here
@@ -860,9 +865,9 @@ void Node::Impl::IterativeSearchValueResponse(
   bool curr_iteration_done(false), calledback(false);
   int response_code(0);
   std::vector<Contact> closest_contacts;
-  if (values.size() > 0) {
+  if (!values.empty()) {
     calledback = true;
-    response_code = values.size();
+    response_code = static_cast<int>(values.size());
   } else {
     NodeSearchState mark(kContacted);
     if (result < 0) {
