@@ -775,7 +775,7 @@ bool UpnpIgdClientImpl::ParseServiceDescription(IXML_Node* node,
 
 bool UpnpIgdClientImpl::AddRootDevice(const boost::shared_ptr<Device> &device,
                                       const uint32_t &expires,
-                                      const std::string location) {
+                                      const std::string &location) {
   boost::recursive_mutex::scoped_lock guard(mutex_);
   std::list<RootDevice>::iterator it;
   if (RootDeviceExists(device->unique_device_name, location, it)) {
@@ -796,7 +796,7 @@ bool UpnpIgdClientImpl::AddRootDevice(const boost::shared_ptr<Device> &device,
 }
 
 bool UpnpIgdClientImpl::RootDeviceExists(const std::string &udn,
-                                         const std::string location,
+                                         const std::string &location,
                                          std::list<RootDevice>::iterator &it) {
   boost::recursive_mutex::scoped_lock guard(mutex_);
   for (it = root_devices_.begin(); it != root_devices_.end(); ++it) {
@@ -813,7 +813,7 @@ void UpnpIgdClientImpl::UpdateRootDevice(RootDevice* rd,
 }
 
 bool UpnpIgdClientImpl::DeleteRootDevice(const std::string &udn,
-                                         const std::string location) {
+                                         const std::string &location) {
   boost::recursive_mutex::scoped_lock guard(mutex_);
   std::list<RootDevice>::iterator it;
   if (RootDeviceExists(udn, location, it)) {

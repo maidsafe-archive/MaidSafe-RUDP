@@ -9,14 +9,6 @@
 #include "minixml.h"
 #include "igd_desc_parse.h"
 
-#ifdef WIN32
-#define NO_BZERO
-#endif
-
-#ifdef NO_BZERO
-#define bzero(p, n) memset(p, 0, n)
-#endif
-
 /* ---------------------------------------------------------------------- */
 void printeltname1(void * d, const char * name, int l)
 {
@@ -47,7 +39,7 @@ void burptest(const char * buffer, int bufsize)
 	struct IGDdatas data;
 	struct xmlparser parser;
 	/*objet IGDdatas */
-	bzero(&data, sizeof(struct IGDdatas));
+	memset(&data, 0, sizeof(struct IGDdatas));
 	/* objet xmlparser */
 	parser.xmlstart = buffer;
 	parser.xmlsize = bufsize;

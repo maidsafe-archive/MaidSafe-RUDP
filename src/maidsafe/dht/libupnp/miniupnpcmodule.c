@@ -276,7 +276,6 @@ UPnP_getspecificportmapping(UPnPObject *self, PyObject *args)
 	const char * proto;
 	char intClient[16];
 	char intPort[6];
-	unsigned short iPort;
 	if(!PyArg_ParseTuple(args, "Hs", &ePort, &proto))
 		return NULL;
 	sprintf(extPort, "%hu", ePort);
@@ -286,7 +285,7 @@ UPnP_getspecificportmapping(UPnPObject *self, PyObject *args)
 									 intClient, intPort);
 	if(intClient[0])
 	{
-		iPort = (unsigned short)atoi(intPort);
+		unsigned short iPort = (unsigned short)atoi(intPort);
 		return Py_BuildValue("(s,H)", intClient, iPort);
 	}
 	else
@@ -303,15 +302,12 @@ UPnP_getgenericportmapping(UPnPObject *self, PyObject *args)
 	char index[8];
 	char intClient[16];
 	char intPort[6];
-	unsigned short iPort;
 	char extPort[6];
-	unsigned short ePort;
 	char protocol[4];
 	char desc[80];
 	char enabled[6];
 	char rHost[64];
 	char duration[16];	/* lease duration */
-	unsigned int dur;
 	if(!PyArg_ParseTuple(args, "i", &i))
 		return NULL;
 	snprintf(index, sizeof(index), "%d", i);
@@ -326,9 +322,9 @@ UPnP_getgenericportmapping(UPnPObject *self, PyObject *args)
 										duration);
 	if(r==UPNPCOMMAND_SUCCESS)
 	{
-		ePort = (unsigned short)atoi(extPort);
-		iPort = (unsigned short)atoi(intPort);
-		dur = (unsigned int)strtoul(duration, 0, 0);
+		unsigned short ePort = (unsigned short)atoi(extPort);
+		unsigned short iPort = (unsigned short)atoi(intPort);
+		unsigned int dur = (unsigned int)strtoul(duration, 0, 0);
 		return Py_BuildValue("(H,s,(s,H),s,s,s,I)",
 		                     ePort, protocol, intClient, iPort,
 		                     desc, enabled, rHost, dur);

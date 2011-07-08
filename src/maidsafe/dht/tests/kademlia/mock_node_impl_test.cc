@@ -2353,7 +2353,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
     do {
       Sleep(boost::posix_time::milliseconds(200));
       routing_table_->GetAllContacts(&contacts);
-    } while (contacts.size() != 0);
+    } while (!contacts.empty());
   }
 }  // DownListServer test
 
