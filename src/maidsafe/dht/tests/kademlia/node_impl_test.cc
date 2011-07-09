@@ -70,11 +70,11 @@ namespace kademlia {
 namespace test {
 
 namespace {
-const boost::uint16_t kTest = 4;
-const boost::uint16_t kAlpha = 3;
-const boost::uint16_t kBeta = 2;
-const size_t kNumberOfNodes = 10;
-const boost::uint16_t kThreadGroupSize = 3;
+const uint16_t kTest = 4;
+const uint16_t kAlpha = 3;
+const uint16_t kBeta = 2;
+const size_t kNumberOfNodes = 6;
+const uint16_t kThreadGroupSize = 3;
 const int kPending(9999999);
 }  // unnamed namespace
 
@@ -229,7 +229,7 @@ class NodeImplTest : public testing::Test {
         nodes_[i]->Join(node_ids_[i], contacts, join_functor);
         ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_, wait_functor));
       }
-      ASSERT_EQ(transport::kSuccess, result);
+                                                                      ASSERT_EQ(i, result);
       ASSERT_TRUE(nodes_[i]->joined());
       std::cout << "Node #" << i << " joined." << std::endl;
     }
