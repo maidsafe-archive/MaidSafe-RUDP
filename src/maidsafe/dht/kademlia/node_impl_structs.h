@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 
+#include <memory>
 #include <string>
 
 #include "boost/thread/mutex.hpp"
@@ -237,6 +238,14 @@ struct UpdateArgs : Args {
   std::string old_value;
   std::string old_signature;
 };
+
+typedef std::shared_ptr<Args> ArgsPtr;
+typedef std::shared_ptr<RpcArgs> RpcArgsPtr;
+typedef std::shared_ptr<FindNodesArgs> FindNodesArgsPtr;
+typedef std::shared_ptr<FindValueArgs> FindValueArgsPtr;
+typedef std::shared_ptr<StoreArgs> StoreArgsPtr;
+typedef std::shared_ptr<DeleteArgs> DeleteArgsPtr;
+typedef std::shared_ptr<UpdateArgs> UpdateArgsPtr;
 
 }  // namespace kademlia
 

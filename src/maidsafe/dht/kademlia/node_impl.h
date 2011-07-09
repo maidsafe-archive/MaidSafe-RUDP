@@ -442,9 +442,8 @@ class Node::Impl {
    *  the downlist */
   void MonitoringDownlistThread();
 
-  bool SortByDistance(Contact contact_1, Contact contact_2);
   void JoinFindNodesCallback(const int &result,
-                             const std::vector<Contact> &contacts,
+                             const std::vector<Contact> &returned_contacts,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
                              JoinFunctor callback);
