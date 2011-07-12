@@ -260,6 +260,7 @@ int NodeContainer<NodeType>::Start(
   transport::Endpoint endpoint("127.0.0.1", port);
   int result = listening_transport_->StartListening(endpoint);
   if (transport::kSuccess != result) {
+    listening_transport_->StopListening();
     return result;
   }
 
@@ -284,7 +285,7 @@ int NodeContainer<NodeType>::Start(
   const bptime::time_duration kTimeout(bptime::seconds(10));
   boost::mutex::scoped_lock lock(mutex);
   node_->Join(node_id, bootstrap_contacts, join_functor);
-  return cond_var.timed_wait(lock, kTimeout, wait_functor) ? -1 : result;
+  return cond_var.timed_wait(lock, kTimeout, wait_functor) ? result : -1;
 }
 
 template <typename NodeType>
