@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/log.h"
 // #include "maidsafe-dht/common/routing_table.h"
+#include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
@@ -161,19 +162,14 @@ class NodeTest : public testing::Test {
     cond_var->notify_one();
   }
 
-  void FindValueCallback(int result,
-                         std::vector<std::string> values,
-                         std::vector<dht::kademlia::Contact> /*contacts*/,
-                         dht::kademlia::Contact /*node*/,
-                         dht::kademlia::Contact /*cache*/,
+  void FindValueCallback(dht::kademlia::FindValueReturns find_value_returns,
                          boost::mutex *mutex,
                          boost::condition_variable *cond_var,
                          int* out_result,
-                         std::vector<std::string>* out_values) {
+                         std::vector<std::string> *out_values) {
     boost::mutex::scoped_lock lock(*mutex);
-    *out_result = result;
-    for (size_t index = 0; index < values.size(); ++index)
-      out_values->push_back(values[index]);
+    *out_result = find_value_returns.return_code;
+    *out_values = find_value_returns.values;
     cond_var->notify_one();
   }
 
@@ -418,8 +414,8 @@ TEST_F(NodeTest, BEH_JoinedClientFindsValue) {
 
   std::vector<std::string> strings;
   nodes_[network_size_]->node->FindValue(key, nodes_[network_size_]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                arg::_4, arg::_5, &mutex_, &cond_var_, &result, &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -490,9 +486,8 @@ TEST_F(NodeTest, FUNC_LoadNonExistingValue) {
   const std::string value(boost::lexical_cast<std::string>(network_size_));
   int random_source = RandomUint32() % network_size_;
   nodes_[random_source]->node->FindValue(key, nodes_[random_source]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_ , &result,
-                &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -561,9 +556,8 @@ TEST_F(NodeTest, FUNC_StoreWithInvalidRequest) {
   }
   EXPECT_LT(0, result);
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -601,9 +595,8 @@ TEST_F(NodeTest, DISABLED_BEH_UpdateValue) {
   }
   EXPECT_LT(0, result);
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -620,9 +613,8 @@ TEST_F(NodeTest, DISABLED_BEH_UpdateValue) {
   EXPECT_LT(0, result);
   found_values.clear();
   nodes_[0]->node->FindValue(key, nodes_[0]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -646,9 +638,8 @@ TEST_F(NodeTest, FUNC_StoreAndLoadSmallValue) {
 
   std::vector<std::string> found_values;
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -673,9 +664,8 @@ TEST_F(NodeTest, FUNC_StoreAndLoadBigValue) {
   std::vector<std::string> found_values;
   random_node = RandomUint32() % network_size_;
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -885,9 +875,8 @@ TEST_F(NodeTest, BEH_StoreAndLoad100Values) {
   for (size_t index = 0; index < count; ++index) {
     nodes_[random_node]->node->FindValue(keys[index],
         nodes_[random_node]->securifier,
-        std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                  arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                  &found_values));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &found_values));
     {
       boost::mutex::scoped_lock lock(mutex_);
       cond_var_.wait(lock);
@@ -937,9 +926,8 @@ TEST_F(NodeTest, FUNC_FindValueWithDeadNodes) {
   contacts.clear();
   std::vector<std::string> strings;
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2,
-                arg::_3, arg::_4, arg::_5, &mutex_, &cond_var_, &result,
-                &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -974,8 +962,8 @@ TEST_F(NodeTest, BEH_MultipleNodesFindSingleValue) {
         + random_target + 1) % network_size_;
     nodes_[random_source]->node->FindValue(keys[random_target],
         nodes_[random_source]->securifier,
-        std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                  arg::_4, arg::_5, &mutex_, &cond_var_, &result, &strings));
+        std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                  &cond_var_, &result, &strings));
     {
       boost::mutex::scoped_lock lock(mutex_);
       cond_var_.wait(lock);
@@ -1010,8 +998,8 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
       boost::lexical_cast<std::string>(network_size_)));
   int random_source = RandomUint32() % network_size_;
   nodes_[random_source]->node->FindValue(key, nodes_[random_source]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                arg::_4, arg::_5, &mutex_, &cond_var_, &result, &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -1030,8 +1018,8 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
   result = -1;
   strings.clear();
   nodes_[random_source]->node->FindValue(key, nodes_[random_source]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                arg::_4, arg::_5, &mutex_, &cond_var_, &result, &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
@@ -1052,8 +1040,8 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
   result = -1;
   strings.clear();
   nodes_[random_source]->node->FindValue(key, nodes_[random_source]->securifier,
-      std::bind(&NodeTest::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                arg::_4, arg::_5, &mutex_, &cond_var_, &result, &strings));
+      std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
+                &cond_var_, &result, &strings));
   {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);

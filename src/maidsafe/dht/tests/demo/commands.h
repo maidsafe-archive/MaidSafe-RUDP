@@ -62,12 +62,7 @@ class Commands {
                      const NodeId &key,
                      const bptime::time_duration &ttl);
   void FindValue(const Arguments &args, bool write_to_file);
-  void FindValueCallback(const int &result,
-                         std::vector<std::string> values,
-                         std::vector<Contact> closest_contacts,
-                         Contact alternative_value_holder,
-                         Contact contact_to_cache,
-                         std::string path);
+  void FindValueCallback(FindValueReturns find_value_returns, std::string path);
   void GetContact(const Arguments &args);
   void GetContactsCallback(const int &result, Contact contact);
   void FindNodes(const Arguments &args, bool write_to_file);

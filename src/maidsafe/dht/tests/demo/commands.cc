@@ -159,31 +159,29 @@ void Commands::FindValue(const Arguments &args, bool write_to_file) {
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
   demo_node_->kademlia_node()->FindValue(key, null_securifier_,
-      std::bind(&Commands::FindValueCallback, this, arg::_1, arg::_2, arg::_3,
-                arg::_4, arg::_5, path));
+      std::bind(&Commands::FindValueCallback, this, arg::_1, path));
 }
 
-void Commands::FindValueCallback(const int &result,
-                                 std::vector<std::string> values,
-                                 std::vector<Contact> closest_contacts,
-                                 Contact alternative_value_holder,
-                                 Contact contact_to_cache,
+void Commands::FindValueCallback(FindValueReturns find_value_returns,
                                  std::string path) {
-  if (result != transport::kSuccess) {
-    ULOG(ERROR) << "FindValue operation failed with return code: " << result;
+  if (find_value_returns.return_code != transport::kSuccess) {
+    ULOG(ERROR) << "FindValue operation failed with return code: "
+                << find_value_returns.return_code;
   } else {
     ULOG(INFO)
         << boost::format("FindValue returned: %1% value(s), %2% closest "
-                         "contact(s).") % values.size() %
-                         closest_contacts.size();
+                         "contact(s).") % find_value_returns.values.size() %
+                         find_value_returns.closest_nodes.size();
     ULOG(INFO)
         << boost::format("Node holding value in its alternative_store: [ %1% ]")
-           % alternative_value_holder.node_id().ToStringEncoded(NodeId::kHex);
+               % find_value_returns.alternative_store_holder.node_id().
+               ToStringEncoded(NodeId::kHex);
     ULOG(INFO)
         << boost::format("Node needing a cache copy of the values: [ %1% ]")
-              % contact_to_cache.node_id().ToStringEncoded(NodeId::kHex);
-    if (!values.empty() && !path.empty())
-      WriteFile(path, values[0]);  // Writing only first value
+              % find_value_returns.needs_cache_copy.node_id().
+              ToStringEncoded(NodeId::kHex);
+    if (!find_value_returns.values.empty() && !path.empty())
+      WriteFile(path, find_value_returns.values[0]);  // Writing only 1st value
   }
   demo_node_->asio_service_.post(mark_results_arrived_);
 }
