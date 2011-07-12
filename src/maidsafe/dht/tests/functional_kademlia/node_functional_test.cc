@@ -196,11 +196,11 @@ class FunctionalNodeTest : public testing::Test {
         cond_var_.wait(lock);
       }
       EXPECT_TRUE(nodes_[index]->node->joined());
-      if (++total_finished_ == total_restart_) {
+      if (++total_finished_ == total_restart_) {  // all restarts are done
         cond_var2_.notify_one();
         return;
       }
-      if (--count == 0)
+      if (--count == 0)  // this node restart cycles is over
         return;
     }
     timers_[index]->timer->expires_from_now(
@@ -221,7 +221,6 @@ class FunctionalNodeTest : public testing::Test {
     timers_[index]->timer->async_wait(
         std::bind(&FunctionalNodeTest::HandleStart, this, index, count));
   }
-
 
  protected:
   FunctionalNodeTest()
@@ -334,14 +333,18 @@ class FunctionalNodeTest : public testing::Test {
     }
   }
 
+/** Approximate the uptime distribution given in "A Measurement Study of
+ * Peer-to-Peer File Sharing Systems" by Saroiu et al, fig. 6.
+ * The median of 60 minutes is converted to roughly 10 seconds and
+ * another two seconds are added; the total range is [3,113] seconds.*/
   size_t Stop() {
     return boost::numeric_cast<size_t>((1000)*(2 +
         (std::ceil(2.0/6.0 * std::exp((RandomUint32() % 100)/17.0)))));
   }
 
+/** The node re-joins after 10 to 29 seconds. */
   size_t Start() {
-    return boost::numeric_cast<size_t>(
-        (1000)*(10 + static_cast<boost::uint64_t>(RandomUint32() % 20)));
+    return boost::numeric_cast<size_t>((1000)*(10 + (RandomUint32() % 20)));
   }
 
   std::vector<std::shared_ptr<NodeContainer> > nodes_;
