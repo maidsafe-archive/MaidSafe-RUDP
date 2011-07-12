@@ -60,6 +60,7 @@ class RoutingTable;
 class Rpcs;
 
 namespace test {
+class NodeImplTest;
 class MockNodeImplTest;
 class MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
 class MockNodeImplTest_BEH_KAD_Join_Test;
@@ -69,10 +70,6 @@ class MockNodeImplTest_BEH_KAD_DownlistClient_Test;
 class MockNodeApiTest_BEH_KAD_Join_Server_Test;
 class MockNodeImplTest_BEH_KAD_ValidateContact_Test;
 class MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
-
-class NodeImplTest_BEH_KAD_Store_Test;
-class NodeImplTest_BEH_KAD_StoreRefresh_Test;
-class NodeImplTest_BEH_KAD_DeleteRefresh_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -211,6 +208,7 @@ class Node::Impl {
   bool refresh_thread_running() const;
   bool downlist_thread_running() const;
 
+  friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
   friend class test::MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
   friend class test::MockNodeImplTest_BEH_KAD_Join_Test;
@@ -219,10 +217,6 @@ class Node::Impl {
   friend class test::MockNodeImplTest_BEH_KAD_DownlistClient_Test;
   friend class test::MockNodeImplTest_BEH_KAD_ValidateContact_Test;
   friend class test::MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
-
-  friend class test::NodeImplTest_BEH_KAD_Store_Test;
-  friend class test::NodeImplTest_BEH_KAD_StoreRefresh_Test;
-  friend class test::NodeImplTest_BEH_KAD_DeleteRefresh_Test;
 
  private:
   Impl(const Impl&);
@@ -298,7 +292,7 @@ class Node::Impl {
    *  stopped.
    *  @param[out] cur_iteration_done Indicates if a new iteration can be
    *  started.
-   *  @param[out] calledback Indicates if a the search can be stopped. */
+   *  @param[out] called_back Indicates if a the search can be stopped. */
   template <class T>
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<T> fa,
@@ -306,7 +300,7 @@ class Node::Impl {
                                 int *response_code,
                                 std::vector<Contact> *closest_contacts,
                                 bool *cur_iteration_done,
-                                bool *calledback);
+                                bool *called_back);
 
   /** Function to be connected with the ping_oldest_contact signal in routing
    *  table. Will try to ping the report in oldest contact

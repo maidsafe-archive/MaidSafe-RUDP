@@ -64,129 +64,117 @@ enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
 
 enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
 
-enum OperationMethod { kOpDelete, kOpStore, kOpUpdate,
-                       kOpFindNode, kOpFindValue };
+enum OperationMethod {
+  kOpDelete,
+  kOpStore,
+  kOpUpdate,
+  kOpFindNode,
+  kOpFindValue
+};
 
-struct NodeContainerTuple {
-  explicit NodeContainerTuple(const Contact &cont, const NodeId &target_id)
+struct NodeGroupTuple {
+  // Tags
+  struct Id;
+  struct SearchState;
+  struct Distance;
+  struct StateAndRound;
+  struct StateAndDistance;
+  NodeGroupTuple(const Contact &cont, const NodeId &target_id)
       : contact(cont),
         contact_id(cont.node_id()),
-        state(kNew),
+        search_state(kNew),
         distance_to_target(contact_id ^ target_id),
         round(-1) {}
-  NodeContainerTuple(const Contact &cont, const NodeId &target_id, int rnd)
+  NodeGroupTuple(const Contact &cont, const NodeId &target_id, int rnd)
       : contact(cont),
         contact_id(cont.node_id()),
-        state(kNew),
+        search_state(kNew),
         distance_to_target(contact_id ^ target_id),
         round(rnd) {}
   Contact contact;
   NodeId contact_id;
-  NodeSearchState state;
+  NodeSearchState search_state;
   NodeId distance_to_target;
   int round;
 };
 
 // Modifiers
 struct ChangeState {
-  explicit ChangeState(NodeSearchState new_state)
-      : new_state(new_state) {}
-  void operator()(NodeContainerTuple &node_container_tuple) {  // NOLINT
-    node_container_tuple.state = new_state;
+  explicit ChangeState(NodeSearchState new_state) : new_state(new_state) {}
+  void operator()(NodeGroupTuple &node_container_tuple) {  // NOLINT
+    node_container_tuple.search_state = new_state;
   }
   NodeSearchState new_state;
 };
 
 struct ChangeRound {
-  explicit ChangeRound(int new_round)
-      : new_round(new_round) {}
-  void operator()(NodeContainerTuple &node_container_tuple) {  // NOLINT
+  explicit ChangeRound(int new_round) : new_round(new_round) {}
+  void operator()(NodeGroupTuple &node_container_tuple) {  // NOLINT
     node_container_tuple.round = new_round;
   }
   int new_round;
 };
 
-// Tags
-struct nc_id;
-struct nc_state;
-struct nc_distance;
-struct nc_round;
-struct nc_state_round;
-struct nc_state_distance;
-
 typedef boost::multi_index_container<
-  NodeContainerTuple,
+  NodeGroupTuple,
   boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<
-      boost::multi_index::tag<nc_id>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, contact_id)
+      boost::multi_index::tag<NodeGroupTuple::Id>,
+      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, contact_id)
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_state>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state)
+      boost::multi_index::tag<NodeGroupTuple::SearchState>,
+      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state)
     >,
     boost::multi_index::ordered_unique<
-      boost::multi_index::tag<nc_distance>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, distance_to_target)
+      boost::multi_index::tag<NodeGroupTuple::Distance>,
+      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, distance_to_target)
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_round>,
-      BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_state_round>,
+      boost::multi_index::tag<NodeGroupTuple::StateAndRound>,
       boost::multi_index::composite_key<
-        NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, int, round)
+        NodeGroupTuple,
+        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state),
+        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, int, round)
       >
     >,
     boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<nc_state_distance>,
+      boost::multi_index::tag<NodeGroupTuple::StateAndDistance>,
       boost::multi_index::composite_key<
-        NodeContainerTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeSearchState, state),
-        BOOST_MULTI_INDEX_MEMBER(NodeContainerTuple, NodeId, distance_to_target)
+        NodeGroupTuple,
+        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state),
+        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, distance_to_target)
       >
     >
   >
-> NodeContainer;
+> NodeGroup;
 
-typedef NodeContainer::index<nc_id>::type& NodeContainerByNodeId;
+typedef NodeGroup::index<NodeGroupTuple::Id>::type& NodeGroupByNodeId;
 
-typedef NodeContainer::index<nc_state>::type& NodeContainerByState;
-
-typedef NodeContainer::index<nc_distance>::type& NodeContainerByDistance;
-
-typedef NodeContainer::index<nc_round>::type& NodeContainerByRound;
-
-typedef NodeContainer::index<nc_state_round>::type& NodeContainerByStateRound;
-
-typedef NodeContainer::index<nc_state_distance>::type&
-            NodeContainerByStateDistance;
+typedef NodeGroup::index<NodeGroupTuple::Distance>::type& NodeGroupByDistance;
 
 struct Args {
   explicit Args(OperationMethod operation_type)
-      : nc(),
+      : node_group(),
         mutex(),
-        calledback(false),
+        called_back(false),
         operation_type(operation_type) {}
   virtual ~Args() {}
-  NodeContainer nc;
+  NodeGroup node_group;
   boost::mutex mutex;
-  bool calledback;
+  bool called_back;
   OperationMethod operation_type;
 };
 
 struct RpcArgs {
   RpcArgs(const Contact &c, std::shared_ptr<Args> a)
       : contact(c),
-        rpc_a(a) {}
+        rpc_args(a) {}
   Contact contact;
-  std::shared_ptr<Args> rpc_a;
+  std::shared_ptr<Args> rpc_args;
 };
 
-struct FindNodesArgs : Args {
+struct FindNodesArgs : public Args {
   FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
       : Args(kOpFindNode),
         key(fna_key),
@@ -197,34 +185,40 @@ struct FindNodesArgs : Args {
   int round;
 };
 
-struct FindValueArgs : Args {
-  FindValueArgs(const NodeId &fva_key, SecurifierPtr securifier,
+struct FindValueArgs : public Args {
+  FindValueArgs(const NodeId &fva_key,
+                SecurifierPtr securifier,
                 FindValueFunctor fva_callback)
-      : Args(kOpFindValue), key(fva_key), securifier(securifier),
-        callback(fva_callback), round(0) {}
+      : Args(kOpFindValue),
+        key(fva_key),
+        securifier(securifier),
+        callback(fva_callback),
+        round(0) {}
   NodeId key;
   SecurifierPtr securifier;
   FindValueFunctor callback;
   int round;
 };
 
-struct StoreArgs : Args {
+struct StoreArgs : public Args {
   explicit StoreArgs(StoreFunctor sa_callback)
       : Args(kOpStore),
         callback(sa_callback) {}
   StoreFunctor callback;
 };
 
-struct DeleteArgs : Args {
+struct DeleteArgs : public Args {
   explicit DeleteArgs(DeleteFunctor da_callback)
     : Args(kOpDelete),
       callback(da_callback) {}
   DeleteFunctor callback;
 };
 
-struct UpdateArgs : Args {
-  UpdateArgs(const std::string &new_value, const std::string &new_signature,
-             const std::string &old_value, const std::string &old_signature,
+struct UpdateArgs : public Args {
+  UpdateArgs(const std::string &new_value,
+             const std::string &new_signature,
+             const std::string &old_value,
+             const std::string &old_signature,
              UpdateFunctor ua_callback)
       : Args(kOpUpdate),
         callback(ua_callback),

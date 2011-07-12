@@ -341,6 +341,7 @@ FINAL_MESSAGE()
 
 SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node-api.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_container.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/config.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/contact.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_id.h

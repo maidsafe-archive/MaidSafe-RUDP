@@ -162,8 +162,9 @@ void NodeId::DecodeFromBinary(const std::string &binary_id) {
   }
 }
 
-bool NodeId::CloserToTarget(const NodeId &id1, const NodeId &id2,
-                           const NodeId &target_id) {
+bool NodeId::CloserToTarget(const NodeId &id1,
+                            const NodeId &id2,
+                            const NodeId &target_id) {
   if (!id1.IsValid() || !id2.IsValid() || !target_id.IsValid())
     return false;
   std::string raw_id1(id1.raw_id_);

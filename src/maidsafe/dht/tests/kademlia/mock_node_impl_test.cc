@@ -73,10 +73,13 @@ namespace kademlia {
 
 namespace test {
 
-// static const uint16_t k = 8;
-static const uint16_t alpha = 3;
-static const uint16_t beta = 2;
-static const uint16_t randomnoresponserate = 20;  // in percentage
+namespace {
+// const uint16_t k = 8;
+const uint16_t alpha = 3;
+const uint16_t beta = 2;
+const uint16_t randomnoresponserate = 20;  // in percentage
+}  // unnamed namespace
+
 
 class SecurifierValidateTrue: public Securifier {
  public:
@@ -105,26 +108,11 @@ void FindNodeCallback(RankInfoPtr rank_info,
   *done = true;
 }
 
-struct FindValueResults {
-  FindValueResults() : response_code(-3), values(), contacts() {}
-  int response_code;
-  std::vector<std::string> values;
-  std::vector<Contact> contacts;
-};
-
-void FindValueCallback(int return_code,
-                       const std::vector<std::string> &vs,
-                       const std::vector<Contact> &cs,
-                       const Contact &/*alternative_store_contact*/,
-                       const Contact &/*cache_contact*/,
+void FindValueCallback(FindValueReturns find_value_returns_in,
                        bool *done,
-                       FindValueResults *results) {
-  results->values.clear();
-  results->values = vs;
-  results->contacts.clear();
-  results->contacts = cs;
+                       FindValueReturns *find_value_returns_out) {
+  *find_value_returns_out = find_value_returns_in;
   *done = true;
-  results->response_code = return_code;
 }
 
 void ErrorCodeCallback(int error_code,
@@ -172,38 +160,37 @@ class TestAlternativeStore : public AlternativeStore {
 
 class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
  protected:
-  MockNodeImplTest() : CreateContactAndNodeId(),
-                       data_store_(),
-                       alternative_store_(),
-                       securifier_(new Securifier("", "", "")),
-                       transport_(new MockTransport),
-                       rank_info_(),
-                       asio_service_(),
-                       message_handler_(new MessageHandler(securifier_)),
-                       node_(new Node::Impl(asio_service_,
-                                            transport_,
-                                            message_handler_,
-                                            securifier_,
-                                            alternative_store_,
-                                            false,
-                                            test::k,
-                                            test::alpha,
-                                            test::beta,
-                                            bptime::seconds(3600))),
-                       threshold_((test::k * 3) / 4),
-                       local_node_(
-                           new Node::Impl(asio_service_,
-                                          transport_,
-                                          message_handler_,
-                                          SecurifierPtr(new 
-                                                        SecurifierValidateTrue(
-                                                            "", "", "")),
-                                          alternative_store_,
-                                          true,
-                                          test::k,
-                                          test::alpha,
-                                          test::beta,
-                                          bptime::seconds(3600))) {
+  MockNodeImplTest()
+      : CreateContactAndNodeId(),
+        data_store_(),
+        alternative_store_(),
+        securifier_(new Securifier("", "", "")),
+        transport_(new MockTransport),
+        rank_info_(),
+        asio_service_(),
+        message_handler_(new MessageHandler(securifier_)),
+        node_(new Node::Impl(asio_service_,
+                             transport_,
+                             message_handler_,
+                             securifier_,
+                             alternative_store_,
+                             false,
+                             test::k,
+                             test::alpha,
+                             test::beta,
+                             bptime::seconds(3600))),
+        threshold_((test::k * 3) / 4),
+        local_node_(new Node::Impl(asio_service_,
+                                   transport_,
+                                   message_handler_,
+                                   SecurifierPtr(new SecurifierValidateTrue(
+                                                 "", "", "")),
+                                   alternative_store_,
+                                   true,
+                                   test::k,
+                                   test::alpha,
+                                   test::beta,
+                                   bptime::seconds(3600))) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
     local_node_->routing_table_ = routing_table_;
@@ -1198,28 +1185,28 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     for (int i = 0; i < (test::k - 1); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, i / alpha);
-      nct.state = kContacted;
-      fna->nc.insert(nct);
+      NodeGroupTuple nct(contact, fna->key, i / alpha);
+      nct.search_state = kContacted;
+      fna->node_group.insert(nct);
     }
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeContainerTuple nct(contact, fna->key, (test::k-1) / alpha);
-    nct.state = kSelectedAlpha;
-    fna->nc.insert(nct);
+    NodeGroupTuple nct(contact, fna->key, (test::k-1) / alpha);
+    nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(nct);
 
     fna->round = (test::k-1) / alpha;
     NodeSearchState mark(kContacted);
-    bool curr_iteration_done(false), calledback(false);
+    bool curr_iteration_done(false), called_back(false);
     int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(verdad, curr_iteration_done);
-    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(verdad, called_back);
     EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k, closest_contacts.size());
   }
@@ -1236,34 +1223,34 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     for (int i = 0; i < (test::k - 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, i / alpha);
-      nct.state = kContacted;
-      fna->nc.insert(nct);
+      NodeGroupTuple nct(contact, fna->key, i / alpha);
+      nct.search_state = kContacted;
+      fna->node_group.insert(nct);
     }
     Contact pending_contact = GenerateUniqueContact(node_id_, 499,
                                                     generated_nodes, target);
-    NodeContainerTuple pending_nct(pending_contact, fna->key,
+    NodeGroupTuple pending_nct(pending_contact, fna->key,
                                    (test::k-2) / alpha);
-    pending_nct.state = kSelectedAlpha;
-    fna->nc.insert(pending_nct);
+    pending_nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(pending_nct);
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeContainerTuple nct(contact, fna->key, (test::k-1) / alpha);
-    nct.state = kSelectedAlpha;
-    fna->nc.insert(nct);
+    NodeGroupTuple nct(contact, fna->key, (test::k-1) / alpha);
+    nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(nct);
 
     fna->round = (test::k-1) / alpha;
     NodeSearchState mark(kContacted);
-    bool curr_iteration_done(false), calledback(false);
+    bool curr_iteration_done(false), called_back(false);
     int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
-    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
@@ -1279,28 +1266,28 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     for (int i = 0; i < (test::k / 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, i / alpha);
-      nct.state = kContacted;
-      fna->nc.insert(nct);
+      NodeGroupTuple nct(contact, fna->key, i / alpha);
+      nct.search_state = kContacted;
+      fna->node_group.insert(nct);
     }
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeContainerTuple nct(contact, fna->key, (test::k / 2) / alpha);
-    nct.state = kSelectedAlpha;
-    fna->nc.insert(nct);
+    NodeGroupTuple nct(contact, fna->key, (test::k / 2) / alpha);
+    nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(nct);
 
     fna->round = (test::k / 2) / alpha;
     NodeSearchState mark(kDown);
-    bool curr_iteration_done(false), calledback(false);
+    bool curr_iteration_done(false), called_back(false);
     int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(verdad, curr_iteration_done);
-    EXPECT_EQ(verdad, calledback);
+    EXPECT_EQ(verdad, called_back);
     EXPECT_EQ(falso, done);
     EXPECT_EQ(test::k / 2, closest_contacts.size());
   }
@@ -1317,58 +1304,58 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     for (int i = 0; i < (alpha * (test::k / alpha)); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, i / alpha);
+      NodeGroupTuple nct(contact, fna->key, i / alpha);
       if ((i % alpha) < beta) {
-        nct.state = kContacted;
+        nct.search_state = kContacted;
       } else {
-        nct.state = kSelectedAlpha;
+        nct.search_state = kSelectedAlpha;
       }
-      fna->nc.insert(nct);
+      fna->node_group.insert(nct);
     }
     for (int i = 0; i < (test::k % alpha - 2); ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, test::k / alpha);
-      nct.state = kContacted;
-      fna->nc.insert(nct);
+      NodeGroupTuple nct(contact, fna->key, test::k / alpha);
+      nct.search_state = kContacted;
+      fna->node_group.insert(nct);
     }
 
     Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                             target);
-    NodeContainerTuple nct(contact, fna->key, test::k / alpha);
-    nct.state = kSelectedAlpha;
-    fna->nc.insert(nct);
+    NodeGroupTuple nct(contact, fna->key, test::k / alpha);
+    nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(nct);
     Contact last_contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                                  target);
-    NodeContainerTuple last_nct(last_contact, fna->key, test::k / alpha);
-    last_nct.state = kSelectedAlpha;
-    fna->nc.insert(last_nct);
+    NodeGroupTuple last_nct(last_contact, fna->key, test::k / alpha);
+    last_nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(last_nct);
 
     fna->round = test::k / alpha;
 
     NodeSearchState mark(kContacted);
-    bool curr_iteration_done(false), calledback(false);
+    bool curr_iteration_done(false), called_back(false);
     int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
-    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, called_back);
     EXPECT_EQ(0, closest_contacts.size());
 
     curr_iteration_done = false;
-    calledback = false;
+    called_back = false;
     closest_contacts.clear();
     node_->HandleIterationStructure<FindNodesArgs>(last_contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
-    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, called_back);
     EXPECT_EQ(0, closest_contacts.size());
   }
   {
@@ -1384,36 +1371,36 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     Contact first_contact = GenerateUniqueContact(node_id_, 499,
                                                   generated_nodes,
                                                   target);
-    NodeContainerTuple first_nct(first_contact, fna->key, 0);
-    first_nct.state = kSelectedAlpha;
-    fna->nc.insert(first_nct);
+    NodeGroupTuple first_nct(first_contact, fna->key, 0);
+    first_nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(first_nct);
     Contact second_contact = GenerateUniqueContact(node_id_, 499,
                                                    generated_nodes,
                                                    target);
-    NodeContainerTuple second_nct(second_contact, fna->key, 0);
-    second_nct.state = kSelectedAlpha;
-    fna->nc.insert(second_nct);
+    NodeGroupTuple second_nct(second_contact, fna->key, 0);
+    second_nct.search_state = kSelectedAlpha;
+    fna->node_group.insert(second_nct);
 
     for (int i = 2; i < test::k; ++i) {
       Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
                                               target);
-      NodeContainerTuple nct(contact, fna->key, i / alpha);
-      nct.state = kNew;
-      fna->nc.insert(nct);
+      NodeGroupTuple nct(contact, fna->key, i / alpha);
+      nct.search_state = kNew;
+      fna->node_group.insert(nct);
     }
 
     fna->round = 0;
     NodeSearchState mark(kContacted);
-    bool curr_iteration_done(false), calledback(false);
+    bool curr_iteration_done(false), called_back(false);
     int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(first_contact, fna, mark,
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
-    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
 
@@ -1423,9 +1410,9 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
-                                                   &calledback);
+                                                   &called_back);
     EXPECT_EQ(verdad, curr_iteration_done);
-    EXPECT_EQ(falso, calledback);
+    EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
     EXPECT_EQ(0, closest_contacts.size());
   }
@@ -1981,17 +1968,15 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))));
-    FindValueResults results;
+    FindValueReturns results;
     bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback,
-                               arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
-                               &done, &results));
+                     std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(-2, results.return_code);
     EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(0, results.contacts.size());
+    EXPECT_EQ(0, results.closest_nodes.size());
   }
   new_rpcs->SetCountersToZero();
   int count = 10 * test::k;
@@ -2004,17 +1989,15 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             std::bind(&MockRpcs::FindValueResponseCloseOnly, new_rpcs.get(),
                       arg::_1, arg::_2))));
-    FindValueResults results;
+    FindValueReturns results;
     bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback,
-                               arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
-                               &done, &results));
+                     std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(-2, results.return_code);
     EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(test::k, results.contacts.size());
+    EXPECT_EQ(test::k, results.closest_nodes.size());
   }
   new_rpcs->SetCountersToZero();
   std::shared_ptr<RoutingTableContactsContainer> temp
@@ -2031,17 +2014,15 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             std::bind(&MockRpcs::FindValueNthResponse, new_rpcs.get(),
                       arg::_1, arg::_2))));
-    FindValueResults results;
+    FindValueReturns results;
     bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback,
-                               arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
-                               &done, &results));
+                     std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(1, results.response_code);
-    EXPECT_EQ(0, results.contacts.size());
+    EXPECT_EQ(1, results.return_code);
+    EXPECT_EQ(0, results.closest_nodes.size());
     EXPECT_EQ(1, results.values.size());
     EXPECT_EQ("FIND", results.values[0]);
     EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
@@ -2054,18 +2035,16 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             std::bind(&MockRpcs::FindValueNoValueResponse, new_rpcs.get(),
                       arg::_1, arg::_2))));
-    FindValueResults results;
+    FindValueReturns results;
     bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback,
-                               arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
-                               &done, &results));
+                     std::bind(&FindValueCallback, arg::_1, &done, &results));
     // Prevent deadlock
     while ((!done) && (new_rpcs->num_of_acquired_ < (40 * test::k)))
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(-2, results.return_code);
     EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(test::k, results.contacts.size());
+    EXPECT_EQ(test::k, results.closest_nodes.size());
     EXPECT_GT(40 * test::k, new_rpcs->num_of_acquired_);
   }
   // sleep for a while to prevent the situation that resources got destructed
@@ -2270,17 +2249,15 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
             std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))));
-    FindValueResults results;
+    FindValueReturns results;
     bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback,
-                               arg::_1, arg::_2, arg::_3, arg::_4, arg::_5,
-                               &done, &results));
+                     std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.response_code);
+    EXPECT_EQ(-2, results.return_code);
     EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(0, results.contacts.size());
+    EXPECT_EQ(0, results.closest_nodes.size());
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(500));

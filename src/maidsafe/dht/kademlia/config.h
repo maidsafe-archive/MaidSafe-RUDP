@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/signals2/signal.hpp"
 
+#include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/version.h"
 
 #if MAIDSAFE_DHT_VERSION != 3002
@@ -64,10 +65,17 @@ struct Info;
 namespace kademlia {
 
 class NodeId;
-class Contact;
 class MessageHandler;
 
 enum OnlineStatus { kOffline, kOnline, kAttemptingConnect };
+
+struct FindValueReturns {
+  int return_code;
+  std::vector<std::string> values;
+  std::vector<Contact> closest_nodes;
+  Contact alternative_store_holder;
+  Contact needs_cache_copy;
+};
 
 typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
         OnOnlineStatusChangePtr;
@@ -81,11 +89,7 @@ typedef std::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,  // N
 // value(s) if found, k closest nodes if value not found, contact details of
 // node holding value in its alternative_store, and contact details of node
 // needing a cache copy of the values.
-typedef std::function<void(int,
-                           std::vector<std::string>,
-                           std::vector<Contact>,
-                           Contact,
-                           Contact)> FindValueFunctor;
+typedef std::function<void(FindValueReturns)> FindValueFunctor;
 
 // Functor for use in Node::FindNodes.  Parameters in order are: return code,
 // k closest nodes.

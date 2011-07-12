@@ -85,22 +85,22 @@ class CreateContactAndNodeId {
  public:
   CreateContactAndNodeId();
 
-  NodeId GenerateUniqueRandomId(const NodeId& holder, const int& pos);
+  NodeId GenerateUniqueRandomId(const NodeId &holder, const int &pos);
 
-  Contact GenerateUniqueContact(const NodeId& holder, const int& pos,
-                                RoutingTableContactsContainer& generated_nodes,
+  Contact GenerateUniqueContact(const NodeId &holder, const int &pos,
+                                RoutingTableContactsContainer &generated_nodes,
                                 NodeId target);
 
-  NodeId GenerateRandomId(const NodeId& holder, const int& pos);
+  NodeId GenerateRandomId(const NodeId &holder, const int &pos);
 
-  Contact ComposeContact(const NodeId& node_id, Port port);
+  Contact ComposeContact(const NodeId &node_id, Port port);
 
-  Contact ComposeContactWithKey(const NodeId& node_id,
+  Contact ComposeContactWithKey(const NodeId &node_id,
                                 Port port,
-                                const crypto::RsaKeyPair& crypto_key);
+                                const crypto::RsaKeyPair &crypto_key);
 
   void PopulateContactsVector(int count,
-                              const int& pos,
+                              const int &pos,
                               std::vector<Contact> *contacts);
 
   Contact contact_;
@@ -119,19 +119,23 @@ KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
                       std::string key,
                       std::string value);
 
-protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-                                        const KeyValueSignature& kvs);
+protobuf::StoreRequest MakeStoreRequest(
+    const Contact &sender,
+    const KeyValueSignature &key_value_signature);
 
-protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                                          const KeyValueSignature& kvs);
+protobuf::DeleteRequest MakeDeleteRequest(
+    const Contact &sender,
+    const KeyValueSignature &key_value_signature);
 
 void JoinNetworkLookup(SecurifierPtr securifier);
 
-bool AddTestValidation(SecurifierPtr securifier, std::string public_key_id,
+bool AddTestValidation(SecurifierPtr securifier,
+                       std::string public_key_id,
                        std::string public_key);
 
 void AddContact(std::shared_ptr<RoutingTable> routing_table,
-                const Contact& contact, const RankInfoPtr rank_info);
+                const Contact &contact,
+                const RankInfoPtr rank_info);
 
 void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids);
 

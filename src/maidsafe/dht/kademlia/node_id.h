@@ -118,7 +118,8 @@ class NodeId {
   * be compared.
   * @return True if id1 is closer to target_id than id2, otherwise false.
   */
-  static bool CloserToTarget(const NodeId &id1, const NodeId &id2,
+  static bool CloserToTarget(const NodeId &id1,
+                             const NodeId &id2,
                              const NodeId &target_id);
 
   /** Decoded representation of the kademlia id.

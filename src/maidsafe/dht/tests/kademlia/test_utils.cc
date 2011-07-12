@@ -44,12 +44,13 @@ namespace kademlia {
 
 namespace test {
 
-SecurifierGetPublicKeyAndValidation::
-    SecurifierGetPublicKeyAndValidation(const std::string &public_key_id,
-                                        const std::string &public_key,
-                                        const std::string &private_key)
+SecurifierGetPublicKeyAndValidation::SecurifierGetPublicKeyAndValidation(
+    const std::string &public_key_id,
+    const std::string &public_key,
+    const std::string &private_key)
         : Securifier(public_key_id, public_key, private_key),
-          public_key_id_map_(), thread_group_() {}
+          public_key_id_map_(),
+          thread_group_() {}
 
 // Immitating a non-blocking function
 void SecurifierGetPublicKeyAndValidation::GetPublicKeyAndValidation(
@@ -66,9 +67,9 @@ void SecurifierGetPublicKeyAndValidation::Join() {
 }
 
 // This method will validate the network lookup for given public_key_id
-bool SecurifierGetPublicKeyAndValidation::
-         AddTestValidation(const std::string &public_key_id,
-                           const std::string &public_key) {
+bool SecurifierGetPublicKeyAndValidation::AddTestValidation(
+    const std::string &public_key_id,
+    const std::string &public_key) {
   auto itr = public_key_id_map_.insert(std::make_pair(public_key_id,
                                                       public_key));
   return itr.second;
@@ -79,9 +80,9 @@ void SecurifierGetPublicKeyAndValidation::ClearTestValidationMap() {
                             public_key_id_map_.end());
 }
 
-void SecurifierGetPublicKeyAndValidation::
-         DummyFind(std::string public_key_id,
-                   GetPublicKeyAndValidationCallback callback) {
+void SecurifierGetPublicKeyAndValidation::DummyFind(
+    std::string public_key_id,
+    GetPublicKeyAndValidationCallback callback) {
   // Imitating delay in lookup for kNetworkDelay seconds
   Sleep(boost::posix_time::milliseconds(kNetworkDelay));
   std::map<std::string, std::string>::iterator  itr;
@@ -101,8 +102,8 @@ CreateContactAndNodeId::CreateContactAndNodeId(): contact_(),
                                                                        test::k))
                                                   { }
 
-NodeId CreateContactAndNodeId::GenerateUniqueRandomId(const NodeId& holder,
-                                                      const int& pos) {
+NodeId CreateContactAndNodeId::GenerateUniqueRandomId(const NodeId &holder,
+                                                      const int &pos) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
   std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
   NodeId new_node;
@@ -132,10 +133,11 @@ NodeId CreateContactAndNodeId::GenerateUniqueRandomId(const NodeId& holder,
   return new_node;
 }
 
-Contact CreateContactAndNodeId::GenerateUniqueContact(const NodeId& holder,
-                                                      const int& pos,
-                                RoutingTableContactsContainer& generated_nodes,
-                                                      NodeId target) {
+Contact CreateContactAndNodeId::GenerateUniqueContact(
+    const NodeId &holder,
+    const int &pos,
+    RoutingTableContactsContainer &generated_nodes,
+    NodeId target) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
   std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
   NodeId new_node;
@@ -174,8 +176,8 @@ Contact CreateContactAndNodeId::GenerateUniqueContact(const NodeId& holder,
   return new_contact;
 }
 
-NodeId CreateContactAndNodeId::GenerateRandomId(const NodeId& holder,
-                                                const int& pos) {
+NodeId CreateContactAndNodeId::GenerateRandomId(const NodeId &holder,
+                                                const int &pos) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
   std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
   NodeId new_node;
@@ -193,35 +195,34 @@ NodeId CreateContactAndNodeId::GenerateRandomId(const NodeId& holder,
   return new_node;
 }
 
-Contact CreateContactAndNodeId::ComposeContact(const NodeId& node_id,
+Contact CreateContactAndNodeId::ComposeContact(const NodeId &node_id,
                                                Port port) {
-  std::string ip("127.0.0.1");
-  std::vector<transport::Endpoint> local_endpoints;
-  transport::Endpoint end_point(ip, port);
-  local_endpoints.push_back(end_point);
+  transport::Endpoint end_point("127.0.0.1", port);
+  std::vector<transport::Endpoint> local_endpoints(1, end_point);
   Contact contact(node_id, end_point, local_endpoints, end_point, false,
                   false, "", "", "");
   return contact;
 }
 
 Contact CreateContactAndNodeId::ComposeContactWithKey(
-    const NodeId& node_id,
+    const NodeId &node_id,
     Port port,
-    const crypto::RsaKeyPair& crypto_key) {
+    const crypto::RsaKeyPair &rsa_key_pair) {
   std::string ip("127.0.0.1");
   std::vector<transport::Endpoint> local_endpoints;
   transport::Endpoint end_point(ip, port);
   local_endpoints.push_back(end_point);
   Contact contact(node_id, end_point, local_endpoints, end_point, false,
-                  false, node_id.String(), crypto_key.public_key(), "");
+                  false, node_id.String(), rsa_key_pair.public_key(), "");
   IP ipa = IP::from_string(ip);
   contact.SetPreferredEndpoint(ipa);
   return contact;
 }
 
-void CreateContactAndNodeId::PopulateContactsVector(int count, const int& pos,
-                                                    std::vector<Contact>
-                                                        *contacts) {
+void CreateContactAndNodeId::PopulateContactsVector(
+    int count,
+    const int &pos,
+    std::vector<Contact> *contacts) {
   for (int i = 0; i < count; ++i) {
     NodeId contact_id = GenerateRandomId(node_id_, pos);
     Contact contact = ComposeContact(contact_id, 5000);
@@ -278,24 +279,28 @@ KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
                         RequestAndSignature(request, req_sig), false);
 }
 
-protobuf::StoreRequest MakeStoreRequest(const Contact& sender,
-                                        const KeyValueSignature& kvs) {
+protobuf::StoreRequest MakeStoreRequest(
+    const Contact &sender,
+    const KeyValueSignature &key_value_signature) {
   protobuf::StoreRequest store_request;
   store_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  store_request.set_key(kvs.key);
-  store_request.mutable_signed_value()->set_signature(kvs.signature);
-  store_request.mutable_signed_value()->set_value(kvs.value);
+  store_request.set_key(key_value_signature.key);
+  store_request.mutable_signed_value()->set_signature(
+      key_value_signature.signature);
+  store_request.mutable_signed_value()->set_value(key_value_signature.value);
   store_request.set_ttl(3600*24);
   return store_request;
 }
 
-protobuf::DeleteRequest MakeDeleteRequest(const Contact& sender,
-                                          const KeyValueSignature& kvs) {
+protobuf::DeleteRequest MakeDeleteRequest(
+    const Contact &sender,
+    const KeyValueSignature &key_value_signature) {
   protobuf::DeleteRequest delete_request;
   delete_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  delete_request.set_key(kvs.key);
-  delete_request.mutable_signed_value()->set_signature(kvs.signature);
-  delete_request.mutable_signed_value()->set_value(kvs.value);
+  delete_request.set_key(key_value_signature.key);
+  delete_request.mutable_signed_value()->set_signature(
+      key_value_signature.signature);
+  delete_request.mutable_signed_value()->set_value(key_value_signature.value);
   return delete_request;
 }
 
@@ -305,15 +310,16 @@ void JoinNetworkLookup(SecurifierPtr securifier) {
   securifier_gpkv->Join();
 }
 
-bool AddTestValidation(SecurifierPtr securifier, std::string public_key_id,
-                        std::string public_key) {
+bool AddTestValidation(SecurifierPtr securifier,
+                       std::string public_key_id,
+                       std::string public_key) {
   SecurifierGPKPtr securifier_gpkv = std::static_pointer_cast
       <SecurifierGetPublicKeyAndValidation>(securifier);
   return securifier_gpkv->AddTestValidation(public_key_id, public_key);
 }
 
 void AddContact(std::shared_ptr<RoutingTable> routing_table,
-                const Contact& contact,
+                const Contact &contact,
                 const RankInfoPtr rank_info) {
   routing_table->AddContact(contact, rank_info);
   routing_table->SetValidated(contact.node_id(), true);

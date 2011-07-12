@@ -297,9 +297,9 @@ void Node::Impl::OperationFindNodesCB(int result_size,
     auto it = cs.begin();
     auto it_end = cs.end();
     while (it != it_end) {
-        NodeContainerTuple nct((*it), key);
-        nct.state = kSelectedAlpha;
-        args->nc.insert(nct);
+        NodeGroupTuple nct((*it), key);
+        nct.search_state = kSelectedAlpha;
+        args->node_group.insert(nct);
         ++it;
     }
 
@@ -348,7 +348,7 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
                                const std::string &signature,
                                SecurifierPtr securifier) {
   std::shared_ptr<StoreArgs> sa =
-      std::static_pointer_cast<StoreArgs> (srpc->rpc_a);
+      std::static_pointer_cast<StoreArgs> (srpc->rpc_args);
   boost::mutex::scoped_lock loch_surlaplage(sa->mutex);
   NodeSearchState mark(kContacted);
   if (response_code < 0) {
@@ -359,30 +359,30 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
     routing_table_->AddContact(srpc->contact, RankInfoPtr());
   }
   // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = sa->nc.get<nc_id>();
+  NodeGroupByNodeId key_node_indx = sa->node_group.get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(srpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  auto pit_pending = sa->nc.get<nc_state>().equal_range(kSelectedAlpha);
+  auto pit_pending = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
   int num_of_pending =
       static_cast<int>(std::distance(pit_pending.first, pit_pending.second));
 
-  auto pit_contacted = sa->nc.get<nc_state>().equal_range(kContacted);
+  auto pit_contacted = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kContacted);
   int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
                                           pit_contacted.second));
 
-  auto pit_down = sa->nc.get<nc_state>().equal_range(kDown);
+  auto pit_down = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kDown);
   int num_of_down = static_cast<int>(std::distance(pit_down.first,
                                                    pit_down.second));
 
-  if (!sa->calledback) {
+  if (!sa->called_back) {
     if (num_of_down > (k_ - threshold_)) {
       // report back a failure once has more down contacts than the margin
-      sa->calledback = true;
+      sa->called_back = true;
       sa->callback(-2);
     } else if (num_of_contacted >= threshold_) {
       // report back once has enough succeed contacts
-      sa->calledback = true;
+      sa->called_back = true;
       sa->callback(num_of_contacted);
       return;
     }
@@ -414,10 +414,10 @@ template <class T>
 void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
                                 int response_code,
                                 std::shared_ptr<RpcArgs> drpc) {
-  std::shared_ptr<T> da = std::static_pointer_cast<T> (drpc->rpc_a);
-  // calledback flag needs to be protected by the mutex lock
+  std::shared_ptr<T> da = std::static_pointer_cast<T> (drpc->rpc_args);
+  // called_back flag needs to be protected by the mutex lock
   boost::mutex::scoped_lock loch_surlaplage(da->mutex);
-  if (da->calledback)
+  if (da->called_back)
     return;
 
   NodeSearchState mark(kContacted);
@@ -429,31 +429,31 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
     routing_table_->AddContact(drpc->contact, RankInfoPtr());
   }
   // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = drpc->rpc_a->nc.get<nc_id>();
+  NodeGroupByNodeId key_node_indx = drpc->rpc_args->node_group.get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(drpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
   auto pit_pending =
-      drpc->rpc_a->nc.get<nc_state>().equal_range(kSelectedAlpha);
+      drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
 //  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
-  auto pit_contacted = drpc->rpc_a->nc.get<nc_state>().equal_range(kContacted);
+  auto pit_contacted = drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kContacted);
   int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
                                                         pit_contacted.second));
 
-  auto pit_down = drpc->rpc_a->nc.get<nc_state>().equal_range(kDown);
+  auto pit_down = drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kDown);
   int num_of_down = static_cast<int>(std::distance(pit_down.first,
                                                    pit_down.second));
 
   if (num_of_down > (k_ - threshold_)) {
     // report back a failure once has more down contacts than the margin
     da->callback(-2);
-    da->calledback = true;
+    da->called_back = true;
   }
   if (num_of_contacted >= threshold_) {
     // report back once has enough succeed contacts
     da->callback(num_of_contacted);
-    da->calledback = true;
+    da->called_back = true;
   }
 
   // by far only report failure defined, unlike to what happens in Store,
@@ -466,22 +466,22 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
                                      const Key &key,
                                      SecurifierPtr securifier) {
   std::shared_ptr<UpdateArgs> ua =
-      std::static_pointer_cast<UpdateArgs> (urpc->rpc_a);
+      std::static_pointer_cast<UpdateArgs> (urpc->rpc_args);
   if (response_code < 0) {
     boost::mutex::scoped_lock loch_surlaplage(ua->mutex);
     // once store operation failed, the contact will be marked as DOWN
     // and no DELETE operation for that contact will be executed
-    NodeContainerByNodeId key_node_indx = ua->nc.get<nc_id>();
+    NodeGroupByNodeId key_node_indx = ua->node_group.get<NodeGroupTuple::Id>();
     auto it_tuple = key_node_indx.find(urpc->contact.node_id());
     key_node_indx.modify(it_tuple, ChangeState(kDown));
 
     // ensure this down contact is not the last one, prevent a deadend
-    auto pit_pending = ua->nc.get<nc_state>().equal_range(kSelectedAlpha);
+    auto pit_pending = ua->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
     int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
                                                 pit_pending.second));
     if (num_of_total_pending == 0) {
       ua->callback(-2);
-      ua->calledback = true;
+      ua->called_back = true;
     }
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(urpc->contact);
@@ -679,12 +679,12 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
                                         std::shared_ptr<T> find_args) {
   // Only insert the tuple when it does not existe in the container
   boost::mutex::scoped_lock lock(find_args->mutex);
-  NodeContainerByNodeId key_node_indx = find_args->nc.template get<nc_id>();
+  NodeGroupByNodeId key_node_indx = find_args->node_group.template get<NodeGroupTuple::Id>();
   for (size_t n = 0; n < contacts.size(); ++n) {
     auto it_tuple = key_node_indx.find(contacts[n].node_id());
     if (it_tuple == key_node_indx.end()) {
-      NodeContainerTuple nct(contacts[n], find_args->key);
-      find_args->nc.insert(nct);
+      NodeGroupTuple nct(contacts[n], find_args->key);
+      find_args->node_group.insert(nct);
     }
   }
 }
@@ -697,25 +697,25 @@ bool Node::Impl::HandleIterationStructure(
     int *response_code,
     std::vector<Contact> *closest_contacts,
     bool *cur_iteration_done,
-    bool *calledback) {
+    bool *called_back) {
   bool result = false;
   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
 
   // Mark the enquired contact
-  NodeContainerByNodeId key_node_indx = fa->nc.template get<nc_id>();
+  NodeGroupByNodeId key_node_indx = fa->node_group.template get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  NodeContainerByDistance distance_node_indx =
-                                    fa->nc.template get<nc_distance>();
+  NodeGroupByDistance distance_node_indx =
+                                    fa->node_group.template get<NodeGroupTuple::Distance>();
   auto it = distance_node_indx.begin();
   auto it_end = distance_node_indx.end();
   int num_new_contacts(0);
   int num_candidates(0);
   while ((it != it_end) && (num_candidates < k_)) {
-    if ((*it).state == kNew)
+    if ((*it).search_state == kNew)
       ++num_new_contacts;
-    if ((*it).state != kDown)
+    if ((*it).search_state != kDown)
       ++num_candidates;
     ++it;
   }
@@ -724,7 +724,7 @@ bool Node::Impl::HandleIterationStructure(
   //    if number of pending(waiting for response) contacts
   //    is not greater than (kAlpha_ - kBeta_)
   // always check with the latest round, no need to worry about the previous
-  auto pit = fa->nc.template get<nc_state_round>().equal_range(
+  auto pit = fa->node_group.template get<NodeGroupTuple::StateAndRound>().equal_range(
                  boost::make_tuple(kSelectedAlpha, fa->round));
   int num_of_round_pending = static_cast<int>(std::distance(pit.first,
                                                             pit.second));
@@ -732,14 +732,14 @@ bool Node::Impl::HandleIterationStructure(
     *cur_iteration_done = true;
 
   auto pit_pending =
-      fa->nc.template get<nc_state>().equal_range(kSelectedAlpha);
+      fa->node_group.template get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
   int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
                                               pit_pending.second));
   {
     //     no kNew contacts among the top K
     // And no kSelectedAlpha (pending) contacts in total
     if ((num_new_contacts == 0) && (num_of_total_pending == 0))
-      *calledback = true;
+      *called_back = true;
   }
   {
     // To prevent the situation that may keep requesting contacts if there
@@ -750,17 +750,17 @@ bool Node::Impl::HandleIterationStructure(
   }
 
   // If the search can be stopped, then we callback (report the result list)
-  if (*calledback) {
+  if (*called_back) {
     auto it = distance_node_indx.begin();
     auto it_end = distance_node_indx.end();
     while ((it != it_end) && (closest_contacts->size() < k_)) {
-      if ((*it).state == kContacted)
+      if ((*it).search_state == kContacted)
         closest_contacts->push_back((*it).contact);
       ++it;
     }
     *response_code = static_cast<int>(closest_contacts->size());
     // main part of memory resource in fa can be released here
-    fa->nc.clear();
+    fa->node_group.clear();
   }
   result = true;
   return result;
@@ -779,7 +779,7 @@ void Node::Impl::FindNodes(const Key &key, FindNodesFunctor callback) {
 template <class T>
 void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
   boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
-  auto pit = fa->nc. template get<nc_state_distance>().equal_range(
+  auto pit = fa->node_group.template get<NodeGroupTuple::StateAndDistance>().equal_range(
       boost::make_tuple(kNew));
   int num_of_candidates = static_cast<int>(std::distance(pit.first,
                                                          pit.second));
@@ -803,7 +803,7 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     ++counter;
   }
 
-  NodeContainerByNodeId key_node_indx = fa->nc.template get<nc_id>();
+  NodeGroupByNodeId key_node_indx = fa->node_group.template get<NodeGroupTuple::Id>();
   // Update contacts' state
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
@@ -847,16 +847,16 @@ void Node::Impl::IterativeSearchValueResponse(
     const Contact &alternative_store,
     std::shared_ptr<RpcArgs> frpc) {
   FindValueArgsPtr find_value_args =
-      std::static_pointer_cast<FindValueArgs> (frpc->rpc_a);
-  if (find_value_args->calledback)
+      std::static_pointer_cast<FindValueArgs> (frpc->rpc_args);
+  if (find_value_args->called_back)
     return;
   // once got some result, terminate the search and report the result back
   // immediately
-  bool curr_iteration_done(false), calledback(false);
+  bool curr_iteration_done(false), called_back(false);
   int response_code(0);
   std::vector<Contact> closest_contacts;
   if (!values.empty()) {
-    calledback = true;
+    called_back = true;
     response_code = static_cast<int>(values.size());
   } else {
     NodeSearchState mark(kContacted);
@@ -873,22 +873,23 @@ void Node::Impl::IterativeSearchValueResponse(
                                                  mark, &response_code,
                                                  &closest_contacts,
                                                  &curr_iteration_done,
-                                                 &calledback)) {
+                                                 &called_back)) {
       DLOG(ERROR) << "Structure handling in iteration failed";
     }
     response_code = -2;
-    if ((!calledback) && (curr_iteration_done))
+    if ((!called_back) && (curr_iteration_done))
       IterativeSearch<FindValueArgs>(find_value_args);
   }
 
-  if (calledback) {
+  if (called_back) {
     boost::mutex::scoped_lock loch_surlaplage(find_value_args->mutex);
     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
     // methodology of CACHE is decided
     Contact cache_contact;
-    find_value_args->callback(response_code, values, closest_contacts,
-                  alternative_store, cache_contact);
-    find_value_args->calledback = true;
+    FindValueReturns find_value_returns = { response_code, values,
+        closest_contacts, alternative_store, cache_contact };
+    find_value_args->callback(find_value_returns);
+    find_value_args->called_back = true;
   }
 }
 
@@ -898,14 +899,14 @@ void Node::Impl::IterativeSearchNodeResponse(
     const std::vector<Contact> &contacts,
     std::shared_ptr<RpcArgs> fnrpc) {
   FindNodesArgsPtr find_nodes_args =
-      std::static_pointer_cast<FindNodesArgs>(fnrpc->rpc_a);
+      std::static_pointer_cast<FindNodesArgs>(fnrpc->rpc_args);
 
-  // If already calledback, i.e. result has already been reported
+  // If already called_back, i.e. result has already been reported
   // then do nothing, just return
-  if (find_nodes_args->calledback) {
+  if (find_nodes_args->called_back) {
     return;
   }
-  bool curr_iteration_done(false), calledback(false);
+  bool curr_iteration_done(false), called_back(false);
   int response_code(0);
   std::vector<Contact> closest_contacts;
   NodeSearchState mark(kContacted);
@@ -914,9 +915,9 @@ void Node::Impl::IterativeSearchNodeResponse(
     // fire a signal here to notify this contact is down
     (*report_down_contact_)(fnrpc->contact);
     boost::mutex::scoped_lock lock(find_nodes_args->mutex);
-    if (find_nodes_args->nc.size() == 1) {
+    if (find_nodes_args->node_group.size() == 1) {
       find_nodes_args->callback(-1, closest_contacts);
-      find_nodes_args->nc.clear();
+      find_nodes_args->node_group.clear();
       return;
     }
   } else {
@@ -932,17 +933,17 @@ void Node::Impl::IterativeSearchNodeResponse(
                                                mark, &response_code,
                                                &closest_contacts,
                                                &curr_iteration_done,
-                                               &calledback)) {
+                                               &called_back)) {
     DLOG(WARNING) << "Failed to handle result for the iteration" << std::endl;
   }
 
-  if (!calledback) {
+  if (!called_back) {
     if (curr_iteration_done)
       IterativeSearch<FindNodesArgs>(find_nodes_args);
   } else {
     boost::mutex::scoped_lock loch_surlaplage(find_nodes_args->mutex);
     find_nodes_args->callback(response_code, closest_contacts);
-    find_nodes_args->calledback = true;
+    find_nodes_args->called_back = true;
   }
 }
 
