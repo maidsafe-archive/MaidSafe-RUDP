@@ -238,7 +238,7 @@ class FunctionalNodeTest : public testing::Test {
         bootstrap_contacts_(),
         timers_(),
         sample_nodes_(),
-        network_size_(20),
+        network_size_(40),
         total_finished_(0),
         total_restart_(0) {
      for (size_t index = 0; index < network_size_; ++index)
@@ -267,6 +267,9 @@ class FunctionalNodeTest : public testing::Test {
               nodes_[0]->transport->StartListening(endpoint));
     nodes_[0]->node->Join(node_id, bootstrap_contacts_, join_callback);
     for (size_t index = 1; index < network_size_; ++index) {
+      dht::kademlia::JoinFunctor join_callback(std::bind(
+          &FunctionalNodeTest::JoinCallback, this, index, arg::_1, &mutex_,
+          &cond_var_, &joined_nodes, &failed_nodes));
       crypto::RsaKeyPair tmp_key_pair;
       tmp_key_pair.GenerateKeys(4096);
       dht::kademlia::NodeId nodeid(dht::kademlia::NodeId::kRandomId);
