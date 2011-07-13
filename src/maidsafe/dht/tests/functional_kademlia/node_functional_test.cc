@@ -373,16 +373,6 @@ TEST_F(FunctionalNodeTest, FUNC_RandomStartStopNodes) {
   }
 }
 
-TEST_F(FunctionalNodeTest, FUNC_TEST) {
-  std::set<int> sample;
-  while (sample.size() < network_size_) {
-    sample.insert(RandomUint32()%(network_size_*2));
-  }
-  for (auto it(sample.begin()); it != sample.end(); ++it) {
-    std::cout << (*it) << std::endl;
-  }
-}
-
 }  // namespace test_node
 
 }  // namespace kademlia
