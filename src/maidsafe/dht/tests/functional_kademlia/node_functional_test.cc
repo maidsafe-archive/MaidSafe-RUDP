@@ -297,23 +297,15 @@ class FunctionalNodeTest : public testing::Test {
         cond_var_.wait(lock);
     }
     EXPECT_EQ(0, failed_nodes);
-    // Selects the sample nodes and the restart frequencies
-    while (sample_nodes_.size() < network_size_ / 2) {
-      bool found = false;
-      size_t random = boost::numeric_cast<size_t>(
-                          RandomUint32() % network_size_);
-      for (size_t index = 0; index < sample_nodes_.size(); ++index) {
-        if (sample_nodes_[index]->index == random) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        sample_nodes_.push_back(
-            std::shared_ptr<SampleNodesStats>(new SampleNodesStats(random)));
-        total_restart_ += sample_nodes_.back()->restart_cycles;
-      }
-    }
+    // populate sample_nodes_
+    std::set<size_t> sample_set;
+    while (sample_set.size() < network_size_ / 2)
+      sample_set.insert(RandomUint32() % network_size_ + 1);
+    for (auto it(sample_set.begin()); it != sample_set.end(); ++it)
+      sample_nodes_.push_back(
+          std::shared_ptr<SampleNodesStats>(new SampleNodesStats((*it))));
+    for (auto it(sample_nodes_.begin()); it != sample_nodes_.end(); ++it)
+      total_restart_ += (*it)->restart_cycles;
   }
 
   virtual void TearDown() {
@@ -378,6 +370,16 @@ TEST_F(FunctionalNodeTest, FUNC_RandomStartStopNodes) {
   {
     boost::mutex::scoped_lock lock(mutex2_);
     cond_var2_.wait(lock);
+  }
+}
+
+TEST_F(FunctionalNodeTest, FUNC_TEST) {
+  std::set<int> sample;
+  while (sample.size() < network_size_) {
+    sample.insert(RandomUint32()%(network_size_*2));
+  }
+  for (auto it(sample.begin()); it != sample.end(); ++it) {
+    std::cout << (*it) << std::endl;
   }
 }
 
