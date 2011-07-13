@@ -62,9 +62,9 @@ namespace kademlia {
 
 namespace test_node {
 
-const dht::transport::Port kStartingPort = 8000;
 const std::string kLocalIp = "127.0.0.1";
 const unsigned int kMaxRestartCycles = 5;
+const unsigned int kMaxPortTry = 5;
 
 struct SampleNodesStats {
   explicit SampleNodesStats(int index)
@@ -155,7 +155,7 @@ struct TimerContainer {
   std::shared_ptr<boost::asio::deadline_timer> timer;
 };
 
-class FunctionalNodeTest : public testing::Test {
+class NodeChurnTest : public testing::Test {
  public:
   void JoinCallback(size_t index,
                     int result,
@@ -184,7 +184,7 @@ class FunctionalNodeTest : public testing::Test {
       boost::mutex::scoped_lock lock(mutex_start_);
       size_t joined_nodes(0), failed_nodes(0);
       dht::kademlia::JoinFunctor join_callback(std::bind(
-          &FunctionalNodeTest::JoinCallback, this, index, arg::_1, &mutex_,
+          &NodeChurnTest::JoinCallback, this, index, arg::_1, &mutex_,
           &cond_var_, &joined_nodes, &failed_nodes));
       EXPECT_FALSE(nodes_[index]->node->joined());
       nodes_[index]->node->Join(
@@ -204,7 +204,7 @@ class FunctionalNodeTest : public testing::Test {
     }
     timers_[index]->timer->expires_from_now(
         boost::posix_time::millisec(Stop()));
-    timers_[index]->timer->async_wait(std::bind(&FunctionalNodeTest::HandleStop,
+    timers_[index]->timer->async_wait(std::bind(&NodeChurnTest::HandleStop,
                                                this, index, count));
   }
 
@@ -218,11 +218,11 @@ class FunctionalNodeTest : public testing::Test {
     timers_[index]->timer->expires_from_now(
         boost::posix_time::millisec(Start()));
     timers_[index]->timer->async_wait(
-        std::bind(&FunctionalNodeTest::HandleStart, this, index, count));
+        std::bind(&NodeChurnTest::HandleStart, this, index, count));
   }
 
  protected:
-  FunctionalNodeTest()
+  NodeChurnTest()
       : nodes_(),
         mutex_(),
         cond_var_(),
@@ -237,7 +237,7 @@ class FunctionalNodeTest : public testing::Test {
         bootstrap_contacts_(),
         timers_(),
         sample_nodes_(),
-        network_size_(40),
+        network_size_(20),
         total_finished_(0),
         total_restart_(0) {
      for (size_t index = 0; index < network_size_; ++index)
@@ -253,21 +253,31 @@ class FunctionalNodeTest : public testing::Test {
         node_id.String(), key_pair.public_key(), key_pair.private_key(), false,
         kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_)));
     dht::kademlia::JoinFunctor join_callback(std::bind(
-        &FunctionalNodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+        &NodeChurnTest::JoinCallback, this, 0, arg::_1, &mutex_,
         &cond_var_, &joined_nodes, &failed_nodes));
-    dht::transport::Endpoint endpoint(kLocalIp, kStartingPort);
+    bool port_found(false);
+    dht::transport::Endpoint endpoint;
+    for (size_t index = 0; index < kMaxPortTry; ++index) {
+      int random_port = RandomUint32() % 50000 + 1025;
+      endpoint = dht::transport::Endpoint(kLocalIp, random_port);
+      if (nodes_[0]->transport->StartListening(endpoint)
+          == dht::transport::kSuccess) {
+        port_found = true;
+        break;
+      }
+    }
+    ASSERT_TRUE(port_found);
     std::vector<dht::transport::Endpoint> local_endpoints;
     local_endpoints.push_back(endpoint);
     dht::kademlia::Contact contact(node_id, endpoint,
                                    local_endpoints, endpoint, false, false,
                                    node_id.String(), key_pair.public_key(), "");
     bootstrap_contacts_.push_back(contact);
-    ASSERT_EQ(dht::transport::kSuccess,
-              nodes_[0]->transport->StartListening(endpoint));
     nodes_[0]->node->Join(node_id, bootstrap_contacts_, join_callback);
     for (size_t index = 1; index < network_size_; ++index) {
+      port_found = false;
       dht::kademlia::JoinFunctor join_callback(std::bind(
-          &FunctionalNodeTest::JoinCallback, this, index, arg::_1, &mutex_,
+          &NodeChurnTest::JoinCallback, this, index, arg::_1, &mutex_,
           &cond_var_, &joined_nodes, &failed_nodes));
       crypto::RsaKeyPair tmp_key_pair;
       tmp_key_pair.GenerateKeys(4096);
@@ -276,10 +286,16 @@ class FunctionalNodeTest : public testing::Test {
           nodeid.String(), tmp_key_pair.public_key(),
           tmp_key_pair.private_key(), false, kReplicationFactor_, kAlpha_,
           kBeta_, kMeanRefreshInterval_)));
-      dht::transport::Endpoint endpoint(kLocalIp,
-          static_cast<dht::transport::Port>(kStartingPort + index));
-      ASSERT_EQ(dht::transport::kSuccess,
-                nodes_[index]->transport->StartListening(endpoint));
+      for (size_t i = 0; i < kMaxPortTry; ++i) {
+        int random_port = RandomUint32() % 50000 + 1025;
+        endpoint = dht::transport::Endpoint(kLocalIp, random_port);
+        if (nodes_[index]->transport->StartListening(endpoint)
+            == dht::transport::kSuccess) {
+          port_found = true;
+          break;
+        }
+      }
+      ASSERT_TRUE(port_found);
       std::vector<dht::kademlia::Contact> bootstrap_contacts;
       {
         boost::mutex::scoped_lock lock(mutex_);
@@ -361,12 +377,12 @@ class FunctionalNodeTest : public testing::Test {
 };
 
 
-TEST_F(FunctionalNodeTest, FUNC_RandomStartStopNodes) {
+TEST_F(NodeChurnTest, FUNC_RandomStartStopNodes) {
   for (auto it(sample_nodes_.begin()); it != sample_nodes_.end(); ++it) {
     timers_[(*it)->index]->timer->expires_from_now(
         boost::posix_time::millisec(Stop()));
     timers_[(*it)->index]->timer->async_wait(
-        std::bind(&FunctionalNodeTest::HandleStop, this, (*it)->index,
+        std::bind(&NodeChurnTest::HandleStop, this, (*it)->index,
                                           (*it)->restart_cycles));
   }
   {
