@@ -512,7 +512,6 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              request.key() ) ) {
     DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
                   << " (is_refresh = " << is_refresh << " )";
-                 
     return false;
   }
 

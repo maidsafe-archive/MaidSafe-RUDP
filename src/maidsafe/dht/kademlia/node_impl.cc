@@ -365,15 +365,19 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
   auto it_tuple = key_node_indx.find(srpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
-  auto pit_pending = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
+  auto pit_pending =
+      sa->node_group.get<NodeGroupTuple::SearchState>().
+      equal_range(kSelectedAlpha);
   int num_of_pending =
       static_cast<int>(std::distance(pit_pending.first, pit_pending.second));
 
-  auto pit_contacted = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kContacted);
+  auto pit_contacted =
+      sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kContacted);
   int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
                                           pit_contacted.second));
 
-  auto pit_down = sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kDown);
+  auto pit_down =
+      sa->node_group.get<NodeGroupTuple::SearchState>().equal_range(kDown);
   int num_of_down = static_cast<int>(std::distance(pit_down.first,
                                                    pit_down.second));
 
@@ -431,19 +435,24 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
     routing_table_->AddContact(drpc->contact, RankInfoPtr());
   }
   // Mark the enquired contact
-  NodeGroupByNodeId key_node_indx = drpc->rpc_args->node_group.get<NodeGroupTuple::Id>();
+  NodeGroupByNodeId key_node_indx =
+      drpc->rpc_args->node_group.get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(drpc->contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
   auto pit_pending =
-      drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
+      drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
+      equal_range(kSelectedAlpha);
 //  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
-  auto pit_contacted = drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kContacted);
+  auto pit_contacted =
+      drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
+      equal_range(kContacted);
   int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
                                                         pit_contacted.second));
 
-  auto pit_down = drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().equal_range(kDown);
+  auto pit_down = drpc->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
+                  equal_range(kDown);
   int num_of_down = static_cast<int>(std::distance(pit_down.first,
                                                    pit_down.second));
 
@@ -478,7 +487,8 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
     key_node_indx.modify(it_tuple, ChangeState(kDown));
 
     // ensure this down contact is not the last one, prevent a deadend
-    auto pit_pending = ua->node_group.get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
+    auto pit_pending = ua->node_group.get<NodeGroupTuple::SearchState>().
+                       equal_range(kSelectedAlpha);
     int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
                                                 pit_pending.second));
     if (num_of_total_pending == 0) {
@@ -681,7 +691,8 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
                                         std::shared_ptr<T> find_args) {
   // Only insert the tuple when it does not existe in the container
   boost::mutex::scoped_lock lock(find_args->mutex);
-  NodeGroupByNodeId key_node_indx = find_args->node_group.template get<NodeGroupTuple::Id>();
+  NodeGroupByNodeId key_node_indx =
+      find_args->node_group.template get<NodeGroupTuple::Id>();
   for (size_t n = 0; n < contacts.size(); ++n) {
     auto it_tuple = key_node_indx.find(contacts[n].node_id());
     if (it_tuple == key_node_indx.end()) {
@@ -704,12 +715,13 @@ bool Node::Impl::HandleIterationStructure(
   boost::mutex::scoped_lock loch_surlaplage(find_args->mutex);
 
   // Mark the enquired contact
-  NodeGroupByNodeId key_node_indx = find_args->node_group.template get<NodeGroupTuple::Id>();
+  NodeGroupByNodeId key_node_indx =
+      find_args->node_group.template get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
   NodeGroupByDistance distance_node_indx =
-                                    find_args->node_group.template get<NodeGroupTuple::Distance>();
+      find_args->node_group.template get<NodeGroupTuple::Distance>();
   auto it = distance_node_indx.begin();
   auto it_end = distance_node_indx.end();
   int num_new_contacts(0);
@@ -726,7 +738,8 @@ bool Node::Impl::HandleIterationStructure(
   //    if number of pending(waiting for response) contacts
   //    is not greater than (kAlpha_ - kBeta_)
   // always check with the latest round, no need to worry about the previous
-  auto pit = find_args->node_group.template get<NodeGroupTuple::StateAndRound>().equal_range(
+  auto pit = find_args->node_group.template
+                 get<NodeGroupTuple::StateAndRound>().equal_range(
                  boost::make_tuple(kSelectedAlpha, find_args->round));
   int num_of_round_pending = static_cast<int>(std::distance(pit.first,
                                                             pit.second));
@@ -734,7 +747,8 @@ bool Node::Impl::HandleIterationStructure(
     *cur_iteration_done = true;
 
   auto pit_pending =
-      find_args->node_group.template get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
+      find_args->node_group.template
+      get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
   int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
                                               pit_pending.second));
   {

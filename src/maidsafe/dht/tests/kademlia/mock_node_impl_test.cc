@@ -822,8 +822,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   {
     int result(1);
     bool done(false);
-    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
-                                     arg::_1, &result, &done);
+    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
+                                     this, arg::_1, &result, &done);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -856,8 +856,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   {
     int result(1);
     bool done(false);
-    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
-                                     arg::_1, &result, &done);
+    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
+                                     this, arg::_1, &result, &done);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -884,8 +884,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   {
     int result(1);
     bool done(false);
-    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
-                                     arg::_1, &result, &done);
+    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
+                                     this, arg::_1, &result, &done);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -926,8 +926,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
         false));
     int result(1);
     bool done(false);
-    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
-                                     arg::_1, &result, &done);
+    JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
+                                     this, arg::_1, &result, &done);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -978,8 +978,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   new_rpcs->SetCountersToZero();
   int result(1);
   bool done(false);
-  JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
-                                   arg::_1, &result, &done);
+  JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
+                                   this, arg::_1, &result, &done);
   Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                    5600);
   bootstrap_contacts.push_back(contact);
@@ -2071,9 +2071,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
   std::vector<Contact> booststrap_contacts;
   int result;
   bool done;
-  node_->JoinFindNodesCallback(0, booststrap_contacts, booststrap_contacts, key,
-                               std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                         this, arg::_1, &result, &done));
+  node_->JoinFindNodesCallback(
+      0, booststrap_contacts, booststrap_contacts, key,
+      std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1, &result,
+                &done));
   std::shared_ptr<RoutingTableContactsContainer> down_list
       (new RoutingTableContactsContainer());
   new_rpcs->down_contacts_ = down_list;
@@ -2385,11 +2386,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
     std::vector<Contact> booststrap_contacts(1, Contact());
     int result;
     bool done;
-    local_node_->JoinFindNodesCallback(0, booststrap_contacts,
-                                       booststrap_contacts, key,
-                                       std::bind(
-                                           &MockNodeImplTest::NodeImplJoinCallback,
-                                           this, arg::_1, &result, &done));
+    local_node_->JoinFindNodesCallback(
+        0, booststrap_contacts, booststrap_contacts, key,
+        std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1,
+                  &result, &done));
     EXPECT_TRUE(local_node_->joined());
   }
   {

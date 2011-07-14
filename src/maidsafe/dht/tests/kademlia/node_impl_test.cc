@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <bitset>
 #include <array>
+#include <bitset>
 
 #include "boost/lexical_cast.hpp"
 #include "boost/thread/thread.hpp"
@@ -233,7 +233,7 @@ class NodeImplTest : public testing::Test {
   }
 
 
-  std::vector<std::shared_ptr<NodeContainer<Node::Impl>>> node_containers_;
+  std::vector<std::shared_ptr<NodeContainer<Node::Impl>>> node_containers_;  // NOLINT (Fraser)
   std::vector<NodeId> node_ids_;
 //  bool found_nodes_, stored_value_, found_value_, deleted_value_,
 //       found_contact_;

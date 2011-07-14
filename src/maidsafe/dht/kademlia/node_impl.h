@@ -451,7 +451,7 @@ class Node::Impl {
   void StoreRefreshCallback(RankInfoPtr rank_info,
                             const int &result,
                             const Contact &contact);
-  
+
   AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;
