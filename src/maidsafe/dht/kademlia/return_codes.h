@@ -47,13 +47,26 @@ enum ReturnCode {
   kUndefined = -300002,
   kPendingResult = -300003,
   kFailedSignatureCheck = -300004,
+  kInvalidPointer = -300005,
 
   // DataStore
   kEmptyKey = -301001,
   kZeroTTL = -301002,
   kFailedToInsertKeyValue = -301003,
   kFailedToModifyKeyValue = -301004,
-  kMarkedForDeletion = -301005
+  kMarkedForDeletion = -301005,
+
+  // RoutingTable
+  kOwnIdNotIncludable = -302001,
+  kFailedToUpdateLastSeenTime = -302002,
+  kNotInBrotherBucket = -302003,
+  kOutwithClosest = -302004,
+  kFailedToInsertNewContact = -302005,
+  kFailedToFindContact = -302006,
+  kFailedToSetPublicKey = -302007,
+  kFailedToUpdateRankInfo = -302008,
+  kFailedToSetPreferredEndpoint = -302009,
+  kFailedToIncrementFailedRpcCount = -302010
 };
 
 }  // namespace kademlia

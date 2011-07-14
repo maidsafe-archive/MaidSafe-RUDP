@@ -1013,15 +1013,15 @@ void Node::Impl::MonitoringDownlistThread() {
     }
 
     // report the downlist to local k-closest contacts
-    std::vector<Contact> close_nodes, excludes;
-    routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);
-    auto it = close_nodes.begin();
-    auto it_end = close_nodes.end();
-    while (it != it_end) {
-      rpcs_->Downlist(down_contacts_, default_securifier_, (*it), kTcp);
-      ++it;
-    }
-    down_contacts_.clear();
+//    std::vector<Contact> close_nodes, excludes;
+//    routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);
+//    auto it = close_nodes.begin();
+//    auto it_end = close_nodes.end();
+//    while (it != it_end) {
+//      rpcs_->Downlist(down_contacts_, default_securifier_, (*it), kTcp);
+//      ++it;
+//    }
+//    down_contacts_.clear();
   }
 }
 

@@ -73,7 +73,6 @@ namespace kademlia {
 namespace test {
 class RoutingTableTest;
 class RoutingTableSingleKTest;
-class RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
 class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
 class ServicesTest;
 class RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test;
@@ -302,7 +301,7 @@ class RoutingTable {
   /** Constructor.  To create a routing table, in all cases the node ID and
    *  k closest contacts parameter must be provided.
    *  @param[in] this_id The routing table holder's Kademlia ID.
-   *  @param[in] k k closest contacts. */
+   *  @param[in] k Kademlia constant k. */
   RoutingTable(const NodeId &this_id, const uint16_t &k);
   /** Destructor. */
   ~RoutingTable();
@@ -311,12 +310,14 @@ class RoutingTable {
    *  splittable, the signal ping_oldest_contact_ will be fired which will
    *  ultimately resolve whether the contact is added or not.
    *  @param[in] contact The new contact which needs to be added.
-   *  @param[in] rank_info The contact's rank_info. */
-  void AddContact(const Contact &contact, RankInfoPtr rank_info);
+   *  @param[in] rank_info The contact's rank_info.
+   *  @return Return code 0 for success, otherwise failure. */
+  int AddContact(const Contact &contact, RankInfoPtr rank_info);
   /** Get the info of the contact based on the input Kademlia ID.
    *  @param[in] node_id The input Kademlia ID.
-   *  @param[out] contact the return contact. */
-  void GetContact(const NodeId &node_id, Contact *contact);
+   *  @param[out] contact the return contact.
+   *  @return Return code 0 for success, otherwise failure. */
+  int GetContact(const NodeId &node_id, Contact *contact);
   /** Finds a number of known nodes closest to the target node in the current
    *  routing table.
    *  NOTE: unless for special purpose, the target shall be considered to be
@@ -329,41 +330,31 @@ class RoutingTable {
                         const size_t &count,
                         const std::vector<Contact> &exclude_contacts,
                         std::vector<Contact> *close_contacts);
-  /** Finds a number of known nodes closest to the holder node in the current
-   *  routing table.
-   *  @param[in] count Number of closest nodes looking for.
-   *  @param[in] exclude_contacts List of contacts that shall be excluded.
-   *  @param[out] close_contacts Result of the find closest contacts. */
-  void GetContactsClosestToOwnId(const size_t &count,
-                                 const std::vector<Contact> &exclude_contacts,
-                                 std::vector<Contact> *close_contacts);
   /** Set one node's public key.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] new_public_key The new value of the public key.
-   *  @return Error code, 0 for success, -1 for failure */
+   *  @return Return code 0 for success, otherwise failure. */
   int SetPublicKey(const NodeId &node_id, const std::string &new_public_key);
   /** Update one node's rank info.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] rank_info The new value of the rank info.
-   *  @return Error code, 0 for success, -1 for failure */
+   *  @return Return code 0 for success, otherwise failure. */
   int UpdateRankInfo(const NodeId &node_id, RankInfoPtr rank_info);
   /** Set one node's preferred endpoint.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] ip The new preferred endpoint.
-   *  @return Error code, 0 for success, -1 for failure */
+   *  @return Return code 0 for success, otherwise failure. */
   int SetPreferredEndpoint(const NodeId &node_id, const IP &ip);
   /** Set one node's validation status.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] validated The validation status.
-   *  @return Error code, 0 for success, -1 for failure */
+   *  @return Return code 0 for success, otherwise failure. */
   int SetValidated(const NodeId &node_id, bool validated);
   /** Increase one node's failedRPC counter by one.  If the count exceeds the
    *  value of kFailedRpcTolerance, the contact is removed from the routing
    *  table.
    *  @param[in] node_id The Kademlia ID of the target node.
-   *  @return The value of the contact's current failed RPC count.  If the
-   *  contact has been removed, the value will be kFailedRpcTolerance + 1.  If
-   *  operation fails, the value will be -1. */
+   *  @return Return code 0 for success, otherwise failure. */
   int IncrementFailedRpcCount(const NodeId &node_id);
   /** Get the routing table holder's direct-connected nodes.
    *  For a direct-connected node, there must be no rendezvous endpoint,
@@ -386,10 +377,10 @@ class RoutingTable {
 
   friend class test::RoutingTableTest;
   friend class test::RoutingTableSingleKTest;
-  friend class test::RoutingTableTest_BEH_KAD_GetContactsClosestToOwnId_Test;
   friend class test::RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
   friend class test::ServicesTest;
-  friend class test::RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test; // NOLINT
+  friend class
+      test::RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
@@ -434,11 +425,7 @@ class RoutingTable {
    *  @param[in] target_bucket The kbucket shall in responsible of the new
    *  contact
    *  @param[in] upgrade_lock An UpgradeLock held on shared_mutex_
-   *  @return Error Code:   0  for succeed,
-   *                       -1  for No brother bucket
-   *                       -2  for v==0
-   *                       -3  for Not in Brother Bucket
-   *                       -4  for New peer isn't among the k closest */
+   *  @return Return code 0 for success, otherwise failure. */
   int ForceKAcceptNewPeer(const Contact &new_contact,
                           const uint16_t &target_bucket,
                           RankInfoPtr rank_info,
@@ -449,7 +436,7 @@ class RoutingTable {
    *  @param[in] rhs NodeId to which this is XOR
    *  @return the number of common bits from the beginning */
   uint16_t KDistanceTo(const NodeId &rhs) const;
-  int GetLeastCommonHeadingBitInKClosestContact();
+  int GetLeastCommonLeadingBitInKClosestContact();
 
   /** Getter.
    *  @return Num of contacts in the routing table. */
@@ -459,6 +446,8 @@ class RoutingTable {
 
   /** Holder's Kademlia ID */
   const NodeId kThisId_;
+  /** Holder's Kademlia ID held as a human readable string for debugging */
+  std::string kDebugName_;
   /** Kademlia k */
   const uint16_t k_;
   /** Multi_index container of all contacts */
