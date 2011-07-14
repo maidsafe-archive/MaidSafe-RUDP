@@ -51,6 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/rpcs.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/routing_table.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/transport/udp_transport.h"
@@ -212,9 +213,9 @@ class RpcsTest: public CreateContactAndNodeId,
                                            crypto_key_data.private_key());
     bptime::time_duration ttl(bptime::pos_infin);
     request_signature = std::make_pair(store_message, store_message_sig);
-    EXPECT_TRUE(data_store_->StoreValue(kvs, ttl, request_signature,
-                                        crypto_key_data.public_key(),
-                                        false));
+    EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, ttl, request_signature,
+                                                crypto_key_data.public_key(),
+                                                false));
   }
 
   void DeleteFromReceiverDataStore(const KeyValueSignature& kvs,

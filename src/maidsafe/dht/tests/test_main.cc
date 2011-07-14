@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 
   // Log messages at or above this level. Severity levels are INFO, WARNING,
   // ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = google::ERROR;
+  FLAGS_minloglevel = google::WARNING;
 
   // Prepend the log prefix to the start of each log line
   FLAGS_log_prefix = true;
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
   FLAGS_v = 0;
 
   // Log messages from MaidSafe-Common.
-  FLAGS_ms_logging_common = false;
+  FLAGS_ms_logging_common = true;
 
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());

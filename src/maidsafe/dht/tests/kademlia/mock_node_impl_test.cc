@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 #include "maidsafe/dht/kademlia/rpcs.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/transport/transport.h"
@@ -920,11 +921,9 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
                                                            "signature");
 
     node_->data_store_.reset(new DataStore(boost::posix_time::seconds(1)));
-    ASSERT_TRUE(node_->data_store_->StoreValue(KeyValueSignature("key1",
-                                                                 "value1",
-                                                                 "sig1"),
-                                               ttl, request_signature, "",
-                                               false));
+    ASSERT_EQ(kSuccess, node_->data_store_->StoreValue(
+        KeyValueSignature("key1", "value1", "sig1"), ttl, request_signature, "",
+        false));
     int result(1);
     bool done(false);
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback, this,
