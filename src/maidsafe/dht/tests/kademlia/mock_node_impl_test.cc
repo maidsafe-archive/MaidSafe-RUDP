@@ -2284,7 +2284,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
   SetRpc(new_rpcs);
 
   std::shared_ptr<Service> local_service(new Service(routing_table_,
-      data_store_, alternative_store_, securifier_));
+      data_store_, alternative_store_, securifier_, test::k));
   local_service->set_node_joined(true);
   node_->SetService(local_service);
   // given a downlist contains k nodes in the routingtable

@@ -71,20 +71,6 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       sender_task_(new SenderTask),
       client_node_id_(NodeId().String()) {}
 
-Service::Service(std::shared_ptr<RoutingTable> routing_table,
-                 std::shared_ptr<DataStore> data_store,
-                 AlternativeStorePtr alternative_store,
-                 SecurifierPtr securifier)
-    : routing_table_(routing_table),
-      datastore_(data_store),
-      alternative_store_(alternative_store),
-      securifier_(securifier),
-      node_joined_(false),
-      node_contact_(),
-      k_(16U),
-      ping_down_list_contacts_(new PingDownListContactsPtr::element_type),
-      sender_task_(new SenderTask) {}
-
 Service::~Service() {}
 
 void Service::ConnectToSignals(MessageHandlerPtr message_handler) {

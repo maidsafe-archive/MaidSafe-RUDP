@@ -132,7 +132,7 @@ class ServicesTest: public CreateContactAndNodeId,
                                                                        "")),
                    info_(), rank_info_(),
                    service_(new Service(routing_table_, data_store_,
-                   alternative_store_, securifier_)),
+                            alternative_store_, securifier_, test::k)),
                    num_of_pings_(0) {
     service_->set_node_joined(true);
   }
@@ -337,7 +337,8 @@ class ServicesTest: public CreateContactAndNodeId,
 
 
 TEST_F(ServicesTest, BEH_KAD_Constructor) {
-  Service service(routing_table_, data_store_, alternative_store_, securifier_);
+  Service service(routing_table_, data_store_, alternative_store_, securifier_,
+                  test::k);
   CheckServiceConstructAttributes(service, 16U);
 
   Service service_k(routing_table_, data_store_, alternative_store_,
@@ -393,8 +394,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     protobuf::StoreResponse store_response;
@@ -518,8 +519,8 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     // from populated datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
@@ -641,8 +642,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     protobuf::StoreRefreshResponse store_refresh_response;
@@ -770,8 +771,8 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // from populated datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
@@ -1088,8 +1089,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     AlternativeStoreFalsePtr
         alternative_store_false_ptr(new AlternativeStoreFalse());
-    Service service(routing_table_, data_store_,
-                    alternative_store_false_ptr, securifier_);
+    Service service(routing_table_, data_store_, alternative_store_false_ptr,
+                    securifier_, test::k);
     service.set_node_joined(true);
 
     find_value_req.set_key(target_key);
@@ -1115,8 +1116,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
-    Service service(routing_table_, data_store_,
-                    alternative_store_true_ptr, securifier_);
+    Service service(routing_table_, data_store_, alternative_store_true_ptr,
+                    securifier_, test::k);
     service.set_node_joined(true);
     service.set_node_contact(node_contact);
 
