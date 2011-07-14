@@ -107,6 +107,11 @@ class NodeContainer {
   void FindNodes(const Key &key);
   void GetContact(const NodeId &node_id);
 
+  std::string DebugName() {
+    return node_->contact().node_id().ToStringEncoded(NodeId::kHex).
+           substr(0, 10);
+  }
+
   // These Make<XXX>Functor functions set the appropriate <XXX>_functor_ by
   // binding the corresponding private <XXX>Callback method.
   void MakeJoinFunctor(boost::mutex *mutex,

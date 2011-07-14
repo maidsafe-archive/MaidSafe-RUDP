@@ -229,11 +229,11 @@ class Node::Impl {
 
   /** Callback from the rpc->findnode request for GetContact.
    *  @param[in] result_size The number of closest contacts find.
-   *  @param[in] cs the k-closest contacts to the node_id
+   *  @param[in] contacts the k-closest contacts to the node_id
    *  @param[in] node_id The node_id of the contact to search.
    *  @param[in] callback The callback to report the results. */
   void GetContactCallBack(int result_size,
-                          const std::vector<Contact> &cs,
+                          const std::vector<Contact> &contacts,
                           const NodeId &node_id,
                           GetContactFunctor callback);
 
@@ -261,13 +261,15 @@ class Node::Impl {
    *  @param[in] values The values of the key.
    *  @param[in] contacts The closest contacts.
    *  @param[in] alternative_store The alternative store contact.
-   *  @param[in] fvrpc The arguments struct holding all shared info. */
-  void IterativeSearchValueResponse(RankInfoPtr rank_info,
-                                    int result,
-                                    const std::vector<std::string> &values,
-                                    const std::vector<Contact> &contacts,
-                                    const Contact &alternative_store,
-                                    std::shared_ptr<RpcArgs> fvrpc);
+   *  @param[in] find_value_rpc_args The arguments struct holding all shared
+   *  info. */
+  void IterativeSearchValueResponse(
+      RankInfoPtr rank_info,
+      int result,
+      const std::vector<std::string> &values,
+      const std::vector<Contact> &contacts,
+      const Contact &alternative_store,
+      std::shared_ptr<RpcArgs> find_value_rpc_args);
 
   /** Callback from the rpc->findnodes requests, during the FindNodes operation.
    *  @param[in] rank_info rank info
@@ -276,15 +278,15 @@ class Node::Impl {
    *  @param[in] contacts The closest contacts.
    *  @param[in] fnrpc The arguments struct holding all shared info. */
   void IterativeSearchNodeResponse(RankInfoPtr rank_info,
-                              int result,
-                              const std::vector<Contact> &contacts,
-                              std::shared_ptr<RpcArgs> fnrpc);
+                                   int result,
+                                   const std::vector<Contact> &contacts,
+                                   std::shared_ptr<RpcArgs> fnrpc);
 
   /** Function to handle the iteration search structure.
    *  Used by: FindNodes, FindValue
    *  @param[in] T FindNodesArgs, FindValueArgs
    *  @param[in] contact The current responding contact
-   *  @param[in] fa The arguments struct holding all shared info.
+   *  @param[in] find_args The arguments struct holding all shared info.
    *  @param[in] mark Indicate if the current responding contact is down or not
    *  @param[out] response_code The response_code in case of search can be
    *  stopped.
@@ -295,7 +297,7 @@ class Node::Impl {
    *  @param[out] called_back Indicates if a the search can be stopped. */
   template <class T>
   bool HandleIterationStructure(const Contact &contact,
-                                std::shared_ptr<T> fa,
+                                std::shared_ptr<T> find_args,
                                 NodeSearchState mark,
                                 int *response_code,
                                 std::vector<Contact> *closest_contacts,
@@ -356,7 +358,7 @@ class Node::Impl {
   /** Template Callback from the rpc->findnode requests.
    *  Used by: Store, Delete, Update
    *  @param[in] T StoreArgs, UpdateArgs, DeleteArgs
-   *  @param[in] cs the k-closest nodes to the key
+   *  @param[in] contacts the k-closest nodes to the key
    *  @param[in] Key The key to be passed further.
    *  @param[in] value The value to be passed further.
    *  @param[in] signature The signature to be passed further.
@@ -365,7 +367,7 @@ class Node::Impl {
    *  @param[in] args The arguments struct holding all shared info. */
   template <class T>
   void OperationFindNodesCB(int result_size,
-                            const std::vector<Contact> &cs,
+                            const std::vector<Contact> &contacts,
                             const Key &key,
                             const std::string &value,
                             const std::string &signature,

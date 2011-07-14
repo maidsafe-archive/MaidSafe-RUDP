@@ -363,7 +363,13 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
   if (!datastore_->StoreValue(key_value_signature,
                               boost::posix_time::seconds(request.ttl()),
                               request_signature, public_key, is_refresh))
-    DLOG(WARNING) << "Failed to store kademlia value" << std::endl;
+    DLOG(WARNING) << node_contact_.node_id().ToStringEncoded(NodeId::kHex).
+                     substr(0, 10) << ": Failed to store kademlia value "
+                  << EncodeToHex(key_value_signature.key).substr(0, 10);
+  else
+    DLOG(INFO) << node_contact_.node_id().ToStringEncoded(NodeId::kHex).
+                  substr(0, 10) << ": Stored kademlia value "
+               << EncodeToHex(key_value_signature.key).substr(0, 10);
   return true;
 }
 

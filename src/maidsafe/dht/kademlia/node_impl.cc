@@ -148,7 +148,7 @@ void Node::Impl::Join(const NodeId &node_id,
       bootstrap_contacts[0].node_id() == node_id) {
     // This is the first node on the network.
     std::vector<Contact> contacts;
-    boost::thread(&Node::Impl::JoinFindNodesCallback, this, 1, contacts,
+    boost::thread(&Node::Impl::JoinFindNodesCallback, this, 0, contacts,
                   bootstrap_contacts, node_id, callback);
     return;
   }
@@ -206,7 +206,7 @@ void Node::Impl::JoinFindNodesCallback(
     thread_group_->create_thread(
         std::bind(&Node::Impl::MonitoringDownlistThread, this));
     downlist_thread_running_ = true;
-    callback(result);
+    callback(0);
   }
 }
 
@@ -279,7 +279,7 @@ void Node::Impl::Update(const Key &key,
 
 template <class T>
 void Node::Impl::OperationFindNodesCB(int result_size,
-                               const std::vector<Contact> &cs,
+                               const std::vector<Contact> &contacts,
                                const Key &key,
                                const std::string &value,
                                const std::string &signature,
@@ -294,8 +294,8 @@ void Node::Impl::OperationFindNodesCB(int result_size,
       args->callback(-3);
     }
   } else {
-    auto it = cs.begin();
-    auto it_end = cs.end();
+    auto it = contacts.begin();
+    auto it_end = contacts.end();
     while (it != it_end) {
         NodeGroupTuple nct((*it), key);
         nct.search_state = kSelectedAlpha;
@@ -303,7 +303,7 @@ void Node::Impl::OperationFindNodesCB(int result_size,
         ++it;
     }
 
-    it = cs.begin();
+    it = contacts.begin();
     while (it != it_end) {
       std::shared_ptr<RpcArgs> rpc(new RpcArgs((*it), args));
       switch (args->operation_type) {
@@ -692,22 +692,22 @@ void Node::Impl::AddContactsToContainer(const std::vector<Contact> contacts,
 template <class T>
 bool Node::Impl::HandleIterationStructure(
     const Contact &contact,
-    std::shared_ptr<T> fa,
+    std::shared_ptr<T> find_args,
     NodeSearchState mark,
     int *response_code,
     std::vector<Contact> *closest_contacts,
     bool *cur_iteration_done,
     bool *called_back) {
   bool result = false;
-  boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
+  boost::mutex::scoped_lock loch_surlaplage(find_args->mutex);
 
   // Mark the enquired contact
-  NodeGroupByNodeId key_node_indx = fa->node_group.template get<NodeGroupTuple::Id>();
+  NodeGroupByNodeId key_node_indx = find_args->node_group.template get<NodeGroupTuple::Id>();
   auto it_tuple = key_node_indx.find(contact.node_id());
   key_node_indx.modify(it_tuple, ChangeState(mark));
 
   NodeGroupByDistance distance_node_indx =
-                                    fa->node_group.template get<NodeGroupTuple::Distance>();
+                                    find_args->node_group.template get<NodeGroupTuple::Distance>();
   auto it = distance_node_indx.begin();
   auto it_end = distance_node_indx.end();
   int num_new_contacts(0);
@@ -724,15 +724,15 @@ bool Node::Impl::HandleIterationStructure(
   //    if number of pending(waiting for response) contacts
   //    is not greater than (kAlpha_ - kBeta_)
   // always check with the latest round, no need to worry about the previous
-  auto pit = fa->node_group.template get<NodeGroupTuple::StateAndRound>().equal_range(
-                 boost::make_tuple(kSelectedAlpha, fa->round));
+  auto pit = find_args->node_group.template get<NodeGroupTuple::StateAndRound>().equal_range(
+                 boost::make_tuple(kSelectedAlpha, find_args->round));
   int num_of_round_pending = static_cast<int>(std::distance(pit.first,
                                                             pit.second));
   if (num_of_round_pending <= (kAlpha_ - kBeta_))
     *cur_iteration_done = true;
 
   auto pit_pending =
-      fa->node_group.template get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
+      find_args->node_group.template get<NodeGroupTuple::SearchState>().equal_range(kSelectedAlpha);
   int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
                                               pit_pending.second));
   {
@@ -759,8 +759,8 @@ bool Node::Impl::HandleIterationStructure(
       ++it;
     }
     *response_code = static_cast<int>(closest_contacts->size());
-    // main part of memory resource in fa can be released here
-    fa->node_group.clear();
+    // main part of memory resource in find_args can be released here
+    find_args->node_group.clear();
   }
   result = true;
   return result;
@@ -777,10 +777,11 @@ void Node::Impl::FindNodes(const Key &key, FindNodesFunctor callback) {
 }
 
 template <class T>
-void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
-  boost::mutex::scoped_lock loch_surlaplage(fa->mutex);
-  auto pit = fa->node_group.template get<NodeGroupTuple::StateAndDistance>().equal_range(
-      boost::make_tuple(kNew));
+void Node::Impl::IterativeSearch(std::shared_ptr<T> find_args) {
+  boost::mutex::scoped_lock loch_surlaplage(find_args->mutex);
+  auto pit = find_args->node_group.template
+             get<NodeGroupTuple::StateAndDistance>().equal_range(
+             boost::make_tuple(kNew));
   int num_of_candidates = static_cast<int>(std::distance(pit.first,
                                                          pit.second));
 
@@ -803,34 +804,39 @@ void Node::Impl::IterativeSearch(std::shared_ptr<T> fa) {
     ++counter;
   }
 
-  NodeGroupByNodeId key_node_indx = fa->node_group.template get<NodeGroupTuple::Id>();
+  NodeGroupByNodeId key_node_indx = find_args->node_group.template
+                                    get<NodeGroupTuple::Id>();
   // Update contacts' state
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
     key_node_indx.modify(it_tuple, ChangeState(kSelectedAlpha));
-    key_node_indx.modify(it_tuple, ChangeRound(fa->round+1));
+    key_node_indx.modify(it_tuple, ChangeRound(find_args->round+1));
   }
-  ++fa->round;
+  ++find_args->round;
   // Better to change the value in a bunch and then issue RPCs in a bunch
   // to avoid any possibilities of cross-interference
   for (auto it = to_contact.begin(); it != to_contact.end(); ++it) {
     auto it_tuple = key_node_indx.find(*it);
-    std::shared_ptr<RpcArgs> frpc(new RpcArgs((*it_tuple).contact, fa));
-    switch (fa->operation_type) {
+    std::shared_ptr<RpcArgs> find_rpc_args(new RpcArgs((*it_tuple).contact,
+                                                       find_args));
+    switch (find_args->operation_type) {
       case kOpFindNode: {
-          rpcs_->FindNodes(fa->key, default_securifier_, (*it_tuple).contact,
+          rpcs_->FindNodes(find_args->key, default_securifier_,
+                           (*it_tuple).contact,
                            std::bind(&Node::Impl::IterativeSearchNodeResponse,
-                                     this, arg::_1, arg::_2, arg::_3, frpc),
+                                     this, arg::_1, arg::_2, arg::_3,
+                                     find_rpc_args),
                            kTcp);
         }
         break;
       case kOpFindValue: {
-          std::shared_ptr<FindValueArgs> fva =
-              std::dynamic_pointer_cast<FindValueArgs>(fa);
-          rpcs_->FindValue(fva->key, fva->securifier, (*it_tuple).contact,
+          std::shared_ptr<FindValueArgs> find_value_args =
+              std::dynamic_pointer_cast<FindValueArgs>(find_args);
+          rpcs_->FindValue(find_value_args->key, find_value_args->securifier,
+                           (*it_tuple).contact,
                            std::bind(&Node::Impl::IterativeSearchValueResponse,
                                      this, arg::_1, arg::_2, arg::_3, arg::_4,
-                                     arg::_5, frpc),
+                                     arg::_5, find_rpc_args),
                            kTcp);
         }
         break;
@@ -845,9 +851,9 @@ void Node::Impl::IterativeSearchValueResponse(
     const std::vector<std::string> &values,
     const std::vector<Contact> &contacts,
     const Contact &alternative_store,
-    std::shared_ptr<RpcArgs> frpc) {
+    std::shared_ptr<RpcArgs> find_value_rpc_args) {
   FindValueArgsPtr find_value_args =
-      std::static_pointer_cast<FindValueArgs> (frpc->rpc_args);
+      std::static_pointer_cast<FindValueArgs> (find_value_rpc_args->rpc_args);
   if (find_value_args->called_back)
     return;
   // once got some result, terminate the search and report the result back
@@ -863,14 +869,15 @@ void Node::Impl::IterativeSearchValueResponse(
     if (result < 0) {
       mark = kDown;
       // fire a signal here to notify this contact is down
-      (*report_down_contact_)(frpc->contact);
+      (*report_down_contact_)(find_value_rpc_args->contact);
     } else {
-      routing_table_->AddContact(frpc->contact, RankInfoPtr());
+      routing_table_->AddContact(find_value_rpc_args->contact, RankInfoPtr());
       AddContactsToContainer<FindValueArgs>(contacts, find_value_args);
     }
 
-    if (!HandleIterationStructure<FindValueArgs>(frpc->contact, find_value_args,
-                                                 mark, &response_code,
+    if (!HandleIterationStructure<FindValueArgs>(find_value_rpc_args->contact,
+                                                 find_value_args, mark,
+                                                 &response_code,
                                                  &closest_contacts,
                                                  &curr_iteration_done,
                                                  &called_back)) {

@@ -211,16 +211,15 @@ class NodeImplTest : public testing::Test {
         port = static_cast<Port>((RandomUint32() % 55535) + 10000);
         ++attempts;
       }
-
-//                                                                    ASSERT_EQ(i, result);
-
+      ASSERT_EQ(0, result);
       ASSERT_TRUE(node_container->node()->joined());
-      std::cout << "Node #" << i << " joined." << std::endl;
+      DLOG(INFO) << "Node " << i << " joined: " << node_container->DebugName();
       bootstrap_contacts.push_back(node_container->node()->contact());
       node_containers_.push_back(node_container);
       node_ids_.push_back(node_container->node()->contact().node_id());
     }
-    std::cout << "----------------------------------------------" << std::endl << std::endl;
+    DLOG(INFO) << "----------------------------------------------";
+    DLOG(INFO) << "----------------------------------------------";
   }
 
   void TearDown() {
@@ -294,7 +293,36 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
 TEST_F(NodeImplTest, BEH_KAD_Store) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
-  bptime::time_duration duration(0, 1, 0);
+  bptime::time_duration duration(bptime::minutes(1));
+  size_t test_node_index(RandomUint32() % node_containers_.size());
+  DLOG(INFO) << "Node " << test_node_index << " - "
+             << node_containers_[test_node_index]->DebugName()
+             << " performing store operation.";
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    node_containers_[test_node_index]->Store(key, value, "", duration,
+                                             SecurifierPtr());
+    ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_, wait_for_store_functor_));
+  }
+  EXPECT_EQ(0, store_result_);
+
+//  Sleep(bptime::milliseconds(1000));
+
+  for (size_t i = 0; i != kNumberOfNodes; ++i) {
+    if (WithinKClosest(node_containers_[i]->node()->contact().node_id(), key,
+                       node_ids_)) {
+//        std::cout << node_containers_[i]->node()->contact().node_id().ToStringEncoded(NodeId::kHex).substr(0, 10) << ": ";
+      EXPECT_TRUE(GetDataStore(node_containers_[i])->HasKey(key.String()));
+    } else {
+      EXPECT_FALSE(GetDataStore(node_containers_[i])->HasKey(key.String()));
+    }
+  }
+}
+
+TEST_F(NodeImplTest, BEH_KAD_FindValue) {
+  Key key(NodeId::kRandomId);
+  std::string value = RandomString(RandomUint32() % 1024);
+  bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % node_containers_.size());
   {
     boost::mutex::scoped_lock lock(mutex_);
@@ -303,53 +331,52 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
     ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_, wait_for_store_functor_));
   }
 
-  Sleep(bptime::seconds(10));
+//  Sleep(bptime::milliseconds(1000));
+
+  // Get a node which hasn't stored the value
+  size_t not_got_value(0);
+  for (size_t i = 0; i != kNumberOfNodes; ++i) {
+    if (!WithinKClosest(node_containers_[i]->node()->contact().node_id(), key,
+                        node_ids_)) {
+      not_got_value = i;
+      break;
+    }
+  }
 
   for (size_t i = 0; i != kTestK; ++i) {
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
+      ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
+                                       wait_for_find_value_functor_));
+    }
+    EXPECT_EQ(0, find_value_returns_.return_code);
+    ASSERT_FALSE(find_value_returns_.values.empty());
+    EXPECT_EQ(value, find_value_returns_.values.front());
+    // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
+
+    // Stop nodes holding value one at a time and retry getting value
     for (size_t j = 0; j != kNumberOfNodes; ++j) {
       if (WithinKClosest(node_containers_[j]->node()->contact().node_id(), key,
-                         node_ids_)) {
-        EXPECT_TRUE(GetDataStore(node_containers_[j])->HasKey(key.String()));
-      } else {
-        EXPECT_FALSE(GetDataStore(node_containers_[j])->HasKey(key.String()));
+                         node_ids_) &&
+          node_containers_[j]->node()->joined()) {
+        node_containers_[j]->Stop(NULL);
+        break;
       }
     }
   }
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
+    ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
+                                      wait_for_find_value_functor_));
+  }
+  EXPECT_EQ(-1, find_value_returns_.return_code);
+  EXPECT_TRUE(find_value_returns_.values.empty());
+  // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
+
 }
 
-//TEST_F(NodeImplTest, BEH_KAD_FindValue) {
-//  std::function<void(int)> store_value = std::bind(
-//      &NodeImplTest::StoreValueFunction, this, arg::_1);
-//  std::function<void(int, std::vector<std::string>, std::vector<Contact>,
-//      Contact, Contact)> find_value = std::bind(
-//      &NodeImplTest::FindValueFunction, this, arg::_1,
-//      arg::_2, arg::_3, arg::_4,
-//      arg::_5);
-//  maidsafe::crypto::RsaKeyPair rsa_key_pair;
-//  bptime::seconds duration(10);
-//  // bptime::time_duration duration(24, 0, 0);
-//  for (std::size_t i = 1; i != kNumberOfNodes; ++i) {
-//    std::size_t size = RandomUint32() % 1024;
-//    std::string value = RandomString(size);
-//    rsa_key_pair.GenerateKeys(4096);
-//    std::shared_ptr<Securifier> securifier(new Securifier(
-//      node_containers_[i]->node()->contact().node_id().String(), rsa_key_pair.public_key(),
-//      rsa_key_pair.private_key()));
-//    node_containers_[i]->node()->Store(
-//        node_containers_[i-1]->node()->contact().node_id(), value,
-//        securifier->Sign(value), duration, securifier, store_value);
-//    while (!stored_value_)
-//      Sleep(bptime::milliseconds(100));
-//    stored_value_ = false;
-//    node_containers_[i]->node()->FindValue(
-//        node_containers_[i-1]->node()->contact().node_id(), securifier,
-//        find_value);
-//    while (!found_value_)
-//      Sleep(bptime::milliseconds(100));
-//    found_value_ = false;
-//  }
-//}
-//
 //TEST_F(NodeImplTest, BEH_KAD_Ping) {
 //  
 //}
@@ -360,8 +387,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 //  std::function<void(int)> delete_value = std::bind(
 //      &NodeImplTest::DeleteFunction, this, arg::_1);
 //  maidsafe::crypto::RsaKeyPair rsa_key_pair;
-//  // bptime::seconds duration(10);
-//  bptime::time_duration duration(0, 0, 30);
+//  bptime::time_duration duration(bptime::seconds(30));
 // 
 //  std::size_t size = RandomUint32() % 1024;
 //  std::string value = RandomString(size);
