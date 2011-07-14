@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe/dht/log.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 
 namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
@@ -82,7 +84,10 @@ DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
     : key_value_index_(new KeyValueIndex),
       refresh_interval_(mean_refresh_interval.total_seconds() +
                         (RandomInt32() % 120)),
-      shared_mutex_() {}
+      shared_mutex_(),
+      debug_name_() {
+  debug_name_ = IntToString(reinterpret_cast<int>(this));
+}
 
 bool DataStore::HasKey(const std::string &key) {
   if (key.empty())
@@ -91,10 +96,12 @@ bool DataStore::HasKey(const std::string &key) {
   KeyValueIndex::index<TagKey>::type& index_by_key =
       key_value_index_->get<TagKey>();
   auto itr_pair = index_by_key.equal_range(key);
+  DLOG(INFO) << debug_name_ << ": HasKey " << EncodeToHex(key).substr(0, 10)
+             << ": " << std::boolalpha << (itr_pair.first != itr_pair.second);
   return (itr_pair.first != itr_pair.second);
 }
 
-bool DataStore::StoreValue(
+int DataStore::StoreValue(
     const KeyValueSignature &key_value_signature,
     const bptime::time_duration &ttl,
     const RequestAndSignature &store_request_and_signature,
@@ -102,8 +109,15 @@ bool DataStore::StoreValue(
     bool is_refresh) {
   // Assumes that check on signature of request and signature of value using
   // public_key has already been done.
-  if (key_value_signature.key.empty() || ttl == bptime::seconds(0))
-    return false;
+  if (key_value_signature.key.empty()) {
+    DLOG(WARNING) << debug_name_ << ": Key empty.";
+    return kEmptyKey;
+  }
+  if (ttl == bptime::seconds(0)) {
+    DLOG(WARNING) << debug_name_ << ": Zero TTL.";
+    return kZeroTTL;
+  }
+
   bptime::ptime now(bptime::microsec_clock::universal_time());
   KeyValueTuple tuple(key_value_signature, now + ttl, now + refresh_interval_,
                       store_request_and_signature, false);
@@ -117,7 +131,16 @@ bool DataStore::StoreValue(
     // The key doesn't exist - insert the entry.
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     auto p = index_by_key.insert(tuple);
-    return p.second;
+#ifdef DEBUG
+    if (p.second) {
+      DLOG(INFO) << debug_name_ << ": Stored key "
+                 << EncodeToHex(key_value_signature.key).substr(0, 10);
+    } else {
+      DLOG(WARNING) << debug_name_ << ": Failed to stored key "
+                    << EncodeToHex(key_value_signature.key).substr(0, 10);
+    }
+#endif
+    return p.second ? kSuccess : kFailedToInsertKeyValue;
   }
 
   // Check if the key AND value already exists.
@@ -135,35 +158,71 @@ bool DataStore::StoreValue(
     // Check the same private key was used to sign other values under this key.
     if (!crypto::AsymCheckSig((*itr_pair.first).key_value_signature.value,
                               (*itr_pair.first).key_value_signature.signature,
-                              public_key))
-      return false;
+                              public_key)) {
+      DLOG(WARNING) << debug_name_ << ": Failed key signature check for key "
+                    << EncodeToHex(key_value_signature.key).substr(0, 10);
+      return kFailedSignatureCheck;
+    }
     UpgradeToUniqueLock unique_lock(upgrade_lock);
     auto p = index_by_key.insert(tuple);
-    return p.second;
+#ifdef DEBUG
+    if (p.second) {
+      DLOG(INFO) << debug_name_ << ": Stored key "
+                 << EncodeToHex(key_value_signature.key).substr(0, 10);
+    } else {
+      DLOG(WARNING) << debug_name_ << ": Failed to stored key "
+                    << EncodeToHex(key_value_signature.key).substr(0, 10);
+    }
+#endif
+    return p.second ? kSuccess : kFailedToInsertKeyValue;
   }
 
   // The key and value exists - check the value signature is the same as before.
   if ((*itr_pair.first).key_value_signature.signature !=
-      key_value_signature.signature)
-    return false;
+      key_value_signature.signature) {
+    DLOG(WARNING) << debug_name_ << ": Failed value signature check for key "
+                  << EncodeToHex(key_value_signature.key).substr(0, 10);
+    return kFailedSignatureCheck;
+  }
 
   // Allow original signer to modify it.
   if (!is_refresh) {
     UpgradeToUniqueLock unique_lock(upgrade_lock);
-    return index_by_key.modify(itr_pair.first,
+    if (index_by_key.modify(itr_pair.first,
         std::bind(&KeyValueTuple::UpdateStatus, arg::_1, now + ttl,
                   now + refresh_interval_, now + kPendingConfirmDuration,
-                  store_request_and_signature, false));
+                  store_request_and_signature, false))) {
+      DLOG(INFO) << debug_name_ << ": Successfully modified value for key "
+                 << EncodeToHex(key_value_signature.key).substr(0, 10);
+      return kSuccess;
+    } else {
+      DLOG(WARNING) << debug_name_ << ": Failed to modify value for key "
+                    << EncodeToHex(key_value_signature.key).substr(0, 10);
+      return kFailedToModifyKeyValue;
+    }
   }
 
   // For refreshing, only the refresh time can be reset, and only for
   // non-deleted values.
-  if ((*itr_pair.first).deleted)
-    return false;
+  if ((*itr_pair.first).deleted) {
+    DLOG(WARNING) << debug_name_ << ": Failed to refresh key "
+                  << EncodeToHex(key_value_signature.key).substr(0, 10)
+                  << " - marked for deletion.";
+    return kMarkedForDeletion;
+  }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  return index_by_key.modify(itr_pair.first,
-      std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
-                now + refresh_interval_));
+  if (index_by_key.modify(itr_pair.first,
+                          std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
+                                    now + refresh_interval_))) {
+    DLOG(INFO) << debug_name_ << ": Successfully refreshed key "
+               << EncodeToHex(key_value_signature.key).substr(0, 10);
+    return kSuccess;
+  } else {
+    DLOG(WARNING) << debug_name_ << ": Failed to refresh key "
+                  << EncodeToHex(key_value_signature.key).substr(0, 10)
+                  << " - modify failed.";
+    return kFailedToModifyKeyValue;
+  }
 }
 
 bool DataStore::DeleteValue(

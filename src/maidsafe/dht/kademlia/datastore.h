@@ -152,26 +152,26 @@ class DataStore {
   // Stores the key, value, signature and marks the expire time as ttl from
   // time of insertion.  Infinite ttl is indicated by bptime::pos_infin.
   // If the key doesn't already exist, the k,v,s is added and the method returns
-  // true.
+  // kSuccess.
   // If the key already exists, but the value doesn't, the k,v,s is added iff
   // the signer of this attempt is the same as that of the previously stored
-  // value(s) under that key.  Method returns true if the value was added.
+  // value(s) under that key.  Method returns kSuccess if the value was added.
   // If the key and value already exists, is not marked as deleted, and
   // is_refresh is true, the method resets the value's refresh time only (ttl is
-  // ignored) and returns true.
+  // ignored) and returns kSuccess.
   // If the key and value already exists, is not marked as deleted, and
   // is_refresh is false, the method resets the value's refresh time and ttl and
-  // returns true.
+  // returns kSuccess.
   // If the key and value already exists, is marked as deleted, and is_refresh
-  // is true, the method doesn't modify anything and returns false.
+  // is true, the method doesn't modify anything and returns kMarkedForDeletion.
   // If the key and value already exists, is marked as deleted, and is_refresh
   // is false, the method sets deleted to false, resets the confirm time and
-  // returns true.
-  bool StoreValue(const KeyValueSignature &key_value_signature,
-                  const bptime::time_duration &ttl,
-                  const RequestAndSignature &store_request_and_signature,
-                  const std::string &public_key,
-                  bool is_refresh);
+  // returns kSuccess.
+  int StoreValue(const KeyValueSignature &key_value_signature,
+                 const bptime::time_duration &ttl,
+                 const RequestAndSignature &store_request_and_signature,
+                 const std::string &public_key,
+                 bool is_refresh);
   // Marks the key, value, signature as deleted.
   // If the key and value doesn't already exist, the method returns true.
   // If the key and value already exists and is marked as deleted, the method
@@ -196,6 +196,9 @@ class DataStore {
   // (whether marked as deleted or not) are returned.
   void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
   bptime::seconds refresh_interval() const;
+  void set_debug_name(const std::string &debug_name) {
+    debug_name_ = debug_name;
+  }
   friend class test::DataStoreTest;
   friend class test::ServicesTest;
   friend class test::RpcsTest;
@@ -208,6 +211,7 @@ class DataStore {
   std::shared_ptr<KeyValueIndex> key_value_index_;
   const bptime::seconds refresh_interval_;
   boost::shared_mutex shared_mutex_;
+  std::string debug_name_;
 };
 
 }  // namespace kademlia

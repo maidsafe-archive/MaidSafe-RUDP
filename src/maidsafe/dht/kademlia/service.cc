@@ -29,7 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 
 #include "maidsafe/dht/kademlia/service.h"
-#include "maidsafe/dht/kademlia/routing_table.h"
+#include "maidsafe/common/alternative_store.h"
+#include "maidsafe/common/crypto.h"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
@@ -38,13 +39,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
-#include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/routing_table.h"
 #include "maidsafe/dht/kademlia/securifier.h"
-
-#include "maidsafe/common/alternative_store.h"
+#include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/log.h"
-#include "maidsafe/common/crypto.h"
+
 
 namespace arg = std::placeholders;
 
@@ -263,7 +264,7 @@ void Service::StoreRefresh(const transport::Info &info,
     return;
   if (request.serialised_store_request().empty() ||
       request.serialised_store_request_signature().empty() || !securifier_) {
-    DLOG(WARNING) << "StoreRefresh Input Error" << std::endl;
+    DLOG(WARNING) << "StoreRefresh Input Error";
     return;
   }
 
@@ -356,21 +357,12 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                              public_key_validation,
                              request.key() ) ) {
     DLOG(WARNING) << "Failed to validate Store request for kademlia value"
-                  << " (is_refresh = " << is_refresh << " )"
-                  << std::endl;
+                  << " (is_refresh = " << is_refresh << " )";
     return false;
   }
-  if (!datastore_->StoreValue(key_value_signature,
-                              boost::posix_time::seconds(request.ttl()),
-                              request_signature, public_key, is_refresh))
-    DLOG(WARNING) << node_contact_.node_id().ToStringEncoded(NodeId::kHex).
-                     substr(0, 10) << ": Failed to store kademlia value "
-                  << EncodeToHex(key_value_signature.key).substr(0, 10);
-  else
-    DLOG(INFO) << node_contact_.node_id().ToStringEncoded(NodeId::kHex).
-                  substr(0, 10) << ": Stored kademlia value "
-               << EncodeToHex(key_value_signature.key).substr(0, 10);
-  return true;
+  return datastore_->StoreValue(key_value_signature,
+      boost::posix_time::seconds(request.ttl()), request_signature, public_key,
+      is_refresh) == kSuccess;
 }
 
 void Service::Delete(const transport::Info &info,
@@ -384,7 +376,7 @@ void Service::Delete(const transport::Info &info,
     return;
   if (!securifier_ || message.empty() ||
       (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
-    DLOG(WARNING) << "Delete Input Error" << std::endl;
+    DLOG(WARNING) << "Delete Input Error";
     return;
   }
 
@@ -436,7 +428,7 @@ void Service::DeleteRefresh(const transport::Info &info,
     return;
   if (request.serialised_delete_request().empty() ||
       request.serialised_delete_request_signature().empty()) {
-    DLOG(WARNING) << "DeleteFresh Input Error" << std::endl;
+    DLOG(WARNING) << "DeleteFresh Input Error";
     return;
   }
   protobuf::DeleteRequest ori_delete_request;
@@ -533,14 +525,14 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              public_key_validation,
                              request.key() ) ) {
     DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
-                  << " (is_refresh = " << is_refresh << " )"
-                  << std::endl;
+                  << " (is_refresh = " << is_refresh << " )";
+                 
     return false;
   }
 
   if (!datastore_->DeleteValue(key_value_signature,
                                request_signature, is_refresh))
-    DLOG(WARNING) << "Failed to delete kademlia value" << std::endl;
+    DLOG(WARNING) << "Failed to delete kademlia value";
   return true;
 }
 
