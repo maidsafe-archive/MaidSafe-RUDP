@@ -129,7 +129,8 @@ void RoutingTable::InsertContact(const Contact &contact,
     auto result = contacts_.insert(new_routing_table_contact);
     if (result.second) {
       DLOG(INFO) << kDebugName_ << ": Added node "
-          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
+          << ".  " << contacts_.size() << " contacts.";
     } else {
       DLOG(WARNING) << kDebugName_ << ": Failed to insert node "
           << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
@@ -317,7 +318,8 @@ int RoutingTable::SetValidated(const NodeId &node_id, bool validated) {
     // and put it into the un-validated contacts container.
     DLOG(WARNING) << kDebugName_ << ": Node "
                   << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
-                  << " removed from routing table - failed to validate.";
+                  << " removed from routing table - failed to validate.  "
+                  << contacts_.size() << " contacts.";
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     UnValidatedContact new_entry((*it).contact, (*it).rank_info);
     unvalidated_contacts_.insert(new_entry);
@@ -340,7 +342,8 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   if (num_failed_rpcs > kFailedRpcTolerance) {
     key_indx.erase(it);
     DLOG(INFO) << kDebugName_ << ": Removed node "
-               << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+               << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
+               << ".  " << contacts_.size() << " contacts.";
     return kSuccess;
   } else {
     if (key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs))) {
@@ -358,10 +361,9 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
 }
 
 void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
-  if (!contacts) {
-    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
+  if (!contacts)
     return;
-  }
+
   SharedLock shared_lock(shared_mutex_);
   auto it = contacts_.get<BootstrapTag>().equal_range(true);
   contacts->clear();
@@ -518,7 +520,7 @@ int RoutingTable::ForceKAcceptNewPeer(
   if (result.second) {
     DLOG(INFO) << kDebugName_ << ": Added node "
         << new_contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
-        << " via ForceK.";
+        << " via ForceK.  " << contacts_.size() << " contacts.";
     return kSuccess;
   } else {
     DLOG(WARNING) << kDebugName_ << ": Failed to insert node "

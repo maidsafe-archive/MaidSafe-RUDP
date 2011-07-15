@@ -221,7 +221,7 @@ void Node::Impl::Leave(std::vector<Contact> *bootstrap_contacts) {
   }
   refresh_thread_running_ = false;
   downlist_thread_running_ = false;
-  routing_table_->GetBootstrapContacts(bootstrap_contacts);
+  GetBootstrapContacts(bootstrap_contacts);
   if (!rpcs_)
     rpcs_.reset();
   if (!service_)
