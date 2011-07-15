@@ -65,8 +65,8 @@ const std::string kLocalIp = "127.0.0.1";
 const unsigned int kMaxRestartCycles = 5;
 const unsigned int kMaxPortTry = 5;
 
-struct SampleNodesStats {
-  explicit SampleNodesStats(size_t index)
+struct SampleNodeStats {
+  explicit SampleNodeStats(size_t index)
       : index(index),
         restart_cycles(RandomUint32() % kMaxRestartCycles + 1) {}
   size_t index;
@@ -316,8 +316,8 @@ class NodeChurnTest : public testing::Test {
     while (sample_set.size() < network_size_ / 2)
       sample_set.insert(RandomUint32() % network_size_);
     for (auto it(sample_set.begin()); it != sample_set.end(); ++it) {
-      sample_nodes_.push_back(std::shared_ptr<SampleNodesStats>(
-          new SampleNodesStats(*it)));
+      sample_nodes_.push_back(std::shared_ptr<SampleNodeStats>(
+          new SampleNodeStats(*it)));
     }
     for (auto it(sample_nodes_.begin()); it != sample_nodes_.end(); ++it)
       total_restart_ += (*it)->restart_cycles;
@@ -367,7 +367,7 @@ class NodeChurnTest : public testing::Test {
   const boost::posix_time::time_duration kMeanRefreshInterval_;
   std::vector<Contact> bootstrap_contacts_;
   std::vector<std::shared_ptr<TimerContainer>> timers_;
-  std::vector<std::shared_ptr<SampleNodesStats>> sample_nodes_;
+  std::vector<std::shared_ptr<SampleNodeStats>> sample_nodes_;
   size_t network_size_;
   size_t total_finished_;
   size_t total_restart_;

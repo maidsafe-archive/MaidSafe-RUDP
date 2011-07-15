@@ -85,9 +85,7 @@ DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
       refresh_interval_(mean_refresh_interval.total_seconds() +
                         (RandomInt32() % 120)),
       shared_mutex_(),
-      debug_id_() {
-  debug_id_ = IntToString(reinterpret_cast<int>(this));
-}
+      debug_id_("Uninitialised Debug ID") {}
 
 bool DataStore::HasKey(const std::string &key) {
   if (key.empty())

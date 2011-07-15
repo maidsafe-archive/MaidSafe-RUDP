@@ -95,7 +95,7 @@ class Node::Impl {
   // rather than polluting this with friend tests.
   virtual ~Impl();
   void Join(const NodeId &node_id,
-            const std::vector<Contact> &bootstrap_contacts,
+            std::vector<Contact> bootstrap_contacts,
             JoinFunctor callback);
   void Leave(std::vector<Contact> *bootstrap_contacts);
   /** Function to STORE data to the Kademlia network.
@@ -441,6 +441,10 @@ class Node::Impl {
 
   void JoinFindNodesCallback(const int &result,
                              const std::vector<Contact> &returned_contacts,
+                             std::vector<Contact> bootstrap_contacts,
+                             const NodeId &node_id,
+                             JoinFunctor callback);
+  void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
                              JoinFunctor callback);

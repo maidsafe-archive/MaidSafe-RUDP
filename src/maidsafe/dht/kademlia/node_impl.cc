@@ -102,12 +102,18 @@ Node::Impl::~Impl() {
 }
 
 void Node::Impl::Join(const NodeId &node_id,
-                      const std::vector<Contact> &bootstrap_contacts,
+                      std::vector<Contact> bootstrap_contacts,
                       JoinFunctor callback) {
-  if (bootstrap_contacts.empty()) {
-    callback(-1);
-    return;
+  auto iter = bootstrap_contacts.end();
+  for (auto it(bootstrap_contacts.begin());
+       it != bootstrap_contacts.end(); ++it) {
+    if ((*it).node_id() == node_id) {
+      iter = it;
+      break;
+    }
   }
+  if (iter != bootstrap_contacts.end())
+    bootstrap_contacts.erase(iter);
 
   if (!client_only_node_ && listening_transport_->listening_port() == 0) {
     callback(-1);
@@ -144,26 +150,69 @@ void Node::Impl::Join(const NodeId &node_id,
         std::bind(&Node::Impl::ValidateContact, this, arg::_1));
     validate_contact_running_ = true;
   }
-  if (bootstrap_contacts.size() == 1 &&
-      bootstrap_contacts[0].node_id() == node_id) {
+  if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
-    std::vector<Contact> contacts;
-    boost::thread(&Node::Impl::JoinFindNodesCallback, this, 0, contacts,
+    FindValueReturns find_value_returns;
+    find_value_returns.return_code = 0;
+    boost::thread(&Node::Impl::JoinFindValueCallback, this, find_value_returns,
                   bootstrap_contacts, node_id, callback);
     return;
   }
 
   std::vector<Contact> temp_bootstrap_contacts(bootstrap_contacts);
-  SortContacts(node_id, &temp_bootstrap_contacts);
-
   std::vector<Contact> search_contact;
   search_contact.push_back(temp_bootstrap_contacts.front());
   temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
-  FindNodesArgsPtr find_nodes_args(new FindNodesArgs(node_id,
-      std::bind(&Node::Impl::JoinFindNodesCallback, this, arg::_1, arg::_2,
-                temp_bootstrap_contacts, node_id, callback)));
-  AddContactsToContainer<FindNodesArgs>(search_contact, find_nodes_args);
-  IterativeSearch<FindNodesArgs>(find_nodes_args);
+  FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
+      default_securifier_,
+      std::bind(&Node::Impl::JoinFindValueCallback,
+          this, arg::_1, temp_bootstrap_contacts, node_id, callback)));
+  AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
+  IterativeSearch<FindValueArgs>(find_value_args);
+}
+
+void Node::Impl::JoinFindValueCallback(
+    FindValueReturns find_value_returns,
+    std::vector<Contact> bootstrap_contacts,
+    const NodeId &node_id,
+    JoinFunctor callback) {
+  if (!find_value_returns.values.empty()) {
+    callback(-1);
+    return;
+  }
+  if ((find_value_returns.return_code < 0) && !bootstrap_contacts.empty()) {
+    std::vector<Contact> search_contact;
+    search_contact.push_back(bootstrap_contacts.front());
+    bootstrap_contacts.erase(bootstrap_contacts.begin());
+    FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
+        default_securifier_,
+        std::bind(&Node::Impl::JoinFindValueCallback,
+            this, arg::_1, bootstrap_contacts, node_id, callback)));
+    AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
+    IterativeSearch<FindValueArgs>(find_value_args);
+  } else {
+    joined_ = true;
+    thread_group_.reset(new boost::thread_group());
+    if (!client_only_node_) {
+      service_.reset(new Service(routing_table_, data_store_,
+                                 alternative_store_, default_securifier_, k_));
+      service_->set_node_joined(true);
+      service_->set_node_contact(contact_);
+      service_->ConnectToSignals(message_handler_);
+      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
+                                             this));
+      refresh_thread_running_ = true;
+    }
+    // Connect the ReportDown Signal
+    report_down_contact_->connect(
+        ReportDownContactPtr::element_type::slot_type(
+            &Node::Impl::ReportDownContact, this, _1));
+    // Startup the thread to monitor the downlist queue
+    thread_group_->create_thread(
+        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+    downlist_thread_running_ = true;
+    callback(0);
+  }
 }
 
 void Node::Impl::JoinFindNodesCallback(
