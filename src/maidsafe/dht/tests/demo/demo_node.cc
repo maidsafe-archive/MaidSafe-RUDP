@@ -138,12 +138,12 @@ int DemoNode::JoinNode(const NodeId &node_id,
   boost::mutex mutex;
   boost::condition_variable cond_var;
   {
-    boost::mutex::scoped_lock lock(mutex);
-    kademlia_node_->Join(node_id, bootstrap_contacts,
+/*    boost::mutex::scoped_lock lock(mutex);
+    kademlia_node_->Join(node_id, &bootstrap_contacts,
                          std::bind(&DemoNode::JoinCallback, this, arg::_1,
                                    &response, &mutex, &cond_var));
     while (response == kWaiting)
-      cond_var.wait(lock);
+      cond_var.wait(lock);*/
   }
   return response;
 }

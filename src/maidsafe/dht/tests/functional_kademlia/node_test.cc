@@ -1,5 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
-All rights reserved.
+/* Copyright (c) 2009 maidsafe.net limited All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -182,7 +181,7 @@ class NodeTest : public testing::Test {
                     size_t *failed_nodes) {
     boost::mutex::scoped_lock lock(*mutex);
     if (result >= 0) {
-      if (index > 0 && index < network_size_)
+      if (index > 0 && index < nodes_.size())
         bootstrap_contacts_.push_back(nodes_[index]->node->contact());
       DLOG(INFO) << "Node " << (index + 1) << " joined.";
       ++(*joined_nodes);
@@ -304,7 +303,7 @@ class NodeTest : public testing::Test {
 TEST_F(NodeTest, BEH_JoinClientInvalidBootstrap) {
   size_t joined_nodes(network_size_), failed_nodes(0);
   dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &NodeTest::JoinCallback, this, network_size_, arg::_1, &mutex_,
       &cond_var_, &joined_nodes, &failed_nodes));
   crypto::RsaKeyPair key_pair;
   key_pair.GenerateKeys(4096);
@@ -312,8 +311,7 @@ TEST_F(NodeTest, BEH_JoinClientInvalidBootstrap) {
   nodes_.push_back(std::shared_ptr<NodeContainer>(new NodeContainer(
       node_id.String(), key_pair.public_key(), key_pair.private_key(), true,
       kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_)));
-  std::vector<dht::kademlia::Contact> bootstrap_contacts;
-  nodes_[network_size_]->node->Join(node_id, bootstrap_contacts, join_callback);
+  nodes_[network_size_]->node->Join(node_id, bootstrap_contacts_, join_callback);
   {
     boost::mutex::scoped_lock lock(mutex_);
     while (failed_nodes != 1)
@@ -341,7 +339,7 @@ TEST_F(NodeTest, FUNC_InvalidRequestDeleteValue) {
 TEST_F(NodeTest, BEH_JoinClient) {
   size_t joined_nodes(network_size_), failed_nodes(0);
   dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &NodeTest::JoinCallback, this, network_size_, arg::_1, &mutex_,
       &cond_var_, &joined_nodes, &failed_nodes));
   crypto::RsaKeyPair key_pair;
   key_pair.GenerateKeys(4096);
@@ -680,10 +678,10 @@ TEST_F(NodeTest, FUNC_FindClosestNodes) {
   char last_char = static_cast<char>(91 + network_size_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
-  dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_, &cond_var_,
-      &joined_nodes, &failed_nodes));
   for (size_t index = network_size_; index < network_size_*2; ++index) {
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+        &joined_nodes, &failed_nodes));    
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -734,10 +732,10 @@ TEST_F(NodeTest, BEH_FindClosestNodeAnalysis) {
   char last_char = static_cast<char>(91 + network_size_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
-  dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
-      &cond_var_, &joined_nodes, &failed_nodes));
   for (size_t index = network_size_; index < network_size_*2; ++index) {
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_,
+        &cond_var_, &joined_nodes, &failed_nodes));    
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -793,10 +791,10 @@ TEST_F(NodeTest, BEH_MultipleNodesFindClosestNodes) {
   char last_char = static_cast<char>(91 + network_size_);
   key_string += last_char;
   dht::kademlia::Key key(key_string);
-  dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
-      &cond_var_, &joined_nodes, &failed_nodes));
   for (size_t index = network_size_; index < network_size_*2; ++index) {
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_,
+        &cond_var_, &joined_nodes, &failed_nodes));    
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
