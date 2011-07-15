@@ -1176,7 +1176,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     // test::k - 1 contacted, the last one respond as contacted
     std::vector<Contact> lcontacts;
     bool done(false);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+    FindNodesArgsPtr fna(new FindNodesArgs(target,
         std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
                   &lcontacts)));
 
@@ -1214,7 +1214,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     // the last one respond as contacted
     std::vector<Contact> lcontacts;
     bool done(false);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+    FindNodesArgsPtr fna(new FindNodesArgs(target,
         std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
                   &lcontacts)));
 
@@ -1257,7 +1257,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     // test::k / 2 contacted, the last one respond as no-response
     std::vector<Contact> lcontacts;
     bool done(false);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+    FindNodesArgsPtr fna(new FindNodesArgs(target,
         std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
                   &lcontacts)));
 
@@ -1295,7 +1295,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     // for the last round, all contacted
     std::vector<Contact> lcontacts;
     bool done(false);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+    FindNodesArgsPtr fna(new FindNodesArgs(target,
         std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
                   &lcontacts)));
 
@@ -1362,7 +1362,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     // no response
     std::vector<Contact> lcontacts;
     bool done(false);
-    std::shared_ptr<FindNodesArgs> fna(new FindNodesArgs(target,
+    FindNodesArgsPtr fna(new FindNodesArgs(target,
         std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
                   &lcontacts)));
 
