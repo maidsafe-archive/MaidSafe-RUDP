@@ -443,6 +443,10 @@ class Node::Impl {
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
                              JoinFunctor callback);
+  void JoinFindValueCallback(FindValueReturns find_value_returns,
+                             std::vector<Contact> bootstrap_contacts,
+                             const NodeId &node_id,
+                             JoinFunctor callback);
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
