@@ -370,13 +370,12 @@ void Node::Impl::StoreResponse(RankInfoPtr rank_info,
 
   auto pit_contacted = store_args->node_group.
       get<NodeGroupTuple::SearchState>().equal_range(kContacted);
-  int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
-                                          pit_contacted.second));
+  size_t num_of_contacted = std::distance(pit_contacted.first,
+                                          pit_contacted.second);
 
   auto pit_down = store_args->node_group.
       get<NodeGroupTuple::SearchState>().equal_range(kDown);
-  int num_of_down = static_cast<int>(std::distance(pit_down.first,
-                                                   pit_down.second));
+  size_t num_of_down = std::distance(pit_down.first, pit_down.second);
 
   if (!store_args->called_back) {
     if (num_of_down > (k_ - threshold_)) {
@@ -441,19 +440,18 @@ void Node::Impl::DeleteResponse(RankInfoPtr rank_info,
   auto pit_pending =
       delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
       equal_range(kSelectedAlpha);
-//  int num_of_pending = std::distance(pit_pending.first, pit_pending.second);
+// size_t num_of_pending = std::distance(pit_pending.first, pit_pending.second);
 
   auto pit_contacted =
       delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
       equal_range(kContacted);
-  int num_of_contacted = static_cast<int>(std::distance(pit_contacted.first,
-                                                        pit_contacted.second));
+  size_t num_of_contacted = std::distance(pit_contacted.first,
+                                          pit_contacted.second);
 
   auto pit_down =
       delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
       equal_range(kDown);
-  int num_of_down = static_cast<int>(std::distance(pit_down.first,
-                                                   pit_down.second));
+  size_t num_of_down = std::distance(pit_down.first, pit_down.second);
 
   if (num_of_down > (k_ - threshold_)) {
     // report back a failure once has more down contacts than the margin

@@ -470,7 +470,7 @@ class Node::Impl {
 
   /** Global threshold to define the number of succeed required to consider a
    *  Store, Delete or Update to be success */
-  int threshold_;
+  size_t threshold_;
 
   /** Alpha parameter to define how many contacts to be enquired during one
    *  iteration */
