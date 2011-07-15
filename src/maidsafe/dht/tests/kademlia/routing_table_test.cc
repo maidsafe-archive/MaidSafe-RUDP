@@ -337,7 +337,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     Contact contact = ComposeContact(node_id, 5337);
     int result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
                                                     upgrade_lock);
-    EXPECT_EQ(-3, result);
+    EXPECT_EQ(kNotInBrotherBucket, result);
     AddContact(contact);
   }
   int retry(0);
@@ -377,12 +377,12 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
       if (distance_to_node >= furthest_distance) {
         int force_result = routing_table_.ForceKAcceptNewPeer(contact, 3,
                               rank_info, upgrade_lock);
-        EXPECT_EQ(-4, force_result);
+        EXPECT_EQ(kOutwithClosest, force_result);
         fail_check = true;
       } else {
         int force_result = routing_table_.ForceKAcceptNewPeer(contact, 3,
                               rank_info, upgrade_lock);
-        EXPECT_EQ(0, force_result);
+        EXPECT_EQ(kSuccess, force_result);
         pass_check = true;
       }
       if (fail_check && pass_check)
@@ -410,7 +410,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     RankInfoPtr rank_info;
     int force_result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
                                                           upgrade_lock);
-    EXPECT_EQ(-2, force_result);
+    EXPECT_EQ(kOutwithClosest, force_result);
   }
   // When new contact not exist in brother_bucket
 
@@ -427,7 +427,7 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     RankInfoPtr rank_info;
     int force_result = routing_table_.ForceKAcceptNewPeer(contact, 0, rank_info,
                                                           upgrade_lock);
-    EXPECT_EQ(-3, force_result);
+    EXPECT_EQ(kNotInBrotherBucket, force_result);
   }
 
   retry = 0;
@@ -446,11 +446,11 @@ TEST_P(RoutingTableSingleKTest, FUNC_KAD_ForceKAcceptNewPeer) {
     if (distance_to_node >= furthest_distance) {
       int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
                             rank_info, upgrade_lock);
-      EXPECT_EQ(-4, force_result);
+      EXPECT_EQ(kOutwithClosest, force_result);
     } else {
       int force_result = routing_table_.ForceKAcceptNewPeer(contact, 1,
                             rank_info, upgrade_lock);
-      EXPECT_EQ(0, force_result);
+      EXPECT_EQ(kSuccess, force_result);
     }
     ++retry;
   }

@@ -441,14 +441,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                               std::vector<Contact> response_list) {
     uint16_t interval(10 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, static_cast<int>(response_list.size()), response_list);
+    callback(rank_info_, transport::kSuccess, response_list);
   }
 
   void FindNodeNoResponseThread(FindNodesFunctor callback,
                                 std::vector<Contact> response_list) {
     uint16_t interval(100 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, -1, response_list);
+    callback(rank_info_, transport::kError, response_list);
   }
 
   void FindValueNoResponse(const Contact &/*contact*/,
@@ -522,7 +522,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     uint16_t interval(10 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
-    callback(rank_info_, 0, response_value_list,
+    callback(rank_info_, transport::kSuccess, response_value_list,
              response_contact_list, alternative_store);
   }
 
@@ -532,8 +532,8 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     uint16_t interval(100 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
     Contact alternative_store;
-    callback(rank_info_, -1, response_value_list, response_contact_list,
-             alternative_store);
+    callback(rank_info_, transport::kError, response_value_list,
+             response_contact_list, alternative_store);
   }
 
   void DownlistRecord(const std::vector<NodeId> &node_ids,
@@ -630,14 +630,14 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   void CommonResponseThread(T callback) {
     uint16_t interval(10 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, RandomUint32() % test::k);
+    callback(rank_info_, transport::kSuccess);
   }
 
   template <class T>
   void CommonNoResponseThread(T callback) {
     uint16_t interval(100 * (RandomUint32() % 5) + 1);
     Sleep(boost::posix_time::milliseconds(interval));
-    callback(rank_info_, -1);
+    callback(rank_info_, transport::kError);
   }
 
   void PopulateResponseCandidates(int count, const int& pos) {
@@ -717,7 +717,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(-1, response_code);
+    EXPECT_EQ(kFailedToGetContact, response_code);
     EXPECT_EQ(Contact(), result);
   }
   Contact target = ComposeContact(target_id, 5000);
@@ -735,7 +735,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(1, response_code);
+    EXPECT_EQ(kSuccess, response_code);
     EXPECT_EQ(target, result);
   }
   // sleep for a while to prevent the situation that resources got destructed
@@ -848,7 +848,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_LT(0, result);
+    ASSERT_EQ(kSuccess, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -876,7 +876,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_LT(0, result);
+    ASSERT_EQ(kSuccess, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -910,7 +910,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_EQ(transport::kError, result);
+    ASSERT_EQ(kContactFailedToRespond, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -952,7 +952,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
 
-    ASSERT_LT(0, result);
+    ASSERT_EQ(kSuccess, result);
     bootstrap_contacts.clear();
     ASSERT_TRUE(node_->refresh_thread_running());
     ASSERT_TRUE(node_->downlist_thread_running());
@@ -998,7 +998,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   node_->Join(node_id_, bootstrap_contacts, callback);
   while (!done)
     Sleep(boost::posix_time::milliseconds(1000));
-  ASSERT_LT(0, result);
+  ASSERT_EQ(kSuccess, result);
   bootstrap_contacts.clear();
   node_->Leave(&bootstrap_contacts);
   ASSERT_FALSE(node_->joined());
@@ -1469,7 +1469,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(threshold_, response_code);
+    EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
   EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
@@ -1495,7 +1495,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kStoreTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
@@ -1519,7 +1519,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kStoreTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
@@ -1544,7 +1544,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(threshold_, response_code);
+    EXPECT_EQ(kSuccess, response_code);
     // wait to ensure in case of wrong, the wrong deletion will be executed
     Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(0, new_rpcs->num_of_deleted_);
@@ -1570,7 +1570,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-3, response_code);
+    EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
   }
@@ -1625,7 +1625,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(threshold_, response_code);
+    EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1645,7 +1645,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kDeleteTooFewNodes, response_code);
     // wait for the all delete processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
@@ -1669,7 +1669,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kDeleteTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
@@ -1694,7 +1694,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(threshold_, response_code);
+    EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1717,7 +1717,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
              std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-3, response_code);
+    EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
   }
@@ -1781,7 +1781,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(threshold_, response_code);
+    EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1812,7 +1812,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kUpdateTooFewNodes, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
@@ -1845,7 +1845,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kUpdateTooFewNodes, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
@@ -1878,7 +1878,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kDeleteTooFewNodes, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
@@ -1911,7 +1911,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kDeleteTooFewNodes, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
@@ -1944,7 +1944,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
                             &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-3, response_code);
+    EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
   }
@@ -1973,7 +1973,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                      std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.return_code);
+    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(0, results.closest_nodes.size());
   }
@@ -1994,7 +1994,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
                      std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.return_code);
+    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(test::k, results.closest_nodes.size());
   }
@@ -2020,7 +2020,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    EXPECT_EQ(1, results.return_code);
+    EXPECT_EQ(kSuccess, results.return_code);
     EXPECT_EQ(0, results.closest_nodes.size());
     EXPECT_EQ(1, results.values.size());
     EXPECT_EQ("FIND", results.values[0]);
@@ -2041,7 +2041,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     // Prevent deadlock
     while ((!done) && (new_rpcs->num_of_acquired_ < (40 * test::k)))
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.return_code);
+    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(test::k, results.closest_nodes.size());
     EXPECT_GT(40 * test::k, new_rpcs->num_of_acquired_);
@@ -2147,7 +2147,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                  std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kStoreTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
@@ -2180,7 +2180,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                             &response_code));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kDeleteTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     // may not be necessary for this test
@@ -2227,7 +2227,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(-2, response_code);
+    EXPECT_EQ(kUpdateTooFewNodes, response_code);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
     EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
@@ -2255,7 +2255,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
                      std::bind(&FindValueCallback, arg::_1, &done, &results));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(-2, results.return_code);
+    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_EQ(0, results.values.size());
     EXPECT_EQ(0, results.closest_nodes.size());
     // wait for the all processes to be completed

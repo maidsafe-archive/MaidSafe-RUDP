@@ -236,6 +236,8 @@ void Node::Impl::Store(const Key &key,
                        const bptime::time_duration &ttl,
                        SecurifierPtr securifier,
                        StoreFunctor callback) {
+  if (!securifier)
+    securifier = default_securifier_;
   FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<StoreArgs>, this,
                            arg::_1, arg::_2, key, value, signature, ttl,
                            securifier, StoreArgsPtr(new StoreArgs(callback))));
@@ -246,6 +248,8 @@ void Node::Impl::Delete(const Key &key,
                         const std::string &signature,
                         SecurifierPtr securifier,
                         DeleteFunctor callback) {
+  if (!securifier)
+    securifier = default_securifier_;
   bptime::time_duration ttl;
   FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<DeleteArgs>, this,
                            arg::_1, arg::_2, key, value, signature, ttl,
@@ -261,6 +265,8 @@ void Node::Impl::Update(const Key &key,
                         SecurifierPtr securifier,
                         const bptime::time_duration &ttl,
                         UpdateFunctor callback) {
+  if (!securifier)
+    securifier = default_securifier_;
   FindNodes(key, std::bind(&Node::Impl::OperationFindNodesCB<UpdateArgs>, this,
                            arg::_1, arg::_2, key, "", "", ttl, securifier,
                            UpdateArgsPtr(new UpdateArgs(new_value,
@@ -505,6 +511,8 @@ void Node::Impl::UpdateStoreResponse(RankInfoPtr rank_info,
 void Node::Impl::FindValue(const Key &key,
                            SecurifierPtr securifier,
                            FindValueFunctor callback) {
+  if (!securifier)
+    securifier = default_securifier_;
   FindValueArgsPtr find_value_args(new FindValueArgs(key, securifier,
                                                      callback));
   // initialize with local k closest as a seed
