@@ -132,10 +132,12 @@ class MockMessageHandler : public MessageHandler {
 
   switch (message_type) {
     case kademlia::kPingRequest: {
+      protobuf::PingRequest request;
+      request.ParseFromString(payload);
       protobuf::PingResponse response;
       switch (result_type_) {
         case 1: {
-          response.set_echo("pong");
+          response.set_echo(request.ping());
           break;
         }
         case 2: {

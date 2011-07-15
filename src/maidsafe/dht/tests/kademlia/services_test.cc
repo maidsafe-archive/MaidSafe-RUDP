@@ -1184,7 +1184,7 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
 
   {
     // Check failure with ping set incorrectly.
-    ping_request.set_ping("doink");
+    ping_request.set_ping("");
     protobuf::PingResponse ping_response;
     service_->Ping(info_, ping_request, &ping_response, &time_out);
     EXPECT_FALSE(ping_response.IsInitialized());
@@ -1194,11 +1194,11 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
   }
   {
     // Check success.
-    ping_request.set_ping("ping");
+    ping_request.set_ping(RandomString(50 + (RandomUint32() % 50)));
     protobuf::PingResponse ping_response;
     service_->Ping(info_, ping_request, &ping_response, &time_out);
     EXPECT_TRUE(ping_response.IsInitialized());
-    EXPECT_EQ("pong", ping_response.echo());
+    EXPECT_EQ(ping_request.ping(), ping_response.echo());
     EXPECT_EQ(0U, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
   }
@@ -1834,12 +1834,12 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   // Signal PingRequest
   protobuf::PingRequest ping_request;
   ping_request.mutable_sender()->CopyFrom(ToProtobuf(sender));
-  ping_request.set_ping("ping");
+  ping_request.set_ping(RandomString(50 + (RandomUint32() % 50)));
   protobuf::PingResponse ping_response;
   (*message_handler_ptr->on_ping_request())(info_, ping_request, &ping_response,
                                             &time_out);
   EXPECT_TRUE(ping_response.IsInitialized());
-  EXPECT_EQ("pong", ping_response.echo());
+  EXPECT_EQ(ping_request.ping(), ping_response.echo());
 
   // Signal FindValueRequest
   protobuf::FindValueRequest find_value_req;
