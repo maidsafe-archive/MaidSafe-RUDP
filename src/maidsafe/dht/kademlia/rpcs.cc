@@ -69,8 +69,7 @@ void Rpcs::Ping(SecurifierPtr securifier,
 
   protobuf::PingRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
-//  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
-  std::string random_data("ping");
+  std::string random_data(RandomString(50 + (RandomUint32() % 50)));
   request.set_ping(random_data);
   std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
   rpcs_failure_peer->peer = peer;
@@ -315,7 +314,7 @@ void Rpcs::Downlist(const std::vector<NodeId> &node_ids,
 }
 
 void Rpcs::PingCallback(
-    const std::string &/*random_data*/,
+    const std::string &random_data,
     const transport::TransportCondition &transport_condition,
     const transport::Info &info,
     const protobuf::PingResponse &response,
@@ -336,7 +335,7 @@ void Rpcs::PingCallback(
       callback(RankInfoPtr(new transport::Info(info)), transport_condition);
       return;
     }
-    if (response.IsInitialized() && response.echo() == "pong") {
+    if (response.IsInitialized() && response.echo() == random_data) {
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     } else {
       callback(RankInfoPtr(new transport::Info(info)), transport::kError);
