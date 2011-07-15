@@ -228,7 +228,7 @@ TEST_F(SenderTaskTest, FUNC_SenderTaskCallback) {
     crypto_key_data.GenerateKeys(4096);
     KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
     EXPECT_TRUE(sender_task_->AddTask(kvs, info_, request_signature,
-                                      "public_key_id_1", task_cb_1, &is_new_id));
+                "public_key_id_1", task_cb_1, &is_new_id));
     EXPECT_TRUE(HasDataInIndex(kvs, request_signature, "public_key_id_1"));
     EXPECT_EQ(size_t(i), GetSenderTaskSize());
   }
