@@ -213,7 +213,7 @@ class NodeImplTest : public testing::Test {
       }
       ASSERT_EQ(0, result);
       ASSERT_TRUE(node_container->node()->joined());
-      DLOG(INFO) << "Node " << i << " joined: " << node_container->DebugName();
+      DLOG(INFO) << "Node " << i << " joined: " << DebugId(*node_container);
       bootstrap_contacts.push_back(node_container->node()->contact());
       node_containers_.push_back(node_container);
       node_ids_.push_back(node_container->node()->contact().node_id());
@@ -296,7 +296,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % node_containers_.size());
   DLOG(INFO) << "Node " << test_node_index << " - "
-             << node_containers_[test_node_index]->DebugName()
+             << DebugId(*node_containers_[test_node_index])
              << " performing store operation.";
   {
     boost::mutex::scoped_lock lock(mutex_);
@@ -311,7 +311,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   for (size_t i = 0; i != kNumberOfNodes; ++i) {
     if (WithinKClosest(node_containers_[i]->node()->contact().node_id(), key,
                        node_ids_)) {
-//        std::cout << node_containers_[i]->node()->contact().node_id().ToStringEncoded(NodeId::kHex).substr(0, 10) << ": ";
+//        std::cout << DebugId(*node_containers_[i]) << ": ";
       EXPECT_TRUE(GetDataStore(node_containers_[i])->HasKey(key.String()));
     } else {
       EXPECT_FALSE(GetDataStore(node_containers_[i])->HasKey(key.String()));
