@@ -122,12 +122,14 @@ class RpcsTest: public CreateContactAndNodeId,
                thread_group_(),
                work_(new boost::asio::io_service::work(asio_service_)),
                work1_(new boost::asio::io_service::work(local_asio_)) {
-    thread_group_.create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
-            &boost::asio::io_service::run), &asio_service_));
-    thread_group_.create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
-            &boost::asio::io_service::run), &local_asio_));
+    for (int i = 0; i != 3; ++i) {
+      thread_group_.create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), &asio_service_));
+      thread_group_.create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), &local_asio_));
+    }
   }
 
   static void SetUpTestCase() {
@@ -647,7 +649,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
   std::vector<std::pair<bool, int>> status_response;
   boost::posix_time::seconds ttl(3600);
 
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 1024, key.String(),
                                  ""));
     status_response.push_back(std::make_pair(false, -1));
@@ -656,7 +658,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
                     sender_crypto_key_id_.public_key());
   std::string signature("");
 
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
@@ -668,7 +670,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
                  transport_type_);
   }
   while (!done) {
-    for (size_t i = 0; i< 10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
         Sleep(boost::posix_time::milliseconds(100));
@@ -680,7 +682,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
   StopAndReset();
 
   // Checking results
-  for (int i = 0; i< 10; ++i) {
+  for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
     if (i%2)
       EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
@@ -788,12 +790,11 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
 }
 
 TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
-  bool done(false);
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
   std::vector<bptime::ptime> refresh_time_old_vector;
   std::vector<RequestAndSignature> req_sig_vector;
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     // Adding key value from different contact in the receiver's datastore
     NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
     kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 4096, "", ""));
@@ -812,7 +813,7 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
   // Store Refresh rpc
   std::string req_signature;
   Sleep(boost::posix_time::seconds(2));
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       req_signature = "Invalid Request Signature";
     else
@@ -824,19 +825,15 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
                                   &status_response[i].second),
                         transport_type_);
   }
-  while (!done) {
-    for (size_t i = 0; i< 10; ++i) {
-      done = status_response[i].first;
-      if (!done) {
-        Sleep(boost::posix_time::milliseconds(100));
-        --i;
-      }
-    }
+  for (size_t i = 0; i < 10; ++i) {
+    // Need to wait for invalid requests to timeout.
+    while (!status_response[i].first)
+      Sleep(boost::posix_time::milliseconds(1));
   }
   JoinNetworkLookup(service_securifier_);
   StopAndReset();
   // Check results
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(0, status_response[i].second);
     EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
     if (i%2)
@@ -1036,7 +1033,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
 
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 1024, key.String(),
                                  ""));
     status_response.push_back(std::make_pair(false, -1));
@@ -1049,7 +1046,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
                     sender_crypto_key_id_.public_key());
   std::string signature("");
 
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
@@ -1061,7 +1058,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
                   transport_type_);
   }
   while (!done) {
-    for (size_t i = 0; i< 10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
         Sleep(boost::posix_time::milliseconds(100));
@@ -1073,7 +1070,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
   JoinNetworkLookup(service_securifier_);
 
   // Checking results
-  for (int i = 0; i< 10; ++i) {
+  for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
     if (i%2)
       EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
@@ -1271,7 +1268,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
   std::vector<std::pair<bool, int>> status_response;
   std::vector<bptime::ptime> refresh_time_old_vector;
   std::vector<RequestAndSignature> req_sig_vector;
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     // Adding key value from different contact in the receiver's datastore
     NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
     crypto::RsaKeyPair crypto_key_data;
@@ -1295,7 +1292,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
   }
   // Delete Refresh rpc
   std::string req_signature;
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       req_signature = "Invalid Request Signature";
     else
@@ -1308,7 +1305,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
                          transport_type_);
   }
   while (!done) {
-    for (size_t i = 0; i< 10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
         Sleep(boost::posix_time::milliseconds(100));
@@ -1319,7 +1316,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
   StopAndReset();
   JoinNetworkLookup(service_securifier_);
   // Checking results
-  for (size_t i = 0; i< 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
     EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
     if (i%2)
