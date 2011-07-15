@@ -314,7 +314,7 @@ class NodeChurnTest : public testing::Test {
     // populate sample_nodes_
     std::set<size_t> sample_set;
     while (sample_set.size() < network_size_ / 2)
-      sample_set.insert(RandomUint32() % network_size_ + 1);
+      sample_set.insert(RandomUint32() % network_size_);
     for (auto it(sample_set.begin()); it != sample_set.end(); ++it) {
       sample_nodes_.push_back(std::shared_ptr<SampleNodesStats>(
           new SampleNodesStats(*it)));
