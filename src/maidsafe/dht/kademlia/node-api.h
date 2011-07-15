@@ -115,7 +115,7 @@ class Node {
   // bootstrap_contacts should be directly-connected peers to allow successful
   // NAT detection.
   void Join(const NodeId &node_id,
-            const std::vector<Contact> &bootstrap_contacts,
+            std::vector<Contact> bootstrap_contacts,
             JoinFunctor callback);
 
   // Leave the kademlia network.  All values stored in the node are erased and

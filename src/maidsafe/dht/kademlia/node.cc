@@ -52,7 +52,7 @@ Node::Node(AsioService &asio_service,             // NOLINT (Fraser)
 Node::~Node() {}
 
 void Node::Join(const NodeId &node_id,
-                const std::vector<Contact> &bootstrap_contacts,
+                std::vector<Contact> bootstrap_contacts,
                 JoinFunctor callback) {
   pimpl_->Join(node_id, bootstrap_contacts, callback);
 }

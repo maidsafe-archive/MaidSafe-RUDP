@@ -368,8 +368,18 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
   auto it = contacts_.get<BootstrapTag>().equal_range(true);
   contacts->clear();
   contacts->reserve(distance(it.first, it.second));
-  while (it.first != it.second)
-    contacts->push_back((*it.first++).contact);
+  while (it.first != it.second) {
+    if ((*it.first).DirectConnected())
+      contacts->push_back((*it.first).contact);
+    *it.first++;
+  }
+  it = contacts_.get<BootstrapTag>().equal_range(true);
+  while ((contacts->size() < kMaxBootstrapContacts) &&
+      (it.first != it.second)) {
+    if (!((*it.first).DirectConnected()))
+      contacts->push_back((*it.first).contact);
+    *it.first++;
+  }
 }
 
 RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {

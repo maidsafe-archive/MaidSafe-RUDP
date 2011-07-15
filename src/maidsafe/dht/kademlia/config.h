@@ -132,6 +132,9 @@ const double kMinSuccessfulPecentageUpdate(0.75);
 // routing table.
 const uint16_t kFailedRpcTolerance(2);
 
+// The maximum number of contacts returned by GetBootStrapContact
+const uint16_t  kMaxBootstrapContacts(8);
+
 }  // namespace kademlia
 
 }  // namespace dht

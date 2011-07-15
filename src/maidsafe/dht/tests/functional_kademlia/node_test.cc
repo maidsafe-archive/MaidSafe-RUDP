@@ -182,7 +182,9 @@ class NodeTest : public testing::Test {
     boost::mutex::scoped_lock lock(*mutex);
     if (result >= 0) {
       if (index > 0 && index < nodes_.size())
-        bootstrap_contacts_.push_back(nodes_[index]->node->contact());
+        if ((std::find(bootstrap_contacts_.begin(), bootstrap_contacts_.end(),
+            nodes_[index]->node->contact()) == bootstrap_contacts_.end()))
+          bootstrap_contacts_.push_back(nodes_[index]->node->contact());
       DLOG(INFO) << "Node " << (index + 1) << " joined.";
       ++(*joined_nodes);
     } else {
@@ -211,7 +213,7 @@ class NodeTest : public testing::Test {
                kReplicationFactor_(4),
                kMeanRefreshInterval_(boost::posix_time::hours(1)),
                bootstrap_contacts_(),
-               network_size_(20) {}
+               network_size_(8) {}
 
   virtual void SetUp() {
     size_t joined_nodes(0), failed_nodes(0);
@@ -235,6 +237,9 @@ class NodeTest : public testing::Test {
               nodes_[0]->transport->StartListening(endpoint));
     nodes_[0]->node->Join(node_id, bootstrap_contacts_, join_callback);
     for (size_t index = 1; index < network_size_; ++index) {
+      dht::kademlia::JoinFunctor join_callback(std::bind(
+          &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+          &joined_nodes, &failed_nodes));
       crypto::RsaKeyPair tmp_key_pair;
       tmp_key_pair.GenerateKeys(4096);
       dht::kademlia::NodeId nodeid(dht::kademlia::NodeId::kRandomId);
@@ -298,9 +303,12 @@ class NodeTest : public testing::Test {
 };
 
 /** tests failure on a client joining the network when using an invalid 
- */
+ * bootstrap_contacts. 
+ * THE TEST IS NOT REQUIRED ANY MORE as an empty 
+ * bootstrap_contacts passed to join will be interpreted as an intention 
+ * to create a network */
 
-TEST_F(NodeTest, BEH_JoinClientInvalidBootstrap) {
+/*TEST_F(NodeTest, DISBALED_BEH_JoinClientInvalidBootstrap) {
   size_t joined_nodes(network_size_), failed_nodes(0);
   dht::kademlia::JoinFunctor join_callback(std::bind(
       &NodeTest::JoinCallback, this, network_size_, arg::_1, &mutex_,
@@ -311,14 +319,14 @@ TEST_F(NodeTest, BEH_JoinClientInvalidBootstrap) {
   nodes_.push_back(std::shared_ptr<NodeContainer>(new NodeContainer(
       node_id.String(), key_pair.public_key(), key_pair.private_key(), true,
       kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_)));
-  nodes_[network_size_]->node->Join(node_id, bootstrap_contacts_, join_callback);
+  std::vector<dht::kademlia::Contact> bootstrap_contacts;
+  nodes_[network_size_]->node->Join(node_id, bootstrap_contacts, join_callback);
   {
     boost::mutex::scoped_lock lock(mutex_);
-    while (failed_nodes != 1)
-      cond_var_.wait(lock);
+    cond_var_.wait(lock);
   }
   EXPECT_EQ(1, failed_nodes);
-}
+}*/
 
 TEST_F(NodeTest, FUNC_InvalidRequestDeleteValue) {
   int result(1);
@@ -369,10 +377,10 @@ TEST_F(NodeTest, BEH_JoinClient) {
 
 TEST_F(NodeTest, BEH_JoinedClientFindsValue) {
   size_t joined_nodes(network_size_), failed_nodes(0);
-  dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
-      &cond_var_, &joined_nodes, &failed_nodes));
   for (size_t index = network_size_; index < network_size_ + 1; ++index) {
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+        &joined_nodes, &failed_nodes));
     crypto::RsaKeyPair key_pair;
     key_pair.GenerateKeys(4096);
     dht::kademlia::NodeId nodeid(dht::kademlia::Key::kRandomId);
@@ -425,10 +433,10 @@ TEST_F(NodeTest, FUNC_GetNodeContactDetails) {
   size_t joined_nodes(network_size_), failed_nodes(0);
   int result(0);
   std::vector<dht::kademlia::Key> new_keys;
-  dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
-      &cond_var_, &joined_nodes, &failed_nodes));
   for (size_t index = network_size_; index < network_size_*2; ++index) {
+    dht::kademlia::JoinFunctor join_callback(std::bind(
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+        &joined_nodes, &failed_nodes));
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -471,7 +479,7 @@ TEST_F(NodeTest, FUNC_GetNodeContactDetails) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
   EXPECT_EQ(contact.endpoint().port,
             kStartingPort + random_node + network_size_);
 }
@@ -516,12 +524,12 @@ TEST_F(NodeTest, FUNC_FindDeadNode) {
       == closest_nodes.end());
 }
 
-TEST_F(NodeTest, FUNC_StartStopNode) {
+TEST_F(NodeTest, FUNC_StartStopNode)  {
   size_t joined_nodes(network_size_), failed_nodes(0);
   int random_node = RandomUint32() % (network_size_ - 1) + 1;
   dht::kademlia::Contact contact;
   dht::kademlia::JoinFunctor join_callback(std::bind(
-      &NodeTest::JoinCallback, this, 0, arg::_1, &mutex_,
+      &NodeTest::JoinCallback, this, random_node, arg::_1, &mutex_,
       &cond_var_, &joined_nodes, &failed_nodes));
   contact = nodes_[random_node]->node->contact();
   EXPECT_TRUE(nodes_[random_node]->node->joined());
@@ -552,7 +560,7 @@ TEST_F(NodeTest, FUNC_StoreWithInvalidRequest) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
       std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
                 &cond_var_, &result, &found_values));
@@ -591,7 +599,7 @@ TEST_F(NodeTest, DISABLED_BEH_UpdateValue) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
       std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
                 &cond_var_, &result, &found_values));
@@ -608,7 +616,7 @@ TEST_F(NodeTest, DISABLED_BEH_UpdateValue) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
   found_values.clear();
   nodes_[0]->node->FindValue(key, nodes_[0]->securifier,
       std::bind(&NodeTest::FindValueCallback, this, arg::_1, &mutex_,
@@ -632,7 +640,7 @@ TEST_F(NodeTest, FUNC_StoreAndLoadSmallValue) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
 
   std::vector<std::string> found_values;
   nodes_[random_node]->node->FindValue(key, nodes_[random_node]->securifier,
@@ -657,7 +665,7 @@ TEST_F(NodeTest, FUNC_StoreAndLoadBigValue) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
 
   std::vector<std::string> found_values;
   random_node = RandomUint32() % network_size_;
@@ -681,7 +689,7 @@ TEST_F(NodeTest, FUNC_FindClosestNodes) {
   for (size_t index = network_size_; index < network_size_*2; ++index) {
     dht::kademlia::JoinFunctor join_callback(std::bind(
         &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
-        &joined_nodes, &failed_nodes));    
+        &joined_nodes, &failed_nodes));
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -734,8 +742,8 @@ TEST_F(NodeTest, BEH_FindClosestNodeAnalysis) {
   dht::kademlia::Key key(key_string);
   for (size_t index = network_size_; index < network_size_*2; ++index) {
     dht::kademlia::JoinFunctor join_callback(std::bind(
-        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_,
-        &cond_var_, &joined_nodes, &failed_nodes));    
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+        &joined_nodes, &failed_nodes));
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -793,8 +801,8 @@ TEST_F(NodeTest, BEH_MultipleNodesFindClosestNodes) {
   dht::kademlia::Key key(key_string);
   for (size_t index = network_size_; index < network_size_*2; ++index) {
     dht::kademlia::JoinFunctor join_callback(std::bind(
-        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_,
-        &cond_var_, &joined_nodes, &failed_nodes));    
+        &NodeTest::JoinCallback, this, index, arg::_1, &mutex_, &cond_var_,
+        &joined_nodes, &failed_nodes));
     crypto::RsaKeyPair key_pair;
     std::string key_string(63, '\0');
     char last_char = static_cast<char>(60 + index);
@@ -899,7 +907,7 @@ TEST_F(NodeTest, FUNC_FindValueWithDeadNodes) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
 
   std::vector<dht::kademlia::Contact> contacts;
   nodes_[random_node]->node->FindNodes(key,
@@ -953,7 +961,7 @@ TEST_F(NodeTest, BEH_MultipleNodesFindSingleValue) {
       boost::mutex::scoped_lock lock(mutex_);
       cond_var_.wait(lock);
     }
-    EXPECT_LT(0, result);
+    EXPECT_EQ(0, result);
   }
   for (int index = 0; index < kProbes; ++index) {
     random_source = ((RandomUint32() % (network_size_ - 1))
@@ -987,7 +995,7 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
       boost::mutex::scoped_lock lock(mutex_);
       cond_var_.wait(lock);
     }
-    EXPECT_LT(0, result);
+    EXPECT_EQ(0, result);
   }
   std::vector<std::string> strings;
   const dht::kademlia::Key key(crypto::Hash<crypto::SHA512>("dccxxvdeee432cc "
@@ -1012,7 +1020,7 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
   result = -1;
   strings.clear();
   nodes_[random_source]->node->FindValue(key, nodes_[random_source]->securifier,
@@ -1033,7 +1041,7 @@ TEST_F(NodeTest, FUNC_FindStoreDelete) {
     boost::mutex::scoped_lock lock(mutex_);
     cond_var_.wait(lock);
   }
-  EXPECT_LT(0, result);
+  EXPECT_EQ(0, result);
 
   result = -1;
   strings.clear();

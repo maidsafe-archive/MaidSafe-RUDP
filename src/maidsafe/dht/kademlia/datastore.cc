@@ -86,7 +86,7 @@ DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
                         (RandomInt32() % 120)),
       shared_mutex_(),
       debug_name_() {
-  debug_name_ = IntToString(reinterpret_cast<int>(this));
+  debug_name_ = RandomAlphaNumericString(10);
 }
 
 bool DataStore::HasKey(const std::string &key) {
