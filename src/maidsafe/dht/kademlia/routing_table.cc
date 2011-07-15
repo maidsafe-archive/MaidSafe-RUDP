@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/routing_table.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/log.h"
 
 namespace maidsafe {
@@ -38,7 +39,7 @@ namespace kademlia {
 
 RoutingTable::RoutingTable(const NodeId &this_id, const uint16_t &k)
     : kThisId_(this_id),
-      kDebugName_(kThisId_.ToStringEncoded(NodeId::kHex).substr(0, 10)),
+      kDebugId_(DebugId(kThisId_)),
       k_(k),
       contacts_(),
       unvalidated_contacts_(),
@@ -58,7 +59,7 @@ int RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
 
   // If the contact has the same ID as the holder, return directly
   if (node_id == kThisId_) {
-    DLOG(WARNING) << kDebugName_ << ": Can't add own ID to routing table.";
+    DLOG(WARNING) << kDebugId_ << ": Can't add own ID to routing table.";
     return kOwnIdNotIncludable;
   }
 
@@ -74,8 +75,8 @@ int RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
         ChangeLastSeen(bptime::microsec_clock::universal_time()))) {
       return kSuccess;
     } else {
-      DLOG(WARNING) << kDebugName_ << ": Failed to update last seen time for "
-          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+      DLOG(WARNING) << kDebugId_ << ": Failed to update last seen time for "
+                    << DebugId(contact);
       return kFailedToUpdateLastSeenTime;
     }
   } else {
@@ -128,19 +129,18 @@ void RoutingTable::InsertContact(const Contact &contact,
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     auto result = contacts_.insert(new_routing_table_contact);
     if (result.second) {
-      DLOG(INFO) << kDebugName_ << ": Added node "
-          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
-          << ".  " << contacts_.size() << " contacts.";
+      DLOG(INFO) << kDebugId_ << ": Added node " << DebugId(contact) << ".  "
+                 << contacts_.size() << " contacts.";
     } else {
-      DLOG(WARNING) << kDebugName_ << ": Failed to insert node "
-          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+      DLOG(WARNING) << kDebugId_ << ": Failed to insert node "
+                    << DebugId(contact);
     }
   }
 }
 
 int RoutingTable::GetContact(const NodeId &node_id, Contact *contact) {
   if (!contact) {
-    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
+    DLOG(WARNING) << kDebugId_ << ": Null pointer passed.";
     return kInvalidPointer;
   }
   SharedLock shared_lock(shared_mutex_);
@@ -161,7 +161,7 @@ void RoutingTable::GetCloseContacts(
     const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
   if (!close_contacts) {
-    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
+    DLOG(WARNING) << kDebugId_ << ": Null pointer passed.";
     return;
   }
   SharedLock shared_lock(shared_mutex_);
@@ -231,16 +231,15 @@ int RoutingTable::SetPublicKey(const NodeId &node_id,
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   if (key_indx.modify(it, ChangePublicKey(new_public_key))) {
     return kSuccess;
   } else {
-    DLOG(WARNING) << kDebugName_ << ": Failed to set public key for node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to set public key for node "
+                  << DebugId(node_id);
     return kFailedToSetPublicKey;
   }
 }
@@ -251,16 +250,15 @@ int RoutingTable::UpdateRankInfo(const NodeId &node_id,
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   if (key_indx.modify(it, ChangeRankInfo(new_rank_info))) {
     return kSuccess;
   } else {
-    DLOG(WARNING) << kDebugName_ << ": Failed to update rank info for node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to update rank info for node "
+                  << DebugId(node_id);
     return kFailedToUpdateRankInfo;
   }
 }
@@ -270,8 +268,7 @@ int RoutingTable::SetPreferredEndpoint(const NodeId &node_id, const IP &ip) {
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
   Contact new_local_contact((*it).contact);
@@ -280,8 +277,8 @@ int RoutingTable::SetPreferredEndpoint(const NodeId &node_id, const IP &ip) {
   if (key_indx.modify(it, ChangeContact(new_local_contact))) {
     return kSuccess;
   } else {
-    DLOG(WARNING) << kDebugName_ << ": Failed to set preferred endpt for node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to set preferred endpt for node "
+                  << DebugId(node_id);
     return kFailedToSetPreferredEndpoint;
   }
 }
@@ -308,16 +305,14 @@ int RoutingTable::SetValidated(const NodeId &node_id, bool validated) {
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
 
   if (!validated) {
     // if the contact proved to be invalid, remove it from the routing_table
     // and put it into the un-validated contacts container.
-    DLOG(WARNING) << kDebugName_ << ": Node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
+    DLOG(WARNING) << kDebugId_ << ": Node " << DebugId(node_id)
                   << " removed from routing table - failed to validate.  "
                   << contacts_.size() << " contacts.";
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
@@ -333,28 +328,24 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
   uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   if (num_failed_rpcs > kFailedRpcTolerance) {
     key_indx.erase(it);
-    DLOG(INFO) << kDebugName_ << ": Removed node "
-               << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
-               << ".  " << contacts_.size() << " contacts.";
+    DLOG(INFO) << kDebugId_ << ": Removed node " << DebugId(node_id) << ".  "
+               << contacts_.size() << " contacts.";
     return kSuccess;
   } else {
     if (key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs))) {
-      DLOG(INFO) << kDebugName_ << ": Incremented failed rpc count for node "
-                 << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
-                 << " to " << num_failed_rpcs;
+      DLOG(INFO) << kDebugId_ << ": Incremented failed rpc count for node "
+                 << DebugId(node_id) << " to " << num_failed_rpcs;
       return kSuccess;
     } else {
-      DLOG(WARNING) << kDebugName_ << ": Failed to increment failed rpc count "
-                    << "for node "
-                    << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+      DLOG(WARNING) << kDebugId_ << ": Failed to increment failed rpc count "
+                    << "for node " << DebugId(node_id);
       return kFailedToIncrementFailedRpcCount;
     }
   }
@@ -377,8 +368,7 @@ RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(contact.node_id());
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
-        << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(contact);
     return RankInfoPtr();
   } else {
     return (*it).rank_info;
@@ -387,7 +377,7 @@ RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {
 
 void RoutingTable::GetAllContacts(std::vector<Contact> *contacts) {
   if (!contacts) {
-    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
+    DLOG(WARNING) << kDebugId_ << ": Null pointer passed.";
     return;
   }
   SharedLock shared_lock(shared_mutex_);
@@ -518,14 +508,12 @@ int RoutingTable::ForceKAcceptNewPeer(
   new_local_contact.kbucket_index = target_bucket;
   auto result = contacts_.insert(new_local_contact);
   if (result.second) {
-    DLOG(INFO) << kDebugName_ << ": Added node "
-        << new_contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
-        << " via ForceK.  " << contacts_.size() << " contacts.";
+    DLOG(INFO) << kDebugId_ << ": Added node " << DebugId(new_contact)
+               << " via ForceK.  " << contacts_.size() << " contacts.";
     return kSuccess;
   } else {
-    DLOG(WARNING) << kDebugName_ << ": Failed to insert node "
-        << new_contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
-        << " via ForceK.";
+    DLOG(WARNING) << kDebugId_ << ": Failed to insert node "
+                  << DebugId(new_contact) << " via ForceK.";
     return kFailedToInsertNewContact;
   }
 }

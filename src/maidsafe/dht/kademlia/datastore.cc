@@ -85,8 +85,8 @@ DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
       refresh_interval_(mean_refresh_interval.total_seconds() +
                         (RandomInt32() % 120)),
       shared_mutex_(),
-      debug_name_() {
-  debug_name_ = IntToString(reinterpret_cast<int>(this));
+      debug_id_() {
+  debug_id_ = IntToString(reinterpret_cast<int>(this));
 }
 
 bool DataStore::HasKey(const std::string &key) {
@@ -96,7 +96,7 @@ bool DataStore::HasKey(const std::string &key) {
   KeyValueIndex::index<TagKey>::type& index_by_key =
       key_value_index_->get<TagKey>();
   auto itr_pair = index_by_key.equal_range(key);
-  DLOG(INFO) << debug_name_ << ": HasKey " << EncodeToHex(key).substr(0, 10)
+  DLOG(INFO) << debug_id_ << ": HasKey " << EncodeToHex(key).substr(0, 10)
              << ": " << std::boolalpha << (itr_pair.first != itr_pair.second);
   return (itr_pair.first != itr_pair.second);
 }
@@ -110,11 +110,11 @@ int DataStore::StoreValue(
   // Assumes that check on signature of request and signature of value using
   // public_key has already been done.
   if (key_value_signature.key.empty()) {
-    DLOG(WARNING) << debug_name_ << ": Key empty.";
+    DLOG(WARNING) << debug_id_ << ": Key empty.";
     return kEmptyKey;
   }
   if (ttl == bptime::seconds(0)) {
-    DLOG(WARNING) << debug_name_ << ": Zero TTL.";
+    DLOG(WARNING) << debug_id_ << ": Zero TTL.";
     return kZeroTTL;
   }
 
@@ -133,10 +133,10 @@ int DataStore::StoreValue(
     auto p = index_by_key.insert(tuple);
 #ifdef DEBUG
     if (p.second) {
-      DLOG(INFO) << debug_name_ << ": Stored key "
+      DLOG(INFO) << debug_id_ << ": Stored key "
                  << EncodeToHex(key_value_signature.key).substr(0, 10);
     } else {
-      DLOG(WARNING) << debug_name_ << ": Failed to stored key "
+      DLOG(WARNING) << debug_id_ << ": Failed to stored key "
                     << EncodeToHex(key_value_signature.key).substr(0, 10);
     }
 #endif
@@ -159,7 +159,7 @@ int DataStore::StoreValue(
     if (!crypto::AsymCheckSig((*itr_pair.first).key_value_signature.value,
                               (*itr_pair.first).key_value_signature.signature,
                               public_key)) {
-      DLOG(WARNING) << debug_name_ << ": Failed key signature check for key "
+      DLOG(WARNING) << debug_id_ << ": Failed key signature check for key "
                     << EncodeToHex(key_value_signature.key).substr(0, 10);
       return kFailedSignatureCheck;
     }
@@ -167,10 +167,10 @@ int DataStore::StoreValue(
     auto p = index_by_key.insert(tuple);
 #ifdef DEBUG
     if (p.second) {
-      DLOG(INFO) << debug_name_ << ": Stored key "
+      DLOG(INFO) << debug_id_ << ": Stored key "
                  << EncodeToHex(key_value_signature.key).substr(0, 10);
     } else {
-      DLOG(WARNING) << debug_name_ << ": Failed to stored key "
+      DLOG(WARNING) << debug_id_ << ": Failed to stored key "
                     << EncodeToHex(key_value_signature.key).substr(0, 10);
     }
 #endif
@@ -180,7 +180,7 @@ int DataStore::StoreValue(
   // The key and value exists - check the value signature is the same as before.
   if ((*itr_pair.first).key_value_signature.signature !=
       key_value_signature.signature) {
-    DLOG(WARNING) << debug_name_ << ": Failed value signature check for key "
+    DLOG(WARNING) << debug_id_ << ": Failed value signature check for key "
                   << EncodeToHex(key_value_signature.key).substr(0, 10);
     return kFailedSignatureCheck;
   }
@@ -192,11 +192,11 @@ int DataStore::StoreValue(
         std::bind(&KeyValueTuple::UpdateStatus, arg::_1, now + ttl,
                   now + refresh_interval_, now + kPendingConfirmDuration,
                   store_request_and_signature, false))) {
-      DLOG(INFO) << debug_name_ << ": Successfully modified value for key "
+      DLOG(INFO) << debug_id_ << ": Successfully modified value for key "
                  << EncodeToHex(key_value_signature.key).substr(0, 10);
       return kSuccess;
     } else {
-      DLOG(WARNING) << debug_name_ << ": Failed to modify value for key "
+      DLOG(WARNING) << debug_id_ << ": Failed to modify value for key "
                     << EncodeToHex(key_value_signature.key).substr(0, 10);
       return kFailedToModifyKeyValue;
     }
@@ -205,7 +205,7 @@ int DataStore::StoreValue(
   // For refreshing, only the refresh time can be reset, and only for
   // non-deleted values.
   if ((*itr_pair.first).deleted) {
-    DLOG(WARNING) << debug_name_ << ": Failed to refresh key "
+    DLOG(WARNING) << debug_id_ << ": Failed to refresh key "
                   << EncodeToHex(key_value_signature.key).substr(0, 10)
                   << " - marked for deletion.";
     return kMarkedForDeletion;
@@ -214,11 +214,11 @@ int DataStore::StoreValue(
   if (index_by_key.modify(itr_pair.first,
                           std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
                                     now + refresh_interval_))) {
-    DLOG(INFO) << debug_name_ << ": Successfully refreshed key "
+    DLOG(INFO) << debug_id_ << ": Successfully refreshed key "
                << EncodeToHex(key_value_signature.key).substr(0, 10);
     return kSuccess;
   } else {
-    DLOG(WARNING) << debug_name_ << ": Failed to refresh key "
+    DLOG(WARNING) << debug_id_ << ": Failed to refresh key "
                   << EncodeToHex(key_value_signature.key).substr(0, 10)
                   << " - modify failed.";
     return kFailedToModifyKeyValue;

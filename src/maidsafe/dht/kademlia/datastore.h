@@ -196,9 +196,7 @@ class DataStore {
   // (whether marked as deleted or not) are returned.
   void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
   bptime::seconds refresh_interval() const;
-  void set_debug_name(const std::string &debug_name) {
-    debug_name_ = debug_name;
-  }
+  void set_debug_id(const std::string &debug_id) { debug_id_ = debug_id; }
   friend class test::DataStoreTest;
   friend class test::ServicesTest;
   friend class test::RpcsTest;
@@ -211,7 +209,7 @@ class DataStore {
   std::shared_ptr<KeyValueIndex> key_value_index_;
   const bptime::seconds refresh_interval_;
   boost::shared_mutex shared_mutex_;
-  std::string debug_name_;
+  std::string debug_id_;
 };
 
 }  // namespace kademlia

@@ -447,7 +447,7 @@ class RoutingTable {
   /** Holder's Kademlia ID */
   const NodeId kThisId_;
   /** Holder's Kademlia ID held as a human readable string for debugging */
-  std::string kDebugName_;
+  std::string kDebugId_;
   /** Kademlia k */
   const uint16_t k_;
   /** Multi_index container of all contacts */

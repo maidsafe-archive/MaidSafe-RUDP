@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_UTILS_H_
 #define MAIDSAFE_DHT_KADEMLIA_UTILS_H_
 
+#include <string>
 #include <vector>
 
 namespace maidsafe {
@@ -55,6 +56,13 @@ bool IsListeningOnTCP(const Contact &contact);
 
 // sort the contacts according the distance to the target key
 void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts);
+
+// outputs the first 10 chars of the node_id in hex format
+std::string DebugId(const NodeId &node_id);
+
+// outputs the first 10 chars of the contact's node ID in hex format
+std::string DebugId(const Contact &contact);
+
 
 }  // namespace kademlia
 

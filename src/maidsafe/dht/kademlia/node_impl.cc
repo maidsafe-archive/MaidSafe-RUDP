@@ -206,8 +206,7 @@ void Node::Impl::JoinFindNodesCallback(
     thread_group_->create_thread(
         std::bind(&Node::Impl::MonitoringDownlistThread, this));
     downlist_thread_running_ = true;
-    data_store_->set_debug_name(contact_.node_id().
-        ToStringEncoded(NodeId::kHex).substr(0, 10));
+    data_store_->set_debug_id(DebugId(contact_));
     callback(0);
   }
 }
