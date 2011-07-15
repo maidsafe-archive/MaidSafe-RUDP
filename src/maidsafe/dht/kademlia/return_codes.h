@@ -66,7 +66,19 @@ enum ReturnCode {
   kFailedToSetPublicKey = -302007,
   kFailedToUpdateRankInfo = -302008,
   kFailedToSetPreferredEndpoint = -302009,
-  kFailedToIncrementFailedRpcCount = -302010
+  kFailedToIncrementFailedRpcCount = -302010,
+
+  // Node
+  kNoOnlineBootstrapContacts = -303001,
+  kNotListening = -303002,
+  kFindNodesFailed = -303003,
+  kFoundTooFewNodes = -303004,
+  kStoreTooFewNodes = -303005,
+  kDeleteTooFewNodes = -303006,
+  kUpdateTooFewNodes = -303007,
+  kFailedToGetContact = -303008,
+  kIterativeLookupFailed = -303009,
+  kContactFailedToRespond = -303010
 };
 
 }  // namespace kademlia

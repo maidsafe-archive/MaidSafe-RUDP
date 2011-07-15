@@ -166,12 +166,12 @@ struct Args {
   OperationMethod operation_type;
 };
 
+typedef std::shared_ptr<Args> ArgsPtr;
+
 struct RpcArgs {
-  RpcArgs(const Contact &c, std::shared_ptr<Args> a)
-      : contact(c),
-        rpc_args(a) {}
+  RpcArgs(const Contact &c, ArgsPtr a) : contact(c), rpc_args(a) {}
   Contact contact;
-  std::shared_ptr<Args> rpc_args;
+  ArgsPtr rpc_args;
 };
 
 struct FindNodesArgs : public Args {
@@ -233,7 +233,6 @@ struct UpdateArgs : public Args {
   std::string old_signature;
 };
 
-typedef std::shared_ptr<Args> ArgsPtr;
 typedef std::shared_ptr<RpcArgs> RpcArgsPtr;
 typedef std::shared_ptr<FindNodesArgs> FindNodesArgsPtr;
 typedef std::shared_ptr<FindValueArgs> FindValueArgsPtr;
