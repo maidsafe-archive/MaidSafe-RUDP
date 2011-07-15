@@ -347,7 +347,8 @@ SET(MAIDSAFE_KAD_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_id.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs_objects.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/securifier.h)
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/securifier.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/return_codes.h)
 FOREACH(MAIDSAFE_KAD_INSTALL_FILE ${MAIDSAFE_KAD_INSTALL_FILES})
   CHECK_INSTALL_HEADER_HAS_VERSION_GUARD(${MAIDSAFE_KAD_INSTALL_FILE})
 ENDFOREACH()

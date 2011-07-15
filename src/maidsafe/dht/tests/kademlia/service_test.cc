@@ -49,6 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 #include "maidsafe/dht/kademlia/utils.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/tests/kademlia/test_utils.h"
 
@@ -131,7 +132,7 @@ class ServicesTest: public CreateContactAndNodeId,
                                                                        "")),
                    info_(), rank_info_(),
                    service_(new Service(routing_table_, data_store_,
-                   alternative_store_, securifier_)),
+                            alternative_store_, securifier_, test::k)),
                    num_of_pings_(0) {
     service_->set_node_joined(true);
   }
@@ -261,8 +262,11 @@ class ServicesTest: public CreateContactAndNodeId,
     crypto_key.GenerateKeys(4096);
     for (int i = 0; i < count; ++i) {
       KeyValueTuple cur_kvt = MakeKVT(crypto_key, 1024, old_ttl, "", "");
-      EXPECT_TRUE(data_store_->StoreValue(cur_kvt.key_value_signature, old_ttl,
-          cur_kvt.request_and_signature, crypto_key.public_key(), false));
+      EXPECT_EQ(kSuccess, data_store_->StoreValue(cur_kvt.key_value_signature,
+                                                  old_ttl,
+                                                  cur_kvt.request_and_signature,
+                                                  crypto_key.public_key(),
+                                                  false));
     }
   }
 
@@ -333,7 +337,8 @@ class ServicesTest: public CreateContactAndNodeId,
 
 
 TEST_F(ServicesTest, BEH_KAD_Constructor) {
-  Service service(routing_table_, data_store_, alternative_store_, securifier_);
+  Service service(routing_table_, data_store_, alternative_store_, securifier_,
+                  test::k);
   CheckServiceConstructAttributes(service, 16U);
 
   Service service_k(routing_table_, data_store_, alternative_store_,
@@ -389,8 +394,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     protobuf::StoreResponse store_response;
@@ -441,8 +446,9 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     // Try to store a validated tuple, into the datastore already containing it
     AddTestValidation(securifier_, sender_id.String(),
                       crypto_key_data.public_key());
-    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                        crypto_key_data.public_key(), false));
+    EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                                crypto_key_data.public_key(),
+                                                false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::StoreResponse store_response;
@@ -513,12 +519,13 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     // from populated datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
-    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                        crypto_key_data.public_key(), false));
+    EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                                crypto_key_data.public_key(),
+                                                false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::DeleteResponse delete_response;
@@ -635,8 +642,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     // into empty datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
     protobuf::StoreRefreshResponse store_refresh_response;
@@ -673,8 +680,9 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   {
     // Try to storerefresh a validated tuple into the datastore already
     // containing it
-    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                        crypto_key_data.public_key(), false));
+    EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                                crypto_key_data.public_key(),
+                                                false));
     ASSERT_EQ(1U, GetDataStoreSize());
     bptime::ptime refresh_time_old = GetRefreshTime(kvs);
     protobuf::StoreRefreshResponse store_fresh_response;
@@ -763,12 +771,13 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     // from populated datastore and empty routingtable
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
-    Service service(routing_table_, data_store_,
-                    alternative_store_, securifier_local);
+    Service service(routing_table_, data_store_, alternative_store_,
+                    securifier_local, test::k);
     service.set_node_joined(true);
 
-    EXPECT_TRUE(data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                        crypto_key_data.public_key(), false));
+    EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
+                                                crypto_key_data.public_key(),
+                                                false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
     protobuf::DeleteRefreshResponse delete_refresh_response;
@@ -1053,11 +1062,12 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // with empty routing table
     // no alternative_store_
     PopulateDataStore(test::k);
-    EXPECT_TRUE(data_store_->StoreValue(target_kvt.key_value_signature,
-                                        old_ttl,
-                                        target_kvt.request_and_signature,
-                                        crypto_key.public_key(),
-                                        false));
+    EXPECT_EQ(kSuccess,
+              data_store_->StoreValue(target_kvt.key_value_signature,
+                                      old_ttl,
+                                      target_kvt.request_and_signature,
+                                      crypto_key.public_key(),
+                                      false));
     ASSERT_EQ(test::k + 1, GetDataStoreSize());
 
     find_value_req.set_key(target_key);
@@ -1079,8 +1089,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     AlternativeStoreFalsePtr
         alternative_store_false_ptr(new AlternativeStoreFalse());
-    Service service(routing_table_, data_store_,
-                    alternative_store_false_ptr, securifier_);
+    Service service(routing_table_, data_store_, alternative_store_false_ptr,
+                    securifier_, test::k);
     service.set_node_joined(true);
 
     find_value_req.set_key(target_key);
@@ -1106,8 +1116,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
 
     AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
-    Service service(routing_table_, data_store_,
-                    alternative_store_true_ptr, securifier_);
+    Service service(routing_table_, data_store_, alternative_store_true_ptr,
+                    securifier_, test::k);
     service.set_node_joined(true);
     service.set_node_contact(node_contact);
 

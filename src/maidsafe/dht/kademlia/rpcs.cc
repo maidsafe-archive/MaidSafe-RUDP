@@ -339,7 +339,7 @@ void Rpcs::PingCallback(
     if (response.IsInitialized() && response.echo() == "pong") {
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     } else {
-      callback(RankInfoPtr(new transport::Info(info)), -1);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError);
     }
   }
 }
@@ -372,8 +372,8 @@ void Rpcs::FindValueCallback(
       return;
     }
     if (!response.IsInitialized() || !response.result()) {
-      callback(RankInfoPtr(new transport::Info(info)), -1, values,
-                      contacts, alternative_value_holder);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError,
+               values, contacts, alternative_value_holder);
       return;
     }
     for (int i = 0; i < response.signed_values_size(); ++i)
@@ -415,7 +415,8 @@ void Rpcs::FindNodesCallback(
       return;
     }
     if (!response.IsInitialized() || !response.result()) {
-      callback(RankInfoPtr(new transport::Info(info)), -1, contacts);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError,
+               contacts);
       return;
     }
 
@@ -451,7 +452,7 @@ void Rpcs::StoreCallback(
     if (response.IsInitialized() && response.result())
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     else
-      callback(RankInfoPtr(new transport::Info(info)), -1);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError);
   }
 }
 
@@ -479,7 +480,7 @@ void Rpcs::StoreRefreshCallback(
     if (response.IsInitialized() && response.result())
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     else
-      callback(RankInfoPtr(new transport::Info(info)), -1);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError);
   }
 }
 
@@ -507,7 +508,7 @@ void Rpcs::DeleteCallback(
     if (response.IsInitialized() && response.result())
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     else
-      callback(RankInfoPtr(new transport::Info(info)), -1);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError);
   }
 }
 
@@ -535,7 +536,7 @@ void Rpcs::DeleteRefreshCallback(
     if (response.IsInitialized() && response.result())
       callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess);
     else
-      callback(RankInfoPtr(new transport::Info(info)), -1);
+      callback(RankInfoPtr(new transport::Info(info)), transport::kError);
   }
 }
 

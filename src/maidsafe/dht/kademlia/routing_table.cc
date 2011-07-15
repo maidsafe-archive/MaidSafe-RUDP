@@ -25,9 +25,10 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/common/utils.h"
-#include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/routing_table.h"
+#include "maidsafe/common/utils.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 
@@ -37,6 +38,7 @@ namespace kademlia {
 
 RoutingTable::RoutingTable(const NodeId &this_id, const uint16_t &k)
     : kThisId_(this_id),
+      kDebugName_(kThisId_.ToStringEncoded(NodeId::kHex).substr(0, 10)),
       k_(k),
       contacts_(),
       unvalidated_contacts_(),
@@ -51,12 +53,14 @@ RoutingTable::~RoutingTable() {
   contacts_.clear();
 }
 
-void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
+int RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   const NodeId &node_id = contact.node_id();
 
   // If the contact has the same ID as the holder, return directly
-  if (node_id == kThisId_)
-    return;
+  if (node_id == kThisId_) {
+    DLOG(WARNING) << kDebugName_ << ": Can't add own ID to routing table.";
+    return kOwnIdNotIncludable;
+  }
 
   // Check if the contact is already in the routing table; if so, set its last
   // seen time to now (will bring it to the top)
@@ -66,8 +70,14 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   if (it_node != key_indx.end()) {
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     // will update the num_failed_rpcs to 0 as well
-    contacts_.modify(it_node,
-                     ChangeLastSeen(bptime::microsec_clock::universal_time()));
+    if (contacts_.modify(it_node,
+        ChangeLastSeen(bptime::microsec_clock::universal_time()))) {
+      return kSuccess;
+    } else {
+      DLOG(WARNING) << kDebugName_ << ": Failed to update last seen time for "
+          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+      return kFailedToUpdateLastSeenTime;
+    }
   } else {
     // put the contact into the unvalidated contacts container
     UnValidatedContactsById contact_indx =
@@ -80,6 +90,7 @@ void RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
       upgrade_lock->unlock();
       (*validate_contact_)(contact);
     }
+    return kSuccess;
   }
 }
 
@@ -99,10 +110,11 @@ void RoutingTable::InsertContact(const Contact &contact,
       InsertContact(contact, rank_info, upgrade_lock);
     } else {
       // try to apply ForceK, otherwise fire the signal
-      if (ForceKAcceptNewPeer(contact, target_kbucket_index,
-                              rank_info, upgrade_lock) != 0) {
+      int force_k_result(ForceKAcceptNewPeer(contact, target_kbucket_index,
+                                             rank_info, upgrade_lock));
+      if (force_k_result != kSuccess &&
+          force_k_result != kFailedToInsertNewContact) {
         Contact oldest_contact = GetLastSeenContact(target_kbucket_index);
-
         // fire a signal here to notify
         (*ping_oldest_contact_)(oldest_contact, contact, rank_info);
       }
@@ -114,20 +126,33 @@ void RoutingTable::InsertContact(const Contact &contact,
                                                   common_leading_bits);
     new_routing_table_contact.kbucket_index = target_kbucket_index;
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
-    contacts_.insert(new_routing_table_contact);
+    auto result = contacts_.insert(new_routing_table_contact);
+    if (result.second) {
+      DLOG(INFO) << kDebugName_ << ": Added node "
+          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
+          << ".  " << contacts_.size() << " contacts.";
+    } else {
+      DLOG(WARNING) << kDebugName_ << ": Failed to insert node "
+          << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
+    }
   }
 }
 
-void RoutingTable::GetContact(const NodeId &node_id, Contact *contact) {
-  if (!contact)
-    return;
+int RoutingTable::GetContact(const NodeId &node_id, Contact *contact) {
+  if (!contact) {
+    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
+    return kInvalidPointer;
+  }
   SharedLock shared_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  if (it != key_indx.end())
+  if (it != key_indx.end()) {
     *contact = (*it).contact;
-  else
+    return kSuccess;
+  } else {
     *contact = Contact();
+    return kFailedToFindContact;
+  }
 }
 
 void RoutingTable::GetCloseContacts(
@@ -135,8 +160,10 @@ void RoutingTable::GetCloseContacts(
     const size_t &count,
     const std::vector<Contact> &exclude_contacts,
     std::vector<Contact> *close_contacts) {
-  if (!close_contacts)
+  if (!close_contacts) {
+    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
     return;
+  }
   SharedLock shared_lock(shared_mutex_);
   // the search will begin from a bucket having the similiar k-distance as the
   // target node to the current holder
@@ -198,44 +225,24 @@ void RoutingTable::GetCloseContacts(
   return;
 }
 
-void RoutingTable::GetContactsClosestToOwnId(
-    const size_t &count,
-    const std::vector<Contact> &exclude_contacts,
-    std::vector<Contact> *close_contacts) {
-  if (!close_contacts)
-    return;
-  SharedLock shared_lock(shared_mutex_);
-  // populate the result with the count defined top contacts
-  // indexed by the distance
-  ContactsByDistanceToThisId key_dist_indx
-    = contacts_.get<DistanceToThisIdTag>();
-  uint32_t counter(0);
-  auto it = key_dist_indx.begin();
-  while ((counter < count) && (it != key_dist_indx.end())) {
-    // check if the candidate in the exclusion list
-    auto it_exclude = std::find(exclude_contacts.begin(),
-                                exclude_contacts.end(),
-                                (*it).contact);
-    // if not in the exclusion list, add the contact into the result
-    if (it_exclude == exclude_contacts.end()) {
-      close_contacts->push_back((*it).contact);
-      ++counter;
-    }
-    ++it;
-  }
-  return;
-}
-
 int RoutingTable::SetPublicKey(const NodeId &node_id,
                                const std::string &new_public_key) {
   UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  if (it == key_indx.end())
-    return -1;
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToFindContact;
+  }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  key_indx.modify(it, ChangePublicKey(new_public_key));
-  return 0;
+  if (key_indx.modify(it, ChangePublicKey(new_public_key))) {
+    return kSuccess;
+  } else {
+    DLOG(WARNING) << kDebugName_ << ": Failed to set public key for node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToSetPublicKey;
+  }
 }
 
 int RoutingTable::UpdateRankInfo(const NodeId &node_id,
@@ -243,30 +250,43 @@ int RoutingTable::UpdateRankInfo(const NodeId &node_id,
   UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  if (it == key_indx.end())
-    return -1;
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToFindContact;
+  }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  key_indx.modify(it, ChangeRankInfo(new_rank_info));
-  return 0;
+  if (key_indx.modify(it, ChangeRankInfo(new_rank_info))) {
+    return kSuccess;
+  } else {
+    DLOG(WARNING) << kDebugName_ << ": Failed to update rank info for node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToUpdateRankInfo;
+  }
 }
 
-int RoutingTable::SetPreferredEndpoint(const NodeId &node_id,
-                                       const IP &ip) {
+int RoutingTable::SetPreferredEndpoint(const NodeId &node_id, const IP &ip) {
   UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  // return if can't find the contact having the nodeID
-  if (it == key_indx.end())
-    return -1;
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToFindContact;
+  }
   Contact new_local_contact((*it).contact);
   new_local_contact.SetPreferredEndpoint(ip);
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  key_indx.modify(it, ChangeContact(new_local_contact));
-  return 0;
+  if (key_indx.modify(it, ChangeContact(new_local_contact))) {
+    return kSuccess;
+  } else {
+    DLOG(WARNING) << kDebugName_ << ": Failed to set preferred endpt for node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToSetPreferredEndpoint;
+  }
 }
 
-int RoutingTable::SetValidated(const NodeId &node_id,
-                               bool validated) {
+int RoutingTable::SetValidated(const NodeId &node_id, bool validated) {
   std::shared_ptr<UpgradeLock> upgrade_lock(new UpgradeLock(shared_mutex_));
   UnValidatedContactsById contact_indx =
       unvalidated_contacts_.get<NodeIdTag>();
@@ -274,54 +294,76 @@ int RoutingTable::SetValidated(const NodeId &node_id,
 
   // if the contact can be find in the un-validated contacts container
   if (it_contact != contact_indx.end()) {
-    // If an un-validated entry proved to be valid
-    // remove it from un-validated container and insert it into routing_table.
-    // Otherwise, the entry shall be dropped.
+    // If an un-validated entry proved to be valid remove it from un-validated
+    // container and insert it into routing_table.  Otherwise, drop it.
     if (validated) {
-      InsertContact((*it_contact).contact,
-                    (*it_contact).rank_info,
+      InsertContact((*it_contact).contact, (*it_contact).rank_info,
                     upgrade_lock);
     }
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
     contact_indx.erase(it_contact);
-    return 0;
+    return kSuccess;
   }
 
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  if (it != key_indx.end()) {
-    if (!validated) {
-      // if the contact proved to be invalid, remove it from the routing_table
-      // and put it into the un-validated contacts container
-      UpgradeToUniqueLock unique_lock(*upgrade_lock);
-      UnValidatedContact new_entry((*it).contact, (*it).rank_info);
-      unvalidated_contacts_.insert(new_entry);
-      key_indx.erase(it);
-    }
-    return 0;
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToFindContact;
   }
 
-  return -1;
+  if (!validated) {
+    // if the contact proved to be invalid, remove it from the routing_table
+    // and put it into the un-validated contacts container.
+    DLOG(WARNING) << kDebugName_ << ": Node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
+                  << " removed from routing table - failed to validate.  "
+                  << contacts_.size() << " contacts.";
+    UpgradeToUniqueLock unique_lock(*upgrade_lock);
+    UnValidatedContact new_entry((*it).contact, (*it).rank_info);
+    unvalidated_contacts_.insert(new_entry);
+    key_indx.erase(it);
+  }
+  return kSuccess;
 }
 
 int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   UpgradeLock upgrade_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
-  if (it == key_indx.end())
-    return -1;
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+                  << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+    return kFailedToFindContact;
+  }
   uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;
   UpgradeToUniqueLock unique_lock(upgrade_lock);
-  if (num_failed_rpcs > kFailedRpcTolerance)
+  if (num_failed_rpcs > kFailedRpcTolerance) {
     key_indx.erase(it);
-  else
-    key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs));
-  return num_failed_rpcs;
+    DLOG(INFO) << kDebugName_ << ": Removed node "
+               << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
+               << ".  " << contacts_.size() << " contacts.";
+    return kSuccess;
+  } else {
+    if (key_indx.modify(it, ChangeNumFailedRpc(num_failed_rpcs))) {
+      DLOG(INFO) << kDebugName_ << ": Incremented failed rpc count for node "
+                 << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10)
+                 << " to " << num_failed_rpcs;
+      return kSuccess;
+    } else {
+      DLOG(WARNING) << kDebugName_ << ": Failed to increment failed rpc count "
+                    << "for node "
+                    << node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
+      return kFailedToIncrementFailedRpcCount;
+    }
+  }
 }
 
 void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
   if (!contacts)
     return;
+
   SharedLock shared_lock(shared_mutex_);
   auto it = contacts_.get<BootstrapTag>().equal_range(true);
   contacts->clear();
@@ -334,15 +376,20 @@ RankInfoPtr RoutingTable::GetLocalRankInfo(const Contact &contact) {
   SharedLock shared_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(contact.node_id());
-  if (it != key_indx.end())
-    return (*it).rank_info;
-  else
+  if (it == key_indx.end()) {
+    DLOG(WARNING) << kDebugName_ << ": Failed to find node "
+        << contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10);
     return RankInfoPtr();
+  } else {
+    return (*it).rank_info;
+  }
 }
 
 void RoutingTable::GetAllContacts(std::vector<Contact> *contacts) {
-  if (!contacts)
+  if (!contacts) {
+    DLOG(WARNING) << kDebugName_ << ": Null pointer passed.";
     return;
+  }
   SharedLock shared_lock(shared_mutex_);
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.begin();
@@ -433,25 +480,22 @@ int RoutingTable::ForceKAcceptNewPeer(
     RankInfoPtr rank_info,
     std::shared_ptr<UpgradeLock> upgrade_lock) {
   uint16_t brother_bucket_of_holder = bucket_of_holder_ - 1;
-  int kclosest_bucket_index = GetLeastCommonHeadingBitInKClosestContact();
+  int kclosest_bucket_index = GetLeastCommonLeadingBitInKClosestContact();
   if ((brother_bucket_of_holder != target_bucket) &&
       (kclosest_bucket_index != target_bucket)) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (Not in Brother Bucket!)"
-        << std::endl;
-    return -3;
+    return kNotInBrotherBucket;
   }
   // Calculate how many k closest neighbours belong to the brother bucket of
   // the peer
-  int v = k_ - KBucketSizeForKey(bucket_of_holder_);
-  if (v <= 0) {
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - (v <= 0)" << std::endl;
-    return -2;
-  }
+  int closest_outwith_bucket_of_holder =
+      k_ - KBucketSizeForKey(bucket_of_holder_);
+  if (closest_outwith_bucket_of_holder <= 0)
+    return kOutwithClosest;
 
   // sort the brother bucket based on contacts' distance to the holder
   auto pit = contacts_.get<KBucketDistanceToThisIdTag>().equal_range(
       boost::make_tuple(target_bucket));
-  // check if the new contact is among the top v closest
+  // check if the new contact is among the k closest
   NodeId distance_to_target = kThisId_ ^ new_contact.node_id();
   // pit.second shall point to the furthest contact (need one step forward)
   // as the list will sorted from least to highest
@@ -463,23 +507,30 @@ int RoutingTable::ForceKAcceptNewPeer(
   NodeId furthest_node = (*it_end).node_id;
   auto it_furthest = key_node_indx.find(furthest_node);
 
-  if (furthest_distance <= distance_to_target) {
-    // new peer isn't among the k closest neighbours
-    DLOG(WARNING) << "RT::ForceKAcceptNewPeer - "
-                    "new peer isn't among the k closest" << std::endl;
-    return -4;
-  }
+  if (furthest_distance <= distance_to_target)
+    return kOutwithClosest;
+
   UpgradeToUniqueLock unique_lock(*upgrade_lock);
   contacts_.erase(it_furthest);
   RoutingTableContact new_local_contact(new_contact, kThisId_,
                                         rank_info,
                                         KDistanceTo(new_contact.node_id()));
   new_local_contact.kbucket_index = target_bucket;
-  contacts_.insert(new_local_contact);
-  return 0;
+  auto result = contacts_.insert(new_local_contact);
+  if (result.second) {
+    DLOG(INFO) << kDebugName_ << ": Added node "
+        << new_contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
+        << " via ForceK.  " << contacts_.size() << " contacts.";
+    return kSuccess;
+  } else {
+    DLOG(WARNING) << kDebugName_ << ": Failed to insert node "
+        << new_contact.node_id().ToStringEncoded(NodeId::kHex).substr(0, 10)
+        << " via ForceK.";
+    return kFailedToInsertNewContact;
+  }
 }
 
-int RoutingTable::GetLeastCommonHeadingBitInKClosestContact() {
+int RoutingTable::GetLeastCommonLeadingBitInKClosestContact() {
   std::vector<Contact> contacts, exclude_contacts;
   GetCloseContacts(kThisId_, k_, exclude_contacts, &contacts);
   ContactsById key_id_indx = contacts_.get<NodeIdTag>();

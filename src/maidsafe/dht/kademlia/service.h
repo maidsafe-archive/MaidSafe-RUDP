@@ -85,18 +85,8 @@ class Service : public std::enable_shared_from_this<Service> {
    *  @param routing_table The routing table contains all contacts.
    *  @param data_store The data_store table contains <value,sig,key> tuples.
    *  @param alternative_store Alternative store.
-   *  @param securifier Securifier for <value,sig,key> validation. */
-  Service(std::shared_ptr<RoutingTable> routing_table,
-          std::shared_ptr<DataStore> data_store,
-          AlternativeStorePtr alternative_store,
-          SecurifierPtr securifier);
-  /** Constructor.  To create a Service, in all cases the routing_table and
-   * data_store must be provided.
-   *  @param routing_table The routing table contains all contacts.
-   *  @param data_store The data_store table contains <value,sig,key> tuples.
-   *  @param alternative_store Alternative store.
    *  @param securifier Securifier for <value,sig,key> validation.
-   *  @param[in] k k closest contacts.*/
+   *  @param[in] k Kademlia constant k.*/
   Service(std::shared_ptr<RoutingTable> routing_table,
           std::shared_ptr<DataStore> data_store,
           AlternativeStorePtr alternative_store,

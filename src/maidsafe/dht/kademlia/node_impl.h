@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/datastore.h"
 
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -89,7 +90,7 @@ class Node::Impl {
        const uint16_t &k,
        const uint16_t &alpha,
        const uint16_t &beta,
-       const boost::posix_time::time_duration &mean_refresh_interval);
+       const bptime::time_duration &mean_refresh_interval);
   // virtual destructor to allow tests to use a derived Impl and befriend it
   // rather than polluting this with friend tests.
   virtual ~Impl();
@@ -107,7 +108,7 @@ class Node::Impl {
   void Store(const Key &key,
              const std::string &value,
              const std::string &signature,
-             const boost::posix_time::time_duration &ttl,
+             const bptime::time_duration &ttl,
              SecurifierPtr securifier,
              StoreFunctor callback);
   /** Function to DELETE the content of a <key, value> in the Kademlia network.
@@ -138,7 +139,7 @@ class Node::Impl {
               const std::string &old_value,
               const std::string &old_signature,
               SecurifierPtr securifier,
-              const boost::posix_time::time_duration &ttl,
+              const bptime::time_duration &ttl,
               UpdateFunctor callback);
   /** Function to FIND VALUES of the Key from the Kademlia network.
    *  @param[in] Key The key to find
@@ -201,7 +202,7 @@ class Node::Impl {
   uint16_t beta() const;
   /** Getter.
    *  @return The kMeanRefreshInterval_ */
-  boost::posix_time::time_duration mean_refresh_interval() const;
+  bptime::time_duration mean_refresh_interval() const;
   /** Setter. Will connect the signal in service as well.
    *  @param[in] service The service to connect */
   void SetService(std::shared_ptr<Service> service);
@@ -263,24 +264,24 @@ class Node::Impl {
    *  @param[in] alternative_store The alternative store contact.
    *  @param[in] find_value_rpc_args The arguments struct holding all shared
    *  info. */
-  void IterativeSearchValueResponse(
-      RankInfoPtr rank_info,
-      int result,
-      const std::vector<std::string> &values,
-      const std::vector<Contact> &contacts,
-      const Contact &alternative_store,
-      std::shared_ptr<RpcArgs> find_value_rpc_args);
+  void IterativeSearchValueResponse(RankInfoPtr rank_info,
+                                    int result,
+                                    const std::vector<std::string> &values,
+                                    const std::vector<Contact> &contacts,
+                                    const Contact &alternative_store,
+                                    RpcArgsPtr find_value_rpc_args);
 
   /** Callback from the rpc->findnodes requests, during the FindNodes operation.
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->findnodes. Any negative
    *  value shall be considered as the enquired contact got some problems.
    *  @param[in] contacts The closest contacts.
-   *  @param[in] fnrpc The arguments struct holding all shared info. */
+   *  @param[in] find_nodes_rpc_args The arguments struct holding all shared
+   *  info. */
   void IterativeSearchNodeResponse(RankInfoPtr rank_info,
                                    int result,
                                    const std::vector<Contact> &contacts,
-                                   std::shared_ptr<RpcArgs> fnrpc);
+                                   RpcArgsPtr find_nodes_rpc_args);
 
   /** Function to handle the iteration search structure.
    *  Used by: FindNodes, FindValue
@@ -366,12 +367,12 @@ class Node::Impl {
    *  @param[in] securifier The securifier to be passed further.
    *  @param[in] args The arguments struct holding all shared info. */
   template <class T>
-  void OperationFindNodesCB(int result_size,
+  void OperationFindNodesCB(int result,
                             const std::vector<Contact> &contacts,
                             const Key &key,
                             const std::string &value,
                             const std::string &signature,
-                            const boost::posix_time::time_duration &ttl,
+                            const bptime::time_duration &ttl,
                             SecurifierPtr securifier,
                             std::shared_ptr<T> args);
 
@@ -379,14 +380,14 @@ class Node::Impl {
    *  @param[in] rank_info rank info
    *  @param[in] response_code Indicator from the rpc->store. Any negative
    *  value shall be considered as the enquired contact got some problems.
-   *  @param[in] srpc The arguments struct holding all shared info.
+   *  @param[in] store_rpc_args The arguments struct holding all shared info.
    *  @param[in] Key The key to be passed further.
    *  @param[in] value The value to be passed further.
    *  @param[in] signature The signature to be passed further.
    *  @param[in] securifier The securifier to be passed further. */
   void StoreResponse(RankInfoPtr rank_info,
                      int response_code,
-                     std::shared_ptr<RpcArgs> srpc,
+                     RpcArgsPtr store_rpc_args,
                      const Key &key,
                      const std::string &value,
                      const std::string &signature,
@@ -396,12 +397,12 @@ class Node::Impl {
    *  @param[in] rank_info rank info
    *  @param[in] response_code Indicator from the rpc->store. Any negative
    *  value shall be considered as the enquired contact got some problems.
-   *  @param[in] urpc The arguments struct holding all shared info.
+   *  @param[in] update_rpc_args The arguments struct holding all shared info.
    *  @param[in] Key The key to be passed further.
    *  @param[in] securifier The securifier to be passed further. */
   void UpdateStoreResponse(RankInfoPtr rank_info,
                            int response_code,
-                           std::shared_ptr<RpcArgs> urpc,
+                           RpcArgsPtr update_rpc_args,
                            const Key &key,
                            SecurifierPtr securifier);
 
@@ -412,11 +413,11 @@ class Node::Impl {
    *  @param[in] rank_info rank info
    *  @param[in] response_code Indicator from the rpc->delete. Any negative
    *  value shall be considered as the enquired contact got some problems.
-   *  @param[in] drpc The arguments struct holding all shared info. */
+   *  @param[in] delete_rpc_args The arguments struct holding all shared info. */
   template <class T>
   void DeleteResponse(RankInfoPtr rank_info,
                       int response_code,
-                      std::shared_ptr<RpcArgs> drpc);
+                      RpcArgsPtr delete_rpc_args);
 
   /** Callback from the single rpc->delete request. Just report the contact as
    *  down if necessary. Nothing else needs to be undertaken.
@@ -450,12 +451,13 @@ class Node::Impl {
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
-  void StoreRefresh(int result, std::vector<Contact> contacts,
+  void StoreRefresh(int result,
+                    std::vector<Contact> contacts,
                     const KeyValueTuple &key_value_tuple);
   void StoreRefreshCallback(RankInfoPtr rank_info,
                             const int &result,
                             const Contact &contact);
-  
+
   AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;
@@ -481,7 +483,7 @@ class Node::Impl {
   /** Beta parameter to define how many contacted contacts required in one
    *  iteration before starting a new iteration */
   const uint16_t kBeta_;
-  const boost::posix_time::seconds kMeanRefreshInterval_;
+  const bptime::seconds kMeanRefreshInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;

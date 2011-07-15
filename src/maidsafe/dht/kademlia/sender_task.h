@@ -97,7 +97,7 @@ class SenderTask  {
   ~SenderTask();
   // Adds a task into the multi index and executes it when the
   // SenderTaskCallback() is called after network lookup for a given sender.
-  // Dosen't store task if provided key is already stored and is associated
+  // Doesn't store task if provided key is already stored and is associated
   // with different public_key_id.
   // Modifies is_new_id to true if it is a task by the sender whose
   // public_key_id is not present in the  multi index.
