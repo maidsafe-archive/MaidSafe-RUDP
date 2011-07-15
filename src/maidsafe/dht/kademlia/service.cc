@@ -113,6 +113,8 @@ void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response,
                    transport::Timeout*) {
+  if (request.ping().empty())
+    return;
   response->set_echo(request.ping());
   if (request.sender().node_id() != client_node_id_) {
     routing_table_->AddContact(FromProtobuf(request.sender()),

@@ -115,13 +115,15 @@ class KademliaMessageHandlerTest: public testing::Test {
     return result;
   }
 
-  void PingRequestSlot(const transport::Info&, const protobuf::PingRequest&,
-                       protobuf::PingResponse* response, transport::Timeout*) {
+  void PingRequestSlot(const transport::Info&,
+                       const protobuf::PingRequest& request,
+                       protobuf::PingResponse* response,
+                       transport::Timeout*) {
     boost::mutex::scoped_lock loch_wonka(slots_mutex_);
     auto it = invoked_slots_->find(kPingRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
-    response->set_echo("pong");
+    response->set_echo(request.ping());
   }
 
   void PingResponseSlot(const transport::Info&,
@@ -330,9 +332,9 @@ class KademliaMessageHandlerTest: public testing::Test {
     protobuf::Contact contact;
     contact.set_node_id("test");
     contact.set_public_key(rsa_keypair_.public_key());
-    p_req.set_ping("ping");
+    p_req.set_ping(RandomString(50 + (RandomUint32() % 50)));
     p_req.mutable_sender()->CopyFrom(contact);
-    p_rsp.set_echo("pong");
+    p_rsp.set_echo(p_req.ping());
     fv_req.set_key("fv_key");
     fv_req.mutable_sender()->CopyFrom(contact);
     fv_rsp.set_result(1);
