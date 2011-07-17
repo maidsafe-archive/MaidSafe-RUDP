@@ -62,7 +62,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/transport/utils.h"
-#include "maidsafe/dht/tests/kademlia/test_utils.h"
+#include "maidsafe/dht/kademlia/tests/test_utils.h"
 
 namespace arg = std::placeholders;
 
@@ -807,6 +807,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+  new_rpcs->node_id_ = node_id_;
   SetRpc(new_rpcs);
 
   int count = 10 * test::k;
@@ -833,17 +834,16 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
 
     contact = ComposeContact(target, 6400);
     bootstrap_contacts.push_back(contact);
-
-    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))))
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeResponseClose, new_rpcs.get(),
+            std::bind(&MockRpcs::FindValueNoValueResponse, new_rpcs.get(),
                       arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
@@ -868,11 +868,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     contact = ComposeContact(target, 6400);
     bootstrap_contacts.push_back(contact);
 
-    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeResponseClose, new_rpcs.get(), arg::_1,
-                      arg::_2))));
+            std::bind(&MockRpcs::FindValueNoValueResponse, new_rpcs.get(),
+                      arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
@@ -896,21 +896,21 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     contact = ComposeContact(target, 6400);
     bootstrap_contacts.push_back(contact);
 
-    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))))
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))))
         .WillOnce(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
                       arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done)
-      Sleep(boost::posix_time::milliseconds(1000));
-    ASSERT_EQ(kContactFailedToRespond, result);
+      Sleep(boost::posix_time::seconds(1));
+    EXPECT_EQ(kContactFailedToRespond, result);
     bootstrap_contacts.clear();
     node_->Leave(NULL);
   }
@@ -938,10 +938,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     contact = ComposeContact(target, 6400);
     bootstrap_contacts.push_back(contact);
 
-    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeResponseClose, new_rpcs.get(),
+            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(),
                       arg::_1, arg::_2))));
     EXPECT_CALL(*new_rpcs, StoreRefresh(testing::_, testing::_, testing::_,
                                         testing::_, testing::_, testing::_))

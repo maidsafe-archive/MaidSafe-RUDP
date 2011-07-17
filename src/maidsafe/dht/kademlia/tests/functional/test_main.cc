@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "maidsafe/common/test.h"
 #include "maidsafe/dht/log.h"
-#include "maidsafe/dht/tests/functional_kademlia/test_node_environment.h"
+#include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
 int main(int argc, char **argv) {
   // Initialising logging

@@ -59,7 +59,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/transport/utils.h"
-#include "maidsafe/dht/tests/kademlia/test_utils.h"
+#include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 
 namespace arg = std::placeholders;

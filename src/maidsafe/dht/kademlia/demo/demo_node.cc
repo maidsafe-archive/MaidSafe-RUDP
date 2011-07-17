@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/dht/tests/demo/demo_node.h"
+#include "maidsafe/dht/kademlia/demo/demo_node.h"
 #include <iostream>  //  NOLINT
 #include <functional>
 #include <string>

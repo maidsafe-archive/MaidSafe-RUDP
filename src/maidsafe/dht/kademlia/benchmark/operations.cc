@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/dht/tests/benchmark/operations.h"
+#include "maidsafe/dht/kademlia/benchmark/operations.h"
 
 #include <cassert>
 #include <iomanip>

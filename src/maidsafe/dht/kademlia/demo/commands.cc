@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/dht/tests/demo/commands.h"
+#include "maidsafe/dht/kademlia/demo/commands.h"
 
 #include <iostream>  // NOLINT
 
@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
-#include "maidsafe/dht/tests/demo/demo_node.h"
+#include "maidsafe/dht/kademlia/demo/demo_node.h"
 
 namespace arg = std::placeholders;
 namespace fs = boost::filesystem;

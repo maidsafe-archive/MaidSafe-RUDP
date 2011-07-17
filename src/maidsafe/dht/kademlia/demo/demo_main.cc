@@ -35,8 +35,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
-#include "maidsafe/dht/tests/demo/commands.h"
-#include "maidsafe/dht/tests/demo/demo_node.h"
+#include "maidsafe/dht/kademlia/demo/commands.h"
+#include "maidsafe/dht/kademlia/demo/demo_node.h"
 
 namespace bptime = boost::posix_time;
 namespace fs = boost::filesystem;

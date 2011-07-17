@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/datastore.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/sender_task.h"
-#include "maidsafe/dht/tests/kademlia/test_utils.h"
+#include "maidsafe/dht/kademlia/tests/test_utils.h"
 
 namespace arg = std::placeholders;
 
