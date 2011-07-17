@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/dht/tests/transport/transport_api_test.h"
+#include "maidsafe/dht/transport/tests/transport_api_test.h"
 #include <functional>
 #ifdef __MSVC__
 #  pragma warning(push)

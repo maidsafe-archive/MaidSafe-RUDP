@@ -26,7 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/dht/transport/udp_transport.h"
-#include "maidsafe/dht/tests/transport/transport_api_test.h"
+#include "maidsafe/dht/transport/tests/transport_api_test.h"
 
 namespace maidsafe {
 
