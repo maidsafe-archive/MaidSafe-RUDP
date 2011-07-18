@@ -171,6 +171,18 @@ SET(ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR ${SOURCE_FILES_TEST_FUNCTIONAL_KADEML
 SOURCE_GROUP("Functional Test Source Files" FILES ${SOURCE_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
 SOURCE_GROUP("Functional Test Header Files" FILES ${HEADER_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
 
+SET(SOURCE_FILES_TEST_FUNCTIONAL_NODE "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_test.cc"
+                                      "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_utils.cc"
+                                      "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc")
+SET(SOURCE_FILES_TEST_FUNCTIONAL_NODE_IMPL "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_impl_test.cc"
+                                           "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_utils.cc"
+                                           "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc")
+SET(SOURCE_FILES_TEST_FUNCTIONAL_NODE_CHURN "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_churn_test.cc"
+                                            "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_utils.cc"
+                                            "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc")
+SET(HEADER_FILES_TEST_FUNCTIONALS "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
+                                  "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_utils.h")
+
 FILE(GLOB SOURCE_FILES_TEST_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/*.cc")
 FILE(GLOB HEADER_FILES_TEST_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/*.h")
 SET(ALL_FILES_TEST_TRANSPORT_DIR ${SOURCE_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_TEST_TRANSPORT_DIR})
@@ -191,7 +203,9 @@ SOURCE_GROUP("Transport Test Header Files" FILES ${HEADER_FILES_TEST_TRANSPORT_D
 # All Platforms:  Add Test Exes and Create all maidsafe_dht libs                                  #
 ###################################################################################################
 ADD_EXECUTABLE(TESTkademlia ${ALL_FILES_TEST_KADEMLIA_DIR})
-ADD_EXECUTABLE(TESTfunctional ${ALL_FILES_TEST_FUNCTIONAL_KADEMLIA_DIR})
+ADD_EXECUTABLE(TESTnode_functional ${SOURCE_FILES_TEST_FUNCTIONAL_NODE} ${HEADER_FILES_TEST_FUNCTIONALS})
+ADD_EXECUTABLE(TESTnode_impl_functional ${SOURCE_FILES_TEST_FUNCTIONAL_NODE_IMPL} ${HEADER_FILES_TEST_FUNCTIONALS})
+ADD_EXECUTABLE(TESTnode_churn ${SOURCE_FILES_TEST_FUNCTIONAL_NODE_CHURN} ${HEADER_FILES_TEST_FUNCTIONALS})
 ADD_EXECUTABLE(TESTtransport ${ALL_FILES_TEST_TRANSPORT_DIR})
 # ADD_EXECUTABLE(TESTnatpmp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR})
 # ADD_EXECUTABLE(TESTupnp ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR})
@@ -203,7 +217,9 @@ ENDIF()
 
 # Force renaming of exes to match standard CMake library renaming policy
 RENAME_EXECUTABLE(TESTkademlia)
-RENAME_EXECUTABLE(TESTfunctional)
+RENAME_EXECUTABLE(TESTnode_functional)
+RENAME_EXECUTABLE(TESTnode_impl_functional)
+RENAME_EXECUTABLE(TESTnode_churn)
 RENAME_EXECUTABLE(TESTtransport)
 # RENAME_EXECUTABLE(TESTnatpmp)
 # RENAME_EXECUTABLE(TESTupnp)
@@ -214,11 +230,17 @@ IF(Mysqlpp_FOUND)
 ENDIF()
 
 # SET(TEST_TARGETS TESTupnp TESTnatpmp TESTnode TESTkademlia TESTtransport)
-SET(TEST_TARGETS TESTkademlia TESTtransport TESTfunctional)
-SET_TARGET_PROPERTIES(${TEST_TARGETS} KademliaDemo benchmark_static PROPERTIES FOLDER "Tests")
+SET(TEST_TARGETS TESTkademlia TESTtransport TESTnode_functional TESTnode_impl_functional TESTnode_churn)
+SET_TARGET_PROPERTIES(${TEST_TARGETS} PROPERTIES FOLDER "Tests")
+SET_TARGET_PROPERTIES(KademliaDemo PROPERTIES FOLDER "Demo")
+SET_TARGET_PROPERTIES(benchmark_static PROPERTIES FOLDER "Benchmark")
 IF(Mysqlpp_FOUND)
   SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES FOLDER "Tests")
 ENDIF()
+
+SET_TARGET_PROPERTIES(TESTnode_functional PROPERTIES COMPILE_DEFINITIONS "FUNCTIONAL_NODE_TEST")
+SET_TARGET_PROPERTIES(TESTnode_impl_functional PROPERTIES COMPILE_DEFINITIONS "FUNCTIONAL_NODE_IMPL_TEST")
+SET_TARGET_PROPERTIES(TESTnode_churn PROPERTIES COMPILE_DEFINITIONS "FUNCTIONAL_CHURN_TEST")
 
 # Need to use __declspec(dllexport) in all API header files before adding SHARED library target
 #ADD_LIBRARY(maidsafe_dht SHARED ${DHT_SOURCE_FILES})
@@ -242,7 +264,9 @@ TARGET_LINK_LIBRARIES(maidsafe_dht_static
                         ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(TESTkademlia maidsafe_dht_static gmock_static)
-TARGET_LINK_LIBRARIES(TESTfunctional maidsafe_dht_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTnode_functional maidsafe_dht_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTnode_impl_functional maidsafe_dht_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTnode_churn maidsafe_dht_static gtest_static)
 # TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_dht_static gtest_static)
 # TARGET_LINK_LIBRARIES(TESTupnp maidsafe_dht_static gtest_static)
 TARGET_LINK_LIBRARIES(KademliaDemo maidsafe_dht_static boost_program_options)
@@ -276,7 +300,7 @@ IF(MSVC)
   SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES COMPILE_FLAGS "/bigobj")
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
-  SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTfunctional KademliaDemo benchmark_static PROPERTIES
+  SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTnode_functional TESTnode_impl_functional TESTnode_churn KademliaDemo benchmark_static PROPERTIES
                           LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
