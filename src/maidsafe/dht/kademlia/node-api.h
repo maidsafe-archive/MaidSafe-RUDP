@@ -59,10 +59,7 @@ namespace dht {
 
 namespace kademlia {
 
-namespace test {
-class MockNodeImplTest;
-class NodeImplTest;
-}  // namespace test
+class NodeImpl;
 
 // This class represents a kademlia node providing the API to join the network,
 // find nodes and values, store, delete and update values, as well as the
@@ -222,12 +219,8 @@ class Node {
   uint16_t beta() const;
   boost::posix_time::time_duration mean_refresh_interval() const;
 
-  friend class test::MockNodeImplTest;
-  friend class test::NodeImplTest;
-
  private:
-  class Impl;
-  boost::scoped_ptr<Impl> pimpl_;
+  boost::scoped_ptr<NodeImpl> pimpl_;
 };
 
 }  // namespace kademlia

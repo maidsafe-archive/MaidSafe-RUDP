@@ -170,28 +170,28 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
         rank_info_(),
         asio_service_(),
         message_handler_(new MessageHandler(securifier_)),
-        node_(new Node::Impl(asio_service_,
-                             transport_,
-                             message_handler_,
-                             securifier_,
-                             alternative_store_,
-                             false,
-                             test::k,
-                             test::alpha,
-                             test::beta,
-                             bptime::seconds(3600))),
+        node_(new NodeImpl(asio_service_,
+                           transport_,
+                           message_handler_,
+                           securifier_,
+                           alternative_store_,
+                           false,
+                           test::k,
+                           test::alpha,
+                           test::beta,
+                           bptime::seconds(3600))),
         threshold_((test::k * 3) / 4),
-        local_node_(new Node::Impl(asio_service_,
-                                   transport_,
-                                   message_handler_,
-                                   SecurifierPtr(new SecurifierValidateTrue(
-                                                 "", "", "")),
-                                   alternative_store_,
-                                   true,
-                                   test::k,
-                                   test::alpha,
-                                   test::beta,
-                                   bptime::seconds(3600))) {
+        local_node_(new NodeImpl(asio_service_,
+                                 transport_,
+                                 message_handler_,
+                                 SecurifierPtr(new SecurifierValidateTrue(
+                                               "", "", "")),
+                                 alternative_store_,
+                                 true,
+                                 test::k,
+                                 test::alpha,
+                                 test::beta,
+                                 bptime::seconds(3600))) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
     local_node_->routing_table_ = routing_table_;
@@ -240,9 +240,9 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
   RankInfoPtr rank_info_;
   boost::asio::io_service asio_service_;
   MessageHandlerPtr message_handler_;
-  std::shared_ptr<Node::Impl> node_;
+  std::shared_ptr<NodeImpl> node_;
   int threshold_;
-  std::shared_ptr<Node::Impl> local_node_;
+  std::shared_ptr<NodeImpl> local_node_;
 
  public:
   void NodeImplJoinCallback(int output, int* result, bool *done) {

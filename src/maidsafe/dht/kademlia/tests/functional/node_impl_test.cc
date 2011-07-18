@@ -61,6 +61,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/transport/utils.h"
 #include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
+#include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
 namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
@@ -76,216 +77,55 @@ const uint16_t kAlpha = 3;
 const uint16_t kBeta = 2;
 const size_t kNumberOfNodes = 6;
 const uint16_t kThreadGroupSize = 3;
-const int kPending(9999999);
-
-// returns true if node_id is included in node_ids and is within kTestK closest.
-bool WithinKClosest(const NodeId &node_id,
-                    const Key &target_key,
-                    std::vector<NodeId> node_ids) {
-  // Put the k closest first (and sorted) in the vector.
-  std::function<bool(const NodeId&, const NodeId&)> predicate =                 // NOLINT (Fraser)
-      std::bind(static_cast<bool(*)(const NodeId&, const NodeId&,               // NOLINT (Fraser)
-                                    const NodeId&)>(&NodeId::CloserToTarget),
-                arg::_1, arg::_2, target_key);
-  std::partial_sort(node_ids.begin(), node_ids.begin() + kTestK, node_ids.end(),
-                    predicate);
-  return (std::find(node_ids.begin(), node_ids.begin() + kTestK + 1, node_id) !=
-          node_ids.begin() + kTestK + 1);
-}
-
 }  // unnamed namespace
 
 
-class TestNodeAlternativeStore : public AlternativeStore {
- public:
-  ~TestNodeAlternativeStore() {}
-  bool Has(const std::string&) const { return false; }
-};
-
 class NodeImplTest : public testing::Test {
- public:
-//  void FindNodesFunction(int /*result*/,
-//                         std::vector<Contact> contacts,
-//                         std::vector<Contact>& k_closest) {
-//    k_closest = contacts;
-//    found_nodes_ = true;
-//  }
-//
-//  void StoreValueFunction(int result) {
-//    std::cout << "StoreValueFunction " << result << std::endl;
-//    store_count_ = result;
-//    stored_value_ = true;
-//  }
-//
-//  void FindValueFunction(int /*result*/,
-//                         std::vector<std::string> /*values*/,
-//                         std::vector<Contact> /*k_closest*/,
-//                         Contact /*store_contact*/,
-//                         Contact /*cache_contact*/) {
-//    found_value_ = true;
-//  }
-//
-//  void DeleteFunction(int result) {
-//    std::cout << "DeleteFunction " << result << std::endl;
-//    delete_count_ = result;
-//    deleted_value_ = true;
-//  }
-//
-//  void GetContactFunction(int /*result*/, Contact /*contact*/) {
-//    found_contact_ = true;
-//  }
-
-  bool ResultReady(int *result) { return *result != kPending; }
-
  protected:
-  typedef std::shared_ptr<NodeContainer<Node::Impl>> NodeContainerPtr;
-  typedef std::function<bool()> WaitFunctor;
-  NodeImplTest() : node_containers_(),
-                   node_ids_(),
-//                   found_nodes_(false),
-//                   stored_value_(false),
-//                   found_value_(false),
-//                   deleted_value_(false),
-//                   found_contact_(false),
-//                   store_count_(0),
-//                   delete_count_(0),
-                   mutex_(),
-                   cond_var_(),
-                   kTimeout_(bptime::seconds(10)),
-                   join_result_(kPending),
-                   store_result_(kPending),
-                   delete_result_(kPending),
-                   update_result_(kPending),
-                   find_nodes_result_(kPending),
-                   get_contact_result_(kPending),
-                   find_value_returns_(),
-                   find_nodes_closest_nodes_(),
-                   gotten_contact_(),
-                   wait_for_join_functor_(),
-                   wait_for_store_functor_(),
-                   wait_for_delete_functor_(),
-                   wait_for_update_functor_(),
-                   wait_for_find_value_functor_(),
-                   wait_for_find_nodes_functor_(),
-                   wait_for_get_contact_functor_() {
-    wait_for_join_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                       &join_result_);
-    wait_for_store_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                        &store_result_);
-    wait_for_delete_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                         &delete_result_);
-    wait_for_update_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                         &update_result_);
-    wait_for_find_value_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                             &find_value_returns_.return_code);
-    wait_for_find_nodes_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                             &find_nodes_result_);
-    wait_for_get_contact_functor_ = std::bind(&NodeImplTest::ResultReady, this,
-                                              &get_contact_result_);
-  }
-
-  void SetUp() {
-    std::vector<Contact> bootstrap_contacts;
-    for (size_t i = 0; i != kNumberOfNodes; ++i) {
-      NodeContainerPtr node_container(new NodeContainer<Node::Impl>());
-      node_container->Init(kThreadGroupSize, SecurifierPtr(),
-          AlternativeStorePtr(new TestNodeAlternativeStore), false, kTestK,
-          kAlpha, kBeta, bptime::seconds(30));
-      node_container->MakeJoinFunctor(&mutex_, &cond_var_, &join_result_);
-      node_container->MakeStoreFunctor(&mutex_, &cond_var_, &store_result_);
-      node_container->MakeDeleteFunctor(&mutex_, &cond_var_, &delete_result_);
-      node_container->MakeUpdateFunctor(&mutex_, &cond_var_, &update_result_);
-      node_container->MakeFindValueFunctor(&mutex_, &cond_var_,
-                                           &find_value_returns_);
-      node_container->MakeFindNodesFunctor(&mutex_, &cond_var_,
-                                           &find_nodes_result_,
-                                           &find_nodes_closest_nodes_);
-      node_container->MakeGetContactFunctor(&mutex_, &cond_var_,
-                                            &get_contact_result_,
-                                            &gotten_contact_);
-
-      int attempts(0), max_attempts(5), result(0);
-      Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-      while ((result = node_container->Start(bootstrap_contacts, port)) < 0 &&
-             (attempts != max_attempts)) {
-        port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-        ++attempts;
-      }
-      ASSERT_EQ(0, result);
-      ASSERT_TRUE(node_container->node()->joined());
-      DLOG(INFO) << "Node " << i << " joined: " << DebugId(*node_container);
-      bootstrap_contacts.push_back(node_container->node()->contact());
-      node_containers_.push_back(node_container);
-      node_ids_.push_back(node_container->node()->contact().node_id());
-    }
-    DLOG(INFO) << "----------------------------------------------";
-    DLOG(INFO) << "----------------------------------------------";
-  }
-
-  void TearDown() {
-    for (std::size_t i = kNumberOfNodes - 1; i != -1; --i)
-      node_containers_[i]->Stop(NULL);
-  }
-
+  NodeImplTest()
+     : env_(static_cast<NodesEnvironment<NodeImpl>*>(g_env)) {}
+  void SetUp() {}
+  void TearDown() {}
   std::shared_ptr<DataStore> GetDataStore(
-      std::shared_ptr<NodeContainer<Node::Impl>> node_container) {
+      std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
+          node_container) {
     return node_container->node()->data_store_;
   }
 
-
-  std::vector<std::shared_ptr<NodeContainer<Node::Impl>>> node_containers_;  // NOLINT (Fraser)
-  std::vector<NodeId> node_ids_;
-//  bool found_nodes_, stored_value_, found_value_, deleted_value_,
-//       found_contact_;
-//  int store_count_, delete_count_;
-  boost::mutex mutex_;
-  boost::condition_variable cond_var_;
-  const bptime::time_duration kTimeout_;
-  int join_result_, store_result_, delete_result_, update_result_,
-      find_nodes_result_, get_contact_result_;
-  FindValueReturns find_value_returns_;
-  std::vector<Contact> find_nodes_closest_nodes_;
-  Contact gotten_contact_;
-  WaitFunctor wait_for_join_functor_;
-  WaitFunctor wait_for_store_functor_;
-  WaitFunctor wait_for_delete_functor_;
-  WaitFunctor wait_for_update_functor_;
-  WaitFunctor wait_for_find_value_functor_;
-  WaitFunctor wait_for_find_nodes_functor_;
-  WaitFunctor wait_for_get_contact_functor_;
+  NodesEnvironment<NodeImpl>* env_;
 };
 
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   for (std::size_t i = 0; i != kNumberOfNodes; ++i) {
-    find_nodes_result_ = kPending;
-    NodeId node_id(node_containers_[i]->node()->contact().node_id());
+    env_->find_nodes_result_ = kPendingResult;
+    NodeId node_id(env_->node_containers_[i]->node()->contact().node_id());
     {
-      boost::mutex::scoped_lock lock(mutex_);
-      node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
-                                       wait_for_find_nodes_functor_));
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      env_->node_containers_[i]->FindNodes(node_id);
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                  env_->wait_for_find_nodes_functor_));
     }
-    SortContacts(node_id, &find_nodes_closest_nodes_);
+    SortContacts(node_id, &env_->find_nodes_closest_nodes_);
     for (std::size_t j = 1; j != kTestK; ++j) {
-      ASSERT_TRUE(CloserToTarget(find_nodes_closest_nodes_[j-1],
-                                 find_nodes_closest_nodes_[j], node_id));
+      ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
+                                 env_->find_nodes_closest_nodes_[j], node_id));
     }
   }
-  find_nodes_closest_nodes_.clear();
+  env_->find_nodes_closest_nodes_.clear();
   NodeId node_id(NodeId::kRandomId);
   for (std::size_t i = 0; i != kNumberOfNodes; ++i) {
-    find_nodes_result_ = kPending;
+    env_->find_nodes_result_ = kPendingResult;
     {
-      boost::mutex::scoped_lock lock(mutex_);
-      node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
-                                       wait_for_find_nodes_functor_));
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      env_->node_containers_[i]->FindNodes(node_id);
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                  env_->wait_for_find_nodes_functor_));
     }
-    SortContacts(node_id, &find_nodes_closest_nodes_);
+    SortContacts(node_id, &env_->find_nodes_closest_nodes_);
     for (std::size_t j = 1; j != kTestK; ++j) {
-      ASSERT_TRUE(CloserToTarget(find_nodes_closest_nodes_[j-1],
-                                 find_nodes_closest_nodes_[j], node_id));
+      ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
+                                 env_->find_nodes_closest_nodes_[j], node_id));
     }
   }
 }
@@ -294,27 +134,30 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
-  size_t test_node_index(RandomUint32() % node_containers_.size());
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   DLOG(INFO) << "Node " << test_node_index << " - "
-             << DebugId(*node_containers_[test_node_index])
+             << DebugId(*env_->node_containers_[test_node_index])
              << " performing store operation.";
   {
-    boost::mutex::scoped_lock lock(mutex_);
-    node_containers_[test_node_index]->Store(key, value, "", duration,
-                                             SecurifierPtr());
-    ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_, wait_for_store_functor_));
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    env_->node_containers_[test_node_index]->Store(key, value, "", duration,
+                                                   SecurifierPtr());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                                           env_->wait_for_store_functor_));
   }
-  EXPECT_EQ(0, store_result_);
+  EXPECT_EQ(0, env_->store_result_);
 
 //  Sleep(bptime::milliseconds(1000));
 
   for (size_t i = 0; i != kNumberOfNodes; ++i) {
-    if (WithinKClosest(node_containers_[i]->node()->contact().node_id(), key,
-                       node_ids_)) {
+    if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
+                       key, env_->node_ids_, env_->k_)) {
 //        std::cout << DebugId(*node_containers_[i]) << ": ";
-      EXPECT_TRUE(GetDataStore(node_containers_[i])->HasKey(key.String()));
+      EXPECT_TRUE(GetDataStore(env_->node_containers_[i])->
+                  HasKey(key.String()));
     } else {
-      EXPECT_FALSE(GetDataStore(node_containers_[i])->HasKey(key.String()));
+      EXPECT_FALSE(GetDataStore(env_->node_containers_[i])->
+                   HasKey(key.String()));
     }
   }
 }
@@ -323,12 +166,13 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
-  size_t test_node_index(RandomUint32() % node_containers_.size());
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   {
-    boost::mutex::scoped_lock lock(mutex_);
-    node_containers_[test_node_index]->Store(key, value, "", duration,
-                                             SecurifierPtr());
-    ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_, wait_for_store_functor_));
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    env_->node_containers_[test_node_index]->Store(key, value, "", duration,
+                                                   SecurifierPtr());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                                           env_->wait_for_store_functor_));
   }
 
 //  Sleep(bptime::milliseconds(1000));
@@ -336,8 +180,8 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   // Get a node which hasn't stored the value
   size_t not_got_value(0);
   for (size_t i = 0; i != kNumberOfNodes; ++i) {
-    if (!WithinKClosest(node_containers_[i]->node()->contact().node_id(), key,
-                        node_ids_)) {
+    if (!WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
+                        key, env_->node_ids_, env_->k_)) {
       not_got_value = i;
       break;
     }
@@ -345,34 +189,34 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 
   for (size_t i = 0; i != kTestK; ++i) {
     {
-      boost::mutex::scoped_lock lock(mutex_);
-      node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
-      ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
-                                       wait_for_find_value_functor_));
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      env_->node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                  env_->wait_for_find_value_functor_));
     }
-    EXPECT_EQ(0, find_value_returns_.return_code);
-    ASSERT_FALSE(find_value_returns_.values.empty());
-    EXPECT_EQ(value, find_value_returns_.values.front());
+    EXPECT_EQ(kSuccess, env_->find_value_returns_.return_code);
+    ASSERT_FALSE(env_->find_value_returns_.values.empty());
+    EXPECT_EQ(value, env_->find_value_returns_.values.front());
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
     for (size_t j = 0; j != kNumberOfNodes; ++j) {
-      if (WithinKClosest(node_containers_[j]->node()->contact().node_id(), key,
-                         node_ids_) &&
-          node_containers_[j]->node()->joined()) {
-        node_containers_[j]->Stop(NULL);
+      if (WithinKClosest(env_->node_containers_[j]->node()->contact().node_id(),
+                         key, env_->node_ids_, env_->k_) &&
+          env_->node_containers_[j]->node()->joined()) {
+        env_->node_containers_[j]->Stop(NULL);
         break;
       }
     }
   }
   {
-    boost::mutex::scoped_lock lock(mutex_);
-    node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
-    ASSERT_TRUE(cond_var_.timed_wait(lock, kTimeout_,
-                                      wait_for_find_value_functor_));
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    env_->node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                env_->wait_for_find_value_functor_));
   }
-  EXPECT_EQ(-1, find_value_returns_.return_code);
-  EXPECT_TRUE(find_value_returns_.values.empty());
+  EXPECT_EQ(-1, env_->find_value_returns_.return_code);
+  EXPECT_TRUE(env_->find_value_returns_.values.empty());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
 }
@@ -545,14 +389,14 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 ////    if (j != leave_node)
 ////      ASSERT_FALSE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
 //  // Allow node to rejoin the network...
-//  int join_result(kPending);
+//  int join_result(kPendingResult);
 //  std::function<bool()> wait_functor =
 //      std::bind(&NodeImplTest::ResultReady, this, &join_result);
 //  std::vector<Contact> contacts;
 //  for (size_t j = 0; j != kNumberOfNodes; ++j) {
 //    if (node_containers_[leave_node]->node()->contact().node_id() ==
 //        nodeids[i]) {
-//      join_result = kPending;
+//      join_result = kPendingResult;
 //      node_containers_[leave_node]->node()->GetBootstrapContacts(&contacts);
 //      JoinFunctor join_functor = node_containers_[leave_node]->MakeJoinFunctor(
 //          &mutex_, &cond_var_, &join_result);

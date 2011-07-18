@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -35,6 +35,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/test.h"
 #include "maidsafe/dht/log.h"
 
+#if defined FUNCTIONAL_NODE_TEST || defined FUNCTIONAL_CHURN_TEST
+#  include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
+#  include "maidsafe/dht/kademlia/node-api.h"
+#elif defined FUNCTIONAL_NODE_IMPL_TEST
+#  include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
+#  include "maidsafe/dht/kademlia/node_impl.h"
+#endif
 
 int main(int argc, char **argv) {
   // Initialising logging
@@ -48,7 +55,7 @@ int main(int argc, char **argv) {
 
   // Log messages at or above this level. Severity levels are INFO, WARNING,
   // ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = google::WARNING;
+  FLAGS_minloglevel = google::INFO;
 
   // Prepend the log prefix to the start of each log line
   FLAGS_log_prefix = true;
@@ -64,6 +71,20 @@ int main(int argc, char **argv) {
   FLAGS_ms_logging_common = true;
 
   testing::InitGoogleTest(&argc, argv);
+#if defined FUNCTIONAL_NODE_TEST
+  testing::AddGlobalTestEnvironment(
+      new maidsafe::dht::kademlia::test::NodesEnvironment<
+          maidsafe::dht::kademlia::Node>(10, 0, 3, 4, 3, 2, bptime::hours(1)));
+#elif defined FUNCTIONAL_CHURN_TEST
+  testing::AddGlobalTestEnvironment(
+      new maidsafe::dht::kademlia::test::NodesEnvironment<
+          maidsafe::dht::kademlia::Node>(10, 0, 3, 4, 3, 2, bptime::hours(1)));
+#elif defined FUNCTIONAL_NODE_IMPL_TEST
+  testing::AddGlobalTestEnvironment(
+      new maidsafe::dht::kademlia::test::NodesEnvironment<
+          maidsafe::dht::kademlia::NodeImpl>(10, 0, 3, 4, 3, 2,
+                                             bptime::hours(1)));
+#endif
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
   return (test_count == 0) ? -1 : result;

@@ -66,89 +66,24 @@ const unsigned int kMaxRestartCycles = 5;
 const unsigned int kMaxPortTry = 5;
 
 struct SampleNodeStats {
-  explicit SampleNodeStats(size_t index)
-      : index(index),
+  explicit SampleNodeStats(size_t index_in)
+      : index(index_in),
         restart_cycles(RandomUint32() % kMaxRestartCycles + 1) {}
   size_t index;
   size_t restart_cycles;
 };
 
-struct NodeContainer {
-  NodeContainer()
-      : asio_service(),
-        work(),
-        thread_group(),
-        securifier(),
-        transport(),
-        message_handler(),
-        alternative_store(),
-        node() {}
-  NodeContainer(const std::string &key_id,
-                const std::string &public_key,
-                const std::string &private_key,
-                bool client_only_node,
-                uint16_t k,
-                uint16_t alpha,
-                uint16_t beta,
-                const boost::posix_time::time_duration &mean_refresh_interval)
-      : asio_service(),
-        work(),
-        thread_group(),
-        securifier(),
-        transport(),
-        message_handler(),
-        alternative_store(),
-        node() {
-    // set up ASIO service and thread pool
-    work.reset(
-        new boost::asio::io_service::work(asio_service));
-    thread_group.reset(new boost::thread_group());
-    thread_group->create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), &asio_service));
-
-    // set up data containers
-    securifier.reset(new Securifier(key_id, public_key, private_key));
-    // set up and connect transport and message handler
-    transport.reset(new transport::TcpTransport(asio_service));
-    message_handler.reset(new MessageHandler(securifier));
-    transport->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, message_handler.get(),
-            _1, _2, _3, _4).track_foreign(message_handler));
-
-    // create actual node
-    node.reset(new Node(asio_service, transport, message_handler, securifier,
-                        alternative_store, client_only_node, k, alpha, beta,
-                        mean_refresh_interval));
-  }
-  AsioService asio_service;
-  std::shared_ptr<boost::asio::io_service::work> work;
-  std::shared_ptr<boost::thread_group> thread_group;
-  std::shared_ptr<Securifier> securifier;
-  std::shared_ptr<transport::Transport> transport;
-  std::shared_ptr<MessageHandler> message_handler;
-  AlternativeStorePtr alternative_store;
-  std::shared_ptr<Node> node;
-};
-
 struct TimerContainer {
   TimerContainer()
       : asio_service(),
-        work(),
-        thread_group(),
-        timer() {
-    work.reset(
-        new boost::asio::io_service::work(asio_service));
-    thread_group.reset(new boost::thread_group());
-    thread_group->create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), &asio_service));
-    timer.reset(new boost::asio::deadline_timer(asio_service));
-  }
+        work(new boost::asio::io_service::work(asio_service)),
+        timer_thread(new boost::thread(
+            std::bind(static_cast<size_t(boost::asio::io_service::*)()>
+            (&boost::asio::io_service::run), &asio_service))),
+        timer(new boost::asio::deadline_timer(asio_service)) {}
   AsioService asio_service;
   std::shared_ptr<boost::asio::io_service::work> work;
-  std::shared_ptr<boost::thread_group> thread_group;
+  std::shared_ptr<boost::thread> timer_thread;
   std::shared_ptr<boost::asio::deadline_timer> timer;
 };
 

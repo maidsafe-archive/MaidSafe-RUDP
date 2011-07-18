@@ -37,8 +37,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread.hpp"
 #include "maidsafe/common/crypto.h"
+#include "maidsafe/dht/kademlia/securifier.h"
 
+#include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/kademlia/config.h"
+#include "maidsafe/dht/kademlia/utils.h"
+#include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/version.h"
 
 #if MAIDSAFE_DHT_VERSION != 3002
@@ -59,13 +63,13 @@ template <typename NodeType>
 class NodeContainer {
  public:
   NodeContainer()
-    : asio_service_(),
-      work_(new boost::asio::io_service::work(asio_service_)),
-      thread_group_(),
-      listening_transport_(new transport::TcpTransport(asio_service_)),
-      message_handler_(),
-      securifier_(),
-      node_() {}
+      : asio_service_(),
+        work_(new boost::asio::io_service::work(asio_service_)),
+        thread_group_(),
+        listening_transport_(new transport::TcpTransport(asio_service_)),
+        message_handler_(),
+        securifier_(),
+        node_() {}
 
   virtual ~NodeContainer() {}
 
@@ -211,7 +215,7 @@ class NodeContainer {
 
 template <typename NodeType>
 std::string DebugId(const NodeContainer<NodeType> &container) {
-  return DebugId(container.node()->contact());
+  return maidsafe::dht::kademlia::DebugId(container.node()->contact());
 }
 
 

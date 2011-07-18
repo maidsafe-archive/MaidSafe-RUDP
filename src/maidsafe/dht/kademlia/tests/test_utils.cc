@@ -25,6 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <algorithm>
 #include <bitset>
 
 #include "maidsafe/common/test.h"
@@ -333,6 +334,21 @@ void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids) {
                                     const NodeId&,
                                     const NodeId&)>(&NodeId::CloserToTarget),
                 arg::_1, arg::_2, target_key));
+}
+
+bool WithinKClosest(const NodeId &node_id,
+                    const Key &target_key,
+                    std::vector<NodeId> node_ids,
+                    const uint16_t &k) {
+  // Put the k closest first (and sorted) in the vector.
+  std::function<bool(const NodeId&, const NodeId&)> predicate =                 // NOLINT (Fraser)
+      std::bind(static_cast<bool(*)(const NodeId&, const NodeId&,               // NOLINT (Fraser)
+                                    const NodeId&)>(&NodeId::CloserToTarget),
+                arg::_1, arg::_2, target_key);
+  std::partial_sort(node_ids.begin(), node_ids.begin() + k, node_ids.end(),
+                    predicate);
+  return (std::find(node_ids.begin(), node_ids.begin() + k + 1, node_id) !=
+          node_ids.begin() + k + 1);
 }
 
 }  // namespace test

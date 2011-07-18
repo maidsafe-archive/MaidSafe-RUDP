@@ -139,6 +139,12 @@ void AddContact(std::shared_ptr<RoutingTable> routing_table,
 
 void SortIds(const NodeId &target_key, std::vector<NodeId> *node_ids);
 
+// returns true if node_id is included in node_ids and is within k closest.
+bool WithinKClosest(const NodeId &node_id,
+                    const Key &target_key,
+                    std::vector<NodeId> node_ids,
+                    const uint16_t &k);
+
 }  // namespace test
 
 }  // namespace kademlia

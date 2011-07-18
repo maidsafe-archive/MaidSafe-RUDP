@@ -45,9 +45,10 @@ Node::Node(AsioService &asio_service,             // NOLINT (Fraser)
            const uint16_t &alpha,
            const uint16_t &beta,
            const boost::posix_time::time_duration &mean_refresh_interval)
-    : pimpl_(new Impl(asio_service, listening_transport, message_handler,
-                      default_securifier, alternative_store, client_only_node,
-                      k, alpha, beta, mean_refresh_interval)) {}
+    : pimpl_(new NodeImpl(asio_service, listening_transport, message_handler,
+                          default_securifier, alternative_store,
+                          client_only_node, k, alpha, beta,
+                          mean_refresh_interval)) {}
 
 Node::~Node() {}
 

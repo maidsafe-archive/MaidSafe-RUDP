@@ -61,6 +61,8 @@ class RoutingTable;
 class Rpcs;
 
 namespace test {
+template <typename>
+class NodeContainer;
 class NodeImplTest;
 class MockNodeImplTest;
 class MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -79,21 +81,21 @@ typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
         ReportDownContactPtr;
 typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
-class Node::Impl {
+class NodeImpl {
  public:
-  Impl(AsioService &asio_service,                             // NOLINT (Fraser)
-       TransportPtr listening_transport,
-       MessageHandlerPtr message_handler,
-       SecurifierPtr default_securifier,
-       AlternativeStorePtr alternative_store,
-       bool client_only_node,
-       const uint16_t &k,
-       const uint16_t &alpha,
-       const uint16_t &beta,
-       const bptime::time_duration &mean_refresh_interval);
-  // virtual destructor to allow tests to use a derived Impl and befriend it
+  NodeImpl(AsioService &asio_service,                             // NOLINT (Fraser)
+           TransportPtr listening_transport,
+           MessageHandlerPtr message_handler,
+           SecurifierPtr default_securifier,
+           AlternativeStorePtr alternative_store,
+           bool client_only_node,
+           const uint16_t &k,
+           const uint16_t &alpha,
+           const uint16_t &beta,
+           const bptime::time_duration &mean_refresh_interval);
+  // virtual destructor to allow tests to use a derived NodeImpl and befriend it
   // rather than polluting this with friend tests.
-  virtual ~Impl();
+  virtual ~NodeImpl();
   void Join(const NodeId &node_id,
             std::vector<Contact> bootstrap_contacts,
             JoinFunctor callback);
@@ -209,6 +211,8 @@ class Node::Impl {
   bool refresh_thread_running() const;
   bool downlist_thread_running() const;
 
+  template <typename>
+  friend class NodeContainer;
   friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
   friend class test::MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -220,8 +224,8 @@ class Node::Impl {
   friend class test::MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
 
  private:
-  Impl(const Impl&);
-  Impl &operator=(const Impl&);
+  NodeImpl(const NodeImpl&);
+  NodeImpl &operator=(const NodeImpl&);
 
   /** Setter. Will connect the ping_oldest_contact signal in routing table. */
   void EnablePingOldestContact();
@@ -506,7 +510,7 @@ class Node::Impl {
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
 
-  /** The thread group to hold all monitoring treads
+  /** The thread group to hold all monitoring threads
    *  Used by: MonitoringDownlistThread */
   std::shared_ptr<boost::thread_group> thread_group_;
   bool refresh_thread_running_,
