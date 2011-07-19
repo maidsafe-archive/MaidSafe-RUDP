@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 #  include "maidsafe/dht/kademlia/node-api.h"
 #elif defined FUNCTIONAL_NODE_IMPL_TEST
-#  include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
+#  include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"  // NOLINT (Fraser)
 #  include "maidsafe/dht/kademlia/node_impl.h"
 #endif
 
@@ -78,11 +78,11 @@ int main(int argc, char **argv) {
 #elif defined FUNCTIONAL_CHURN_TEST
   testing::AddGlobalTestEnvironment(
       new maidsafe::dht::kademlia::test::NodesEnvironment<
-          maidsafe::dht::kademlia::Node>(10, 0, 3, 4, 3, 2, bptime::hours(1)));
+          maidsafe::dht::kademlia::Node>(20, 0, 3, 4, 3, 2, bptime::hours(1)));
 #elif defined FUNCTIONAL_NODE_IMPL_TEST
   testing::AddGlobalTestEnvironment(
       new maidsafe::dht::kademlia::test::NodesEnvironment<
-          maidsafe::dht::kademlia::NodeImpl>(10, 0, 3, 4, 3, 2,
+          maidsafe::dht::kademlia::NodeImpl>(6, 0, 3, 4, 3, 2,
                                              bptime::hours(1)));
 #endif
   int result(RUN_ALL_TESTS());

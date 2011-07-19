@@ -26,44 +26,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <array>
-#include <bitset>
 
-#include "boost/lexical_cast.hpp"
-#include "boost/thread/thread.hpp"
-#include "boost/thread/mutex.hpp"
-#include "boost/thread/condition_variable.hpp"
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "gmock/gmock.h"
 #include "maidsafe/common/test.h"
 
-#include "maidsafe/common/alternative_store.h"
-#include "maidsafe/common/utils.h"
-#include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/log.h"
-#include "maidsafe/dht/kademlia/config.h"
-#include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/data_store.h"
-#include "maidsafe/dht/kademlia/message_handler.h"
-#include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
-#include "maidsafe/dht/kademlia/routing_table.h"
-#ifdef __MSVC__
-#  pragma warning(push)
-#  pragma warning(disable: 4127 4244 4267)
-#endif
-#include "maidsafe/dht/kademlia/rpcs.pb.h"
-#ifdef __MSVC__
-#  pragma warning(pop)
-#endif
-#include "maidsafe/dht/kademlia/rpcs.h"
-#include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/kademlia/service.h"
-#include "maidsafe/dht/transport/tcp_transport.h"
-#include "maidsafe/dht/transport/utils.h"
 #include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
-namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -73,10 +46,10 @@ namespace test {
 
 class NodeImplTest : public testing::Test {
  protected:
-  NodeImplTest()
-     : env_(NodesEnvironment<NodeImpl>::g_environment()) {}
-  void SetUp() {}
-  void TearDown() {}
+  typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
+      NodeContainerPtr;
+  NodeImplTest() : env_(NodesEnvironment<NodeImpl>::g_environment()),
+                   kTimeout_(bptime::seconds(10)) {}
   std::shared_ptr<DataStore> GetDataStore(
       std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
           node_container) {
@@ -84,39 +57,46 @@ class NodeImplTest : public testing::Test {
   }
 
   NodesEnvironment<NodeImpl>* env_;
+  const bptime::time_duration kTimeout_;
 };
 
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
   for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
-    env_->find_nodes_result_ = kPendingResult;
     NodeId node_id(env_->node_containers_[i]->node()->contact().node_id());
+    int result;
+    std::vector<Contact> closest_nodes;
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
       env_->node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                  env_->wait_for_find_nodes_functor_));
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()));
+      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
+                                                            &closest_nodes);
     }
-    SortContacts(node_id, &env_->find_nodes_closest_nodes_);
+    SortContacts(node_id, &closest_nodes);
     for (std::size_t j = 1; j != env_->k_; ++j) {
-      ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
-                                 env_->find_nodes_closest_nodes_[j], node_id));
+      ASSERT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
+                                 node_id));
     }
   }
-  env_->find_nodes_closest_nodes_.clear();
+
   NodeId node_id(NodeId::kRandomId);
   for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
-    env_->find_nodes_result_ = kPendingResult;
+    int result;
+    std::vector<Contact> closest_nodes;
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
       env_->node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                  env_->wait_for_find_nodes_functor_));
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()));
+      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
+                                                            &closest_nodes);
     }
-    SortContacts(node_id, &env_->find_nodes_closest_nodes_);
+    SortContacts(node_id, &closest_nodes);
     for (std::size_t j = 1; j != env_->k_; ++j) {
-      ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
-                                 env_->find_nodes_closest_nodes_[j], node_id));
+      ASSERT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
+                                 node_id));
     }
   }
 }
@@ -126,17 +106,19 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
   DLOG(INFO) << "Node " << test_node_index << " - "
-             << DebugId(*env_->node_containers_[test_node_index])
-             << " performing store operation.";
+             << DebugId(*chosen_container) << " performing store operation.";
+  int result(kPendingResult);
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
-    env_->node_containers_[test_node_index]->Store(key, value, "", duration,
-                                                   SecurifierPtr());
-    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                                           env_->wait_for_store_functor_));
+    chosen_container->Store(key, value, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
   }
-  EXPECT_EQ(0, env_->store_result_);
+  EXPECT_EQ(kSuccess, result);
 
 //  Sleep(bptime::milliseconds(1000));
 
@@ -158,13 +140,17 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
+  int result(kPendingResult);
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
-    env_->node_containers_[test_node_index]->Store(key, value, "", duration,
-                                                   SecurifierPtr());
-    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                                           env_->wait_for_store_functor_));
+    putting_container->Store(key, value, "", duration,
+                             putting_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                putting_container->wait_for_store_functor()));
+    putting_container->GetAndResetStoreResult(&result);
   }
+  ASSERT_EQ(kSuccess, result);
 
 //  Sleep(bptime::milliseconds(1000));
 
@@ -177,17 +163,20 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
       break;
     }
   }
+  NodeContainerPtr getting_container(env_->node_containers_[not_got_value]);
 
+  FindValueReturns find_value_returns;
   for (size_t i = 0; i != env_->k_; ++i) {
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
-      env_->node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
-      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                  env_->wait_for_find_value_functor_));
+      getting_container->FindValue(key, getting_container->securifier());
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  getting_container->wait_for_find_value_functor()));
+      getting_container->GetAndResetFindValueResult(&find_value_returns);
     }
-    EXPECT_EQ(kSuccess, env_->find_value_returns_.return_code);
-    ASSERT_FALSE(env_->find_value_returns_.values.empty());
-    EXPECT_EQ(value, env_->find_value_returns_.values.front());
+    EXPECT_EQ(kSuccess, find_value_returns.return_code);
+    ASSERT_FALSE(find_value_returns.values.empty());
+    EXPECT_EQ(value, find_value_returns.values.front());
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
@@ -202,12 +191,13 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
   }
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
-    env_->node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
-    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                env_->wait_for_find_value_functor_));
+    getting_container->FindValue(key, getting_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                getting_container->wait_for_find_value_functor()));
+    getting_container->GetAndResetFindValueResult(&find_value_returns);
   }
-  EXPECT_EQ(-1, env_->find_value_returns_.return_code);
-  EXPECT_TRUE(env_->find_value_returns_.values.empty());
+  EXPECT_EQ(-1, find_value_returns.return_code);
+  EXPECT_TRUE(find_value_returns.values.empty());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
 }
@@ -221,15 +211,15 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
   boost::mutex::scoped_lock lock(env_->mutex_);
-  env_->node_containers_[test_node_index]->Store(key, value, "", duration,
-                                                 SecurifierPtr());
-  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                                         env_->wait_for_store_functor_));
-  env_->node_containers_[test_node_index]->Delete(key, value, "",
-                                                  SecurifierPtr());
-  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                                         env_->wait_for_delete_functor_));
+  chosen_container->Store(key, value, "", duration,
+                          chosen_container->securifier());
+  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_store_functor()));
+  chosen_container->Delete(key, value, "", chosen_container->securifier());
+  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_delete_functor()));
 }
 
 //TEST_F(NodeImplTest, BEH_KAD_StoreRefresh) {

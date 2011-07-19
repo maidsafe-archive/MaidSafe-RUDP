@@ -48,6 +48,7 @@ enum ReturnCode {
   kPendingResult = -300003,
   kFailedSignatureCheck = -300004,
   kInvalidPointer = -300005,
+  kTimedOut = -300006,
 
   // DataStore
   kEmptyKey = -301001,

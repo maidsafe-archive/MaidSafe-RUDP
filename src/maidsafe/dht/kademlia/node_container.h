@@ -62,15 +62,7 @@ namespace kademlia {
 template <typename NodeType>
 class NodeContainer {
  public:
-  NodeContainer()
-      : asio_service_(),
-        work_(new boost::asio::io_service::work(asio_service_)),
-        thread_group_(),
-        listening_transport_(),
-        message_handler_(),
-        securifier_(),
-        node_() {}
-
+  NodeContainer();
   virtual ~NodeContainer() {}
 
   virtual void Init(
@@ -83,12 +75,15 @@ class NodeContainer {
       uint16_t beta = 2,
       bptime::time_duration mean_refresh_interval = bptime::hours(1));
 
-  int Start(std::vector<Contact> bootstrap_contacts, const Port &port);
+  // For a non-client, starts listening on port.  Then for all types, joins
+  // network.
+  int Start(const std::vector<Contact> &bootstrap_contacts, const Port &port);
 
+  // Stops listening (if non-client) and leaves network.  Joins all threads.
   int Stop(std::vector<Contact> *bootstrap_contacts);
 
   // These 7 functions call the corresponding function on node_ using the
-  // corresponding class member functors.
+  // corresponding member callback functors of this class.
   void Join(const NodeId &node_id,
             const std::vector<Contact> &bootstrap_contacts);
   void Store(const Key &key,
@@ -115,29 +110,26 @@ class NodeContainer {
   // These Make<XXX>Functor functions set the appropriate <XXX>_functor_ by
   // binding the corresponding private <XXX>Callback method.
   void MakeJoinFunctor(boost::mutex *mutex,
-                       boost::condition_variable *cond_var,
-                       int *result);
+                       boost::condition_variable *cond_var);
   void MakeStoreFunctor(boost::mutex *mutex,
-                        boost::condition_variable *cond_var,
-                        int *result);
+                        boost::condition_variable *cond_var);
   void MakeDeleteFunctor(boost::mutex *mutex,
-                         boost::condition_variable *cond_var,
-                         int *result);
+                         boost::condition_variable *cond_var);
   void MakeUpdateFunctor(boost::mutex *mutex,
-                         boost::condition_variable *cond_var,
-                         int *result);
+                         boost::condition_variable *cond_var);
   void MakeFindValueFunctor(boost::mutex *mutex,
-                            boost::condition_variable *cond_var,
-                            FindValueReturns *find_value_returns);
+                            boost::condition_variable *cond_var);
   void MakeFindNodesFunctor(boost::mutex *mutex,
-                            boost::condition_variable *cond_var,
-                            int *result,
-                            std::vector<Contact> *closest_nodes);
+                            boost::condition_variable *cond_var);
   void MakeGetContactFunctor(boost::mutex *mutex,
-                             boost::condition_variable *cond_var,
-                             int *result,
-                             Contact *contact);
+                             boost::condition_variable *cond_var);
+  // Convenience method for where all callback functors use the same mutex and
+  // cond_var
+  void MakeAllCallbackFunctors(boost::mutex *mutex,
+                               boost::condition_variable *cond_var);
 
+  // These 7 setters allow using a different callback method to the one provided
+  // in this class.
   void set_join_functor(const JoinFunctor &functor) {
     join_functor_ = functor;
   }
@@ -160,7 +152,24 @@ class NodeContainer {
     get_contact_functor_ = functor;
   }
 
+  // These 7 getters also set corresponding class member results to
+  // kPendingResult and clear any corresponding result structs/containers ready
+  // for subsequent calls.
+  void GetAndResetJoinResult(int *result);
+  void GetAndResetStoreResult(int *result);
+  void GetAndResetDeleteResult(int *result);
+  void GetAndResetUpdateResult(int *result);
+  void GetAndResetFindNodesResult(int *result,
+                                  std::vector<Contact> *closest_nodes);
+  void GetAndResetFindValueResult(FindValueReturns *find_value_returns);
+  void GetAndResetGetContactResult(int *result, Contact *contact);
+
+  // Standard getters
   std::shared_ptr<NodeType> node() const { return node_; }
+  SecurifierPtr securifier() const { return securifier_; }
+  std::vector<Contact> bootstrap_contacts() const {
+    return bootstrap_contacts_;
+  }
   JoinFunctor join_functor() const { return join_functor_; }
   StoreFunctor store_functor() const { return store_functor_; }
   DeleteFunctor delete_functor() const { return delete_functor_; }
@@ -168,7 +177,27 @@ class NodeContainer {
   FindValueFunctor find_value_functor() const { return find_value_functor_; }
   FindNodesFunctor find_nodes_functor() const { return find_nodes_functor_; }
   GetContactFunctor get_contact_functor() const { return get_contact_functor_; }
-  SecurifierPtr securifier() const { return securifier_; }
+
+  // These WaitFunctors can be used inside boost wait or timed_wait functions
+  // as predicates.
+  WaitFunctor wait_for_join_functor() const { return wait_for_join_functor_; }
+  WaitFunctor wait_for_store_functor() const { return wait_for_store_functor_; }
+  WaitFunctor wait_for_delete_functor() const {
+    return wait_for_delete_functor_;
+  }
+  WaitFunctor wait_for_update_functor() const {
+    return wait_for_update_functor_;
+  }
+  WaitFunctor wait_for_find_value_functor() const {
+    return wait_for_find_value_functor_;
+  }
+  WaitFunctor wait_for_find_nodes_functor() const {
+    return wait_for_find_nodes_functor_;
+  }
+  WaitFunctor wait_for_get_contact_functor() const {
+    return wait_for_get_contact_functor_;
+  }
+
 
  protected:
   AsioService asio_service_;
@@ -178,31 +207,45 @@ class NodeContainer {
   MessageHandlerPtr message_handler_;
   SecurifierPtr securifier_;
   std::shared_ptr<NodeType> node_;
+  std::vector<Contact> bootstrap_contacts_;
+  int join_result_, store_result_, delete_result_, update_result_,
+      find_nodes_result_, get_contact_result_;
+  FindValueReturns find_value_returns_;
+  std::vector<Contact> find_nodes_closest_nodes_;
+  Contact gotten_contact_;
+  WaitFunctor wait_for_join_functor_;
+  WaitFunctor wait_for_store_functor_;
+  WaitFunctor wait_for_delete_functor_;
+  WaitFunctor wait_for_update_functor_;
+  WaitFunctor wait_for_find_value_functor_;
+  WaitFunctor wait_for_find_nodes_functor_;
+  WaitFunctor wait_for_get_contact_functor_;
 
  private:
-  void DefaultCallback(int result_in,
-                       boost::mutex *mutex,
-                       boost::condition_variable *cond_var,
-                       int *result_out);
+  void JoinCallback(int result_in,
+                    boost::mutex *mutex,
+                    boost::condition_variable *cond_var);
+  void StoreCallback(int result_in,
+                     boost::mutex *mutex,
+                     boost::condition_variable *cond_var);
+  void DeleteCallback(int result_in,
+                      boost::mutex *mutex,
+                      boost::condition_variable *cond_var);
+  void UpdateCallback(int result_in,
+                      boost::mutex *mutex,
+                      boost::condition_variable *cond_var);
   void FindValueCallback(FindValueReturns find_value_returns_in,
                          boost::mutex *mutex,
-                         boost::condition_variable *cond_var,
-                         FindValueReturns *find_value_returns_out);
+                         boost::condition_variable *cond_var);
   void FindNodesCallback(int result_in,
                          std::vector<Contact> closest_nodes_in,
                          boost::mutex *mutex,
-                         boost::condition_variable *cond_var,
-                         int *result_out,
-                         std::vector<Contact> *closest_nodes_out);
+                         boost::condition_variable *cond_var);
   void GetContactCallback(int result_in,
                           Contact contact_in,
                           boost::mutex *mutex,
-                          boost::condition_variable *cond_var,
-                          int *result_out,
-                          Contact *contact_out);
-  bool ResultReady(const int &pending, int *result) {
-    return *result != pending;
-  }
+                          boost::condition_variable *cond_var);
+  bool ResultReady(int *result) { return *result != kPendingResult; }
   NodeContainer(const NodeContainer&);
   NodeContainer &operator=(const NodeContainer&);
   JoinFunctor join_functor_;
@@ -219,6 +262,51 @@ std::string DebugId(const NodeContainer<NodeType> &container) {
   return maidsafe::dht::kademlia::DebugId(container.node()->contact());
 }
 
+
+template<typename NodeType>
+NodeContainer<NodeType>::NodeContainer()
+    : asio_service_(),
+      work_(new boost::asio::io_service::work(asio_service_)),
+      thread_group_(),
+      listening_transport_(),
+      message_handler_(),
+      securifier_(),
+      node_(),
+      bootstrap_contacts_(),
+      join_result_(kPendingResult),
+      store_result_(kPendingResult),
+      delete_result_(kPendingResult),
+      update_result_(kPendingResult),
+      find_nodes_result_(kPendingResult),
+      get_contact_result_(kPendingResult),
+      find_value_returns_(),
+      find_nodes_closest_nodes_(),
+      gotten_contact_(),
+      wait_for_join_functor_(),
+      wait_for_store_functor_(),
+      wait_for_delete_functor_(),
+      wait_for_update_functor_(),
+      wait_for_find_value_functor_(),
+      wait_for_find_nodes_functor_(),
+      wait_for_get_contact_functor_() {
+  wait_for_join_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this, &join_result_);
+  wait_for_store_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this, &store_result_);
+  wait_for_delete_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this, &delete_result_);
+  wait_for_update_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this, &update_result_);
+  wait_for_find_value_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this,
+                &find_value_returns_.return_code);
+  wait_for_find_nodes_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this,
+                &find_nodes_result_);
+  wait_for_get_contact_functor_ =
+      std::bind(&NodeContainer<NodeType>::ResultReady, this,
+                &get_contact_result_);
+}
 
 template <typename NodeType>
 void NodeContainer<NodeType>::Init(
@@ -270,8 +358,9 @@ void NodeContainer<NodeType>::Init(
 
 template <typename NodeType>
 int NodeContainer<NodeType>::Start(
-    std::vector<dht::kademlia::Contact> bootstrap_contacts,
+    const std::vector<dht::kademlia::Contact> &bootstrap_contacts,
     const boost::uint16_t &port) {
+  bootstrap_contacts_ = bootstrap_contacts;
   int result(kPendingResult);
   if (!node_->client_only_node()) {
     transport::Endpoint endpoint("127.0.0.1", port);
@@ -282,32 +371,38 @@ int NodeContainer<NodeType>::Start(
     }
   }
 
-  result = kPendingResult;
   boost::mutex mutex;
   boost::condition_variable cond_var;
   NodeId node_id(securifier_->kSigningKeyId());
-  JoinFunctor join_functor(std::bind(&NodeContainer<NodeType>::DefaultCallback,
-                           this, arg::_1, &mutex, &cond_var, &result));
+  JoinFunctor join_functor(std::bind(&NodeContainer<NodeType>::JoinCallback,
+                           this, arg::_1, &mutex, &cond_var));
 
   boost::function<bool()> wait_functor = boost::bind(
-      &NodeContainer<NodeType>::ResultReady, this, kPendingResult, &result);
+      &NodeContainer<NodeType>::ResultReady, this, &join_result_);
   const bptime::time_duration kTimeout(bptime::seconds(10));
   boost::mutex::scoped_lock lock(mutex);
-  node_->Join(node_id, bootstrap_contacts, join_functor);
-  return cond_var.timed_wait(lock, kTimeout, wait_functor) ? result : -1;
+  node_->Join(node_id, bootstrap_contacts_, join_functor);
+  bool wait_success(cond_var.timed_wait(lock, kTimeout, wait_functor));
+  result = kPendingResult;
+  GetAndResetJoinResult(&result);
+  return (wait_success ? result : kTimedOut);
 }
 
 template <typename NodeType>
 int NodeContainer<NodeType>::Stop(std::vector<Contact> *bootstrap_contacts) {
   try {
-    node_->Leave(bootstrap_contacts);
+    if (node_->joined()) {
+      node_->Leave(&bootstrap_contacts_);
+      if (bootstrap_contacts)
+        *bootstrap_contacts = bootstrap_contacts_;
+    }
     work_.reset();
     asio_service_.stop();
     thread_group_.join_all();
   } catch(const std::exception&) {
-    return -1;
+    return kGeneralError;
   }
-  return 0;
+  return kSuccess;
 }
 
 template <typename NodeType>
@@ -364,14 +459,42 @@ void NodeContainer<NodeType>::GetContact(const NodeId &node_id) {
 }
 
 template <typename NodeType>
-void NodeContainer<NodeType>::DefaultCallback(
+void NodeContainer<NodeType>::JoinCallback(
     int result_in,
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result_out) {
+    boost::condition_variable *cond_var) {
   boost::mutex::scoped_lock lock(*mutex);
-  if (result_out)
-    *result_out = result_in;
+  join_result_ = result_in;
+  cond_var->notify_one();
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::StoreCallback(
+    int result_in,
+    boost::mutex *mutex,
+    boost::condition_variable *cond_var) {
+  boost::mutex::scoped_lock lock(*mutex);
+  store_result_ = result_in;
+  cond_var->notify_one();
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::DeleteCallback(
+    int result_in,
+    boost::mutex *mutex,
+    boost::condition_variable *cond_var) {
+  boost::mutex::scoped_lock lock(*mutex);
+  delete_result_ = result_in;
+  cond_var->notify_one();
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::UpdateCallback(
+    int result_in,
+    boost::mutex *mutex,
+    boost::condition_variable *cond_var) {
+  boost::mutex::scoped_lock lock(*mutex);
+  update_result_ = result_in;
   cond_var->notify_one();
 }
 
@@ -379,11 +502,9 @@ template <typename NodeType>
 void NodeContainer<NodeType>::FindValueCallback(
     FindValueReturns find_value_returns_in,
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    FindValueReturns *find_value_returns_out) {
+    boost::condition_variable *cond_var) {
   boost::mutex::scoped_lock lock(*mutex);
-  if (find_value_returns_out)
-    *find_value_returns_out = find_value_returns_in;
+  find_value_returns_ = find_value_returns_in;
   cond_var->notify_one();
 }
 
@@ -392,14 +513,10 @@ void NodeContainer<NodeType>::FindNodesCallback(
     int result_in,
     std::vector<Contact> closest_nodes_in,
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result_out,
-    std::vector<Contact> *closest_nodes_out) {
+    boost::condition_variable *cond_var) {
   boost::mutex::scoped_lock lock(*mutex);
-  if (result_out)
-    *result_out = result_in;
-  if (closest_nodes_out)
-    *closest_nodes_out = closest_nodes_in;
+  find_nodes_result_ = result_in;
+  find_nodes_closest_nodes_ = closest_nodes_in;
   cond_var->notify_one();
 }
 
@@ -408,83 +525,144 @@ void NodeContainer<NodeType>::GetContactCallback(
     int result_in,
     Contact contact_in,
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result_out,
-    Contact *contact_out) {
+    boost::condition_variable *cond_var) {
   boost::mutex::scoped_lock lock(*mutex);
-  if (result_out)
-    *result_out = result_in;
-  if (contact_out)
-    *contact_out = contact_in;
+  get_contact_result_ = result_in;
+  gotten_contact_ = contact_in;
   cond_var->notify_one();
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeJoinFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result) {
-  join_functor_ = std::bind(&NodeContainer<NodeType>::DefaultCallback, this,
-                            arg::_1, mutex, cond_var, result);
+    boost::condition_variable *cond_var) {
+  join_functor_ = std::bind(&NodeContainer<NodeType>::JoinCallback, this,
+                            arg::_1, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeStoreFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result) {
-  store_functor_ = std::bind(&NodeContainer<NodeType>::DefaultCallback, this,
-                             arg::_1, mutex, cond_var, result);
+    boost::condition_variable *cond_var) {
+  store_functor_ = std::bind(&NodeContainer<NodeType>::StoreCallback, this,
+                             arg::_1, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeDeleteFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result) {
-  delete_functor_ = std::bind(&NodeContainer<NodeType>::DefaultCallback, this,
-                              arg::_1, mutex, cond_var, result);
+    boost::condition_variable *cond_var) {
+  delete_functor_ = std::bind(&NodeContainer<NodeType>::DeleteCallback, this,
+                              arg::_1, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeUpdateFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result) {
-  update_functor_ = std::bind(&NodeContainer<NodeType>::DefaultCallback, this,
-                              arg::_1, mutex, cond_var, result);
+    boost::condition_variable *cond_var) {
+  update_functor_ = std::bind(&NodeContainer<NodeType>::UpdateCallback, this,
+                              arg::_1, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeFindValueFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    FindValueReturns *find_value_returns) {
+    boost::condition_variable *cond_var) {
   find_value_functor_ = std::bind(&NodeContainer<NodeType>::FindValueCallback,
-                                  this, arg::_1, mutex, cond_var,
-                                  find_value_returns);
+                                  this, arg::_1, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeFindNodesFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result,
-    std::vector<Contact> *closest_nodes) {
+    boost::condition_variable *cond_var) {
   find_nodes_functor_ = std::bind(&NodeContainer<NodeType>::FindNodesCallback,
-                                  this, arg::_1, arg::_2, mutex, cond_var,
-                                  result, closest_nodes);
+                                  this, arg::_1, arg::_2, mutex, cond_var);
 }
 
 template <typename NodeType>
 void NodeContainer<NodeType>::MakeGetContactFunctor(
     boost::mutex *mutex,
-    boost::condition_variable *cond_var,
-    int *result,
-    Contact *contact) {
+    boost::condition_variable *cond_var) {
   get_contact_functor_ = std::bind(&NodeContainer<NodeType>::GetContactCallback,
-                                   this, arg::_1, arg::_2, mutex, cond_var,
-                                   result, contact);
+                                   this, arg::_1, arg::_2, mutex, cond_var);
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::MakeAllCallbackFunctors(
+    boost::mutex *mutex,
+    boost::condition_variable *cond_var) {
+  MakeJoinFunctor(mutex, cond_var);
+  MakeStoreFunctor(mutex, cond_var);
+  MakeDeleteFunctor(mutex, cond_var);
+  MakeUpdateFunctor(mutex, cond_var);
+  MakeFindValueFunctor(mutex, cond_var);
+  MakeFindNodesFunctor(mutex, cond_var);
+  MakeGetContactFunctor(mutex, cond_var);
+}
+
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetJoinResult(int *result) {
+  if (result)
+    *result = join_result_;
+  join_result_ = kPendingResult;
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetStoreResult(int *result) {
+  if (result)
+    *result = store_result_;
+  store_result_ = kPendingResult;
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetDeleteResult(int *result) {
+  if (result)
+    *result = delete_result_;
+  delete_result_ = kPendingResult;
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetUpdateResult(int *result) {
+  if (result)
+    *result = update_result_;
+  update_result_ = kPendingResult;
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetFindNodesResult(
+    int *result,
+    std::vector<Contact> *closest_nodes) {
+  if (result)
+    *result = find_nodes_result_;
+  if (closest_nodes)
+    *closest_nodes = find_nodes_closest_nodes_;
+  find_nodes_result_ = kPendingResult;
+  find_nodes_closest_nodes_.clear();
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetFindValueResult(
+    FindValueReturns *find_value_returns) {
+  if (find_value_returns)
+    *find_value_returns = find_value_returns_;
+  find_value_returns_.alternative_store_holder = Contact();
+  find_value_returns_.closest_nodes.clear();
+  find_value_returns_.needs_cache_copy = Contact();
+  find_value_returns_.return_code = kPendingResult;
+  find_value_returns_.values.clear();
+}
+
+template <typename NodeType>
+void NodeContainer<NodeType>::GetAndResetGetContactResult(int *result,
+                                                          Contact *contact) {
+  if (result)
+    *result = get_contact_result_;
+  if (contact)
+    *contact = gotten_contact_;
+  get_contact_result_ = kPendingResult;
+  gotten_contact_ = Contact();
 }
 
 

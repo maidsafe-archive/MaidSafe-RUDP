@@ -266,17 +266,17 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   if (thread_group_)  {
     thread_group_->interrupt_all();
     thread_group_->join_all();
-    thread_group_.reset();
+//    thread_group_.reset();
   }
   refresh_thread_running_ = false;
   downlist_thread_running_ = false;
   GetBootstrapContacts(bootstrap_contacts);
-  if (!rpcs_)
-    rpcs_.reset();
-  if (!service_)
-    service_.reset();
-  if (!routing_table_)
-    routing_table_.reset();
+//  if (rpcs_)
+//    rpcs_.reset();
+//  if (service_)
+//    service_.reset();
+//  if (routing_table_)
+//    routing_table_.reset();
 }
 
 void NodeImpl::Store(const Key &key,

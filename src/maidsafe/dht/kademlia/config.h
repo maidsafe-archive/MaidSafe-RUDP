@@ -99,6 +99,10 @@ typedef std::function<void(int, std::vector<Contact>)> FindNodesFunctor;
 // node's contact details.
 typedef std::function<void(int, Contact)> GetContactFunctor;
 
+// Functor to be used as a predicate in waits and timed_waits.
+typedef std::function<bool()> WaitFunctor;
+
+
 
 typedef NodeId Key;
 typedef boost::asio::ip::address IP;

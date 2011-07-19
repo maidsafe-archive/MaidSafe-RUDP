@@ -52,6 +52,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/securifier.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/tests/test_utils.h"
+#include "maidsafe/dht/kademlia/node_container.h"
+#include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
 namespace fs = boost::filesystem;
 namespace arg = std::placeholders;
@@ -61,9 +65,7 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
-const std::string kLocalIp = "127.0.0.1";
 const unsigned int kMaxRestartCycles = 5;
-const unsigned int kMaxPortTry = 5;
 
 struct SampleNodeStats {
   explicit SampleNodeStats(size_t index_in)
@@ -89,39 +91,23 @@ struct TimerContainer {
 
 class NodeChurnTest : public testing::Test {
  public:
-  void JoinCallback(size_t index,
-                    int result,
-                    boost::mutex *mutex,
-                    boost::condition_variable *cond_var,
-                    size_t *joined_nodes,
-                    size_t *failed_nodes) {
-    boost::mutex::scoped_lock lock(*mutex);
-    if (result >= 0) {
-      if (index > 0 && index < network_size_) {
-        if ((std::find(bootstrap_contacts_.begin(), bootstrap_contacts_.end(),
-            nodes_[index]->node->contact())) == bootstrap_contacts_.end())
-          bootstrap_contacts_.push_back(nodes_[index]->node->contact());
-      }
-      DLOG(INFO) << "Node " << (index + 1) << " joined.";
-      ++(*joined_nodes);
+  void JoinCallback(size_t index, int result) {
+    boost::mutex::scoped_lock lock(mutex_);
+    if (result == kSuccess) {
+      DLOG(INFO) << "Node " << index << " joined.";
     } else {
-      DLOG(ERROR) << "Node " << (index + 1) << " failed to join.";
-      ++(*failed_nodes);
+      FAIL() << "Node " << index << " failed to join.  Error: " << result;
     }
-    cond_var->notify_one();
+    cond_var_.notify_one();
   }
 
   void HandleStart(size_t index, size_t count) {
     {
-      boost::mutex::scoped_lock lock(mutex_start_);
-      size_t joined_nodes(0), failed_nodes(0);
-      JoinFunctor join_callback(std::bind(
-          &NodeChurnTest::JoinCallback, this, index, arg::_1, &mutex_,
-          &cond_var_, &joined_nodes, &failed_nodes));
-      EXPECT_FALSE(nodes_[index]->node->joined());
-      nodes_[index]->node->Join(
-         nodes_[index]->node->contact().node_id(),
-          bootstrap_contacts_, join_callback);
+      boost::mutex::scoped_lock lock(mutex_);
+      EXPECT_FALSE(env_->node_containers_[index]->node()->joined());
+      env_->node_containers_[index]->Join(
+          env_->node_containers_[index]->node()->contact().node_id(),
+          env_->node_containers_[index]->bootstrap_contacts());
       {
         boost::mutex::scoped_lock lock(mutex_);
         cond_var_.wait(lock);
@@ -154,27 +140,40 @@ class NodeChurnTest : public testing::Test {
   }
 
  protected:
-  NodeChurnTest()
-      : nodes_(),
-        mutex_(),
-        cond_var_(),
-        mutex2_(),
-        cond_var2_(),
-        mutex_start_(),
-        mutex_stop_(),
-        kAlpha_(3),
-        kBeta_(2),
-        kReplicationFactor_(4),
-        kMeanRefreshInterval_(boost::posix_time::hours(1)),
-        bootstrap_contacts_(),
-        timers_(),
-        sample_nodes_(),
-        network_size_(20),
-        total_finished_(0),
-        total_restart_(0) {
-     for (size_t index = 0; index < network_size_; ++index)
-       timers_.push_back(std::shared_ptr<TimerContainer>(new TimerContainer));
+  NodeChurnTest() : env_(NodesEnvironment<Node>::g_environment()) {}
+  virtual void SetUp() {
+    // Replace node containers' default join callbacks with one for this test.
+    for (size_t i(0); i != env_->node_containers_.size(); ++i) {
+      env_->node_containers_[i]->set_join_functor(
+          std::bind(&NodeChurnTest::JoinCallback, this, i, arg::_1));
+    }
   }
+
+  NodesEnvironment<Node>* env_;
+  boost::mutex mutex_;
+  boost::condition_variable cond_var_;
+
+//  NodeChurnTest()
+//      : nodes_(),
+//        mutex_(),
+//        cond_var_(),
+//        mutex2_(),
+//        cond_var2_(),
+//        mutex_start_(),
+//        mutex_stop_(),
+//        kAlpha_(3),
+//        kBeta_(2),
+//        kReplicationFactor_(4),
+//        kMeanRefreshInterval_(boost::posix_time::hours(1)),
+//        bootstrap_contacts_(),
+//        timers_(),
+//        sample_nodes_(),
+//        network_size_(20),
+//        total_finished_(0),
+//        total_restart_(0) {
+//     for (size_t index = 0; index < network_size_; ++index)
+//       timers_.push_back(std::shared_ptr<TimerContainer>(new TimerContainer));
+//  }
 
   virtual void SetUp() {
     size_t joined_nodes(0), failed_nodes(0);
