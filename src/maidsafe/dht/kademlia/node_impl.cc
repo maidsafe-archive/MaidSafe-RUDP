@@ -193,14 +193,19 @@ void Node::Impl::JoinFindValueCallback(
   } else {
     joined_ = true;
     thread_group_.reset(new boost::thread_group());
+    data_store_->set_debug_id(DebugId(contact_));
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
       service_->set_node_joined(true);
       service_->set_node_contact(contact_);
       service_->ConnectToSignals(message_handler_);
-      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
-                                             this));
+//      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
+//                                             this));
+      refresh_data_store_.reset(
+          new TimedTaskContainer<std::function<void()>>(
+              std::bind(&Node::Impl::RefreshDataStore,this), 
+                  kRefreshDataStoreInterval));
       refresh_thread_running_ = true;
     }
     // Connect the ReportDown Signal
@@ -208,8 +213,12 @@ void Node::Impl::JoinFindValueCallback(
         ReportDownContactPtr::element_type::slot_type(
             &Node::Impl::ReportDownContact, this, _1));
     // Startup the thread to monitor the downlist queue
-    thread_group_->create_thread(
-        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+//    thread_group_->create_thread(
+//        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+    monitoring_downlist_thread_.reset(
+        new TimedTaskContainer<std::function<void()>>(
+            std::bind(&Node::Impl::MonitoringDownlistThread,this), 
+                kMonitoringDownlistInterval));
     downlist_thread_running_ = true;
     callback(0);
   }
@@ -243,8 +252,12 @@ void Node::Impl::JoinFindNodesCallback(
       service_->set_node_joined(true);
       service_->set_node_contact(contact_);
       service_->ConnectToSignals(message_handler_);
-      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
-                                             this));
+//      thread_group_->create_thread(std::bind(&Node::Impl::RefreshDataStore,
+//                                             this));
+      refresh_data_store_.reset(
+          new TimedTaskContainer<std::function<void()>>(
+              std::bind(&Node::Impl::RefreshDataStore,this), 
+                  kRefreshDataStoreInterval));
       refresh_thread_running_ = true;
     }
     // Connect the ReportDown Signal
@@ -252,10 +265,13 @@ void Node::Impl::JoinFindNodesCallback(
         ReportDownContactPtr::element_type::slot_type(
             &Node::Impl::ReportDownContact, this, _1));
     // Startup the thread to monitor the downlist queue
-    thread_group_->create_thread(
-        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+//    thread_group_->create_thread(
+//        std::bind(&Node::Impl::MonitoringDownlistThread, this));
+    monitoring_downlist_thread_.reset(
+        new TimedTaskContainer<std::function<void()>>(
+            std::bind(&Node::Impl::MonitoringDownlistThread,this), 
+                kMonitoringDownlistInterval));    
     downlist_thread_running_ = true;
-    data_store_->set_debug_id(DebugId(contact_));
     callback(0);
   }
 }
@@ -702,12 +718,12 @@ void Node::Impl::StoreRefreshCallback(RankInfoPtr rank_info,
 
 void Node::Impl::RefreshDataStore() {
   std::vector<KeyValueTuple> key_value_tuples;
-  while (joined_) {
-    Sleep(bptime::seconds(10));
+//  while (joined_) {
+//    Sleep(bptime::seconds(10));
     data_store_->Refresh(&key_value_tuples);
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   std::bind(&Node::Impl::PostStoreRefresh, this, arg:: _1));
-  }
+//  }
 }
 
 void Node::Impl::EnablePingOldestContact() {
@@ -1044,15 +1060,16 @@ void Node::Impl::ReportDownContact(const Contact &down_contact) {
   routing_table_->IncrementFailedRpcCount(down_contact.node_id());
   boost::mutex::scoped_lock loch_surlaplage(mutex_);
   down_contacts_.push_back(down_contact.node_id());
-  condition_downlist_.notify_one();
+//  condition_downlist_.notify_one();
 }
 
 void Node::Impl::MonitoringDownlistThread() {
-  while (joined_) {
+//  while (joined_) {
     boost::mutex::scoped_lock loch_surlaplage(mutex_);
-    while (down_contacts_.empty() && joined_) {
-      condition_downlist_.wait(loch_surlaplage);
-    }
+    if (!down_contacts_.empty()) {
+//    while (down_contacts_.empty() && joined_) {
+//      condition_downlist_.wait(loch_surlaplage);
+//    }
 
     // report the downlist to local k-closest contacts
 //    std::vector<Contact> close_nodes, excludes;

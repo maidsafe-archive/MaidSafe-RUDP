@@ -52,6 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/transport/tcp_transport.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/securifier.h"
+#include "maidsafe/dht/kademlia/timed_task.h"
 
 namespace fs = boost::filesystem;
 namespace arg = std::placeholders;
@@ -130,26 +131,6 @@ struct NodeContainer {
   std::shared_ptr<MessageHandler> message_handler;
   AlternativeStorePtr alternative_store;
   std::shared_ptr<Node> node;
-};
-
-struct TimerContainer {
-  TimerContainer()
-      : asio_service(),
-        work(),
-        thread_group(),
-        timer() {
-    work.reset(
-        new boost::asio::io_service::work(asio_service));
-    thread_group.reset(new boost::thread_group());
-    thread_group->create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), &asio_service));
-    timer.reset(new boost::asio::deadline_timer(asio_service));
-  }
-  AsioService asio_service;
-  std::shared_ptr<boost::asio::io_service::work> work;
-  std::shared_ptr<boost::thread_group> thread_group;
-  std::shared_ptr<boost::asio::deadline_timer> timer;
 };
 
 class NodeChurnTest : public testing::Test {
@@ -333,11 +314,11 @@ class NodeChurnTest : public testing::Test {
         (*itr)->thread_group.reset();
       }
     }
-    for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
+/*    for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
       (*itr)->work.reset();
       (*itr)->asio_service.stop();
       (*itr)->thread_group->join_all();
-    }
+    }*/
   }
 
 /** Approximate the uptime distribution given in "A Measurement Study of

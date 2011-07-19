@@ -46,6 +46,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/timed_task.h"
+
 
 namespace bptime = boost::posix_time;
 
@@ -512,6 +514,10 @@ class Node::Impl {
   bool refresh_thread_running_,
        downlist_thread_running_,
        validate_contact_running_;
+  std::shared_ptr<TimedTaskContainer<std::function<void()>>> 
+      refresh_data_store_;
+  std::shared_ptr<TimedTaskContainer<std::function<void()>>> 
+      monitoring_downlist_thread_;
 };
 
 }  // namespace kademlia
