@@ -66,7 +66,7 @@ class NodeContainer {
       : asio_service_(),
         work_(new boost::asio::io_service::work(asio_service_)),
         thread_group_(),
-        listening_transport_(new transport::TcpTransport(asio_service_)),
+        listening_transport_(),
         message_handler_(),
         securifier_(),
         node_() {}
@@ -248,13 +248,17 @@ void NodeContainer<NodeType>::Init(
                                      key_pair.private_key()));
   }
 
-  // connect message handler to transport for incoming raw messages.  Don't need
-  // to connect to on_error() as service doesn't care if reply succeeds or not.
-  message_handler_.reset(new MessageHandler(securifier_));
-  listening_transport_->on_message_received()->connect(
-      transport::OnMessageReceived::element_type::slot_type(
-          &MessageHandler::OnMessageReceived, message_handler_.get(),
-          _1, _2, _3, _4).track_foreign(message_handler_));
+  // If this is not a client node, connect message handler to transport for
+  // incoming raw messages.  Don't need to connect to on_error() as service
+  // doesn't care if reply succeeds or not.
+  if (!client_only_node) {
+    listening_transport_.reset(new transport::TcpTransport(asio_service_));
+    message_handler_.reset(new MessageHandler(securifier_));
+    listening_transport_->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, message_handler_.get(),
+            _1, _2, _3, _4).track_foreign(message_handler_));
+  }
 
   // create node
   node_.reset(new NodeType(asio_service_, listening_transport_,
@@ -267,31 +271,25 @@ template <typename NodeType>
 int NodeContainer<NodeType>::Start(
     std::vector<dht::kademlia::Contact> bootstrap_contacts,
     const boost::uint16_t &port) {
-  transport::Endpoint endpoint("127.0.0.1", port);
-  int result = listening_transport_->StartListening(endpoint);
-  if (transport::kSuccess != result) {
-    listening_transport_->StopListening();
-    return result;
+  int result(kPendingResult);
+  if (!node_->client_only_node()) {
+    transport::Endpoint endpoint("127.0.0.1", port);
+    int result = listening_transport_->StartListening(endpoint);
+    if (transport::kSuccess != result) {
+      listening_transport_->StopListening();
+      return result;
+    }
   }
 
-  const int kPending(9999999);
-  result = kPending;
+  result = kPendingResult;
   boost::mutex mutex;
   boost::condition_variable cond_var;
   NodeId node_id(securifier_->kSigningKeyId());
   JoinFunctor join_functor(std::bind(&NodeContainer<NodeType>::DefaultCallback,
                            this, arg::_1, &mutex, &cond_var, &result));
-  if (bootstrap_contacts.empty()) {
-    // First node on network
-    std::vector<transport::Endpoint> local_endpoints(1, endpoint);
-    Contact contact(node_id, endpoint, local_endpoints, endpoint, false, false,
-                    securifier_->kSigningKeyId(),
-                    securifier_->kSigningPublicKey(), "");
-    bootstrap_contacts.push_back(contact);
-  }
 
   boost::function<bool()> wait_functor = boost::bind(
-      &NodeContainer<NodeType>::ResultReady, this, kPending, &result);
+      &NodeContainer<NodeType>::ResultReady, this, kPendingResult, &result);
   const bptime::time_duration kTimeout(bptime::seconds(10));
   boost::mutex::scoped_lock lock(mutex);
   node_->Join(node_id, bootstrap_contacts, join_functor);

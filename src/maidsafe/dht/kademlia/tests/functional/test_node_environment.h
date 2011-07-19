@@ -52,8 +52,6 @@ namespace kademlia {
 namespace test {
 
 
-static testing::Environment *g_env = NULL;
-
 typedef std::function<bool()> WaitFunctor;
 
 class TestNodeAlternativeStore : public AlternativeStore {
@@ -64,7 +62,7 @@ class TestNodeAlternativeStore : public AlternativeStore {
 
 
 template <typename NodeType>
-class NodesEnvironment : public ::testing::Environment {
+class NodesEnvironment : public testing::Environment {
  public:
   NodesEnvironment(uint16_t num_full_nodes,
                    uint16_t num_client_nodes,
@@ -99,12 +97,16 @@ class NodesEnvironment : public ::testing::Environment {
   WaitFunctor wait_for_find_value_functor_;
   WaitFunctor wait_for_find_nodes_functor_;
   WaitFunctor wait_for_get_contact_functor_;
+  static NodesEnvironment* g_environment() { return g_env_; }
 
  private:
   bool ResultReady(int *result) { return *result != kPendingResult; }
+  static NodesEnvironment* g_env_;
 };
 
 
+template <typename NodeType>
+NodesEnvironment<NodeType>* NodesEnvironment<NodeType>::g_env_ = NULL;
 
 template <typename NodeType>
 NodesEnvironment<NodeType>::NodesEnvironment(
@@ -164,13 +166,13 @@ NodesEnvironment<NodeType>::NodesEnvironment(
   wait_for_get_contact_functor_ =
       std::bind(&NodesEnvironment<NodeType>::ResultReady, this,
                 &get_contact_result_);
-  g_env = this;
+  g_env_ = this;
 }
 
 template <typename NodeType>
 void NodesEnvironment<NodeType>::SetUp() {
   std::vector<Contact> bootstrap_contacts;
-  for (size_t i = 0; i != num_full_nodes_; ++i) {
+  for (size_t i = 0; i != num_full_nodes_ + num_client_nodes_; ++i) {
     std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeType>>
         node_container(new maidsafe::dht::kademlia::NodeContainer<NodeType>());
     node_container->Init(threads_per_node_, SecurifierPtr(),
@@ -181,25 +183,26 @@ void NodesEnvironment<NodeType>::SetUp() {
     node_container->MakeDeleteFunctor(&mutex_, &cond_var_, &delete_result_);
     node_container->MakeUpdateFunctor(&mutex_, &cond_var_, &update_result_);
     node_container->MakeFindValueFunctor(&mutex_, &cond_var_,
-                                          &find_value_returns_);
+                                         &find_value_returns_);
     node_container->MakeFindNodesFunctor(&mutex_, &cond_var_,
-                                          &find_nodes_result_,
-                                          &find_nodes_closest_nodes_);
+                                         &find_nodes_result_,
+                                         &find_nodes_closest_nodes_);
     node_container->MakeGetContactFunctor(&mutex_, &cond_var_,
                                           &get_contact_result_,
                                           &gotten_contact_);
 
     int attempts(0), max_attempts(5), result(0);
     Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-    while ((result = node_container->Start(bootstrap_contacts, port)) < 0 &&
-            (attempts != max_attempts)) {
+    while ((result = node_container->Start(bootstrap_contacts, port)) !=
+           kSuccess && (attempts != max_attempts)) {
       port = static_cast<Port>((RandomUint32() % 55535) + 10000);
       ++attempts;
     }
     ASSERT_EQ(0, result);
     ASSERT_TRUE(node_container->node()->joined());
     DLOG(INFO) << "Node " << i << " joined: " << DebugId(*node_container);
-    bootstrap_contacts.push_back(node_container->node()->contact());
+    if (i < num_full_nodes_)
+      bootstrap_contacts.push_back(node_container->node()->contact());
     node_containers_.push_back(node_container);
     node_ids_.push_back(node_container->node()->contact().node_id());
   }

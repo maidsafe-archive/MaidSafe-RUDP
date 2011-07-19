@@ -71,19 +71,10 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
-namespace {
-const uint16_t kTestK = 4;
-const uint16_t kAlpha = 3;
-const uint16_t kBeta = 2;
-const size_t kNumberOfNodes = 6;
-const uint16_t kThreadGroupSize = 3;
-}  // unnamed namespace
-
-
 class NodeImplTest : public testing::Test {
  protected:
   NodeImplTest()
-     : env_(static_cast<NodesEnvironment<NodeImpl>*>(g_env)) {}
+     : env_(NodesEnvironment<NodeImpl>::g_environment()) {}
   void SetUp() {}
   void TearDown() {}
   std::shared_ptr<DataStore> GetDataStore(
@@ -97,7 +88,7 @@ class NodeImplTest : public testing::Test {
 
 
 TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
-  for (std::size_t i = 0; i != kNumberOfNodes; ++i) {
+  for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
     env_->find_nodes_result_ = kPendingResult;
     NodeId node_id(env_->node_containers_[i]->node()->contact().node_id());
     {
@@ -107,14 +98,14 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
                   env_->wait_for_find_nodes_functor_));
     }
     SortContacts(node_id, &env_->find_nodes_closest_nodes_);
-    for (std::size_t j = 1; j != kTestK; ++j) {
+    for (std::size_t j = 1; j != env_->k_; ++j) {
       ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
                                  env_->find_nodes_closest_nodes_[j], node_id));
     }
   }
   env_->find_nodes_closest_nodes_.clear();
   NodeId node_id(NodeId::kRandomId);
-  for (std::size_t i = 0; i != kNumberOfNodes; ++i) {
+  for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
     env_->find_nodes_result_ = kPendingResult;
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
@@ -123,7 +114,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindNodes) {
                   env_->wait_for_find_nodes_functor_));
     }
     SortContacts(node_id, &env_->find_nodes_closest_nodes_);
-    for (std::size_t j = 1; j != kTestK; ++j) {
+    for (std::size_t j = 1; j != env_->k_; ++j) {
       ASSERT_TRUE(CloserToTarget(env_->find_nodes_closest_nodes_[j-1],
                                  env_->find_nodes_closest_nodes_[j], node_id));
     }
@@ -149,7 +140,7 @@ TEST_F(NodeImplTest, BEH_KAD_Store) {
 
 //  Sleep(bptime::milliseconds(1000));
 
-  for (size_t i = 0; i != kNumberOfNodes; ++i) {
+  for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
 //        std::cout << DebugId(*node_containers_[i]) << ": ";
@@ -179,7 +170,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 
   // Get a node which hasn't stored the value
   size_t not_got_value(0);
-  for (size_t i = 0; i != kNumberOfNodes; ++i) {
+  for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (!WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                         key, env_->node_ids_, env_->k_)) {
       not_got_value = i;
@@ -187,7 +178,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
     }
   }
 
-  for (size_t i = 0; i != kTestK; ++i) {
+  for (size_t i = 0; i != env_->k_; ++i) {
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
       env_->node_containers_[not_got_value]->FindValue(key, SecurifierPtr());
@@ -200,7 +191,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
-    for (size_t j = 0; j != kNumberOfNodes; ++j) {
+    for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
       if (WithinKClosest(env_->node_containers_[j]->node()->contact().node_id(),
                          key, env_->node_ids_, env_->k_) &&
           env_->node_containers_[j]->node()->joined()) {
@@ -241,7 +232,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //  std::vector<NodeId> nodeids(node_ids_);
 //  SortIds(node_id, &nodeids);
 //  std::size_t i = 0;
-//  for (; i != kNumberOfNodes; ++i)
+//  for (; i != env_->num_full_nodes_; ++i)
 //    if (node_containers_[i]->node()->contact().node_id() == nodeids.back())
 //      break;
 //  node_containers_[i]->node()->Store(node_id, value, "", duration, securifier, store_value);
@@ -268,7 +259,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //  std::vector<NodeId> nodeids(node_ids_);
 //  SortIds(node_id, &nodeids);
 //  std::size_t i = 0;
-//  for (; i != kNumberOfNodes; ++i)
+//  for (; i != env_->num_full_nodes_; ++i)
 //    if (node_containers_[i]->node()->contact().node_id() == nodeids.back())
 //      break;
 //  // Store the value via node_containers_[i]->node()...
@@ -277,12 +268,12 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //    Sleep(bptime::milliseconds(100));
 //  stored_value_ = false;
 //  
-//  size = RandomUint32() % (kTestK - 1);
-//  std::size_t count = kNumberOfNodes + 1;
-//  std::array<std::size_t, kTestK+1> nodevals1, nodevals2; 
+//  size = RandomUint32() % (env_->k_ - 1);
+//  std::size_t count = env_->num_full_nodes_ + 1;
+//  std::array<std::size_t, env_->k_+1> nodevals1, nodevals2; 
 //  // Ensure k closest hold the value and tag the one to leave...
-//  for (size_t i = 0; i != kTestK; ++i) {
-//    for (size_t j = 0; j != kNumberOfNodes; ++j) {
+//  for (size_t i = 0; i != env_->k_; ++i) {
+//    for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
 //      if (node_containers_[j]->node()->contact().node_id() == nodeids[i]) {
 //        if (i == size)
 //          count = j;
@@ -293,27 +284,27 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //    }
 //  }
 //  // Let tagged node leave...
-//  ASSERT_NE(count, kNumberOfNodes + 1); 
+//  ASSERT_NE(count, env_->num_full_nodes_ + 1); 
 //  std::vector<Contact> bootstrap_contacts;
 //  node_containers_[count]->node()->Leave(&bootstrap_contacts);
 //  // Having set refresh time to 30 seconds, wait for 60 seconds...
 //  Sleep(bptime::seconds(60)); 
-//  // The kTestK element of nodeids should now hold the value if a refresh
+//  // The env_->k_ element of nodeids should now hold the value if a refresh
 //  // has occurred...
-//  /*for (size_t j = 0; j != kNumberOfNodes; ++j) {
-//    if (node_containers_[j]->node()->contact().node_id() == nodeids[kTestK]) {
+//  /*for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
+//    if (node_containers_[j]->node()->contact().node_id() == nodeids[env_->k_]) {
 //      ASSERT_TRUE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
 //      break;
 //    }
 //  }*/
-//  for (size_t i = 0, j = 0; j != kNumberOfNodes; ++j) {
+//  for (size_t i = 0, j = 0; j != env_->num_full_nodes_; ++j) {
 //    if (node_containers_[j]->node()->data_store_->HasKey(node_id.String())) {
 //      nodevals2[i] = j;
 //      ++i;
 //    }
 //  }
-//  //for (size_t i = 0; i != kTestK; ++i) {
-//  //  for (size_t j = 0; j != kNumberOfNodes; ++j) {
+//  //for (size_t i = 0; i != env_->k_; ++i) {
+//  //  for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
 //  //    //if (j == count)
 //  //    //  continue;
 //  //    if (node_containers_[j]->node()->contact().node_id() == nodeids[i]) {
@@ -341,7 +332,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //  std::vector<NodeId> nodeids(node_ids_);
 //  SortIds(node_id, &nodeids);
 //  std::size_t i = 0, storing_node;
-//  for (; i != kNumberOfNodes; ++i)
+//  for (; i != env_->num_full_nodes_; ++i)
 //    if (node_containers_[i]->node()->contact().node_id() == nodeids.back())
 //      break;
 //  // Store the value via node_containers_[i]->node()...
@@ -352,12 +343,12 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //    Sleep(bptime::milliseconds(100));
 //  stored_value_ = false;
 //  
-//  size = RandomUint32() % (kTestK - 1);
-//  std::size_t leave_node = kNumberOfNodes + 1;
-//  std::array<std::size_t, kTestK+1> nodevals1;
+//  size = RandomUint32() % (env_->k_ - 1);
+//  std::size_t leave_node = env_->num_full_nodes_ + 1;
+//  std::array<std::size_t, env_->k_+1> nodevals1;
 //  // Ensure k closest hold the value and tag the one to leave...
-//  for (size_t i = 0; i != kTestK; ++i) {
-//    for (size_t j = 0; j != kNumberOfNodes; ++j) {
+//  for (size_t i = 0; i != env_->k_; ++i) {
+//    for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
 //      if (node_containers_[j]->node()->contact().node_id() == nodeids[i]) {
 //        if (i == size)
 //          leave_node = j;
@@ -370,7 +361,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //    }
 //  }
 //  // Let tagged node leave...
-//  ASSERT_NE(leave_node, kNumberOfNodes + 1); 
+//  ASSERT_NE(leave_node, env_->num_full_nodes_ + 1); 
 //  std::vector<Contact> bootstrap_contacts;
 //  node_containers_[leave_node]->node()->Leave(&bootstrap_contacts);
 //  // Delete the value...
@@ -378,14 +369,14 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //                                                 delete_value);
 //  // Ensure no currently joined node claims to have the value...
 //  std::vector<std::pair<std::string, std::string>> values;
-//  for (size_t i = 0; i != kNumberOfNodes; ++i) {
+//  for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
 //    if (i != leave_node) {
 //      ASSERT_FALSE(GetDataStore(node_containers_[i])->GetValues(
 //          node_id.String(), &values));
 //    }
 //  }
 //  // Ensure no currently joined node has the value...
-////  for (size_t j = 0; j != kNumberOfNodes; ++j)
+////  for (size_t j = 0; j != env_->num_full_nodes_; ++j)
 ////    if (j != leave_node)
 ////      ASSERT_FALSE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
 //  // Allow node to rejoin the network...
@@ -393,7 +384,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //  std::function<bool()> wait_functor =
 //      std::bind(&NodeImplTest::ResultReady, this, &join_result);
 //  std::vector<Contact> contacts;
-//  for (size_t j = 0; j != kNumberOfNodes; ++j) {
+//  for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
 //    if (node_containers_[leave_node]->node()->contact().node_id() ==
 //        nodeids[i]) {
 //      join_result = kPendingResult;
@@ -414,7 +405,7 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 //  // Sleep for a while...
 //  Sleep(bptime::seconds(360));
 //  // Now make sure the value has been deleted from all nodes in network...
-//  for (size_t j = 0; j != kNumberOfNodes; ++j) {
+//  for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
 //    ASSERT_FALSE(GetDataStore(node_containers_[j])->HasKey(node_id.String()));
 //  }
 //}
