@@ -57,8 +57,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
-namespace fs = boost::filesystem;
 namespace arg = std::placeholders;
+namespace fs = boost::filesystem;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 namespace dht {
@@ -69,9 +70,13 @@ const int kProbes = 4;
 
 class NodeTest : public testing::Test {
  protected:
-  NodeTest() : env_(NodesEnvironment<Node>::g_environment()) {}
+  typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<Node>>
+      NodeContainerPtr;
+  NodeTest() : env_(NodesEnvironment<Node>::g_environment()),
+               kTimeout_(bptime::seconds(10)) {}
 
   NodesEnvironment<Node>* env_;
+  const bptime::time_duration kTimeout_;
 
 //  NodeTest() : nodes_(),
 //               kAlpha_(3),
@@ -171,13 +176,15 @@ class NodeTest : public testing::Test {
 TEST_F(NodeTest, FUNC_InvalidRequestDeleteValue) {
   Key key(Key::kRandomId);
   std::string value("I DO NOT EXIST, AND SHOULD NOT BE FOUND");
-  int random_source = RandomUint32() % env_->num_full_nodes_;
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
   boost::mutex::scoped_lock lock(env_->mutex_);
-  env_->node_containers_[random_source]->Delete(key, value, "",
-      env_->node_containers_[random_source]->securifier());
-  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
-                                         env_->wait_for_delete_functor_));
-  EXPECT_EQ(kDeleteTooFewNodes, env_->delete_result_);
+  chosen_container->Delete(key, value, "", chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_delete_functor()));
+  int result(kGeneralError);
+  chosen_container->GetAndResetDeleteResult(&result);
+  EXPECT_EQ(kDeleteTooFewNodes, result);
 }
 
 //TEST_F(NodeTest, BEH_JoinClient) {

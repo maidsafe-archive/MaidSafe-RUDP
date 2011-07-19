@@ -215,10 +215,10 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
   boost::mutex::scoped_lock lock(env_->mutex_);
   chosen_container->Store(key, value, "", duration,
                           chosen_container->securifier());
-  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_store_functor()));
   chosen_container->Delete(key, value, "", chosen_container->securifier());
-  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_delete_functor()));
 }
 
