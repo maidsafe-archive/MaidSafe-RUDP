@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
@@ -203,6 +203,7 @@ void NodeImpl::JoinFindValueCallback(
                                              this));
       refresh_thread_running_ = true;
     }
+    data_store_->set_debug_id(DebugId(contact_));
     // Connect the ReportDown Signal
     report_down_contact_->connect(
         ReportDownContactPtr::element_type::slot_type(

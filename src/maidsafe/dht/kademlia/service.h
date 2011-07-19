@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #include "maidsafe/dht/kademlia/sender_task.h"
 
 namespace maidsafe {

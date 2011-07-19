@@ -41,7 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
@@ -212,40 +212,26 @@ TEST_F(NodeImplTest, BEH_KAD_FindValue) {
 
 }
 
-//TEST_F(NodeImplTest, BEH_KAD_Ping) {
-//  
-//}
-//
-//TEST_F(NodeImplTest, BEH_KAD_Delete) {
-//  std::function<void(int)> store_value = std::bind(
-//      &NodeImplTest::StoreValueFunction, this, arg::_1);
-//  std::function<void(int)> delete_value = std::bind(
-//      &NodeImplTest::DeleteFunction, this, arg::_1);
-//  maidsafe::crypto::RsaKeyPair rsa_key_pair;
-//  bptime::time_duration duration(bptime::seconds(30));
-// 
-//  std::size_t size = RandomUint32() % 1024;
-//  std::string value = RandomString(size);
-//  rsa_key_pair.GenerateKeys(4096);
-//  std::shared_ptr<Securifier> securifier;
-//  NodeId node_id(NodeId::kRandomId);
-//  std::vector<NodeId> nodeids(node_ids_);
-//  SortIds(node_id, &nodeids);
-//  std::size_t i = 0;
-//  for (; i != env_->num_full_nodes_; ++i)
-//    if (node_containers_[i]->node()->contact().node_id() == nodeids.back())
-//      break;
-//  node_containers_[i]->node()->Store(node_id, value, "", duration, securifier, store_value);
-//  while (!stored_value_)
-//    Sleep(bptime::milliseconds(100));
-//  stored_value_ = false;
-//  node_containers_[i]->node()->Delete(node_id, value, "", securifier, delete_value);
-//  while (!deleted_value_)
-//    Sleep(bptime::milliseconds(100));
-//  deleted_value_ = false;
-//  ASSERT_EQ(store_count_, delete_count_);
-//}
-//
+TEST_F(NodeImplTest, BEH_KAD_Ping) {
+  FAIL() << "Not implemented.";
+}
+
+TEST_F(NodeImplTest, BEH_KAD_Delete) {
+  Key key(NodeId::kRandomId);
+  std::string value = RandomString(RandomUint32() % 1024);
+  bptime::time_duration duration(bptime::minutes(1));
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  boost::mutex::scoped_lock lock(env_->mutex_);
+  env_->node_containers_[test_node_index]->Store(key, value, "", duration,
+                                                 SecurifierPtr());
+  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                                         env_->wait_for_store_functor_));
+  env_->node_containers_[test_node_index]->Delete(key, value, "",
+                                                  SecurifierPtr());
+  ASSERT_TRUE(env_->cond_var_.timed_wait(lock, env_->kTimeout_,
+                                         env_->wait_for_delete_functor_));
+}
+
 //TEST_F(NodeImplTest, BEH_KAD_StoreRefresh) {
 //  std::function<void(int)> store_value = std::bind(
 //      &NodeImplTest::StoreValueFunction, this, arg::_1);

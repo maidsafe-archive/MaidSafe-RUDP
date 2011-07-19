@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node_impl.h"

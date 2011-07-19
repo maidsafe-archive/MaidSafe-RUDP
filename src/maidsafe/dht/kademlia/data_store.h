@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_KADEMLIA_DATASTORE_H_
-#define MAIDSAFE_DHT_KADEMLIA_DATASTORE_H_
+#ifndef MAIDSAFE_DHT_KADEMLIA_DATA_STORE_H_
+#define MAIDSAFE_DHT_KADEMLIA_DATA_STORE_H_
 
 #include <string>
 #include <vector>
@@ -57,9 +57,9 @@ namespace dht {
 namespace kademlia {
 
 namespace test {
-  class DataStoreTest;
-  class ServicesTest;
-  class RpcsTest;
+class DataStoreTest;
+class ServicesTest;
+class RpcsTest;
 }
 
 struct KeyValueSignature {
@@ -218,4 +218,4 @@ class DataStore {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_KADEMLIA_DATASTORE_H_
+#endif  // MAIDSAFE_DHT_KADEMLIA_DATA_STORE_H_

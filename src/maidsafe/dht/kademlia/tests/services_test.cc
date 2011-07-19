@@ -36,7 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/log.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/kademlia/routing_table.h"

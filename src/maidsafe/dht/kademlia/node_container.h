@@ -168,6 +168,7 @@ class NodeContainer {
   FindValueFunctor find_value_functor() const { return find_value_functor_; }
   FindNodesFunctor find_nodes_functor() const { return find_nodes_functor_; }
   GetContactFunctor get_contact_functor() const { return get_contact_functor_; }
+  SecurifierPtr securifier() const { return securifier_; }
 
  protected:
   AsioService asio_service_;

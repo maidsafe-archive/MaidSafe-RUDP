@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <string>
 
-#include "maidsafe/dht/kademlia/datastore.h"
+#include "maidsafe/dht/kademlia/data_store.h"
 #include "maidsafe/dht/transport/transport.h"
 
 namespace maidsafe  {
@@ -50,7 +50,7 @@ class SenderTaskTest_FUNC_SenderTaskCallbackMultiThreaded_Test;
 
 class Service;
 
-typedef std::function<void(const KeyValueSignature, transport::Info,
+typedef std::function<void(KeyValueSignature, transport::Info,
                            RequestAndSignature, std::string, std::string)>
         TaskCallback;
 

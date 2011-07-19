@@ -45,7 +45,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/datastore.h"
 
 namespace bptime = boost::posix_time;
 
@@ -56,6 +55,7 @@ namespace dht {
 namespace kademlia {
 
 class DataStore;
+struct KeyValueTuple;
 class Service;
 class RoutingTable;
 class Rpcs;
