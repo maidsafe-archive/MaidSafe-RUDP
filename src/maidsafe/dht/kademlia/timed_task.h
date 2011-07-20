@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_DHT_TIMED_TASK_H_
-#define MAIDSAFE_DHT_TIMED_TASK_H_
+#ifndef MAIDSAFE_DHT_KADEMLIA_TIMED_TASK_H_
+#define MAIDSAFE_DHT_KADEMLIA_TIMED_TASK_H_
 
 #include "boost/asio.hpp"
 
@@ -87,8 +87,8 @@ struct TimedTaskContainer {
 
   void Start() {
     if (stop) {
-      stop = false;      
-      timer->timer->async_wait(std::bind(&TimedTaskContainer::HandleWrap, this));
+      stop = false;
+      timer->timer->async_wait(std::bind(&TimedTaskContainer::Handle, this));
     }
   }
  private:
@@ -104,4 +104,4 @@ struct TimedTaskContainer {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TIMED_TASK_H_
+#endif  // MAIDSAFE_DHT_KADEMLIA_TIMED_TASK_H_
