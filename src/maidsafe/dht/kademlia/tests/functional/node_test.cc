@@ -187,37 +187,22 @@ TEST_F(NodeTest, FUNC_InvalidRequestDeleteValue) {
   EXPECT_EQ(kDeleteTooFewNodes, result);
 }
 
-//TEST_F(NodeTest, BEH_JoinClient) {
-//  size_t joined_nodes(network_size_), failed_nodes(0);
-//  JoinFunctor join_callback(std::bind(
-//      &NodeTest::JoinCallback, this, network_size_, arg::_1, &mutex_,
-//      &cond_var_, &joined_nodes, &failed_nodes));
-//  crypto::RsaKeyPair key_pair;
-//  key_pair.GenerateKeys(4096);
-//  NodeId node_id(NodeId::kRandomId);
-//  nodes_.push_back(std::shared_ptr<NodeContainer>(new NodeContainer(
-//      node_id.String(), key_pair.public_key(), key_pair.private_key(), true,
-//      kReplicationFactor_, kAlpha_, kBeta_, kMeanRefreshInterval_)));
-//  std::vector<Contact> bootstrap_contacts;
-//  {
-//    boost::mutex::scoped_lock lock(mutex_);
-//    bootstrap_contacts = bootstrap_contacts_;
-//  }
-//  nodes_[network_size_]->node->Join(node_id, bootstrap_contacts, join_callback);
-//  {
-//    boost::mutex::scoped_lock lock(mutex_);
-//    while (joined_nodes + failed_nodes <= network_size_)
-//      cond_var_.wait(lock);
-//  }
-//
-//  {
-//    boost::mutex::scoped_lock lock(mutex_);
-//    while (joined_nodes + failed_nodes < network_size_ + 1)
-//      cond_var_.wait(lock);
-//  }
-//  EXPECT_EQ(0, failed_nodes);
-//}
-//
+TEST_F(NodeTest, BEH_JoinClient) {
+  NodeContainerPtr client_node_container(
+      new maidsafe::dht::kademlia::NodeContainer<Node>());
+  client_node_container->Init(3, SecurifierPtr(),
+      AlternativeStorePtr(new TestNodeAlternativeStore), true, env_->k_,
+      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  client_node_container->MakeAllCallbackFunctors(&env_->mutex_,
+                                                 &env_->cond_var_);
+  std::vector<Contact> bootstrap_contacts;
+  (*env_->node_containers_.rbegin())->node()->
+      GetBootstrapContacts(&bootstrap_contacts);
+  int result = client_node_container->Start(bootstrap_contacts, 0);
+  ASSERT_EQ(kSuccess, result);
+  ASSERT_TRUE(client_node_container->node()->joined());
+}
+
 //TEST_F(NodeTest, BEH_JoinedClientFindsValue) {
 //  size_t joined_nodes(network_size_), failed_nodes(0);
 //  for (size_t index = network_size_; index < network_size_ + 1; ++index) {

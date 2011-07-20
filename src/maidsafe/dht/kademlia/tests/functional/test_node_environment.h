@@ -133,7 +133,7 @@ void NodesEnvironment<NodeType>::SetUp() {
         alpha_, beta_, mean_refresh_interval_);
     node_container->MakeAllCallbackFunctors(&mutex_, &cond_var_);
 
-    int attempts(0), max_attempts(5), result(0);
+    int attempts(0), max_attempts(5), result(kPendingResult);
     Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
     while ((result = node_container->Start(bootstrap_contacts, port)) !=
            kSuccess && (attempts != max_attempts)) {
