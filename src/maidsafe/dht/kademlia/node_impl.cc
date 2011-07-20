@@ -91,7 +91,7 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       mutex_(),
       condition_downlist_(),
       down_contacts_(),
-      thread_group_(),
+//      thread_group_(),
       refresh_thread_running_(false),
       downlist_thread_running_(false),
       validate_contact_running_(false) {}
@@ -122,7 +122,7 @@ void NodeImpl::Join(const NodeId &node_id,
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
   std::vector<transport::Endpoint> local_endpoints;
-  // Create contact_ inforrmation for node and set contact for Rpcs
+  // Create contact_ information for node and set contact for Rpcs
   transport::Endpoint endpoint;
   endpoint.ip = listening_transport_->transport_details().endpoint.ip;
   endpoint.port = listening_transport_->transport_details().endpoint.port;
@@ -192,15 +192,16 @@ void NodeImpl::JoinFindValueCallback(
     IterativeSearch<FindValueArgs>(find_value_args);
   } else {
     joined_ = true;
-    thread_group_.reset(new boost::thread_group());
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
                                  alternative_store_, default_securifier_, k_));
       service_->set_node_joined(true);
       service_->set_node_contact(contact_);
       service_->ConnectToSignals(message_handler_);
-      thread_group_->create_thread(std::bind(&NodeImpl::RefreshDataStore,
-                                             this));
+      refresh_data_store_.reset(
+          new TimedTaskContainer<std::function<void()> >(
+              std::bind(&NodeImpl::RefreshDataStore, this),
+                  kRefreshDataStoreInterval));
       refresh_thread_running_ = true;
     }
     data_store_->set_debug_id(DebugId(contact_));
@@ -209,8 +210,10 @@ void NodeImpl::JoinFindValueCallback(
         ReportDownContactPtr::element_type::slot_type(
             &NodeImpl::ReportDownContact, this, _1));
     // Startup the thread to monitor the downlist queue
-    thread_group_->create_thread(
-        std::bind(&NodeImpl::MonitoringDownlistThread, this));
+    monitoring_downlist_thread_.reset(
+        new TimedTaskContainer<std::function<void()> >(
+            std::bind(&NodeImpl::MonitoringDownlistThread, this),
+                kMonitoringDownlistInterval));
     downlist_thread_running_ = true;
     callback(kSuccess);
   }
@@ -218,13 +221,15 @@ void NodeImpl::JoinFindValueCallback(
 
 void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   joined_ = false;
-  if (thread_group_)  {
+/*  if (thread_group_)  {
     thread_group_->interrupt_all();
     thread_group_->join_all();
 //    thread_group_.reset();
-  }
+  }*/
   refresh_thread_running_ = false;
   downlist_thread_running_ = false;
+  refresh_data_store_->Stop();
+  monitoring_downlist_thread_->Stop();
   GetBootstrapContacts(bootstrap_contacts);
 //  if (rpcs_)
 //    rpcs_.reset();
@@ -656,12 +661,12 @@ void NodeImpl::StoreRefreshCallback(RankInfoPtr rank_info,
 
 void NodeImpl::RefreshDataStore() {
   std::vector<KeyValueTuple> key_value_tuples;
-  while (joined_) {
-    Sleep(bptime::seconds(10));
+//  while (joined_) {
+//    Sleep(bptime::seconds(10));
     data_store_->Refresh(&key_value_tuples);
     std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                   std::bind(&NodeImpl::PostStoreRefresh, this, arg:: _1));
-  }
+//  }
 }
 
 void NodeImpl::EnablePingOldestContact() {
@@ -998,16 +1003,16 @@ void NodeImpl::ReportDownContact(const Contact &down_contact) {
   routing_table_->IncrementFailedRpcCount(down_contact.node_id());
   boost::mutex::scoped_lock loch_surlaplage(mutex_);
   down_contacts_.push_back(down_contact.node_id());
-  condition_downlist_.notify_one();
+//  condition_downlist_.notify_one();
 }
 
 void NodeImpl::MonitoringDownlistThread() {
-  while (joined_) {
+//  while (joined_) {
+//    while (down_contacts_.empty() && joined_) {
+//      condition_downlist_.wait(loch_surlaplage);
+//    }
     boost::mutex::scoped_lock loch_surlaplage(mutex_);
-    while (down_contacts_.empty() && joined_) {
-      condition_downlist_.wait(loch_surlaplage);
-    }
-
+    if (!down_contacts_.empty()) {
     // report the downlist to local k-closest contacts
 //    std::vector<Contact> close_nodes, excludes;
 //    routing_table_->GetContactsClosestToOwnId(k_, excludes, &close_nodes);

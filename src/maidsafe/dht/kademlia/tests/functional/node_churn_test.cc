@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
+#include "maidsafe/dht/kademlia/timed_task.h"
 
 namespace bptime = boost::posix_time;
 
@@ -53,20 +54,6 @@ namespace maidsafe {
 namespace dht {
 namespace kademlia {
 namespace test {
-
-struct TimerContainer {
-  TimerContainer()
-      : asio_service(),
-        work(new boost::asio::io_service::work(asio_service)),
-        timer_thread(new boost::thread(
-            std::bind(static_cast<size_t(boost::asio::io_service::*)()>
-            (&boost::asio::io_service::run), &asio_service))),
-        timer(new boost::asio::deadline_timer(asio_service)) {}
-  AsioService asio_service;
-  std::shared_ptr<boost::asio::io_service::work> work;
-  std::shared_ptr<boost::thread> timer_thread;
-  std::shared_ptr<boost::asio::deadline_timer> timer;
-};
 
 class NodeChurnTest : public testing::Test {
  public:
@@ -92,11 +79,11 @@ class NodeChurnTest : public testing::Test {
   NodesEnvironment<Node>* env_;
   const bptime::time_duration kTimeout_;
   virtual void TearDown() {
-    for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
+/*    for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
       (*itr)->work.reset();
       (*itr)->asio_service.stop();
       (*itr)->timer_thread->join();
-    }
+    }*/
   }
 
 /** Approximate the uptime distribution given in "A Measurement Study of
