@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/version.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 
 #if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\

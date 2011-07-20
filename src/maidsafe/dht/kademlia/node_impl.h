@@ -444,11 +444,11 @@ class NodeImpl {
    *  entries in the queue, notify the k-closest in the routingtable about
    *  the downlist */
   void MonitoringDownlistThread();
-
+  
   void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
-                             JoinFunctor callback);
+                             JoinFunctor callback, std::vector<NodeId> node_ids);
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
@@ -458,7 +458,9 @@ class NodeImpl {
   void StoreRefreshCallback(RankInfoPtr rank_info,
                             const int &result,
                             const Contact &contact);
-
+  
+  bool AllNodesAreDown(const std::vector<NodeId> &node_ids);    
+  
   AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;

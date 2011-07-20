@@ -104,19 +104,13 @@ NodeImpl::~NodeImpl() {
 void NodeImpl::Join(const NodeId &node_id,
                     std::vector<Contact> bootstrap_contacts,
                     JoinFunctor callback) {
-  auto iter = bootstrap_contacts.end();
-  for (auto it(bootstrap_contacts.begin());
-       it != bootstrap_contacts.end(); ++it) {
-    if ((*it).node_id() == node_id) {
-      iter = it;
-      break;
-    }
-  }
-  if (iter != bootstrap_contacts.end())
-    bootstrap_contacts.erase(iter);
+  bootstrap_contacts.erase(
+      std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(), 
+                         std::bind(&HasId, arg::_1, node_id)),
+                     bootstrap_contacts.end());
 
   if (!client_only_node_ && listening_transport_->listening_port() == 0) {
-    callback(-1);
+    callback(kNotListening);
     return;
   }
 
@@ -150,47 +144,68 @@ void NodeImpl::Join(const NodeId &node_id,
         std::bind(&NodeImpl::ValidateContact, this, arg::_1));
     validate_contact_running_ = true;
   }
+  
+  std::vector<NodeId> node_ids;
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
     FindValueReturns find_value_returns;
     find_value_returns.return_code = kSuccess;
     boost::thread(&NodeImpl::JoinFindValueCallback, this, find_value_returns,
-                  bootstrap_contacts, node_id, callback);
+                  bootstrap_contacts, node_id, callback, node_ids);
     return;
   }
+  
+  for (auto it(bootstrap_contacts.begin()); it != bootstrap_contacts.end();
+         ++it){
+           node_ids.push_back((*it).node_id());
+        }
 
-  std::vector<Contact> temp_bootstrap_contacts(bootstrap_contacts);
   std::vector<Contact> search_contact;
-  search_contact.push_back(temp_bootstrap_contacts.front());
-  temp_bootstrap_contacts.erase(temp_bootstrap_contacts.begin());
+  search_contact.push_back(bootstrap_contacts.front());
+  bootstrap_contacts.erase(bootstrap_contacts.begin());
   FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
       default_securifier_,
       std::bind(&NodeImpl::JoinFindValueCallback,
-          this, arg::_1, temp_bootstrap_contacts, node_id, callback)));
+          this, arg::_1, bootstrap_contacts, node_id, callback, node_ids)));
   AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
   IterativeSearch<FindValueArgs>(find_value_args);
+}
+
+bool NodeImpl::AllNodesAreDown(const std::vector<NodeId> &node_ids) {
+  for (auto it(node_ids.begin()); it != node_ids.end(); ++it)
+    if (std::find(down_contacts_.begin(), down_contacts_.end(), (*it)) 
+        == down_contacts_.end())
+      return false;
+  return true;
 }
 
 void NodeImpl::JoinFindValueCallback(
     FindValueReturns find_value_returns,
     std::vector<Contact> bootstrap_contacts,
     const NodeId &node_id,
-    JoinFunctor callback) {
+    JoinFunctor callback,
+    std::vector<NodeId> node_ids) {
   if (!find_value_returns.values.empty()) {
     callback(kValueAlreadyExists);
     return;
   }
-  if ((find_value_returns.return_code < 0) && !bootstrap_contacts.empty()) {
+  if (((find_value_returns.return_code < 0) && bootstrap_contacts.empty()) && AllNodesAreDown(node_ids)) {
+      callback(kContactFailedToRespond);
+  } else if ((find_value_returns.return_code < 0) && !bootstrap_contacts.empty()) {
+    if (find_value_returns.return_code != kContactFailedToRespond) {
+//      none_reached = false;
+    }
     std::vector<Contact> search_contact;
     search_contact.push_back(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
         default_securifier_,
         std::bind(&NodeImpl::JoinFindValueCallback,
-            this, arg::_1, bootstrap_contacts, node_id, callback)));
+            this, arg::_1, bootstrap_contacts, node_id, callback, node_ids)));
     AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
     IterativeSearch<FindValueArgs>(find_value_args);
-  } else {
+  } else 
+  {
     joined_ = true;
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,

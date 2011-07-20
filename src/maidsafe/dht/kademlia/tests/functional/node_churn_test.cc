@@ -31,6 +31,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/deadline_timer.hpp"
+#include "boost/numeric/conversion/cast.hpp"
+
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127)
