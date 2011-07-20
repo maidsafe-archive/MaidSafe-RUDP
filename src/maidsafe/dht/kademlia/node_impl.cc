@@ -153,7 +153,7 @@ void NodeImpl::Join(const NodeId &node_id,
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
     FindValueReturns find_value_returns;
-    find_value_returns.return_code = 0;
+    find_value_returns.return_code = kSuccess;
     boost::thread(&NodeImpl::JoinFindValueCallback, this, find_value_returns,
                   bootstrap_contacts, node_id, callback);
     return;
@@ -177,7 +177,7 @@ void NodeImpl::JoinFindValueCallback(
     const NodeId &node_id,
     JoinFunctor callback) {
   if (!find_value_returns.values.empty()) {
-    callback(-1);
+    callback(kValueAlreadyExists);
     return;
   }
   if ((find_value_returns.return_code < 0) && !bootstrap_contacts.empty()) {
@@ -212,52 +212,7 @@ void NodeImpl::JoinFindValueCallback(
     thread_group_->create_thread(
         std::bind(&NodeImpl::MonitoringDownlistThread, this));
     downlist_thread_running_ = true;
-    callback(0);
-  }
-}
-
-void NodeImpl::JoinFindNodesCallback(
-    const int &result,
-    const std::vector<Contact> &/*returned_contacts*/,
-    std::vector<Contact> bootstrap_contacts,
-    const NodeId &node_id,
-    JoinFunctor callback) {
-  if (result != kSuccess) {
-    if (bootstrap_contacts.empty()) {
-      callback(result);
-      return;
-    }
-    std::vector<Contact> search_contact;
-    search_contact.push_back(bootstrap_contacts.front());
-    bootstrap_contacts.erase(bootstrap_contacts.begin());
-    FindNodesArgsPtr find_nodes_args(new FindNodesArgs(node_id,
-        std::bind(&NodeImpl::JoinFindNodesCallback, this, arg::_1, arg::_2,
-                  bootstrap_contacts, node_id, callback)));
-    AddContactsToContainer<FindNodesArgs>(search_contact, find_nodes_args);
-    IterativeSearch<FindNodesArgs>(find_nodes_args);
-  } else {
-    joined_ = true;
-    thread_group_.reset(new boost::thread_group());
-    if (!client_only_node_) {
-      service_.reset(new Service(routing_table_, data_store_,
-                                 alternative_store_, default_securifier_, k_));
-      service_->set_node_joined(true);
-      service_->set_node_contact(contact_);
-      service_->ConnectToSignals(message_handler_);
-      thread_group_->create_thread(std::bind(&NodeImpl::RefreshDataStore,
-                                             this));
-      refresh_thread_running_ = true;
-    }
-    // Connect the ReportDown Signal
-    report_down_contact_->connect(
-        ReportDownContactPtr::element_type::slot_type(
-            &NodeImpl::ReportDownContact, this, _1));
-    // Startup the thread to monitor the downlist queue
-    thread_group_->create_thread(
-        std::bind(&NodeImpl::MonitoringDownlistThread, this));
-    downlist_thread_running_ = true;
-    data_store_->set_debug_id(DebugId(contact_));
-    callback(0);
+    callback(kSuccess);
   }
 }
 
@@ -951,8 +906,8 @@ void NodeImpl::IterativeSearchValueResponse(
     Contact cache_contact;
     FindValueReturns find_value_returns = { response_code, values,
         closest_contacts, alternative_store, cache_contact };
-    find_value_args->callback(find_value_returns);
     find_value_args->called_back = true;
+    find_value_args->callback(find_value_returns);
   }
 }
 

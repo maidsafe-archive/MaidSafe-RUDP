@@ -79,7 +79,8 @@ enum ReturnCode {
   kUpdateTooFewNodes = -303007,
   kFailedToGetContact = -303008,
   kIterativeLookupFailed = -303009,
-  kContactFailedToRespond = -303010
+  kContactFailedToRespond = -303010,
+  kValueAlreadyExists = -303011
 };
 
 }  // namespace kademlia

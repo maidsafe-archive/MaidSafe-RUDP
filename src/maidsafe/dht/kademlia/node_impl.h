@@ -443,11 +443,6 @@ class NodeImpl {
    *  the downlist */
   void MonitoringDownlistThread();
 
-  void JoinFindNodesCallback(const int &result,
-                             const std::vector<Contact> &returned_contacts,
-                             std::vector<Contact> bootstrap_contacts,
-                             const NodeId &node_id,
-                             JoinFunctor callback);
   void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,

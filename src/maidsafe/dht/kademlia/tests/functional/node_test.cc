@@ -44,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/dht/log.h"
 // #include "maidsafe-dht/common/routing_table.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"

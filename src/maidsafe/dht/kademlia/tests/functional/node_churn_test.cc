@@ -27,12 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdint>
 #include <functional>
-#include <exception>
-#include <list>
-#include <set>
 #include <vector>
 
-#include "boost/asio.hpp"
+#include "boost/asio/io_service.hpp"
+#include "boost/asio/deadline_timer.hpp"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127)
@@ -41,39 +39,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
-#include "boost/lexical_cast.hpp"
-#include "boost/numeric/conversion/cast.hpp"
 
 #include "maidsafe/common/test.h"
-#include "maidsafe/common/crypto.h"
-#include "maidsafe/common/log.h"
+
 #include "maidsafe/dht/kademlia/node-api.h"
-#include "maidsafe/dht/kademlia/node_impl.h"
-#include "maidsafe/dht/transport/tcp_transport.h"
-#include "maidsafe/dht/kademlia/message_handler.h"
-#include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/kademlia/return_codes.h"
-#include "maidsafe/dht/kademlia/tests/test_utils.h"
+//#include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
 
-namespace fs = boost::filesystem;
-namespace arg = std::placeholders;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 namespace dht {
 namespace kademlia {
 namespace test {
 
-
-                                                                              //struct SampleNodeStats {
-                                                                              //  explicit SampleNodeStats(size_t index_in)
-                                                                              //      : index(index_in),
-                                                                              //        restart_cycles(RandomUint32() % kMaxRestartCycles + 1) {}
-                                                                              //  size_t index;
-                                                                              //  size_t restart_cycles;
-                                                                              //};
-                                                                              //
 struct TimerContainer {
   TimerContainer()
       : asio_service(),
@@ -90,7 +70,7 @@ struct TimerContainer {
 
 class NodeChurnTest : public testing::Test {
  public:
-  typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
+  typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<Node>>
       NodeContainerPtr;
   typedef std::shared_ptr<TimerContainer> TimerContainerPtr;
   void HandleStart(NodeContainerPtr node_container,
@@ -103,61 +83,14 @@ class NodeChurnTest : public testing::Test {
  protected:
   NodeChurnTest()
       : env_(NodesEnvironment<Node>::g_environment()),
-        kTimeout_(bptime::seconds(10)),
+        kTimeout_(bptime::minutes(1)),
         timers_(env_->node_containers_.size(),
                 std::shared_ptr<TimerContainer>(new TimerContainer)),
-//                                                                        sample_nodes_(),
         total_finished_(0),
-        total_restart_(0),
+        total_restarts_(0),
         kMaxRestartCycles_(5) {}
-
-
-//  virtual void SetUp() {
-//    // Replace node containers' default join callbacks with one for this test.
-//    for (size_t i(0); i != env_->node_containers_.size(); ++i) {
-//      env_->node_containers_[i]->set_join_functor(
-//          std::bind(&NodeChurnTest::JoinCallback, this, i, arg::_1));
-//    }
-//  }
-
   NodesEnvironment<Node>* env_;
   const bptime::time_duration kTimeout_;
-
-//  NodeChurnTest()
-//      : nodes_(),
-//        mutex_(),
-//        cond_var_(),
-//        mutex2_(),
-//        cond_var2_(),
-//        mutex_start_(),
-//        mutex_stop_(),
-//        kAlpha_(3),
-//        kBeta_(2),
-//        kReplicationFactor_(4),
-//        kMeanRefreshInterval_(boost::posix_time::hours(1)),
-//        bootstrap_contacts_(),
-//        timers_(),
-//        sample_nodes_(),
-//        network_size_(20),
-//        total_finished_(0),
-//        total_restart_(0) {
-//     for (size_t index = 0; index < network_size_; ++index)
-//       timers_.push_back(std::shared_ptr<TimerContainer>(new TimerContainer));
-//  }
-
-  virtual void SetUp() {
-                                                                            //    // populate sample_nodes_
-                                                                            //    std::set<size_t> sample_set;
-                                                                            //    while (sample_set.size() < env_->node_containers_.size() / 2)
-                                                                            //      sample_set.insert(RandomUint32() % env_->node_containers_.size());
-                                                                            //    for (auto it(sample_set.begin()); it != sample_set.end(); ++it) {
-                                                                            //      sample_nodes_.push_back(std::shared_ptr<SampleNodeStats>(
-                                                                            //          new SampleNodeStats(*it)));
-                                                                            //    }
-                                                                            //    for (auto it(sample_nodes_.begin()); it != sample_nodes_.end(); ++it)
-                                                                            //      total_restart_ += (*it)->restart_cycles;
-  }
-
   virtual void TearDown() {
     for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
       (*itr)->work.reset();
@@ -183,10 +116,9 @@ class NodeChurnTest : public testing::Test {
   boost::mutex mutex_;
   boost::condition_variable cond_var_;
   std::vector<std::shared_ptr<TimerContainer>> timers_;
-                        //  std::vector<std::shared_ptr<SampleNodeStats>> sample_nodes_;
   const size_t kMaxRestartCycles_;
   size_t total_finished_;
-  size_t total_restart_;
+  size_t total_restarts_;
 };
 
 void NodeChurnTest::HandleStart(NodeContainerPtr node_container,
@@ -200,15 +132,15 @@ void NodeChurnTest::HandleStart(NodeContainerPtr node_container,
                          node_container->bootstrap_contacts());
     EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
                 node_container->wait_for_join_functor()));
-    node_container->GetAndResetStoreResult(&result);
+    node_container->GetAndResetJoinResult(&result);
     EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
 
-    if (++total_finished_ == total_restart_) {  // all restarts are done
+    if (++total_finished_ == total_restarts_) {  // all restarts are done
       cond_var_.notify_one();
       return;
     }
-    if (--count == 0)  // this node restart cycles is over
+    if (--count == 0)  // this node restart cycles are over
       return;
   }
   timer_container->timer->expires_from_now(
@@ -233,23 +165,20 @@ void NodeChurnTest::HandleStop(NodeContainerPtr node_container,
 }
 
 
-
 TEST_F(NodeChurnTest, FUNC_RandomStartStopNodes) {
   ASSERT_EQ(env_->node_containers_.size(), timers_.size());
   auto node_itr(env_->node_containers_.begin()),
        node_itr_end(env_->node_containers_.end());
   auto timer_itr(timers_.begin());
-
   for (; node_itr != node_itr_end; ++node_itr, ++timer_itr) {
-    size_t restarts(RandomUint32() % kMaxRestartCycles_ + 1);
+    size_t restarts(RandomUint32() % kMaxRestartCycles_ + 2);
     (*timer_itr)->timer->expires_from_now(boost::posix_time::millisec(Stop()));
     (*timer_itr)->timer->async_wait(std::bind(&NodeChurnTest::HandleStop, this,
-        (*node_itr), (*timer_itr), restarts));
+        *node_itr, *timer_itr, restarts));
+    total_restarts_ += restarts;
   }
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    cond_var_.wait(lock);
-  }
+  boost::mutex::scoped_lock lock(mutex_);
+  cond_var_.wait(lock);
 }
 
 }  // namespace test
