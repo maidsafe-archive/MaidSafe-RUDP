@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
+#include "maidsafe/dht/kademlia/timed_task.h"
+
 
 namespace bptime = boost::posix_time;
 
@@ -505,12 +507,16 @@ class NodeImpl {
   /** The mutex queue temporally holding the down_contacts before notifying */
   std::vector<NodeId> down_contacts_;
 
-  /** The thread group to hold all monitoring threads
-   *  Used by: MonitoringDownlistThread */
-  std::shared_ptr<boost::thread_group> thread_group_;
+  /** The flags showing whether particular thread is running or not */
   bool refresh_thread_running_,
        downlist_thread_running_,
        validate_contact_running_;
+       
+  /** The containers for threads ruuning in intervals */
+  std::shared_ptr<TimedTaskContainer<std::function<void()> > >
+      refresh_data_store_;
+  std::shared_ptr<TimedTaskContainer<std::function<void()> > >
+      monitoring_downlist_thread_;
 };
 
 }  // namespace kademlia
