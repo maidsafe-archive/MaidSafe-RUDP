@@ -222,77 +222,54 @@ TEST_F(NodeImplTest, BEH_KAD_Delete) {
               chosen_container->wait_for_delete_functor()));
 }
 
-//TEST_F(NodeImplTest, BEH_KAD_StoreRefresh) {
-//  std::function<void(int)> store_value = std::bind(
-//      &NodeImplTest::StoreValueFunction, this, arg::_1);
-//  maidsafe::crypto::RsaKeyPair rsa_key_pair;
-//  bptime::seconds duration(-1);
-//  std::size_t size = RandomUint32() % 1024;
-//  std::string value = RandomString(size);
-//  rsa_key_pair.GenerateKeys(4096);
-//  std::shared_ptr<Securifier> securifier;
-//  NodeId node_id(NodeId::kRandomId);
-//  std::vector<NodeId> nodeids(node_ids_);
-//  SortIds(node_id, &nodeids);
-//  std::size_t i = 0;
-//  for (; i != env_->num_full_nodes_; ++i)
-//    if (node_containers_[i]->node()->contact().node_id() == nodeids.back())
-//      break;
-//  // Store the value via node_containers_[i]->node()...
-//  node_containers_[i]->node()->Store(node_id, value, "", duration, securifier, store_value);
-//  while (!stored_value_)
-//    Sleep(bptime::milliseconds(100));
-//  stored_value_ = false;
-//  
-//  size = RandomUint32() % (env_->k_ - 1);
-//  std::size_t count = env_->num_full_nodes_ + 1;
-//  std::array<std::size_t, env_->k_+1> nodevals1, nodevals2; 
-//  // Ensure k closest hold the value and tag the one to leave...
-//  for (size_t i = 0; i != env_->k_; ++i) {
-//    for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
-//      if (node_containers_[j]->node()->contact().node_id() == nodeids[i]) {
-//        if (i == size)
-//          count = j;
-//        ASSERT_TRUE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
-//        nodevals1[i] = j;
-//        break;
-//      }
-//    }
-//  }
-//  // Let tagged node leave...
-//  ASSERT_NE(count, env_->num_full_nodes_ + 1); 
-//  std::vector<Contact> bootstrap_contacts;
-//  node_containers_[count]->node()->Leave(&bootstrap_contacts);
-//  // Having set refresh time to 30 seconds, wait for 60 seconds...
-//  Sleep(bptime::seconds(60)); 
-//  // The env_->k_ element of nodeids should now hold the value if a refresh
-//  // has occurred...
-//  /*for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
-//    if (node_containers_[j]->node()->contact().node_id() == nodeids[env_->k_]) {
-//      ASSERT_TRUE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
-//      break;
-//    }
-//  }*/
-//  for (size_t i = 0, j = 0; j != env_->num_full_nodes_; ++j) {
-//    if (node_containers_[j]->node()->data_store_->HasKey(node_id.String())) {
-//      nodevals2[i] = j;
-//      ++i;
-//    }
-//  }
-//  //for (size_t i = 0; i != env_->k_; ++i) {
-//  //  for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
-//  //    //if (j == count)
-//  //    //  continue;
-//  //    if (node_containers_[j]->node()->contact().node_id() == nodeids[i]) {
-//  //      ASSERT_TRUE(node_containers_[j]->node()->data_store_->HasKey(node_id.String()));
-//  //      nodevals2[i] = j;
-//  //      break;
-//  //    }
-//  //  }
-//  //}
-//  ASSERT_NE(nodevals1, nodevals2);
-//}
-//
+TEST_F(NodeImplTest, BEH_KAD_StoreRefresh) {
+  Key key(NodeId::kRandomId);
+  std::string value = RandomString(RandomUint32() % 1024);
+  bptime::time_duration duration(bptime::seconds(20));
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
+  DLOG(INFO) << "Node " << test_node_index << " - "
+             << DebugId(*chosen_container) << " performing store operation.";
+  int result(kPendingResult);
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+
+  // Ensure k closest hold the value and tag the one to leave
+  auto itr(env_->node_containers_.begin()), node_to_leave(itr);
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
+                       env_->node_ids_, env_->k_)) {
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+      node_to_leave = itr;
+    }
+  }
+  auto id_itr = std::find(env_->node_ids_.begin(), env_->node_ids_.end(),
+                          (*node_to_leave)->node()->contact().node_id());
+  ASSERT_NE(env_->node_ids_.end(), id_itr);
+  (*node_to_leave)->Stop(NULL);
+  env_->node_containers_.erase(node_to_leave);
+  env_->node_ids_.erase(id_itr);
+
+  // Having set refresh time to 20 seconds, wait for 30 seconds
+  Sleep(bptime::seconds(30));
+
+  // If a refresh has happened, the current k closest should hold the value
+  for (itr = env_->node_containers_.begin();
+       itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
+                       env_->node_ids_, env_->k_)) {
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+    }
+  }
+}
+
 //TEST_F(NodeImplTest, BEH_KAD_DeleteRefresh) {
 //  std::function<void(int)> store_value = std::bind(
 //      &NodeImplTest::StoreValueFunction, this, arg::_1);

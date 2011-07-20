@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/contact.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/demo/commands.h"
@@ -274,13 +275,11 @@ int main(int argc, char **argv) {
       response = demo_node->JoinNode(node_id, bootstrap_contacts);
     }
 
-    if (response != mt::kSuccess) {
-      if ((response == 1) && !first_node) {
-        ULOG(ERROR) << "Node failed to join the network with return code "
-                    << response;
-        demo_node->StopListeningTransport();
-        return 1;
-      }
+    if (response != mk::kSuccess) {
+      ULOG(ERROR) << "Node failed to join the network with return code "
+                  << response;
+      demo_node->StopListeningTransport();
+      return response;
     }
 
     PrintNodeInfo(demo_node->kademlia_node()->contact());

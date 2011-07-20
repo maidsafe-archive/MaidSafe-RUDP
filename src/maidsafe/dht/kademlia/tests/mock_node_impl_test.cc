@@ -2071,8 +2071,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
   std::vector<Contact> booststrap_contacts;
   int result;
   bool done;
-  node_->JoinFindNodesCallback(
-      0, booststrap_contacts, booststrap_contacts, key,
+  FindValueReturns find_value_returns;
+  find_value_returns.return_code = kSuccess;
+
+  node_->JoinFindValueCallback(
+      find_value_returns, booststrap_contacts, key,
       std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1, &result,
                 &done));
   std::shared_ptr<RoutingTableContactsContainer> down_list
@@ -2386,8 +2389,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
     std::vector<Contact> booststrap_contacts(1, Contact());
     int result;
     bool done;
-    local_node_->JoinFindNodesCallback(
-        0, booststrap_contacts, booststrap_contacts, key,
+    FindValueReturns find_value_returns;
+    find_value_returns.return_code = kSuccess;
+
+    local_node_->JoinFindValueCallback(
+        find_value_returns, booststrap_contacts, key,
         std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1,
                   &result, &done));
     EXPECT_TRUE(local_node_->joined());

@@ -37,6 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/securifier.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/rpcs.h"  // for TransportType enum
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
@@ -128,13 +129,12 @@ int DemoNode::Init(const size_t &thread_count,
                                 alpha,
                                 beta,
                                 mean_refresh_interval));
-  return 0;
+  return kSuccess;
 }
 
 int DemoNode::JoinNode(const NodeId &node_id,
                        const std::vector<Contact> &bootstrap_contacts) {
-  const int kWaiting(1234567);
-  int response(kWaiting);
+  int response(kPendingResult);
   boost::mutex mutex;
   boost::condition_variable cond_var;
   {
@@ -142,7 +142,7 @@ int DemoNode::JoinNode(const NodeId &node_id,
     kademlia_node_->Join(node_id, bootstrap_contacts,
                          std::bind(&DemoNode::JoinCallback, this, arg::_1,
                                    &response, &mutex, &cond_var));
-    while (response == kWaiting)
+    while (response == kPendingResult)
       cond_var.wait(lock);
   }
   return response;
