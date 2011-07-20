@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/deadline_timer.hpp"
+#include "boost/numeric/conversion/cast.hpp"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127)
@@ -43,10 +44,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/test.h"
 
 #include "maidsafe/dht/kademlia/node-api.h"
-//#include "maidsafe/dht/kademlia/tests/test_utils.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/tests/functional/test_node_environment.h"
-#include "maidsafe/dht/kademlia/timed_task.h"
 
 namespace bptime = boost::posix_time;
 
@@ -59,32 +58,23 @@ class NodeChurnTest : public testing::Test {
  public:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<Node>>
       NodeContainerPtr;
-  typedef std::shared_ptr<TimerContainer> TimerContainerPtr;
+  typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
   void HandleStart(NodeContainerPtr node_container,
-                   TimerContainerPtr timer_container,
+                   TimerPtr timer_container,
                    size_t count);
   void HandleStop(NodeContainerPtr node_container,
-                  TimerContainerPtr timer_container,
+                  TimerPtr timer_container,
                   size_t count);
 
  protected:
   NodeChurnTest()
       : env_(NodesEnvironment<Node>::g_environment()),
         kTimeout_(bptime::minutes(1)),
-        timers_(env_->node_containers_.size(),
-                std::shared_ptr<TimerContainer>(new TimerContainer)),
         total_finished_(0),
         total_restarts_(0),
         kMaxRestartCycles_(5) {}
   NodesEnvironment<Node>* env_;
   const bptime::time_duration kTimeout_;
-  virtual void TearDown() {
-/*    for (auto itr(timers_.begin()); itr != timers_.end(); ++itr) {
-      (*itr)->work.reset();
-      (*itr)->asio_service.stop();
-      (*itr)->timer_thread->join();
-    }*/
-  }
 
 /** Approximate the uptime distribution given in "A Measurement Study of
  * Peer-to-Peer File Sharing Systems" by Saroiu et al, fig. 6.
@@ -102,14 +92,13 @@ class NodeChurnTest : public testing::Test {
 
   boost::mutex mutex_;
   boost::condition_variable cond_var_;
-  std::vector<std::shared_ptr<TimerContainer>> timers_;
   const size_t kMaxRestartCycles_;
   size_t total_finished_;
   size_t total_restarts_;
 };
 
 void NodeChurnTest::HandleStart(NodeContainerPtr node_container,
-                                TimerContainerPtr timer_container,
+                                TimerPtr timer,
                                 size_t count) {
   EXPECT_FALSE(node_container->node()->joined());
   int result(kPendingResult);
@@ -130,38 +119,34 @@ void NodeChurnTest::HandleStart(NodeContainerPtr node_container,
     if (--count == 0)  // this node restart cycles are over
       return;
   }
-  timer_container->timer->expires_from_now(
-      boost::posix_time::milliseconds(Stop()));
-  timer_container->timer->async_wait(std::bind(&NodeChurnTest::HandleStop,
-                                                this, node_container,
-                                                timer_container, count));
+  timer->expires_from_now(bptime::milliseconds(Stop()));
+  timer->async_wait(std::bind(&NodeChurnTest::HandleStop, this, node_container,
+                              timer, count));
 }
 
 void NodeChurnTest::HandleStop(NodeContainerPtr node_container,
-                               TimerContainerPtr timer_container,
+                               TimerPtr timer,
                                size_t count) {
   EXPECT_TRUE(node_container->node()->joined());
   node_container->node()->Leave(NULL);
   EXPECT_FALSE(node_container->node()->joined());
 
-  timer_container->timer->expires_from_now(
-      boost::posix_time::milliseconds(Start()));
-  timer_container->timer->async_wait(std::bind(&NodeChurnTest::HandleStart,
-                                               this, node_container,
-                                               timer_container, count));
+  timer->expires_from_now(bptime::milliseconds(Start()));
+  timer->async_wait(std::bind(&NodeChurnTest::HandleStart, this, node_container,
+                              timer, count));
 }
 
 
 TEST_F(NodeChurnTest, FUNC_RandomStartStopNodes) {
-  ASSERT_EQ(env_->node_containers_.size(), timers_.size());
   auto node_itr(env_->node_containers_.begin()),
        node_itr_end(env_->node_containers_.end());
-  auto timer_itr(timers_.begin());
-  for (; node_itr != node_itr_end; ++node_itr, ++timer_itr) {
+  for (; node_itr != node_itr_end; ++node_itr) {
     size_t restarts(RandomUint32() % kMaxRestartCycles_ + 2);
-    (*timer_itr)->timer->expires_from_now(boost::posix_time::millisec(Stop()));
-    (*timer_itr)->timer->async_wait(std::bind(&NodeChurnTest::HandleStop, this,
-        *node_itr, *timer_itr, restarts));
+    TimerPtr timer(
+        new boost::asio::deadline_timer((*node_itr)->asio_service()));
+    timer->expires_from_now(bptime::milliseconds(Stop()));
+    timer->async_wait(std::bind(&NodeChurnTest::HandleStop, this,
+                                *node_itr, timer, restarts));
     total_restarts_ += restarts;
   }
   boost::mutex::scoped_lock lock(mutex_);
