@@ -64,7 +64,7 @@ template <typename NodeType>
 class NodeContainer {
  public:
   NodeContainer();
-  virtual ~NodeContainer() {}
+  virtual ~NodeContainer();
 
   virtual void Init(
       uint8_t thread_count,
@@ -312,6 +312,11 @@ NodeContainer<NodeType>::NodeContainer()
   wait_for_get_contact_functor_ =
       std::bind(&NodeContainer<NodeType>::ResultReady, this,
                 &get_contact_result_);
+}
+
+template<typename NodeType>
+NodeContainer<NodeType>::~NodeContainer() {
+  Stop(NULL);
 }
 
 template <typename NodeType>
