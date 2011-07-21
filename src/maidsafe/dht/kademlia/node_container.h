@@ -37,14 +37,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread.hpp"
 #include "maidsafe/common/crypto.h"
-#include "maidsafe/dht/kademlia/securifier.h"
 
-#include "maidsafe/dht/transport/tcp_transport.h"
+#include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/config.h"
-#include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/securifier.h"
+#include "maidsafe/dht/kademlia/utils.h"
+#include "maidsafe/dht/transport/tcp_transport.h"
 
 #if MAIDSAFE_DHT_VERSION != 3002
 #  error This API is not compatible with the installed library.\
@@ -64,7 +66,7 @@ template <typename NodeType>
 class NodeContainer {
  public:
   NodeContainer();
-  virtual ~NodeContainer() {}
+  virtual ~NodeContainer();
 
   virtual void Init(
       uint8_t thread_count,
@@ -164,6 +166,11 @@ class NodeContainer {
                                   std::vector<Contact> *closest_nodes);
   void GetAndResetFindValueResult(FindValueReturns *find_value_returns);
   void GetAndResetGetContactResult(int *result, Contact *contact);
+
+  // This returns the asio_service_ by reference!  This is needed by almost any
+  // asio object which takes an io_service in its constructor.  Ensure that if
+  // this getter is used, this class instance outlives the caller.
+  AsioService &asio_service() { return asio_service_; }
 
   // Standard getters
   std::shared_ptr<NodeType> node() const { return node_; }
@@ -307,6 +314,11 @@ NodeContainer<NodeType>::NodeContainer()
   wait_for_get_contact_functor_ =
       std::bind(&NodeContainer<NodeType>::ResultReady, this,
                 &get_contact_result_);
+}
+
+template<typename NodeType>
+NodeContainer<NodeType>::~NodeContainer() {
+  Stop(NULL);
 }
 
 template <typename NodeType>
@@ -504,6 +516,7 @@ void NodeContainer<NodeType>::FindValueCallback(
     FindValueReturns find_value_returns_in,
     boost::mutex *mutex,
     boost::condition_variable *cond_var) {
+  std::cout << "FindValueCallback\n";
   boost::mutex::scoped_lock lock(*mutex);
   find_value_returns_ = find_value_returns_in;
   cond_var->notify_one();

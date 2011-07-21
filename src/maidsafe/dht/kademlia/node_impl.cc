@@ -115,19 +115,17 @@ void NodeImpl::Join(const NodeId &node_id,
   }
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
-  std::vector<transport::Endpoint> local_endpoints;
-  // Create contact_ information for node and set contact for Rpcs
-  transport::Endpoint endpoint;
-  endpoint.ip = listening_transport_->transport_details().endpoint.ip;
-  endpoint.port = listening_transport_->transport_details().endpoint.port;
-  local_endpoints.push_back(endpoint);
-  Contact contact(node_id, endpoint, local_endpoints,
+  if (!client_only_node_) {
+    std::vector<transport::Endpoint> local_endpoints;
+    // Create contact_ information for node and set contact for Rpcs
+    transport::Endpoint endpoint;
+    endpoint.ip = listening_transport_->transport_details().endpoint.ip;
+    endpoint.port = listening_transport_->transport_details().endpoint.port;
+    local_endpoints.push_back(endpoint);
+    contact_ = Contact(node_id, endpoint, local_endpoints,
                   listening_transport_->transport_details().rendezvous_endpoint,
                   false, false, default_securifier_->kSigningKeyId(),
                   default_securifier_->kSigningPublicKey(), "");
-  contact_ = contact;
-
-  if (!client_only_node_) {
     rpcs_->set_contact(contact_);
   } else {
     protobuf::Contact proto_contact(ToProtobuf(contact_));
@@ -156,9 +154,9 @@ void NodeImpl::Join(const NodeId &node_id,
   }
   
   for (auto it(bootstrap_contacts.begin()); it != bootstrap_contacts.end();
-         ++it){
-           node_ids.push_back((*it).node_id());
-        }
+         ++it) {
+    node_ids.push_back((*it).node_id());
+  }
 
   std::vector<Contact> search_contact;
   search_contact.push_back(bootstrap_contacts.front());
@@ -241,10 +239,14 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
     thread_group_->join_all();
 //    thread_group_.reset();
   }*/
-  refresh_thread_running_ = false;
-  downlist_thread_running_ = false;
-  refresh_data_store_->Stop();
-  monitoring_downlist_thread_->Stop();
+  if (downlist_thread_running_) {
+    monitoring_downlist_thread_->Stop();
+    downlist_thread_running_ = false;
+  }
+  if (refresh_thread_running_) {
+    refresh_data_store_->Stop();
+    refresh_thread_running_ = false;
+  }
   GetBootstrapContacts(bootstrap_contacts);
 //  if (rpcs_)
 //    rpcs_.reset();
@@ -589,6 +591,8 @@ void NodeImpl::GetAllContacts(std::vector<Contact> *contacts) {
 
 void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
   routing_table_->GetBootstrapContacts(contacts);
+  if (contacts->empty())
+    contacts->push_back(contact_);
 }
 
 Contact NodeImpl::contact() const {
