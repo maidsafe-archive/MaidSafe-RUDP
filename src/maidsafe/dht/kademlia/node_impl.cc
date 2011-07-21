@@ -128,12 +128,18 @@ void NodeImpl::Join(const NodeId &node_id,
     endpoint.ip = listening_transport_->transport_details().endpoint.ip;
     endpoint.port = listening_transport_->transport_details().endpoint.port;
     local_endpoints.push_back(endpoint);
-    contact_ = Contact(node_id, endpoint, local_endpoints,
-                  listening_transport_->transport_details().rendezvous_endpoint,
-                  false, false, default_securifier_->kSigningKeyId(),
-                  default_securifier_->kSigningPublicKey(), "");
+    contact_ =
+        Contact(node_id, endpoint, local_endpoints,
+                listening_transport_->transport_details().rendezvous_endpoint,
+                false, false, default_securifier_->kSigningKeyId(),
+                default_securifier_->kSigningPublicKey(), "");
     rpcs_->set_contact(contact_);
   } else {
+    contact_ = Contact(node_id, transport::Endpoint(),
+                       std::vector<transport::Endpoint>(),
+                       transport::Endpoint(), false, false,
+                       default_securifier_->kSigningKeyId(),
+                       default_securifier_->kSigningPublicKey(), "");
     protobuf::Contact proto_contact(ToProtobuf(contact_));
     proto_contact.set_node_id(NodeId().String());
     rpcs_->set_contact(FromProtobuf(proto_contact));
@@ -273,8 +279,8 @@ void NodeImpl::Update(const Key &key,
                       const std::string &new_signature,
                       const std::string &old_value,
                       const std::string &old_signature,
-                      SecurifierPtr securifier,
                       const bptime::time_duration &ttl,
+                      SecurifierPtr securifier,
                       UpdateFunctor callback) {
   if (!securifier)
     securifier = default_securifier_;
@@ -911,8 +917,8 @@ void NodeImpl::IterativeSearchValueResponse(
     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
     // methodology of CACHE is decided
     Contact cache_contact;
-    FindValueReturns find_value_returns = { response_code, values,
-        closest_contacts, alternative_store, cache_contact };
+    FindValueReturns find_value_returns(response_code, values, closest_contacts,
+                                        alternative_store, cache_contact);
     find_value_args->called_back = true;
     find_value_args->callback(find_value_returns);
   }

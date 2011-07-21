@@ -1775,7 +1775,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -1804,7 +1804,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -1837,7 +1837,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -1870,7 +1870,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -1903,7 +1903,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -1939,7 +1939,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)
@@ -2222,7 +2222,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
     int response_code(-2);
     bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, securifier_, old_ttl,
+                  kvs.value, kvs.signature, old_ttl, securifier_,
                   std::bind(&ErrorCodeCallback, arg::_1, &done,
                             &response_code));
     while (!done)

@@ -157,8 +157,8 @@ class Node {
               const std::string &new_signature,
               const std::string &old_value,
               const std::string &old_signature,
-              SecurifierPtr securifier,
               const boost::posix_time::time_duration &ttl,
+              SecurifierPtr securifier,
               UpdateFunctor callback);
 
   // Find value(s) on the network.  Unless the method returns failure, the
