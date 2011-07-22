@@ -2052,290 +2052,290 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
   Sleep(boost::posix_time::milliseconds(1000));
 }  // FindValue test
 
-// This test will test the Downlist client handling in node_impl
-// Covered part is: ReportDownContact, MonitoringDownlistThread
-TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
-  PopulateRoutingTable(test::k, 500);
-
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
-  SetRpc(new_rpcs);
-
-  EXPECT_CALL(*new_rpcs, Downlist(testing::_, testing::_, testing::_,
-                                  testing::_))
-      .WillRepeatedly(testing::WithArgs<0, 2>(testing::Invoke(
-          std::bind(&MockRpcs::DownlistRecord, new_rpcs.get(), arg::_1,
-                    arg::_2))));
-
-  NodeId key = NodeId(NodeId::kRandomId);
-  std::vector<Contact> booststrap_contacts;
-  int result;
-  bool done;
-  FindValueReturns find_value_returns;
-  find_value_returns.return_code = kSuccess;
-
-  node_->JoinFindValueCallback(
-      find_value_returns, booststrap_contacts, key,
-      std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1, &result,
-                &done));
-  std::shared_ptr<RoutingTableContactsContainer> down_list
-      (new RoutingTableContactsContainer());
-  new_rpcs->down_contacts_ = down_list;
-  {
-    // FindNodes : All k populated contacts giving no response
-    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
-                                     testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
-                      arg::_2))));
-    std::vector<Contact> lcontacts;
-    bool done(false);
-    node_->FindNodes(key,
-                     std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(0, lcontacts.size());
-    // wait for the all processes to be completed
-    // otherwise the counter might be incorrect
-    Sleep(boost::posix_time::milliseconds(500));
-    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
-    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
-    auto it = key_indx.begin();
-    auto it_end = key_indx.end();
-    while (it != it_end) {
-      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
-      ++it;
-    }
-  }
-  std::shared_ptr<RoutingTableContactsContainer> temp
-      (new RoutingTableContactsContainer());
-  new_rpcs->respond_contacts_ = temp;
-
-  int count = 10 * test::k;
-  new_rpcs->PopulateResponseCandidates(count, 499);
-
-  crypto::RsaKeyPair crypto_key_data;
-  crypto_key_data.GenerateKeys(4096);
-  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
-  bptime::time_duration old_ttl(bptime::pos_infin);
-
-  new_rpcs->SetCountersToZero();
-  new_rpcs->down_contacts_->clear();
-  SetAllNumRpcsFailureToZero();
-
-  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
-                                  testing::_, testing::_))
-      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-          std::bind(&MockRpcs::FindNodeResponseClose, new_rpcs.get(), arg::_1,
-                    arg::_2))));
-  {
-    // Store : the last (k-threshold+1) closest contacts respond with DOWN
-    // FindNodes : All k populated contacts giving response
-    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
-                                  testing::_, testing::_, testing::_,
-                                  testing::_))
-        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
-            std::bind(&MockRpcs::SingleDeleteResponse, new_rpcs.get(), arg::_1,
-                      arg::_2))));
-    EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
-                                 testing::_, testing::_, testing::_,
-                                 testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            std::bind(&MockRpcs::LastSeveralNoResponse<Rpcs::StoreFunctor>,
-                      new_rpcs.get(), arg::_1, arg::_2))));
-    int response_code(-2);
-    bool done(false);
-    node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(kStoreTooFewNodes, response_code);
-    // wait for the delete processes to be completed
-    // otherwise the counter might be incorrect
-    Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
-    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
-    auto it = key_indx.begin();
-    auto it_end = key_indx.end();
-    while (it != it_end) {
-      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
-      ++it;
-    }
-  }
-  new_rpcs->SetCountersToZero();
-  new_rpcs->down_contacts_->clear();
-  SetAllNumRpcsFailureToZero();
-  {
-    // Delete : the first (k-threshold+1) closest contacts respond with DOWN
-    // FindNodes : All k populated contacts giving response
-    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
-                                  testing::_, testing::_, testing::_,
-                                  testing::_))
-        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
-            std::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::DeleteFunctor>,
-                      new_rpcs.get(), arg::_1, arg::_2))));
-    int response_code(-2);
-    bool done(false);
-    node_->Delete(key, kvs.value, kvs.signature, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
-                            &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(kDeleteTooFewNodes, response_code);
-    // wait for the delete processes to be completed
-    // otherwise the counter might be incorrect
-    // may not be necessary for this test
-    Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
-    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
-    auto it = key_indx.begin();
-    auto it_end = key_indx.end();
-    while (it != it_end) {
-      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
-      ++it;
-    }
-  }
-  KeyValueSignature kvs_new = MakeKVS(crypto_key_data, 1024, key.String(), "");
-
-  new_rpcs->SetCountersToZero();
-  new_rpcs->down_contacts_->clear();
-  SetAllNumRpcsFailureToZero();
-  {
-    // Update Store: the first (k-threshold+1) contacts respond with DOWN
-    // Update Delete: all response
-    // FindNodes : All k populated contacts giving response
-    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
-                                  testing::_, testing::_, testing::_,
-                                  testing::_))
-        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
-            std::bind(&MockRpcs::Response<Rpcs::DeleteFunctor>, new_rpcs.get(),
-                      arg::_1, arg::_2))));
-    EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
-                                 testing::_, testing::_, testing::_,
-                                 testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
-            std::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::StoreFunctor>,
-                      new_rpcs.get(), arg::_1, arg::_2))));
-    int response_code(-2);
-    bool done(false);
-    node_->Update(key, kvs_new.value, kvs_new.signature,
-                  kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
-                            &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    // wait for the all processes to be completed
-    // otherwise the counter might be incorrect
-    Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(kUpdateTooFewNodes, response_code);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
-    EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
-    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
-    auto it = key_indx.begin();
-    auto it_end = key_indx.end();
-    while (it != it_end) {
-      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
-      ++it;
-    }
-  }
-  new_rpcs->SetCountersToZero();
-  new_rpcs->down_contacts_->clear();
-  SetAllNumRpcsFailureToZero();
-  {
-    // FindValue : All k populated contacts giving no response
-    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
-                                     testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
-                      arg::_2))));
-    FindValueReturns results;
-    bool done(false);
-    node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &done, &results));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
-    EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(0, results.closest_nodes.size());
-    // wait for the all processes to be completed
-    // otherwise the counter might be incorrect
-    Sleep(boost::posix_time::milliseconds(500));
-    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
-    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
-    auto it = key_indx.begin();
-    auto it_end = key_indx.end();
-    while (it != it_end) {
-      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
-      ++it;
-    }
-  }
-  // sleep for a while to prevent the situation that resources got destructed
-  // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.
-  Sleep(boost::posix_time::milliseconds(300));
-}  // DownListClient test
-
-// This test will test the Downlist server handling in node_impl
-// Covered parts are: Connect to Service signal, Catch signal from Service,
-// PingDownlistContact, PingDownlistContactCallback
-TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
-  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
-  SetRpc(new_rpcs);
-
-  std::shared_ptr<Service> local_service(new Service(routing_table_,
-      data_store_, alternative_store_, securifier_, test::k));
-  local_service->set_node_joined(true);
-  node_->SetService(local_service);
-  // given a downlist contains k nodes in the routingtable
-  protobuf::DownlistNotification downlist_request;
-  for (int i = 0; i < test::k; ++i) {
-    NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
-    Contact contact = ComposeContact(contact_id, 5000);
-    downlist_request.add_node_ids(contact_id.String());
-    AddContact(routing_table_, contact, rank_info_);
-  }
-  transport::Info info;
-  {
-    // Ping down contacts will success
-    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
-            std::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
-                      new_rpcs.get(), arg::_1, arg::_2))));
-    std::vector<Contact> contacts;
-    routing_table_->GetAllContacts(&contacts);
-    EXPECT_EQ(test::k, contacts.size());
-    transport::Timeout time_out;
-    for (int i = 0; i <= kFailedRpcTolerance; ++i)
-      local_service->Downlist(info, downlist_request, &time_out);
-    // wait a reasonable time
-    Sleep(boost::posix_time::milliseconds(200));
-    routing_table_->GetAllContacts(&contacts);
-    EXPECT_EQ(test::k, contacts.size());
-  }
-  {
-    // Ping down contacts will failed
-    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
-            std::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>, new_rpcs.get(),
-                      arg::_1, arg::_2))));
-    std::vector<Contact> contacts;
-    routing_table_->GetAllContacts(&contacts);
-    EXPECT_EQ(test::k, contacts.size());
-    transport::Timeout time_out;
-    for (int i = 0; i <= kFailedRpcTolerance; ++i)
-      local_service->Downlist(info, downlist_request, &time_out);
-    // may need to put a timer to prevent deadlock
-    do {
-      Sleep(boost::posix_time::milliseconds(200));
-      routing_table_->GetAllContacts(&contacts);
-    } while (!contacts.empty());
-  }
-}  // DownListServer test
+//// This test will test the Downlist client handling in node_impl
+//// Covered part is: ReportDownContact, MonitoringDownlistThread
+//TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
+//  PopulateRoutingTable(test::k, 500);
+//
+//  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+//  new_rpcs->node_id_ = node_id_;
+//  SetRpc(new_rpcs);
+//
+//  EXPECT_CALL(*new_rpcs, Downlist(testing::_, testing::_, testing::_,
+//                                  testing::_))
+//      .WillRepeatedly(testing::WithArgs<0, 2>(testing::Invoke(
+//          std::bind(&MockRpcs::DownlistRecord, new_rpcs.get(), arg::_1,
+//                    arg::_2))));
+//
+//  NodeId key = NodeId(NodeId::kRandomId);
+//  std::vector<Contact> booststrap_contacts;
+//  int result;
+//  bool done;
+//  FindValueReturns find_value_returns;
+//  find_value_returns.return_code = kSuccess;
+//
+//  node_->JoinFindValueCallback(
+//      find_value_returns, booststrap_contacts, key,
+//      std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1, &result,
+//                &done));
+//  std::shared_ptr<RoutingTableContactsContainer> down_list
+//      (new RoutingTableContactsContainer());
+//  new_rpcs->down_contacts_ = down_list;
+//  {
+//    // FindNodes : All k populated contacts giving no response
+//    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+//                                     testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+//            std::bind(&MockRpcs::FindNodeNoResponse, new_rpcs.get(), arg::_1,
+//                      arg::_2))));
+//    std::vector<Contact> lcontacts;
+//    bool done(false);
+//    node_->FindNodes(key,
+//                     std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
+//                               &done, &lcontacts));
+//    while (!done)
+//      Sleep(boost::posix_time::milliseconds(100));
+//    EXPECT_EQ(0, lcontacts.size());
+//    // wait for the all processes to be completed
+//    // otherwise the counter might be incorrect
+//    Sleep(boost::posix_time::milliseconds(500));
+//    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
+//    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+//    auto it = key_indx.begin();
+//    auto it_end = key_indx.end();
+//    while (it != it_end) {
+//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      ++it;
+//    }
+//  }
+//  std::shared_ptr<RoutingTableContactsContainer> temp
+//      (new RoutingTableContactsContainer());
+//  new_rpcs->respond_contacts_ = temp;
+//
+//  int count = 10 * test::k;
+//  new_rpcs->PopulateResponseCandidates(count, 499);
+//
+//  crypto::RsaKeyPair crypto_key_data;
+//  crypto_key_data.GenerateKeys(4096);
+//  KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
+//  bptime::time_duration old_ttl(bptime::pos_infin);
+//
+//  new_rpcs->SetCountersToZero();
+//  new_rpcs->down_contacts_->clear();
+//  SetAllNumRpcsFailureToZero();
+//
+//  EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_))
+//      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+//          std::bind(&MockRpcs::FindNodeResponseClose, new_rpcs.get(), arg::_1,
+//                    arg::_2))));
+//  {
+//    // Store : the last (k-threshold+1) closest contacts respond with DOWN
+//    // FindNodes : All k populated contacts giving response
+//    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_, testing::_,
+//                                  testing::_))
+//        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+//            std::bind(&MockRpcs::SingleDeleteResponse, new_rpcs.get(), arg::_1,
+//                      arg::_2))));
+//    EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
+//                                 testing::_, testing::_, testing::_,
+//                                 testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
+//            std::bind(&MockRpcs::LastSeveralNoResponse<Rpcs::StoreFunctor>,
+//                      new_rpcs.get(), arg::_1, arg::_2))));
+//    int response_code(-2);
+//    bool done(false);
+//    node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
+//                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
+//    while (!done)
+//      Sleep(boost::posix_time::milliseconds(100));
+//    EXPECT_EQ(kStoreTooFewNodes, response_code);
+//    // wait for the delete processes to be completed
+//    // otherwise the counter might be incorrect
+//    Sleep(boost::posix_time::milliseconds(300));
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+//    auto it = key_indx.begin();
+//    auto it_end = key_indx.end();
+//    while (it != it_end) {
+//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      ++it;
+//    }
+//  }
+//  new_rpcs->SetCountersToZero();
+//  new_rpcs->down_contacts_->clear();
+//  SetAllNumRpcsFailureToZero();
+//  {
+//    // Delete : the first (k-threshold+1) closest contacts respond with DOWN
+//    // FindNodes : All k populated contacts giving response
+//    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_, testing::_,
+//                                  testing::_))
+//        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+//            std::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::DeleteFunctor>,
+//                      new_rpcs.get(), arg::_1, arg::_2))));
+//    int response_code(-2);
+//    bool done(false);
+//    node_->Delete(key, kvs.value, kvs.signature, securifier_,
+//                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+//                            &response_code));
+//    while (!done)
+//      Sleep(boost::posix_time::milliseconds(100));
+//    EXPECT_EQ(kDeleteTooFewNodes, response_code);
+//    // wait for the delete processes to be completed
+//    // otherwise the counter might be incorrect
+//    // may not be necessary for this test
+//    Sleep(boost::posix_time::milliseconds(300));
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+//    auto it = key_indx.begin();
+//    auto it_end = key_indx.end();
+//    while (it != it_end) {
+//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      ++it;
+//    }
+//  }
+//  KeyValueSignature kvs_new = MakeKVS(crypto_key_data, 1024, key.String(), "");
+//
+//  new_rpcs->SetCountersToZero();
+//  new_rpcs->down_contacts_->clear();
+//  SetAllNumRpcsFailureToZero();
+//  {
+//    // Update Store: the first (k-threshold+1) contacts respond with DOWN
+//    // Update Delete: all response
+//    // FindNodes : All k populated contacts giving response
+//    EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
+//                                  testing::_, testing::_, testing::_,
+//                                  testing::_))
+//        .WillRepeatedly(testing::WithArgs<4, 5>(testing::Invoke(
+//            std::bind(&MockRpcs::Response<Rpcs::DeleteFunctor>, new_rpcs.get(),
+//                      arg::_1, arg::_2))));
+//    EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
+//                                 testing::_, testing::_, testing::_,
+//                                 testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<5, 6>(testing::Invoke(
+//            std::bind(&MockRpcs::FirstSeveralNoResponse<Rpcs::StoreFunctor>,
+//                      new_rpcs.get(), arg::_1, arg::_2))));
+//    int response_code(-2);
+//    bool done(false);
+//    node_->Update(key, kvs_new.value, kvs_new.signature,
+//                  kvs.value, kvs.signature, old_ttl, securifier_,
+//                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+//                            &response_code));
+//    while (!done)
+//      Sleep(boost::posix_time::milliseconds(100));
+//    // wait for the all processes to be completed
+//    // otherwise the counter might be incorrect
+//    Sleep(boost::posix_time::milliseconds(300));
+//    EXPECT_EQ(kUpdateTooFewNodes, response_code);
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+//    EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
+//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+//    auto it = key_indx.begin();
+//    auto it_end = key_indx.end();
+//    while (it != it_end) {
+//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      ++it;
+//    }
+//  }
+//  new_rpcs->SetCountersToZero();
+//  new_rpcs->down_contacts_->clear();
+//  SetAllNumRpcsFailureToZero();
+//  {
+//    // FindValue : All k populated contacts giving no response
+//    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+//                                     testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+//            std::bind(&MockRpcs::FindValueNoResponse, new_rpcs.get(), arg::_1,
+//                      arg::_2))));
+//    FindValueReturns results;
+//    bool done(false);
+//    node_->FindValue(key, securifier_,
+//                     std::bind(&FindValueCallback, arg::_1, &done, &results));
+//    while (!done)
+//      Sleep(boost::posix_time::milliseconds(100));
+//    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
+//    EXPECT_EQ(0, results.values.size());
+//    EXPECT_EQ(0, results.closest_nodes.size());
+//    // wait for the all processes to be completed
+//    // otherwise the counter might be incorrect
+//    Sleep(boost::posix_time::milliseconds(500));
+//    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
+//    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
+//    auto it = key_indx.begin();
+//    auto it_end = key_indx.end();
+//    while (it != it_end) {
+//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      ++it;
+//    }
+//  }
+//  // sleep for a while to prevent the situation that resources got destructed
+//  // before all call back from rpc completed. Which will cause "Segmentation
+//  // Fault" in execution.
+//  Sleep(boost::posix_time::milliseconds(300));
+//}  // DownListClient test
+//
+//// This test will test the Downlist server handling in node_impl
+//// Covered parts are: Connect to Service signal, Catch signal from Service,
+//// PingDownlistContact, PingDownlistContactCallback
+//TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
+//  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
+//  new_rpcs->node_id_ = node_id_;
+//  SetRpc(new_rpcs);
+//
+//  std::shared_ptr<Service> local_service(new Service(routing_table_,
+//      data_store_, alternative_store_, securifier_, test::k));
+//  local_service->set_node_joined(true);
+//  node_->SetService(local_service);
+//  // given a downlist contains k nodes in the routingtable
+//  protobuf::DownlistNotification downlist_request;
+//  for (int i = 0; i < test::k; ++i) {
+//    NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
+//    Contact contact = ComposeContact(contact_id, 5000);
+//    downlist_request.add_node_ids(contact_id.String());
+//    AddContact(routing_table_, contact, rank_info_);
+//  }
+//  transport::Info info;
+//  {
+//    // Ping down contacts will success
+//    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+//            std::bind(&MockRpcs::Response<Rpcs::PingFunctor>,
+//                      new_rpcs.get(), arg::_1, arg::_2))));
+//    std::vector<Contact> contacts;
+//    routing_table_->GetAllContacts(&contacts);
+//    EXPECT_EQ(test::k, contacts.size());
+//    transport::Timeout time_out;
+//    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+//      local_service->Downlist(info, downlist_request, &time_out);
+//    // wait a reasonable time
+//    Sleep(boost::posix_time::milliseconds(200));
+//    routing_table_->GetAllContacts(&contacts);
+//    EXPECT_EQ(test::k, contacts.size());
+//  }
+//  {
+//    // Ping down contacts will failed
+//    EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_, testing::_))
+//        .WillRepeatedly(testing::WithArgs<1, 2>(testing::Invoke(
+//            std::bind(&MockRpcs::NoResponse<Rpcs::PingFunctor>, new_rpcs.get(),
+//                      arg::_1, arg::_2))));
+//    std::vector<Contact> contacts;
+//    routing_table_->GetAllContacts(&contacts);
+//    EXPECT_EQ(test::k, contacts.size());
+//    transport::Timeout time_out;
+//    for (int i = 0; i <= kFailedRpcTolerance; ++i)
+//      local_service->Downlist(info, downlist_request, &time_out);
+//    // may need to put a timer to prevent deadlock
+//    do {
+//      Sleep(boost::posix_time::milliseconds(200));
+//      routing_table_->GetAllContacts(&contacts);
+//    } while (!contacts.empty());
+//  }
+//}  // DownListServer test
 
 TEST_F(MockNodeImplTest, BEH_KAD_SetLastSeenToNow) {
   // Try to set a non-existing contact

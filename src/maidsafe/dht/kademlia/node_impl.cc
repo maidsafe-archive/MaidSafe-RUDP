@@ -1051,11 +1051,11 @@ void NodeImpl::ValidateContactCallback(Contact contact,
   routing_table_->SetValidated(contact.node_id(), valid);
 }
 
-void NodeImpl::SetService(std::shared_ptr<Service> service) {
-  service_ = service;
-  service_->GetPingDownListSignalHandler()->connect(std::bind(
-                      &NodeImpl::PingDownlistContact, this, arg::_1));
-}
+//  void NodeImpl::SetService(std::shared_ptr<Service> service) {
+//    service_ = service;
+//    service_->GetPingDownListSignalHandler()->connect(std::bind(
+//                        &NodeImpl::PingDownlistContact, this, arg::_1));
+//  }
 
 void NodeImpl::PingDownlistContact(const Contact &contact) {
   Rpcs::PingFunctor callback(std::bind(

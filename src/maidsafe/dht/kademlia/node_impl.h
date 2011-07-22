@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/timed_task.h"
+#include "maidsafe/dht/kademlia/node_container.h"
 
 
 namespace bptime = boost::posix_time;
@@ -63,8 +64,6 @@ class RoutingTable;
 class Rpcs;
 
 namespace test {
-template <typename>
-class NodeContainer;
 class NodeImplTest;
 class MockNodeImplTest;
 class MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
@@ -207,27 +206,26 @@ class NodeImpl {
   /** Getter.
    *  @return The kMeanRefreshInterval_ */
   bptime::time_duration mean_refresh_interval() const;
-  /** Setter. Will connect the signal in service as well.
-   *  @param[in] service The service to connect */
-  void SetService(std::shared_ptr<Service> service);
-  bool refresh_thread_running() const;
-  bool downlist_thread_running() const;
 
-  template <typename>
-  friend class NodeContainer;
+  friend class NodeContainer<maidsafe::dht::kademlia::NodeImpl>;
   friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
   friend class test::MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
   friend class test::MockNodeImplTest_BEH_KAD_Join_Test;
   friend class test::MockNodeImplTest_BEH_KAD_Getters_Test;
   friend class test::MockNodeImplTest_BEH_KAD_Leave_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_DownlistClient_Test;
   friend class test::MockNodeImplTest_BEH_KAD_ValidateContact_Test;
   friend class test::MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
 
  private:
   NodeImpl(const NodeImpl&);
   NodeImpl &operator=(const NodeImpl&);
+
+//  /** Setter. Will connect the signal in service as well.
+//   *  @param[in] service The service to connect */
+//  void SetService(std::shared_ptr<Service> service);
+  bool refresh_thread_running() const;
+  bool downlist_thread_running() const;
 
   /** Setter. Will connect the ping_oldest_contact signal in routing table. */
   void EnablePingOldestContact();
