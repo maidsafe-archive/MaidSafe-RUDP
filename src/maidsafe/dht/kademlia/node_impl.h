@@ -197,15 +197,6 @@ class NodeImpl {
   /** Getter.
    *  @return The k_ */
   uint16_t k() const;
-  /** Getter.
-   *  @return The kAlpha_ */
-  uint16_t alpha() const;
-  /** Getter.
-   *  @return The kBeta_ */
-  uint16_t beta() const;
-  /** Getter.
-   *  @return The kMeanRefreshInterval_ */
-  bptime::time_duration mean_refresh_interval() const;
 
   friend class NodeContainer<maidsafe::dht::kademlia::NodeImpl>;
   friend class test::NodeImplTest;
@@ -224,8 +215,8 @@ class NodeImpl {
 //  /** Setter. Will connect the signal in service as well.
 //   *  @param[in] service The service to connect */
 //  void SetService(std::shared_ptr<Service> service);
-  bool refresh_thread_running() const;
-  bool downlist_thread_running() const;
+//  bool refresh_thread_running() const;
+//  bool downlist_thread_running() const;
 
   /** Setter. Will connect the ping_oldest_contact signal in routing table. */
   void EnablePingOldestContact();

@@ -954,8 +954,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
 
     ASSERT_EQ(kSuccess, result);
     bootstrap_contacts.clear();
-    ASSERT_TRUE(node_->refresh_thread_running());
-    ASSERT_TRUE(node_->downlist_thread_running());
+//    ASSERT_TRUE(node_->refresh_thread_running());
+//    ASSERT_TRUE(node_->downlist_thread_running());
 //    ASSERT_LT(size_t(0), node_->thread_group_->size());
     node_->Leave(NULL);
   }
@@ -1003,8 +1003,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   node_->Leave(&bootstrap_contacts);
   ASSERT_FALSE(node_->joined());
 //  ASSERT_EQ(size_t(0), node_->thread_group_.use_count());
-  ASSERT_FALSE(node_->refresh_thread_running());
-  ASSERT_FALSE(node_->downlist_thread_running());
+//  ASSERT_FALSE(node_->refresh_thread_running());
+//  ASSERT_FALSE(node_->downlist_thread_running());
   ASSERT_LT(size_t(0), bootstrap_contacts.size());
 }
 
@@ -2007,7 +2007,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     // the Nth enquired contact will response the value
     // note: there is high chance that search value will stopped after just
     // (alpha + K) tries -- get k-closest extreme fast.
-    new_rpcs->respond_ = node_->alpha() + RandomUint32() % test::k + 1;
+    new_rpcs->respond_ = alpha + RandomUint32() % test::k + 1;
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
@@ -2415,18 +2415,6 @@ TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
   {
     // k()
     EXPECT_EQ(test::k, node_->k());
-  }
-  {
-    // alpha()
-    EXPECT_EQ(test::alpha, node_->alpha());
-  }
-  {
-    // beta()
-    EXPECT_EQ(test::beta, node_->beta());
-  }
-  {
-    // mean_refresh_interval()
-    EXPECT_EQ(bptime::seconds(3600), node_->mean_refresh_interval());
   }
 }
 

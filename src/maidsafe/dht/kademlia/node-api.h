@@ -215,9 +215,6 @@ class Node {
   OnOnlineStatusChangePtr on_online_status_change();
   bool client_only_node() const;
   uint16_t k() const;
-  uint16_t alpha() const;
-  uint16_t beta() const;
-  boost::posix_time::time_duration mean_refresh_interval() const;
 
  private:
   boost::scoped_ptr<NodeImpl> pimpl_;

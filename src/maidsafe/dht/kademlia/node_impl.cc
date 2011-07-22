@@ -608,26 +608,6 @@ uint16_t NodeImpl::k() const {
   return k_;
 }
 
-uint16_t NodeImpl::alpha() const {
-  return kAlpha_;
-}
-
-uint16_t NodeImpl::beta() const {
-  return kBeta_;
-}
-
-bptime::time_duration NodeImpl::mean_refresh_interval() const {
-  return kMeanRefreshInterval_;
-}
-
-bool NodeImpl::refresh_thread_running() const {
-  return refresh_thread_running_;
-}
-
-bool NodeImpl::downlist_thread_running() const {
-  return downlist_thread_running_;
-}
-
 //  void NodeImpl::StoreRefreshCallback(RankInfoPtr rank_info,
 //                                        const int &result) {
 //    //  if result is not success then make downlist
