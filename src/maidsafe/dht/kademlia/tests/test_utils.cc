@@ -244,10 +244,7 @@ KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
       value += temp;
     value = value.substr(0, value_size);
   }
-  std::string signature;
-  while (signature.empty()) {
-    signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-  }
+  std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
   return KeyValueSignature(key, value, signature);
 }
 
@@ -265,16 +262,12 @@ KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
       value += temp;
     value = value.substr(0, value_size);
   }
-  std::string signature;
-  while (signature.empty())
-    signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+  std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
   bptime::ptime now = bptime::microsec_clock::universal_time();
   bptime::ptime expire_time = now + ttl;
   bptime::ptime refresh_time = now + bptime::minutes(30);
   std::string request = RandomString(1024);
-  std::string req_sig;
-  while (req_sig.empty())
-    req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
+  std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
   return KeyValueTuple(KeyValueSignature(key, value, signature),
                         expire_time, refresh_time,
                         RequestAndSignature(request, req_sig), false);

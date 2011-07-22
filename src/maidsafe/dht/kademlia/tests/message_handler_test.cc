@@ -488,11 +488,9 @@ class KademliaMessageHandlerTest: public testing::Test {
         transport::Info info;
         std::string *response = new std::string;
         transport::Timeout *timeout = new transport::Timeout;
-        std::string message_sig;
-        while (message_sig.empty())
-          message_sig = crypto::AsymSign((boost::lexical_cast<std::string>
-                                         (message_type) + payload),
-                                         kp.private_key());
+        std::string message_sig = crypto::AsymSign(
+            (boost::lexical_cast<std::string>(message_type) + payload),
+            kp.private_key());
         msg_hndlr_.ProcessSerialisedMessage(message_type,
                                             payload,
                                             security_type,
@@ -1209,10 +1207,9 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
   ASSERT_EQ(1U, total);
 
   message_signature.clear();
-  while (message_signature.empty())
-    message_signature = crypto::AsymSign((boost::lexical_cast<std::string>
-                                         (message_type) + payload),
-                                         kp.private_key());
+  message_signature = crypto::AsymSign(
+      (boost::lexical_cast<std::string>(message_type) + payload),
+      kp.private_key());
   request.mutable_sender()->CopyFrom(contact);
   payload = request.SerializeAsString();
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
