@@ -67,12 +67,10 @@ void NatPmpClient::Stop() {
 
 void NatPmpClient::SetMapPortSuccessCallback(
     const NatPmpMapPortSuccessCbType & map_port_success_cb) {
-  if (impl_) {
+  if (impl_)
     impl_->SetMapPortSuccessCallback(map_port_success_cb);
-  } else {
-    DLOG(ERROR) << "Cannot set NAT-PMP success callback with null impl." <<
-        std::endl;
-  }
+  else
+    DLOG(ERROR) << "Cannot set NAT-PMP success callback with null impl.";
 }
 
 void NatPmpClient::MapPort(uint32_t protocol,

@@ -74,7 +74,7 @@ std::string IpAsciiToBytes(const std::string &decimal_ip) {
     }
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << e.what() << " - Decimal IP: " << decimal_ip << std::endl;
+    DLOG(ERROR) << e.what() << " - Decimal IP: " << decimal_ip;
   }
   return "";
 }
@@ -96,7 +96,7 @@ std::string IpBytesToAscii(const std::string &bytes_ip) {
     }
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << e.what() << std::endl;
+    DLOG(ERROR) << e.what();
   }
   return "";
 }
