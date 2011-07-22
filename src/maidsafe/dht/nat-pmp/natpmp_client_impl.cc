@@ -77,7 +77,7 @@ void NatPmpClientImpl::Start() {
       throw std::runtime_error(ec.message());
     } else {
       DLOG(INFO) << "Started NAT-PMP client, default route to gateway is " <<
-          m_gateway_address_ << "." << std::endl;
+          m_gateway_address_ << ".";
     }
 
     boost::asio::ip::udp::endpoint ep(m_gateway_address_, Protocol::kPort);
@@ -93,7 +93,7 @@ void NatPmpClientImpl::Start() {
 
 void NatPmpClientImpl::Stop() {
   if (socket_ && socket_->is_open()) {
-    DLOG(INFO) << "Stopping NAT-PMP client..." << std::endl;
+    DLOG(INFO) << "Stopping NAT-PMP client...";
 
     std::vector< std::pair<
         Protocol::MappingRequest, Protocol::MappingResponse> >::iterator it =
@@ -102,8 +102,7 @@ void NatPmpClientImpl::Stop() {
     for (; it != mappings_.end(); ++it) {
       DLOG(INFO) << "Removing NAT-PMP mapping: " <<
           static_cast<uint32_t>((*it).first.buffer[1]) << ":" <<
-          (*it).second.private_port << ":" << (*it).second.public_port <<
-          std::endl;
+          (*it).second.private_port << ":" << (*it).second.public_port;
 
       // Send the mapping request with a lifetime of 0.
       SendMappingRequest((*it).first.buffer[1], (*it).second.private_port,
@@ -116,9 +115,9 @@ void NatPmpClientImpl::Stop() {
     // Cleanup.
     socket_.reset();
 
-    DLOG(INFO) << "NAT-PMP client stop complete." << std::endl;
+    DLOG(INFO) << "NAT-PMP client stop complete.";
   } else {
-    DLOG(ERROR) << "NAT-PMP client is already stopped." << std::endl;
+    DLOG(ERROR) << "NAT-PMP client is already stopped.";
   }
 }
 
@@ -142,7 +141,7 @@ void NatPmpClientImpl::DoSendMappingRequest(uint32_t protocol,
   if (socket_ && socket_->is_open()) {
     DLOG(INFO) << "Queueing mapping request for protocol = " << protocol <<
         ", private_port = " << private_port << ", public_port = " <<
-        public_port << ", lifetime = " << lifetime << std::endl;
+        public_port << ", lifetime = " << lifetime;
 
     Protocol::MappingRequest r;
 
@@ -163,9 +162,7 @@ void NatPmpClientImpl::DoSendMappingRequest(uint32_t protocol,
 }
 
 void NatPmpClientImpl::SendPublicAddressRequest() {
-  DLOG(INFO) <<
-      "NAT-PMP client sending public address request to gateway device." <<
-      std::endl;
+  DLOG(INFO) << "NAT-PMP client sending public address req to gateway device.";
 
   public_ip_request_.buffer[0] = 0;
   public_ip_request_.buffer[1] = 0;
@@ -191,8 +188,7 @@ void NatPmpClientImpl::RetransmitPublicAdddressRequest(
   if (ec) {
   // operation aborted
   } else if (public_ip_request_.retry_count >= 9) {
-    DLOG(ERROR) << "No NAT-PMP gateway device found, calling stop." <<
-        std::endl;
+    DLOG(ERROR) << "No NAT-PMP gateway device found, calling stop.";
 
     retry_timer_.cancel();
 
@@ -205,7 +201,7 @@ void NatPmpClientImpl::RetransmitPublicAdddressRequest(
   SendRequest(public_ip_request_);
 
   DLOG(INFO) << "Retransmitting public address request, retry = " <<
-      (uint32_t)public_ip_request_.retry_count << "." << std::endl;
+      (uint32_t)public_ip_request_.retry_count << ".";
 
   retry_timer_.expires_from_now(boost::posix_time::milliseconds(
       250 * public_ip_request_.retry_count));
@@ -219,16 +215,15 @@ void NatPmpClientImpl::SendRequest(Protocol::MappingRequest & req) {
   if (socket_ && socket_->is_open()) {
     Send(reinterpret_cast<const char *>(req.buffer), req.length);
   } else {
-    DLOG(ERROR) << "Cannot send NAT-PMP request while not started!" <<
-        std::endl;
+    DLOG(ERROR) << "Cannot send NAT-PMP request while not started!";
   }
 }
 
 void NatPmpClientImpl::SendQueuedRequests() {
   if (socket_ && socket_->is_open()) {
     if (!request_queue_.empty()) {
-      DLOG(INFO) << "Sending queued NAT-PMP requests, " <<
-          request_queue_.size() << " remaing."<< std::endl;
+      DLOG(INFO) << "Sending queued NAT-PMP requests, "
+                 << request_queue_.size() << " remaing.";
       Protocol::MappingRequest r = request_queue_.front();
 
       SendRequest(r);
@@ -252,7 +247,7 @@ void NatPmpClientImpl::HandleSend(const boost::system::error_code & ec,
     // ...
   } else if (ec) {
     DLOG(ERROR) << Protocol::StringFromOpcode(Protocol::kErrorSend) << " : " <<
-        ec.message() << std::endl;
+        ec.message();
   } else {
     socket_->async_receive_from(
         boost::asio::buffer(data_, kReceiveBufferLength),
@@ -269,13 +264,12 @@ void NatPmpClientImpl::HandleConnect(const boost::system::error_code & ec) {
   if (ec == boost::asio::error::operation_aborted) {
     // ...
   } else if (ec) {
-    DLOG(ERROR) << "No NAT-PMP compatible gateway found, calling stop." <<
-        std::endl;
+    DLOG(ERROR) << "No NAT-PMP compatible gateway found, calling stop.";
 
   // Call stop.
   Stop();
   } else {
-    DLOG(INFO) << "Sending public address request to gateway." << std::endl;
+    DLOG(INFO) << "Sending public address request to gateway.";
 
     // Send a request for the NAT-PMP gateway's public ip address. This is also
     // used to determine if the gateway is valid.
@@ -290,11 +284,10 @@ void NatPmpClientImpl::HandleReceiveFrom(const boost::system::error_code & ec,
   } else if (ec) {
 #if NDEBUG
     DLOG(ERROR) << Protocol::StringFromOpcode(Protocol::kErrorReceiveFrom) <<
-        " : " << ec.message() << std::endl;
+        " : " << ec.message();
 #endif
 #ifndef NDEBUG
-    DLOG(ERROR) << "No NAT-PMP compatible gateway found, calling stop." <<
-        std::endl;
+    DLOG(ERROR) << "No NAT-PMP compatible gateway found, calling stop.";
 #endif
     // Call stop.
     Stop();
@@ -363,8 +356,7 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
 
         DLOG(INFO) <<
         "Obtained public ip address " << response.public_address <<
-        " from NAT-PMP gateway, sending any queued requests." <<
-        std::endl;
+        " from NAT-PMP gateway, sending any queued requests.";
 
         /**
         * A NAT-PMP compatible gateway has been found, send queued
@@ -389,7 +381,7 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
         if (std::find(mappings_.begin(), mappings_.end(), mapping) ==
             mappings_.end()) {
           DLOG(INFO) << "NatPmpClientImpl::on_nat_pmp_mapping_success: " <<
-              response.public_port << ":" << std::endl;
+              response.public_port << ":";
 
           if (nat_pmp_map_port_success_cb_) {
             nat_pmp_map_port_success_cb_(mapping.first.buffer[1],
@@ -414,7 +406,7 @@ void NatPmpClientImpl::HandleResponse(const char * buf, std::size_t) {
   if (opcode) {
 #ifndef NDBEUG
     DLOG(ERROR) << "DEBUG: NAT-PMP response opcode: " <<
-        Protocol::StringFromOpcode(opcode) << std::endl;
+        Protocol::StringFromOpcode(opcode);
 #endif
   }
 }

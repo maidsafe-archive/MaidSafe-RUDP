@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
         log_path = fs::temp_directory_path(error_code) / "kademlia_demo.log";
       }
 
-      ULOG(INFO) << "Log file at " << log_path << std::endl;
+      ULOG(INFO) << "Log file at " << log_path;
       for (google::LogSeverity severity(google::WARNING);
            severity != google::NUM_SEVERITIES; ++severity) {
         google::SetLogDestination(severity, "");

@@ -69,7 +69,7 @@ TEST(UtilsTest, BEH_COMMON_NetworkInterfaces) {
   std::vector<IP> all_local_ips(GetLocalAddresses());
   EXPECT_FALSE(all_local_ips.empty());
   for (size_t n = 0; n < all_local_ips.size(); ++n)
-    DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string() << std::endl;
+    DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string();
 }
 
 }  // namespace test

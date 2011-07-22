@@ -966,7 +966,7 @@ void NodeImpl::IterativeSearchNodeResponse(
                                                &closest_contacts,
                                                &curr_iteration_done,
                                                &called_back)) {
-    DLOG(WARNING) << "Failed to handle result for the iteration" << std::endl;
+    DLOG(WARNING) << "Failed to handle result for the iteration";
   }
 
   if (!called_back) {
