@@ -75,10 +75,10 @@ namespace kademlia {
 namespace test {
 
 namespace {
-// const uint16_t k = 8;
-const uint16_t alpha = 3;
-const uint16_t beta = 2;
-const uint16_t randomnoresponserate = 20;  // in percentage
+const uint16_t g_kKademliaK = 8;
+const uint16_t g_kAlpha = 3;
+const uint16_t g_kBeta = 2;
+const uint16_t g_kRandomNoResponseRate = 20;  // in percentage
 }  // unnamed namespace
 
 
@@ -162,7 +162,7 @@ class TestAlternativeStore : public AlternativeStore {
 class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
  protected:
   MockNodeImplTest()
-      : CreateContactAndNodeId(),
+      : CreateContactAndNodeId(g_kKademliaK),
         data_store_(),
         alternative_store_(),
         securifier_(new Securifier("", "", "")),
@@ -176,11 +176,11 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
                            securifier_,
                            alternative_store_,
                            false,
-                           test::k,
-                           test::alpha,
-                           test::beta,
+                           g_kKademliaK,
+                           g_kAlpha,
+                           g_kBeta,
                            bptime::seconds(3600))),
-        threshold_((test::k * 3) / 4),
+        threshold_((g_kKademliaK * 3) / 4),
         local_node_(new NodeImpl(asio_service_,
                                  transport_,
                                  message_handler_,
@@ -188,9 +188,9 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
                                                "", "", "")),
                                  alternative_store_,
                                  true,
-                                 test::k,
-                                 test::alpha,
-                                 test::beta,
+                                 g_kKademliaK,
+                                 g_kAlpha,
+                                 g_kBeta,
                                  bptime::seconds(3600))) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
@@ -256,7 +256,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   explicit MockRpcs(boost::asio::io_service &asio_service,  // NOLINT (Fraser)
                     SecurifierPtr securifier)
       : Rpcs(asio_service, securifier),
-        CreateContactAndNodeId(),
+        CreateContactAndNodeId(g_kKademliaK),
         node_list_mutex_(),
         node_list_(),
         rank_info_(),
@@ -266,7 +266,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
         no_respond_(0),
         respond_contacts_(),
         target_id_(),
-        threshold_((test::k * 3) / 4) {}
+        threshold_((g_kKademliaK * 3) / 4) {}
   MOCK_METHOD8(Store, void(const Key &key,
                            const std::string &value,
                            const std::string &signature,
@@ -325,12 +325,12 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                    FindNodesFunctor callback) {
     int response_factor = RandomUint32() % 100;
     bool response(true);
-    if (response_factor < test::randomnoresponserate)
+    if (response_factor < g_kRandomNoResponseRate)
       response = false;
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     if (response) {
-      int elements = RandomUint32() % test::k;
+      int elements = RandomUint32() % g_kKademliaK;
       for (int n = 0; n < elements; ++n) {
         int element = RandomUint32() % node_list_.size();
         // make sure the new one hasn't been set as down previously
@@ -366,7 +366,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                              FindNodesFunctor callback) {
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
-    int elements = RandomUint32() % test::k;
+    int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
       int element = RandomUint32() % node_list_.size();
       response_list.push_back(node_list_[element]);
@@ -405,7 +405,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                       FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
-    if ((num_of_acquired_ == (test::k - 1)) || (num_of_acquired_ == 0)) {
+    if ((num_of_acquired_ == (g_kKademliaK - 1)) || (num_of_acquired_ == 0)) {
       boost::thread th(std::bind(&MockRpcs::FindNodeNoResponseThread, this,
                                  callback, response_list));
     } else {
@@ -419,7 +419,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                       FindNodesFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_list;
-    if (num_of_acquired_ > (test::k - threshold_)) {
+    if (num_of_acquired_ > (g_kKademliaK - threshold_)) {
       boost::thread th(std::bind(&MockRpcs::FindNodeResponseThread, this,
                                  callback, response_list));
     } else {
@@ -465,7 +465,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
                                   Rpcs::FindValueFunctor callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
     std::vector<Contact> response_contact_list;
-    int elements = RandomUint32() % test::k;
+    int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
       int element = RandomUint32() % node_list_.size();
       response_contact_list.push_back(node_list_[element]);
@@ -483,7 +483,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
     if (respond_ != num_of_acquired_) {
-      int elements = RandomUint32() % test::k + 1;
+      int elements = RandomUint32() % g_kKademliaK + 1;
       for (int n = 0; n < elements; ++n) {
         int element = RandomUint32() % node_list_.size();
         response_contact_list.push_back(node_list_[element]);
@@ -506,7 +506,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
     std::vector<Contact> response_contact_list;
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
-    int elements = RandomUint32() % test::k;
+    int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
       int element = RandomUint32() % node_list_.size();
       response_contact_list.push_back(node_list_[element]);
@@ -584,7 +584,7 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
   template <class T>
   void FirstSeveralNoResponse(const Contact &/*contact*/, T callback) {
     boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
-    if (num_of_acquired_ > (test::k - threshold_)) {
+    if (num_of_acquired_ > (g_kKademliaK - threshold_)) {
       ++respond_;
       boost::thread th(std::bind(&MockRpcs::CommonResponseThread<T>, this,
                                  callback));
@@ -672,27 +672,27 @@ class MockRpcs : public Rpcs, public CreateContactAndNodeId {
 };  // class MockRpcs
 
 TEST_F(MockNodeImplTest, BEH_KAD_GetAllContacts) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> contacts;
   node_->GetAllContacts(&contacts);
-  EXPECT_EQ(test::k, contacts.size());
+  EXPECT_EQ(g_kKademliaK, contacts.size());
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_GetBootstrapContacts) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> contacts;
   node_->GetBootstrapContacts(&contacts);
-  EXPECT_EQ(test::k, contacts.size());
+  EXPECT_EQ(g_kKademliaK, contacts.size());
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   std::shared_ptr<RoutingTableContactsContainer> temp
       (new RoutingTableContactsContainer());
@@ -759,11 +759,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_ValidateContact) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_PingOldestContact) {
-  PopulateRoutingTable(test::k, 500);
-  PopulateRoutingTable(test::k, 501);
+  PopulateRoutingTable(g_kKademliaK, 500);
+  PopulateRoutingTable(g_kKademliaK, 501);
 
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetLocalRpc(new_rpcs);
 
   NodeId new_id = GenerateUniqueRandomId(node_id_, 501);
@@ -807,10 +807,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 480);
   new_rpcs->target_id_ = target;
@@ -962,13 +962,13 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 480);
   new_rpcs->target_id_ = target;
@@ -1009,11 +1009,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
   NodeId key = NodeId(NodeId::kRandomId);
@@ -1030,11 +1030,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                                     arg::_2, &done, &lcontacts));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(0, lcontacts.size());
+    EXPECT_TRUE(lcontacts.empty());
   }
   new_rpcs->num_of_acquired_ = 0;
   {
-    // The first of the k populated contacts giving no response
+    // The first of the g_kKademliaK populated contacts giving no response
     // all the others give response with an empty closest list
     EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
@@ -1048,7 +1048,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                                &done, &lcontacts));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(test::k - 1, lcontacts.size());
+    EXPECT_EQ(g_kKademliaK - 1, lcontacts.size());
   }
   new_rpcs->num_of_acquired_ = 0;
   {
@@ -1066,7 +1066,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                                &done, &lcontacts));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(test::k - 2, lcontacts.size());
+    EXPECT_EQ(g_kKademliaK - 2, lcontacts.size());
   }
   {
     // All k populated contacts response with an empty closest list
@@ -1082,9 +1082,9 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                                &done, &lcontacts));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(test::k, lcontacts.size());
+    EXPECT_EQ(g_kKademliaK, lcontacts.size());
   }
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
   new_rpcs->target_id_ = target;
@@ -1106,15 +1106,15 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
                                arg::_2, &done, &lcontacts));
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(test::k, lcontacts.size());
-    EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
-    EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
+    EXPECT_EQ(g_kKademliaK, lcontacts.size());
+    EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
+    EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK - 1]);
 
     ContactsByDistanceToThisId key_dist_indx
       = new_rpcs->respond_contacts_->get<DistanceToThisIdTag>();
     auto it = key_dist_indx.begin();
     int step(0);
-    while ((it != key_dist_indx.end()) && (step < test::k)) {
+    while ((it != key_dist_indx.end()) && (step < g_kKademliaK)) {
       EXPECT_NE(lcontacts.end(),
                 std::find(lcontacts.begin(), lcontacts.end(), (*it).contact));
       ++it;
@@ -1141,16 +1141,16 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
 
-    if (new_rpcs->respond_contacts_->size() >= test::k) {
-      EXPECT_EQ(test::k, lcontacts.size());
-      EXPECT_NE(lcontacts[0], lcontacts[test::k / 2]);
-      EXPECT_NE(lcontacts[0], lcontacts[test::k - 1]);
+    if (new_rpcs->respond_contacts_->size() >= g_kKademliaK) {
+      EXPECT_EQ(g_kKademliaK, lcontacts.size());
+      EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
+      EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK - 1]);
 
       ContactsByDistanceToThisId key_dist_indx
         = new_rpcs->respond_contacts_->get<DistanceToThisIdTag>();
       auto it = key_dist_indx.begin();
       int step(0);
-      while ((it != key_dist_indx.end()) && (step < test::k)) {
+      while ((it != key_dist_indx.end()) && (step < g_kKademliaK)) {
         EXPECT_NE(lcontacts.end(),
                   std::find(lcontacts.begin(), lcontacts.end(), (*it).contact));
         ++it;
@@ -1173,7 +1173,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
   NodeId target = GenerateRandomId(node_id_, 497);
   bool verdad(true), falso(false);
   {
-    // test::k - 1 contacted, the last one respond as contacted
+    // k - 1 contacted, the last one respond as contacted
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
@@ -1181,20 +1181,20 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i = 0; i < (test::k - 1); ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, i / alpha);
+    for (int i = 0; i < (g_kKademliaK - 1); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, i / g_kAlpha);
       nct.search_state = kContacted;
       fna->node_group.insert(nct);
     }
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeGroupTuple nct(contact, fna->key, (test::k-1) / alpha);
+    NodeGroupTuple nct(contact, fna->key, (g_kKademliaK-1) / g_kAlpha);
     nct.search_state = kSelectedAlpha;
     fna->node_group.insert(nct);
 
-    fna->round = (test::k-1) / alpha;
+    fna->round = (g_kKademliaK-1) / g_kAlpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
     int response_code;
@@ -1207,10 +1207,10 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(verdad, curr_iteration_done);
     EXPECT_EQ(verdad, called_back);
     EXPECT_EQ(falso, done);
-    EXPECT_EQ(test::k, closest_contacts.size());
+    EXPECT_EQ(g_kKademliaK, closest_contacts.size());
   }
   {
-    // test::k - 2 contacted, the test::k -1 one pending
+    // k - 2 contacted, the k -1 one pending
     // the last one respond as contacted
     std::vector<Contact> lcontacts;
     bool done(false);
@@ -1219,26 +1219,26 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i = 0; i < (test::k - 2); ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, i / alpha);
+    for (int i = 0; i < (g_kKademliaK - 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, i / g_kAlpha);
       nct.search_state = kContacted;
       fna->node_group.insert(nct);
     }
-    Contact pending_contact = GenerateUniqueContact(node_id_, 499,
-                                                    generated_nodes, target);
+    Contact pending_contact = GenerateUniqueContact(node_id_, 499, target,
+                                                    &generated_nodes);
     NodeGroupTuple pending_nct(pending_contact, fna->key,
-                                   (test::k-2) / alpha);
+                                   (g_kKademliaK-2) / g_kAlpha);
     pending_nct.search_state = kSelectedAlpha;
     fna->node_group.insert(pending_nct);
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeGroupTuple nct(contact, fna->key, (test::k-1) / alpha);
+    NodeGroupTuple nct(contact, fna->key, (g_kKademliaK-1) / g_kAlpha);
     nct.search_state = kSelectedAlpha;
     fna->node_group.insert(nct);
 
-    fna->round = (test::k-1) / alpha;
+    fna->round = (g_kKademliaK-1) / g_kAlpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
     int response_code;
@@ -1251,10 +1251,10 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(falso, curr_iteration_done);
     EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
-    EXPECT_EQ(0, closest_contacts.size());
+    EXPECT_TRUE(closest_contacts.empty());
   }
   {
-    // test::k / 2 contacted, the last one respond as no-response
+    // k / 2 contacted, the last one respond as no-response
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
@@ -1262,20 +1262,20 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i = 0; i < (test::k / 2); ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, i / alpha);
+    for (int i = 0; i < (g_kKademliaK / 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, i / g_kAlpha);
       nct.search_state = kContacted;
       fna->node_group.insert(nct);
     }
     NodeId contact_id = GenerateRandomId(node_id_, 498);
     Contact contact = ComposeContact(contact_id, 5000);
-    NodeGroupTuple nct(contact, fna->key, (test::k / 2) / alpha);
+    NodeGroupTuple nct(contact, fna->key, (g_kKademliaK / 2) / g_kAlpha);
     nct.search_state = kSelectedAlpha;
     fna->node_group.insert(nct);
 
-    fna->round = (test::k / 2) / alpha;
+    fna->round = (g_kKademliaK / 2) / g_kAlpha;
     NodeSearchState mark(kDown);
     bool curr_iteration_done(false), called_back(false);
     int response_code;
@@ -1288,10 +1288,10 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(verdad, curr_iteration_done);
     EXPECT_EQ(verdad, called_back);
     EXPECT_EQ(falso, done);
-    EXPECT_EQ(test::k / 2, closest_contacts.size());
+    EXPECT_EQ(g_kKademliaK / 2, closest_contacts.size());
   }
   {
-    // test::k candidates, for each previous round (alpha - beta) pending
+    // k candidates, for each previous round (g_kAlpha - g_kBeta) pending
     // for the last round, all contacted
     std::vector<Contact> lcontacts;
     bool done(false);
@@ -1300,37 +1300,37 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    for (int i = 0; i < (alpha * (test::k / alpha)); ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, i / alpha);
-      if ((i % alpha) < beta) {
+    for (int i = 0; i < (g_kAlpha * (g_kKademliaK / g_kAlpha)); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, i / g_kAlpha);
+      if ((i % g_kAlpha) < g_kBeta) {
         nct.search_state = kContacted;
       } else {
         nct.search_state = kSelectedAlpha;
       }
       fna->node_group.insert(nct);
     }
-    for (int i = 0; i < (test::k % alpha - 2); ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, test::k / alpha);
+    for (int i = 0; i < (g_kKademliaK % g_kAlpha - 2); ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, g_kKademliaK / g_kAlpha);
       nct.search_state = kContacted;
       fna->node_group.insert(nct);
     }
 
-    Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                            target);
-    NodeGroupTuple nct(contact, fna->key, test::k / alpha);
+    Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+    NodeGroupTuple nct(contact, fna->key, g_kKademliaK / g_kAlpha);
     nct.search_state = kSelectedAlpha;
     fna->node_group.insert(nct);
-    Contact last_contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                                 target);
-    NodeGroupTuple last_nct(last_contact, fna->key, test::k / alpha);
+    Contact last_contact = GenerateUniqueContact(node_id_, 499, target,
+                                                 &generated_nodes);
+    NodeGroupTuple last_nct(last_contact, fna->key, g_kKademliaK / g_kAlpha);
     last_nct.search_state = kSelectedAlpha;
     fna->node_group.insert(last_nct);
 
-    fna->round = test::k / alpha;
+    fna->round = g_kKademliaK / g_kAlpha;
 
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
@@ -1343,7 +1343,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
     EXPECT_EQ(falso, called_back);
-    EXPECT_EQ(0, closest_contacts.size());
+    EXPECT_TRUE(closest_contacts.empty());
 
     curr_iteration_done = false;
     called_back = false;
@@ -1355,10 +1355,10 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                                                    &called_back);
     EXPECT_EQ(falso, curr_iteration_done);
     EXPECT_EQ(falso, called_back);
-    EXPECT_EQ(0, closest_contacts.size());
+    EXPECT_TRUE(closest_contacts.empty());
   }
   {
-    // k candidates, with (beta - 1) contacted, the next one respond with
+    // k candidates, with (g_kBeta - 1) contacted, the next one respond with
     // no response
     std::vector<Contact> lcontacts;
     bool done(false);
@@ -1367,23 +1367,21 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
-    Contact first_contact = GenerateUniqueContact(node_id_, 499,
-                                                  generated_nodes,
-                                                  target);
+    Contact first_contact = GenerateUniqueContact(node_id_, 499, target,
+                                                  &generated_nodes);
     NodeGroupTuple first_nct(first_contact, fna->key, 0);
     first_nct.search_state = kSelectedAlpha;
     fna->node_group.insert(first_nct);
-    Contact second_contact = GenerateUniqueContact(node_id_, 499,
-                                                   generated_nodes,
-                                                   target);
+    Contact second_contact = GenerateUniqueContact(node_id_, 499, target,
+                                                   &generated_nodes);
     NodeGroupTuple second_nct(second_contact, fna->key, 0);
     second_nct.search_state = kSelectedAlpha;
     fna->node_group.insert(second_nct);
 
-    for (int i = 2; i < test::k; ++i) {
-      Contact contact = GenerateUniqueContact(node_id_, 499, generated_nodes,
-                                              target);
-      NodeGroupTuple nct(contact, fna->key, i / alpha);
+    for (int i = 2; i < g_kKademliaK; ++i) {
+      Contact contact = GenerateUniqueContact(node_id_, 499, target,
+                                              &generated_nodes);
+      NodeGroupTuple nct(contact, fna->key, i / g_kAlpha);
       nct.search_state = kNew;
       fna->node_group.insert(nct);
     }
@@ -1401,7 +1399,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(falso, curr_iteration_done);
     EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
-    EXPECT_EQ(0, closest_contacts.size());
+    EXPECT_TRUE(closest_contacts.empty());
 
     mark = kDown;
     closest_contacts.clear();
@@ -1413,7 +1411,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     EXPECT_EQ(verdad, curr_iteration_done);
     EXPECT_EQ(falso, called_back);
     EXPECT_EQ(falso, done);
-    EXPECT_EQ(0, closest_contacts.size());
+    EXPECT_TRUE(closest_contacts.empty());
   }
   // sleep for a while to prevent the situation that resources got destructed
   // before call back completed. Which will cause "Segmentation Fault" in
@@ -1422,14 +1420,14 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_Store) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
   new_rpcs->target_id_ = target;
@@ -1499,7 +1497,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->num_of_deleted_);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1524,7 +1522,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
     // otherwise the counter might be incorrect
     // may not be necessary for this test
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->num_of_deleted_);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1583,14 +1581,14 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs> old_rpcs = GetRpc();
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
   new_rpcs->target_id_ = target;
@@ -1649,7 +1647,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     // wait for the all delete processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1674,7 +1672,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
     // otherwise the counter might be incorrect
     // may not be necessary for this test
     Sleep(boost::posix_time::milliseconds(300));
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1730,13 +1728,13 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_Update) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
 
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   NodeId target = GenerateRandomId(node_id_, 498);
   new_rpcs->target_id_ = target;
@@ -1813,7 +1811,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
     EXPECT_EQ(kUpdateTooFewNodes, response_code);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1846,7 +1844,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kUpdateTooFewNodes, response_code);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1879,7 +1877,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kDeleteTooFewNodes, response_code);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1912,7 +1910,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kDeleteTooFewNodes, response_code);
-    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
     EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
   }
   new_rpcs->SetCountersToZero();
@@ -1955,9 +1953,9 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
 }
 
 TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
-  PopulateRoutingTable(test::k, 500);
+  PopulateRoutingTable(g_kKademliaK, 500);
   std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-  new_rpcs->node_id_ = node_id_;
+  new_rpcs->set_node_id(node_id_);
   SetRpc(new_rpcs);
   NodeId key = GenerateRandomId(node_id_, 498);
   {
@@ -1974,11 +1972,11 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kIterativeLookupFailed, results.return_code);
-    EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(0, results.closest_nodes.size());
+    EXPECT_TRUE(results.values.empty());
+    EXPECT_TRUE(results.closest_nodes.empty());
   }
   new_rpcs->SetCountersToZero();
-  int count = 10 * test::k;
+  int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
   {
     // All k populated contacts giving no data find, but response with some
@@ -1995,8 +1993,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kIterativeLookupFailed, results.return_code);
-    EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(test::k, results.closest_nodes.size());
+    EXPECT_TRUE(results.values.empty());
+    EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
   }
   new_rpcs->SetCountersToZero();
   std::shared_ptr<RoutingTableContactsContainer> temp
@@ -2006,8 +2004,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
   {
     // the Nth enquired contact will response the value
     // note: there is high chance that search value will stopped after just
-    // (alpha + K) tries -- get k-closest extreme fast.
-    new_rpcs->respond_ = alpha + RandomUint32() % test::k + 1;
+    // (g_kAlpha + K) tries -- get g_kKademliaK-closest extreme fast.
+    new_rpcs->respond_ = g_kAlpha + RandomUint32() % g_kKademliaK + 1;
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
@@ -2021,7 +2019,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
       Sleep(boost::posix_time::milliseconds(100));
 
     EXPECT_EQ(kSuccess, results.return_code);
-    EXPECT_EQ(0, results.closest_nodes.size());
+    EXPECT_TRUE(results.closest_nodes.empty());
     EXPECT_EQ(1, results.values.size());
     EXPECT_EQ("FIND", results.values[0]);
     EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
@@ -2039,12 +2037,12 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &done, &results));
     // Prevent deadlock
-    while ((!done) && (new_rpcs->num_of_acquired_ < (40 * test::k)))
+    while ((!done) && (new_rpcs->num_of_acquired_ < (40 * g_kKademliaK)))
       Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(kIterativeLookupFailed, results.return_code);
-    EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(test::k, results.closest_nodes.size());
-    EXPECT_GT(40 * test::k, new_rpcs->num_of_acquired_);
+    EXPECT_TRUE(results.values.empty());
+    EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
+    EXPECT_GT(40 * g_kKademliaK, new_rpcs->num_of_acquired_);
   }
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
@@ -2055,10 +2053,10 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //// This test will test the Downlist client handling in node_impl
 //// Covered part is: ReportDownContact, MonitoringDownlistThread
 //TEST_F(MockNodeImplTest, BEH_KAD_DownlistClient) {
-//  PopulateRoutingTable(test::k, 500);
+//  PopulateRoutingTable(g_kKademliaK, 500);
 //
 //  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-//  new_rpcs->node_id_ = node_id_;
+//  new_rpcs->set_node_id(node_id_);
 //  SetRpc(new_rpcs);
 //
 //  EXPECT_CALL(*new_rpcs, Downlist(testing::_, testing::_, testing::_,
@@ -2095,16 +2093,16 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //                               &done, &lcontacts));
 //    while (!done)
 //      Sleep(boost::posix_time::milliseconds(100));
-//    EXPECT_EQ(0, lcontacts.size());
+//    EXPECT_TRUE(lcontacts.empty());
 //    // wait for the all processes to be completed
 //    // otherwise the counter might be incorrect
 //    Sleep(boost::posix_time::milliseconds(500));
-//    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
+//    EXPECT_EQ(g_kKademliaK, new_rpcs->down_contacts_->size());
 //    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
 //    auto it = key_indx.begin();
 //    auto it_end = key_indx.end();
 //    while (it != it_end) {
-//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      EXPECT_EQ(g_kKademliaK, (*it).num_failed_rpcs);
 //      ++it;
 //    }
 //  }
@@ -2112,7 +2110,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //      (new RoutingTableContactsContainer());
 //  new_rpcs->respond_contacts_ = temp;
 //
-//  int count = 10 * test::k;
+//  int count = 10 * g_kKademliaK;
 //  new_rpcs->PopulateResponseCandidates(count, 499);
 //
 //  crypto::RsaKeyPair crypto_key_data;
@@ -2154,13 +2152,13 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //    // wait for the delete processes to be completed
 //    // otherwise the counter might be incorrect
 //    Sleep(boost::posix_time::milliseconds(300));
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->num_of_deleted_);
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->num_of_deleted_);
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->down_contacts_->size());
 //    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
 //    auto it = key_indx.begin();
 //    auto it_end = key_indx.end();
 //    while (it != it_end) {
-//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      EXPECT_EQ(g_kKademliaK, (*it).num_failed_rpcs);
 //      ++it;
 //    }
 //  }
@@ -2188,13 +2186,13 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //    // otherwise the counter might be incorrect
 //    // may not be necessary for this test
 //    Sleep(boost::posix_time::milliseconds(300));
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->down_contacts_->size());
 //    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
 //    auto it = key_indx.begin();
 //    auto it_end = key_indx.end();
 //    while (it != it_end) {
-//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      EXPECT_EQ(g_kKademliaK, (*it).num_failed_rpcs);
 //      ++it;
 //    }
 //  }
@@ -2231,14 +2229,14 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //    // otherwise the counter might be incorrect
 //    Sleep(boost::posix_time::milliseconds(300));
 //    EXPECT_EQ(kUpdateTooFewNodes, response_code);
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->no_respond_);
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->no_respond_);
 //    EXPECT_EQ(threshold_ - 1, new_rpcs->respond_);
-//    EXPECT_EQ(test::k - threshold_ + 1, new_rpcs->down_contacts_->size());
+//    EXPECT_EQ(g_kKademliaK - threshold_ + 1, new_rpcs->down_contacts_->size());
 //    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
 //    auto it = key_indx.begin();
 //    auto it_end = key_indx.end();
 //    while (it != it_end) {
-//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      EXPECT_EQ(g_kKademliaK, (*it).num_failed_rpcs);
 //      ++it;
 //    }
 //  }
@@ -2259,17 +2257,17 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //    while (!done)
 //      Sleep(boost::posix_time::milliseconds(100));
 //    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
-//    EXPECT_EQ(0, results.values.size());
-//    EXPECT_EQ(0, results.closest_nodes.size());
+//    EXPECT_TRUE(results.values.empty());
+//    EXPECT_TRUE(results.closest_nodes.empty());
 //    // wait for the all processes to be completed
 //    // otherwise the counter might be incorrect
 //    Sleep(boost::posix_time::milliseconds(500));
-//    EXPECT_EQ(test::k, new_rpcs->down_contacts_->size());
+//    EXPECT_EQ(g_kKademliaK, new_rpcs->down_contacts_->size());
 //    ContactsById key_indx = new_rpcs->down_contacts_->get<NodeIdTag>();
 //    auto it = key_indx.begin();
 //    auto it_end = key_indx.end();
 //    while (it != it_end) {
-//      EXPECT_EQ(test::k, (*it).num_failed_rpcs);
+//      EXPECT_EQ(g_kKademliaK, (*it).num_failed_rpcs);
 //      ++it;
 //    }
 //  }
@@ -2284,16 +2282,16 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //// PingDownlistContact, PingDownlistContactCallback
 //TEST_F(MockNodeImplTest, BEH_KAD_DownlistServer) {
 //  std::shared_ptr<MockRpcs> new_rpcs(new MockRpcs(asio_service_, securifier_));
-//  new_rpcs->node_id_ = node_id_;
+//  new_rpcs->set_node_id(node_id_);
 //  SetRpc(new_rpcs);
 //
 //  std::shared_ptr<Service> local_service(new Service(routing_table_,
-//      data_store_, alternative_store_, securifier_, test::k));
+//      data_store_, alternative_store_, securifier_, g_kKademliaK));
 //  local_service->set_node_joined(true);
 //  node_->SetService(local_service);
 //  // given a downlist contains k nodes in the routingtable
 //  protobuf::DownlistNotification downlist_request;
-//  for (int i = 0; i < test::k; ++i) {
+//  for (int i = 0; i < g_kKademliaK; ++i) {
 //    NodeId contact_id = GenerateUniqueRandomId(node_id_, 497);
 //    Contact contact = ComposeContact(contact_id, 5000);
 //    downlist_request.add_node_ids(contact_id.String());
@@ -2308,14 +2306,14 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //                      new_rpcs.get(), arg::_1, arg::_2))));
 //    std::vector<Contact> contacts;
 //    routing_table_->GetAllContacts(&contacts);
-//    EXPECT_EQ(test::k, contacts.size());
+//    EXPECT_EQ(g_kKademliaK, contacts.size());
 //    transport::Timeout time_out;
 //    for (int i = 0; i <= kFailedRpcTolerance; ++i)
 //      local_service->Downlist(info, downlist_request, &time_out);
 //    // wait a reasonable time
 //    Sleep(boost::posix_time::milliseconds(200));
 //    routing_table_->GetAllContacts(&contacts);
-//    EXPECT_EQ(test::k, contacts.size());
+//    EXPECT_EQ(g_kKademliaK, contacts.size());
 //  }
 //  {
 //    // Ping down contacts will failed
@@ -2325,7 +2323,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
 //                      arg::_1, arg::_2))));
 //    std::vector<Contact> contacts;
 //    routing_table_->GetAllContacts(&contacts);
-//    EXPECT_EQ(test::k, contacts.size());
+//    EXPECT_EQ(g_kKademliaK, contacts.size());
 //    transport::Timeout time_out;
 //    for (int i = 0; i <= kFailedRpcTolerance; ++i)
 //      local_service->Downlist(info, downlist_request, &time_out);
@@ -2414,7 +2412,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
   }
   {
     // k()
-    EXPECT_EQ(test::k, node_->k());
+    EXPECT_EQ(g_kKademliaK, node_->k());
   }
 }
 

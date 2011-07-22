@@ -52,24 +52,19 @@ namespace kademlia {
 
 namespace test {
 
-static const uint16_t k = 16;
 const boost::posix_time::milliseconds kNetworkDelay(200);
 
 
 class SecurifierGetPublicKeyAndValidation: public Securifier {
  public:
   SecurifierGetPublicKeyAndValidation(const std::string &public_key_id,
-                                              const std::string &public_key,
-                                              const std::string &private_key);
-
+                                      const std::string &public_key,
+                                      const std::string &private_key);
   void GetPublicKeyAndValidation(const std::string &public_key_id,
                                  GetPublicKeyAndValidationCallback callback);
-
   void Join();
-
   bool AddTestValidation(const std::string &public_key_id,
                          const std::string &public_key);
-
   void ClearTestValidationMap();
 
  private:
@@ -83,26 +78,23 @@ typedef std::shared_ptr<SecurifierGetPublicKeyAndValidation> SecurifierGPKPtr;
 
 class CreateContactAndNodeId {
  public:
-  CreateContactAndNodeId();
-
+  explicit CreateContactAndNodeId(uint16_t k);
+  virtual ~CreateContactAndNodeId() {}
   NodeId GenerateUniqueRandomId(const NodeId &holder, const int &pos);
-
-  Contact GenerateUniqueContact(const NodeId &holder, const int &pos,
-                                RoutingTableContactsContainer &generated_nodes,
-                                NodeId target);
-
+  Contact GenerateUniqueContact(const NodeId &holder,
+                                const int &pos,
+                                const NodeId &target,
+                                RoutingTableContactsContainer *generated_nodes);
   NodeId GenerateRandomId(const NodeId &holder, const int &pos);
-
-  Contact ComposeContact(const NodeId &node_id, Port port);
-
+  Contact ComposeContact(const NodeId &node_id, const Port &port);
   Contact ComposeContactWithKey(const NodeId &node_id,
-                                Port port,
+                                const Port &port,
                                 const crypto::RsaKeyPair &crypto_key);
-
-  void PopulateContactsVector(int count,
+  void PopulateContactsVector(const int &count,
                               const int &pos,
                               std::vector<Contact> *contacts);
-
+  void set_node_id(NodeId node_id) { node_id_ = node_id; }
+ protected:
   Contact contact_;
   kademlia::NodeId node_id_;
   std::shared_ptr<RoutingTable> routing_table_;

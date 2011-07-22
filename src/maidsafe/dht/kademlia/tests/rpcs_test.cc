@@ -67,10 +67,11 @@ namespace kademlia {
 
 namespace test {
 
-const int kRpcClientNo = 5;
-const int kRpcServersNo = 5;
-const int kMaxOps = 1;
-
+namespace {
+const uint16_t g_kKademliaK = 16;
+const int g_kRpcClientNo = 5;
+const int g_kRpcServersNo = 5;
+}  // unnamed namespace
 
 void TestCallback(RankInfoPtr,
                   int callback_code,
@@ -109,8 +110,9 @@ void TestFindValueCallback(RankInfoPtr,
 class RpcsTest: public CreateContactAndNodeId,
                 public testing::TestWithParam<TransportType> {
  public:
-  RpcsTest() : node_id_(NodeId::kRandomId),
-               routing_table_(new RoutingTable(node_id_, test::k)),
+  RpcsTest() : CreateContactAndNodeId(g_kKademliaK),
+               node_id_(NodeId::kRandomId),
+               routing_table_(new RoutingTable(node_id_, g_kKademliaK)),
                data_store_(new kademlia::DataStore(bptime::seconds(3600))),
                alternative_store_(),
                asio_service_(),
@@ -162,7 +164,7 @@ class RpcsTest: public CreateContactAndNodeId,
                                                     data_store_,
                                                     alternative_store_,
                                                     service_securifier_,
-                                                    k));
+                                                    g_kKademliaK));
     service_->set_node_contact(service_contact_);
     service_->set_node_joined(true);
     switch (transport_type_) {
@@ -369,7 +371,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesEmptyRT) {
     Sleep(boost::posix_time::milliseconds(100));
   StopAndReset();
 
-  ASSERT_EQ(0, contact_list.size());
+  ASSERT_TRUE(contact_list.empty());
   ASSERT_EQ(0, response_code);
 }
 
@@ -379,7 +381,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
   bool done(false);
   int response_code(0);
   std::vector<Contact> contact_list;
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   Key key = service_contact_.node_id();
 
 
@@ -406,7 +408,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
   }
   ASSERT_FALSE(found);
   ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
-  ASSERT_EQ(k, contact_list.size());
+  ASSERT_EQ(g_kKademliaK, contact_list.size());
   ASSERT_EQ(0, response_code);
 }
 
@@ -415,7 +417,7 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
   // being sought
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*k-1);
+  PopulateRoutingTable(2*g_kKademliaK-1);
   std::vector<Contact> contact_list;
   AddContact(routing_table_, service_contact_, rank_info_);
   Key key = service_contact_.node_id();
@@ -442,14 +444,14 @@ TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
   }
   ASSERT_TRUE(found);
   ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
-  ASSERT_EQ(k, contact_list.size());
+  ASSERT_EQ(g_kKademliaK, contact_list.size());
   ASSERT_EQ(0, response_code);
 }
 
 TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   Key key = rpcs_contact_.node_id();
   KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
                                   key.String(), "");
@@ -469,8 +471,8 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  ASSERT_EQ(0, return_values.size());
-  ASSERT_EQ(k, return_contacts.size());
+  ASSERT_TRUE(return_values.empty());
+  ASSERT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
   response_code = 0;
@@ -500,7 +502,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_EQ(0, return_contacts.size());
+  ASSERT_TRUE(return_contacts.empty());
 
   StopAndReset();
 }
@@ -508,7 +510,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
 TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   Key key = rpcs_contact_.node_id();
   KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
                                   key.String(), "");
@@ -528,8 +530,8 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  ASSERT_EQ(0, return_values.size());
-  ASSERT_EQ(k, return_contacts.size());
+  ASSERT_TRUE(return_values.empty());
+  ASSERT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
   response_code = 0;
@@ -559,7 +561,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_EQ(0, return_contacts.size());
+  ASSERT_TRUE(return_contacts.empty());
 
   rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
                 service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
@@ -588,15 +590,15 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
-  EXPECT_EQ(0, return_values.size());
-  EXPECT_EQ(k, return_contacts.size());
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
 
   StopAndReset();
 }
 
 TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
   Key key = rpcs_contact_.node_id();
@@ -632,8 +634,8 @@ TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
     Sleep(boost::posix_time::milliseconds(100));
   // Value not stored in data store
   ASSERT_EQ(0, response_code);
-  ASSERT_EQ(0, return_values.size());
-  ASSERT_EQ(k, return_contacts.size());
+  ASSERT_TRUE(return_values.empty());
+  ASSERT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
   StopAndReset();
 }
@@ -688,7 +690,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
 }
 
 TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
   std::vector<std::string> return_values;
@@ -746,7 +748,7 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_EQ(0, return_contacts.size());
+  ASSERT_TRUE(return_contacts.empty());
   ASSERT_GT(GetRefreshTime(kvs), refresh_time_old);
 
   // attempt store refresh then find - ttl has expired so refresh should be
@@ -778,8 +780,8 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  ASSERT_EQ(0, return_values.size());
-  ASSERT_EQ(k, return_contacts.size());
+  ASSERT_TRUE(return_values.empty());
+  ASSERT_EQ(g_kKademliaK, return_contacts.size());
   ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
 
   StopAndReset();
@@ -840,7 +842,7 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
 }
 
 TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
   Key key = rpcs_contact_.node_id();
@@ -898,15 +900,15 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  ASSERT_EQ(0, return_values.size());
-  ASSERT_EQ(k, return_contacts.size());
+  ASSERT_TRUE(return_values.empty());
+  ASSERT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
 
   StopAndReset();
 }
 
 TEST_P(RpcsTest, BEH_KAD_Delete) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
   Key key = rpcs_contact_.node_id();
@@ -945,8 +947,8 @@ TEST_P(RpcsTest, BEH_KAD_Delete) {
   StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
-  EXPECT_EQ(0, return_values.size());
-  EXPECT_EQ(k, return_contacts.size());
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
 }
 
@@ -994,7 +996,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMalicious) {
   // Value not deleted from data store
   EXPECT_EQ(transport::kSuccess, response_code);
   EXPECT_EQ(kvs.value, return_values[0]);
-  EXPECT_EQ(0, return_contacts.size());
+  EXPECT_TRUE(return_contacts.empty());
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
 }
 
@@ -1076,7 +1078,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
 }
 
 TEST_P(RpcsTest, BEH_KAD_DeleteRefresh) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
@@ -1123,15 +1125,15 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefresh) {
   StopAndReset();
 
   EXPECT_EQ(transport::kSuccess, response_code);
-  EXPECT_EQ(0, return_values.size());
-  EXPECT_EQ(k, return_contacts.size());
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
   // Refreshed
   EXPECT_GT(GetRefreshTime(kvs), refresh_time_old);
 }
 
 TEST_P(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
-  PopulateRoutingTable(2*k);
+  PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
@@ -1180,7 +1182,7 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
   // Value present in data store
   ASSERT_EQ(transport::kSuccess, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_EQ(0, return_contacts.size());
+  ASSERT_TRUE(return_contacts.empty());
 
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
   // Not Refreshed
@@ -1326,7 +1328,8 @@ class RpcsMultiServerNodesTest
       public testing::TestWithParam<TransportType> {
  public:
   RpcsMultiServerNodesTest()
-      : node_id_(NodeId::kRandomId),
+      : CreateContactAndNodeId(g_kKademliaK),
+        node_id_(NodeId::kRandomId),
         routing_table_(),
         data_store_(),
         alternative_store_(),
@@ -1348,7 +1351,7 @@ class RpcsMultiServerNodesTest
         work_(),
         work1_(),
         dispatcher_work_(new boost::asio::io_service::work(dispatcher_)) {
-    for (int index = 0; index < kRpcClientNo; ++index) {
+    for (int index = 0; index < g_kRpcClientNo; ++index) {
       asio_services_.push_back(std::shared_ptr<AsioService>(new AsioService));
       WorkPtr workptr(new
           boost::asio::io_service::work(*asio_services_[index]));
@@ -1357,12 +1360,12 @@ class RpcsMultiServerNodesTest
           std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
               &boost::asio::io_service::run), asio_services_[index]));
     }
-    const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
-    for (int index = 0; index != kRpcServersNo; ++index) {
+    const int kMinServerPositionOffset(kKeySizeBits - g_kRpcServersNo);
+    for (int index = 0; index != g_kRpcServersNo; ++index) {
       NodeId service_node_id =
           GenerateRandomId(node_id_, kMinServerPositionOffset + index);
       routing_table_.push_back(RoutingTablePtr(new RoutingTable(service_node_id,
-                                                                test::k)));
+                                                                g_kKademliaK)));
       data_store_.push_back(DataStorePtr(
           new kademlia::DataStore(bptime::seconds(3600))));
       AlternativeStorePtr alternative_store;
@@ -1380,12 +1383,12 @@ class RpcsMultiServerNodesTest
   }
 
   static void SetUpTestCase() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
+    for (int index = 0; index < g_kRpcClientNo; ++index) {
       crypto::RsaKeyPair temp_key_pair;
       temp_key_pair.GenerateKeys(4096);
       senders_crypto_key_id3_.push_back(temp_key_pair);
     }
-    for (int index = 0; index < kRpcServersNo; ++index) {
+    for (int index = 0; index < g_kRpcServersNo; ++index) {
       crypto::RsaKeyPair temp_key_pair;
       temp_key_pair.GenerateKeys(4096);
       receivers_crypto_key_id3_.push_back(temp_key_pair);
@@ -1394,8 +1397,8 @@ class RpcsMultiServerNodesTest
 
   virtual void SetUp() {
     // rpcs setup
-    const int kMinClientPositionOffset(kKeySizeBits - kRpcClientNo);
-    for (int index = 0; index != kRpcClientNo; ++index) {
+    const int kMinClientPositionOffset(kKeySizeBits - g_kRpcClientNo);
+    for (int index = 0; index != g_kRpcClientNo; ++index) {
       NodeId rpcs_node_id =
           GenerateRandomId(node_id_, kMinClientPositionOffset + index);
       rpcs_securifier_.push_back(std::shared_ptr<Securifier>(
@@ -1413,13 +1416,13 @@ class RpcsMultiServerNodesTest
       rpcs_[index]->set_contact(rpcs_contact_[index]);
     }
     // service setup
-    const int kMinServerPositionOffset(kKeySizeBits - kRpcServersNo);
-    for (int index = 0; index != kRpcServersNo; ++index) {
+    const int kMinServerPositionOffset(kKeySizeBits - g_kRpcServersNo);
+    for (int index = 0; index != g_kRpcServersNo; ++index) {
       NodeId service_node_id =
           GenerateRandomId(node_id_, kMinServerPositionOffset + index);
       service_contact_.push_back(
           ComposeContactWithKey(service_node_id,
-                                static_cast<Port>(5011 + kRpcClientNo + index),
+                                static_cast<Port>(5011+g_kRpcClientNo+index),
                                 receivers_crypto_key_id3_[index]));
       services_securifier_.push_back(
           SecurifierPtr(new SecurifierGetPublicKeyAndValidation(
@@ -1429,7 +1432,7 @@ class RpcsMultiServerNodesTest
       service_.push_back(
           ServicePtr(new Service(routing_table_[index], data_store_[index],
                                  alternative_store_[index],
-                                 services_securifier_[index], k)));
+                                 services_securifier_[index], g_kKademliaK)));
       service_[index]->set_node_contact(service_contact_[index]);
       service_[index]->set_node_joined(true);
       switch (transport_type_) {
@@ -1460,11 +1463,11 @@ class RpcsMultiServerNodesTest
   virtual void TearDown() { }
 
   ~RpcsMultiServerNodesTest() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
+    for (int index = 0; index < g_kRpcClientNo; ++index) {
       asio_services_[index]->stop();
       work_[index].reset();
     }
-    for (int index = 0; index < kRpcServersNo; ++index) {
+    for (int index = 0; index < g_kRpcServersNo; ++index) {
       local_asios_[index]->stop();
       work1_[index].reset();
     }
@@ -1473,11 +1476,11 @@ class RpcsMultiServerNodesTest
   }
 
   void StopAndReset() {
-    for (int index = 0; index < kRpcClientNo; ++index) {
+    for (int index = 0; index < g_kRpcClientNo; ++index) {
       asio_services_[index]->stop();
       work_[index].reset();
     }
-    for (int index = 0; index < kRpcServersNo; ++index) {
+    for (int index = 0; index < g_kRpcServersNo; ++index) {
       local_asios_[index]->stop();
       work1_[index].reset();
     }
@@ -1512,7 +1515,7 @@ class RpcsMultiServerNodesTest
       Sleep(boost::posix_time::milliseconds(500));
 
     ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(0, return_values.size());
+    ASSERT_TRUE(return_values.empty());
 
     ldone = false;
     *response_code = 0;
@@ -1546,7 +1549,7 @@ class RpcsMultiServerNodesTest
 
     ASSERT_EQ(0, *response_code);
     ASSERT_EQ(kvs.value, return_values[0]);
-    ASSERT_EQ(0, return_contacts.size());
+    ASSERT_TRUE(return_contacts.empty());
 
     ldone = false;
     *response_code = 0;
@@ -1578,7 +1581,7 @@ class RpcsMultiServerNodesTest
 
     // Value deleted
     EXPECT_EQ(transport::kSuccess, *response_code);
-    EXPECT_EQ(0, return_values.size());
+    EXPECT_TRUE(return_values.empty());
   }
 
  protected:
@@ -1622,11 +1625,11 @@ INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiServerNodesTest,
                         testing::Values(kTcp, kUdp));
 
 TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
-  bool done[kRpcClientNo][kRpcServersNo];
+  bool done[g_kRpcClientNo][g_kRpcServersNo];
   bool localdone = false;
-  int response_code[kRpcClientNo][kRpcServersNo];
-  for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
-    for (int index = 0; index < kRpcServersNo; ++index) {
+  int response_code[g_kRpcClientNo][g_kRpcServersNo];
+  for (int client_index = 0; client_index < g_kRpcClientNo; ++client_index) {
+    for (int index = 0; index < g_kRpcServersNo; ++index) {
       done[client_index][index] = false;
       response_code[client_index][index] = 0;
       // This is to enable having more than one operation
@@ -1638,8 +1641,8 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
   }
   while (!localdone) {
     localdone = true;
-    for (int client_index = 0; client_index < kRpcClientNo; ++client_index) {
-      for (int index = 0; index < kRpcServersNo; ++index) {
+    for (int client_index = 0; client_index < g_kRpcClientNo; ++client_index) {
+      for (int index = 0; index < g_kRpcServersNo; ++index) {
         localdone = localdone && done[client_index][index];
       }
     }

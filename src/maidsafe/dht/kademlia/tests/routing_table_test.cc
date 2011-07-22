@@ -58,11 +58,12 @@ class RoutingTableTest : public CreateContactAndNodeId,
                          public testing::TestWithParam<int> {
  public:
   RoutingTableTest()
-    : rank_info_(),
-      holder_id_(NodeId::kRandomId),
-      k_(static_cast<uint16_t>(GetParam())),
-      routing_table_(holder_id_, k_),
-      thread_barrier_(new boost::barrier(kThreadBarrierSize)) {
+      : CreateContactAndNodeId(static_cast<uint16_t>(GetParam())),
+        rank_info_(),
+        holder_id_(NodeId::kRandomId),
+        k_(static_cast<uint16_t>(GetParam())),
+        routing_table_(holder_id_, k_),
+        thread_barrier_(new boost::barrier(kThreadBarrierSize)) {
     contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
   }
 
@@ -892,7 +893,7 @@ TEST_P(RoutingTableTest, BEH_KAD_GetAllContacts) {
   {
     std::vector<Contact> contacts;
     routing_table_.GetAllContacts(&contacts);
-    EXPECT_EQ(0, contacts.size());
+    EXPECT_TRUE(contacts.empty());
   }
   {
     this->FillContactToRoutingTable();
