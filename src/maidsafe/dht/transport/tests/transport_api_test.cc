@@ -71,7 +71,7 @@ void TestMessageHandler::DoOnRequestReceived(const std::string &request,
   responses_sent_.push_back(*response);
   *timeout = kImmediateTimeout;
   DLOG(INFO) << this_id_ << " - Received request: \"" << request
-             << "\".  Responding with \"" << *response << "\"" << std::endl;
+             << "\".  Responding with \"" << *response << "\"";
 }
 
 void TestMessageHandler::DoOnResponseReceived(const std::string &request,
@@ -82,14 +82,13 @@ void TestMessageHandler::DoOnResponseReceived(const std::string &request,
   *timeout = kImmediateTimeout;
   boost::mutex::scoped_lock lock(mutex_);
   responses_received_.push_back(std::make_pair(request, info));
-  DLOG(INFO) << this_id_ << " - Received response: \"" << request << "\""
-             << std::endl;
+  DLOG(INFO) << this_id_ << " - Received response: \"" << request << "\"";
 }
 
 void TestMessageHandler::DoOnError(const TransportCondition &tc) {
   boost::mutex::scoped_lock lock(mutex_);
   results_.push_back(tc);
-  DLOG(INFO) << this_id_ << " - Error: " << tc << std::endl;
+  DLOG(INFO) << this_id_ << " - Error: " << tc;
 }
 
 void TestMessageHandler::ClearContainers() {

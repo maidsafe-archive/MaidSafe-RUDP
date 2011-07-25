@@ -616,26 +616,6 @@ uint16_t NodeImpl::k() const {
   return k_;
 }
 
-uint16_t NodeImpl::alpha() const {
-  return kAlpha_;
-}
-
-uint16_t NodeImpl::beta() const {
-  return kBeta_;
-}
-
-bptime::time_duration NodeImpl::mean_refresh_interval() const {
-  return kMeanRefreshInterval_;
-}
-
-bool NodeImpl::refresh_thread_running() const {
-  return refresh_thread_running_;
-}
-
-bool NodeImpl::downlist_thread_running() const {
-  return downlist_thread_running_;
-}
-
 //  void NodeImpl::StoreRefreshCallback(RankInfoPtr rank_info,
 //                                        const int &result) {
 //    //  if result is not success then make downlist
@@ -975,7 +955,7 @@ void NodeImpl::IterativeSearchNodeResponse(
                                                &closest_contacts,
                                                &curr_iteration_done,
                                                &called_back)) {
-    DLOG(WARNING) << "Failed to handle result for the iteration" << std::endl;
+    DLOG(WARNING) << "Failed to handle result for the iteration";
   }
 
   if (!called_back) {
@@ -1060,11 +1040,11 @@ void NodeImpl::ValidateContactCallback(Contact contact,
   routing_table_->SetValidated(contact.node_id(), valid);
 }
 
-void NodeImpl::SetService(std::shared_ptr<Service> service) {
-  service_ = service;
-  service_->GetPingDownListSignalHandler()->connect(std::bind(
-                      &NodeImpl::PingDownlistContact, this, arg::_1));
-}
+//  void NodeImpl::SetService(std::shared_ptr<Service> service) {
+//    service_ = service;
+//    service_->GetPingDownListSignalHandler()->connect(std::bind(
+//                        &NodeImpl::PingDownlistContact, this, arg::_1));
+//  }
 
 void NodeImpl::PingDownlistContact(const Contact &contact) {
   Rpcs::PingFunctor callback(std::bind(

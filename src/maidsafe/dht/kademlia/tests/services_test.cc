@@ -63,6 +63,10 @@ namespace kademlia {
 
 namespace test {
 
+namespace {
+
+const uint16_t g_kKademliaK = 16;
+
 boost::posix_time::time_duration time_out = transport::kDefaultInitialTimeout;
 
 inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
@@ -71,6 +75,8 @@ inline void CreateRSAKeys(std::string *pub_key, std::string *priv_key) {
   *pub_key =  kp.public_key();
   *priv_key = kp.private_key();
 }
+
+}  // unnamed namespace
 
 class MockTransportServiceTest : public transport::Transport {
  public:
@@ -121,24 +127,24 @@ class AlternativeStoreFalse: public AlternativeStore {
 typedef std::shared_ptr<AlternativeStoreTrue> AlternativeStoreTruePtr;
 typedef std::shared_ptr<AlternativeStoreFalse> AlternativeStoreFalsePtr;
 
-class ServicesTest: public CreateContactAndNodeId,
-                    public testing::Test {
+class ServicesTest: public CreateContactAndNodeId, public testing::Test {
  public:
-  ServicesTest() : contact_(), node_id_(NodeId::kRandomId),
-                   data_store_(new kademlia::DataStore(bptime::seconds(3600))),
-                   routing_table_(new RoutingTable(node_id_, test::k)),
-                   alternative_store_(),
-                   securifier_(new SecurifierGetPublicKeyAndValidation("", "",
-                                                                       "")),
-                   info_(), rank_info_(),
-                   service_(new Service(routing_table_, data_store_,
-                            alternative_store_, securifier_, test::k)),
-                   num_of_pings_(0) {
+  ServicesTest()
+      : CreateContactAndNodeId(g_kKademliaK),
+        contact_(),
+        node_id_(NodeId::kRandomId),
+        data_store_(new kademlia::DataStore(bptime::seconds(3600))),
+        routing_table_(new RoutingTable(node_id_, g_kKademliaK)),
+        alternative_store_(),
+        securifier_(new SecurifierGetPublicKeyAndValidation("", "", "")),
+        info_(), rank_info_(),
+        service_(new Service(routing_table_, data_store_,
+        alternative_store_, securifier_, g_kKademliaK)),
+        num_of_pings_(0) {
     service_->set_node_joined(true);
   }
 
-  virtual void SetUp() {
-  }
+  virtual void SetUp() {}
 
   void FakePingContact(Contact contact) {
     ++num_of_pings_;
@@ -158,8 +164,7 @@ class ServicesTest: public CreateContactAndNodeId,
     return service.sender_task_->task_index_->size();
   }
 
-  void CheckServiceConstructAttributes(const Service& service,
-                                       uint16_t k) {
+  void CheckServiceConstructAttributes(const Service& service, uint16_t k) {
     EXPECT_EQ(0U, service.routing_table_->Size());
     EXPECT_EQ(0U, service.datastore_->key_value_index_->size());
     EXPECT_FALSE(service.node_joined_);
@@ -167,29 +172,28 @@ class ServicesTest: public CreateContactAndNodeId,
     EXPECT_EQ(0U, GetSenderTaskSize(service));
   }
 
-  bool DoStore(NodeId sender_id, KeyValueSignature kvs,
+  bool DoStore(NodeId sender_id,
+               KeyValueSignature kvs,
                crypto::RsaKeyPair& crypto_key_data) {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
     protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
     std::string message = store_request.SerializeAsString();
-    std::string message_sig;
-    while (message_sig.empty())
-      message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
+    std::string message_sig =
+        crypto::AsymSign(message, crypto_key_data.private_key());
     protobuf::StoreResponse store_response;
     service_->Store(info_, store_request, message, message_sig,
                     &store_response, &time_out);
     return store_response.result();
   }
 
-  bool DoDelete(NodeId sender_id, KeyValueSignature kvs,
+  bool DoDelete(NodeId sender_id,
+                KeyValueSignature kvs,
                 crypto::RsaKeyPair& crypto_key_data) {
     Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
     protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
     std::string delete_message = delete_request.SerializeAsString();
-    std::string delete_message_sig;
-    while (delete_message_sig.empty())
-      delete_message_sig = crypto::AsymSign(delete_message,
-                                            crypto_key_data.private_key());
+    std::string delete_message_sig =
+        crypto::AsymSign(delete_message, crypto_key_data.private_key());
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
@@ -205,9 +209,8 @@ class ServicesTest: public CreateContactAndNodeId,
                                                 crypto_key_data);
     protobuf::StoreRequest store_request = MakeStoreRequest(sender_orig, kvs);
     std::string message = store_request.SerializeAsString();
-    std::string message_sig;
-    while (message_sig.empty())
-      message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
+    std::string message_sig =
+        crypto::AsymSign(message, crypto_key_data.private_key());
     Contact new_sender = ComposeContactWithKey(sender_id_new, 5001,
                                                crypto_key_data_new);
     protobuf::StoreRefreshRequest store_refresh_request;
@@ -231,10 +234,8 @@ class ServicesTest: public CreateContactAndNodeId,
     protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender_orig,
                                                                kvs);
     std::string delete_message = delete_request.SerializeAsString();
-    std::string delete_message_sig;
-    while (delete_message_sig.empty())
-      delete_message_sig = crypto::AsymSign(delete_message,
-                                            crypto_key_data.private_key());
+    std::string delete_message_sig =
+        crypto::AsymSign(delete_message, crypto_key_data.private_key());
     Contact new_sender = ComposeContactWithKey(sender_id_new, 5001,
                                                crypto_key_data_new);
     protobuf::DeleteRefreshRequest delete_refresh_request;
@@ -338,7 +339,7 @@ class ServicesTest: public CreateContactAndNodeId,
 
 TEST_F(ServicesTest, BEH_KAD_Constructor) {
   Service service(routing_table_, data_store_, alternative_store_, securifier_,
-                  test::k);
+                  g_kKademliaK);
   CheckServiceConstructAttributes(service, 16U);
 
   Service service_k(routing_table_, data_store_, alternative_store_,
@@ -357,9 +358,8 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
-  std::string message_sig;
-  while (message_sig.empty())
-    message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
+  std::string message_sig =
+      crypto::AsymSign(message, crypto_key_data.private_key());
   RequestAndSignature request_signature(message, message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -395,7 +395,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
     Service service(routing_table_, data_store_, alternative_store_,
-                    securifier_local, test::k);
+                    securifier_local, g_kKademliaK);
     service.set_node_joined(true);
 
     protobuf::StoreResponse store_response;
@@ -475,17 +475,13 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
 
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
-  std::string store_message_sig;
-  while (store_message_sig.empty())
-    store_message_sig = crypto::AsymSign(store_message,
-                                         crypto_key_data.private_key());
+  std::string store_message_sig =
+      crypto::AsymSign(store_message, crypto_key_data.private_key());
 
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig;
-  while (delete_message_sig.empty())
-    delete_message_sig = crypto::AsymSign(delete_message,
-                                          crypto_key_data.private_key());
+  std::string delete_message_sig =
+      crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
   {
@@ -520,7 +516,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
     Service service(routing_table_, data_store_, alternative_store_,
-                    securifier_local, test::k);
+                    securifier_local, g_kKademliaK);
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
@@ -595,9 +591,8 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
 
   std::string message = store_request.SerializeAsString();
-  std::string message_sig;
-  while (message_sig.empty())
-    message_sig = crypto::AsymSign(message, crypto_key_data.private_key());
+  std::string message_sig =
+      crypto::AsymSign(message, crypto_key_data.private_key());
   RequestAndSignature request_signature(message, message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
 
@@ -643,7 +638,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
     Service service(routing_table_, data_store_, alternative_store_,
-                    securifier_local, test::k);
+                    securifier_local, g_kKademliaK);
     service.set_node_joined(true);
 
     protobuf::StoreRefreshResponse store_refresh_response;
@@ -713,17 +708,13 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
 
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string store_message = store_request.SerializeAsString();
-  std::string store_message_sig;
-  while (store_message_sig.empty())
-    store_message_sig = crypto::AsymSign(store_message,
-                                          crypto_key_data.private_key());
+  std::string store_message_sig =
+      crypto::AsymSign(store_message, crypto_key_data.private_key());
 
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig;
-  while (delete_message_sig.empty())
-    delete_message_sig = crypto::AsymSign(delete_message,
-                                          crypto_key_data.private_key());
+  std::string delete_message_sig =
+      crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   bptime::time_duration old_ttl(bptime::pos_infin);
 
@@ -772,7 +763,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
     SecurifierPtr securifier_local(new SecurifierValidateFalse(
         sender.public_key_id(), sender.public_key(), sender.other_info()));
     Service service(routing_table_, data_store_, alternative_store_,
-                    securifier_local, test::k);
+                    securifier_local, g_kKademliaK);
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
@@ -915,45 +906,45 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   {
     // try to find the target from an k/2 filled routing table
     // (not containing the target)
-    PopulateRoutingTable(test::k / 2);
-    EXPECT_EQ(test::k / 2, GetRoutingTableSize());
+    PopulateRoutingTable(g_kKademliaK / 2);
+    EXPECT_EQ(g_kKademliaK / 2, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(test::k / 2, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(test::k / 2, GetRoutingTableSize());
+    ASSERT_EQ(g_kKademliaK / 2, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(g_kKademliaK / 2, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
     // try to find the target from a 2*k filled routing table
     // (not containing the target)
-    PopulateRoutingTable(test::k, 500);
-    PopulateRoutingTable(test::k, 501);
-    EXPECT_EQ(2 * test::k, GetRoutingTableSize());
+    PopulateRoutingTable(g_kKademliaK, 500);
+    PopulateRoutingTable(g_kKademliaK, 501);
+    EXPECT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(2 * test::k, GetRoutingTableSize());
+    ASSERT_EQ(g_kKademliaK, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
   {
     // try to find the target from a 2*k filled routing table
     // (containing the target)
-    PopulateRoutingTable(test::k, 500);
-    PopulateRoutingTable(test::k - 1, 501);
+    PopulateRoutingTable(g_kKademliaK, 500);
+    PopulateRoutingTable(g_kKademliaK - 1, 501);
     AddContact(routing_table_, target, rank_info_);
-    EXPECT_EQ(2 * test::k, GetRoutingTableSize());
+    EXPECT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(2 * test::k, GetRoutingTableSize());
+    ASSERT_EQ(g_kKademliaK, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
     // the target must be contained in the response's closest_nodes
     bool target_exist(false);
@@ -968,16 +959,16 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   {
     // try to find the target from a 2*k+1 filled routing table
     // (containing the sender, but not containing the target)
-    PopulateRoutingTable(test::k, 500);
-    PopulateRoutingTable(test::k, 501);
+    PopulateRoutingTable(g_kKademliaK, 500);
+    PopulateRoutingTable(g_kKademliaK, 501);
     AddContact(routing_table_, sender, rank_info_);
-    EXPECT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    EXPECT_EQ(2 * g_kKademliaK + 1, GetRoutingTableSize());
 
     protobuf::FindNodesResponse find_nodes_rsp;
     service_->FindNodes(info_, find_nodes_req, &find_nodes_rsp, &time_out);
     ASSERT_EQ(true, find_nodes_rsp.IsInitialized());
-    ASSERT_EQ(test::k, find_nodes_rsp.closest_nodes_size());
-    ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    ASSERT_EQ(g_kKademliaK, find_nodes_rsp.closest_nodes_size());
+    ASSERT_EQ(2 * g_kKademliaK + 1, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
   }
 }
@@ -1014,14 +1005,14 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in empty datastore
     // but with 2*k+1 populated routing table (containing the key)
     // no alternative_store_
-    PopulateRoutingTable(test::k, 500);
-    PopulateRoutingTable(test::k, 501);
+    PopulateRoutingTable(g_kKademliaK, 500);
+    PopulateRoutingTable(g_kKademliaK, 501);
     AddContact(routing_table_, target, rank_info_);
 
     protobuf::FindValueResponse find_value_rsp;
     service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
     ASSERT_TRUE(find_value_rsp.result());
-    ASSERT_EQ(test::k, find_value_rsp.closest_nodes_size());
+    ASSERT_EQ(g_kKademliaK, find_value_rsp.closest_nodes_size());
     // the target must be contained in the response's closest_nodes
     bool target_exist(false);
     for (int i = 0; i < find_value_rsp.closest_nodes_size(); ++i) {
@@ -1030,7 +1021,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
         target_exist = true;
     }
     ASSERT_TRUE(target_exist);
-    ASSERT_EQ(2 * test::k + 1, GetRoutingTableSize());
+    ASSERT_EQ(2 * g_kKademliaK + 1, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
   }
   Clear();
@@ -1038,8 +1029,8 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in k populated datastore (not containing the target)
     // but with an empty routing table
     // no alternative_store_
-    PopulateDataStore(test::k);
-    ASSERT_EQ(test::k, GetDataStoreSize());
+    PopulateDataStore(g_kKademliaK);
+    ASSERT_EQ(g_kKademliaK, GetDataStoreSize());
 
     protobuf::FindValueResponse find_value_rsp;
     service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
@@ -1061,14 +1052,14 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in K+1 populated datastore (containing the target)
     // with empty routing table
     // no alternative_store_
-    PopulateDataStore(test::k);
+    PopulateDataStore(g_kKademliaK);
     EXPECT_EQ(kSuccess,
               data_store_->StoreValue(target_kvt.key_value_signature,
                                       old_ttl,
                                       target_kvt.request_and_signature,
                                       crypto_key.public_key(),
                                       false));
-    ASSERT_EQ(test::k + 1, GetDataStoreSize());
+    ASSERT_EQ(g_kKademliaK + 1, GetDataStoreSize());
 
     find_value_req.set_key(target_key);
     protobuf::FindValueResponse find_value_rsp;
@@ -1084,13 +1075,13 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in k populated datastore (not containing the target)
     // with empty routing table
     // with alternative_store_ (not containing the target)
-    PopulateDataStore(test::k);
-    ASSERT_EQ(test::k, GetDataStoreSize());
+    PopulateDataStore(g_kKademliaK);
+    ASSERT_EQ(g_kKademliaK, GetDataStoreSize());
 
     AlternativeStoreFalsePtr
         alternative_store_false_ptr(new AlternativeStoreFalse());
     Service service(routing_table_, data_store_, alternative_store_false_ptr,
-                    securifier_, test::k);
+                    securifier_, g_kKademliaK);
     service.set_node_joined(true);
 
     find_value_req.set_key(target_key);
@@ -1111,13 +1102,13 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
     // Search in k populated datastore (not containing the target)
     // with empty routing table
     // with alternative_store_ (containing the target)
-    PopulateDataStore(test::k);
-    ASSERT_EQ(test::k, GetDataStoreSize());
+    PopulateDataStore(g_kKademliaK);
+    ASSERT_EQ(g_kKademliaK, GetDataStoreSize());
 
     AlternativeStoreTruePtr
         alternative_store_true_ptr(new AlternativeStoreTrue());
     Service service(routing_table_, data_store_, alternative_store_true_ptr,
-                    securifier_, test::k);
+                    securifier_, g_kKademliaK);
     service.set_node_joined(true);
     service.set_node_contact(node_contact);
 
@@ -1147,14 +1138,14 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
   }
   {
     // given a downlist contains k nodes in the routingtable
-    for (int i = 0; i < test::k; ++i) {
+    for (int i = 0; i < g_kKademliaK; ++i) {
       NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
       Contact contact = ComposeContact(contact_id, 5000);
       downlist_request.add_node_ids(contact_id.String());
       AddContact(routing_table_, contact, rank_info_);
     }
     service_->Downlist(info_, downlist_request, &time_out);
-    ASSERT_EQ(test::k, num_of_pings_);
+    ASSERT_EQ(g_kKademliaK, num_of_pings_);
   }
   num_of_pings_ = 0;
   {
@@ -1163,7 +1154,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
     downlist_request.add_node_ids(contact_id.String());
     service_->Downlist(info_, downlist_request, &time_out);
-    ASSERT_EQ(test::k, num_of_pings_);
+    ASSERT_EQ(g_kKademliaK, num_of_pings_);
   }
   num_of_pings_ = 0;
   { // Node not joined
@@ -1171,7 +1162,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
     NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
     downlist_request.add_node_ids(contact_id.String());
     service_->Downlist(info_, downlist_request, &time_out);
-    EXPECT_NE(test::k, num_of_pings_);
+    EXPECT_NE(g_kKademliaK, num_of_pings_);
     service_->set_node_joined(true);
   }
 }
@@ -1863,10 +1854,8 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   // Signal StoreRequest
   protobuf::StoreRequest store_request = MakeStoreRequest(sender, kvs);
   std::string message = store_request.SerializeAsString();
-  std::string message_sig;
-  while (message_sig.empty())
-    message_sig = crypto::AsymSign(message,
-                                   crypto_key_data.private_key());
+  std::string message_sig =
+      crypto::AsymSign(message, crypto_key_data.private_key());
   protobuf::StoreResponse store_response;
   (*message_handler_ptr->on_store_request())(info_, store_request, message,
       message_sig, &store_response, &time_out);
@@ -1888,10 +1877,8 @@ TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
   // Signal DeleteRequest
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
   std::string delete_message = delete_request.SerializeAsString();
-  std::string delete_message_sig;
-  while (delete_message_sig.empty())
-    delete_message_sig = crypto::AsymSign(delete_message,
-                                          crypto_key_data.private_key());
+  std::string delete_message_sig =
+      crypto::AsymSign(delete_message, crypto_key_data.private_key());
   protobuf::DeleteResponse delete_response;
   (*message_handler_ptr->on_delete_request())(info_, delete_request,
                                               delete_message,

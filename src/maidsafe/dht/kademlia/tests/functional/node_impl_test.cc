@@ -61,7 +61,11 @@ class NodeImplTest : public testing::Test {
 };
 
 
-TEST_F(NodeImplTest, FUNC_KAD_FindNodes) {
+TEST_F(NodeImplTest, FUNC_JoinLeave) {
+  FAIL() << "Not implemented.";
+}
+
+TEST_F(NodeImplTest, FUNC_FindNodes) {
   for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
     NodeId node_id(env_->node_containers_[i]->node()->contact().node_id());
     int result;
@@ -101,7 +105,7 @@ TEST_F(NodeImplTest, FUNC_KAD_FindNodes) {
   }
 }
 
-TEST_F(NodeImplTest, DISABLED_FUNC_KAD_Store) {
+TEST_F(NodeImplTest, FUNC_Store) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -135,7 +139,7 @@ TEST_F(NodeImplTest, DISABLED_FUNC_KAD_Store) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_KAD_FindValue) {
+TEST_F(NodeImplTest, FUNC_FindValue) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -201,11 +205,7 @@ TEST_F(NodeImplTest, FUNC_KAD_FindValue) {
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 }
 
-TEST_F(NodeImplTest, FUNC_KAD_Ping) {
-  FAIL() << "Not implemented.";
-}
-
-TEST_F(NodeImplTest, FUNC_KAD_Delete) {
+TEST_F(NodeImplTest, FUNC_Delete) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -221,7 +221,11 @@ TEST_F(NodeImplTest, FUNC_KAD_Delete) {
               chosen_container->wait_for_delete_functor()));
 }
 
-TEST_F(NodeImplTest, FUNC_KAD_StoreRefresh) {
+TEST_F(NodeImplTest, FUNC_Update) {
+  FAIL() << "Not implemented.";
+}
+
+TEST_F(NodeImplTest, FUNC_StoreRefresh) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::seconds(20));
@@ -274,7 +278,7 @@ TEST_F(NodeImplTest, FUNC_KAD_StoreRefresh) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_KAD_DeleteRefresh) {
+TEST_F(NodeImplTest, FUNC_DeleteRefresh) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::seconds(20));
@@ -336,7 +340,7 @@ TEST_F(NodeImplTest, FUNC_KAD_DeleteRefresh) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_KAD_Downlist) {
+TEST_F(NodeImplTest, FUNC_GetContact) {
   FAIL() << "Not implemented.";
 }
 

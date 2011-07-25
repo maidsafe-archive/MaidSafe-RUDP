@@ -153,18 +153,6 @@ uint16_t Node::k() const {
   return pimpl_->k();
 }
 
-uint16_t Node::alpha() const {
-  return pimpl_->alpha();
-}
-
-uint16_t Node::beta() const {
-  return pimpl_->beta();
-}
-
-boost::posix_time::time_duration Node::mean_refresh_interval() const {
-  return pimpl_->mean_refresh_interval();
-}
-
 }  // namespace kademlia
 
 }  // namespace dht

@@ -84,8 +84,8 @@ void SecurifierGetPublicKeyAndValidation::ClearTestValidationMap() {
 void SecurifierGetPublicKeyAndValidation::DummyFind(
     std::string public_key_id,
     GetPublicKeyAndValidationCallback callback) {
-  // Imitating delay in lookup for kNetworkDelay seconds
-  Sleep(boost::posix_time::milliseconds(kNetworkDelay));
+  // Imitating delay in lookup for kNetworkDelay milliseconds
+  Sleep(kNetworkDelay);
   std::map<std::string, std::string>::iterator  itr;
   itr = public_key_id_map_.find(public_key_id);
   if (itr != public_key_id_map_.end())
@@ -96,12 +96,10 @@ void SecurifierGetPublicKeyAndValidation::DummyFind(
 
 
 
-CreateContactAndNodeId::CreateContactAndNodeId(): contact_(),
-                                                  node_id_(NodeId::kRandomId),
-                                                  routing_table_(
-                                                      new RoutingTable(node_id_,
-                                                                       test::k))
-                                                  { }
+CreateContactAndNodeId::CreateContactAndNodeId(uint16_t k)
+    : contact_(),
+      node_id_(NodeId::kRandomId),
+      routing_table_(new RoutingTable(node_id_, k)) {}
 
 NodeId CreateContactAndNodeId::GenerateUniqueRandomId(const NodeId &holder,
                                                       const int &pos) {
@@ -137,8 +135,8 @@ NodeId CreateContactAndNodeId::GenerateUniqueRandomId(const NodeId &holder,
 Contact CreateContactAndNodeId::GenerateUniqueContact(
     const NodeId &holder,
     const int &pos,
-    RoutingTableContactsContainer &generated_nodes,
-    NodeId target) {
+    const NodeId &target,
+    RoutingTableContactsContainer *generated_nodes) {
   std::string holder_id = holder.ToStringEncoded(NodeId::kBinary);
   std::bitset<kKeySizeBits> holder_id_binary_bitset(holder_id);
   NodeId new_node;
@@ -159,14 +157,12 @@ Contact CreateContactAndNodeId::GenerateUniqueContact(
     new_node = NodeId(new_node_string, NodeId::kBinary);
 
     // make sure the new one hasn't been set as down previously
-    ContactsById key_indx = generated_nodes.get<NodeIdTag>();
+    ContactsById key_indx = generated_nodes->get<NodeIdTag>();
     auto it = key_indx.find(new_node);
     if (it == key_indx.end()) {
       new_contact = ComposeContact(new_node, 5000);
-      RoutingTableContact new_routing_table_contact(new_contact,
-                                                    target,
-                                                    0);
-      generated_nodes.insert(new_routing_table_contact);
+      RoutingTableContact new_routing_table_contact(new_contact, target, 0);
+      generated_nodes->insert(new_routing_table_contact);
       repeat = false;
     }
     ++times_of_try;
@@ -197,7 +193,7 @@ NodeId CreateContactAndNodeId::GenerateRandomId(const NodeId &holder,
 }
 
 Contact CreateContactAndNodeId::ComposeContact(const NodeId &node_id,
-                                               Port port) {
+                                               const Port &port) {
   transport::Endpoint end_point("127.0.0.1", port);
   std::vector<transport::Endpoint> local_endpoints(1, end_point);
   Contact contact(node_id, end_point, local_endpoints, end_point, false,
@@ -207,7 +203,7 @@ Contact CreateContactAndNodeId::ComposeContact(const NodeId &node_id,
 
 Contact CreateContactAndNodeId::ComposeContactWithKey(
     const NodeId &node_id,
-    Port port,
+    const Port &port,
     const crypto::RsaKeyPair &rsa_key_pair) {
   std::string ip("127.0.0.1");
   std::vector<transport::Endpoint> local_endpoints;
@@ -221,7 +217,7 @@ Contact CreateContactAndNodeId::ComposeContactWithKey(
 }
 
 void CreateContactAndNodeId::PopulateContactsVector(
-    int count,
+    const int &count,
     const int &pos,
     std::vector<Contact> *contacts) {
   for (int i = 0; i < count; ++i) {
@@ -244,10 +240,7 @@ KeyValueSignature MakeKVS(const crypto::RsaKeyPair &rsa_key_pair,
       value += temp;
     value = value.substr(0, value_size);
   }
-  std::string signature;
-  while (signature.empty()) {
-    signature = crypto::AsymSign(value, rsa_key_pair.private_key());
-  }
+  std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
   return KeyValueSignature(key, value, signature);
 }
 
@@ -265,16 +258,12 @@ KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
       value += temp;
     value = value.substr(0, value_size);
   }
-  std::string signature;
-  while (signature.empty())
-    signature = crypto::AsymSign(value, rsa_key_pair.private_key());
+  std::string signature = crypto::AsymSign(value, rsa_key_pair.private_key());
   bptime::ptime now = bptime::microsec_clock::universal_time();
   bptime::ptime expire_time = now + ttl;
   bptime::ptime refresh_time = now + bptime::minutes(30);
   std::string request = RandomString(1024);
-  std::string req_sig;
-  while (req_sig.empty())
-    req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
+  std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
   return KeyValueTuple(KeyValueSignature(key, value, signature),
                         expire_time, refresh_time,
                         RequestAndSignature(request, req_sig), false);
