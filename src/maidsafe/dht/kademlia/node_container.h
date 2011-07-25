@@ -38,11 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 #include "maidsafe/common/crypto.h"
 
-#include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/version.h"
-#include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/utils.h"
@@ -103,8 +101,8 @@ class NodeContainer {
               const std::string &new_signature,
               const std::string &old_value,
               const std::string &old_signature,
-              SecurifierPtr securifier,
-              const boost::posix_time::time_duration &ttl);
+              const boost::posix_time::time_duration &ttl,
+              SecurifierPtr securifier);
   void FindValue(const Key &key,
                  SecurifierPtr securifier);
   void FindNodes(const Key &key);
@@ -392,10 +390,10 @@ int NodeContainer<NodeType>::Start(
 
   boost::function<bool()> wait_functor = boost::bind(
       &NodeContainer<NodeType>::ResultReady, this, &join_result_);
-  const bptime::time_duration kTimeout(bptime::seconds(10));
   boost::mutex::scoped_lock lock(mutex);
   node_->Join(node_id, bootstrap_contacts_, join_functor);
-  bool wait_success(cond_var.timed_wait(lock, kTimeout, wait_functor));
+  bool wait_success(cond_var.timed_wait(lock, bptime::minutes(1),
+                                        wait_functor));
   result = kPendingResult;
   GetAndResetJoinResult(&result);
   return (wait_success ? result : kTimedOut);
@@ -449,10 +447,10 @@ void NodeContainer<NodeType>::Update(
     const std::string &new_signature,
     const std::string &old_value,
     const std::string &old_signature,
-    SecurifierPtr securifier,
-    const boost::posix_time::time_duration &ttl) {
-  node_->Update(key, new_value, new_signature, old_value, old_signature,
-                securifier, ttl, update_functor_);
+    const boost::posix_time::time_duration &ttl,
+    SecurifierPtr securifier) {
+  node_->Update(key, new_value, new_signature, old_value, old_signature, ttl,
+                securifier, update_functor_);
 }
 
 template <typename NodeType>

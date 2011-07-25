@@ -105,9 +105,8 @@ void NodeImpl::Join(const NodeId &node_id,
                     std::vector<Contact> bootstrap_contacts,
                     JoinFunctor callback) {
   bootstrap_contacts.erase(
-      std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(), 
-                         std::bind(&HasId, arg::_1, node_id)),
-                     bootstrap_contacts.end());
+      std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(),
+          std::bind(&HasId, arg::_1, node_id)), bootstrap_contacts.end());
 
   if (!client_only_node_ && listening_transport_->listening_port() == 0) {
     callback(kNotListening);
@@ -122,12 +121,18 @@ void NodeImpl::Join(const NodeId &node_id,
     endpoint.ip = listening_transport_->transport_details().endpoint.ip;
     endpoint.port = listening_transport_->transport_details().endpoint.port;
     local_endpoints.push_back(endpoint);
-    contact_ = Contact(node_id, endpoint, local_endpoints,
-                  listening_transport_->transport_details().rendezvous_endpoint,
-                  false, false, default_securifier_->kSigningKeyId(),
-                  default_securifier_->kSigningPublicKey(), "");
+    contact_ =
+        Contact(node_id, endpoint, local_endpoints,
+                listening_transport_->transport_details().rendezvous_endpoint,
+                false, false, default_securifier_->kSigningKeyId(),
+                default_securifier_->kSigningPublicKey(), "");
     rpcs_->set_contact(contact_);
   } else {
+    contact_ = Contact(node_id, transport::Endpoint(),
+                       std::vector<transport::Endpoint>(),
+                       transport::Endpoint(), false, false,
+                       default_securifier_->kSigningKeyId(),
+                       default_securifier_->kSigningPublicKey(), "");
     protobuf::Contact proto_contact(ToProtobuf(contact_));
     proto_contact.set_node_id(NodeId().String());
     rpcs_->set_contact(FromProtobuf(proto_contact));
@@ -142,17 +147,17 @@ void NodeImpl::Join(const NodeId &node_id,
         std::bind(&NodeImpl::ValidateContact, this, arg::_1));
     validate_contact_running_ = true;
   }
-  
+
   std::vector<NodeId> node_ids;
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
     FindValueReturns find_value_returns;
     find_value_returns.return_code = kSuccess;
     boost::thread(&NodeImpl::JoinFindValueCallback, this, find_value_returns,
-                  bootstrap_contacts, node_id, callback, node_ids);
+                  bootstrap_contacts, node_id, callback, true);
     return;
   }
-  
+
   for (auto it(bootstrap_contacts.begin()); it != bootstrap_contacts.end();
          ++it) {
     node_ids.push_back((*it).node_id());
@@ -164,17 +169,9 @@ void NodeImpl::Join(const NodeId &node_id,
   FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
       default_securifier_,
       std::bind(&NodeImpl::JoinFindValueCallback,
-          this, arg::_1, bootstrap_contacts, node_id, callback, node_ids)));
+          this, arg::_1, bootstrap_contacts, node_id, callback, true)));
   AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
   IterativeSearch<FindValueArgs>(find_value_args);
-}
-
-bool NodeImpl::AllNodesAreDown(const std::vector<NodeId> &node_ids) {
-  for (auto it(node_ids.begin()); it != node_ids.end(); ++it)
-    if (std::find(down_contacts_.begin(), down_contacts_.end(), (*it)) 
-        == down_contacts_.end())
-      return false;
-  return true;
 }
 
 void NodeImpl::JoinFindValueCallback(
@@ -182,28 +179,28 @@ void NodeImpl::JoinFindValueCallback(
     std::vector<Contact> bootstrap_contacts,
     const NodeId &node_id,
     JoinFunctor callback,
-    std::vector<NodeId> node_ids) {
+    bool none_reached) {
   if (!find_value_returns.values.empty()) {
     callback(kValueAlreadyExists);
     return;
   }
-  if (((find_value_returns.return_code < 0) && bootstrap_contacts.empty()) && AllNodesAreDown(node_ids)) {
+  if (none_reached && (find_value_returns.return_code == transport::kError) &&
+        bootstrap_contacts.empty()) {
       callback(kContactFailedToRespond);
-  } else if ((find_value_returns.return_code < 0) && !bootstrap_contacts.empty()) {
-    if (find_value_returns.return_code != kContactFailedToRespond) {
-//      none_reached = false;
-    }
+  } else if ((find_value_returns.return_code < 0) &&
+      !bootstrap_contacts.empty()) {
+    if (find_value_returns.return_code != transport::kError)
+      none_reached = false;
     std::vector<Contact> search_contact;
     search_contact.push_back(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindValueArgsPtr find_value_args(new FindValueArgs(node_id,
         default_securifier_,
-        std::bind(&NodeImpl::JoinFindValueCallback,
-            this, arg::_1, bootstrap_contacts, node_id, callback, node_ids)));
+        std::bind(&NodeImpl::JoinFindValueCallback, this, arg::_1,
+                  bootstrap_contacts, node_id, callback, none_reached)));
     AddContactsToContainer<FindValueArgs>(search_contact, find_value_args);
     IterativeSearch<FindValueArgs>(find_value_args);
-  } else 
-  {
+  } else {
     joined_ = true;
     if (!client_only_node_) {
       service_.reset(new Service(routing_table_, data_store_,
@@ -288,8 +285,8 @@ void NodeImpl::Update(const Key &key,
                       const std::string &new_signature,
                       const std::string &old_value,
                       const std::string &old_signature,
-                      SecurifierPtr securifier,
                       const bptime::time_duration &ttl,
+                      SecurifierPtr securifier,
                       UpdateFunctor callback) {
   if (!securifier)
     securifier = default_securifier_;
@@ -795,7 +792,7 @@ bool NodeImpl::HandleIterationStructure(
         closest_contacts->push_back((*it).contact);
       ++it;
     }
-    *response_code = kSuccess;
+//    *response_code = kSuccess;
     // main part of memory resource in find_args can be released here
     find_args->node_group.clear();
   }
@@ -895,7 +892,7 @@ void NodeImpl::IterativeSearchValueResponse(
   // once got some result, terminate the search and report the result back
   // immediately
   bool curr_iteration_done(false), called_back(false);
-  int response_code(kSuccess);
+  int response_code(result);
   std::vector<Contact> closest_contacts;
   if (!values.empty()) {
     called_back = true;
@@ -918,7 +915,8 @@ void NodeImpl::IterativeSearchValueResponse(
                                                  &called_back)) {
       DLOG(ERROR) << "Structure handling in iteration failed";
     }
-    response_code = kIterativeLookupFailed;
+    if (response_code != transport::kError)
+      response_code = kIterativeLookupFailed;
     if ((!called_back) && (curr_iteration_done))
       IterativeSearch<FindValueArgs>(find_value_args);
   }
@@ -928,8 +926,8 @@ void NodeImpl::IterativeSearchValueResponse(
     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
     // methodology of CACHE is decided
     Contact cache_contact;
-    FindValueReturns find_value_returns = { response_code, values,
-        closest_contacts, alternative_store, cache_contact };
+    FindValueReturns find_value_returns(response_code, values, closest_contacts,
+                                        alternative_store, cache_contact);
     find_value_args->called_back = true;
     find_value_args->callback(find_value_returns);
   }

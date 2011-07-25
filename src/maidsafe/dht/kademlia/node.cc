@@ -84,11 +84,11 @@ void Node::Update(const Key &key,
                   const std::string &new_signature,
                   const std::string &old_value,
                   const std::string &old_signature,
-                  SecurifierPtr securifier,
                   const boost::posix_time::time_duration &ttl,
+                  SecurifierPtr securifier,
                   UpdateFunctor callback) {
   pimpl_->Update(key, new_value, new_signature, old_value, old_signature,
-                 securifier, ttl, callback);
+                 ttl, securifier, callback);
 }
 
 void Node::FindValue(const Key &key,

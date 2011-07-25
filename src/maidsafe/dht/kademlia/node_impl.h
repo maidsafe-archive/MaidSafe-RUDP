@@ -134,16 +134,16 @@ class NodeImpl {
    *  @param[in] new_signature The new_signature to store.
    *  @param[in] old_value The old_value to delete.
    *  @param[in] old_signature The old_signature to delete.
-   *  @param[in] securifier The securifier to pass further.
    *  @param[in] ttl The ttl for the new data.
+   *  @param[in] securifier The securifier to pass further.
    *  @param[in] callback The callback to report the results. */
   void Update(const Key &key,
               const std::string &new_value,
               const std::string &new_signature,
               const std::string &old_value,
               const std::string &old_signature,
-              SecurifierPtr securifier,
               const bptime::time_duration &ttl,
+              SecurifierPtr securifier,
               UpdateFunctor callback);
   /** Function to FIND VALUES of the Key from the Kademlia network.
    *  @param[in] Key The key to find
@@ -444,11 +444,11 @@ class NodeImpl {
    *  entries in the queue, notify the k-closest in the routingtable about
    *  the downlist */
   void MonitoringDownlistThread();
-  
+
   void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
-                             JoinFunctor callback, std::vector<NodeId> node_ids);
+                             JoinFunctor callback, bool none_reached);
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);
@@ -458,9 +458,7 @@ class NodeImpl {
   void StoreRefreshCallback(RankInfoPtr rank_info,
                             const int &result,
                             const Contact &contact);
-  
-  bool AllNodesAreDown(const std::vector<NodeId> &node_ids);    
-  
+
   AsioService &asio_service_;
   TransportPtr listening_transport_;
   MessageHandlerPtr message_handler_;
@@ -513,7 +511,7 @@ class NodeImpl {
   bool refresh_thread_running_,
        downlist_thread_running_,
        validate_contact_running_;
-       
+
   /** The containers for threads ruuning in intervals */
   std::shared_ptr<TimedTaskContainer<std::function<void()> > >
       refresh_data_store_;

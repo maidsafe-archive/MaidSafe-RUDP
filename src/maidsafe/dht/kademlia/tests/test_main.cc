@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
   // Log messages at or above this level. Severity levels are INFO, WARNING,
   // ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = google::INFO;
+  FLAGS_minloglevel = google::WARNING;
 
   // Prepend the log prefix to the start of each log line
   FLAGS_log_prefix = true;
