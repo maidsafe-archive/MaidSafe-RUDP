@@ -153,7 +153,7 @@ const double kMinSuccessfulPecentageUpdate(0.75);
 const uint16_t kFailedRpcTolerance(2);
 
 // The maximum number of contacts returned by GetBootStrapContact
-const uint16_t  kMaxBootstrapContacts(8);
+const uint16_t  kMinBootstrapContacts(8);
 
 // The interval(in millisecond) between calls to Refresh Data Store
 const uint32_t kRefreshDataStoreInterval(3000);

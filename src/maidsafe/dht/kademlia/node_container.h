@@ -38,9 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread.hpp"
 #include "maidsafe/common/crypto.h"
 
-#include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
+#include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/utils.h"
@@ -521,6 +521,7 @@ void NodeContainer<NodeType>::FindValueCallback(
     FindValueReturns find_value_returns_in,
     boost::mutex *mutex,
     boost::condition_variable *cond_var) {
+  std::cout << "FindValueCallback\n";
   boost::mutex::scoped_lock lock(*mutex);
   find_value_returns_ = find_value_returns_in;
   cond_var->notify_one();

@@ -436,7 +436,7 @@ class NodeImpl {
   void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
-                             JoinFunctor callback);
+                             JoinFunctor callback, bool none_reached);
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);

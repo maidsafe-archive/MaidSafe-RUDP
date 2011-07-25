@@ -358,18 +358,13 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
   SharedLock shared_lock(shared_mutex_);
   auto it = contacts_.get<BootstrapTag>().equal_range(true);
   contacts->clear();
-  contacts->reserve(distance(it.first, it.second));
-  while (it.first != it.second) {
-    if ((*it.first).DirectConnected())
-      contacts->push_back((*it.first).contact);
-    *it.first++;
-  }
-  it = contacts_.get<BootstrapTag>().equal_range(true);
-  while ((contacts->size() < kMaxBootstrapContacts) &&
-      (it.first != it.second)) {
-    if (!((*it.first).DirectConnected()))
-      contacts->push_back((*it.first).contact);
-    *it.first++;
+  while (it.first != it.second)
+    contacts->push_back((*it.first++).contact);
+  
+  if (contacts->size() < kMinBootstrapContacts) {
+    it = contacts_.get<BootstrapTag>().equal_range(false);
+    while ((it.first != it.second)) 
+      contacts->push_back((*it.first++).contact);
   }
 }
 
