@@ -59,6 +59,7 @@ namespace kademlia {
 namespace test {
 class DataStoreTest;
 class ServicesTest;
+template <typename T>
 class RpcsTest;
 }
 
@@ -199,6 +200,7 @@ class DataStore {
   void set_debug_id(const std::string &debug_id) { debug_id_ = debug_id; }
   friend class test::DataStoreTest;
   friend class test::ServicesTest;
+  template <typename T>
   friend class test::RpcsTest;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;

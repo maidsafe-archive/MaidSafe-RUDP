@@ -45,6 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/kademlia/service.h"
 #include "maidsafe/dht/kademlia/utils.h"
+#include "maidsafe/dht/transport/tcp_transport.h"
 
 namespace arg = std::placeholders;
 
@@ -82,7 +83,8 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       data_store_(new DataStore(kMeanRefreshInterval_)),
       service_(),
       routing_table_(),
-      rpcs_(new Rpcs(asio_service_, default_securifier)),
+      rpcs_(new Rpcs<transport::TcpTransport>(asio_service_,
+                                              default_securifier)),
       contact_(),
       joined_(false),
       refresh_routine_started_(false),
@@ -94,7 +96,10 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
 //      thread_group_(),
       refresh_thread_running_(false),
       downlist_thread_running_(false),
-      validate_contact_running_(false) {}
+      validate_contact_running_(false),
+      refresh_data_store_(),
+      monitoring_downlist_thread_() {}
+
 
 NodeImpl::~NodeImpl() {
   if (joined_)
@@ -324,16 +329,14 @@ void NodeImpl::OperationFindNodesCB(int result,
         case kOpDelete:
           rpcs_->Delete(key, value, signature, securifier, (*it),
                         std::bind(&NodeImpl::DeleteResponse<DeleteArgs>, this,
-                                  arg::_1, arg::_2, rpc_args),
-                        kTcp);
+                                  arg::_1, arg::_2, rpc_args));
           break;
         case kOpStore: {
           bptime::seconds ttl_seconds(ttl.total_seconds());
           rpcs_->Store(key, value, signature, ttl_seconds, securifier, (*it),
                        std::bind(&NodeImpl::StoreResponse, this,
                                  arg::_1, arg::_2, rpc_args, key, value,
-                                 signature, securifier),
-                       kTcp);
+                                 signature, securifier));
           }
           break;
         case kOpUpdate: {
@@ -343,8 +346,7 @@ void NodeImpl::OperationFindNodesCB(int result,
           rpcs_->Store(key, update_args->new_value, update_args->new_signature,
                        ttl_seconds, securifier, (*it),
                        std::bind(&NodeImpl::UpdateStoreResponse, this,
-                                 arg::_1, arg::_2, rpc_args, key, securifier),
-                       kTcp);
+                                 arg::_1, arg::_2, rpc_args, key, securifier));
           }
           break;
         default:
@@ -355,7 +357,7 @@ void NodeImpl::OperationFindNodesCB(int result,
   }
 }
 
-void NodeImpl::StoreResponse(RankInfoPtr rank_info,
+void NodeImpl::StoreResponse(RankInfoPtr/* rank_info*/,
                              int response_code,
                              RpcArgsPtr store_rpc_args,
                              const Key &key,
@@ -413,14 +415,13 @@ void NodeImpl::StoreResponse(RankInfoPtr rank_info,
     while (it != pit_down.second) {
       rpcs_->Delete(key, value, signature, securifier, (*it).contact,
                     std::bind(&NodeImpl::SingleDeleteResponse,
-                              this, arg::_1, arg::_2, (*it).contact),
-                    kTcp);
+                              this, arg::_1, arg::_2, (*it).contact));
       ++it;
     }
   }
 }
 
-void NodeImpl::SingleDeleteResponse(RankInfoPtr rank_info,
+void NodeImpl::SingleDeleteResponse(RankInfoPtr/* rank_info*/,
                                     int response_code,
                                     const Contact &contact) {
   if (response_code != kSuccess) {
@@ -430,7 +431,7 @@ void NodeImpl::SingleDeleteResponse(RankInfoPtr rank_info,
 }
 
 template <class T>
-void NodeImpl::DeleteResponse(RankInfoPtr rank_info,
+void NodeImpl::DeleteResponse(RankInfoPtr/* rank_info*/,
                               int response_code,
                               RpcArgsPtr delete_rpc_args) {
   std::shared_ptr<T> delete_args =
@@ -485,7 +486,7 @@ void NodeImpl::DeleteResponse(RankInfoPtr rank_info,
   // there is no restore (undo those success deleted) operation in delete
 }
 
-void NodeImpl::UpdateStoreResponse(RankInfoPtr rank_info,
+void NodeImpl::UpdateStoreResponse(RankInfoPtr/* rank_info*/,
                                    int response_code,
                                    RpcArgsPtr update_rpc_args,
                                    const Key &key,
@@ -518,8 +519,7 @@ void NodeImpl::UpdateStoreResponse(RankInfoPtr rank_info,
     rpcs_->Delete(key, update_args->old_value, update_args->old_signature,
                   securifier, update_rpc_args->contact,
                   std::bind(&NodeImpl::DeleteResponse<UpdateArgs>, this,
-                            arg::_1, arg::_2, update_rpc_args),
-                  kTcp);
+                            arg::_1, arg::_2, update_rpc_args));
   }
 }
 
@@ -608,8 +608,8 @@ uint16_t NodeImpl::k() const {
   return k_;
 }
 
-//  void NodeImpl::StoreRefreshCallback(RankInfoPtr rank_info,
-//                                        const int &result) {
+//  void NodeImpl::StoreRefreshCallback(RankInfoPtr/* rank_info*/,
+//                                      const int &result) {
 //    //  if result is not success then make downlist
 //  }
 
@@ -632,13 +632,12 @@ void NodeImpl::StoreRefresh(int result,
                     std::cref(contacts[i]));
       rpcs_->StoreRefresh(key_value_tuple.request_and_signature.first,
                           key_value_tuple.request_and_signature.second,
-                          default_securifier_, contacts[i], store_refresh,
-                          kTcp);
+                          default_securifier_, contacts[i], store_refresh);
     }
   }
 }
 
-void NodeImpl::StoreRefreshCallback(RankInfoPtr rank_info,
+void NodeImpl::StoreRefreshCallback(RankInfoPtr/* rank_info*/,
                                     const int &result,
                                     const Contact &contact) {
   if (result != kSuccess) {
@@ -830,8 +829,7 @@ void NodeImpl::IterativeSearch(std::shared_ptr<T> find_args) {
                            (*it_tuple).contact,
                            std::bind(&NodeImpl::IterativeSearchNodeResponse,
                                      this, arg::_1, arg::_2, arg::_3,
-                                     find_rpc_args),
-                           kTcp);
+                                     find_rpc_args));
         }
         break;
       case kOpFindValue: {
@@ -841,8 +839,7 @@ void NodeImpl::IterativeSearch(std::shared_ptr<T> find_args) {
                            (*it_tuple).contact,
                            std::bind(&NodeImpl::IterativeSearchValueResponse,
                                      this, arg::_1, arg::_2, arg::_3, arg::_4,
-                                     arg::_5, find_rpc_args),
-                           kTcp);
+                                     arg::_5, find_rpc_args));
         }
         break;
       default: break;
@@ -851,7 +848,7 @@ void NodeImpl::IterativeSearch(std::shared_ptr<T> find_args) {
 }
 
 void NodeImpl::IterativeSearchValueResponse(
-    RankInfoPtr rank_info,
+    RankInfoPtr/* rank_info*/,
     int result,
     const std::vector<std::string> &values,
     const std::vector<Contact> &contacts,
@@ -905,7 +902,7 @@ void NodeImpl::IterativeSearchValueResponse(
 }
 
 void NodeImpl::IterativeSearchNodeResponse(
-    RankInfoPtr rank_info,
+    RankInfoPtr/* rank_info*/,
     int result,
     const std::vector<Contact> &contacts,
     RpcArgsPtr find_nodes_rpc_args) {
@@ -962,11 +959,10 @@ void NodeImpl::IterativeSearchNodeResponse(
 void NodeImpl::PingOldestContact(const Contact &oldest_contact,
                                  const Contact &replacement_contact,
                                  RankInfoPtr replacement_rank_info) {
-  Rpcs::PingFunctor callback(std::bind(&NodeImpl::PingOldestContactCallback,
-                                       this, oldest_contact, arg::_1, arg::_2,
-                                       replacement_contact,
-                                       replacement_rank_info));
-  rpcs_->Ping(SecurifierPtr(), oldest_contact, callback, kTcp);
+  rpcs_->Ping(SecurifierPtr(), oldest_contact,
+              std::bind(&NodeImpl::PingOldestContactCallback, this,
+                        oldest_contact, arg::_1, arg::_2, replacement_contact,
+                        replacement_rank_info));
 }
 
 void NodeImpl::PingOldestContactCallback(Contact oldest_contact,
@@ -1007,7 +1003,7 @@ void NodeImpl::MonitoringDownlistThread() {
 //    auto it = close_nodes.begin();
 //    auto it_end = close_nodes.end();
 //    while (it != it_end) {
-//      rpcs_->Downlist(down_contacts_, default_securifier_, (*it), kTcp);
+//      rpcs_->Downlist(down_contacts_, default_securifier_, (*it));
 //      ++it;
 //    }
 //    down_contacts_.clear();
@@ -1038,10 +1034,8 @@ void NodeImpl::ValidateContactCallback(Contact contact,
 //  }
 
 void NodeImpl::PingDownlistContact(const Contact &contact) {
-  Rpcs::PingFunctor callback(std::bind(
-                                &NodeImpl::PingDownlistContactCallback,
-                                this, contact, arg::_1, arg::_2));
-  rpcs_->Ping(SecurifierPtr(), contact, callback, kTcp);
+  rpcs_->Ping(SecurifierPtr(), contact, std::bind(
+      &NodeImpl::PingDownlistContactCallback, this, contact, arg::_1, arg::_2));
 }
 
 void NodeImpl::PingDownlistContactCallback(Contact contact,

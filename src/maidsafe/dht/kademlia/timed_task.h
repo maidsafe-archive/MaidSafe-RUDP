@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_KADEMLIA_TIMED_TASK_H_
 
 #include "boost/asio.hpp"
+#include "boost/thread/thread.hpp"
 
 namespace maidsafe {
 
@@ -55,9 +56,9 @@ struct TimerContainer {
     thread_group->join_all();
   }
   AsioService asio_service;
+  std::shared_ptr<boost::asio::deadline_timer> timer;
   std::shared_ptr<boost::asio::io_service::work> work;
   std::shared_ptr<boost::thread_group> thread_group;
-  std::shared_ptr<boost::asio::deadline_timer> timer;
 };
 
 template <typename F>

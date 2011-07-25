@@ -102,10 +102,10 @@ int DemoNode::Init(const size_t &thread_count,
   if (!client_only_node) {
     message_handler = MessageHandlerPtr(new MessageHandler(securifier_));
     switch (transport_type) {
-      case kTcp:
+      case 0:
         listening_transport_.reset(new transport::TcpTransport(asio_service_));
         break;
-      case kUdp:
+      case 1:
         listening_transport_.reset(new transport::UdpTransport(asio_service_));
         break;
       default:

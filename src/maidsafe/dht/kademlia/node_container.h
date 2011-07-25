@@ -228,6 +228,8 @@ class NodeContainer {
   WaitFunctor wait_for_get_contact_functor_;
 
  private:
+  NodeContainer(const NodeContainer&);
+  NodeContainer &operator=(const NodeContainer&);
   void JoinCallback(int result_in,
                     boost::mutex *mutex,
                     boost::condition_variable *cond_var);
@@ -252,8 +254,6 @@ class NodeContainer {
                           boost::mutex *mutex,
                           boost::condition_variable *cond_var);
   bool ResultReady(int *result) { return *result != kPendingResult; }
-  NodeContainer(const NodeContainer&);
-  NodeContainer &operator=(const NodeContainer&);
   JoinFunctor join_functor_;
   StoreFunctor store_functor_;
   DeleteFunctor delete_functor_;
@@ -294,7 +294,14 @@ NodeContainer<NodeType>::NodeContainer()
       wait_for_update_functor_(),
       wait_for_find_value_functor_(),
       wait_for_find_nodes_functor_(),
-      wait_for_get_contact_functor_() {
+      wait_for_get_contact_functor_(),
+      join_functor_(),
+      store_functor_(),
+      delete_functor_(),
+      update_functor_(),
+      find_value_functor_(),
+      find_nodes_functor_(),
+      get_contact_functor_() {
   wait_for_join_functor_ =
       std::bind(&NodeContainer<NodeType>::ResultReady, this, &join_result_);
   wait_for_store_functor_ =

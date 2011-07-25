@@ -146,7 +146,7 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
 
   virtual void SetUp() {}
 
-  void FakePingContact(Contact contact) {
+  void FakePingContact(Contact /*contact*/) {
     ++num_of_pings_;
   }
 

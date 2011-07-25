@@ -96,7 +96,7 @@ void TestFindValueCallback(RankInfoPtr,
                            int callback_code,
                            std::vector<std::string> values,
                            std::vector<Contact> contacts,
-                           Contact alternative_value_holder,
+                           Contact/* alternative_value_holder */,
                            std::vector<std::string> *return_values,
                            std::vector<Contact> *return_contacts,
                            bool *done,
@@ -107,8 +107,8 @@ void TestFindValueCallback(RankInfoPtr,
   *return_contacts = contacts;
 }
 
-class RpcsTest: public CreateContactAndNodeId,
-                public testing::TestWithParam<TransportType> {
+template <typename T>
+class RpcsTest : public CreateContactAndNodeId, public testing::Test {
  public:
   RpcsTest() : CreateContactAndNodeId(g_kKademliaK),
                node_id_(NodeId::kRandomId),
@@ -120,7 +120,6 @@ class RpcsTest: public CreateContactAndNodeId,
                rank_info_(),
                contacts_(),
                transport_(),
-               transport_type_(GetParam()),
                thread_group_(),
                work_(new boost::asio::io_service::work(asio_service_)),
                work1_(new boost::asio::io_service::work(local_asio_)) {
@@ -144,7 +143,8 @@ class RpcsTest: public CreateContactAndNodeId,
     rpcs_securifier_ = std::shared_ptr<Securifier>(
         new Securifier("", sender_crypto_key_id_.public_key(),
                         sender_crypto_key_id_.private_key()));
-    rpcs_= std::shared_ptr<Rpcs>(new Rpcs(asio_service_, rpcs_securifier_));
+    rpcs_= std::shared_ptr<Rpcs<T>>(new Rpcs<T>(asio_service_,  // NOLINT (Fraser)
+                                                rpcs_securifier_));
 
     NodeId rpcs_node_id = GenerateRandomId(node_id_, 502);
     rpcs_contact_ = ComposeContactWithKey(rpcs_node_id,
@@ -167,16 +167,7 @@ class RpcsTest: public CreateContactAndNodeId,
                                                     g_kKademliaK));
     service_->set_node_contact(service_contact_);
     service_->set_node_joined(true);
-    switch (transport_type_) {
-      case kTcp:
-        transport_.reset(new transport::TcpTransport(local_asio_));
-        break;
-      case kUdp:
-        transport_.reset(new transport::UdpTransport(local_asio_));
-        break;
-      default:
-        break;
-    }
+    transport_.reset(new T(local_asio_));
     handler_.reset(new MessageHandler(service_securifier_));
     service_->ConnectToSignals(handler_);
     transport_->on_message_received()->connect(
@@ -305,7 +296,7 @@ class RpcsTest: public CreateContactAndNodeId,
   SecurifierPtr rpcs_securifier_;
   AsioService asio_service_;
   AsioService local_asio_;
-  std::shared_ptr<Rpcs> rpcs_;
+  std::shared_ptr<Rpcs<T>> rpcs_;
   Contact rpcs_contact_;
   Contact service_contact_;
   static crypto::RsaKeyPair sender_crypto_key_id_;
@@ -314,146 +305,143 @@ class RpcsTest: public CreateContactAndNodeId,
   std::vector<Contact> contacts_;
   TransportPtr transport_;
   MessageHandlerPtr handler_;
-  TransportType transport_type_;
   boost::thread_group thread_group_;
   WorkPtr work_;
   WorkPtr work1_;
 };
 
-crypto::RsaKeyPair RpcsTest::sender_crypto_key_id_;
-crypto::RsaKeyPair RpcsTest::receiver_crypto_key_id_;
+template <typename T>
+crypto::RsaKeyPair RpcsTest<T>::sender_crypto_key_id_;
+template <typename T>
+crypto::RsaKeyPair RpcsTest<T>::receiver_crypto_key_id_;
 
-INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsTest,
-                        testing::Values(kTcp, kUdp));
+TYPED_TEST_CASE_P(RpcsTest);
 
-TEST_P(RpcsTest, FUNC_KAD_PingNoTarget) {
+TYPED_TEST_P(RpcsTest, FUNC_PingNoTarget) {
   bool done(false);
   int response_code(0);
 
-  rpcs_->Ping(rpcs_securifier_, rpcs_contact_,
-              std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code),
-              transport_type_);
+  this->rpcs_->Ping(this->rpcs_securifier_, this->rpcs_contact_,
+      std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   ASSERT_GT(0, response_code);
 }
 
-TEST_P(RpcsTest, BEH_KAD_PingTarget) {
+TYPED_TEST_P(RpcsTest, BEH_PingTarget) {
   bool done(false);
   int response_code(0);
-  rpcs_->Ping(rpcs_securifier_, service_contact_,
-              std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code),
-              transport_type_);
+  this->rpcs_->Ping(this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   ASSERT_EQ(0, response_code);
 }
 
-TEST_P(RpcsTest, BEH_KAD_FindNodesEmptyRT) {
+TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
   // tests FindNodes using empty routing table
   bool done(false);
   int response_code(0);
   std::vector<Contact> contact_list;
-  Key key = service_contact_.node_id();
+  Key key = this->service_contact_.node_id();
 
-  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                             &contact_list, &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                &contact_list, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   ASSERT_TRUE(contact_list.empty());
   ASSERT_EQ(0, response_code);
 }
 
-TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTnoNode) {
+TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
   // tests FindNodes with a populated routing table not containing the node
   // being sought
   bool done(false);
   int response_code(0);
   std::vector<Contact> contact_list;
-  PopulateRoutingTable(2*g_kKademliaK);
-  Key key = service_contact_.node_id();
+  this->PopulateRoutingTable(2*g_kKademliaK);
+  Key key = this->service_contact_.node_id();
 
 
-  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                             &contact_list, &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                &contact_list, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   bool found(false);
   std::sort(contact_list.begin(), contact_list.end());
   auto it = contact_list.begin();
   while (it != contact_list.end()) {
-    if ((*it).node_id() == service_contact_.node_id())
+    if ((*it).node_id() == this->service_contact_.node_id())
       found = true;
-    for (size_t i = 0; i < contacts_.size(); i++) {
-      if ((*it).node_id() == contacts_[i].node_id())
-        contacts_.erase(contacts_.begin()+i);
+    for (size_t i = 0; i < this->contacts_.size(); i++) {
+      if ((*it).node_id() == this->contacts_[i].node_id())
+        this->contacts_.erase(this->contacts_.begin()+i);
       }
     ++it;
   }
   ASSERT_FALSE(found);
-  ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
+  ASSERT_GE(this->GetDistance(contact_list, 0),
+            this->GetDistance(this->contacts_, 1));
   ASSERT_EQ(g_kKademliaK, contact_list.size());
   ASSERT_EQ(0, response_code);
 }
 
-TEST_P(RpcsTest, BEH_KAD_FindNodesPopulatedRTwithNode) {
+TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
   // tests FindNodes with a populated routing table which contains the node
   // being sought
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*g_kKademliaK-1);
+  this->PopulateRoutingTable(2*g_kKademliaK-1);
   std::vector<Contact> contact_list;
-  AddContact(routing_table_, service_contact_, rank_info_);
-  Key key = service_contact_.node_id();
+  AddContact(this->routing_table_, this->service_contact_, this->rank_info_);
+  Key key = this->service_contact_.node_id();
 
-  rpcs_->FindNodes(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                             &contact_list, &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
+                &contact_list, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   bool found(false);
   auto it = contact_list.begin();
   while (it != contact_list.end()) {
-    if ((*it).node_id() == service_contact_.node_id())
+    if ((*it).node_id() == this->service_contact_.node_id())
       found = true;
-    for (size_t i = 0; i < contacts_.size(); i++) {
-      if ((*it).node_id() == contacts_[i].node_id())
-        contacts_.erase(contacts_.begin()+i);
+    for (size_t i = 0; i < this->contacts_.size(); i++) {
+      if ((*it).node_id() == this->contacts_[i].node_id())
+        this->contacts_.erase(this->contacts_.begin()+i);
       }
     ++it;
   }
   ASSERT_TRUE(found);
-  ASSERT_GE(GetDistance(contact_list, 0), GetDistance(contacts_, 1));
+  ASSERT_GE(this->GetDistance(contact_list, 0),
+            this->GetDistance(this->contacts_, 1));
   ASSERT_EQ(g_kKademliaK, contact_list.size());
   ASSERT_EQ(0, response_code);
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
+TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*g_kKademliaK);
-  Key key = rpcs_contact_.node_id();
-  KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
+  this->PopulateRoutingTable(2*g_kKademliaK);
+  Key key = this->rpcs_contact_.node_id();
+  KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
                                   key.String(), "");
   boost::posix_time::seconds ttl(3600);
 
@@ -462,11 +450,10 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -476,27 +463,25 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
 
   done = false;
   response_code = 0;
-  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_,
-               std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                         &response_code),
-               transport_type_);
+  this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
+                     this->service_contact_,
+                     std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                               &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   // attempt to retrieve value stored
   return_values.clear();
   return_contacts.clear();
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -504,15 +489,15 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindValue) {
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_TRUE(return_contacts.empty());
 
-  StopAndReset();
+  this->StopAndReset();
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
+TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   bool done(false);
   int response_code(0);
-  PopulateRoutingTable(2*g_kKademliaK);
-  Key key = rpcs_contact_.node_id();
-  KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
+  this->PopulateRoutingTable(2*g_kKademliaK);
+  Key key = this->rpcs_contact_.node_id();
+  KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
                                   key.String(), "");
   boost::posix_time::seconds ttl(3600);
 
@@ -521,11 +506,10 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -535,27 +519,25 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
 
   done = false;
   response_code = 0;
-  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_,
-               std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                         &response_code),
-               transport_type_);
+  this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
+                     this->service_contact_,
+                     std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                               &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   // attempt to retrieve value stored
   return_values.clear();
   return_contacts.clear();
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -563,72 +545,68 @@ TEST_P(RpcsTest, BEH_KAD_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_TRUE(return_contacts.empty());
 
-  rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                            &done, &response_code),
-                transport_type_);
+  this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   done = false;
   response_code = 0;
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   return_values.clear();
   return_contacts.clear();
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
-  StopAndReset();
+  this->StopAndReset();
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(3600);
   KeyValueSignature kvs =
-      MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
+      MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
   // Malicious sender sends fake public_key
-  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_,
-               std::bind(&TestCallback, arg::_1, arg::_2,
-                         &done, &response_code),
-               transport_type_);
+  this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   // Sender receives kSuccess, but value not stored in receiver's datastore
   EXPECT_EQ(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -636,24 +614,25 @@ TEST_P(RpcsTest, BEH_KAD_StoreMalicious) {
   ASSERT_EQ(0, response_code);
   ASSERT_TRUE(return_values.empty());
   ASSERT_EQ(g_kKademliaK, return_contacts.size());
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
-  StopAndReset();
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  this->StopAndReset();
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
+TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
   bool done(false);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
   boost::posix_time::seconds ttl(3600);
 
   for (size_t i = 0; i < 10; ++i) {
-    kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 1024, key.String(),
-                                 ""));
+    kvs_vector.push_back(MakeKVS(this->sender_crypto_key_id_, 1024,
+                                 key.String(), ""));
     status_response.push_back(std::make_pair(false, -1));
   }
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
   std::string signature("");
 
   for (size_t i = 0; i < 10; ++i) {
@@ -661,11 +640,10 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
       signature = "invalid signature";
     else
       signature = kvs_vector[i].signature;
-    rpcs_->Store(key, kvs_vector[i].value, signature, ttl, rpcs_securifier_,
-                 service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                             &status_response[i].first,
-                                             &status_response[i].second),
-                 transport_type_);
+    this->rpcs_->Store(key, kvs_vector[i].value, signature, ttl,
+        this->rpcs_securifier_, this->service_contact_,
+        std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
+                  &status_response[i].second));
   }
   while (!done) {
     for (size_t i = 0; i < 10; ++i) {
@@ -676,61 +654,60 @@ TEST_P(RpcsTest, BEH_KAD_StoreMultipleRequest) {
       }
     }
   }
-  JoinNetworkLookup(service_securifier_);
-  StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
+  this->StopAndReset();
 
   // Checking results
   for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
     if (i%2)
-      EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+      EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     else
-      EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+      EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
   }
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(2);
-  KeyValueSignature kvs = MakeKVS(sender_crypto_key_id_, 1024,
+  KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
                                   key.String(), "");
-  protobuf::StoreRequest store_request = MakeStoreRequest(rpcs_contact_, kvs);
+  protobuf::StoreRequest store_request = MakeStoreRequest(this->rpcs_contact_,
+                                                          kvs);
   std::string message = store_request.SerializeAsString();
   std::string store_message_sig =
-      crypto::AsymSign(message, sender_crypto_key_id_.private_key());
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+      crypto::AsymSign(message, this->sender_crypto_key_id_.private_key());
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
 
   // send original store request
-  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                           &done, &response_code),
-               transport_type_);
+  this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
-  JoinNetworkLookup(service_securifier_);
-  bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+  JoinNetworkLookup(this->service_securifier_);
+  bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
   Sleep(boost::posix_time::seconds(1));
 
   // send store refresh request
   done = false;
   response_code = 0;
-  rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
-                      service_contact_, std::bind(&TestCallback, arg::_1,
-                                                  arg::_2, &done,
-                                                  &response_code),
-                      transport_type_);
+  this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
   ASSERT_EQ(0, response_code);
 
   // attempt to find original value
@@ -738,75 +715,71 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefresh) {
   response_code = 0;
   return_values.clear();
   return_contacts.clear();
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_TRUE(return_contacts.empty());
-  ASSERT_GT(GetRefreshTime(kvs), refresh_time_old);
+  ASSERT_GT(this->GetRefreshTime(kvs), refresh_time_old);
 
   // attempt store refresh then find - ttl has expired so refresh should be
   // unsuccessful and find should fail
   Sleep(boost::posix_time::seconds(1));
   done = false;
   response_code = 0;
-  rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
-                      service_contact_,
-                      std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                                &response_code),
-                      transport_type_);
+  this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
   ASSERT_EQ(0, response_code);
 
   done = false;
   response_code = 0;
   return_values.clear();
   return_contacts.clear();
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_TRUE(return_values.empty());
   ASSERT_EQ(g_kKademliaK, return_contacts.size());
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
-  StopAndReset();
+  this->StopAndReset();
 }
 
-TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMultipleRequests) {
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
   std::vector<bptime::ptime> refresh_time_old_vector;
   std::vector<RequestAndSignature> req_sig_vector;
   for (size_t i = 0; i < 10; ++i) {
     // Adding key value from different contact in the receiver's datastore
-    NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
-    kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 4096, "", ""));
+    NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
+    kvs_vector.push_back(MakeKVS(this->sender_crypto_key_id_, 4096, "", ""));
     RequestAndSignature request_signature("", "");
-    Contact sender = ComposeContactWithKey(sender_id, 5001,
-                                           sender_crypto_key_id_);
-    AddToReceiverDataStore(kvs_vector[i], sender_crypto_key_id_, sender,
-                           request_signature);
+    Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                           this->sender_crypto_key_id_);
+    this->AddToReceiverDataStore(kvs_vector[i], this->sender_crypto_key_id_,
+                                 sender, request_signature);
     req_sig_vector.push_back(request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     status_response.push_back(std::make_pair(false, -1));
-    refresh_time_old_vector.push_back(GetRefreshTime(kvs_vector[i]));
-    AddTestValidation(service_securifier_, sender_id.String(),
-                      sender_crypto_key_id_.public_key());
+    refresh_time_old_vector.push_back(this->GetRefreshTime(kvs_vector[i]));
+    AddTestValidation(this->service_securifier_, sender_id.String(),
+                      this->sender_crypto_key_id_.public_key());
   }
   // Store Refresh rpc
   std::string req_signature;
@@ -816,73 +789,73 @@ TEST_P(RpcsTest, FUNC_KAD_StoreRefreshMultipleRequests) {
       req_signature = "Invalid Request Signature";
     else
       req_signature = req_sig_vector[i].second;
-    rpcs_->StoreRefresh(req_sig_vector[i].first, req_signature,
-                        rpcs_securifier_, service_contact_,
-                        std::bind(&TestCallback, arg::_1, arg::_2,
-                                  &status_response[i].first,
-                                  &status_response[i].second),
-                        transport_type_);
+    this->rpcs_->StoreRefresh(req_sig_vector[i].first, req_signature,
+        this->rpcs_securifier_, this->service_contact_,
+        std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
+                  &status_response[i].second));
   }
   for (size_t i = 0; i < 10; ++i) {
     // Need to wait for invalid requests to timeout.
     while (!status_response[i].first)
       Sleep(boost::posix_time::milliseconds(1));
   }
-  JoinNetworkLookup(service_securifier_);
-  StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
+  this->StopAndReset();
   // Check results
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(0, status_response[i].second);
-    EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
-    if (i%2)
-      EXPECT_EQ(GetRefreshTime(kvs_vector[i]), refresh_time_old_vector[i]);
-    else
-      EXPECT_GT(GetRefreshTime(kvs_vector[i]), refresh_time_old_vector[i]);
+    EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    if (i%2) {
+      EXPECT_EQ(this->GetRefreshTime(kvs_vector[i]),
+                refresh_time_old_vector[i]);
+    } else {
+      EXPECT_GT(this->GetRefreshTime(kvs_vector[i]),
+                refresh_time_old_vector[i]);
+    }
   }
 }
 
-TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(0);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(2);
   KeyValueSignature kvs =
-      MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
-  protobuf::StoreRequest store_request = MakeStoreRequest(rpcs_contact_, kvs);
+      MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
+  protobuf::StoreRequest store_request = MakeStoreRequest(this->rpcs_contact_,
+                                                          kvs);
   std::string message = store_request.SerializeAsString();
   std::string store_message_sig =
-      crypto::AsymSign(message, sender_crypto_key_id_.private_key());
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+      crypto::AsymSign(message, this->sender_crypto_key_id_.private_key());
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
 
-  rpcs_->Store(key, kvs.value, kvs.signature, ttl, rpcs_securifier_,
-               service_contact_,
-               std::bind(&TestCallback, arg::_1, arg::_2,
-                         &done, &response_code),
-               transport_type_);
+  this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(0, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   // Attempt refresh with fake key
   Sleep(boost::posix_time::seconds(1));
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
   Sleep(boost::posix_time::seconds(1));
   done = false;
   response_code = 0;
-  rpcs_->StoreRefresh(message, store_message_sig, rpcs_securifier_,
-                      service_contact_, std::bind(&TestCallback, arg::_1,
-                                                  arg::_2, &done,
-                                                  &response_code),
-                      transport_type_);
+  this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
   ASSERT_EQ(0, response_code);
 
   // attempt to find value - refresh should have failed and ttl expired from
@@ -891,92 +864,90 @@ TEST_P(RpcsTest, BEH_KAD_StoreRefreshMalicious) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
   ASSERT_TRUE(return_values.empty());
   ASSERT_EQ(g_kKademliaK, return_contacts.size());
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
-  StopAndReset();
+  this->StopAndReset();
 }
 
-TEST_P(RpcsTest, BEH_KAD_Delete) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_Delete) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs =
-      MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
+      MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
   // Adding key value in the receiver's datastore
   RequestAndSignature request_signature("", "");
-  AddToReceiverDataStore(kvs, sender_crypto_key_id_, rpcs_contact_,
-                         request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+  this->AddToReceiverDataStore(kvs, this->sender_crypto_key_id_,
+                               this->rpcs_contact_, request_signature);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
 
-  rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                            &done, &response_code),
-                transport_type_);
+  this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                        &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
   // Value deleted
   EXPECT_EQ(transport::kSuccess, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteMalicious) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
   bool done(false);
   int response_code(-1);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs =
-      MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
+      MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
   // Adding key value in the receiver's datastore
   RequestAndSignature request_signature("", "");
-  AddToReceiverDataStore(kvs, sender_crypto_key_id_, rpcs_contact_,
-                         request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
+  this->AddToReceiverDataStore(kvs, this->sender_crypto_key_id_,
+                               this->rpcs_contact_, request_signature);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
 
   // Malicious sender sends fake public_key
-  rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                            &done, &response_code),
-                transport_type_);
+  this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   // Sender receives kSuccess, but value not deleted from receiver's datastore
   EXPECT_EQ(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
   // attempt to retrieve value stored
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
@@ -984,76 +955,75 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMalicious) {
   return_contacts.clear();
   done = false;
   response_code = -1;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
   // Value not deleted from data store
   EXPECT_EQ(transport::kSuccess, response_code);
   EXPECT_EQ(kvs.value, return_values[0]);
   EXPECT_TRUE(return_contacts.empty());
-  EXPECT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteNonExistingKey) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
   bool done(false);
   int response_code(-1);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs =
-      MakeKVS(sender_crypto_key_id_, 1024, key.String(), "");
+      MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
 
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
 
-  rpcs_->Delete(key, kvs.value, kvs.signature, rpcs_securifier_,
-                service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                            &done, &response_code),
-                transport_type_);
+  this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
+      this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                  &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
   EXPECT_NE(transport::kSuccess, response_code);
 
-  JoinNetworkLookup(service_securifier_);
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  JoinNetworkLookup(this->service_securifier_);
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
   bool done(false);
-  Key key = rpcs_contact_.node_id();
+  Key key = this->rpcs_contact_.node_id();
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
 
   for (size_t i = 0; i < 10; ++i) {
-    kvs_vector.push_back(MakeKVS(sender_crypto_key_id_, 1024, key.String(),
-                                 ""));
+    kvs_vector.push_back(MakeKVS(this->sender_crypto_key_id_, 1024,
+                                 key.String(), ""));
     status_response.push_back(std::make_pair(false, -1));
     RequestAndSignature request_signature("", "");
-    AddToReceiverDataStore(kvs_vector[i], sender_crypto_key_id_, rpcs_contact_,
-                           request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+    this->AddToReceiverDataStore(kvs_vector[i], this->sender_crypto_key_id_,
+                                 this->rpcs_contact_, request_signature);
+    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
   }
-  AddTestValidation(service_securifier_, rpcs_contact_.node_id().String(),
-                    sender_crypto_key_id_.public_key());
+  AddTestValidation(this->service_securifier_,
+                    this->rpcs_contact_.node_id().String(),
+                    this->sender_crypto_key_id_.public_key());
   std::string signature("");
 
   for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
-      signature = "";
-    rpcs_->Delete(key, kvs_vector[i].value, signature, rpcs_securifier_,
-                  service_contact_, std::bind(&TestCallback, arg::_1, arg::_2,
-                                              &status_response[i].first,
-                                              &status_response[i].second),
-                  transport_type_);
+      signature.clear();
+    this->rpcs_->Delete(key, kvs_vector[i].value, signature,
+        this->rpcs_securifier_, this->service_contact_,
+        std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
+                  &status_response[i].second));
   }
   while (!done) {
     for (size_t i = 0; i < 10; ++i) {
@@ -1064,201 +1034,198 @@ TEST_P(RpcsTest, BEH_KAD_DeleteMultipleRequest) {
       }
     }
   }
-  StopAndReset();
-  JoinNetworkLookup(service_securifier_);
+  this->StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
 
   // Checking results
   for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
     if (i%2)
-      EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+      EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     else
-      EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+      EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
   }
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteRefresh) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
-  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
-  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+  Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                               crypto_key_data);
   Key key = sender.node_id();
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   RequestAndSignature request_signature("", "");
-  AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
+  this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
-  AddTestValidation(service_securifier_, sender_id.String(),
+  AddTestValidation(this->service_securifier_, sender_id.String(),
                     crypto_key_data.public_key());
   // Deleting
-  DeleteFromReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
-  bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+  this->DeleteFromReceiverDataStore(kvs, crypto_key_data, sender,
+                                    request_signature);
+  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
-  rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-                       rpcs_securifier_, service_contact_,
-                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                                 &response_code),
-                       transport_type_);
+  this->rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
+                             this->rpcs_securifier_, this->service_contact_,
+                             std::bind(&TestCallback, arg::_1, arg::_2, &done,
+                                       &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
 
   EXPECT_EQ(transport::kSuccess, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   // Refreshed
-  EXPECT_GT(GetRefreshTime(kvs), refresh_time_old);
+  EXPECT_GT(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteRefreshStoredValue) {
-  PopulateRoutingTable(2*g_kKademliaK);
+TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
+  this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
-  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
-  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+  Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                               crypto_key_data);
   Key key = sender.node_id();
   RequestAndSignature request_sig("", "");
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
-  AddToReceiverDataStore(kvs, crypto_key_data, sender, request_sig);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
+  this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_sig);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
-  AddTestValidation(service_securifier_, sender_id.String(),
+  AddTestValidation(this->service_securifier_, sender_id.String(),
                     crypto_key_data.public_key());
   // Value not deleted
   RequestAndSignature request_signature("", "");
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
-  bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
   // Delete refresh without deleting
-  rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-                       rpcs_securifier_, service_contact_,
-                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                                 &response_code),
-                       transport_type_);
+  this->rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
+      this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_NE(transport::kSuccess, response_code);
-  JoinNetworkLookup(service_securifier_);
+  JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
-  rpcs_->FindValue(key, rpcs_securifier_, service_contact_,
-                   std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3,
-                             arg::_4, arg::_5, &return_values, &return_contacts,
-                             &done, &response_code),
-                   transport_type_);
+  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
+                arg::_5, &return_values, &return_contacts, &done,
+                &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
-  StopAndReset();
+  this->StopAndReset();
   // Value present in data store
   ASSERT_EQ(transport::kSuccess, response_code);
   ASSERT_EQ(kvs.value, return_values[0]);
   ASSERT_TRUE(return_contacts.empty());
 
-  EXPECT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
   // Not Refreshed
-  EXPECT_EQ(GetRefreshTime(kvs), refresh_time_old);
+  EXPECT_EQ(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMalicious) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMalicious) {
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
-  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
-  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+  Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                               crypto_key_data);
   RequestAndSignature request_signature("", "");
-  AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, data_store_));
+  this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
+  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   // Deleting
-  DeleteFromReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
-  bptime::ptime refresh_time_old = GetRefreshTime(kvs);
+  this->DeleteFromReceiverDataStore(kvs, crypto_key_data, sender,
+                                    request_signature);
+  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
-  AddTestValidation(service_securifier_, sender_id.String(),
+  AddTestValidation(this->service_securifier_, sender_id.String(),
                     "Different Public Key found on Network Lookup!!");
   // Malicious sender sends fake public_key
-  rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-                       rpcs_securifier_, service_contact_,
-                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                                 &response_code),
-                       transport_type_);
+  this->rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
+      this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_EQ(transport::kSuccess, response_code);
 
-  StopAndReset();
-  JoinNetworkLookup(service_securifier_);
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
-  EXPECT_EQ(GetRefreshTime(kvs), refresh_time_old);
+  this->StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_EQ(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteRefreshNonExistingKey) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshNonExistingKey) {
   bool done(false);
   int response_code(-1);
   // Creating Delete request
-  NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+  NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(1024);
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, "", "");
-  Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+  Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                               crypto_key_data);
   protobuf::DeleteRequest delete_request = MakeDeleteRequest(sender, kvs);
-  AddTestValidation(service_securifier_, sender_id.String(),
+  AddTestValidation(this->service_securifier_, sender_id.String(),
                     crypto_key_data.public_key());
   std::string delete_message = delete_request.SerializeAsString();
   std::string delete_message_sig =
       crypto::AsymSign(delete_message, crypto_key_data.private_key());
   RequestAndSignature request_signature(delete_message, delete_message_sig);
   // Sending delete refresh
-  rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
-                       rpcs_securifier_, service_contact_,
-                       std::bind(&TestCallback, arg::_1, arg::_2, &done,
-                                 &response_code),
-                       transport_type_);
+  this->rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
+      this->rpcs_securifier_, this->service_contact_,
+      std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   EXPECT_NE(transport::kSuccess, response_code);
 
-  StopAndReset();
-  JoinNetworkLookup(service_securifier_);
-  EXPECT_FALSE(IsKeyValueInDataStore(kvs, data_store_));
+  this->StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
+TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
   bool done(false);
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
@@ -1266,24 +1233,25 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
   std::vector<RequestAndSignature> req_sig_vector;
   for (size_t i = 0; i < 10; ++i) {
     // Adding key value from different contact in the receiver's datastore
-    NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
+    NodeId sender_id = this->GenerateUniqueRandomId(this->node_id_, 502);
     crypto::RsaKeyPair crypto_key_data;
     crypto_key_data.GenerateKeys(1024);
     kvs_vector.push_back(MakeKVS(crypto_key_data, 1024, "", ""));
-    Contact sender = ComposeContactWithKey(sender_id, 5001, crypto_key_data);
+    Contact sender = this->ComposeContactWithKey(sender_id, 5001,
+                                                 crypto_key_data);
     RequestAndSignature request_signature("", "");
-    AddToReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
+    this->AddToReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
                            request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
+    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     status_response.push_back(std::make_pair(false, -1));
 
     // Deleting
-    DeleteFromReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
+    this->DeleteFromReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
                                 request_signature);
     req_sig_vector.push_back(request_signature);
-    ASSERT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
-    refresh_time_old_vector.push_back(GetRefreshTime(kvs_vector[i]));
-    AddTestValidation(service_securifier_, sender_id.String(),
+    ASSERT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    refresh_time_old_vector.push_back(this->GetRefreshTime(kvs_vector[i]));
+    AddTestValidation(this->service_securifier_, sender_id.String(),
                       crypto_key_data.public_key());
   }
   // Delete Refresh rpc
@@ -1293,12 +1261,10 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
       req_signature = "Invalid Request Signature";
     else
       req_signature = req_sig_vector[i].second;
-    rpcs_->DeleteRefresh(req_sig_vector[i].first, req_signature,
-                         rpcs_securifier_, service_contact_,
-                         std::bind(&TestCallback, arg::_1, arg::_2,
-                                   &status_response[i].first,
-                                   &status_response[i].second),
-                         transport_type_);
+    this->rpcs_->DeleteRefresh(req_sig_vector[i].first, req_signature,
+        this->rpcs_securifier_, this->service_contact_,
+        std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
+                  &status_response[i].second));
   }
   while (!done) {
     for (size_t i = 0; i < 10; ++i) {
@@ -1309,23 +1275,58 @@ TEST_P(RpcsTest, BEH_KAD_DeleteRefreshMultipleRequests) {
       }
     }
   }
-  StopAndReset();
-  JoinNetworkLookup(service_securifier_);
+  this->StopAndReset();
+  JoinNetworkLookup(this->service_securifier_);
   // Checking results
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(transport::kSuccess, status_response[i].second);
-    EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], data_store_));
-    if (i%2)
-      EXPECT_EQ(GetRefreshTime(kvs_vector[i]), refresh_time_old_vector[i]);
-    else
-      EXPECT_GT(GetRefreshTime(kvs_vector[i]), refresh_time_old_vector[i]);
+    EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    if (i%2) {
+      EXPECT_EQ(this->GetRefreshTime(kvs_vector[i]),
+                refresh_time_old_vector[i]);
+    } else {
+      EXPECT_GT(this->GetRefreshTime(kvs_vector[i]),
+                refresh_time_old_vector[i]);
+    }
   }
 }
 
+REGISTER_TYPED_TEST_CASE_P(RpcsTest,
+                           FUNC_PingNoTarget,
+                           BEH_PingTarget,
+                           BEH_FindNodesEmptyRT,
+                           BEH_FindNodesPopulatedRTnoNode,
+                           BEH_FindNodesPopulatedRTwithNode,
+                           BEH_StoreAndFindValue,
+                           BEH_StoreAndFindAndDeleteValueXXXToBeRemoved,
+                           BEH_StoreMalicious,
+                           BEH_StoreMultipleRequest,
+                           BEH_StoreRefresh,
+                           FUNC_StoreRefreshMultipleRequests,
+                           BEH_StoreRefreshMalicious,
+                           BEH_Delete,
+                           BEH_DeleteMalicious,
+                           BEH_DeleteNonExistingKey,
+                           BEH_DeleteMultipleRequest,
+                           BEH_DeleteRefresh,
+                           BEH_DeleteRefreshStoredValue,
+                           BEH_DeleteRefreshMalicious,
+                           BEH_DeleteRefreshNonExistingKey,
+                           BEH_DeleteRefreshMultipleRequests);
 
-class RpcsMultiServerNodesTest
-    : public CreateContactAndNodeId,
-      public testing::TestWithParam<TransportType> {
+typedef ::testing::Types<transport::TcpTransport,
+                         transport::UdpTransport> TransportTypes;
+INSTANTIATE_TYPED_TEST_CASE_P(TheRpcTests, RpcsTest, TransportTypes);
+
+
+
+
+
+
+
+template <typename T>
+class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
+                                 public testing::Test {
  public:
   RpcsMultiServerNodesTest()
       : CreateContactAndNodeId(g_kKademliaK),
@@ -1346,7 +1347,6 @@ class RpcsMultiServerNodesTest
         contacts_(),
         transport_(),
         handler_(),
-        transport_type_(GetParam()),
         thread_group_(),
         work_(),
         work1_(),
@@ -1405,8 +1405,8 @@ class RpcsMultiServerNodesTest
           new Securifier(rpcs_node_id.String(),
                          senders_crypto_key_id3_[index].public_key(),
                          senders_crypto_key_id3_[index].private_key())));
-      rpcs_.push_back(std::shared_ptr<Rpcs>(new Rpcs(*asio_services_[index],
-                                                     rpcs_securifier_[index])));
+      rpcs_.push_back(std::shared_ptr<Rpcs<T>>(               // NOLINT (Fraser)
+          new Rpcs<T>(*asio_services_[index], rpcs_securifier_[index])));
 
       kademlia::Contact rpcs_contact;
       rpcs_contact = ComposeContactWithKey(rpcs_node_id,
@@ -1435,18 +1435,7 @@ class RpcsMultiServerNodesTest
                                  services_securifier_[index], g_kKademliaK)));
       service_[index]->set_node_contact(service_contact_[index]);
       service_[index]->set_node_joined(true);
-      switch (transport_type_) {
-        case kTcp:
-          transport_.push_back(TransportPtr(
-              new transport::TcpTransport(*local_asios_[index])));
-          break;
-        case kUdp:
-          transport_.push_back(TransportPtr(
-              new transport::UdpTransport(*local_asios_[index])));
-          break;
-        default:
-          break;
-      }
+      transport_.push_back(TransportPtr(new T(*local_asios_[index])));
       handler_.push_back(
           MessageHandlerPtr(new MessageHandler(services_securifier_[index])));
       service_[index]->ConnectToSignals(handler_[index]);
@@ -1509,8 +1498,7 @@ class RpcsMultiServerNodesTest
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
                                       &return_values, &return_contacts,
-                                      &ldone, response_code),
-                            transport_type_);
+                                      &ldone, response_code));
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(500));
 
@@ -1523,8 +1511,7 @@ class RpcsMultiServerNodesTest
                         rpcs_securifier_[index],
                         service_contact_[server_index],
                         std::bind(&TestCallback, arg::_1, arg::_2, &ldone,
-                                  response_code),
-                        transport_type_);
+                                  response_code));
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(500));
 
@@ -1541,8 +1528,7 @@ class RpcsMultiServerNodesTest
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
                                       &return_values, &return_contacts,
-                                      &ldone, response_code),
-                            transport_type_);
+                                      &ldone, response_code));
 
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(100));
@@ -1557,8 +1543,7 @@ class RpcsMultiServerNodesTest
                          rpcs_securifier_[index],
                          service_contact_[server_index],
                          std::bind(&TestCallback, arg::_1, arg::_2,
-                                   &ldone, response_code),
-                         transport_type_);
+                                   &ldone, response_code));
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(100));
 
@@ -1574,8 +1559,7 @@ class RpcsMultiServerNodesTest
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
                                       &return_values, &return_contacts,
-                                      done, response_code),
-                            transport_type_);
+                                      done, response_code));
     while (!*done)
       Sleep(boost::posix_time::milliseconds(100));
 
@@ -1600,7 +1584,7 @@ class RpcsMultiServerNodesTest
   std::vector<std::shared_ptr<AsioService>> asio_services_;
   std::vector<std::shared_ptr<AsioService>> local_asios_;
   AsioService dispatcher_;
-  std::vector<std::shared_ptr<Rpcs> > rpcs_;
+  std::vector<std::shared_ptr<Rpcs<T>>> rpcs_;                // NOLINT (Fraser)
   std::vector<Contact> rpcs_contact_;
   std::vector<Contact> service_contact_;
   static std::vector<crypto::RsaKeyPair> senders_crypto_key_id3_;
@@ -1609,22 +1593,24 @@ class RpcsMultiServerNodesTest
   std::vector<Contact> contacts_;
   std::vector<TransportPtr> transport_;
   std::vector<MessageHandlerPtr> handler_;
-  TransportType transport_type_;
   boost::thread_group thread_group_;
   std::vector<WorkPtr> work_;
   std::vector<WorkPtr> work1_;
   WorkPtr dispatcher_work_;
 };
 
+template <typename T>
 std::vector<crypto::RsaKeyPair>
-    RpcsMultiServerNodesTest::senders_crypto_key_id3_;
+    RpcsMultiServerNodesTest<T>::senders_crypto_key_id3_;
+template <typename T>
 std::vector<crypto::RsaKeyPair>
-    RpcsMultiServerNodesTest::receivers_crypto_key_id3_;
+    RpcsMultiServerNodesTest<T>::receivers_crypto_key_id3_;
 
-INSTANTIATE_TEST_CASE_P(TransportTypes, RpcsMultiServerNodesTest,
-                        testing::Values(kTcp, kUdp));
 
-TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
+TYPED_TEST_CASE_P(RpcsMultiServerNodesTest);
+
+
+TYPED_TEST_P(RpcsMultiServerNodesTest, FUNC_MultipleServerOperations) {
   bool done[g_kRpcClientNo][g_kRpcServersNo];
   bool localdone = false;
   int response_code[g_kRpcClientNo][g_kRpcServersNo];
@@ -1633,10 +1619,10 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
       done[client_index][index] = false;
       response_code[client_index][index] = 0;
       // This is to enable having more than one operation
-      dispatcher_.post(std::bind(&RpcsMultiServerNodesTest::RpcOperations,
-                                 this, client_index, index,
-                                 &done[client_index][index],
-                                 &response_code[client_index][index]));
+      this->dispatcher_.post(
+          std::bind(&RpcsMultiServerNodesTest<TypeParam>::RpcOperations, this,
+                    client_index, index, &done[client_index][index],
+                    &response_code[client_index][index]));
     }
   }
   while (!localdone) {
@@ -1648,8 +1634,14 @@ TEST_P(RpcsMultiServerNodesTest, FUNC_KAD_MultipleServerOperations) {
     }
     Sleep(boost::posix_time::milliseconds(100));
   }
-  StopAndReset();
+  this->StopAndReset();
 }
+
+REGISTER_TYPED_TEST_CASE_P(RpcsMultiServerNodesTest,
+                           FUNC_MultipleServerOperations);
+
+INSTANTIATE_TYPED_TEST_CASE_P(TheMultiServerRpcTests, RpcsMultiServerNodesTest,
+                              TransportTypes);
 
 }  // namespace test
 

@@ -63,9 +63,8 @@ class RoutingTableTest : public CreateContactAndNodeId,
         holder_id_(NodeId::kRandomId),
         k_(static_cast<uint16_t>(GetParam())),
         routing_table_(holder_id_, k_),
-        thread_barrier_(new boost::barrier(kThreadBarrierSize)) {
-    contact_ = ComposeContact(NodeId(NodeId::kRandomId), 6101);
-  }
+        contact_(ComposeContact(NodeId(NodeId::kRandomId), 6101)),
+        thread_barrier_(new boost::barrier(kThreadBarrierSize)) {}
 
   // Methods for multithreaded test
   void DoAddContact(Contact contact) {

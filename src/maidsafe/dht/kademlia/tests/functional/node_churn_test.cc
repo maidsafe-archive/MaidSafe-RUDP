@@ -70,11 +70,11 @@ class NodeChurnTest : public testing::Test {
   NodeChurnTest()
       : env_(NodesEnvironment<Node>::g_environment()),
         kTimeout_(bptime::minutes(1)),
+        mutex_(),
+        cond_var_(),
         total_finished_(0),
         total_restarts_(0),
         kMaxRestartCycles_(5) {}
-  NodesEnvironment<Node>* env_;
-  const bptime::time_duration kTimeout_;
 
 /** Approximate the uptime distribution given in "A Measurement Study of
  * Peer-to-Peer File Sharing Systems" by Saroiu et al, fig. 6.
@@ -90,11 +90,17 @@ class NodeChurnTest : public testing::Test {
     return boost::numeric_cast<size_t>((1000)*(10 + (RandomUint32() % 20)));
   }
 
+  NodesEnvironment<Node>* env_;
+  const bptime::time_duration kTimeout_;
   boost::mutex mutex_;
   boost::condition_variable cond_var_;
-  const size_t kMaxRestartCycles_;
   size_t total_finished_;
   size_t total_restarts_;
+  const size_t kMaxRestartCycles_;
+
+ private:
+  NodeChurnTest(const NodeChurnTest&);
+  NodeChurnTest& operator=(const NodeChurnTest&);
 };
 
 void NodeChurnTest::HandleStart(NodeContainerPtr node_container,

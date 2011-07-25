@@ -98,6 +98,9 @@ class NodeTest : public testing::Test {
   const bptime::time_duration kTimeout_;
   size_t chosen_node_index_;
   NodeContainerPtr chosen_container_;
+ private:
+  NodeTest(const NodeTest&);
+  NodeTest& operator=(const NodeTest&);
 };
 
 TEST_F(NodeTest, FUNC_JoinClient) {

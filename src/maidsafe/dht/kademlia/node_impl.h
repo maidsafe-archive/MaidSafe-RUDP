@@ -38,8 +38,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/signals2/connection.hpp"
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
-#include "boost/thread.hpp"
-#include "boost/enable_shared_from_this.hpp"
 
 #include "maidsafe/dht/kademlia/node_impl_structs.h"
 #include "maidsafe/dht/kademlia/config.h"
@@ -61,6 +59,7 @@ class DataStore;
 struct KeyValueTuple;
 class Service;
 class RoutingTable;
+template <typename T>
 class Rpcs;
 
 namespace test {
@@ -477,7 +476,7 @@ class NodeImpl {
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
-  std::shared_ptr<Rpcs> rpcs_;
+  std::shared_ptr<Rpcs<transport::TcpTransport>> rpcs_;
 
   /** Own info of nodeid, ip and port */
   Contact contact_;

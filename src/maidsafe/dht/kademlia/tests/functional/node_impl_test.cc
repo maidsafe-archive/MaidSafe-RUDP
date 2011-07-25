@@ -58,6 +58,9 @@ class NodeImplTest : public testing::Test {
 
   NodesEnvironment<NodeImpl>* env_;
   const bptime::time_duration kTimeout_;
+ private:
+  NodeImplTest(const NodeImplTest&);
+  NodeImplTest &operator=(const NodeImplTest&);
 };
 
 

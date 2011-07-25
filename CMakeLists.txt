@@ -297,7 +297,7 @@ IF(MSVC)
                               ${ALL_FILES_LIBUPNP_DIR}
                                 PROPERTIES COMPILE_FLAGS "/W0")
 
-  SET_TARGET_PROPERTIES(TESTkademlia PROPERTIES COMPILE_FLAGS "/bigobj")
+  SET_TARGET_PROPERTIES(maidsafe_dht_static TESTkademlia PROPERTIES COMPILE_FLAGS "/bigobj")
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
   SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTnode_functional TESTnode_impl_functional TESTnode_churn KademliaDemo benchmark_static PROPERTIES
@@ -320,31 +320,27 @@ ELSEIF(UNIX)
   FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/*.pb.cc")
   FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/*.pb.cc")
   SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
-#   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/demo/kademlia_demo.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_api_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/test_main.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/test_node_environment.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/contact_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/datastore_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/mock_rpcs_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/node_id_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/node_impl_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/routing_table_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/rpcs_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/service_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/tcp_transport_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/transport_api_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/udp_transport_test.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/rpcs.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/service.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_impl.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_connection.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_transport.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_request.cc
-#                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.cc
-#                               PROPERTIES COMPILE_FLAGS "-Wno-effc++")
+   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/service.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/node_impl.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_connection.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_transport.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_request.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/benchmark/benchmark.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/demo/demo_node.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/mock_rpcs_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/mock_node_impl_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/rpcs_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/services_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_churn_test
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/functional/node_impl_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/transport_api_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/tcp_transport_test.cc
+                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tests/udp_transport_test.cc
+                               PROPERTIES COMPILE_FLAGS "-Wno-effc++")
   SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 ENDIF()
 

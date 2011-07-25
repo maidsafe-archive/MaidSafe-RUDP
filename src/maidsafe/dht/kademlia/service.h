@@ -69,6 +69,7 @@ class DownlistNotification;
 
 namespace test {
 class ServicesTest;
+template <typename T>
 class RpcsTest;
 }  // namespace test
 
@@ -284,6 +285,7 @@ class Service : public std::enable_shared_from_this<Service> {
                          const std::string &public_key_validation,
                          const bool is_refresh);
   friend class test::ServicesTest;
+  template <typename T>
   friend class test::RpcsTest;
 
   /** routing table */
