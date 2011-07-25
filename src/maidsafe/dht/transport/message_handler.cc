@@ -61,6 +61,11 @@ void MessageHandler::OnMessageReceived(const std::string &request,
       return;
 
     std::string encrypt_aes_seed = securifier_->AsymmetricDecrypt(aes_seed);
+    if (encrypt_aes_seed.empty()) {
+      DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
+      return;
+    }
+
     std::string aes_key = encrypt_aes_seed.substr(0, 32);
     std::string kIV = encrypt_aes_seed.substr(32, 16);
     serialised_message = crypto::SymmDecrypt(request.substr(513), aes_key, kIV);
