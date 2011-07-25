@@ -228,8 +228,7 @@ void TcpConnection::EncodeData(const std::string &data) {
   if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
     if (msg_size > transport->kMaxTransportMessageSize()) {
       DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                  << transport->kMaxTransportMessageSize() << ")"
-                  << std::endl;
+                  << transport->kMaxTransportMessageSize() << ")";
       Endpoint ep;
       (*transport->on_error_)(kMessageSizeTooLarge, ep);
       return;
