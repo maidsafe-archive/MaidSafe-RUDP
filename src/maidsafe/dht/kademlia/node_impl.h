@@ -217,6 +217,10 @@ class NodeImpl {
 //  bool refresh_thread_running() const;
 //  bool downlist_thread_running() const;
 
+  /** returns true if the code conveys that the node has not been reached 
+   *  @param[in] code  the code denoting the response type*/
+  bool IsNodeNotReachedCode(const int& code);
+
   /** Setter. Will connect the ping_oldest_contact signal in routing table. */
   void EnablePingOldestContact();
   /** Setter. Will connect the validate_contact signal in routing table. */
@@ -283,8 +287,6 @@ class NodeImpl {
    *  @param[in] contact The current responding contact
    *  @param[in] find_args The arguments struct holding all shared info.
    *  @param[in] mark Indicate if the current responding contact is down or not
-   *  @param[out] response_code The response_code in case of search can be
-   *  stopped.
    *  @param[out] closest_contacts The closest contacts in case of search can be
    *  stopped.
    *  @param[out] cur_iteration_done Indicates if a new iteration can be
@@ -294,7 +296,6 @@ class NodeImpl {
   bool HandleIterationStructure(const Contact &contact,
                                 std::shared_ptr<T> find_args,
                                 NodeSearchState mark,
-                                int *response_code,
                                 std::vector<Contact> *closest_contacts,
                                 bool *cur_iteration_done,
                                 bool *called_back);

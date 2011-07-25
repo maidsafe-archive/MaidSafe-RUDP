@@ -979,7 +979,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   }
 }
 
-TEST_F(MockNodeImplTest, DISABLED_BEH_KAD_Leave) {
+TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
@@ -1020,7 +1020,7 @@ TEST_F(MockNodeImplTest, DISABLED_BEH_KAD_Leave) {
     Sleep(boost::posix_time::milliseconds(1000));
   ASSERT_EQ(kSuccess, result);
   bootstrap_contacts.clear();
-  node_->Leave(&bootstrap_contacts);
+  node_->Leave(NULL);
   ASSERT_FALSE(node_->joined());
 //  ASSERT_EQ(size_t(0), node_->thread_group_.use_count());
 //  ASSERT_FALSE(node_->refresh_thread_running());
@@ -1219,10 +1219,8 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (g_kKademliaK-1) / g_kAlpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
-    int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1263,10 +1261,8 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (g_kKademliaK-1) / g_kAlpha;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
-    int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1300,10 +1296,8 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = (g_kKademliaK / 2) / g_kAlpha;
     NodeSearchState mark(kDown);
     bool curr_iteration_done(false), called_back(false);
-    int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1356,10 +1350,8 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
 
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
-    int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1371,7 +1363,6 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     called_back = false;
     closest_contacts.clear();
     node_->HandleIterationStructure<FindNodesArgs>(last_contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1411,10 +1402,8 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     fna->round = 0;
     NodeSearchState mark(kContacted);
     bool curr_iteration_done(false), called_back(false);
-    int response_code;
     std::vector<Contact> closest_contacts;
     node_->HandleIterationStructure<FindNodesArgs>(first_contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);
@@ -1426,7 +1415,6 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
     mark = kDown;
     closest_contacts.clear();
     node_->HandleIterationStructure<FindNodesArgs>(second_contact, fna, mark,
-                                                   &response_code,
                                                    &closest_contacts,
                                                    &curr_iteration_done,
                                                    &called_back);

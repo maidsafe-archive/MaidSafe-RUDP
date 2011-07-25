@@ -160,7 +160,6 @@ void NodeImpl::Join(const NodeId &node_id,
     validate_contact_running_ = true;
   }
 
-  std::vector<NodeId> node_ids;
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
     FindValueReturns find_value_returns;
@@ -168,11 +167,6 @@ void NodeImpl::Join(const NodeId &node_id,
     boost::thread(&NodeImpl::JoinFindValueCallback, this, find_value_returns,
                   bootstrap_contacts, node_id, callback, true);
     return;
-  }
-
-  for (auto it(bootstrap_contacts.begin()); it != bootstrap_contacts.end();
-         ++it) {
-    node_ids.push_back((*it).node_id());
   }
 
   std::vector<Contact> search_contact;
@@ -186,6 +180,15 @@ void NodeImpl::Join(const NodeId &node_id,
   IterativeSearch<FindValueArgs>(find_value_args);
 }
 
+bool NodeImpl::IsNodeNotReachedCode(const int& code) {
+  switch (code) {
+    case transport::kError:
+    case transport::kSendFailure:
+      return true;
+  }
+  return false;
+}
+
 void NodeImpl::JoinFindValueCallback(
     FindValueReturns find_value_returns,
     std::vector<Contact> bootstrap_contacts,
@@ -196,12 +199,12 @@ void NodeImpl::JoinFindValueCallback(
     callback(kValueAlreadyExists);
     return;
   }
-  if (none_reached && (find_value_returns.return_code == transport::kError) &&
+  if (none_reached && IsNodeNotReachedCode(find_value_returns.return_code) &&
         bootstrap_contacts.empty()) {
       callback(kContactFailedToRespond);
   } else if ((find_value_returns.return_code < 0) &&
       !bootstrap_contacts.empty()) {
-    if (find_value_returns.return_code != transport::kError)
+    if (!IsNodeNotReachedCode(find_value_returns.return_code))
       none_reached = false;
     std::vector<Contact> search_contact;
     search_contact.push_back(bootstrap_contacts.front());
@@ -594,6 +597,9 @@ void NodeImpl::GetAllContacts(std::vector<Contact> *contacts) {
 }
 
 void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
+  if (!contacts)
+    return;
+
   routing_table_->GetBootstrapContacts(contacts);
   if (contacts->empty())
     contacts->push_back(contact_);
@@ -711,7 +717,6 @@ bool NodeImpl::HandleIterationStructure(
     const Contact &contact,
     std::shared_ptr<T> find_args,
     NodeSearchState mark,
-    int *response_code,
     std::vector<Contact> *closest_contacts,
     bool *cur_iteration_done,
     bool *called_back) {
@@ -778,7 +783,6 @@ bool NodeImpl::HandleIterationStructure(
         closest_contacts->push_back((*it).contact);
       ++it;
     }
-    *response_code = kSuccess;
     // main part of memory resource in find_args can be released here
     find_args->node_group.clear();
   }
@@ -893,13 +897,12 @@ void NodeImpl::IterativeSearchValueResponse(
 
     if (!HandleIterationStructure<FindValueArgs>(find_value_rpc_args->contact,
                                                  find_value_args, mark,
-                                                 &response_code,
                                                  &closest_contacts,
                                                  &curr_iteration_done,
                                                  &called_back)) {
       DLOG(ERROR) << "Structure handling in iteration failed";
     }
-    if (response_code != transport::kError)
+    if (!IsNodeNotReachedCode(response_code))
       response_code = kIterativeLookupFailed;
     if ((!called_back) && (curr_iteration_done))
       IterativeSearch<FindValueArgs>(find_value_args);
@@ -955,13 +958,12 @@ void NodeImpl::IterativeSearchNodeResponse(
 
   if (!HandleIterationStructure<FindNodesArgs>(find_nodes_rpc_args->contact,
                                                find_nodes_args, mark,
-                                               &response_code,
                                                &closest_contacts,
                                                &curr_iteration_done,
                                                &called_back)) {
     DLOG(WARNING) << "Failed to handle result for the iteration";
   }
-
+  response_code = transport::kSuccess;
   if (!called_back) {
     if (curr_iteration_done)
       IterativeSearch<FindNodesArgs>(find_nodes_args);

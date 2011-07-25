@@ -105,14 +105,14 @@ class NodeTest : public testing::Test {
 
 TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
   std::vector<Contact> bootstrap_contacts;
-  for (int index = 0; index < 3; ++index) {
-    NodeContainerPtr node_container(
-        new maidsafe::dht::kademlia::NodeContainer<Node>());
-    node_container->Init(3, SecurifierPtr(),
-        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
-    bootstrap_contacts.push_back(node_container->node()->contact());
+  int count(3);
+  for (int i = 0; i < count; ++i) {
+    NodeId contact_id(dht::kademlia::NodeId::kRandomId);
+    transport::Endpoint end_point("127.0.0.1", 5000 + i);
+    std::vector<transport::Endpoint> local_endpoints(1, end_point);
+    Contact contact(contact_id, end_point, local_endpoints, end_point, false,
+                    false, "", "", "");
+    bootstrap_contacts.push_back(contact);
   }
   NodeContainerPtr node_container(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
@@ -120,8 +120,15 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
       AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
-  /*int result = */node_container->Start(bootstrap_contacts, 8000);
-  ASSERT_FALSE(node_container->node()->joined());
+  int result(0);
+  for (int index = 0; index < 5; ++index) {
+    result = node_container->Start(bootstrap_contacts,
+                                   RandomUint32()%50000 + 1025);
+    if (result == 0)
+      break;
+  }
+  ASSERT_NE(0, result);
+  EXPECT_FALSE(node_container->node()->joined());
 }
 
 TEST_F(NodeTest, FUNC_JoinClient) {
