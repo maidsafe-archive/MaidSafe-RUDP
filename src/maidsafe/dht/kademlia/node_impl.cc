@@ -122,7 +122,7 @@ void NodeImpl::Join(const NodeId &node_id,
         SecurifierPtr(new Securifier(node_id.String(), "", ""));
   }
 
-  rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(
+  rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(     // NOLINT (Fraser)
       new Rpcs<transport::TcpTransport>(asio_service_, default_securifier_));
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
@@ -778,7 +778,7 @@ bool NodeImpl::HandleIterationStructure(
         closest_contacts->push_back((*it).contact);
       ++it;
     }
-//    *response_code = kSuccess;
+    *response_code = kSuccess;
     // main part of memory resource in find_args can be released here
     find_args->node_group.clear();
   }

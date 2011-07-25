@@ -873,8 +873,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
     ASSERT_EQ(kSuccess, result);
-    node_->Leave(&bootstrap_contacts);
-    bootstrap_contacts.clear();
+    node_->Leave(NULL);
   }
   // When first contact in bootstrap_contacts is valid
   {
@@ -901,8 +900,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(1000));
     ASSERT_EQ(kSuccess, result);
-    node_->Leave(&bootstrap_contacts);
-    bootstrap_contacts.clear();
+    node_->Leave(NULL);
   }
   // When no contacts are valid
   {
@@ -935,8 +933,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
     while (!done)
       Sleep(boost::posix_time::seconds(1));
     EXPECT_EQ(kContactFailedToRespond, result);
-    node_->Leave(&bootstrap_contacts);
-    bootstrap_contacts.clear();
+    node_->Leave(NULL);
   }
   // Test for refreshing data_store entry
   {
@@ -964,9 +961,9 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
 
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_))
-        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-            std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-                      new_rpcs.get(), arg::_1, arg::_2))));
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(std::bind(
+            &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
+            new_rpcs.get(), arg::_1, arg::_2))));
     EXPECT_CALL(*new_rpcs, StoreRefresh(testing::_, testing::_, testing::_,
                                         testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
@@ -978,8 +975,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
 
     ASSERT_EQ(kSuccess, result);
 //    ASSERT_LT(size_t(0), node_->thread_group_->size());
-    node_->Leave(&bootstrap_contacts);
-    bootstrap_contacts.clear();  
+    node_->Leave(NULL);
   }
 }
 
@@ -1016,9 +1012,9 @@ TEST_F(MockNodeImplTest, DISABLED_BEH_KAD_Leave) {
 
   EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                    testing::_))
-      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
-          std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-                    new_rpcs.get(), arg::_1, arg::_2))));
+      .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(std::bind(
+          &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
+          new_rpcs.get(), arg::_1, arg::_2))));
   node_->Join(node_id_, bootstrap_contacts, callback);
   while (!done)
     Sleep(boost::posix_time::milliseconds(1000));
@@ -2007,8 +2003,8 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
     while (!done)
       Sleep(boost::posix_time::milliseconds(100));
     EXPECT_EQ(transport::kError, results.return_code);
-    EXPECT_EQ(0, results.values.size());
-    EXPECT_EQ(0, results.closest_nodes.size());
+    EXPECT_TRUE(results.values.empty());
+    EXPECT_TRUE(results.closest_nodes.empty());
   }
   new_rpcs->SetCountersToZero();
   int count = 10 * g_kKademliaK;

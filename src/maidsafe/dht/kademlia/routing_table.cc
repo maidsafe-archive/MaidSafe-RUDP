@@ -360,10 +360,10 @@ void RoutingTable::GetBootstrapContacts(std::vector<Contact> *contacts) {
   contacts->clear();
   while (it.first != it.second)
     contacts->push_back((*it.first++).contact);
-  
+
   if (contacts->size() < kMinBootstrapContacts) {
     it = contacts_.get<BootstrapTag>().equal_range(false);
-    while ((it.first != it.second)) 
+    while (it.first != it.second)
       contacts->push_back((*it.first++).contact);
   }
 }

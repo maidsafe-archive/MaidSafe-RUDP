@@ -83,7 +83,7 @@ typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
 
 class NodeImpl {
  public:
-  NodeImpl(AsioService &asio_service,                             // NOLINT (Fraser)
+  NodeImpl(AsioService &asio_service,                         // NOLINT (Fraser)
            TransportPtr listening_transport,
            MessageHandlerPtr message_handler,
            SecurifierPtr default_securifier,
@@ -436,7 +436,8 @@ class NodeImpl {
   void JoinFindValueCallback(FindValueReturns find_value_returns,
                              std::vector<Contact> bootstrap_contacts,
                              const NodeId &node_id,
-                             JoinFunctor callback, bool none_reached);
+                             JoinFunctor callback,
+                             bool none_reached);
   void RefreshDataStore();
   // void StoreRefreshCallback(RankInfoPtr rank_info, const int &result);
   void PostStoreRefresh(const KeyValueTuple &key_value_tuple);

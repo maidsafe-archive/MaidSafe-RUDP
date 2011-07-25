@@ -152,8 +152,10 @@ const double kMinSuccessfulPecentageUpdate(0.75);
 // routing table.
 const uint16_t kFailedRpcTolerance(2);
 
-// The maximum number of contacts returned by GetBootStrapContact
-const uint16_t  kMinBootstrapContacts(8);
+// The minimum number of directly-connected contacts returned by
+// GetBootstrapContacts.  If there are less than this, the list has all other
+// known contacts appended.
+const uint16_t kMinBootstrapContacts(8);
 
 // The interval(in millisecond) between calls to Refresh Data Store
 const uint32_t kRefreshDataStoreInterval(3000);

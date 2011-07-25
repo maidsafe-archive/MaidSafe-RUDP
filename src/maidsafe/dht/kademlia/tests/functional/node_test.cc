@@ -111,8 +111,7 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
     node_container->Init(3, SecurifierPtr(),
         AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
         env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-    node_container->MakeAllCallbackFunctors(&env_->mutex_,
-                                                   &env_->cond_var_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
     bootstrap_contacts.push_back(node_container->node()->contact());
   }
   NodeContainerPtr node_container(
@@ -120,34 +119,9 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
   node_container->Init(3, SecurifierPtr(),
       AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-  node_container->MakeAllCallbackFunctors(&env_->mutex_,
-                                                 &env_->cond_var_);
-  int result = node_container->Start(bootstrap_contacts, 8000);
-  ASSERT_FALSE(node_container->node()->joined());  
-}
-
-TEST_F(NodeTest, FUNC_InvalidRequestDeleteValue) {
-  const Key kKey(Key::kRandomId);
-  const std::string kValue(RandomString(1024));
-  boost::mutex::scoped_lock lock(env_->mutex_);
-  chosen_container_->Delete(kKey, kValue, "", chosen_container_->securifier());
-  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-              chosen_container_->wait_for_delete_functor()));
-  int result(kGeneralError);
-  chosen_container_->GetAndResetDeleteResult(&result);
-  EXPECT_EQ(kDeleteTooFewNodes, result);
-}
-
- /** Non-directly connected nodes are followed by directly connected ones */
-TEST_F(NodeTest, FUNC_GetBootStrapNodeOrder) {
-  std::vector<Contact> bootstrap_contacts;
-  (*env_->node_containers_.rbegin())->node()->
-      GetBootstrapContacts(&bootstrap_contacts);
-  auto iter = std::find_if(bootstrap_contacts.rbegin(),
-      bootstrap_contacts.rend(), std::bind(&Contact::IsDirectlyConnected, 
-                                           arg::_1));
-  for (; iter != bootstrap_contacts.rend(); ++iter)
-    EXPECT_TRUE((*iter).IsDirectlyConnected());
+  node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+  /*int result = */node_container->Start(bootstrap_contacts, 8000);
+  ASSERT_FALSE(node_container->node()->joined());
 }
 
 TEST_F(NodeTest, FUNC_JoinClient) {
@@ -340,12 +314,12 @@ TEST_F(NodeTest, FUNC_ClientFindValue) {
   result = kGeneralError;
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container_->Store(kKey, kValue, "", boost::posix_time::pos_infin,
-                                 chosen_container_->securifier());
+    client_node_container->Store(kKey, kValue, "", bptime::pos_infin,
+                                 client_node_container->securifier());
     EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container_->wait_for_store_functor()));
+                client_node_container->wait_for_store_functor()));
     result = kGeneralError;
-    chosen_container_->GetAndResetStoreResult(&result);
+    client_node_container->GetAndResetStoreResult(&result);
   }
   EXPECT_EQ(kSuccess, result);
 
@@ -362,7 +336,7 @@ TEST_F(NodeTest, FUNC_ClientFindValue) {
   EXPECT_EQ(kValue, find_value_returns.values.front());
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
-//  EXPECT_NE(Contact(), find_value_returns.needs_cache_copy);
+  EXPECT_NE(Contact(), find_value_returns.needs_cache_copy);
 }
 
 TEST_F(NodeTest, FUNC_GetContact) {
@@ -396,7 +370,7 @@ TEST_F(NodeTest, FUNC_FindNonExistingValue) {
   EXPECT_TRUE(find_value_returns.values.empty());
   EXPECT_FALSE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
-//  EXPECT_NE(Contact(), find_value_returns.needs_cache_copy);
+  EXPECT_NE(Contact(), find_value_returns.needs_cache_copy);
 }
 
 TEST_F(NodeTest, FUNC_FindDeadNode) {
