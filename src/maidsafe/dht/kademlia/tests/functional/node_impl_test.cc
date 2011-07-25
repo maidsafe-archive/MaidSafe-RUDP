@@ -63,9 +63,37 @@ class NodeImplTest : public testing::Test {
   NodeImplTest &operator=(const NodeImplTest&);
 };
 
-
 TEST_F(NodeImplTest, FUNC_JoinLeave) {
-  FAIL() << "Not implemented.";
+  NodeContainerPtr client_node_container(
+      new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
+  client_node_container->Init(3, SecurifierPtr(),
+      AlternativeStorePtr(new TestNodeAlternativeStore), true, env_->k_,
+      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  client_node_container->MakeAllCallbackFunctors(&env_->mutex_,
+                                                 &env_->cond_var_);
+  std::vector<Contact> bootstrap_contacts;
+  (*env_->node_containers_.rbegin())->node()->
+      GetBootstrapContacts(&bootstrap_contacts);
+  int result = client_node_container->Start(bootstrap_contacts, 0);
+  EXPECT_EQ(kSuccess, result);
+  EXPECT_TRUE(client_node_container->node()->joined());
+
+  client_node_container->node()->Leave(&bootstrap_contacts);
+  EXPECT_FALSE(client_node_container->node()->joined());
+  EXPECT_FALSE(bootstrap_contacts.empty());
+
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    client_node_container->Join(
+        client_node_container->node()->contact().node_id(),
+        client_node_container->bootstrap_contacts());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                client_node_container->wait_for_join_functor()));
+    client_node_container->GetAndResetJoinResult(&result);
+    EXPECT_EQ(kSuccess, result);
+    EXPECT_TRUE(client_node_container->node()->joined());
+  }
 }
 
 TEST_F(NodeImplTest, FUNC_FindNodes) {
