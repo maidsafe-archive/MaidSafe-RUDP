@@ -83,8 +83,7 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       data_store_(new DataStore(kMeanRefreshInterval_)),
       service_(),
       routing_table_(),
-      rpcs_(new Rpcs<transport::TcpTransport>(asio_service_,
-                                              default_securifier)),
+      rpcs_(),
       contact_(),
       joined_(false),
       refresh_routine_started_(false),
@@ -124,6 +123,14 @@ void NodeImpl::Join(const NodeId &node_id,
     callback(-1);
     return;
   }
+
+  if (!default_securifier_) {
+    default_securifier_ =
+        SecurifierPtr(new Securifier(node_id.String(), "", ""));
+  }
+
+  rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(
+      new Rpcs<transport::TcpTransport>(asio_service_, default_securifier_));
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
   if (!client_only_node_) {

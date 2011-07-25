@@ -75,7 +75,7 @@ class Node {
   //
   // default_securifier is responsible for signing, verification, encrypting and
   // decrypting messages and values.  If it is an invalid pointers, a basic
-  // instantiations will be made.  For all other member functions where a
+  // instantiation will be made.  For all other member functions where a
   // securifer is passed, if it is invalid, this default_securifier will be used
   // instead.
   //
