@@ -102,10 +102,10 @@ class Rpcs {
  public:
   Rpcs(AsioService &asio_service, SecurifierPtr default_securifier)  // NOLINT (Fraser)
       : asio_service_(asio_service),
+        kFailureTolerance_(2),
         contact_(),
         default_securifier_(default_securifier),
-        connected_objects_(),
-        kFailureTolerance_(2) {}
+        connected_objects_() {}
   virtual ~Rpcs() {}
   virtual void Ping(SecurifierPtr securifier,
                     const Contact &peer,

@@ -305,8 +305,8 @@ class MockRpcs : public Rpcs<TransportType> {
   void MockPrepare(SecurifierPtr securifier,
                    TransportPtr &transport,
                    MessageHandlerPtr &message_handler) {
-    transport.reset(new RpcsMockTransport(asio_service_, repeat_factor_,
-                                          kFailureTolerance_));
+    transport.reset(new RpcsMockTransport(this->asio_service_, repeat_factor_,
+                                          this->kFailureTolerance_));
     message_handler.reset(new MockMessageHandler(securifier,
                                                  request_type_,
                                                  result_type_));
@@ -324,7 +324,7 @@ class MockRpcs : public Rpcs<TransportType> {
     }
   }
 
-  uint16_t kFailureTolerance() const { return kFailureTolerance_; }
+  uint16_t kFailureTolerance() const { return this->kFailureTolerance_; }
 
  protected:
   TransportPtr local_t_;
