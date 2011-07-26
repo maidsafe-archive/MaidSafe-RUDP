@@ -127,7 +127,7 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
     if (result == transport::kSuccess)
       break;
   }
-  ASSERT_NE(transport::kSuccess, result);
+  EXPECT_NE(transport::kSuccess, result);
   EXPECT_FALSE(node_container->node()->joined());
 }
 
