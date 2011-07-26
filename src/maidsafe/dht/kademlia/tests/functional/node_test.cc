@@ -124,10 +124,10 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
   for (int index = 0; index < 5; ++index) {
     result = node_container->Start(bootstrap_contacts,
                                    RandomUint32()%50000 + 1025);
-    if (result == 0)
+    if (result == transport::kSuccess)
       break;
   }
-  ASSERT_NE(0, result);
+  ASSERT_NE(transport::kSuccess, result);
   EXPECT_FALSE(node_container->node()->joined());
 }
 
