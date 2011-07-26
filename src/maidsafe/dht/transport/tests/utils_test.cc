@@ -41,7 +41,7 @@ namespace transport {
 
 namespace test {
 
-TEST(UtilsTest, BEH_COMMON_BytesAndAscii) {
+TEST(UtilsTest, BEH_BytesAndAscii) {
   std::string good_string_v4("71.111.111.100");
   std::string good_string_v6("2001:db8:85a3::8a2e:370:7334");
   std::string bad_string("Not an IP");
@@ -54,7 +54,7 @@ TEST(UtilsTest, BEH_COMMON_BytesAndAscii) {
   EXPECT_TRUE(IpBytesToAscii(bad_string).empty());
 }
 
-TEST(UtilsTest, BEH_COMMON_DecimalAndAscii) {
+TEST(UtilsTest, BEH_DecimalAndAscii) {
   std::string dotted("121.12.121.1");
   boost::scoped_array<char> ipbuf(new char[32]);
   uint32_t n = IpAsciiToNet(dotted.c_str());
@@ -65,7 +65,7 @@ TEST(UtilsTest, BEH_COMMON_DecimalAndAscii) {
   EXPECT_EQ(dotted, reformed);
 }
 
-TEST(UtilsTest, BEH_COMMON_NetworkInterfaces) {
+TEST(UtilsTest, BEH_NetworkInterfaces) {
   std::vector<IP> all_local_ips(GetLocalAddresses());
   EXPECT_FALSE(all_local_ips.empty());
   for (size_t n = 0; n < all_local_ips.size(); ++n)
