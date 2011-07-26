@@ -514,7 +514,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
 crypto::RsaKeyPair KademliaMessageHandlerTest::rsa_keypair_;
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessagePingRequest) {
   protobuf::PingRequest ping_rqst;
   ping_rqst.set_ping("ping");
   protobuf::Contact contact;
@@ -545,7 +545,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingRequest) {
             decrypted_function_ping.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageFindValueRequest) {
   protobuf::FindValueRequest value_rqst;
   value_rqst.set_key("request_key");
   protobuf::Contact contact;
@@ -579,7 +579,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageFindNodesRequest) {
   protobuf::FindNodesRequest nodes_rqst;
   nodes_rqst.set_key("node_request_key");
   protobuf::Contact contact;
@@ -613,7 +613,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageStoreRequest) {
   protobuf::StoreRequest store_rqst;
   store_rqst.set_key("store_request_key");
   protobuf::Contact contact;
@@ -654,7 +654,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRequest) {
   ASSERT_EQ(decrypted_manual_value.ttl(), decrypted_function_value.ttl());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageStoreRefreshRequest) {
   protobuf::StoreRefreshRequest refresh_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -683,7 +683,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageDeleteRequest) {
   protobuf::DeleteRequest delete_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -720,7 +720,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRequest) {
             decrypted_function_value.signed_value().signature());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshRequest) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageDeleteRefreshRequest) {
   protobuf::DeleteRefreshRequest delrefresh_rqst;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -749,7 +749,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshRequest) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageDownlistNotification) {
   protobuf::DownlistNotification downlist;
   protobuf::Contact contact;
   contact.set_node_id("node_id_test");
@@ -778,7 +778,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDownlistNotification) {
             decrypted_function_value.sender().node_id());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessagePingResponse) {
   protobuf::PingResponse response;
   response.set_echo("ping response echo");
   ASSERT_TRUE(response.IsInitialized());
@@ -803,7 +803,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessagePingResponse) {
             decrypted_function_value.echo());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageFindValueResponse) {
   protobuf::FindValueResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -830,7 +830,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindValueResponse) {
   EXPECT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageFindNodesResponse) {
   protobuf::FindNodesResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -857,7 +857,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageFindNodesResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageStoreResponse) {
   protobuf::StoreResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -882,7 +882,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageStoreRefreshResponse) {
   protobuf::StoreRefreshResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -909,7 +909,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageStoreRefreshResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageDeleteResponse) {
   protobuf::DeleteResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -935,7 +935,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshResponse) {
+TEST_F(KademliaMessageHandlerTest, BEH_WrapMessageDeleteRefreshResponse) {
   protobuf::DeleteRefreshResponse response;
   response.set_result(1);
   ASSERT_TRUE(response.IsInitialized());
@@ -962,7 +962,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_WrapMessageDeleteRefreshResponse) {
   ASSERT_TRUE(decrypted_function_value.result());
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessagePingRqst) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1002,7 +1002,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRqst) {
   ASSERT_EQ(2U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessagePingRsp) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1034,7 +1034,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessagePingRsp) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageFValRqst) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1068,7 +1068,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRqst) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageFValRsp) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1100,7 +1100,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFValRsp) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageFNodeRqst) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1134,7 +1134,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRqst) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageFNodeRsp) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1166,7 +1166,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageFNodeRsp) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageStoreRqst) {
   InitialiseMap();
   ConnectToHandlerSignals();
   crypto::RsaKeyPair kp;
@@ -1221,7 +1221,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRqst) {
   ASSERT_EQ(2U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageStoreRsp) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1253,7 +1253,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRsp) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst) {  // NOLINT
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageStoreRefRqst) {  // NOLINT
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1286,7 +1286,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRqst)
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) {  // NOLINT
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageStoreRefRsp) {  // NOLINT
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1318,7 +1318,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageStoreRefRsp) 
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDeleteRqst) {
   InitialiseMap();
   ConnectToHandlerSignals();
   crypto::RsaKeyPair kp;
@@ -1371,7 +1371,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRqst) {
   ASSERT_EQ(2U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDeleteRsp) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1403,7 +1403,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRsp) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst) {  // NOLINT
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDeleteRefRqst) {  // NOLINT
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1436,7 +1436,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRqst
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp) {  // NOLINT
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDeleteRefRsp) {  // NOLINT
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1468,7 +1468,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDeleteRefRsp)
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
+TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDownlist) {
   InitialiseMap();
   ConnectToHandlerSignals();
   transport::Info info;
@@ -1501,7 +1501,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_KAD_ProcessSerialisedMessageDownlist) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_KAD_ThreadedMessageHandling) {
+TEST_F(KademliaMessageHandlerTest, BEH_ThreadedMessageHandling) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());

@@ -73,9 +73,9 @@ namespace kademlia {
 namespace test {
 class RoutingTableTest;
 class RoutingTableSingleKTest;
-class RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
+class RoutingTableSingleKTest_FUNC_ForceKAcceptNewPeer_Test;
 class ServicesTest;
-class RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test;
+class RoutingTableSingleKTest_BEH_MutexTestWithMultipleThread_Test;
 }  // namespace test
 
 class KBucket;
@@ -377,10 +377,10 @@ class RoutingTable {
 
   friend class test::RoutingTableTest;
   friend class test::RoutingTableSingleKTest;
-  friend class test::RoutingTableSingleKTest_FUNC_KAD_ForceKAcceptNewPeer_Test;
+  friend class test::RoutingTableSingleKTest_FUNC_ForceKAcceptNewPeer_Test;
   friend class test::ServicesTest;
   friend class
-      test::RoutingTableSingleKTest_BEH_KAD_MutexTestWithMultipleThread_Test;
+      test::RoutingTableSingleKTest_BEH_MutexTestWithMultipleThread_Test;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;

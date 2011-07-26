@@ -691,21 +691,21 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   int threshold_;
 };  // class MockRpcs
 
-TEST_F(MockNodeImplTest, BEH_KAD_GetAllContacts) {
+TEST_F(MockNodeImplTest, BEH_GetAllContacts) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> contacts;
   node_->GetAllContacts(&contacts);
   EXPECT_EQ(g_kKademliaK, contacts.size());
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_GetBootstrapContacts) {
+TEST_F(MockNodeImplTest, BEH_GetBootstrapContacts) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> contacts;
   node_->GetBootstrapContacts(&contacts);
   EXPECT_EQ(g_kKademliaK, contacts.size());
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
+TEST_F(MockNodeImplTest, BEH_GetContact) {
   PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
@@ -765,7 +765,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetContact) {
   Sleep(boost::posix_time::milliseconds(1000));
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_ValidateContact) {
+TEST_F(MockNodeImplTest, BEH_ValidateContact) {
   NodeId contact_id = GenerateRandomId(node_id_, 501);
   Contact contact = ComposeContact(contact_id, 5000);
   local_node_->EnableValidateContact();
@@ -779,7 +779,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_ValidateContact) {
   }
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_PingOldestContact) {
+TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
   PopulateRoutingTable(g_kKademliaK, 500);
   PopulateRoutingTable(g_kKademliaK, 501);
 
@@ -825,7 +825,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_PingOldestContact) {
   }
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Join) {
+TEST_F(MockNodeImplTest, BEH_Join) {
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
       GetRpc<transport::TcpTransport>();
@@ -979,7 +979,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Join) {
   }
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
+TEST_F(MockNodeImplTest, BEH_Leave) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
@@ -1028,7 +1028,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Leave) {
   ASSERT_LT(size_t(0), bootstrap_contacts.size());
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
+TEST_F(MockNodeImplTest, BEH_FindNodes) {
   PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
@@ -1191,7 +1191,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindNodes) {
   // SetRpc<transport::TcpTransport>(old_rpcs);
 }
 
-TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
+TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
   NodeId target = GenerateRandomId(node_id_, 497);
   bool verdad(true), falso(false);
   {
@@ -1429,7 +1429,7 @@ TEST_F(MockNodeImplTest, FUNC_KAD_HandleIterationStructure) {
   Sleep(boost::posix_time::milliseconds(100));
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Store) {
+TEST_F(MockNodeImplTest, BEH_Store) {
   PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
@@ -1596,7 +1596,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Store) {
   // SetRpc<transport::TcpTransport>(old_rpcs);
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
+TEST_F(MockNodeImplTest, BEH_Delete) {
   PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
@@ -1745,7 +1745,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Delete) {
   // SetRpc<transport::TcpTransport>(old_rpcs);
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Update) {
+TEST_F(MockNodeImplTest, BEH_Update) {
   PopulateRoutingTable(g_kKademliaK, 500);
 
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
@@ -1970,7 +1970,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_Update) {
   Sleep(boost::posix_time::milliseconds(500));
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
+TEST_F(MockNodeImplTest, BEH_FindValue) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
@@ -2069,7 +2069,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_FindValue) {
   Sleep(boost::posix_time::milliseconds(1000));
 }  // FindValue test
 
-TEST_F(MockNodeImplTest, BEH_KAD_SetLastSeenToNow) {
+TEST_F(MockNodeImplTest, BEH_SetLastSeenToNow) {
   // Try to set a non-existing contact
   NodeId target_id = GenerateRandomId(node_id_, 498);
   Contact target = ComposeContact(target_id, 5000);
@@ -2084,7 +2084,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_SetLastSeenToNow) {
   EXPECT_EQ(target, result);
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_IncrementFailedRpcs) {
+TEST_F(MockNodeImplTest, BEH_IncrementFailedRpcs) {
   NodeId target_id = GenerateRandomId(node_id_, 498);
   Contact target = ComposeContact(target_id, 5000);
   // Keep increasing the num_of_failed_rpcs of the target contact, till it got
@@ -2097,7 +2097,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_IncrementFailedRpcs) {
   EXPECT_EQ(Contact(), result);
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
+TEST_F(MockNodeImplTest, BEH_GetAndUpdateRankInfo) {
   NodeId target_id = GenerateRandomId(node_id_, 498);
   Contact target = ComposeContact(target_id, 5000);
   AddContact(routing_table_, target, rank_info_);
@@ -2109,7 +2109,7 @@ TEST_F(MockNodeImplTest, BEH_KAD_GetAndUpdateRankInfo) {
   EXPECT_EQ(new_rank_info->rtt, node_->GetLocalRankInfo(target)->rtt);
 }
 
-TEST_F(MockNodeImplTest, BEH_KAD_Getters) {
+TEST_F(MockNodeImplTest, BEH_Getters) {
   {
     // contact()
     EXPECT_EQ(Contact(), node_->contact());

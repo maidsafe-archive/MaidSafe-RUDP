@@ -55,7 +55,7 @@ class SecurifierTest : public testing::Test {
   SecurifierPtr securifier_;
 };
 
-TEST_F(SecurifierTest, BEH_KAD_ConstructionAndGetters) {
+TEST_F(SecurifierTest, BEH_ConstructionAndGetters) {
   ASSERT_EQ(test_pubki_, securifier_->kSigningKeyId());
   ASSERT_EQ(test_pubki_, securifier_->kAsymmetricDecryptionKeyId());
   ASSERT_EQ(test_pubk_, securifier_->kSigningPublicKey());
@@ -75,7 +75,7 @@ TEST_F(SecurifierTest, BEH_KAD_ConstructionAndGetters) {
   ASSERT_EQ(test_sprik, securifier_->kAsymmetricDecryptionPrivateKey());
 }
 
-TEST_F(SecurifierTest, BEH_KAD_Parameters) {
+TEST_F(SecurifierTest, BEH_Parameters) {
   ASSERT_EQ(size_t(0), securifier_->parameters().size());
 
   int params_size(10);
@@ -108,7 +108,7 @@ void GenerateRandomValues(std::vector<std::string> *random_values) {
                                           upper_value_size_limit));
 }
 
-TEST_F(SecurifierTest, BEH_KAD_AsymmetricEncryptDecrypt) {
+TEST_F(SecurifierTest, BEH_AsymmetricEncryptDecrypt) {
   crypto::RsaKeyPair rsa_key_pair;
   rsa_key_pair.GenerateKeys(4096);
   securifier_.reset(new Securifier(test_pubki_,
@@ -132,7 +132,7 @@ void TestCb(const std::string &retrieved1, const std::string &retrieved2,
   *element2 = retrieved2;
 }
 
-TEST_F(SecurifierTest, BEH_KAD_GetPublicKeyAndValidation) {
+TEST_F(SecurifierTest, BEH_GetPublicKeyAndValidation) {
   ASSERT_NE("", test_pubk_);
   ASSERT_NE("", test_prik_);
   securifier_->GetPublicKeyAndValidation(test_pubki_, &test_pubk_, &test_prik_);
@@ -148,7 +148,7 @@ TEST_F(SecurifierTest, BEH_KAD_GetPublicKeyAndValidation) {
   ASSERT_EQ("", test_pubkv);
 }
 
-TEST_F(SecurifierTest, BEH_KAD_Validation) {
+TEST_F(SecurifierTest, BEH_Validation) {
   securifier_.reset(new Securifier("", "", ""));
   std::string empty_string;
   ASSERT_EQ(empty_string, securifier_->Sign("anything"));

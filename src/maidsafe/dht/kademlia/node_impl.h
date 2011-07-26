@@ -65,14 +65,14 @@ class Rpcs;
 namespace test {
 class NodeImplTest;
 class MockNodeImplTest;
-class MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
-class MockNodeImplTest_BEH_KAD_Join_Test;
-class MockNodeImplTest_BEH_KAD_Getters_Test;
-class MockNodeImplTest_BEH_KAD_Leave_Test;
-class MockNodeImplTest_BEH_KAD_DownlistClient_Test;
-class MockNodeApiTest_BEH_KAD_Join_Server_Test;
-class MockNodeImplTest_BEH_KAD_ValidateContact_Test;
-class MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
+class MockNodeImplTest_FUNC_HandleIterationStructure_Test;
+class MockNodeImplTest_BEH_Join_Test;
+class MockNodeImplTest_BEH_Getters_Test;
+class MockNodeImplTest_BEH_Leave_Test;
+class MockNodeImplTest_BEH_DownlistClient_Test;
+class MockNodeApiTest_BEH_Join_Server_Test;
+class MockNodeImplTest_BEH_ValidateContact_Test;
+class MockNodeImplTest_BEH_PingOldestContact_Test;
 }  // namespace test
 
 enum SearchMarking { kSearchDown, kSearchContacted };
@@ -200,12 +200,12 @@ class NodeImpl {
   friend class NodeContainer<maidsafe::dht::kademlia::NodeImpl>;
   friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
-  friend class test::MockNodeImplTest_FUNC_KAD_HandleIterationStructure_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_Join_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_Getters_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_Leave_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_ValidateContact_Test;
-  friend class test::MockNodeImplTest_BEH_KAD_PingOldestContact_Test;
+  friend class test::MockNodeImplTest_FUNC_HandleIterationStructure_Test;
+  friend class test::MockNodeImplTest_BEH_Join_Test;
+  friend class test::MockNodeImplTest_BEH_Getters_Test;
+  friend class test::MockNodeImplTest_BEH_Leave_Test;
+  friend class test::MockNodeImplTest_BEH_ValidateContact_Test;
+  friend class test::MockNodeImplTest_BEH_PingOldestContact_Test;
 
  private:
   NodeImpl(const NodeImpl&);
