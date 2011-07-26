@@ -184,7 +184,8 @@ bool NodeImpl::IsNodeNotReachedCode(const int& code) {
   switch (code) {
     case transport::kError:
     case transport::kSendFailure:
-    case transport::kSendTimeout:  
+    case transport::kSendTimeout:
+    case transport::kSendStalled:
       return true;
   }
   return false;
@@ -201,8 +202,8 @@ void NodeImpl::JoinFindValueCallback(
     return;
   }
   if (none_reached && IsNodeNotReachedCode(find_value_returns.return_code) &&
-        bootstrap_contacts.empty()) {
-      callback(kContactFailedToRespond);
+          bootstrap_contacts.empty()) {
+    callback(kContactFailedToRespond);
   } else if ((find_value_returns.return_code < 0) &&
       !bootstrap_contacts.empty()) {
     if (!IsNodeNotReachedCode(find_value_returns.return_code))
