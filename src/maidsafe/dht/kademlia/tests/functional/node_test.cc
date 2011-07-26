@@ -105,10 +105,9 @@ class NodeTest : public testing::Test {
 
 TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
   std::vector<Contact> bootstrap_contacts;
-  int count(3);
-  for (int i = 0; i < count; ++i) {
+  for (Port port = 5000; port != 5003; ++port) {
     NodeId contact_id(dht::kademlia::NodeId::kRandomId);
-    transport::Endpoint end_point("127.0.0.1", 5000 + i);
+    transport::Endpoint end_point("127.0.0.1", port);
     std::vector<transport::Endpoint> local_endpoints(1, end_point);
     Contact contact(contact_id, end_point, local_endpoints, end_point, false,
                     false, "", "", "");

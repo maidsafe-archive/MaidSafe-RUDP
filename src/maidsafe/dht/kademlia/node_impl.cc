@@ -108,6 +108,7 @@ NodeImpl::~NodeImpl() {
 void NodeImpl::Join(const NodeId &node_id,
                     std::vector<Contact> bootstrap_contacts,
                     JoinFunctor callback) {
+  // Remove our own Contact if present
   bootstrap_contacts.erase(
       std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(),
           std::bind(&HasId, arg::_1, node_id)), bootstrap_contacts.end());
@@ -122,8 +123,10 @@ void NodeImpl::Join(const NodeId &node_id,
         SecurifierPtr(new Securifier(node_id.String(), "", ""));
   }
 
-  rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(     // NOLINT (Fraser)
-      new Rpcs<transport::TcpTransport>(asio_service_, default_securifier_));
+  if (!rpcs_) {
+    rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(   // NOLINT (Fraser)
+        new Rpcs<transport::TcpTransport>(asio_service_, default_securifier_));
+  }
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
   if (!client_only_node_) {

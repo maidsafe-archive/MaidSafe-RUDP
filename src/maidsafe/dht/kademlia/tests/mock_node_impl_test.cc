@@ -67,19 +67,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace arg = std::placeholders;
 
 namespace maidsafe {
-
 namespace dht {
-
 namespace kademlia {
-
 namespace test {
-
 namespace {
+
 const uint16_t g_kKademliaK = 8;
 const uint16_t g_kAlpha = 3;
 const uint16_t g_kBeta = 2;
 const uint16_t g_kRandomNoResponseRate = 20;  // in percentage
-}  // unnamed namespace
 
 
 class SecurifierValidateTrue: public Securifier {
@@ -159,107 +155,10 @@ class TestAlternativeStore : public AlternativeStore {
   bool Has(const std::string&) { return false; }
 };
 
-class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
- protected:
-  MockNodeImplTest()
-      : CreateContactAndNodeId(g_kKademliaK),
-        data_store_(),
-        alternative_store_(),
-        securifier_(new Securifier("", "", "")),
-        transport_(new MockTransport),
-        rank_info_(),
-        asio_service_(),
-        message_handler_(new MessageHandler(securifier_)),
-        node_(new NodeImpl(asio_service_,
-                           transport_,
-                           message_handler_,
-                           securifier_,
-                           alternative_store_,
-                           false,
-                           g_kKademliaK,
-                           g_kAlpha,
-                           g_kBeta,
-                           bptime::seconds(3600))),
-        threshold_((g_kKademliaK * 3) / 4),
-        local_node_(new NodeImpl(asio_service_,
-                                 transport_,
-                                 message_handler_,
-                                 SecurifierPtr(new SecurifierValidateTrue(
-                                               "", "", "")),
-                                 alternative_store_,
-                                 true,
-                                 g_kKademliaK,
-                                 g_kAlpha,
-                                 g_kBeta,
-                                 bptime::seconds(3600))) {
-    data_store_ = node_->data_store_;
-    node_->routing_table_ = routing_table_;
-    local_node_->routing_table_ = routing_table_;
-    transport_->StartListening(transport::Endpoint("127.0.0.1", 6700));
-    transport_->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, message_handler_.get(),
-            _1, _2, _3, _4).track_foreign(message_handler_));
-  }
-
-  static void SetUpTestCase() {}
-
-  static void TearDownTestCase() {}
-
-  void PopulateRoutingTable(uint16_t count, uint16_t pos) {
-    for (int num_contact = 0; num_contact < count; ++num_contact) {
-      NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
-      Contact contact = ComposeContact(contact_id, 5000);
-      AddContact(routing_table_, contact, rank_info_);
-    }
-  }
-
-  void SetAllNumRpcsFailureToZero() {
-    std::vector<Contact> contacts;
-    routing_table_->GetAllContacts(&contacts);
-    std::for_each(contacts.begin(), contacts.end(),
-                  std::bind(&AddContact, routing_table_, arg::_1, rank_info_));
-  }
-
-  template <typename TransportType>
-  std::shared_ptr<Rpcs<TransportType>> GetRpc() {
-    return node_->rpcs_;
-  }
-
-  template <typename TransportType>
-  void SetRpc(std::shared_ptr<Rpcs<TransportType>> rpc) {
-    node_->rpcs_ = rpc;
-  }
-
-  template <typename TransportType>
-  void SetLocalRpc(std::shared_ptr<Rpcs<TransportType>> rpc) {
-    local_node_->rpcs_ = rpc;
-  }
-
-  std::shared_ptr<DataStore> data_store_;
-  AlternativeStorePtr alternative_store_;
-  SecurifierPtr securifier_;
-  TransportPtr transport_;
-  RankInfoPtr rank_info_;
-  boost::asio::io_service asio_service_;
-  MessageHandlerPtr message_handler_;
-  std::shared_ptr<NodeImpl> node_;
-  int threshold_;
-  std::shared_ptr<NodeImpl> local_node_;
-
- public:
-  void NodeImplJoinCallback(int output, int* result, bool *done) {
-    *result = output;
-    *done = true;
-  }
-};  // MockNodeImplTest
-
-
 template <typename TransportType>
 class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
  public:
-  MockRpcs(boost::asio::io_service &asio_service,  // NOLINT (Fraser)
-           SecurifierPtr securifier)
+  MockRpcs(boost::asio::io_service &asio_service, SecurifierPtr securifier)  // NOLINT (Fraser)
       : Rpcs<TransportType>(asio_service, securifier),
         CreateContactAndNodeId(g_kKademliaK),
         node_list_mutex_(),
@@ -691,6 +590,100 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   int threshold_;
 };  // class MockRpcs
 
+}  // unnamed namespace
+
+
+class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
+ protected:
+  MockNodeImplTest()
+      : CreateContactAndNodeId(g_kKademliaK),
+        data_store_(),
+        alternative_store_(),
+        securifier_(new Securifier("", "", "")),
+        transport_(new MockTransport),
+        rank_info_(),
+        asio_service_(),
+        message_handler_(new MessageHandler(securifier_)),
+        node_(new NodeImpl(asio_service_,
+                           transport_,
+                           message_handler_,
+                           securifier_,
+                           alternative_store_,
+                           false,
+                           g_kKademliaK,
+                           g_kAlpha,
+                           g_kBeta,
+                           bptime::seconds(3600))),
+        threshold_((g_kKademliaK * 3) / 4),
+        local_node_(new NodeImpl(asio_service_,
+                                 transport_,
+                                 message_handler_,
+                                 SecurifierPtr(new SecurifierValidateTrue(
+                                               "", "", "")),
+                                 alternative_store_,
+                                 true,
+                                 g_kKademliaK,
+                                 g_kAlpha,
+                                 g_kBeta,
+                                 bptime::seconds(3600))) {
+    data_store_ = node_->data_store_;
+    node_->routing_table_ = routing_table_;
+    local_node_->routing_table_ = routing_table_;
+    transport_->StartListening(transport::Endpoint("127.0.0.1", 6700));
+    transport_->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, message_handler_.get(),
+            _1, _2, _3, _4).track_foreign(message_handler_));
+  }
+
+  static void SetUpTestCase() {}
+
+  static void TearDownTestCase() {}
+
+  void PopulateRoutingTable(uint16_t count, uint16_t pos) {
+    for (int num_contact = 0; num_contact < count; ++num_contact) {
+      NodeId contact_id = GenerateUniqueRandomId(node_id_, pos);
+      Contact contact = ComposeContact(contact_id, 5000);
+      AddContact(routing_table_, contact, rank_info_);
+    }
+  }
+
+  void SetAllNumRpcsFailureToZero() {
+    std::vector<Contact> contacts;
+    routing_table_->GetAllContacts(&contacts);
+    std::for_each(contacts.begin(), contacts.end(),
+                  std::bind(&AddContact, routing_table_, arg::_1, rank_info_));
+  }
+
+  template <typename TransportType>
+  void SetRpcs(std::shared_ptr<Rpcs<TransportType>> rpcs) {
+    node_->rpcs_ = rpcs;
+  }
+
+  template <typename TransportType>
+  void SetLocalRpcs(std::shared_ptr<Rpcs<TransportType>> rpcs) {
+    local_node_->rpcs_ = rpcs;
+  }
+
+  std::shared_ptr<DataStore> data_store_;
+  AlternativeStorePtr alternative_store_;
+  SecurifierPtr securifier_;
+  TransportPtr transport_;
+  RankInfoPtr rank_info_;
+  boost::asio::io_service asio_service_;
+  MessageHandlerPtr message_handler_;
+  std::shared_ptr<NodeImpl> node_;
+  int threshold_;
+  std::shared_ptr<NodeImpl> local_node_;
+
+ public:
+  void NodeImplJoinCallback(int output, int* result, bool *done) {
+    *result = output;
+    *done = true;
+  }
+};  // MockNodeImplTest
+
+
 TEST_F(MockNodeImplTest, BEH_GetAllContacts) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> contacts;
@@ -711,7 +704,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -786,7 +779,7 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetLocalRpc<transport::TcpTransport>(new_rpcs);
+  SetLocalRpcs<transport::TcpTransport>(new_rpcs);
 
   NodeId new_id = GenerateUniqueRandomId(node_id_, 501);
   Contact new_contact = ComposeContact(new_id, 5000);
@@ -827,12 +820,10 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
 
 TEST_F(MockNodeImplTest, BEH_Join) {
   std::vector<Contact> bootstrap_contacts;
-  std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
-      GetRpc<transport::TcpTransport>();
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -982,11 +973,9 @@ TEST_F(MockNodeImplTest, BEH_Join) {
 TEST_F(MockNodeImplTest, BEH_Leave) {
   PopulateRoutingTable(g_kKademliaK, 500);
   std::vector<Contact> bootstrap_contacts;
-  std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
-      GetRpc<transport::TcpTransport>();
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -1030,13 +1019,10 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
 
 TEST_F(MockNodeImplTest, BEH_FindNodes) {
   PopulateRoutingTable(g_kKademliaK, 500);
-
-  std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
-      GetRpc<transport::TcpTransport>();
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   NodeId key = NodeId(NodeId::kRandomId);
   {
@@ -1188,7 +1174,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   Sleep(boost::posix_time::milliseconds(1000));
-  // SetRpc<transport::TcpTransport>(old_rpcs);
+  // SetRpcs<transport::TcpTransport>(old_rpcs);
 }
 
 TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
@@ -1431,13 +1417,10 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
 
 TEST_F(MockNodeImplTest, BEH_Store) {
   PopulateRoutingTable(g_kKademliaK, 500);
-
-  std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
-      GetRpc<transport::TcpTransport>();
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -1593,18 +1576,15 @@ TEST_F(MockNodeImplTest, BEH_Store) {
   // Fault" in execution.
   Sleep(boost::posix_time::milliseconds(1000));
 
-  // SetRpc<transport::TcpTransport>(old_rpcs);
+  // SetRpcs<transport::TcpTransport>(old_rpcs);
 }
 
 TEST_F(MockNodeImplTest, BEH_Delete) {
   PopulateRoutingTable(g_kKademliaK, 500);
-
-  std::shared_ptr<Rpcs<transport::TcpTransport>> old_rpcs =
-      GetRpc<transport::TcpTransport>();
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -1742,7 +1722,7 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
   // Fault" in execution.
   Sleep(boost::posix_time::milliseconds(1000));
 
-  // SetRpc<transport::TcpTransport>(old_rpcs);
+  // SetRpcs<transport::TcpTransport>(old_rpcs);
 }
 
 TEST_F(MockNodeImplTest, BEH_Update) {
@@ -1751,7 +1731,7 @@ TEST_F(MockNodeImplTest, BEH_Update) {
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
 
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -1975,7 +1955,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
-  SetRpc<transport::TcpTransport>(new_rpcs);
+  SetRpcs<transport::TcpTransport>(new_rpcs);
   NodeId key = GenerateRandomId(node_id_, 498);
   {
     // All k populated contacts giving no response
@@ -2150,10 +2130,7 @@ TEST_F(MockNodeImplTest, BEH_Getters) {
   }
 }
 
-}  // namespace test_nodeimpl
-
+}  // namespace test
 }  // namespace kademlia
-
 }  // namespace dht
-
 }  // namespace maidsafe
