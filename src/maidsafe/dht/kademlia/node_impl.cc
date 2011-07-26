@@ -184,6 +184,7 @@ bool NodeImpl::IsNodeNotReachedCode(const int& code) {
   switch (code) {
     case transport::kError:
     case transport::kSendFailure:
+    case transport::kSendTimeout:  
       return true;
   }
   return false;
