@@ -172,8 +172,6 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
 
-                        std::cout << debug_msg_ << "    " << bootstrap_contacts.size() << " bootstrap contacts." << std::endl;
-
   // Re-join
   result = kPendingResult;
   {
@@ -203,7 +201,7 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
       env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
                                                             &closest_nodes);
     }
-                                              //    SortContacts(target_id, &closest_nodes);
+
     // Check the returned Contacts are in order of closeness to target_id
     ASSERT_EQ(env_->k_, closest_nodes.size()) << debug_msg_;
     for (std::size_t j = 1; j != env_->k_; ++j) {
@@ -229,7 +227,7 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
                 test_container_->wait_for_find_nodes_functor())) << debug_msg_;
     test_container_->GetAndResetFindNodesResult(&result, &closest_nodes);
   }
-                                            //    SortContacts(target_id, &closest_nodes);
+
   // Check the returned Contacts are in order of closeness to target_id
   ASSERT_EQ(env_->k_, closest_nodes.size()) << debug_msg_;
   for (std::size_t j = 1; j != env_->k_; ++j) {

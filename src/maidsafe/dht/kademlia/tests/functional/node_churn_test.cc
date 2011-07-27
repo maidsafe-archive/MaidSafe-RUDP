@@ -60,10 +60,10 @@ class NodeChurnTest : public testing::Test {
       NodeContainerPtr;
   typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
   void HandleStart(NodeContainerPtr node_container,
-                   TimerPtr timer_container,
+                   TimerPtr timer,
                    size_t count);
   void HandleStop(NodeContainerPtr node_container,
-                  TimerPtr timer_container,
+                  TimerPtr timer,
                   size_t count);
 
  protected:

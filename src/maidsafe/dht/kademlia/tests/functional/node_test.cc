@@ -114,7 +114,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
   int result(0);
 
   /** create a number of contacts */
-  for (int port = 5000; port < 5003; ++port) {
+  for (Port port = 5000; port < 5003; ++port) {
     crypto::RsaKeyPair key_pair;
     key_pair.GenerateKeys(4096);
     NodeId contact_id(dht::kademlia::NodeId::kRandomId);
