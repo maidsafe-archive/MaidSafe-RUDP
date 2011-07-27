@@ -477,7 +477,10 @@ TEST_P(NodeImplTest, FUNC_GetContact) {
   FAIL() << "Not implemented.";
 }
 
-INSTANTIATE_TEST_CASE_P(FullOrClient, NodeImplTest, testing::Bool());
+// TODO(Fraser#5#): 2011-07-27 - Change "testing::Values(true, false)" to
+//                          "testing::Bool()" once Common v0.10.01 is available.
+INSTANTIATE_TEST_CASE_P(FullOrClient, NodeImplTest,
+                        testing::Values(true, false));
 
 }  // namespace test
 }  // namespace kademlia
