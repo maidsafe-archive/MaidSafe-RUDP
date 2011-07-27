@@ -44,12 +44,41 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
-class NodeImplTest : public testing::Test {
+class NodeImplTest : public testing::TestWithParam<bool> {
  protected:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
       NodeContainerPtr;
-  NodeImplTest() : env_(NodesEnvironment<NodeImpl>::g_environment()),
-                   kTimeout_(bptime::seconds(10)) {}
+  NodeImplTest()
+      : env_(NodesEnvironment<NodeImpl>::g_environment()),
+        kTimeout_(bptime::seconds(10)),
+        client_only_node_(GetParam()),
+        debug_msg_(client_only_node_ ? "Client node." : "Full node."),
+        test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
+        bootstrap_contacts_() {}
+
+  void SetUp() {
+    test_container_->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node_,
+        env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    test_container_->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+    (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+        &bootstrap_contacts_);
+    int result(kPendingResult);
+    if (client_only_node_) {
+      result = test_container_->Start(bootstrap_contacts_, 0);
+    } else {
+      int attempts(0), max_attempts(5);
+      Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
+      while ((result = test_container_->Start(bootstrap_contacts_, port)) !=
+              kSuccess && (attempts != max_attempts)) {
+        port = static_cast<Port>((RandomUint32() % 55535) + 10000);
+        ++attempts;
+      }
+    }
+    ASSERT_EQ(kSuccess, result) << debug_msg_;
+    ASSERT_TRUE(test_container_->node()->joined()) << debug_msg_;
+  }
+
   std::shared_ptr<DataStore> GetDataStore(
       std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
           node_container) {
@@ -58,147 +87,165 @@ class NodeImplTest : public testing::Test {
 
   NodesEnvironment<NodeImpl>* env_;
   const bptime::time_duration kTimeout_;
+  bool client_only_node_;
+  std::string debug_msg_;
+  NodeContainerPtr test_container_;
+  std::vector<Contact> bootstrap_contacts_;
+
  private:
   NodeImplTest(const NodeImplTest&);
   NodeImplTest &operator=(const NodeImplTest&);
 };
 
-TEST_F(NodeImplTest, FUNC_JoinLeave) {
-  // First run as client only, then as full node.
-  for (int i(0); i != 2; ++i) {
-    bool client_only_node(i == 0);
-    std::string debug_msg(client_only_node ? "Client node." : "Full node.");
-    NodeContainerPtr node_container(
-        new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
-    node_container->Init(3, SecurifierPtr(),
-        AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node,
-        env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
-    std::vector<Contact> bootstrap_contacts;
-    (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
-        &bootstrap_contacts);
+TEST_P(NodeImplTest, FUNC_JoinLeave) {
+  NodeContainerPtr node_container(
+      new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
+  node_container->Init(3, SecurifierPtr(),
+      AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node_,
+      env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+  std::vector<Contact> bootstrap_contacts;
+  (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+      &bootstrap_contacts);
 
-    // Get state of all nodes' routing tables before bootstrapping
-    std::vector<std::vector<Contact>> all_nodes_contacts_before;
-    for (auto it(env_->node_containers_.begin());
-         it != env_->node_containers_.end(); ++it) {
-      std::vector<Contact> contacts;
-      (*it)->node()->GetAllContacts(&contacts);
-      all_nodes_contacts_before.push_back(contacts);
+  // Get state of all nodes' routing tables before bootstrapping
+  std::vector<std::vector<Contact>> all_nodes_contacts_before;
+  for (auto it(env_->node_containers_.begin());
+        it != env_->node_containers_.end(); ++it) {
+    std::vector<Contact> contacts;
+    (*it)->node()->GetAllContacts(&contacts);
+    all_nodes_contacts_before.push_back(contacts);
+  }
+
+  // For client, start without listening, for full try to start with listening
+  int result(kPendingResult);
+  if (client_only_node_) {
+    result = node_container->Start(bootstrap_contacts, 0);
+  } else {
+    int attempts(0), max_attempts(5);
+    Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
+    while ((result = node_container->Start(bootstrap_contacts, port)) !=
+            kSuccess && (attempts != max_attempts)) {
+      port = static_cast<Port>((RandomUint32() % 55535) + 10000);
+      ++attempts;
     }
+  }
+  EXPECT_EQ(kSuccess, result) << debug_msg_;
+  EXPECT_TRUE(node_container->node()->joined()) << debug_msg_;
 
-    // For client, start without listening, for full try to start with listening
-    int result(kPendingResult);
-    if (client_only_node) {
-      result = node_container->Start(bootstrap_contacts, 0);
-    } else {
-      int attempts(0), max_attempts(5);
-      Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-      while ((result = node_container->Start(bootstrap_contacts, port)) !=
-             kSuccess && (attempts != max_attempts)) {
-        port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-        ++attempts;
-      }
+  // Get state of all nodes' routing tables after bootstrapping
+  std::vector<std::vector<Contact>> all_nodes_contacts_after;
+  for (auto it(env_->node_containers_.begin());
+        it != env_->node_containers_.end(); ++it) {
+    std::vector<Contact> contacts;
+    (*it)->node()->GetAllContacts(&contacts);
+    all_nodes_contacts_after.push_back(contacts);
+  }
+
+  // In case of client bootstrap, check nodes' routing tables don't contain
+  // client's details.  In case of full node, check at least k nodes know the
+  // new node.
+  ASSERT_EQ(all_nodes_contacts_before.size(),
+            all_nodes_contacts_after.size()) << debug_msg_;
+  auto it_before(all_nodes_contacts_before.begin());
+  auto it_after(all_nodes_contacts_after.begin());
+  size_t instance_count(0);
+  for (; it_before != all_nodes_contacts_before.end();
+        ++it_before, ++it_after) {
+    for (auto itr((*it_after).begin()); itr != (*it_after).end(); ++itr) {
+      if (*itr == node_container->node()->contact())
+        ++instance_count;
     }
-    EXPECT_EQ(kSuccess, result) << debug_msg;
-    EXPECT_TRUE(node_container->node()->joined()) << debug_msg;
+  }
+  if (client_only_node_)
+    EXPECT_EQ(0U, instance_count) << debug_msg_;
+  else
+    EXPECT_LE(env_->k_, instance_count) << debug_msg_;
 
-    // Get state of all nodes' routing tables after bootstrapping
-    std::vector<std::vector<Contact>> all_nodes_contacts_after;
-    for (auto it(env_->node_containers_.begin());
-         it != env_->node_containers_.end(); ++it) {
-      std::vector<Contact> contacts;
-      (*it)->node()->GetAllContacts(&contacts);
-      all_nodes_contacts_after.push_back(contacts);
-    }
+  // Check new node has at least k contacts in its routing table
+  std::vector<Contact> new_nodes_contacts;
+  node_container->node()->GetAllContacts(&new_nodes_contacts);
+  EXPECT_LE(env_->k_, new_nodes_contacts.size()) << debug_msg_;
 
-    // In case of client bootstrap, check nodes' routing tables don't contain
-    // client's details.  In case of full node, check at least k nodes know the
-    // new node.
-    ASSERT_EQ(all_nodes_contacts_before.size(),
-              all_nodes_contacts_after.size()) << debug_msg;
-    auto it_before(all_nodes_contacts_before.begin());
-    auto it_after(all_nodes_contacts_after.begin());
-    size_t instance_count(0);
-    for (; it_before != all_nodes_contacts_before.end();
-         ++it_before, ++it_after) {
-      for (auto itr((*it_after).begin()); itr != (*it_after).end(); ++itr) {
-        if (*itr == node_container->node()->contact())
-          ++instance_count;
-      }
-    }
-    if (client_only_node)
-      EXPECT_EQ(0U, instance_count) << debug_msg;
-    else
-      EXPECT_LE(env_->k_, instance_count) << debug_msg;
+  // Leave
+  node_container->node()->Leave(&bootstrap_contacts);
+  EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
+  EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
 
-    // Check new node has at least k contacts in its routing table
-    std::vector<Contact> new_nodes_contacts;
-    node_container->node()->GetAllContacts(&new_nodes_contacts);
-    EXPECT_LE(env_->k_, new_nodes_contacts.size()) << debug_msg;
+                        std::cout << debug_msg_ << "    " << bootstrap_contacts.size() << " bootstrap contacts." << std::endl;
 
-    // Leave
-    node_container->node()->Leave(&bootstrap_contacts);
-    EXPECT_FALSE(node_container->node()->joined()) << debug_msg;
-    EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg;
+  // Re-join
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    node_container->Join(
+        node_container->node()->contact().node_id(),
+        node_container->bootstrap_contacts());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                node_container->wait_for_join_functor())) << debug_msg_;
+    node_container->GetAndResetJoinResult(&result);
+    EXPECT_EQ(kSuccess, result) << debug_msg_;
+    EXPECT_TRUE(node_container->node()->joined()) << debug_msg_;
+  }
+}
 
-    // Re-join
-    result = kPendingResult;
+TEST_P(NodeImplTest, FUNC_FindNodes) {
+  NodeId target_id(NodeId::kRandomId);
+  std::vector<Contact> closest_nodes, prior_closest_nodes;
+  int result(kPendingResult);
+  for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
     {
       boost::mutex::scoped_lock lock(env_->mutex_);
-      node_container->Join(
-          node_container->node()->contact().node_id(),
-          node_container->bootstrap_contacts());
+      env_->node_containers_[i]->FindNodes(target_id);
       EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                  node_container->wait_for_join_functor())) << debug_msg;
-      node_container->GetAndResetJoinResult(&result);
-      EXPECT_EQ(kSuccess, result) << debug_msg;
-      EXPECT_TRUE(node_container->node()->joined()) << debug_msg;
-    }
-  }
-}
-
-TEST_F(NodeImplTest, FUNC_FindNodes) {
-  for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
-    NodeId node_id(env_->node_containers_[i]->node()->contact().node_id());
-    int result;
-    std::vector<Contact> closest_nodes;
-    {
-      boost::mutex::scoped_lock lock(env_->mutex_);
-      env_->node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                  env_->node_containers_[i]->wait_for_find_nodes_functor()));
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()))
+                  << debug_msg_;
       env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
                                                             &closest_nodes);
     }
-    SortContacts(node_id, &closest_nodes);
+                                              //    SortContacts(target_id, &closest_nodes);
+    // Check the returned Contacts are in order of closeness to target_id
+    ASSERT_EQ(env_->k_, closest_nodes.size()) << debug_msg_;
     for (std::size_t j = 1; j != env_->k_; ++j) {
-      ASSERT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
-                                 node_id));
+      EXPECT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
+                                 target_id)) << debug_msg_;
     }
+
+    // Check this node returns identical Contacts to the previously-asked one
+    if (i != 0) {
+      for (auto it(closest_nodes.begin()),
+           prior_it(prior_closest_nodes.begin()); it != closest_nodes.end();
+           ++it, ++prior_it) {
+        EXPECT_EQ(*prior_it, *it) << debug_msg_;
+      }
+    }
+    prior_closest_nodes = closest_nodes;
   }
 
-  NodeId node_id(NodeId::kRandomId);
-  for (std::size_t i = 0; i != env_->num_full_nodes_; ++i) {
-    int result;
-    std::vector<Contact> closest_nodes;
-    {
-      boost::mutex::scoped_lock lock(env_->mutex_);
-      env_->node_containers_[i]->FindNodes(node_id);
-      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                  env_->node_containers_[i]->wait_for_find_nodes_functor()));
-      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
-                                                            &closest_nodes);
-    }
-    SortContacts(node_id, &closest_nodes);
-    for (std::size_t j = 1; j != env_->k_; ++j) {
-      ASSERT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
-                                 node_id));
-    }
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->FindNodes(target_id);
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                test_container_->wait_for_find_nodes_functor())) << debug_msg_;
+    test_container_->GetAndResetFindNodesResult(&result, &closest_nodes);
+  }
+                                            //    SortContacts(target_id, &closest_nodes);
+  // Check the returned Contacts are in order of closeness to target_id
+  ASSERT_EQ(env_->k_, closest_nodes.size()) << debug_msg_;
+  for (std::size_t j = 1; j != env_->k_; ++j) {
+    EXPECT_TRUE(CloserToTarget(closest_nodes[j - 1], closest_nodes[j],
+                                target_id)) << debug_msg_;
+  }
+
+  // Check this node returns identical Contacts to the previously-asked one
+  for (auto it(closest_nodes.begin()),
+        prior_it(prior_closest_nodes.begin()); it != closest_nodes.end();
+        ++it, ++prior_it) {
+    EXPECT_EQ(*prior_it, *it) << debug_msg_;
   }
 }
 
-TEST_F(NodeImplTest, FUNC_Store) {
+TEST_P(NodeImplTest, FUNC_Store) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -232,7 +279,7 @@ TEST_F(NodeImplTest, FUNC_Store) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_FindValue) {
+TEST_P(NodeImplTest, FUNC_FindValue) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -298,7 +345,7 @@ TEST_F(NodeImplTest, FUNC_FindValue) {
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 }
 
-TEST_F(NodeImplTest, FUNC_Delete) {
+TEST_P(NodeImplTest, FUNC_Delete) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
@@ -314,11 +361,11 @@ TEST_F(NodeImplTest, FUNC_Delete) {
               chosen_container->wait_for_delete_functor()));
 }
 
-TEST_F(NodeImplTest, FUNC_Update) {
+TEST_P(NodeImplTest, FUNC_Update) {
   FAIL() << "Not implemented.";
 }
 
-TEST_F(NodeImplTest, FUNC_StoreRefresh) {
+TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::seconds(20));
@@ -364,7 +411,7 @@ TEST_F(NodeImplTest, FUNC_StoreRefresh) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_DeleteRefresh) {
+TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::seconds(20));
@@ -426,9 +473,11 @@ TEST_F(NodeImplTest, FUNC_DeleteRefresh) {
   }
 }
 
-TEST_F(NodeImplTest, FUNC_GetContact) {
+TEST_P(NodeImplTest, FUNC_GetContact) {
   FAIL() << "Not implemented.";
 }
+
+INSTANTIATE_TEST_CASE_P(FullOrClient, NodeImplTest, testing::Bool());
 
 }  // namespace test
 }  // namespace kademlia
