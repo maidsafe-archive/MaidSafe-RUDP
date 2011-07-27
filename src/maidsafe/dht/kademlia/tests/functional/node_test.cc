@@ -94,6 +94,11 @@ class NodeTest : public testing::Test {
         chosen_node_index_(RandomUint32() % env_->node_containers_.size()),
         chosen_container_(env_->node_containers_[chosen_node_index_]) {}
 
+  /** checks whether the error code is transport related */
+  bool IsTranportErrorCode(const int& code) {
+    return (code <= transport::kError) && (code >= transport::kWrongIpVersion);
+  }
+
   NodesEnvironment<Node>* env_;
   const bptime::time_duration kTimeout_;
   size_t chosen_node_index_;
@@ -133,7 +138,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -155,7 +160,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -185,7 +190,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -218,7 +223,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -240,7 +245,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(nodeless_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -268,7 +273,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -298,7 +303,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
@@ -337,7 +342,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
                                      RandomUint32() % 50000 + 1025);
-      if (result == kSuccess)
+      if ((result == kSuccess) || !IsTranportErrorCode(result))
         break;
     }
 
