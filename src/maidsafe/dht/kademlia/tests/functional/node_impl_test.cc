@@ -64,35 +64,97 @@ class NodeImplTest : public testing::Test {
 };
 
 TEST_F(NodeImplTest, FUNC_JoinLeave) {
-  NodeContainerPtr client_node_container(
-      new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
-  client_node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), true, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-  client_node_container->MakeAllCallbackFunctors(&env_->mutex_,
-                                                 &env_->cond_var_);
-  std::vector<Contact> bootstrap_contacts;
-  (*env_->node_containers_.rbegin())->node()->
-      GetBootstrapContacts(&bootstrap_contacts);
-  int result = client_node_container->Start(bootstrap_contacts, 0);
-  EXPECT_EQ(kSuccess, result);
-  EXPECT_TRUE(client_node_container->node()->joined());
+  // First run as client only, then as full node.
+  for (int i(0); i != 2; ++i) {
+    bool client_only_node(i == 0);
+    std::string debug_msg(client_only_node ? "Client node." : "Full node.");
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node,
+        env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+    std::vector<Contact> bootstrap_contacts;
+    (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+        &bootstrap_contacts);
 
-  client_node_container->node()->Leave(&bootstrap_contacts);
-  EXPECT_FALSE(client_node_container->node()->joined());
-  EXPECT_FALSE(bootstrap_contacts.empty());
+    // Get state of all nodes' routing tables before bootstrapping
+    std::vector<std::vector<Contact>> all_nodes_contacts_before;
+    for (auto it(env_->node_containers_.begin());
+         it != env_->node_containers_.end(); ++it) {
+      std::vector<Contact> contacts;
+      (*it)->node()->GetAllContacts(&contacts);
+      all_nodes_contacts_before.push_back(contacts);
+    }
 
-  result = kPendingResult;
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    client_node_container->Join(
-        client_node_container->node()->contact().node_id(),
-        client_node_container->bootstrap_contacts());
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                client_node_container->wait_for_join_functor()));
-    client_node_container->GetAndResetJoinResult(&result);
-    EXPECT_EQ(kSuccess, result);
-    EXPECT_TRUE(client_node_container->node()->joined());
+    // For client, start without listening, for full try to start with listening
+    int result(kPendingResult);
+    if (client_only_node) {
+      result = node_container->Start(bootstrap_contacts, 0);
+    } else {
+      int attempts(0), max_attempts(5);
+      Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
+      while ((result = node_container->Start(bootstrap_contacts, port)) !=
+             kSuccess && (attempts != max_attempts)) {
+        port = static_cast<Port>((RandomUint32() % 55535) + 10000);
+        ++attempts;
+      }
+    }
+    EXPECT_EQ(kSuccess, result) << debug_msg;
+    EXPECT_TRUE(node_container->node()->joined()) << debug_msg;
+
+    // Get state of all nodes' routing tables after bootstrapping
+    std::vector<std::vector<Contact>> all_nodes_contacts_after;
+    for (auto it(env_->node_containers_.begin());
+         it != env_->node_containers_.end(); ++it) {
+      std::vector<Contact> contacts;
+      (*it)->node()->GetAllContacts(&contacts);
+      all_nodes_contacts_after.push_back(contacts);
+    }
+
+    // In case of client bootstrap, check nodes' routing tables don't contain
+    // client's details.  In case of full node, check at least k nodes know the
+    // new node.
+    ASSERT_EQ(all_nodes_contacts_before.size(),
+              all_nodes_contacts_after.size()) << debug_msg;
+    auto it_before(all_nodes_contacts_before.begin());
+    auto it_after(all_nodes_contacts_after.begin());
+    size_t instance_count(0);
+    for (; it_before != all_nodes_contacts_before.end();
+         ++it_before, ++it_after) {
+      for (auto itr((*it_after).begin()); itr != (*it_after).end(); ++itr) {
+        if (*itr == node_container->node()->contact())
+          ++instance_count;
+      }
+    }
+    if (client_only_node)
+      EXPECT_EQ(0U, instance_count) << debug_msg;
+    else
+      EXPECT_LE(env_->k_, instance_count) << debug_msg;
+
+    // Check new node has at least k contacts in its routing table
+    std::vector<Contact> new_nodes_contacts;
+    node_container->node()->GetAllContacts(&new_nodes_contacts);
+    EXPECT_LE(env_->k_, new_nodes_contacts.size()) << debug_msg;
+
+    // Leave
+    node_container->node()->Leave(&bootstrap_contacts);
+    EXPECT_FALSE(node_container->node()->joined()) << debug_msg;
+    EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg;
+
+    // Re-join
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      node_container->Join(
+          node_container->node()->contact().node_id(),
+          node_container->bootstrap_contacts());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  node_container->wait_for_join_functor())) << debug_msg;
+      node_container->GetAndResetJoinResult(&result);
+      EXPECT_EQ(kSuccess, result) << debug_msg;
+      EXPECT_TRUE(node_container->node()->joined()) << debug_msg;
+    }
   }
 }
 
