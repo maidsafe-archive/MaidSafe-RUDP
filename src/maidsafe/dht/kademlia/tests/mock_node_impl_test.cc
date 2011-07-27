@@ -897,6 +897,7 @@ TEST_F(MockNodeImplTest, BEH_Join) {
   {
     int result(1);
     bool done(false);
+    bootstrap_contacts.clear();
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
                                      this, arg::_1, &result, &done);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
@@ -1008,13 +1009,13 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(1000));
   ASSERT_EQ(kSuccess, result);
-  bootstrap_contacts.clear();
   node_->Leave(NULL);
   ASSERT_FALSE(node_->joined());
 //  ASSERT_EQ(size_t(0), node_->thread_group_.use_count());
 //  ASSERT_FALSE(node_->refresh_thread_running());
 //  ASSERT_FALSE(node_->downlist_thread_running());
   ASSERT_LT(size_t(0), bootstrap_contacts.size());
+  bootstrap_contacts.clear();
 }
 
 TEST_F(MockNodeImplTest, BEH_FindNodes) {
