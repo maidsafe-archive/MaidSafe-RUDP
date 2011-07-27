@@ -315,7 +315,7 @@ class TransportMessageHandlerTest : public testing::Test {
 
 crypto::RsaKeyPair TransportMessageHandlerTest::crypto_key_pair_;
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnError) {
+TEST_F(TransportMessageHandlerTest, BEH_OnError) {
   ConnectToHandlerSignals();
 
   int errors(0);
@@ -328,7 +328,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnError) {
   ASSERT_EQ(errors, error_count());
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
+TEST_F(TransportMessageHandlerTest, BEH_OnMessageNullSecurifier) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -362,7 +362,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageNullSecurifier) {
     ASSERT_EQ(uint16_t(0), (*it).second);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
   protobuf::ManagedEndpointMessage managed_endpoint_message;
   ASSERT_TRUE(managed_endpoint_message.IsInitialized());
 
@@ -372,7 +372,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageManagedEndpointMessage)
   EXPECT_EQ(manual, function);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
   protobuf::NatDetectionRequest nat_detection_rqst;
   nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
   nat_detection_rqst.set_local_port(12345);
@@ -385,7 +385,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
   protobuf::ProxyConnectRequest proxy_connect_rqst;
   protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -400,7 +400,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousRequest) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
   protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
   protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -413,7 +413,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousReques
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousRequest) {
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
   protobuf::RendezvousRequest rdvz_rqst;
   protobuf::Endpoint *ep = rdvz_rqst.mutable_originator_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -426,7 +426,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionResponse) {
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
   protobuf::NatDetectionResponse nat_detection_resp;
   nat_detection_resp.set_nat_type(12345);
   ASSERT_TRUE(nat_detection_resp.IsInitialized());
@@ -438,7 +438,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageNatDetectionResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectResponse) {
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
   protobuf::ProxyConnectResponse proxy_connect_resp;
   proxy_connect_resp.set_result(true);
   ASSERT_TRUE(proxy_connect_resp.IsInitialized());
@@ -450,7 +450,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageProxyConnectResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousResponse) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
   protobuf::ForwardRendezvousResponse forward_rdvz_resp;
   protobuf::Endpoint *ep =
       forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
@@ -465,7 +465,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageForwardRendezvousRespon
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgement) {  // NOLINT
+TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
   protobuf::RendezvousAcknowledgement rdvz_ack_message;
   protobuf::Endpoint *ep =
       rdvz_ack_message.mutable_originator_endpoint();
@@ -479,7 +479,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_WrapMessageRendezvousAcknowledgeme
   EXPECT_EQ(manual, function);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
+TEST_F(TransportMessageHandlerTest, BEH_OnMessageReceived) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -496,7 +496,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_OnMessageReceived) {
     ASSERT_EQ(uint16_t(1), (*it).second);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
+TEST_F(TransportMessageHandlerTest, BEH_ThreadedMessageHandling) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -518,7 +518,7 @@ TEST_F(TransportMessageHandlerTest, BEH_TRANS_ThreadedMessageHandling) {
     ASSERT_EQ(uint16_t(total_messages), (*it).second);
 }
 
-TEST_F(TransportMessageHandlerTest, BEH_TRANS_MakeSerialisedWrapperMessage) {
+TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   std::string payload(RandomString(5 * 1024));
   ASSERT_EQ("",
             msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
