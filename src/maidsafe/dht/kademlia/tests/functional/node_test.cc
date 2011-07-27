@@ -103,35 +103,41 @@ class NodeTest : public testing::Test {
   NodeTest& operator=(const NodeTest&);
 };
 
-TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
+/** Test joining the network using a variety of booststrap configurations */
+TEST_F(NodeTest, FUNC_BootstrapContact) {
   std::vector<Contact> nodeless_contacts, bootstrap_contacts;
-  int count(3);
-  int result(0);  
-  for (int i = 0; i < count; ++i) {
+  int result(0);
+
+  /** create a number of contacts */
+  for (int port = 5000; port < 5003; ++port) {
+    crypto::RsaKeyPair key_pair;
+    key_pair.GenerateKeys(4096);
     NodeId contact_id(dht::kademlia::NodeId::kRandomId);
-    transport::Endpoint end_point("127.0.0.1", 5000 + i);
+    transport::Endpoint end_point("127.0.0.1", port);
     std::vector<transport::Endpoint> local_endpoints(1, end_point);
     Contact contact(contact_id, end_point, local_endpoints, end_point, false,
-                    false, "", "", "");
+                    false, "", key_pair.public_key(), "");
     nodeless_contacts.push_back(contact);
   }
-  NodeContainerPtr node_container(
-      new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
-  node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);  
-  
+
   /** Test node join using a non-empty booststrap */
   {
     chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_EQ(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
     node_container->Stop(NULL);
     bootstrap_contacts.clear();
@@ -139,89 +145,207 @@ TEST_F(NodeTest, FUNC_InvalidBootstrapContact) {
 
   /** Test node join using an empty booststrap */
   {
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
     for (int index = 0; index < 5; ++index) {
       result = node_container->Start(bootstrap_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_EQ(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
-    node_container->Stop(NULL);    
+    node_container->Stop(NULL);
+    bootstrap_contacts.clear();
   }
 
-  /** Test node join using a bootstrap with all non-reachable contacts */
+  /** Test node join using bootstrap having only the id of the joining node */
   {
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    // create a contact with the node id of the node_container
+    NodeId contact_id(node_container->securifier()->kSigningKeyId());
+    transport::Endpoint end_point("127.0.0.1", 5004);
+    std::vector<transport::Endpoint> local_endpoints(1, end_point);
+    Contact contact(contact_id, end_point, local_endpoints, end_point, false,
+                    false, "", "", "");
+    bootstrap_contacts.push_back(contact);
+
     for (int index = 0; index < 5; ++index) {
-      result = node_container->Start(nodeless_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+      result = node_container->Start(bootstrap_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_NE(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
+    EXPECT_TRUE(node_container->node()->joined());
+    node_container->Stop(NULL);
+    bootstrap_contacts.clear();
+  }
+
+  /** Test node join using bootstrap having the id of the joining node in 
+      bootstrap */
+  {
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    // create a contact with the node id of the node_container
+    NodeId contact_id(node_container->securifier()->kSigningKeyId());
+    transport::Endpoint end_point("127.0.0.1", 5005);
+    std::vector<transport::Endpoint> local_endpoints(1, end_point);
+    Contact contact(contact_id, end_point, local_endpoints, end_point, false,
+                    false, "", "", "");
+
+    chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
+    bootstrap_contacts.push_back(contact);
+
+    for (int index = 0; index < 5; ++index) {
+      result = node_container->Start(bootstrap_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
+        break;
+    }
+
+    EXPECT_EQ(kSuccess, result);
+    EXPECT_TRUE(node_container->node()->joined());
+    node_container->Stop(NULL);
+    bootstrap_contacts.clear();
+  }
+
+  /** Test node join using booststrap having only non-reachable contacts */
+  {
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    for (int index = 0; index < 5; ++index) {
+      result = node_container->Start(nodeless_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
+        break;
+    }
+
+    EXPECT_NE(kSuccess, result);
     EXPECT_FALSE(node_container->node()->joined());
     node_container->Stop(NULL);
   }
-  
+
   /** Test node join using a bootstrap with both reachable and non-reachable 
-   contacts where non-reachable ones precede reachable ones*/
+   contacts where reachable ones procede the non-reachable ones */
   {
-    std::vector<Contact> merged_contacts(nodeless_contacts);
-    merged_contacts.insert(merged_contacts.end(), bootstrap_contacts.begin(),
-        bootstrap_contacts.end());
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
+    bootstrap_contacts.reserve(bootstrap_contacts.size() +
+        nodeless_contacts.size());
+    bootstrap_contacts.insert(bootstrap_contacts.end(),
+                              nodeless_contacts.begin(),
+                              nodeless_contacts.end());
     for (int index = 0; index < 5; ++index) {
-      result = node_container->Start(merged_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+      result = node_container->Start(bootstrap_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_EQ(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
     node_container->Stop(NULL);
+    bootstrap_contacts.clear();
   }
-  
+
   /** Test node join using a bootstrap with both reachable and non-reachable 
-   contacts where reachable ones procede the non-reachable ones*/
+   contacts where non-reachable ones procede the reachable ones */
   {
-    std::vector<Contact> merged_contacts(bootstrap_contacts);
-    merged_contacts.insert(bootstrap_contacts.end(), nodeless_contacts.begin(),
-        nodeless_contacts.end());
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
+    bootstrap_contacts.reserve(bootstrap_contacts.size() +
+        nodeless_contacts.size());
+    bootstrap_contacts.insert(bootstrap_contacts.begin(),
+                              nodeless_contacts.begin(),
+                              nodeless_contacts.end());
+
     for (int index = 0; index < 5; ++index) {
-      result = node_container->Start(merged_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+      result = node_container->Start(bootstrap_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_EQ(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
     node_container->Stop(NULL);
+    bootstrap_contacts.clear();
   }
+
   /** Test node join using a bootstrap with both reachable and non-reachable 
-   contacts where reachable ones procede the non-reachable ones*/
+      conacts with no order */
   {
-    std::vector<Contact> merged_contacts(bootstrap_contacts);
-    merged_contacts.insert(bootstrap_contacts.end(), nodeless_contacts.begin(),
-        nodeless_contacts.end());
-    
-    // insert non-reachable contacts in random positions  
-    for (int index = 0; index < 3; ++index) {
-      int random_index = RandomUint32() % bootstrap_contacts.size();
+    NodeContainerPtr node_container(
+        new maidsafe::dht::kademlia::NodeContainer<Node>());
+    node_container->Init(3, SecurifierPtr(),
+        AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
+        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
+
+    chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
+    int bootstrap_size = bootstrap_contacts.size();
+    bootstrap_contacts.reserve(bootstrap_contacts.size() +
+        nodeless_contacts.size());
+    bootstrap_contacts.insert(bootstrap_contacts.end(),
+                              nodeless_contacts.begin(),
+                              nodeless_contacts.end());
+    // insert nodeless contacts in random positions of bootstrap contacts
+    for (size_t index = 0; index < nodeless_contacts.size(); ++index) {
+      size_t random_index = RandomUint32() % bootstrap_size;
       Contact contact = bootstrap_contacts[random_index];
-      merged_contacts[random_index] = 
-          merged_contacts[bootstrap_contacts.size() + index];
-      merged_contacts[bootstrap_contacts.size() + index] = contact;
+      bootstrap_contacts[random_index] =
+          bootstrap_contacts[bootstrap_size + index];
+      bootstrap_contacts[bootstrap_size + index] = contact;
     }
-    
+
     for (int index = 0; index < 5; ++index) {
-      result = node_container->Start(merged_contacts,
-                                     RandomUint32()%50000 + 1025);
-      if (result == transport::kSuccess)
+      result = node_container->Start(bootstrap_contacts,
+                                     RandomUint32() % 50000 + 1025);
+      if (result == kSuccess)
         break;
     }
-    EXPECT_EQ(transport::kSuccess, result);
+
+    EXPECT_EQ(kSuccess, result);
     EXPECT_TRUE(node_container->node()->joined());
     node_container->Stop(NULL);
-  }  
+    bootstrap_contacts.clear();
+  }
 }
 
 TEST_F(NodeTest, FUNC_JoinClient) {

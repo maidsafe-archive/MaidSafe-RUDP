@@ -90,7 +90,7 @@ class DataStoreTest: public testing::Test {
   DataStoreTest &operator=(const DataStoreTest&);
 };
 
-TEST_F(DataStoreTest, BEH_KAD_StoreUnderEmptyKey) {
+TEST_F(DataStoreTest, BEH_StoreUnderEmptyKey) {
   EXPECT_EQ(0U, key_value_index_->size());
   for (int i = 0; i != 3; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
@@ -125,7 +125,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreUnderEmptyKey) {
             values.front());
 }
 
-TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
+TEST_F(DataStoreTest, BEH_StoreInvalidData) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration ttl(bptime::pos_infin), bad_ttl(bptime::hours(0));
@@ -150,7 +150,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreInvalidData) {
   EXPECT_TRUE(values.empty());
 }
 
-TEST_F(DataStoreTest, BEH_KAD_StoreUnderExistingKey) {
+TEST_F(DataStoreTest, BEH_StoreUnderExistingKey) {
   for (int i = 0; i != 2; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -225,7 +225,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreUnderExistingKey) {
             values.at(2));
 }
 
-TEST_F(DataStoreTest, BEH_KAD_StoreExistingKeyValue) {
+TEST_F(DataStoreTest, BEH_StoreExistingKeyValue) {
   for (int i = 0; i != 2; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -338,7 +338,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingKeyValue) {
   EXPECT_FALSE((*key_value_index_->begin()).deleted);
 }
 
-TEST_F(DataStoreTest, BEH_KAD_StoreExistingDeletedKeyValue) {
+TEST_F(DataStoreTest, BEH_StoreExistingDeletedKeyValue) {
   for (int i = 0; i != 2; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -452,7 +452,7 @@ TEST_F(DataStoreTest, BEH_KAD_StoreExistingDeletedKeyValue) {
   EXPECT_FALSE((*key_value_index_->begin()).deleted);
 }
 
-TEST_F(DataStoreTest, BEH_KAD_DeleteUnderEmptyKey) {
+TEST_F(DataStoreTest, BEH_DeleteUnderEmptyKey) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration ttl(bptime::pos_infin);
@@ -481,7 +481,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteUnderEmptyKey) {
   EXPECT_EQ(1U, key_value_index_->size());
 }
 
-TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
+TEST_F(DataStoreTest, BEH_DeleteExistingKeyValue) {
   for (int i = 0; i != 2; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -617,7 +617,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 }
 
-TEST_F(DataStoreTest, BEH_KAD_DeleteExistingDeletedKeyValue) {
+TEST_F(DataStoreTest, BEH_DeleteExistingDeletedKeyValue) {
   for (int i = 0; i != 2; ++i) {
     crypto_keys_.push_back(crypto::RsaKeyPair());
     crypto_keys_.at(i).GenerateKeys(4096);
@@ -726,7 +726,7 @@ TEST_F(DataStoreTest, BEH_KAD_DeleteExistingDeletedKeyValue) {
   EXPECT_TRUE((*key_value_index_->begin()).deleted);
 }
 
-TEST_F(DataStoreTest, BEH_KAD_HasKey) {
+TEST_F(DataStoreTest, BEH_HasKey) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration ttl(bptime::pos_infin);
@@ -796,7 +796,7 @@ TEST_F(DataStoreTest, BEH_KAD_HasKey) {
   EXPECT_FALSE(data_store_->HasKey(common_key));
 }
 
-TEST_F(DataStoreTest, BEH_KAD_GetValues) {
+TEST_F(DataStoreTest, BEH_GetValues) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration ttl(bptime::pos_infin);
@@ -896,7 +896,7 @@ TEST_F(DataStoreTest, BEH_KAD_GetValues) {
   }
 }
 
-TEST_F(DataStoreTest, BEH_KAD_Refresh) {
+TEST_F(DataStoreTest, BEH_Refresh) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration two_seconds(bptime::seconds(2));
@@ -1034,7 +1034,7 @@ TEST_F(DataStoreTest, BEH_KAD_Refresh) {
   ASSERT_EQ((kTotalEntries + kRepeatedValues) / 2, key_value_index_->size());
 }
 
-TEST_F(DataStoreTest, FUNC_KAD_MultipleThreads) {
+TEST_F(DataStoreTest, FUNC_MultipleThreads) {
   const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
   const size_t kValuesPerEntry(4);
 

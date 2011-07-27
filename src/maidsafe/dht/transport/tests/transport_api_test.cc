@@ -342,7 +342,7 @@ void TransportAPITest<T>::CheckMessages() {
 }
 
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
+TYPED_TEST_P(TransportAPITest, BEH_StartStopListening) {
   TransportPtr transport(new TypeParam(this->asio_service_));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
@@ -358,7 +358,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_StartStopListening) {
   transport->StopListening();
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
+TYPED_TEST_P(TransportAPITest, BEH_Send) {
   TransportPtr sender(new TypeParam(this->asio_service_));
   TransportPtr listener(new TypeParam(this->asio_service_));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
@@ -409,19 +409,19 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Send) {
   listener->StopListening();
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneSingleMessage) {
+TYPED_TEST_P(TransportAPITest, BEH_OneToOneSingleMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToOneMultiMessage) {
+TYPED_TEST_P(TransportAPITest, BEH_OneToOneMultiMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
+TYPED_TEST_P(TransportAPITest, BEH_OneToManySingleMessage) {
   this->SetupTransport(false, 0);
   this->count_ = 0;
   for (int i = 0; i < 16; ++i) {
@@ -431,14 +431,14 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManySingleMessage) {
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1));
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_OneToManyMultiMessage) {
+TYPED_TEST_P(TransportAPITest, BEH_OneToManyMultiMessage) {
   this->SetupTransport(false, 0);
   for (int i = 0; i < 10; ++i)
     this->SetupTransport(true, 0);
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(20));
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
+TYPED_TEST_P(TransportAPITest, BEH_ManyToManyMultiMessage) {
   for (int i = 0; i < 5; ++i)
     this->SetupTransport(false, 0);
   for (int i = 0; i < 10; ++i)
@@ -446,7 +446,7 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_ManyToManyMultiMessage) {
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(10));
 }
 
-TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
+TYPED_TEST_P(TransportAPITest, BEH_Random) {
   uint8_t num_sender_transports(
       static_cast<uint8_t>(RandomUint32() % 5 + 3));
   uint8_t num_listener_transports(
@@ -461,14 +461,14 @@ TYPED_TEST_P(TransportAPITest, BEH_TRANS_Random) {
 }
 
 REGISTER_TYPED_TEST_CASE_P(TransportAPITest,
-                           BEH_TRANS_StartStopListening,
-                           BEH_TRANS_Send,
-                           BEH_TRANS_OneToOneSingleMessage,
-                           BEH_TRANS_OneToOneMultiMessage,
-                           BEH_TRANS_OneToManySingleMessage,
-                           BEH_TRANS_OneToManyMultiMessage,
-                           BEH_TRANS_ManyToManyMultiMessage,
-                           BEH_TRANS_Random);
+                           BEH_StartStopListening,
+                           BEH_Send,
+                           BEH_OneToOneSingleMessage,
+                           BEH_OneToOneMultiMessage,
+                           BEH_OneToManySingleMessage,
+                           BEH_OneToManyMultiMessage,
+                           BEH_ManyToManyMultiMessage,
+                           BEH_Random);
 
 INSTANTIATE_TYPED_TEST_CASE_P(TCP, TransportAPITest, TcpTransport);
 INSTANTIATE_TYPED_TEST_CASE_P(UDP, TransportAPITest, UdpTransport);

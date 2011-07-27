@@ -337,7 +337,7 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
 };
 
 
-TEST_F(ServicesTest, BEH_KAD_Constructor) {
+TEST_F(ServicesTest, BEH_Constructor) {
   Service service(routing_table_, data_store_, alternative_store_, securifier_,
                   g_kKademliaK);
   CheckServiceConstructAttributes(service, 16U);
@@ -347,7 +347,7 @@ TEST_F(ServicesTest, BEH_KAD_Constructor) {
   CheckServiceConstructAttributes(service_k, 2U);
 }
 
-TEST_F(ServicesTest, BEH_KAD_Store) {
+TEST_F(ServicesTest, BEH_Store) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -465,7 +465,7 @@ TEST_F(ServicesTest, BEH_KAD_Store) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_Delete) {
+TEST_F(ServicesTest, BEH_Delete) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -580,7 +580,7 @@ TEST_F(ServicesTest, BEH_KAD_Delete) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
+TEST_F(ServicesTest, BEH_StoreRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -698,7 +698,7 @@ TEST_F(ServicesTest, BEH_KAD_StoreRefresh) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
+TEST_F(ServicesTest, BEH_DeleteRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -877,7 +877,7 @@ TEST_F(ServicesTest, BEH_KAD_DeleteRefresh) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_FindNodes) {
+TEST_F(ServicesTest, BEH_FindNodes) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -973,7 +973,7 @@ TEST_F(ServicesTest, BEH_KAD_FindNodes) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_FindValue) {
+TEST_F(ServicesTest, BEH_FindValue) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -1125,7 +1125,7 @@ TEST_F(ServicesTest, BEH_KAD_FindValue) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_Downlist) {
+TEST_F(ServicesTest, BEH_Downlist) {
   service_->GetPingDownListSignalHandler()->connect(
       kademlia::PingDownListContactsPtr::element_type::slot_type(
           &ServicesTest::FakePingContact, this, _1));
@@ -1167,7 +1167,7 @@ TEST_F(ServicesTest, BEH_KAD_Downlist) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_Ping) {
+TEST_F(ServicesTest, BEH_Ping) {
   protobuf::PingRequest ping_request;
   NodeId contact_id(NodeId::kRandomId);
   Contact contact = ComposeContact(contact_id, 5000);
@@ -1195,7 +1195,7 @@ TEST_F(ServicesTest, BEH_KAD_Ping) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_MultipleStoreRequests) {
+TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1294,7 +1294,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRequests) {
+TEST_F(ServicesTest, BEH_MultipleDeleteRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1380,7 +1380,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
+TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1535,7 +1535,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleStoreRefreshRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
+TEST_F(ServicesTest, BEH_MultipleDeleteRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1669,7 +1669,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleDeleteRefreshRequests) {
   }
 }
 
-TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
+TEST_F(ServicesTest, BEH_MultipleThreads) {
   const size_t kNumberOfThreads(8);
   // Preparing data
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
@@ -1805,7 +1805,7 @@ TEST_F(ServicesTest, BEH_KAD_MultipleThreads) {
   EXPECT_EQ(8U, GetDataStoreSize());
 }
 
-TEST_F(ServicesTest, BEH_KAD_SignalConnection) {
+TEST_F(ServicesTest, BEH_SignalConnection) {
   MessageHandlerPtr message_handler_ptr(new MessageHandler(securifier_));
   boost::asio::io_service ioservice;
   TransportPtr transport_ptr(new MockTransportServiceTest(ioservice));

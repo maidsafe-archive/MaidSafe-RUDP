@@ -404,7 +404,7 @@ class MockRpcsTest : public testing::Test {
 
 crypto::RsaKeyPair MockRpcsTest::crypto_key_pair_;
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
+TEST_F(MockRpcsTest, BEH_Rpcs_Ping) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -464,7 +464,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Ping) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
+TEST_F(MockRpcsTest, BEH_Rpcs_Store) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -525,7 +525,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Store) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
+TEST_F(MockRpcsTest, BEH_Rpcs_StoreRefresh) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -583,7 +583,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_StoreRefresh) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
+TEST_F(MockRpcsTest, BEH_Rpcs_Delete) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -641,7 +641,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Delete) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
+TEST_F(MockRpcsTest, BEH_Rpcs_DeleteRefresh) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -699,7 +699,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_DeleteRefresh) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
+TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -759,7 +759,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindNodes) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
+TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -819,7 +819,7 @@ TEST_F(MockRpcsTest, BEH_KAD_Rpcs_FindValue) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_KAD_Rpcs_Downlist) {
+TEST_F(MockRpcsTest, BEH_Rpcs_Downlist) {
   boost::mutex m;
   std::vector<NodeId> node_ids;
   NodeId node_id(NodeId::kRandomId);
