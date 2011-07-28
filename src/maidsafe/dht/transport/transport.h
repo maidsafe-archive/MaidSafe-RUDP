@@ -102,7 +102,8 @@ enum TransportCondition {
   kManagedEndpointLost = -350029,
   kSetOptionFailure = -350030,
   kMessageSizeTooLarge = -350031,
-  kWrongIpVersion = -350032
+  kWrongIpVersion = -350032,
+  kTransportConditionLimit = -359999
 };
 
 enum NatType { kManualPortMapped,  // behind manually port-mapped router.
