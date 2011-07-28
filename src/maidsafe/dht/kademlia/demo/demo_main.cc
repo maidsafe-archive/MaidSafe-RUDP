@@ -139,10 +139,9 @@ mk::Contact ComposeContactWithKey(
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
-  std::string local_config_file(local_config_file_path);
   try {
-    fs::path logfile, bootstrap_file;
-    uint16_t listening_port(8000), k(4), alpha(3), beta(2); 
+    std::string logfile, bootstrap_file(local_config_file_path);
+    uint16_t listening_port(8000), k(4), alpha(3), beta(2);
     std::string ip("127.0.0.1");
     uint32_t refresh_interval(3600);
     size_t thread_count(3);
@@ -166,7 +165,7 @@ int main(int argc, char **argv) {
         ("port,p", po::value(&listening_port)->default_value(listening_port),
             "Local listening port of node.  Default is 8000.")
         ("bootstrap,b", po::value<std::string>
-            (&local_config_file)->default_value(local_config_file),
+            (&bootstrap_file)->default_value(bootstrap_file),
             "Path to XML file with bootstrap nodes.")
         ("k", po::value(&k)->default_value(k),
             "Kademlia k, Number of contacts returned from a Find RPC")
@@ -247,7 +246,7 @@ int main(int argc, char **argv) {
     bool first_node(variables_map["first_node"].as<bool>());
     std::vector<maidsafe::dht::kademlia::Contact> bootstrap_contacts;
     if (!first_node) {
-      if (!ReadBootstrapFile(&bootstrap_contacts, local_config_file)) {
+      if (!ReadBootstrapFile(&bootstrap_contacts, bootstrap_file)) {
          return 1;
       }
       if (bootstrap_contacts.size() == 0) {
@@ -294,7 +293,7 @@ int main(int argc, char **argv) {
     if (first_node)
       demo_node->node()->GetBootstrapContacts(&bootstrap_contacts);
 
-    WriteBootstrapFile(&bootstrap_contacts, bootstrap_file.string());
+    WriteBootstrapFile(&bootstrap_contacts, bootstrap_file);
 
     if (result != mk::kSuccess) {
       ULOG(ERROR) << "Node failed to join the network with return code "
