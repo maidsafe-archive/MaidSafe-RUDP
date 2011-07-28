@@ -26,7 +26,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <signal.h>
+#include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
+#include "boost/archive/xml_iarchive.hpp"
+#include "boost/archive/xml_oarchive.hpp"
+#include "boost/archive/text_oarchive.hpp"
+#include "boost/archive/text_iarchive.hpp"
+
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 
@@ -38,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/demo/commands.h"
+#include "maidsafe/dht/kademlia/demo/node_detail.h"
 
 namespace bptime = boost::posix_time;
 namespace fs = boost::filesystem;
@@ -47,6 +54,8 @@ namespace mt = maidsafe::dht::transport;
 
 
 namespace {
+
+const std::string local_config_file_path("bootstrap_contacts.xml");
 
 void ConflictingOptions(const po::variables_map &variables_map,
                         const char *opt1,
@@ -70,6 +79,33 @@ void OptionDependency(const po::variables_map &variables_map,
                              + "' requires option '" + required_option + "'.");
     }
   }
+}
+
+bool WriteBootstrapFile(std::vector<maidsafe::dht::kademlia::Contact>
+                        *bootstrap_contacts, const std::string &filename) {
+  try {
+    std::ofstream ofs(filename);
+    boost::archive::xml_oarchive oa(ofs);
+    boost::serialization::serialize(oa, *bootstrap_contacts, 0);
+    LOG(INFO) << "Updated bootstrap info.";
+  } catch(const std::exception &e) {
+    LOG(WARNING) << "Exception: " << e.what();
+    return false;
+  }
+  return true;
+}
+
+bool ReadBootstrapFile(std::vector<maidsafe::dht::kademlia::Contact>
+                       *bootstrap_contacts, const std::string &filename) {
+  try {
+    std::ifstream ifs(filename);
+    boost::archive::xml_iarchive ia(ifs);
+    boost::serialization::serialize(ia, *bootstrap_contacts, 0);
+  } catch(const std::exception &e) {
+    LOG(WARNING) << "Exception: " << e.what();
+    return false;
+  }
+  return true;
 }
 
 volatile bool ctrlc_pressed(false);
@@ -103,10 +139,11 @@ mk::Contact ComposeContactWithKey(
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  std::string local_config_file(local_config_file_path);
   try {
-    std::string logfile, bootstrap_file;
-    uint16_t listening_port(8000), k(4), alpha(3), beta(2);
-//    int type(0);
+    fs::path logfile, bootstrap_file;
+    uint16_t listening_port(8000), k(4), alpha(3), beta(2); 
+    std::string ip("127.0.0.1");
     uint32_t refresh_interval(3600);
     size_t thread_count(3);
 
@@ -124,9 +161,12 @@ int main(int argc, char **argv) {
         ("first_node,f", po::bool_switch(), "First node of the network.")
 //        ("type,t", po::value(&type)->default_value(type),
 //            "Type of transport: 0 - TCP (default), 1 - UDP, 2 - Other.")
+        ("ip", po::value(&ip)->default_value(ip),
+         "local ip to start vault")
         ("port,p", po::value(&listening_port)->default_value(listening_port),
             "Local listening port of node.  Default is 8000.")
-        ("bootstrap_file", po::value(&bootstrap_file),
+        ("bootstrap,b", po::value<std::string>
+            (&local_config_file)->default_value(local_config_file),
             "Path to XML file with bootstrap nodes.")
         ("k", po::value(&k)->default_value(k),
             "Kademlia k, Number of contacts returned from a Find RPC")
@@ -153,6 +193,7 @@ int main(int argc, char **argv) {
     po::variables_map variables_map;
     po::store(po::parse_command_line(argc, argv, options_description),
               variables_map);
+
 
     if (variables_map.count("help")) {
       std::cout << options_description << std::endl;
@@ -204,11 +245,15 @@ int main(int argc, char **argv) {
 
     // Set up DemoNode
     bool first_node(variables_map["first_node"].as<bool>());
-    if (!first_node && !variables_map.count("bootstrap_file")) {
-      ULOG(ERROR) << "No bootstrapping info.  Either run with -f if this is the"
-                  << " first node, or add bootstrap information.  To see all "
-                  << "available options, run with -h";
-      return mk::kGeneralError;
+    std::vector<maidsafe::dht::kademlia::Contact> bootstrap_contacts;
+    if (!first_node) {
+      if (!ReadBootstrapFile(&bootstrap_contacts, local_config_file)) {
+         return 1;
+      }
+      if (bootstrap_contacts.size() == 0) {
+        LOG(ERROR) << "No contacts found in bootstrap contacts file.";
+        return 1;
+      }
     }
 
     thread_count = variables_map["thread_count"].as<size_t>();
@@ -244,19 +289,12 @@ int main(int argc, char **argv) {
                     mk::AlternativeStorePtr(), client_only_node, k, alpha, beta,
                     mean_refresh_interval);
 
-    // Joining the node to the network
-    std::vector<mk::Contact> bootstrap_contacts;
-    if (!first_node) {
-      fs::path bootstrap_path =
-          variables_map["bootstrap_file"].as<std::string>();
-      // TODO(Fraser#5#): 2011-07-28 - Parse bootstrap_contacts from XML file
-    }
     int result = demo_node->Start(bootstrap_contacts, listening_port);
 
     if (first_node)
       demo_node->node()->GetBootstrapContacts(&bootstrap_contacts);
 
-    // TODO(Fraser#5#): 2011-07-28 - Serialise bootstrap_contacts to XML file.
+    WriteBootstrapFile(&bootstrap_contacts, bootstrap_file.string());
 
     if (result != mk::kSuccess) {
       ULOG(ERROR) << "Node failed to join the network with return code "
