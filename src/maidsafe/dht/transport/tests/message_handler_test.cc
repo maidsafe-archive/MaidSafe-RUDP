@@ -108,61 +108,67 @@ class TransportMessageHandlerTest : public testing::Test {
   void ManagedEndpointSlot(const protobuf::ManagedEndpointMessage&,
                            protobuf::ManagedEndpointMessage*,
                            transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kManagedEndpointMessage);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void NatDetectionReqSlot(const protobuf::NatDetectionRequest&,
-                           protobuf::NatDetectionResponse*,
+                           protobuf::NatDetectionResponse* response,
                            transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
+    response->set_nat_type(0);
     auto it = invoked_slots_->find(kNatDetectionRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kNatDetectionResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
-  void  ProxyConnectReqSlot(const protobuf::ProxyConnectRequest&,
-                            protobuf::ProxyConnectResponse*,
-                            transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+  void ProxyConnectReqSlot(const protobuf::ProxyConnectRequest&,
+                           protobuf::ProxyConnectResponse* response,
+                           transport::Timeout*) {
+    boost::mutex::scoped_lock lock(slots_mutex_);
+    response->set_result(true);
     auto it = invoked_slots_->find(kProxyConnectRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void ProxyConnectRspSlot(const protobuf::ProxyConnectResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kProxyConnectResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void ForwardRendezvousReqSlot(const protobuf::ForwardRendezvousRequest&,
-                               protobuf::ForwardRendezvousResponse*,
-                               transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+                                protobuf::ForwardRendezvousResponse* response,
+                                transport::Timeout*) {
+    boost::mutex::scoped_lock lock(slots_mutex_);
+    protobuf::Endpoint *rv_endpoint =
+        response->mutable_receiver_rendezvous_endpoint();
+    rv_endpoint->set_ip("127.0.0.1");
+    rv_endpoint->set_port(9999);
     auto it = invoked_slots_->find(kForwardRendezvousRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void ForwardRendezvousRspSlot(const protobuf::ForwardRendezvousResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kForwardRendezvousResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void RendezvousReqSlot(const protobuf::RendezvousRequest&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kRendezvousRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
   void RendezvousAckSlot(const protobuf::RendezvousAcknowledgement&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kRendezvousAcknowledgement);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -490,8 +496,7 @@ TEST_F(TransportMessageHandlerTest, BEH_OnMessageReceived) {
   for (size_t n = 0; n < messages.size(); ++n)
     msg_hndlr_->OnMessageReceived(messages[n], info, &response, &timeout);
 
-  std::shared_ptr<std::map<MessageType,
-                  uint16_t>> slots = invoked_slots();
+  std::shared_ptr<std::map<MessageType, uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
     ASSERT_EQ(uint16_t(1), (*it).second);
 }
