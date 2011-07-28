@@ -47,7 +47,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
-#include "maidsafe/dht/kademlia/demo/demo_node.h"
 
 namespace arg = std::placeholders;
 namespace fs = boost::filesystem;
@@ -60,14 +59,23 @@ namespace kademlia {
 
 namespace demo {
 
-Commands::Commands(std::shared_ptr<DemoNode> demo_node)
-    : demo_node_(demo_node),
-      null_securifier_(),
-      result_arrived_(false),
-      finish_(false),
-      wait_mutex_(),
-      wait_cond_var_(),
-      mark_results_arrived_() {
+void PrintNodeInfo(const Contact &contact) {
+  ULOG(INFO)
+      << boost::format("Node ID:   %1%")
+                       % contact.node_id().ToStringEncoded(NodeId::kHex);
+  ULOG(INFO)
+      << boost::format("Node IP:   %1%") % contact.endpoint().ip.to_string();
+  ULOG(INFO)
+      << boost::format("Node port: %1%") % contact.endpoint().port;
+}
+
+Commands::Commands(DemoNodePtr demo_node) : demo_node_(demo_node),
+                                            null_securifier_(),
+                                            result_arrived_(false),
+                                            finish_(false),
+                                            wait_mutex_(),
+                                            wait_cond_var_(),
+                                            mark_results_arrived_() {
   mark_results_arrived_ = std::bind(&Commands::MarkResultArrived, this);
 }
 
@@ -92,11 +100,11 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   if (read_from_file) {
     if (args.size() != 3U) {
       ULOG(ERROR) << "Invalid number of arguments for storefile command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
     if (!ReadFile(args[1], &value) || value.empty()) {
       ULOG(ERROR) << "File read error for storefile command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
   } else {
     value = args[1];
@@ -108,7 +116,7 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   }
   catch(const std::exception &e) {
     ULOG(ERROR) << "Invalid ttl for storefile command." << e.what();
-    return demo_node_->asio_service_.post(mark_results_arrived_);
+    return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
   bptime::time_duration ttl;
@@ -117,13 +125,12 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   else
     ttl = bptime::minutes(minutes_to_live);
 
-  Key key(std::string(args.at(0)), NodeId::kHex);
+  Key key(std::string(args[0]), NodeId::kHex);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
-  demo_node_->kademlia_node()->Store(key, value, "", ttl, null_securifier_,
-                                     std::bind(&Commands::StoreCallback, this,
-                                               arg::_1, key, ttl));
+  demo_node_->node()->Store(key, value, "", ttl, null_securifier_,
+      std::bind(&Commands::StoreCallback, this, arg::_1, key, ttl));
 }
 
 void Commands::StoreCallback(const int &result,
@@ -136,7 +143,7 @@ void Commands::StoreCallback(const int &result,
         boost::format("Successfully stored key [ %1% ] with ttl [%2%] min.")
                       % key.ToStringEncoded(NodeId::kHex) % ttl.minutes();
   }
-  demo_node_->asio_service_.post(mark_results_arrived_);
+  demo_node_->asio_service().post(mark_results_arrived_);
 }
 
 void Commands::FindValue(const Arguments &args, bool write_to_file) {
@@ -144,13 +151,13 @@ void Commands::FindValue(const Arguments &args, bool write_to_file) {
   if (write_to_file) {
     if (args.size() != 2U) {
       ULOG(ERROR) << "Invalid number of arguments for findfile command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
     path = args[1];
   } else {
     if (args.size() != 1U) {
       ULOG(ERROR) << "Invalid number of arguments for findvalue command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
   }
 
@@ -158,7 +165,7 @@ void Commands::FindValue(const Arguments &args, bool write_to_file) {
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
-  demo_node_->kademlia_node()->FindValue(key, null_securifier_,
+  demo_node_->node()->FindValue(key, null_securifier_,
       std::bind(&Commands::FindValueCallback, this, arg::_1, path));
 }
 
@@ -183,22 +190,22 @@ void Commands::FindValueCallback(FindValueReturns find_value_returns,
     if (!find_value_returns.values.empty() && !path.empty())
       WriteFile(path, find_value_returns.values[0]);  // Writing only 1st value
   }
-  demo_node_->asio_service_.post(mark_results_arrived_);
+  demo_node_->asio_service().post(mark_results_arrived_);
 }
 
 void Commands::GetContact(const Arguments &args) {
   if (args.size() != 1U) {
     ULOG(ERROR) << "Invalid number of arguments for getcontact command.";
-    return demo_node_->asio_service_.post(mark_results_arrived_);
+    return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
   kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID for getcontact command.";
-    return demo_node_->asio_service_.post(mark_results_arrived_);
+    return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
-  demo_node_->kademlia_node()->GetContact(node_id,
+  demo_node_->node()->GetContact(node_id,
       std::bind(&Commands::GetContactsCallback, this, arg::_1, arg::_2));
 }
 
@@ -209,7 +216,7 @@ void Commands::GetContactsCallback(const int &result, Contact contact) {
     ULOG(INFO) << "GetContacts operation successfully returned:";
     PrintNodeInfo(contact);
   }
-  demo_node_->asio_service_.post(mark_results_arrived_);
+  demo_node_->asio_service().post(mark_results_arrived_);
 }
 
 void Commands::FindNodes(const Arguments &args, bool write_to_file) {
@@ -217,23 +224,23 @@ void Commands::FindNodes(const Arguments &args, bool write_to_file) {
   if (write_to_file) {
     if (args.size() != 2U) {
       ULOG(ERROR) << "Invalid number of arguments for findnodesfile command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
     path = args[1];
   } else {
     if (args.size() != 1U) {
       ULOG(ERROR) << "Invalid number of arguments for findnodes command.";
-      return demo_node_->asio_service_.post(mark_results_arrived_);
+      return demo_node_->asio_service().post(mark_results_arrived_);
     }
   }
 
   kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID.";
-    return demo_node_->asio_service_.post(mark_results_arrived_);
+    return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
-  demo_node_->kademlia_node()->FindNodes(node_id,
+  demo_node_->node()->FindNodes(node_id,
       std::bind(&Commands::FindNodesCallback, this, arg::_1, arg::_2, path));
 }
 
@@ -255,13 +262,13 @@ void Commands::FindNodesCallback(const int &result,
       WriteFile(path, content);
     }
   }
-  demo_node_->asio_service_.post(mark_results_arrived_);
+  demo_node_->asio_service().post(mark_results_arrived_);
 }
 
 void Commands::Store50Values(const Arguments &args) {
   if (args.size() != 1U) {
     ULOG(ERROR) << "Invalid number of arguments for store50values command.";
-    return demo_node_->asio_service_.post(mark_results_arrived_);
+    return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
   const uint16_t kCount(50);
@@ -277,7 +284,7 @@ void Commands::Store50Values(const Arguments &args) {
       value += (kPrefix + boost::lexical_cast<std::string>(i));
 
     bptime::time_duration ttl(boost::posix_time::pos_infin);
-    demo_node_->kademlia_node()->Store(key, value, "", ttl, null_securifier_,
+    demo_node_->node()->Store(key, value, "", ttl, null_securifier_,
         std::bind(&Commands::Store50Callback, this, arg::_1, key_str,
                   &returned_count));
   }
@@ -287,7 +294,7 @@ void Commands::Store50Values(const Arguments &args) {
       wait_cond_var_.wait(lock);
     }
   }
-  demo_node_->asio_service_.post(mark_results_arrived_);
+  demo_node_->asio_service().post(mark_results_arrived_);
 }
 
 void Commands::Store50Callback(const int &result,
@@ -343,15 +350,15 @@ void Commands::ProcessCommand(const std::string &cmdline) {
   }
   catch(const std::exception &e) {
     ULOG(ERROR) << "Error processing command: " << e.what();
-    demo_node_->asio_service_.post(mark_results_arrived_);
+    demo_node_->asio_service().post(mark_results_arrived_);
   }
 
   if (cmd == "help") {
     PrintUsage();
-    demo_node_->asio_service_.post(mark_results_arrived_);
+    demo_node_->asio_service().post(mark_results_arrived_);
   } else if (cmd == "getinfo") {
-    PrintNodeInfo(demo_node_->kademlia_node()->contact());
-    demo_node_->asio_service_.post(mark_results_arrived_);
+    PrintNodeInfo(demo_node_->node()->contact());
+    demo_node_->asio_service().post(mark_results_arrived_);
   } else if (cmd == "getcontact") {
     GetContact(args);
   } else if (cmd == "storefile") {
@@ -371,10 +378,10 @@ void Commands::ProcessCommand(const std::string &cmdline) {
   } else if (cmd == "exit") {
     ULOG(INFO) << "Exiting application...";
     finish_ = true;
-    demo_node_->asio_service_.post(mark_results_arrived_);
+    demo_node_->asio_service().post(mark_results_arrived_);
   } else {
     ULOG(ERROR) << "Invalid command: " << cmd;
-    demo_node_->asio_service_.post(mark_results_arrived_);
+    demo_node_->asio_service().post(mark_results_arrived_);
   }
 }
 

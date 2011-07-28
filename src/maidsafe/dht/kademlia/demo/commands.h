@@ -37,23 +37,28 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread/mutex.hpp"
 
 #include "maidsafe/dht/kademlia/config.h"
+#include "maidsafe/dht/kademlia/node-api.h"
+#include "maidsafe/dht/kademlia/node_container.h"
 
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
-
 namespace dht {
-
 namespace kademlia {
 
 class NodeId;
-class DemoNode;
+
 
 namespace demo {
 
+void PrintNodeInfo(const Contact &contact);
+
+typedef NodeContainer<Node> DemoNode;
+typedef std::shared_ptr<NodeContainer<Node>> DemoNodePtr;
+
 class Commands {
  public:
-  explicit Commands(std::shared_ptr<DemoNode> demo_node);
+  explicit Commands(DemoNodePtr demo_node);
   void Run();
  private:
   typedef std::vector<std::string> Arguments;

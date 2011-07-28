@@ -36,8 +36,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/kademlia/node-api.h"
+#include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/demo/commands.h"
-#include "maidsafe/dht/kademlia/demo/demo_node.h"
 
 namespace bptime = boost::posix_time;
 namespace fs = boost::filesystem;
@@ -104,10 +104,9 @@ mk::Contact ComposeContactWithKey(
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   try {
-    std::string logfile, kadconfigpath, bootstrap_ip, bootstrap_id;
-    uint16_t bootstrap_port(8000), listening_port(8000), k(4), alpha(3),
-             beta(2);
-    int type(0);
+    std::string logfile, bootstrap_file;
+    uint16_t listening_port(8000), k(4), alpha(3), beta(2);
+//    int type(0);
     uint32_t refresh_interval(3600);
     size_t thread_count(3);
 
@@ -123,13 +122,12 @@ int main(int argc, char **argv) {
 //          "kadconfig")
         ("client,c", po::bool_switch(), "Start the node as a client node.")
         ("first_node,f", po::bool_switch(), "First node of the network.")
-        ("type,t", po::value(&type)->default_value(type),
-            "Type of transport: 0 - TCP (default), 1 - UDP, 2 - Other.")
+//        ("type,t", po::value(&type)->default_value(type),
+//            "Type of transport: 0 - TCP (default), 1 - UDP, 2 - Other.")
         ("port,p", po::value(&listening_port)->default_value(listening_port),
             "Local listening port of node.  Default is 8000.")
-        ("bootstrap_id", po::value(&bootstrap_id), "Bootstrap node ID.")
-        ("bootstrap_ip", po::value(&bootstrap_ip), "Bootstrap node IP.")
-        ("bootstrap_port", po::value(&bootstrap_port), "Bootstrap node port.")
+        ("bootstrap_file", po::value(&bootstrap_file),
+            "Path to XML file with bootstrap nodes.")
         ("k", po::value(&k)->default_value(k),
             "Kademlia k, Number of contacts returned from a Find RPC")
         ("alpha,a", po::value(&alpha)->default_value(alpha),
@@ -139,8 +137,8 @@ int main(int argc, char **argv) {
             "subsequent iteration")
 //        ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
 //        ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
-        ("secure", po::bool_switch(),
-            "Node with keys. Can only communicate with other secure nodes")
+//        ("secure", po::bool_switch(),
+//            "Node with keys. Can only communicate with other secure nodes")
         ("thread_count", po::value(&thread_count)->default_value(thread_count),
             "Number of worker threads.")
         ("noconsole", po::bool_switch(),
@@ -168,15 +166,9 @@ int main(int argc, char **argv) {
       return 0;
     }
 
-    OptionDependency(variables_map, "bootstrap_id", "bootstrap_ip");
-    OptionDependency(variables_map, "bootstrap_ip", "bootstrap_id");
-    OptionDependency(variables_map, "bootstrap_id", "bootstrap_port");
-    OptionDependency(variables_map, "bootstrap_port", "bootstrap_id");
 //    ConflictingOptions(variables_map, "upnp", "port_fw");
     ConflictingOptions(variables_map, "client", "noconsole");
-    ConflictingOptions(variables_map, "first_node", "bootstrap_id");
-    ConflictingOptions(variables_map, "first_node", "bootstrap_ip");
-    ConflictingOptions(variables_map, "first_node", "bootstrap_port");
+    ConflictingOptions(variables_map, "first_node", "bootstrap_file");
 
     // Set up logging
     FLAGS_ms_logging_common = variables_map["verbose"].as<bool>();
@@ -212,11 +204,11 @@ int main(int argc, char **argv) {
 
     // Set up DemoNode
     bool first_node(variables_map["first_node"].as<bool>());
-    if (!first_node && !variables_map.count("bootstrap_id")) {
+    if (!first_node && !variables_map.count("bootstrap_file")) {
       ULOG(ERROR) << "No bootstrapping info.  Either run with -f if this is the"
                   << " first node, or add bootstrap information.  To see all "
                   << "available options, run with -h";
-      return 1;
+      return mk::kGeneralError;
     }
 
     thread_count = variables_map["thread_count"].as<size_t>();
@@ -227,14 +219,13 @@ int main(int argc, char **argv) {
 
     bool client_only_node(variables_map["client"].as<bool>());
 
-    type = (variables_map["type"].as<int>());
-    if (type > 2) {
-      ULOG(ERROR) << "Invalid transport type.  Choose 0, 1 or 2.";
-      return 1;
-    }
+//    type = (variables_map["type"].as<int>());
+//    if (type > 2) {
+//      ULOG(ERROR) << "Invalid transport type.  Choose 0, 1 or 2.";
+//      return 1;
+//    }
 
     listening_port = variables_map["port"].as<uint16_t>();
-    mt::Endpoint endpoint("127.0.0.1", listening_port);
 
     if (variables_map.count("refresh_interval")) {
       refresh_interval = variables_map["refresh_interval"].as<uint32_t>();
@@ -244,45 +235,37 @@ int main(int argc, char **argv) {
     }
     bptime::seconds mean_refresh_interval(refresh_interval);
 
-    bool secure(variables_map["secure"].as<bool>());
+//    bool secure(variables_map["secure"].as<bool>());
 
-    std::shared_ptr<mk::DemoNode> demo_node(new mk::DemoNode);
-    int result = demo_node->Init(thread_count, client_only_node, type, endpoint,
-                                 k, alpha, beta, mean_refresh_interval, secure);
 
-    if (result != 0) {
-      ULOG(ERROR) << "Node failed to start transport on port " << listening_port
-                  << " with error code " << result;
-      return 1;
-    }
+    mk::demo::DemoNodePtr demo_node(new mk::demo::DemoNode);
+    ULOG(INFO) << "Creating node...";
+    demo_node->Init(static_cast<uint8_t>(thread_count), mk::SecurifierPtr(),
+                    mk::AlternativeStorePtr(), client_only_node, k, alpha, beta,
+                    mean_refresh_interval);
 
     // Joining the node to the network
-    std::vector<maidsafe::dht::kademlia::Contact> bootstrap_contacts;
-    int response;
-    if (first_node) {
-      mk::NodeId node_id(mk::NodeId::kRandomId);
-      bootstrap_contacts.push_back(ComposeContact(node_id, endpoint));
-      response = demo_node->JoinNode(node_id, bootstrap_contacts);
-    } else {
-      std::string bootstrap_id(variables_map["bootstrap_id"].as<std::string>());
-      mk::NodeId node_id(mk::NodeId::kRandomId);
-      mk::NodeId bootstrap_node_id(bootstrap_id);
-      mt::Endpoint bootstrap_endpoint(
-          variables_map["bootstrap_ip"].as<std::string>(),
-          variables_map["bootstrap_port"].as<uint16_t>());
-      bootstrap_contacts.push_back(ComposeContact(bootstrap_node_id,
-                                                  bootstrap_endpoint));
-      response = demo_node->JoinNode(node_id, bootstrap_contacts);
+    std::vector<mk::Contact> bootstrap_contacts;
+    if (!first_node) {
+      fs::path bootstrap_path =
+          variables_map["bootstrap_file"].as<std::string>();
+      // TODO(Fraser#5#): 2011-07-28 - Parse bootstrap_contacts from XML file
     }
+    int result = demo_node->Start(bootstrap_contacts, listening_port);
 
-    if (response != mk::kSuccess) {
+    if (first_node)
+      demo_node->node()->GetBootstrapContacts(&bootstrap_contacts);
+
+    // TODO(Fraser#5#): 2011-07-28 - Serialise bootstrap_contacts to XML file.
+
+    if (result != mk::kSuccess) {
       ULOG(ERROR) << "Node failed to join the network with return code "
-                  << response;
-      demo_node->StopListeningTransport();
-      return response;
+                  << result;
+      demo_node->Stop(NULL);
+      return result;
     }
 
-    PrintNodeInfo(demo_node->kademlia_node()->contact());
+    mk::demo::PrintNodeInfo(demo_node->node()->contact());
 
     if (!variables_map["noconsole"].as<bool>()) {
       mk::demo::Commands commands(demo_node);
@@ -296,13 +279,12 @@ int main(int argc, char **argv) {
         maidsafe::Sleep(boost::posix_time::seconds(1));
     }
     bootstrap_contacts.clear();
-    demo_node->LeaveNode(&bootstrap_contacts);
-    demo_node->StopListeningTransport();
+    demo_node->Stop(&bootstrap_contacts);
     ULOG(INFO) << "Node stopped successfully.";
   }
   catch(const std::exception &e) {
     ULOG(ERROR) << "Error: " << e.what();
-    return 1;
+    return mk::kGeneralError;
   }
-  return 0;
+  return mk::kSuccess;
 }

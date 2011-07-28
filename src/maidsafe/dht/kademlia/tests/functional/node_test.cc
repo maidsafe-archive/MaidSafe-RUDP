@@ -324,7 +324,7 @@ TEST_F(NodeTest, FUNC_BootstrapContact) {
     node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
 
     chosen_container_->node()->GetBootstrapContacts(&bootstrap_contacts);
-    int bootstrap_size = bootstrap_contacts.size();
+    size_t bootstrap_size = bootstrap_contacts.size();
     bootstrap_contacts.reserve(bootstrap_contacts.size() +
         nodeless_contacts.size());
     bootstrap_contacts.insert(bootstrap_contacts.end(),

@@ -336,14 +336,14 @@ void NodeContainer<NodeType>::Init(
     uint16_t alpha,
     uint16_t beta,
     bptime::time_duration mean_refresh_interval) {
-  // set thread pool for asio service
+  // Create worker threads for asynchronous operations.
   for (uint8_t i = 0; i != thread_count; ++i) {
     thread_group_.create_thread(
         std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
             &boost::asio::io_service::run), std::ref(asio_service_)));
   }
 
-  // set up securifier if it wasn't passed in - make signing_key_id compatible
+  // Set up securifier if it wasn't passed in - make signing_key_id compatible
   // with type NodeId so that the node's ID can be set as the securifier's ID
   if (securifier) {
     securifier_ = securifier;
@@ -367,7 +367,7 @@ void NodeContainer<NodeType>::Init(
             _1, _2, _3, _4).track_foreign(message_handler_));
   }
 
-  // create node
+  // Create node
   node_.reset(new NodeType(asio_service_, listening_transport_,
                            message_handler_, securifier_, alternative_store,
                            client_only_node, k, alpha, beta,
