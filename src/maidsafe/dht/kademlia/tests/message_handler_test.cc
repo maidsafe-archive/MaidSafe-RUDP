@@ -119,7 +119,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                        const protobuf::PingRequest& request,
                        protobuf::PingResponse* response,
                        transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kPingRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -128,7 +128,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void PingResponseSlot(const transport::Info&,
                         const protobuf::PingResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kPingResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -138,7 +138,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                             const protobuf::FindValueRequest&,
                             protobuf::FindValueResponse* response,
                             transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kFindValueRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -147,7 +147,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void FindValueResponseSlot(const transport::Info&,
                              const protobuf::FindValueResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kFindValueResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -157,7 +157,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                             const protobuf::FindNodesRequest&,
                             protobuf::FindNodesResponse* response,
                             transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kFindNodesRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -166,7 +166,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void FindNodesResponseSlot(const transport::Info&,
                              const protobuf::FindNodesResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kFindNodesResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -177,7 +177,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                         const std::string&, const std::string&,
                         protobuf::StoreResponse* response,
                         transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kStoreRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -186,7 +186,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void StoreResponseSlot(const transport::Info&,
                          const protobuf::StoreResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kStoreResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -196,7 +196,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                                const protobuf::StoreRefreshRequest&,
                                protobuf::StoreRefreshResponse* response,
                                transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kStoreRefreshRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -205,7 +205,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void StoreRefreshResponseSlot(const transport::Info&,
                                 const protobuf::StoreRefreshResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kStoreRefreshResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -216,7 +216,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                          const std::string&, const std::string&,
                          protobuf::DeleteResponse* response,
                          transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -225,7 +225,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void DeleteResponseSlot(const transport::Info&,
                           const protobuf::DeleteResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -235,7 +235,7 @@ class KademliaMessageHandlerTest: public testing::Test {
                                 const protobuf::DeleteRefreshRequest&,
                                 protobuf::DeleteRefreshResponse* response,
                                 transport::Timeout*) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteRefreshRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -244,7 +244,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void DeleteRefreshResponseSlot(const transport::Info&,
                                  const protobuf::DeleteRefreshResponse&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kDeleteRefreshResponse);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -252,7 +252,7 @@ class KademliaMessageHandlerTest: public testing::Test {
 
   void DownlistNotificationSlot(const transport::Info&,
                                 const protobuf::DownlistNotification&) {
-    boost::mutex::scoped_lock loch_wonka(slots_mutex_);
+    boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kDownlistNotification);
     if (it != invoked_slots_->end())
       ++((*it).second);

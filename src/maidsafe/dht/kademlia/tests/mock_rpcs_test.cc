@@ -373,7 +373,7 @@ class MockRpcsTest : public testing::Test {
                 bool *b,
                 boost::mutex *m,
                 int *query_result) {
-    boost::mutex::scoped_lock loch_lomond(*m);
+    boost::mutex::scoped_lock lock(*m);
     *b = true;
     *query_result = result;
   }
@@ -428,7 +428,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Ping) {
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
       {
-        boost::mutex::scoped_lock loch_lomond(m);
+        boost::mutex::scoped_lock lock(m);
         b2 = b;
       }
     }
@@ -489,7 +489,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Store) {
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
       {
-        boost::mutex::scoped_lock loch_lomond(m);
+        boost::mutex::scoped_lock lock(m);
         b2 = b;
       }
     }
@@ -548,7 +548,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_StoreRefresh) {
     rpcs->StoreRefresh("", "", securifier_, peer_, srf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
+      boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {
@@ -606,7 +606,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Delete) {
     rpcs->Delete(NodeId(NodeId::kRandomId), "", "", securifier_, peer_, df);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
+      boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {
@@ -664,7 +664,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_DeleteRefresh) {
     rpcs->DeleteRefresh("", "", securifier_, peer_, drf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
+      boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {
@@ -724,7 +724,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
     rpcs->FindNodes(NodeId(NodeId::kRandomId), securifier_, peer_, fnf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
+      boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {
@@ -784,7 +784,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
     rpcs->FindValue(NodeId(NodeId::kRandomId), securifier_, peer_, fvf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
-      boost::mutex::scoped_lock loch_lomond(m);
+      boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {

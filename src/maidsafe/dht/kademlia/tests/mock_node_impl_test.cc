@@ -227,7 +227,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     if (response_factor < g_kRandomNoResponseRate)
       response = false;
     std::vector<Contact> response_list;
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     if (response) {
       int elements = RandomUint32() % g_kKademliaK;
       for (int n = 0; n < elements; ++n) {
@@ -266,7 +266,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   void FindNodeResponseClose(const Contact &/*contact*/,
                              RpcFindNodesFunctor callback) {
     std::vector<Contact> response_list;
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
       int element = RandomUint32() % node_list_.size();
@@ -283,7 +283,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeResponseNoClose(const Contact &/*contact*/,
                                RpcFindNodesFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     boost::thread(
         std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseThread,
@@ -292,7 +292,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeFirstNoResponse(const Contact &/*contact*/,
                                RpcFindNodesFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     if (num_of_acquired_ == 0) {
       boost::thread(std::bind(
@@ -308,7 +308,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeFirstAndLastNoResponse(const Contact &/*contact*/,
                                       RpcFindNodesFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     if ((num_of_acquired_ == (g_kKademliaK - 1)) || (num_of_acquired_ == 0)) {
       boost::thread(std::bind(
@@ -324,7 +324,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeSeveralResponseNoClose(const Contact &/*contact*/,
                                       RpcFindNodesFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     if (num_of_acquired_ > (g_kKademliaK - threshold_)) {
       boost::thread(
@@ -340,7 +340,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeNoResponse(const Contact &/*contact*/,
                           RpcFindNodesFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     boost::thread(
         std::bind(&MockRpcs<transport::TcpTransport>::FindNodeNoResponseThread,
@@ -363,7 +363,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindValueNoResponse(const Contact &/*contact*/,
                            RpcFindValueFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
     std::vector<std::string> response_value_list;
     boost::thread(
@@ -373,7 +373,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindValueResponseCloseOnly(const Contact &/*contact*/,
                                   RpcFindValueFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
     int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
@@ -388,7 +388,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindValueNthResponse(const Contact &/*contact*/,
                             RpcFindValueFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
@@ -412,7 +412,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindValueNoValueResponse(const Contact &/*contact*/,
                                 RpcFindValueFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
     std::vector<std::string> response_value_list;
     ++num_of_acquired_;
@@ -448,7 +448,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void DownlistRecord(const std::vector<NodeId> &node_ids,
                       const Contact &/*contact*/) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     ContactsById key_indx = down_contacts_->get<NodeIdTag>();
     auto it_node = node_ids.begin();
     auto it_end = node_ids.end();
@@ -471,7 +471,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void SingleDeleteResponse(const Contact &/*contact*/,
                             RpcDeleteFunctor callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     ++num_of_deleted_;
     boost::thread(std::bind(
         &MockRpcs<transport::TcpTransport>::
@@ -480,7 +480,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   template <class T>
   void Response(const Contact &/*contact*/, T callback) {
-// boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+// boost::mutex::scoped_lock lock(node_list_mutex_);
 // ++respond_;
     boost::thread(
         std::bind(&MockRpcs<transport::TcpTransport>::CommonResponseThread<T>,
@@ -496,7 +496,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   template <class T>
   void FirstSeveralNoResponse(const Contact &/*contact*/, T callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     if (num_of_acquired_ > (g_kKademliaK - threshold_)) {
       ++respond_;
       boost::thread(
@@ -513,7 +513,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   template <class T>
   void LastSeveralNoResponse(const Contact &/*contact*/, T callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     if (num_of_acquired_ < (threshold_ - 1)) {
       ++respond_;
       boost::thread(
@@ -530,7 +530,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   template <class T>
   void LastLessNoResponse(const Contact &/*contact*/, T callback) {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     if (num_of_acquired_ < threshold_) {
       ++respond_;
       boost::thread(
@@ -564,7 +564,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   }
 
   std::vector<Contact> node_list() {
-    boost::mutex::scoped_lock loch_queldomage(node_list_mutex_);
+    boost::mutex::scoped_lock lock(node_list_mutex_);
     return node_list_;
   }
 

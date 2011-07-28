@@ -387,7 +387,7 @@ void NodeImpl::StoreResponse(RankInfoPtr/* rank_info*/,
                              SecurifierPtr securifier) {
   StoreArgsPtr store_args =
       std::static_pointer_cast<StoreArgs>(store_rpc_args->rpc_args);
-  boost::mutex::scoped_lock loch_surlaplage(store_args->mutex);
+  boost::mutex::scoped_lock lock(store_args->mutex);
   NodeSearchState mark(kContacted);
   if (response_code != kSuccess) {
     mark = kDown;
@@ -458,7 +458,7 @@ void NodeImpl::DeleteResponse(RankInfoPtr/* rank_info*/,
   std::shared_ptr<T> delete_args =
       std::static_pointer_cast<T> (delete_rpc_args->rpc_args);
   // called_back flag needs to be protected by the mutex lock
-  boost::mutex::scoped_lock loch_surlaplage(delete_args->mutex);
+  boost::mutex::scoped_lock lock(delete_args->mutex);
   if (delete_args->called_back)
     return;
 
@@ -515,7 +515,7 @@ void NodeImpl::UpdateStoreResponse(RankInfoPtr/* rank_info*/,
   UpdateArgsPtr update_args =
       std::static_pointer_cast<UpdateArgs>(update_rpc_args->rpc_args);
   if (response_code != kSuccess) {
-    boost::mutex::scoped_lock loch_surlaplage(update_args->mutex);
+    boost::mutex::scoped_lock lock(update_args->mutex);
     // once store operation failed, the contact will be marked as DOWN
     // and no DELETE operation for that contact will be executed
     NodeGroupByNodeId key_node_indx =
@@ -726,7 +726,7 @@ bool NodeImpl::HandleIterationStructure(
     bool *cur_iteration_done,
     bool *called_back) {
   bool result = false;
-  boost::mutex::scoped_lock loch_surlaplage(find_args->mutex);
+  boost::mutex::scoped_lock lock(find_args->mutex);
 
   // Mark the enquired contact
   NodeGroupByNodeId key_node_indx =
@@ -807,7 +807,7 @@ void NodeImpl::FindNodes(const Key &key, FindNodesFunctor callback) {
 
 template <class T>
 void NodeImpl::IterativeSearch(std::shared_ptr<T> find_args) {
-  boost::mutex::scoped_lock loch_surlaplage(find_args->mutex);
+  boost::mutex::scoped_lock lock(find_args->mutex);
   auto pit = find_args->node_group.template
              get<NodeGroupTuple::StateAndDistance>().equal_range(
              boost::make_tuple(kNew));
@@ -914,7 +914,7 @@ void NodeImpl::IterativeSearchValueResponse(
   }
 
   if (called_back) {
-    boost::mutex::scoped_lock loch_surlaplage(find_value_args->mutex);
+    boost::mutex::scoped_lock lock(find_value_args->mutex);
     // TODO(qi.ma@maidsafe.net): the cache contact shall be populated once the
     // methodology of CACHE is decided
     Contact cache_contact;
@@ -973,7 +973,7 @@ void NodeImpl::IterativeSearchNodeResponse(
     if (curr_iteration_done)
       IterativeSearch<FindNodesArgs>(find_nodes_args);
   } else {
-    boost::mutex::scoped_lock loch_surlaplage(find_nodes_args->mutex);
+    boost::mutex::scoped_lock lock(find_nodes_args->mutex);
     find_nodes_args->callback(response_code, closest_contacts);
     find_nodes_args->called_back = true;
   }
@@ -1008,7 +1008,7 @@ void NodeImpl::PingOldestContactCallback(Contact oldest_contact,
 
 void NodeImpl::ReportDownContact(const Contact &down_contact) {
   routing_table_->IncrementFailedRpcCount(down_contact.node_id());
-  boost::mutex::scoped_lock loch_surlaplage(mutex_);
+  boost::mutex::scoped_lock lock(mutex_);
   down_contacts_.push_back(down_contact.node_id());
 //  condition_downlist_.notify_one();
 }
@@ -1016,9 +1016,9 @@ void NodeImpl::ReportDownContact(const Contact &down_contact) {
 void NodeImpl::MonitoringDownlistThread() {
 //  while (joined_) {
 //    while (down_contacts_.empty() && joined_) {
-//      condition_downlist_.wait(loch_surlaplage);
+//      condition_downlist_.wait(lock);
 //    }
-    boost::mutex::scoped_lock loch_surlaplage(mutex_);
+    boost::mutex::scoped_lock lock(mutex_);
     if (!down_contacts_.empty()) {
     // report the downlist to local k-closest contacts
 //    std::vector<Contact> close_nodes, excludes;
