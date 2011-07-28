@@ -328,7 +328,6 @@ ELSEIF(UNIX)
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_request.cc
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.cc
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/benchmark/benchmark.cc
-                               ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/demo/demo_node.cc
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/test_main.cc
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/mock_rpcs_test.cc
                                ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/mock_node_impl_test.cc
