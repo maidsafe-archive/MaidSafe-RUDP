@@ -122,7 +122,7 @@ void ErrorCodeCallback(int error_code,
 void GetContactCallback(int error_code,
                         Contact contact,
                         Contact *result,
-                        boost::condition_variable* cond_var,                        
+                        boost::condition_variable* cond_var,
                         int *response_code) {
   *response_code = error_code;
   *result = contact;
