@@ -41,10 +41,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/serialization/nvp.hpp"
 #include "boost/signals2/signal.hpp"
 
 #include "maidsafe/dht/version.h"
-
 
 
 #if MAIDSAFE_DHT_VERSION != 3102
@@ -251,5 +251,45 @@ class Transport {
 }  // namespace dht
 
 }  // namespace maidsafe
+
+
+
+namespace mt = maidsafe::dht::transport;
+
+namespace boost {
+
+namespace serialization {
+
+#ifdef __MSVC__
+#  pragma warning(disable: 4127)
+#endif
+template <typename Archive>
+void serialize(Archive &archive,                              // NOLINT (Fraser)
+               mt::Endpoint &endpoint,
+               const unsigned int& /*version*/) {
+  std::string ip;
+  boost::uint16_t port = endpoint.port;
+  if (Archive::is_saving::value) {
+    ip = endpoint.ip.to_string();
+    port = endpoint.port;
+  }
+  archive& boost::serialization::make_nvp("ip", ip);
+  archive& boost::serialization::make_nvp("port", port);
+  if (Archive::is_loading::value) {
+    boost::system::error_code ec;
+    endpoint.ip = boost::asio::ip::address::from_string(ip, ec);
+    if (ec)
+      port = 0;
+    endpoint.port = port;
+  }
+#ifdef __MSVC__
+#  pragma warning(default: 4127)
+#endif
+}
+
+}  // namespace serialization
+
+}  // namespace boost
+
 
 #endif  // MAIDSAFE_DHT_TRANSPORT_TRANSPORT_H_
