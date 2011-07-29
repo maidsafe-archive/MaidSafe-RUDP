@@ -44,7 +44,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 #include "maidsafe/dht/kademlia/demo/commands.h"
-#include "maidsafe/dht/kademlia/demo/node_detail.h"
 
 namespace bptime = boost::posix_time;
 namespace fs = boost::filesystem;
@@ -54,8 +53,6 @@ namespace mt = maidsafe::dht::transport;
 
 
 namespace {
-
-const std::string local_config_file_path("bootstrap_contacts.xml");
 
 void ConflictingOptions(const po::variables_map &variables_map,
                         const char *opt1,
@@ -81,28 +78,28 @@ void OptionDependency(const po::variables_map &variables_map,
   }
 }
 
-bool WriteBootstrapFile(std::vector<maidsafe::dht::kademlia::Contact>
-                        *bootstrap_contacts, const std::string &filename) {
+bool WriteBootstrapFile(std::vector<mk::Contact> *bootstrap_contacts,
+                        const std::string &filename) {
   try {
     std::ofstream ofs(filename);
     boost::archive::xml_oarchive oa(ofs);
     boost::serialization::serialize(oa, *bootstrap_contacts, 0);
-    LOG(INFO) << "Updated bootstrap info.";
+    DLOG(INFO) << "Updated bootstrap info.";
   } catch(const std::exception &e) {
-    LOG(WARNING) << "Exception: " << e.what();
+    DLOG(WARNING) << "Exception: " << e.what();
     return false;
   }
   return true;
 }
 
-bool ReadBootstrapFile(std::vector<maidsafe::dht::kademlia::Contact>
-                       *bootstrap_contacts, const std::string &filename) {
+bool ReadBootstrapFile(std::vector<mk::Contact> *bootstrap_contacts,
+                       const std::string &filename) {
   try {
     std::ifstream ifs(filename);
     boost::archive::xml_iarchive ia(ifs);
     boost::serialization::serialize(ia, *bootstrap_contacts, 0);
   } catch(const std::exception &e) {
-    LOG(WARNING) << "Exception: " << e.what();
+    DLOG(WARNING) << "Exception: " << e.what();
     return false;
   }
   return true;
@@ -140,7 +137,7 @@ mk::Contact ComposeContactWithKey(
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   try {
-    std::string logfile, bootstrap_file(local_config_file_path);
+    std::string logfile, bootstrap_file("bootstrap_contacts.xml");
     uint16_t listening_port(8000), k(4), alpha(3), beta(2);
     std::string ip("127.0.0.1");
     uint32_t refresh_interval(3600);
@@ -148,7 +145,7 @@ int main(int argc, char **argv) {
 
     po::options_description options_description("Options");
     options_description.add_options()
-        ("help,h", "Print options information and exit.")
+        ("help,h", "Print options.")
         ("version,V", "Print program version.")
         ("logfile,l", po::value(&logfile), "Path of log file.")
         ("verbose,v", po::bool_switch(), "Verbose logging to console and file.")
@@ -157,23 +154,26 @@ int main(int argc, char **argv) {
 //          "Complete pathname of kadconfig file. Default is Node<port>/."
 //          "kadconfig")
         ("client,c", po::bool_switch(), "Start the node as a client node.")
-        ("first_node,f", po::bool_switch(), "First node of the network.")
+        ("first_node,f", po::bool_switch(), "Start the node as the first one of"
+            " a new network.")
 //        ("type,t", po::value(&type)->default_value(type),
 //            "Type of transport: 0 - TCP (default), 1 - UDP, 2 - Other.")
         ("ip", po::value(&ip)->default_value(ip),
-         "local ip to start vault")
+            "Local listening IP address of node (applicable to non-client type "
+            "only).")
         ("port,p", po::value(&listening_port)->default_value(listening_port),
-            "Local listening port of node.  Default is 8000.")
+            "Local listening port of node (applicable to non-client type "
+            "only).")
         ("bootstrap,b", po::value<std::string>
             (&bootstrap_file)->default_value(bootstrap_file),
             "Path to XML file with bootstrap nodes.")
-        ("k", po::value(&k)->default_value(k),
-            "Kademlia k, Number of contacts returned from a Find RPC")
+        ("k,k", po::value(&k)->default_value(k),
+            "Kademlia k; default number of contacts returned from a lookup.")
         ("alpha,a", po::value(&alpha)->default_value(alpha),
-            "Kademlia alpha, parallel level of Find RPCs")
-        ("beta,b", po::value(&beta)->default_value(beta),
-            "Kademlia beta, Number of returned Find RPCs required to start a "
-            "subsequent iteration")
+            "Kademlia alpha; parallel level of Find RPCs.")
+        ("beta", po::value(&beta)->default_value(beta),
+            "Kademlia beta; number of returned Find RPCs required to start a "
+            "subsequent iteration.")
 //        ("upnp", po::bool_switch(), "Use UPnP for Nat Traversal.")
 //        ("port_fw", po::bool_switch(), "Manually port forwarded local port.")
 //        ("secure", po::bool_switch(),
@@ -181,13 +181,14 @@ int main(int argc, char **argv) {
         ("thread_count", po::value(&thread_count)->default_value(thread_count),
             "Number of worker threads.")
         ("noconsole", po::bool_switch(),
-            "Do not have access to Kademlia functions (store/findvalue/findnode"
-             "findnode) after node startup.")
+            "Disable access to Kademlia functions (store, findvalue, "
+            "findnode, etc.) after node startup.")
 //        ("nodeinfopath", po::value(&thisnodekconfigpath),
 //        "Writes to this path a kadconfig file (with name .kadconfig) with "
 //          "this node's information.")
-        ("refresh_interval,r", po::value(&refresh_interval),
-            "Average interval time in minutes to refresh values.");
+        ("refresh_interval,r",
+            po::value(&refresh_interval)->default_value(refresh_interval / 60),
+            "Average time between value refreshes (in minutes).");
 
     po::variables_map variables_map;
     po::store(po::parse_command_line(argc, argv, options_description),

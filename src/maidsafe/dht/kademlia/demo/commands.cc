@@ -62,7 +62,7 @@ namespace demo {
 void PrintNodeInfo(const Contact &contact) {
   ULOG(INFO)
       << boost::format("Node ID:   %1%")
-                       % contact.node_id().ToStringEncoded(NodeId::kHex);
+                       % contact.node_id().ToStringEncoded(NodeId::kBase64);
   ULOG(INFO)
       << boost::format("Node IP:   %1%") % contact.endpoint().ip.to_string();
   ULOG(INFO)
@@ -125,7 +125,7 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   else
     ttl = bptime::minutes(minutes_to_live);
 
-  Key key(std::string(args[0]), NodeId::kHex);
+  Key key(args[0], NodeId::kBase64);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
@@ -141,7 +141,7 @@ void Commands::StoreCallback(const int &result,
   } else {
     ULOG(INFO) <<
         boost::format("Successfully stored key [ %1% ] with ttl [%2%] min.")
-                      % key.ToStringEncoded(NodeId::kHex) % ttl.minutes();
+                      % key.ToStringEncoded(NodeId::kBase64) % ttl.minutes();
   }
   demo_node_->asio_service().post(mark_results_arrived_);
 }
@@ -161,7 +161,7 @@ void Commands::FindValue(const Arguments &args, bool write_to_file) {
     }
   }
 
-  Key key(std::string(args.at(0)), NodeId::kHex);
+  Key key(std::string(args.at(0)), NodeId::kBase64);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
@@ -182,11 +182,11 @@ void Commands::FindValueCallback(FindValueReturns find_value_returns,
     ULOG(INFO)
         << boost::format("Node holding value in its alternative_store: [ %1% ]")
                % find_value_returns.alternative_store_holder.node_id().
-               ToStringEncoded(NodeId::kHex);
+               ToStringEncoded(NodeId::kBase64);
     ULOG(INFO)
         << boost::format("Node needing a cache copy of the values: [ %1% ]")
               % find_value_returns.needs_cache_copy.node_id().
-              ToStringEncoded(NodeId::kHex);
+              ToStringEncoded(NodeId::kBase64);
     if (!find_value_returns.values.empty() && !path.empty())
       WriteFile(path, find_value_returns.values[0]);  // Writing only 1st value
   }
@@ -199,7 +199,7 @@ void Commands::GetContact(const Arguments &args) {
     return demo_node_->asio_service().post(mark_results_arrived_);
   }
 
-  kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
+  kademlia::NodeId node_id(args[0], NodeId::kBase64);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID for getcontact command.";
     return demo_node_->asio_service().post(mark_results_arrived_);
@@ -234,7 +234,7 @@ void Commands::FindNodes(const Arguments &args, bool write_to_file) {
     }
   }
 
-  kademlia::NodeId node_id(std::string(args.at(0)), NodeId::kHex);
+  kademlia::NodeId node_id(args[0], NodeId::kBase64);
   if (!node_id.IsValid()) {
     ULOG(ERROR) << "Invalid Node ID.";
     return demo_node_->asio_service().post(mark_results_arrived_);
@@ -254,11 +254,11 @@ void Commands::FindNodesCallback(const int &result,
       ULOG(INFO) << "FindNodes returned the following " << contacts.size()
                 << " contact(s):";
       for (auto it = contacts.begin(); it != contacts.end(); ++it)
-        ULOG(INFO) << (*it).node_id().ToStringEncoded(NodeId::kHex);
+        ULOG(INFO) << (*it).node_id().ToStringEncoded(NodeId::kBase64);
     } else {
       std::string content;
       for (auto it = contacts.begin(); it != contacts.end(); ++it)
-        content += ((*it).node_id().ToStringEncoded(NodeId::kHex) + "\n");
+        content += ((*it).node_id().ToStringEncoded(NodeId::kBase64) + "\n");
       WriteFile(path, content);
     }
   }
@@ -277,7 +277,7 @@ void Commands::Store50Values(const Arguments &args) {
   for (uint16_t i = 0; i != kCount; ++i) {
     Key key(crypto::Hash<crypto::SHA512>(kPrefix +
                                          boost::lexical_cast<std::string>(i)));
-    std::string key_str = key.ToStringEncoded(NodeId::kHex);
+    std::string key_str = key.ToStringEncoded(NodeId::kBase64);
 
     std::string value;
     for (int j = 0; j != 102400; ++j)
@@ -312,26 +312,29 @@ void Commands::Store50Callback(const int &result,
 }
 
 void Commands::PrintUsage() {
-  ULOG(INFO) << "\thelp                        Print help.";
-  ULOG(INFO) << "\tgetinfo                     Print this node's info.";
-  ULOG(INFO) << "\tgetcontact node_id          Get contact details of node_id.";
-  ULOG(INFO) << "\tstorefile key filepath ttl  Store contents of file in the "
+  ULOG(INFO) << "\thelp                              Print options.";
+  ULOG(INFO) << "\tgetinfo                           Print this node's info.";
+  ULOG(INFO) << "\tgetcontact <node_id>              Get contact details of "
+             << "node_id.";
+  ULOG(INFO) << "\tstorefile <key> <filepath> <ttl>  Store contents of file in "
+             << "the network.  ttl in minutes (-1 for infinite).";
+  ULOG(INFO) << "\tstorevalue <key> <value> <ttl>    Store value in the "
              << "network.  ttl in minutes (-1 for infinite).";
-  ULOG(INFO) << "\tstorevalue key value ttl    Store value in the network.  ttl"
-             << " in minutes (-1 for infinite).";
-  ULOG(INFO) << "\tfindfile key filepath       Find value stored with key and "
-             << "save it to filepath.";
-  ULOG(INFO) << "\tfindvalue key               Find value stored with key.";
-  ULOG(INFO) << "\tfindnodes key               Find k closest nodes to key.";
-  ULOG(INFO) << "\tfindnodesfile key filepath  Find k closest nodes to key and "
-             << "save their IDs to filepath.";
-  ULOG(INFO) << "\tstore50values prefix        Store 50 key value pairs of form"
-             << " (prefix[i], prefix[i]*100.";
-//  ULOG(INFO) << "\ttimings                     Print statistics for RPC "
-//             << "timings.";
-  ULOG(INFO) << "\texit                        Stop the node and exit.";
-  ULOG(INFO) << "\tNOTE -- node_id should be hex encoded.";
-  ULOG(INFO) << "\tNOTE -- If key is not a valid 512 hash key (hex encoded "
+  ULOG(INFO) << "\tfindfile <key> <filepath>         Find value stored with "
+             << "key and save it to filepath.";
+  ULOG(INFO) << "\tfindvalue <key>                   Find value stored with "
+             << "key.";
+  ULOG(INFO) << "\tfindnodes <key>                   Find k closest nodes to "
+             << "key.";
+  ULOG(INFO) << "\tfindnodesfile <key> <filepath>    Find k closest nodes to "
+             << "key and save their IDs to filepath.";
+  ULOG(INFO) << "\tstore50values <prefix>            Store 50 key value pairs "
+             << "of form (prefix[i], prefix[i]*100).";
+//  ULOG(INFO) << "\ttimings                           Print statistics for RPC"
+//             << " timings.";
+  ULOG(INFO) << "\texit                              Stop the node and exit.";
+  ULOG(INFO) << "\tNOTE -- node_id should be base64 encoded.";
+  ULOG(INFO) << "\tNOTE -- If key is not a valid 512 hash key (base64 encoded "
              << "format), it will be hashed.";
 }
 

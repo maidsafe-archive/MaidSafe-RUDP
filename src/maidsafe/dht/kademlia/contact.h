@@ -31,7 +31,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include "boost/scoped_ptr.hpp"
+#include "boost/serialization/nvp.hpp"
+#include "boost/serialization/vector.hpp"
 #include "maidsafe/dht/transport/transport.h"
+#include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/version.h"
 
 #if MAIDSAFE_DHT_VERSION != 3102
@@ -46,7 +49,6 @@ namespace dht {
 
 namespace kademlia {
 
-class NodeId;
 
 /** Object containing a Node's Kademlia ID and details of its endpoint(s).
  *  @class Contact */
@@ -189,5 +191,66 @@ bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts);
 }  // namespace dht
 
 }  // namespace maidsafe
+
+
+
+namespace mk = maidsafe::dht::kademlia;
+namespace mt = maidsafe::dht::transport;
+
+namespace boost {
+
+namespace serialization {
+
+#ifdef __MSVC__
+#  pragma warning(disable: 4127)
+#endif
+template <typename Archive>
+void serialize(Archive &archive,                              // NOLINT (Fraser)
+               mk::Contact &contact,
+               const unsigned int& /*version*/) {
+  mk::NodeId node_id;
+  mt::Endpoint endpoint;
+  std::vector<mt::Endpoint> local_endpoints;
+  mt::Endpoint rendezvous_endpoint;
+  bool tcp443, tcp80;
+  std::string public_key_id, public_key, other_info;
+
+  if (Archive::is_saving::value) {
+    node_id = contact.node_id();
+    endpoint = contact.endpoint();
+    local_endpoints = contact.local_endpoints();
+    rendezvous_endpoint = contact.rendezvous_endpoint();
+    tcp443 = contact.tcp443endpoint().port == 443;
+    tcp80 = contact.tcp80endpoint().port == 80;
+    public_key_id = maidsafe::EncodeToBase64(contact.public_key_id());
+    public_key = maidsafe::EncodeToBase64(contact.public_key());
+    other_info = contact.other_info();
+  }
+
+  archive& make_nvp("node_id", node_id);
+  archive& make_nvp("endpoint", endpoint);
+  archive& make_nvp("local_endpoints", local_endpoints);
+  archive& make_nvp("rendezvous_endpoint", rendezvous_endpoint);
+  archive& make_nvp("tcp443", tcp443);
+  archive& make_nvp("tcp80", tcp80);
+  archive& make_nvp("public_key_id", public_key_id);
+  archive& make_nvp("public_key", public_key);
+  archive& make_nvp("other_info", other_info);
+
+  if (Archive::is_loading::value) {
+    public_key_id = maidsafe::DecodeFromBase64(public_key_id);
+    public_key = maidsafe::DecodeFromBase64(public_key);
+    contact = mk::Contact(node_id, endpoint, local_endpoints,
+                          rendezvous_endpoint, tcp443, tcp80, public_key_id,
+                          public_key, other_info);
+  }
+#ifdef __MSVC__
+#  pragma warning(default: 4127)
+#endif
+}
+
+}  // namespace serialization
+
+}  // namespace boost
 
 #endif  // MAIDSAFE_DHT_KADEMLIA_CONTACT_H_
