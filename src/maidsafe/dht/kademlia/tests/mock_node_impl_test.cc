@@ -98,35 +98,35 @@ class SecurifierValidateTrue: public Securifier {
 void FindNodeCallback(RankInfoPtr/* rank_info */,
                       int /*result_size*/,
                       const std::vector<Contact> &cs,
-                      bool *done,
+                      boost::condition_variable* cond_var,
                       std::vector<Contact> *contacts) {
   contacts->clear();
   *contacts = cs;
-  *done = true;
+  cond_var->notify_one();
 }
 
 void FindValueCallback(FindValueReturns find_value_returns_in,
-                       bool *done,
+                       boost::condition_variable* cond_var,
                        FindValueReturns *find_value_returns_out) {
   *find_value_returns_out = find_value_returns_in;
-  *done = true;
+  cond_var->notify_one();
 }
 
 void ErrorCodeCallback(int error_code,
-                       bool *done,
+                       boost::condition_variable* cond_var,
                        int *response_code) {
-  *done = true;
   *response_code = error_code;
+  cond_var->notify_one();
 }
 
 void GetContactCallback(int error_code,
                         Contact contact,
+                        boost::condition_variable* cond_var,
                         Contact *result,
-                        bool *done,
                         int *response_code) {
-  *done = true;
   *response_code = error_code;
   *result = contact;
+  cond_var->notify_one();
 }
 
 class MockTransport : public transport::Transport {
@@ -603,6 +603,7 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
         transport_(new MockTransport),
         rank_info_(),
         asio_service_(),
+        timer_(new TimerContainer()),
         message_handler_(new MessageHandler(securifier_)),
         node_(new NodeImpl(asio_service_,
                            transport_,
@@ -625,7 +626,11 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
                                  g_kKademliaK,
                                  g_kAlpha,
                                  g_kBeta,
-                                 bptime::seconds(3600))) {
+                                 bptime::seconds(3600))),
+        mutex_(),
+        cond_var_(),
+        unique_lock_(mutex_),
+        kTaskTimeout(5) {
     data_store_ = node_->data_store_;
     node_->routing_table_ = routing_table_;
     local_node_->routing_table_ = routing_table_;
@@ -665,21 +670,31 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
     local_node_->rpcs_ = rpcs;
   }
 
+  boost::system_time ExpiryTime(const size_t& seconds) {
+    return boost::get_system_time() + boost::posix_time::seconds(seconds);
+  }
+
   std::shared_ptr<DataStore> data_store_;
   AlternativeStorePtr alternative_store_;
   SecurifierPtr securifier_;
   TransportPtr transport_;
   RankInfoPtr rank_info_;
   boost::asio::io_service asio_service_;
+  std::shared_ptr<TimerContainer> timer_;
   MessageHandlerPtr message_handler_;
   std::shared_ptr<NodeImpl> node_;
   int threshold_;
   std::shared_ptr<NodeImpl> local_node_;
+  boost::mutex mutex_;
+  boost::condition_variable cond_var_;
+  boost::unique_lock<boost::mutex> unique_lock_;
+  const size_t kTaskTimeout;
 
  public:
-  void NodeImplJoinCallback(int output, int* result, bool *done) {
+  void NodeImplJoinCallback(int output, int* result,
+                            boost::condition_variable* cond_var) {
     *result = output;
-    *done = true;
+    cond_var->notify_one();
   }
 };  // MockNodeImplTest
 
@@ -723,14 +738,11 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     // (not greater than k)
     // Looking for a non-exist contact
     Contact result;
-    bool done(false);
     int response_code(0);
     node_->GetContact(target_id, std::bind(&GetContactCallback, arg::_1,
-                                           arg::_2, &result, &done,
+                                           arg::_2, &cond_var_, &result,
                                            &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kFailedToGetContact, response_code);
     EXPECT_EQ(Contact(), result);
   }
@@ -741,14 +753,11 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     // (not greater than k)
     // Looking for an exist contact
     Contact result;
-    bool done(false);
     int response_code(0);
     node_->GetContact(target_id, std::bind(&GetContactCallback, arg::_1,
-                                           arg::_2, &result, &done,
+                                           arg::_2, &cond_var_, &result,
                                            &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
     EXPECT_EQ(target, result);
   }
@@ -837,9 +846,8 @@ TEST_F(MockNodeImplTest, BEH_Join) {
   // When last contact in bootstrap_contacts is valid
   {
     int result(1);
-    bool done(false);
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                     this, arg::_1, &result, &done);
+                                     this, arg::_1, &result, &cond_var_);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -861,17 +869,15 @@ TEST_F(MockNodeImplTest, BEH_Join) {
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
             new_rpcs.get(), arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(1000));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     ASSERT_EQ(kSuccess, result);
     node_->Leave(NULL);
   }
   // When first contact in bootstrap_contacts is valid
   {
     int result(1);
-    bool done(false);
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                     this, arg::_1, &result, &done);
+                                     this, arg::_1, &result, &cond_var_);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -888,18 +894,16 @@ TEST_F(MockNodeImplTest, BEH_Join) {
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
             new_rpcs.get(), arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(1000));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     ASSERT_EQ(kSuccess, result);
     node_->Leave(NULL);
   }
   // When no contacts are valid
   {
     int result(1);
-    bool done(false);
     bootstrap_contacts.clear();
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                     this, arg::_1, &result, &done);
+                                     this, arg::_1, &result, &cond_var_);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -922,8 +926,7 @@ TEST_F(MockNodeImplTest, BEH_Join) {
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
                       new_rpcs.get(), arg::_1, arg::_2))));
     node_->Join(node_id_, bootstrap_contacts, callback);
-    while (!done)
-      Sleep(boost::posix_time::seconds(1));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kContactFailedToRespond, result);
     node_->Leave(NULL);
   }
@@ -938,9 +941,8 @@ TEST_F(MockNodeImplTest, BEH_Join) {
         KeyValueSignature("key1", "value1", "sig1"), ttl, request_signature, "",
         false));
     int result(1);
-    bool done(false);
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                     this, arg::_1, &result, &done);
+                                     this, arg::_1, &result, &cond_var_);
     Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                      5600);
     bootstrap_contacts.push_back(contact);
@@ -962,9 +964,7 @@ TEST_F(MockNodeImplTest, BEH_Join) {
             std::bind(&MockRpcs<transport::TcpTransport>::StoreRefreshCallback,
                       new_rpcs.get(), arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(1000));
-
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     ASSERT_EQ(kSuccess, result);
 //    ASSERT_LT(size_t(0), node_->thread_group_->size());
     node_->Leave(NULL);
@@ -987,9 +987,8 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
   new_rpcs->respond_contacts_ = temp;
   new_rpcs->SetCountersToZero();
   int result(1);
-  bool done(false);
   JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
-                                   this, arg::_1, &result, &done);
+                                   this, arg::_1, &result, &cond_var_);
   Contact contact = ComposeContact(NodeId(GenerateRandomId(node_id_, 490)),
                                    5600);
   bootstrap_contacts.push_back(contact);
@@ -1006,8 +1005,7 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
           &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
           new_rpcs.get(), arg::_1, arg::_2))));
   node_->Join(node_id_, bootstrap_contacts, callback);
-  while (!done)
-    Sleep(boost::posix_time::milliseconds(1000));
+  EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
   ASSERT_EQ(kSuccess, result);
   node_->Leave(NULL);
   ASSERT_FALSE(node_->joined());
@@ -1034,11 +1032,9 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             std::bind(&MockRpcs<transport::TcpTransport>::FindNodeNoResponse,
                       new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(key, std::bind(&FindNodeCallback, rank_info_, arg::_1,
-                                    arg::_2, &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                                    arg::_2, &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_TRUE(lcontacts.empty());
   }
   new_rpcs->num_of_acquired_ = 0;
@@ -1051,12 +1047,10 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             &MockRpcs<transport::TcpTransport>::FindNodeFirstNoResponse,
             new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                               &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(g_kKademliaK - 1, lcontacts.size());
   }
   new_rpcs->num_of_acquired_ = 0;
@@ -1069,12 +1063,10 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             &MockRpcs<transport::TcpTransport>::FindNodeFirstAndLastNoResponse,
             new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                               &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(g_kKademliaK - 2, lcontacts.size());
   }
   {
@@ -1085,12 +1077,10 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             &MockRpcs<transport::TcpTransport>::FindNodeResponseNoClose,
             new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                               &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(g_kKademliaK, lcontacts.size());
   }
   int count = 10 * g_kKademliaK;
@@ -1109,12 +1099,10 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
                       new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
-                               arg::_2, &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                               arg::_2, &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(g_kKademliaK, lcontacts.size());
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK - 1]);
@@ -1143,13 +1131,10 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
             &MockRpcs<transport::TcpTransport>::FindNodeRandomResponseClose,
             new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
-    bool done(false);
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &done, &lcontacts));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+                               &cond_var_, &lcontacts));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     if (new_rpcs->respond_contacts_->size() >= g_kKademliaK) {
       EXPECT_EQ(g_kKademliaK, lcontacts.size());
       EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
@@ -1186,7 +1171,7 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
-        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
+        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &cond_var_,
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
@@ -1222,7 +1207,7 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
-        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
+        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &cond_var_,
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
@@ -1263,7 +1248,7 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
-        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
+        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &cond_var_,
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
@@ -1297,9 +1282,8 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
     // k candidates, for each previous round (g_kAlpha - g_kBeta) pending
     // for the last round, all contacted
     std::vector<Contact> lcontacts;
-    bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
-        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
+        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &cond_var_,
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
@@ -1363,7 +1347,7 @@ TEST_F(MockNodeImplTest, FUNC_HandleIterationStructure) {
     std::vector<Contact> lcontacts;
     bool done(false);
     FindNodesArgsPtr fna(new FindNodesArgs(target,
-        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &done,
+        std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2, &cond_var_,
                   &lcontacts)));
 
     RoutingTableContactsContainer generated_nodes;
@@ -1457,12 +1441,10 @@ TEST_F(MockNodeImplTest, BEH_Store) {
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+                 std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                           &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
@@ -1484,11 +1466,10 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                       LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                 std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                           &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kStoreTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
@@ -1509,11 +1490,10 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                       FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                 std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                           &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kStoreTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
@@ -1535,11 +1515,10 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                       LastLessNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                 std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                           &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
     // wait to ensure in case of wrong, the wrong deletion will be executed
     Sleep(boost::posix_time::milliseconds(300));
@@ -1563,11 +1542,10 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                       LastLessNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
-                 std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                 std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                           &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1615,12 +1593,10 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-             std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+             std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                       &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
@@ -1636,11 +1612,11 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                       LastSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(0);
-    bool done(false);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-             std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+             std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                       &response_code));
+
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kDeleteTooFewNodes, response_code);
     // wait for the all delete processes to be completed
     // otherwise the counter might be incorrect
@@ -1660,11 +1636,10 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                       FirstSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-             std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+             std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                       &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kDeleteTooFewNodes, response_code);
     // wait for the delete processes to be completed
     // otherwise the counter might be incorrect
@@ -1685,12 +1660,10 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                       LastLessNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-             std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-    EXPECT_EQ(kSuccess, response_code);
+             std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                       &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
   }
   new_rpcs->SetCountersToZero();
   {
@@ -1709,11 +1682,10 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                       LastLessNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
-             std::bind(&ErrorCodeCallback, arg::_1, &done, &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+             std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
+                       &response_code));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1770,14 +1742,11 @@ TEST_F(MockNodeImplTest, BEH_Update) {
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
   }
   new_rpcs->SetCountersToZero();
@@ -1799,13 +1768,12 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                       FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
+    Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
@@ -1832,13 +1800,11 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                       LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
                       arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
@@ -1865,13 +1831,11 @@ TEST_F(MockNodeImplTest, BEH_Update) {
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
@@ -1898,13 +1862,11 @@ TEST_F(MockNodeImplTest, BEH_Update) {
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(100));
@@ -1934,13 +1896,11 @@ TEST_F(MockNodeImplTest, BEH_Update) {
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
             new_rpcs.get(), arg::_1, arg::_2))));
     int response_code(-2);
-    bool done(false);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
-                  std::bind(&ErrorCodeCallback, arg::_1, &done,
+                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kFoundTooFewNodes, response_code);
     EXPECT_EQ(0, new_rpcs->respond_);
     EXPECT_EQ(0, new_rpcs->no_respond_);
@@ -1966,11 +1926,10 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
                       new_rpcs.get(), arg::_1, arg::_2))));
     FindValueReturns results;
-    bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &done, &results));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(transport::kError, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_TRUE(results.closest_nodes.empty());
@@ -1987,11 +1946,10 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
             &MockRpcs<transport::TcpTransport>::FindValueResponseCloseOnly,
             new_rpcs.get(), arg::_1, arg::_2))));
     FindValueReturns results;
-    bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &done, &results));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
@@ -2012,12 +1970,10 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNthResponse,
                       new_rpcs.get(), arg::_1, arg::_2))));
     FindValueReturns results;
-    bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &done, &results));
-    while (!done)
-      Sleep(boost::posix_time::milliseconds(100));
-
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results));
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, results.return_code);
     EXPECT_TRUE(results.closest_nodes.empty());
     EXPECT_EQ(1, results.values.size());
@@ -2033,12 +1989,11 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
             new_rpcs.get(), arg::_1, arg::_2))));
     FindValueReturns results;
-    bool done(false);
     node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &done, &results));
-    // Prevent deadlock
-    while ((!done) && (new_rpcs->num_of_acquired_ < (40 * g_kKademliaK)))
-      Sleep(boost::posix_time::milliseconds(100));
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results));
+
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kIterativeLookupFailed, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
@@ -2101,14 +2056,13 @@ TEST_F(MockNodeImplTest, BEH_Getters) {
     NodeId key = NodeId(NodeId::kRandomId);
     std::vector<Contact> booststrap_contacts(1, Contact());
     int result;
-    bool done;
     FindValueReturns find_value_returns;
     find_value_returns.return_code = kSuccess;
 
     local_node_->JoinFindValueCallback(
         find_value_returns, booststrap_contacts, key,
         std::bind(&MockNodeImplTest::NodeImplJoinCallback, this, arg::_1,
-                  &result, &done), true);
+                  &result, &cond_var_), true);
     EXPECT_TRUE(local_node_->joined());
   }
   {

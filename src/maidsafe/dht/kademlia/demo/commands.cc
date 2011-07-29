@@ -125,7 +125,7 @@ void Commands::Store(const Arguments &args, bool read_from_file) {
   else
     ttl = bptime::minutes(minutes_to_live);
 
-  Key key(std::string(args[0]), NodeId::kHex);
+  Key key(args[0], NodeId::kHex);
   if (!key.IsValid())
     key = Key(crypto::Hash<crypto::SHA512>(args[0]));
 
