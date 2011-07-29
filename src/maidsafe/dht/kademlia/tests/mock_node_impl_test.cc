@@ -121,8 +121,8 @@ void ErrorCodeCallback(int error_code,
 
 void GetContactCallback(int error_code,
                         Contact contact,
-                        boost::condition_variable* cond_var,
                         Contact *result,
+                        boost::condition_variable* cond_var,                        
                         int *response_code) {
   *response_code = error_code;
   *result = contact;
@@ -738,7 +738,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     Contact result;
     int response_code(0);
     node_->GetContact(target_id, std::bind(&GetContactCallback, arg::_1,
-                                           arg::_2, &cond_var_, &result,
+                                           arg::_2, &result, &cond_var_,
                                            &response_code));
     EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kFailedToGetContact, response_code);
@@ -753,7 +753,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     Contact result;
     int response_code(0);
     node_->GetContact(target_id, std::bind(&GetContactCallback, arg::_1,
-                                           arg::_2, &cond_var_, &result,
+                                           arg::_2, &result, &cond_var_,
                                            &response_code));
     EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
     EXPECT_EQ(kSuccess, response_code);
@@ -1771,7 +1771,6 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                   std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
                             &response_code));
     EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, ExpiryTime(kTaskTimeout)));
-    Sleep(boost::posix_time::milliseconds(100));
     // wait for the all processes to be completed
     // otherwise the counter might be incorrect
     Sleep(boost::posix_time::milliseconds(300));
