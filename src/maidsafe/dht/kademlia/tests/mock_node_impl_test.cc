@@ -603,7 +603,6 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
         transport_(new MockTransport),
         rank_info_(),
         asio_service_(),
-        timer_(new TimerContainer()),
         message_handler_(new MessageHandler(securifier_)),
         node_(new NodeImpl(asio_service_,
                            transport_,
@@ -680,7 +679,6 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
   TransportPtr transport_;
   RankInfoPtr rank_info_;
   boost::asio::io_service asio_service_;
-  std::shared_ptr<TimerContainer> timer_;
   MessageHandlerPtr message_handler_;
   std::shared_ptr<NodeImpl> node_;
   int threshold_;
