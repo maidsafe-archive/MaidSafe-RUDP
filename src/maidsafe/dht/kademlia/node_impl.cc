@@ -610,6 +610,17 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
     contacts->push_back(contact_);
 }
 
+void NodeImpl::Ping(const Contact &contact, PingFunctor callback) {
+  rpcs_->Ping(SecurifierPtr(), contact,
+              std::bind(&NodeImpl::PingResponse, this, arg::_1, arg::_2,
+                        callback));
+}
+
+void NodeImpl::PingResponse(RankInfoPtr /*rank_info*/, const int& result,
+                            PingFunctor callback) {
+  callback(result);
+}
+
 Contact NodeImpl::contact() const {
   return contact_;
 }

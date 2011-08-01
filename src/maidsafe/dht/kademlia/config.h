@@ -99,7 +99,7 @@ typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
 // Functor for use in Node::Join, Store, Delete and Update.  Parameter is the
 // return code.
 typedef std::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,  // NOLINT (Fraser)
-                                 UpdateFunctor;
+                                 UpdateFunctor, PingFunctor;
 
 // Functor for use in Node::FindValue.  Parameters in order are: return code,
 // value(s) if found, k closest nodes if value not found, contact details of

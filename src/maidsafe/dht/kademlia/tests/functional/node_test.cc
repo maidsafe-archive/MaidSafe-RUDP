@@ -85,6 +85,14 @@ bool MultiNodeFindValueResultReady(
 }
 
 class NodeTest : public testing::Test {
+ public:
+  void PingCallback(const int &result, boost::mutex *mutex,
+                    bool* done, int *out_result) {
+    boost::mutex::scoped_lock lock(*mutex);
+    *out_result = result;
+    *done = true;
+}
+
  protected:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<Node>>
       NodeContainerPtr;
@@ -120,6 +128,39 @@ class NodeTest : public testing::Test {
   NodeTest& operator=(const NodeTest&);
 };
 
+TEST_F(NodeTest, FUNC_Ping) {
+  int result(1);
+  std::vector<Contact> online_contacts;
+  chosen_container_->node()->GetBootstrapContacts(&online_contacts);
+  ASSERT_FALSE(online_contacts.empty());
+
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container_->Ping(online_contacts[RandomUint32() %
+        online_contacts.size()]);
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container_->wait_for_ping_functor()));
+    chosen_container_->GetAndResetPingResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+
+  // create an offline contact
+  crypto::RsaKeyPair key_pair;
+  key_pair.GenerateKeys(4096);
+  NodeId contact_id(dht::kademlia::NodeId::kRandomId);
+  transport::Endpoint end_point("127.0.0.1", 5000);
+  std::vector<transport::Endpoint> local_endpoints(1, end_point);
+  Contact offline_contact(contact_id, end_point, local_endpoints, end_point,
+                          false, false, "", key_pair.public_key(), "");
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container_->Ping(offline_contact);
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container_->wait_for_ping_functor()));
+    chosen_container_->GetAndResetPingResult(&result);
+  }
+  EXPECT_NE(kSuccess, result);
+}
 
 TEST_F(NodeTest, FUNC_Bootstrap) {
   // Test using a non-empty valid bootstrap list - should join the existing
