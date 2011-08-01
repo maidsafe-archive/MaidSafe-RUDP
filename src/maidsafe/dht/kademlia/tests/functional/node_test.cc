@@ -85,14 +85,6 @@ bool MultiNodeFindValueResultReady(
 }
 
 class NodeTest : public testing::Test {
- public:
-  void PingCallback(const int &result, boost::mutex *mutex,
-                    bool* done, int *out_result) {
-    boost::mutex::scoped_lock lock(*mutex);
-    *out_result = result;
-    *done = true;
-}
-
  protected:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<Node>>
       NodeContainerPtr;
