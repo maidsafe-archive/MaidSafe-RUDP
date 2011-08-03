@@ -167,6 +167,14 @@ bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
   return contacts->size() != size_before;
 }
 
+inline OrderedContacts CreateOrderedContacts(const NodeId &target) {
+  return OrderedContacts(
+      std::bind(static_cast<bool(*)(const Contact&,
+                                    const Contact&,
+                                    const NodeId&)>(&CloserToTarget),
+                arg::_1, arg::_2, target));
+}
+
 }  // namespace kademlia
 
 }  // namespace dht

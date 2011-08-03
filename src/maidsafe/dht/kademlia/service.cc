@@ -67,7 +67,6 @@ Service::Service(std::shared_ptr<RoutingTable> routing_table,
       node_joined_(false),
       node_contact_(),
       k_(k),
-      ping_down_list_contacts_(new PingDownListContactsPtr::element_type),
       sender_task_(new SenderTask),
       client_node_id_(NodeId().String()) {}
 
@@ -529,26 +528,21 @@ void Service::Downlist(const transport::Info &/*info*/,
                        transport::Timeout*) {
   if (!node_joined_)
     return;
-  // A sophisticated attacker possibly sent a random downlist. We only verify
-  // the offline status of the nodes in our routing table.
+
+  // A sophisticated attacker possibly sent a random downlist.  We only verify
+  // the offline status of the nodes in our routing table, and then only if the
+  // downlist is <= 2k Contacts (more than this is probably unreasonable).
+  if (request.node_ids_size() > 2 * k_) {
+    DLOG(WARNING) << "Downlist size (" << request.node_ids_size() << ") exceeds"
+                  << " 2 * k (" << 2 * k_ << ").";
+    return;
+  }
+
   for (int i = 0; i < request.node_ids_size(); ++i) {
     NodeId id(request.node_ids(i));
-    if (id.IsValid()) {
-      Contact contact;
-      routing_table_->GetContact(id, &contact);
-  // We can have a vector of contacts in the signal's signature and only fire
-  // it once, (and hence the node_impl has to iterate and ping each).
-  // Or we just fire the signal once per ID.
-  // As the normal case will be only one node per Downlist RPC, so option 2 is
-  // adapted by far.
-      if (contact != Contact())
-        (*ping_down_list_contacts_)(contact);
-    }
+    if (id.IsValid())
+      routing_table_->Downlist(id);
   }
-}
-
-PingDownListContactsPtr Service::GetPingDownListSignalHandler() {
-  return this->ping_down_list_contacts_;
 }
 
 }  // namespace kademlia

@@ -45,6 +45,7 @@ RoutingTable::RoutingTable(const NodeId &this_id, const uint16_t &k)
       unvalidated_contacts_(),
       ping_oldest_contact_(new PingOldestContactPtr::element_type),
       validate_contact_(new ValidateContactPtr::element_type),
+      ping_down_contact_(new PingDownContactPtr::element_type),
       shared_mutex_(),
       bucket_of_holder_(0) {}
 
@@ -225,6 +226,14 @@ void RoutingTable::GetCloseContacts(
   return;
 }
 
+void RoutingTable::Downlist(const NodeId &node_id) {
+  SharedLock shared_lock(shared_mutex_);
+  ContactsById key_indx = contacts_.get<NodeIdTag>();
+  auto it = key_indx.find(node_id);
+  if (it != key_indx.end())
+    (*ping_down_contact_)((*it).contact);
+}
+
 int RoutingTable::SetPublicKey(const NodeId &node_id,
                                const std::string &new_public_key) {
   UpgradeLock upgrade_lock(shared_mutex_);
@@ -403,6 +412,10 @@ PingOldestContactPtr RoutingTable::ping_oldest_contact() {
 
 ValidateContactPtr RoutingTable::validate_contact() {
   return validate_contact_;
+}
+
+PingDownContactPtr RoutingTable::ping_down_contact() {
+  return ping_down_contact_;
 }
 
 Contact RoutingTable::GetLastSeenContact(const uint16_t &kbucket_index) {

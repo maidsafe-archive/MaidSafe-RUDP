@@ -100,7 +100,7 @@ class Node {
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
-       const std::uint16_t &k,
+       const uint16_t &k,
        const uint16_t &alpha,
        const uint16_t &beta,
        const boost::posix_time::time_duration &mean_refresh_interval);
@@ -170,13 +170,17 @@ class Node {
   // callback parameters are completed.  If any queried peer holds the value(s)
   // in its kademlia datastore, the value(s) and signature(s) are passed in the
   // callback and no other callback parameters are completed.  Otherwise, iff no
-  // value exists under key the k closest nodes' details are passed in callback.
+  // value exists under key the (k + extra) closest nodes' details are passed in
+  // callback.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
-                 FindValueFunctor callback);
+                 FindValueFunctor callback,
+                 const uint16_t &extra_contacts = 0);
 
-  // Find the k closest nodes to key.
-  void FindNodes(const Key &key, FindNodesFunctor callback);
+  // Find the (k + extra) closest nodes to key.
+  void FindNodes(const Key &key,
+                 FindNodesFunctor callback,
+                 const uint16_t &extra_contacts = 0);
 
   // Find the contact details of a node.  If the node is not in this node's
   // routing table, a FindNode will be executed.

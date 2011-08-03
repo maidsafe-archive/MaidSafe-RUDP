@@ -80,7 +80,6 @@ class RoutingTableSingleKTest_BEH_MutexTestWithMultipleThread_Test;
 
 class KBucket;
 
-
 struct RoutingTableContact {
   RoutingTableContact(const Contact &contact,
                       const NodeId &holder_id,
@@ -292,7 +291,7 @@ typedef std::shared_ptr<boost::signals2::signal<void(const Contact&,
         PingOldestContactPtr;
 
 typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
-        ValidateContactPtr;
+        ValidateContactPtr, PingDownContactPtr;
 
 /** Object containing a node's Kademlia Routing Table and all its contacts.
  *  @class RoutingTable */
@@ -330,6 +329,9 @@ class RoutingTable {
                         const size_t &count,
                         const std::vector<Contact> &exclude_contacts,
                         std::vector<Contact> *close_contacts);
+  /** Checks if node_id is in routing table, and if it is, fires
+   *  ping_down_contact_ to see whether the contact is actually offline.*/
+  void Downlist(const NodeId &node_id);
   /** Set one node's public key.
    *  @param[in] node_id The Kademlia ID of the target node.
    *  @param[in] new_public_key The new value of the public key.
@@ -374,6 +376,9 @@ class RoutingTable {
   /** Getter.
    *  @return The validate_contact_ signal. */
   ValidateContactPtr validate_contact();
+  /** Getter.
+   *  @return The ping_down_contact_ signal. */
+  PingDownContactPtr ping_down_contact();
 
   friend class test::RoutingTableTest;
   friend class test::RoutingTableSingleKTest;
@@ -469,6 +474,13 @@ class RoutingTable {
    *  in the routing table or to remove the contact from the routing table, if
    *  validation failed. */
   ValidateContactPtr validate_contact_;
+  /** Signal to be fired when we receive notification that a contact we hold is
+   *  offline.  In signal signature, contact is first, then contact's rank info.
+   *  Slot should ping the contact and if successful, should call AddContact for
+   *  the contact, or if unsuccessful, should call IncrementFailedRpcCount for
+   *  the down contact twice (once to represent the notifier's failed attempt to
+   *  reach the node). */
+  PingDownContactPtr ping_down_contact_;
   /** Thread safe mutex lock */
   boost::shared_mutex shared_mutex_;
   /** The index to the bucket that the holder shall sit in

@@ -139,9 +139,6 @@ const uint16_t kMinBootstrapContacts(8);
 // The interval(in millisecond) between calls to Refresh Data Store
 const uint32_t kRefreshDataStoreInterval(3000);
 
-// The interval(in millisecond) between calls to Monitoring Downlist
-const uint32_t kMonitoringDownlistInterval(1000);
-
 }  // namespace kademlia
 
 }  // namespace dht

@@ -1126,45 +1126,7 @@ TEST_F(ServicesTest, BEH_FindValue) {
 }
 
 TEST_F(ServicesTest, BEH_Downlist) {
-  service_->GetPingDownListSignalHandler()->connect(
-      kademlia::PingDownListContactsPtr::element_type::slot_type(
-          &ServicesTest::FakePingContact, this, _1));
-  protobuf::DownlistNotification downlist_request;
-
-  {
-    // given an empty downlist
-    service_->Downlist(info_, downlist_request, &time_out);
-    ASSERT_EQ(0U, num_of_pings_);
-  }
-  {
-    // given a downlist contains k nodes in the routingtable
-    for (int i = 0; i < g_kKademliaK; ++i) {
-      NodeId contact_id = GenerateUniqueRandomId(node_id_, 500);
-      Contact contact = ComposeContact(contact_id, 5000);
-      downlist_request.add_node_ids(contact_id.String());
-      AddContact(routing_table_, contact, rank_info_);
-    }
-    service_->Downlist(info_, downlist_request, &time_out);
-    ASSERT_EQ(g_kKademliaK, num_of_pings_);
-  }
-  num_of_pings_ = 0;
-  {
-    // given a downlist contains k+1 nodes
-    // with one node not in the routingtable
-    NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
-    downlist_request.add_node_ids(contact_id.String());
-    service_->Downlist(info_, downlist_request, &time_out);
-    ASSERT_EQ(g_kKademliaK, num_of_pings_);
-  }
-  num_of_pings_ = 0;
-  { // Node not joined
-    service_->set_node_joined(false);
-    NodeId contact_id = GenerateUniqueRandomId(node_id_, 501);
-    downlist_request.add_node_ids(contact_id.String());
-    service_->Downlist(info_, downlist_request, &time_out);
-    EXPECT_NE(g_kKademliaK, num_of_pings_);
-    service_->set_node_joined(true);
-  }
+  FAIL() << "Not implemented.";
 }
 
 TEST_F(ServicesTest, BEH_Ping) {
