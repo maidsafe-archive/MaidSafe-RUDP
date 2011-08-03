@@ -121,37 +121,25 @@ class NodeTest : public testing::Test {
 };
 
 TEST_F(NodeTest, FUNC_Ping) {
-  int result(1);
-  std::vector<Contact> online_contacts;
-  chosen_container_->node()->GetBootstrapContacts(&online_contacts);
-  ASSERT_FALSE(online_contacts.empty());
+  size_t target_index(RandomUint32() % env_->node_containers_.size());
+  while (chosen_node_index_ == target_index)
+    target_index = RandomUint32() % env_->node_containers_.size();
+  NodeContainerPtr target_container(env_->node_containers_[target_index]);
 
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container_->Ping(online_contacts[RandomUint32() %
-        online_contacts.size()]);
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container_->wait_for_ping_functor()));
-    chosen_container_->GetAndResetPingResult(&result);
-  }
+  int result(kGeneralError);
+  boost::mutex::scoped_lock lock(env_->mutex_);
+  chosen_container_->Ping(target_container->node()->contact());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container_->wait_for_ping_functor()));
+  chosen_container_->GetAndResetPingResult(&result);
   EXPECT_EQ(kSuccess, result);
 
-  // create an offline contact
-  crypto::RsaKeyPair key_pair;
-  key_pair.GenerateKeys(4096);
-  NodeId contact_id(dht::kademlia::NodeId::kRandomId);
-  transport::Endpoint end_point("127.0.0.1", 5000);
-  std::vector<transport::Endpoint> local_endpoints(1, end_point);
-  Contact offline_contact(contact_id, end_point, local_endpoints, end_point,
-                          false, false, "", key_pair.public_key(), "");
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container_->Ping(offline_contact);
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container_->wait_for_ping_functor()));
-    chosen_container_->GetAndResetPingResult(&result);
-  }
-  EXPECT_NE(kSuccess, result);
+  target_container->node()->Leave(NULL);
+  chosen_container_->Ping(target_container->node()->contact());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container_->wait_for_ping_functor()));
+  chosen_container_->GetAndResetPingResult(&result);
+  EXPECT_EQ(transport::kError, result);
 }
 
 TEST_F(NodeTest, FUNC_Bootstrap) {

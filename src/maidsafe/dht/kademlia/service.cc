@@ -113,6 +113,9 @@ void Service::Ping(const transport::Info &info,
                    const protobuf::PingRequest &request,
                    protobuf::PingResponse *response,
                    transport::Timeout*) {
+  response->set_echo("");
+  if (!node_joined_)
+    return;
   if (request.ping().empty())
     return;
   response->set_echo(request.ping());

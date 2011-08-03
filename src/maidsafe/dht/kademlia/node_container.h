@@ -496,8 +496,7 @@ void NodeContainer<NodeType>::GetContact(const NodeId &node_id) {
 }
 
 template <typename NodeType>
-void NodeContainer<NodeType>::Ping(
-    const Contact &contact) {
+void NodeContainer<NodeType>::Ping(const Contact &contact) {
   node_->Ping(contact, ping_functor_);
 }
 
