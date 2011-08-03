@@ -120,6 +120,27 @@ class NodeTest : public testing::Test {
   NodeTest& operator=(const NodeTest&);
 };
 
+TEST_F(NodeTest, FUNC_Ping) {
+  size_t target_index(RandomUint32() % env_->node_containers_.size());
+  while (chosen_node_index_ == target_index)
+    target_index = RandomUint32() % env_->node_containers_.size();
+  NodeContainerPtr target_container(env_->node_containers_[target_index]);
+
+  int result(kGeneralError);
+  boost::mutex::scoped_lock lock(env_->mutex_);
+  chosen_container_->Ping(target_container->node()->contact());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container_->wait_for_ping_functor()));
+  chosen_container_->GetAndResetPingResult(&result);
+  EXPECT_EQ(kSuccess, result);
+
+  target_container->node()->Leave(NULL);
+  chosen_container_->Ping(target_container->node()->contact());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container_->wait_for_ping_functor()));
+  chosen_container_->GetAndResetPingResult(&result);
+  EXPECT_EQ(transport::kError, result);
+}
 
 TEST_F(NodeTest, FUNC_Bootstrap) {
   // Test using a non-empty valid bootstrap list - should join the existing

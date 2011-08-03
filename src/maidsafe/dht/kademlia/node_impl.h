@@ -178,6 +178,10 @@ class NodeImpl {
   /** Get Bootstrap contacts in the routing table
    *  @param[out] contacts Bootstrap contacts in the routing table */
   void GetBootstrapContacts(std::vector<Contact> *contacts);
+  /** Invesrigates the contacts online/offline status
+   *  @param[in] contact the contact to be pinged
+   *  @param[in] callback The callback to report the result. */
+  void Ping(const Contact &contact, PingFunctor callback);
   /** Getter.
    *  @return The contact_ */
   Contact contact() const;
@@ -448,6 +452,13 @@ class NodeImpl {
   void StoreRefreshCallback(RankInfoPtr rank_info,
                             const int &result,
                             const Contact &contact);
+  /** Callback from rpc->ping
+   *  @param[in] rank_info rank info,
+   *  @param[in] response_code Indicator from the rpc->ping. Any negative
+   *  value shall be considered as the enquired contact got some problems,
+   *  @param[in] callback The callback to report the results. */
+  void PingResponse(RankInfoPtr rank_info, const int& result,
+                    PingFunctor callback);
 
   AsioService &asio_service_;
   TransportPtr listening_transport_;

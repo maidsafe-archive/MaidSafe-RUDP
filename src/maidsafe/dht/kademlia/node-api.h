@@ -204,6 +204,9 @@ class Node {
   // network operation is executed.
   void GetBootstrapContacts(std::vector<Contact> *contacts);
 
+  // Checks whether the contact is online or not
+  void Ping(const Contact &contact, PingFunctor callback);
+
   // This node's contact details
   Contact contact() const;
 

@@ -129,6 +129,10 @@ void Node::GetBootstrapContacts(std::vector<Contact> *contacts) {
   pimpl_->GetBootstrapContacts(contacts);
 }
 
+void Node::Ping(const Contact &contact, PingFunctor callback) {
+  pimpl_->Ping(contact, callback);
+}
+
 Contact Node::contact() const {
   return pimpl_->contact();
 }
