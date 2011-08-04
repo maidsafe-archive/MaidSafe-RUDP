@@ -76,7 +76,6 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       on_online_status_change_(new OnOnlineStatusChangePtr::element_type),
       client_only_node_(client_only_node),
       k_(k),
-      threshold_((k_ * 3) / 4),
       kAlpha_(alpha),
       kBeta_(beta),
       kMeanRefreshInterval_(mean_refresh_interval.is_special() ? 3600 :
@@ -92,8 +91,7 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       ping_oldest_contact_(),
       ping_down_contact_(),
       validate_contact_(),
-      refresh_data_store_() {}
-
+      refresh_data_store_timer_(asio_service_) {}
 
 NodeImpl::~NodeImpl() {
   if (joined_)
@@ -211,10 +209,8 @@ void NodeImpl::JoinFindValueCallback(
       service_->set_node_joined(true);
       service_->set_node_contact(contact_);
       service_->ConnectToSignals(message_handler_);
-      refresh_data_store_.reset(
-          new TimedTaskContainer<std::function<void()> >(
-              std::bind(&NodeImpl::RefreshDataStore, this),
-                  kRefreshDataStoreInterval));
+      refresh_data_store_timer_.async_wait(
+          std::bind(&NodeImpl::RefreshDataStore, this));
     }
     data_store_->set_debug_id(DebugId(contact_));
     callback(kSuccess);
@@ -223,6 +219,7 @@ void NodeImpl::JoinFindValueCallback(
 
 void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   joined_ = false;
+  refresh_data_store_timer_.cancel();
   ping_oldest_contact_.disconnect();
   validate_contact_.disconnect();
   ping_down_contact_.disconnect();
@@ -861,13 +858,15 @@ bool NodeImpl::HandleIterationStructure(const Contact &contact,
 }
 
 void NodeImpl::RefreshDataStore() {
+  if (!joined_)
+    refresh_data_store_timer_.cancel();
   std::vector<KeyValueTuple> key_value_tuples;
-//  while (joined_) {
-//    Sleep(bptime::seconds(10));
-    data_store_->Refresh(&key_value_tuples);
-    std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
-                  std::bind(&NodeImpl::RefreshData, this, arg::_1));
-//  }
+  data_store_->Refresh(&key_value_tuples);
+  std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
+                std::bind(&NodeImpl::RefreshData, this, arg::_1));
+  refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
+  refresh_data_store_timer_.async_wait(std::bind(&NodeImpl::RefreshDataStore,
+                                                 this));
 }
 
 void NodeImpl::RefreshData(const KeyValueTuple &key_value_tuple) {

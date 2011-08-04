@@ -476,10 +476,6 @@ class NodeImpl {
   /** Global K parameter */
   const uint16_t k_;
 
-  /** Global threshold to define the number of succeed required to consider a
-   *  Store, Delete or Update to be success */
-  size_t threshold_;
-
   /** Alpha parameter to define how many contacts to be enquired during one
    *  iteration */
   const uint16_t kAlpha_;
@@ -500,9 +496,7 @@ class NodeImpl {
   boost::signals2::connection ping_oldest_contact_, validate_contact_,
                               ping_down_contact_;
 
-  /** The containers for threads ruuning in intervals */
-  std::shared_ptr<TimedTaskContainer<std::function<void()> > >
-      refresh_data_store_;
+  boost::asio::deadline_timer refresh_data_store_timer_;
 };
 
 }  // namespace kademlia

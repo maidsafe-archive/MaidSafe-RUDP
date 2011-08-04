@@ -172,6 +172,7 @@ struct LookupArgs {
   Downlist downlist;
   boost::mutex mutex;
   OperationMethod operation_type;
+  size_t success_threshold;
 };
 
 typedef std::shared_ptr<LookupArgs> LookupArgsPtr;
