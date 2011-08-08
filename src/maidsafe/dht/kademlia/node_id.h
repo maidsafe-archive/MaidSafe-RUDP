@@ -160,6 +160,9 @@ class NodeId {
   std::string raw_id_;
 };
 
+/** Returns an abbreviated hex representation of node_id */
+std::string DebugId(const NodeId &node_id);
+
 }  // namespace kademlia
 
 }  // namespace dht

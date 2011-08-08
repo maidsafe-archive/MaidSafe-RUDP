@@ -43,7 +43,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/version.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
-#include "maidsafe/dht/kademlia/utils.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
 
 #if MAIDSAFE_DHT_VERSION != 3102

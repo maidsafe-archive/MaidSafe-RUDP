@@ -244,6 +244,11 @@ const NodeId NodeId::operator ^ (const NodeId &rhs) const {
   return result;
 }
 
+std::string DebugId(const NodeId &node_id) {
+  std::string hex(node_id.ToStringEncoded(NodeId::kHex));
+  return hex.substr(0, 7) + ".." +hex.substr(hex.size() - 7);
+}
+
 }  // namespace kademlia
 
 }  // namespace dht

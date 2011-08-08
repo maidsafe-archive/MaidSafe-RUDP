@@ -167,6 +167,10 @@ class Contact {
   boost::scoped_ptr<Impl> pimpl_;
 };
 
+
+/** Returns an abbreviated hex representation of contact's NodeId */
+std::string DebugId(const Contact &contact);
+
 /** Returns true if node_id is closer to target than contact. */
 bool CloserToTarget(const NodeId &node_id,
                     const Contact &contact,

@@ -57,13 +57,6 @@ bool IsListeningOnTCP(const Contact &contact);
 // sort the contacts according the distance to the target key
 void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts);
 
-// outputs the first 10 chars of the node_id in hex format
-std::string DebugId(const NodeId &node_id);
-
-// outputs the first 10 chars of the contact's node ID in hex format
-std::string DebugId(const Contact &contact);
-
-
 }  // namespace kademlia
 
 }  // namespace dht
