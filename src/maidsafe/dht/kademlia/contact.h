@@ -33,6 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/scoped_ptr.hpp"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/vector.hpp"
+#include "maidsafe/common/utils.h"
 #include "maidsafe/dht/transport/transport.h"
 #include "maidsafe/dht/kademlia/node_id.h"
 #include "maidsafe/dht/version.h"

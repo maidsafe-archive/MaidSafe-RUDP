@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/message_handler.h"
 #include "maidsafe/dht/version.h"
+#include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
