@@ -135,6 +135,10 @@ bool Contact::operator>=(const Contact &other) const {
   return *pimpl_ >= *other.pimpl_;
 }
 
+std::string DebugId(const Contact &contact) {
+  return DebugId(contact.node_id());
+}
+
 bool CloserToTarget(const NodeId &node_id,
                     const Contact &contact,
                     const NodeId &target) {

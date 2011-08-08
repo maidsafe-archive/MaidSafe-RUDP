@@ -131,14 +131,6 @@ void SortContacts(const NodeId &target_key, std::vector<Contact> *contacts) {
                 arg::_1, arg::_2, target_key));
 }
 
-std::string DebugId(const NodeId &node_id) {
-  return node_id.ToStringEncoded(NodeId::kHex).substr(0, 10);
-}
-
-std::string DebugId(const Contact &contact) {
-  return DebugId(contact.node_id());
-}
-
 }  // namespace kademlia
 
 }  // namespace dht
