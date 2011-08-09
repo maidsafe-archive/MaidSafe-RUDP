@@ -133,6 +133,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   EXPECT_EQ(kSuccess, result) << debug_msg_;
   EXPECT_TRUE(node_container->node()->joined()) << debug_msg_;
 
+
   // Get state of all nodes' routing tables after bootstrapping
   std::vector<std::vector<Contact>> all_nodes_contacts_after;
   for (auto it(env_->node_containers_.begin());
@@ -171,7 +172,28 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   node_container->node()->Leave(&bootstrap_contacts);
   EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
-
+  // Node that has left shouldn't be able to send/ recieve RPCs
+  if (!client_only_node_) {
+    
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    (*env_->node_containers_.rbegin())->Ping(node_container->node()->contact());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  (*env_->node_containers_.rbegin())->wait_for_ping_functor()))
+                  << debug_msg_;
+    result = kPendingResult;
+    (*env_->node_containers_.rbegin())->GetAndResetPingResult(&result);
+    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+  }
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    node_container->Ping((*env_->node_containers_.rbegin())->node()->contact());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  node_container->wait_for_ping_functor()))
+                  << debug_msg_;
+    result = kPendingResult;
+    node_container->GetAndResetPingResult(&result);
+    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+  }
   // Re-join
   result = kPendingResult;
   {
@@ -184,6 +206,28 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
     node_container->GetAndResetJoinResult(&result);
     EXPECT_EQ(kSuccess, result) << debug_msg_;
     EXPECT_TRUE(node_container->node()->joined()) << debug_msg_;
+  }
+  // Node that has re-joined should be able to send/recieve RPCs
+  if (!client_only_node_) {
+    
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    (*env_->node_containers_.rbegin())->Ping(node_container->node()->contact());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  (*env_->node_containers_.rbegin())->wait_for_ping_functor()))
+                  << debug_msg_;
+    result = kPendingResult;
+    (*env_->node_containers_.rbegin())->GetAndResetPingResult(&result);
+    EXPECT_EQ(kSuccess, result) << debug_msg_;
+  }
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    node_container->Ping((*env_->node_containers_.rbegin())->node()->contact());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  node_container->wait_for_ping_functor()))
+                  << debug_msg_;
+    result = kPendingResult;
+    node_container->GetAndResetPingResult(&result);
+    EXPECT_EQ(kSuccess, result) << debug_msg_;
   }
 }
 
