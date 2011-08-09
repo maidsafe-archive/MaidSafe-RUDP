@@ -113,15 +113,14 @@ void Service::Ping(const transport::Info &info,
                    protobuf::PingResponse *response,
                    transport::Timeout*) {
   response->set_echo("");
-  if (!node_joined_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
   if (request.ping().empty())
     return;
   response->set_echo(request.ping());
-  if (request.sender().node_id() != client_node_id_) {
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
-  }
+  AddContactToRoutingTable(FromProtobuf(request.sender()), info);
 }
 
 void Service::FindValue(const transport::Info &info,
@@ -129,41 +128,50 @@ void Service::FindValue(const transport::Info &info,
                         protobuf::FindValueResponse *response,
                         transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
+  Key key(request.key());
+  if (!key.IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
+    return;
+  }
   Contact sender(FromProtobuf(request.sender()));
 
   // Are we the alternative value holder?
-  std::string key(request.key());
   std::vector<std::pair<std::string, std::string>> values_str;
-  if (alternative_store_ && (alternative_store_->Has(key))) {
+  if (alternative_store_ && (alternative_store_->Has(key.String()))) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
-    routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
+    AddContactToRoutingTable(sender, info);
     return;
   }
+
   // Do we have the values?
-  if (datastore_->GetValues(key, &values_str)) {
+  if (datastore_->GetValues(key.String(), &values_str)) {
     for (unsigned int i = 0; i < values_str.size(); i++) {
       protobuf::SignedValue *signed_value = response->add_signed_values();
       signed_value->set_value(values_str[i].first);
       signed_value->set_signature(values_str[i].second);
     }
     response->set_result(true);
-    routing_table_->AddContact(sender, RankInfoPtr(new transport::Info(info)));
+    AddContactToRoutingTable(sender, info);
     return;
   }
 
-  std::vector<Contact> closest_contacts, exclude_contacts(1, sender);
-  routing_table_->GetCloseContacts(NodeId(key), k_, exclude_contacts,
-                                   &closest_contacts);
-  for (size_t i = 0; i < closest_contacts.size(); ++i) {
+  size_t num_nodes_requested(k_);
+  if (request.has_num_nodes_requested() && request.num_nodes_requested() > k_)
+    num_nodes_requested = request.num_nodes_requested();
+
+  std::vector<Contact> closest_contacts, exclude_contacts;
+  routing_table_->GetCloseContacts(key, num_nodes_requested,
+                                   exclude_contacts, &closest_contacts);
+  for (size_t i = 0; i < closest_contacts.size(); ++i)
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
-  }
+
   response->set_result(true);
-  if (sender.node_id().String() != client_node_id_)
-    routing_table_->AddContact(FromProtobuf(request.sender()),
-                               RankInfoPtr(new transport::Info(info)));
+  AddContactToRoutingTable(sender, info);
 }
 
 void Service::FindNodes(const transport::Info &info,
@@ -171,24 +179,29 @@ void Service::FindNodes(const transport::Info &info,
                         protobuf::FindNodesResponse *response,
                         transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
-  NodeId key(request.key());
-  if (!key.IsValid())
+  }
+  Key key(request.key());
+  if (!key.IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
     return;
-  Contact sender(FromProtobuf(request.sender()));
+  }
+
+  size_t num_nodes_requested(k_);
+  if (request.has_num_nodes_requested() && request.num_nodes_requested() > k_)
+    num_nodes_requested = request.num_nodes_requested();
+
   std::vector<Contact> closest_contacts, exclude_contacts;
-  exclude_contacts.push_back(sender);
-  // the repsonse will always be the k-closest contacts
-  // if the target is contained in the routing table, then it shall be one of
-  // the k-closest. Then the send will interate the result, if find the target
-  // then stop the search.
-  routing_table_->GetCloseContacts(key, k_, exclude_contacts,
+  routing_table_->GetCloseContacts(key, num_nodes_requested, exclude_contacts,
                                    &closest_contacts);
   for (size_t i = 0; i < closest_contacts.size(); ++i) {
     (*response->add_closest_nodes()) = ToProtobuf(closest_contacts[i]);
   }
   response->set_result(true);
+
+  Contact sender(FromProtobuf(request.sender()));
   if (sender.node_id().String() != client_node_id_) {
     routing_table_->AddContact(FromProtobuf(request.sender()),
                                RankInfoPtr(new transport::Info(info)));
@@ -203,6 +216,7 @@ void Service::Store(const transport::Info &info,
                     transport::Timeout*) {
   response->set_result(false);
   if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
   }
 
@@ -210,6 +224,12 @@ void Service::Store(const transport::Info &info,
       (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     return;
   }
+
+  if (!Key(request.key()).IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
+    return;
+  }
+
   // Check if same private key signs other values under same key in datastore
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(request.key(), &values)) {
@@ -248,8 +268,10 @@ void Service::StoreRefresh(const transport::Info &info,
                            protobuf::StoreRefreshResponse *response,
                            transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
   if (request.serialised_store_request().empty() ||
       request.serialised_store_request_signature().empty() || !securifier_) {
     DLOG(WARNING) << "StoreRefresh Input Error";
@@ -258,6 +280,10 @@ void Service::StoreRefresh(const transport::Info &info,
 
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
+  if (!Key(ori_store_request.key()).IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
+    return;
+  }
 
   // Check if same private key signs other values under same key in datastore
   std::vector<std::pair<std::string, std::string>> values;
@@ -360,11 +386,17 @@ void Service::Delete(const transport::Info &info,
                      protobuf::DeleteResponse *response,
                      transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_ || !securifier_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
   if (!securifier_ || message.empty() ||
       (message_signature.empty() && !securifier_->kSigningKeyId().empty())) {
     DLOG(WARNING) << "Delete Input Error";
+    return;
+  }
+  if (!Key(request.key()).IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
     return;
   }
 
@@ -412,15 +444,21 @@ void Service::DeleteRefresh(const transport::Info &info,
                             protobuf::DeleteRefreshResponse *response,
                             transport::Timeout*) {
   response->set_result(false);
-  if (!node_joined_ || !securifier_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
   if (request.serialised_delete_request().empty() ||
-      request.serialised_delete_request_signature().empty()) {
+      request.serialised_delete_request_signature().empty() || !securifier_) {
     DLOG(WARNING) << "DeleteFresh Input Error";
     return;
   }
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
+  if (!Key(ori_delete_request.key()).IsValid()) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Invalid key.";
+    return;
+  }
 
   // Avoid CPU-heavy validation work if key doesn't exist.
   if (!datastore_->HasKey(ori_delete_request.key()))
@@ -526,8 +564,10 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
 void Service::Downlist(const transport::Info &/*info*/,
                        const protobuf::DownlistNotification &request,
                        transport::Timeout*) {
-  if (!node_joined_)
+  if (!node_joined_) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Not joined.";
     return;
+  }
 
   // A sophisticated attacker possibly sent a random downlist.  We only verify
   // the offline status of the nodes in our routing table, and then only if the
@@ -544,6 +584,22 @@ void Service::Downlist(const transport::Info &/*info*/,
       routing_table_->Downlist(id);
   }
 }
+
+void Service::AddContactToRoutingTable(const Contact &contact,
+                                       const transport::Info &info) {
+  if (contact.node_id().String() != client_node_id_) {
+#ifdef DEBUG
+    int result(routing_table_->AddContact(contact,
+               RankInfoPtr(new transport::Info(info))));
+    if (result != kSuccess)
+      DLOG(ERROR) << DebugId(node_contact_) << ": Failed to add contact "
+                  << DebugId(contact) << " (result " << result << ")";
+#else
+    routing_table_->AddContact(contact, RankInfoPtr(new transport::Info(info)));
+#endif
+  }
+}
+
 
 }  // namespace kademlia
 

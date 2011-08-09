@@ -279,6 +279,10 @@ class Service : public std::enable_shared_from_this<Service> {
                          const std::string &public_key,
                          const std::string &public_key_validation,
                          const bool is_refresh);
+
+  void AddContactToRoutingTable(const Contact &contact,
+                                const transport::Info &info);
+
   friend class test::ServicesTest;
   template <typename T>
   friend class test::RpcsTest;
