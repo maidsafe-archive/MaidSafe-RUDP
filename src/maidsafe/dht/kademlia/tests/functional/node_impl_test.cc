@@ -174,7 +174,6 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
   // Node that has left shouldn't be able to send/ recieve RPCs
   if (!client_only_node_) {
-    
     boost::mutex::scoped_lock lock(env_->mutex_);
     (*env_->node_containers_.rbegin())->Ping(node_container->node()->contact());
     EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
@@ -209,7 +208,6 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   }
   // Node that has re-joined should be able to send/recieve RPCs
   if (!client_only_node_) {
-    
     boost::mutex::scoped_lock lock(env_->mutex_);
     (*env_->node_containers_.rbegin())->Ping(node_container->node()->contact());
     EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
