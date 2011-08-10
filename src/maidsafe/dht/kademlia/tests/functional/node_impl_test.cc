@@ -279,20 +279,26 @@ TEST_P(NodeImplTest, FUNC_Store) {
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
   Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
+  std::vector<std::string> values;
+  const int kNumValues(1);
+  for (int i = 0; i != kNumValues; ++i)
+    values.push_back(RandomString(RandomUint32() % 1024));
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
   int result(kPendingResult);
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    putting_container->Store(key, value, "", duration,
+  for (int i = 0; i != kNumValues; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      putting_container->Store(key, values[i], "", duration,
                              putting_container->securifier());
-    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                putting_container->wait_for_store_functor()));
-    putting_container->GetAndResetStoreResult(&result);
+      ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                             putting_container->wait_for_store_functor()));
+      putting_container->GetAndResetStoreResult(&result);
+    }
+    ASSERT_EQ(kSuccess, result);
   }
-  ASSERT_EQ(kSuccess, result);
 
 //  Sleep(bptime::milliseconds(1000));
 
@@ -318,7 +324,9 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     }
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
     ASSERT_FALSE(find_value_returns.values.empty());
-    EXPECT_EQ(value, find_value_returns.values.front());
+    ASSERT_EQ(values.size(), find_value_returns.values.size());
+    for (size_t i = 0; i != values.size(); ++i)
+      EXPECT_EQ(values[i], find_value_returns.values[i]);
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
@@ -338,8 +346,9 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
                 getting_container->wait_for_find_value_functor()));
     getting_container->GetAndResetFindValueResult(&find_value_returns);
   }
-  EXPECT_EQ(-1, find_value_returns.return_code);
+  EXPECT_EQ(kSuccess, find_value_returns.return_code);
   EXPECT_TRUE(find_value_returns.values.empty());
+  EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 }
 
