@@ -280,7 +280,7 @@ TEST_P(NodeImplTest, FUNC_Store) {
 TEST_P(NodeImplTest, FUNC_FindValue) {
   Key key(NodeId::kRandomId);
   std::vector<std::string> values;
-  const int kNumValues(1);
+  const int kNumValues(4);
   for (int i = 0; i != kNumValues; ++i)
     values.push_back(RandomString(RandomUint32() % 1024));
   bptime::time_duration duration(bptime::minutes(1));
