@@ -28,7 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
-#include "gmock/gmock.h"
 #include "maidsafe/common/test.h"
 
 #include "maidsafe/dht/log.h"
