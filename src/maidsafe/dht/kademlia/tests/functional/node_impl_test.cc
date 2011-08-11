@@ -84,6 +84,17 @@ class NodeImplTest : public testing::TestWithParam<bool> {
     return node_container->node()->data_store_;
   }
 
+  bool IsKeyValueInDataStore(std::shared_ptr<DataStore> data_store,
+                             std::string key, std::string value) {
+    std::vector<std::pair<std::string, std::string>> values;
+    data_store->GetValues(key, &values);
+    for (size_t i = 0; i < values.size(); ++i) {
+      if (values[i].first == value)
+        return true;
+    }
+    return false;
+  }
+
   std::shared_ptr<LocalNetwork<NodeImpl> > env_;
   const bptime::time_duration kTimeout_;
   bool client_only_node_;
@@ -307,7 +318,8 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
 
 TEST_P(NodeImplTest, FUNC_Store) {
   Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
+  std::string value = RandomString(RandomUint32() % 1024),
+      value1 = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
@@ -364,6 +376,35 @@ TEST_P(NodeImplTest, FUNC_Store) {
     env_->node_containers_[index]->GetAndResetStoreResult(&result);
   }
   EXPECT_NE(kSuccess, result);
+
+  // verify storing a second value to a given key succeeds for original
+  // storing node
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value1, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+
+  for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
+    if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
+                       key, env_->node_ids_, env_->k_)) {
+//        std::cout << DebugId(*node_containers_[i]) << ": ";
+      EXPECT_TRUE(GetDataStore(
+          env_->node_containers_[i])->HasKey(key.String()));
+      EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                        key.String(), value));
+      EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                        key.String(), value1));
+    } else {
+      EXPECT_FALSE(GetDataStore(env_->node_containers_[i])->
+          HasKey(key.String()));
+    }
+  }
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
