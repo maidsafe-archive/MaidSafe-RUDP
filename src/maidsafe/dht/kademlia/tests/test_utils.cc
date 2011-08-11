@@ -336,8 +336,8 @@ bool WithinKClosest(const NodeId &node_id,
                 arg::_1, arg::_2, target_key);
   std::partial_sort(node_ids.begin(), node_ids.begin() + k, node_ids.end(),
                     predicate);
-  return (std::find(node_ids.begin(), node_ids.begin() + k + 1, node_id) !=
-          node_ids.begin() + k + 1);
+  return (std::find(node_ids.begin(), node_ids.begin() + k, node_id) !=
+          node_ids.begin() + k);
 }
 
 }  // namespace test
