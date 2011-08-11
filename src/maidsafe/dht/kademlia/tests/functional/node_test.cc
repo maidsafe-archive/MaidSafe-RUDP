@@ -111,7 +111,7 @@ class NodeTest : public testing::Test {
     return result;
   }
 
-  NodesEnvironment<Node>* env_;
+  std::shared_ptr<LocalNetwork<Node> > env_;
   const bptime::time_duration kTimeout_;
   size_t chosen_node_index_;
   NodeContainerPtr chosen_container_;
