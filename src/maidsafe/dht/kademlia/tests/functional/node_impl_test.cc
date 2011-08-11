@@ -282,6 +282,27 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
         ++it, ++prior_it) {
     EXPECT_EQ(*prior_it, *it) << debug_msg_;
   }
+
+  // verify a node which has left isn't included in the returned list
+  closest_nodes.clear();
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->Stop(NULL);
+    for (size_t i = 0; i < env_->num_full_nodes_; i++) {
+      env_->node_containers_[i]->FindNodes(
+          test_container_->node()->contact().node_id());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()))
+                      << debug_msg_;
+      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
+                                                            &closest_nodes);
+      EXPECT_EQ(kSuccess, result);
+      EXPECT_EQ(closest_nodes.end(),
+                std::find(closest_nodes.begin(),
+                          closest_nodes.end(),
+                          test_container_->node()->contact()));
+    }
+  }
 }
 
 TEST_P(NodeImplTest, FUNC_Store) {

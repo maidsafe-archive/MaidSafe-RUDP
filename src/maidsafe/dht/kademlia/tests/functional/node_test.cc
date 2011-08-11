@@ -669,6 +669,29 @@ TEST_F(NodeTest, FUNC_FindNodes) {
     EXPECT_TRUE(WithinKClosest((*it).node_id(), kTargetId, env_->node_ids_,
                 env_->k_));
   }
+
+  // verify a node which has left isn't included in the returned list
+  closest_nodes.clear();
+  // a random node index !=  chosen_node_index_
+  size_t index = (chosen_node_index_ + 1 +
+                   RandomUint32() % (env_->node_containers_.size() - 1)) %
+                       (env_->node_containers_.size());
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container_->Stop(NULL);
+    env_->node_containers_[index]->FindNodes(
+        chosen_container_->node()->contact().node_id());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                env_->node_containers_[index]->wait_for_find_nodes_functor()));
+    env_->node_containers_[index]->GetAndResetFindNodesResult(&result,
+                                                              &closest_nodes);
+  }
+  EXPECT_EQ(kSuccess, result);
+  EXPECT_EQ(env_->k_, closest_nodes.size());
+  EXPECT_EQ(closest_nodes.end(),
+            std::find(closest_nodes.begin(),
+                      closest_nodes.end(),
+                      chosen_container_->node()->contact()));
 }
 
 TEST_F(NodeTest, FUNC_Delete) {
