@@ -369,7 +369,7 @@ TEST_P(NodeImplTest, FUNC_Store) {
   result = kPendingResult;
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
-    env_->node_containers_[index]->Store(key, value, "", duration,
+    env_->node_containers_[index]->Store(key, value1, "", duration,
         env_->node_containers_[index]->securifier());
     ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
                 env_->node_containers_[index]->wait_for_store_functor()));
