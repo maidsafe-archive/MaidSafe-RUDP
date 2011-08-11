@@ -116,6 +116,12 @@ void UdpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  if (static_cast<DataSize>(data.size()) > kMaxTransportMessageSize()) {
+    DLOG(ERROR) << "Data size " << data.size() << " bytes (exceeds limit of "
+                << kMaxTransportMessageSize() << ")";
+    (*on_error_)(kMessageSizeTooLarge, endpoint);
+    return;
+  }
   RequestPtr request(new UdpRequest(data, ep, asio_service_, timeout));
   strand_.dispatch(std::bind(&UdpTransport::DoSend,
                              shared_from_this(), request));
