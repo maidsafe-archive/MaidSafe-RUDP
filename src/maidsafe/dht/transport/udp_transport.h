@@ -64,7 +64,7 @@ class UdpTransport : public Transport,
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
-
+  static DataSize kMaxTransportMessageSize() { return 65536; }
  private:
   UdpTransport(const UdpTransport&);
   UdpTransport &operator=(const UdpTransport&);
