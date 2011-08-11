@@ -325,8 +325,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
     ASSERT_FALSE(find_value_returns.values.empty());
     ASSERT_EQ(values.size(), find_value_returns.values.size());
-    for (size_t i = 0; i != values.size(); ++i)
-      EXPECT_EQ(values[i], find_value_returns.values[i]);
+    for (size_t k = 0; k != values.size(); ++k)
+      EXPECT_EQ(values[k], find_value_returns.values[k]);
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
