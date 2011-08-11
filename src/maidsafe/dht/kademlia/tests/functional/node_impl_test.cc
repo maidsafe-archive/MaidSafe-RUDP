@@ -303,8 +303,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
   }
   EXPECT_EQ(kSuccess, result);
 
-//  Sleep(bptime::milliseconds(1000));
-
   for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
@@ -316,6 +314,18 @@ TEST_P(NodeImplTest, FUNC_Store) {
                    HasKey(key.String()));
     }
   }
+
+  //  verify re-storing an existing key,value succeeds for original storing node
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
