@@ -36,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
-#include "gmock/gmock.h"
 #include "maidsafe/common/test.h"
 
 #include "maidsafe/common/alternative_store.h"
