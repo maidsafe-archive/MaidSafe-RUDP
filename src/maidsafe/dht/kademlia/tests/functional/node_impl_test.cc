@@ -84,7 +84,7 @@ class NodeImplTest : public testing::TestWithParam<bool> {
     return node_container->node()->data_store_;
   }
 
-  NodesEnvironment<NodeImpl>* env_;
+  std::shared_ptr<LocalNetwork<NodeImpl> > env_;
   const bptime::time_duration kTimeout_;
   bool client_only_node_;
   std::string debug_msg_;

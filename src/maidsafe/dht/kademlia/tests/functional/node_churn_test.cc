@@ -90,7 +90,7 @@ class NodeChurnTest : public testing::Test {
     return boost::numeric_cast<size_t>((1000)*(10 + (RandomUint32() % 20)));
   }
 
-  NodesEnvironment<Node>* env_;
+  std::shared_ptr<LocalNetwork<Node> > env_;
   const bptime::time_duration kTimeout_;
   boost::mutex mutex_;
   boost::condition_variable cond_var_;
