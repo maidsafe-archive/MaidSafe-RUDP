@@ -326,6 +326,23 @@ TEST_P(NodeImplTest, FUNC_Store) {
     chosen_container->GetAndResetStoreResult(&result);
   }
   EXPECT_EQ(kSuccess, result);
+
+  //  verify storing a second value to a given key fails for different storing
+  //  node
+  size_t index = (test_node_index + 1 +
+                   RandomUint32() % (env_->node_containers_.size() - 1)) %
+                       (env_->node_containers_.size());
+  value = (RandomString(RandomUint32() % 1024));
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    env_->node_containers_[index]->Store(key, value, "", duration,
+        env_->node_containers_[index]->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                env_->node_containers_[index]->wait_for_store_functor()));
+    env_->node_containers_[index]->GetAndResetStoreResult(&result);
+  }
+  EXPECT_NE(kSuccess, result);
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
