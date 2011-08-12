@@ -319,14 +319,31 @@ TEST_P(NodeImplTest, FUNC_Store) {
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
+  // Attempt to find value for a non-existent key
+  Key nonexistent_key(NodeId::kRandomId);
+  FindValueReturns find_value_returns_nonexistent_key;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    putting_container->FindValue(nonexistent_key,
+                                 putting_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+        putting_container->wait_for_find_value_functor()));
+    putting_container->GetAndResetFindValueResult(
+        &find_value_returns_nonexistent_key);
+  }
+  EXPECT_EQ(kFailedToFindValue, find_value_returns_nonexistent_key.return_code);
+  EXPECT_TRUE(find_value_returns_nonexistent_key.values.empty());
+  EXPECT_EQ(env_->k_, find_value_returns_nonexistent_key.closest_nodes.size());
+
+  // store some values for one key
   Key key(NodeId::kRandomId);
   std::vector<std::string> values;
   const int kNumValues(4);
   for (int i = 0; i != kNumValues; ++i)
     values.push_back(RandomString(RandomUint32() % 1024));
   bptime::time_duration duration(bptime::minutes(1));
-  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
-  NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
   int result(kPendingResult);
   for (int i = 0; i != kNumValues; ++i) {
     result = kPendingResult;
@@ -340,8 +357,6 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     }
     ASSERT_EQ(kSuccess, result);
   }
-
-//  Sleep(bptime::milliseconds(1000));
 
   // Get a node which hasn't stored the value
   size_t not_got_value(0);
