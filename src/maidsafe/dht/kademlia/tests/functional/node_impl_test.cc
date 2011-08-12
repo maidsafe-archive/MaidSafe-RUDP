@@ -43,6 +43,14 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
+namespace {
+class TestAlternativeStoreReturnsTrue : public AlternativeStore {
+ public:
+  ~TestAlternativeStoreReturnsTrue() {}
+  bool Has(const std::string&) { return true; }
+};
+}  // unnamed namespace
+  
 class NodeImplTest : public testing::TestWithParam<bool> {
  protected:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
@@ -56,9 +64,9 @@ class NodeImplTest : public testing::TestWithParam<bool> {
         bootstrap_contacts_() {}
 
   void SetUp() {
-    test_container_->Init(3, SecurifierPtr(),
-        AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node_,
-        env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+    test_container_->Init(3, SecurifierPtr(), AlternativeStorePtr(),
+                          client_only_node_, env_->k_, env_->alpha_,
+                          env_->beta_, env_->mean_refresh_interval_);
     test_container_->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
     (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
         &bootstrap_contacts_);
@@ -111,8 +119,8 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   NodeContainerPtr node_container(
       new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
   node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), client_only_node_,
-      env_->k_, env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+                       AlternativeStorePtr(), client_only_node_, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   std::vector<Contact> bootstrap_contacts;
   (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
@@ -410,22 +418,23 @@ TEST_P(NodeImplTest, FUNC_Store) {
 TEST_P(NodeImplTest, FUNC_FindValue) {
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
-  // Attempt to find value for a non-existent key
-  Key nonexistent_key(NodeId::kRandomId);
-  FindValueReturns find_value_returns_nonexistent_key;
   {
+    // Attempt to find value for a non-existent key
+    Key nonexistent_key(NodeId::kRandomId);
+    FindValueReturns find_value_returns_nonexistent_key;
     boost::mutex::scoped_lock lock(env_->mutex_);
     putting_container->FindValue(nonexistent_key,
                                  putting_container->securifier());
-    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-        putting_container->wait_for_find_value_functor()));
+    ASSERT_TRUE(env_->cond_var_.timed_wait(
+        lock, kTimeout_, putting_container->wait_for_find_value_functor()));
     putting_container->GetAndResetFindValueResult(
         &find_value_returns_nonexistent_key);
+    EXPECT_EQ(kFailedToFindValue,
+              find_value_returns_nonexistent_key.return_code);
+    EXPECT_TRUE(find_value_returns_nonexistent_key.values.empty());
+    EXPECT_EQ(env_->k_,
+              find_value_returns_nonexistent_key.closest_nodes.size());
   }
-  EXPECT_EQ(kFailedToFindValue, find_value_returns_nonexistent_key.return_code);
-  EXPECT_TRUE(find_value_returns_nonexistent_key.values.empty());
-  EXPECT_EQ(env_->k_, find_value_returns_nonexistent_key.closest_nodes.size());
-
   // store some values for one key
   Key key(NodeId::kRandomId);
   std::vector<std::string> values;
