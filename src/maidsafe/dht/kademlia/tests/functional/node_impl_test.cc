@@ -84,6 +84,17 @@ class NodeImplTest : public testing::TestWithParam<bool> {
     return node_container->node()->data_store_;
   }
 
+  bool IsKeyValueInDataStore(std::shared_ptr<DataStore> data_store,
+                             std::string key, std::string value) {
+    std::vector<std::pair<std::string, std::string>> values;
+    data_store->GetValues(key, &values);
+    for (size_t i = 0; i < values.size(); ++i) {
+      if (values[i].first == value)
+        return true;
+    }
+    return false;
+  }
+
   std::shared_ptr<LocalNetwork<NodeImpl> > env_;
   const bptime::time_duration kTimeout_;
   bool client_only_node_;
@@ -282,11 +293,33 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
         ++it, ++prior_it) {
     EXPECT_EQ(*prior_it, *it) << debug_msg_;
   }
+
+  // verify a node which has left isn't included in the returned list
+  closest_nodes.clear();
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->Stop(NULL);
+    for (size_t i = 0; i < env_->num_full_nodes_; i++) {
+      env_->node_containers_[i]->FindNodes(
+          test_container_->node()->contact().node_id());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()))
+                      << debug_msg_;
+      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
+                                                            &closest_nodes);
+      EXPECT_EQ(kSuccess, result);
+      EXPECT_EQ(closest_nodes.end(),
+                std::find(closest_nodes.begin(),
+                          closest_nodes.end(),
+                          test_container_->node()->contact()));
+    }
+  }
 }
 
 TEST_P(NodeImplTest, FUNC_Store) {
   Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
+  std::string value = RandomString(RandomUint32() % 1024),
+      value1 = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::minutes(1));
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
@@ -303,8 +336,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
   }
   EXPECT_EQ(kSuccess, result);
 
-//  Sleep(bptime::milliseconds(1000));
-
   for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
@@ -314,6 +345,64 @@ TEST_P(NodeImplTest, FUNC_Store) {
     } else {
       EXPECT_FALSE(GetDataStore(env_->node_containers_[i])->
                    HasKey(key.String()));
+    }
+  }
+
+  //  verify re-storing an existing key,value succeeds for original storing node
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+
+  //  verify storing a second value to a given key fails for different storing
+  //  node
+  size_t index = (test_node_index + 1 +
+                   RandomUint32() % (env_->node_containers_.size() - 1)) %
+                       (env_->node_containers_.size());
+  value = (RandomString(RandomUint32() % 1024));
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    env_->node_containers_[index]->Store(key, value1, "", duration,
+        env_->node_containers_[index]->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                env_->node_containers_[index]->wait_for_store_functor()));
+    env_->node_containers_[index]->GetAndResetStoreResult(&result);
+  }
+  EXPECT_NE(kSuccess, result);
+
+  // verify storing a second value to a given key succeeds for original
+  // storing node
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value1, "", duration,
+                            chosen_container->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+
+  for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
+    if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
+                       key, env_->node_ids_, env_->k_)) {
+//        std::cout << DebugId(*node_containers_[i]) << ": ";
+      EXPECT_TRUE(GetDataStore(
+          env_->node_containers_[i])->HasKey(key.String()));
+      EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                        key.String(), value));
+      EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                        key.String(), value1));
+    } else {
+      EXPECT_FALSE(GetDataStore(env_->node_containers_[i])->
+          HasKey(key.String()));
     }
   }
 }
