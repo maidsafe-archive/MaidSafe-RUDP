@@ -50,7 +50,7 @@ class TestAlternativeStoreReturnsTrue : public AlternativeStore {
   bool Has(const std::string&) { return true; }
 };
 }  // unnamed namespace
-  
+
 class NodeImplTest : public testing::TestWithParam<bool> {
  protected:
   typedef std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeImpl>>
