@@ -40,13 +40,6 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
-
-class TestNodeAlternativeStore : public AlternativeStore {
- public:
-  ~TestNodeAlternativeStore() {}
-  bool Has(const std::string&) const { return false; }
-};
-
 template <typename NodeType>
 class LocalNetwork {
  public:
@@ -102,8 +95,8 @@ void LocalNetwork<NodeType>::SetUp() {
     std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeType>>
         node_container(new maidsafe::dht::kademlia::NodeContainer<NodeType>());
     node_container->Init(threads_per_node_, SecurifierPtr(),
-        AlternativeStorePtr(new TestNodeAlternativeStore), false, k_,
-        alpha_, beta_, mean_refresh_interval_);
+                         AlternativeStorePtr(), false, k_, alpha_, beta_,
+                         mean_refresh_interval_);
     node_container->MakeAllCallbackFunctors(&mutex_, &cond_var_);
 
     int attempts(0), max_attempts(5), result(kPendingResult);

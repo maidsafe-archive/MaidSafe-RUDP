@@ -150,9 +150,9 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   ASSERT_FALSE(online_contacts.empty());
   NodeContainerPtr node_container(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, SecurifierPtr(), AlternativeStorePtr(), false,
+                       env_->k_, env_->alpha_, env_->beta_,
+                       env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   std::vector<Contact> bootstrap_contacts(online_contacts);
   EXPECT_EQ(kSuccess, StartNode(node_container, bootstrap_contacts));
@@ -165,9 +165,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   SecurifierPtr securifier = node_container->securifier();
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   EXPECT_EQ(kSuccess, StartNode(node_container, bootstrap_contacts));
   EXPECT_TRUE(node_container->node()->joined());
@@ -179,9 +178,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   bootstrap_contacts.assign(1, node_container->node()->contact());
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   EXPECT_EQ(kSuccess, StartNode(node_container, bootstrap_contacts));
   EXPECT_TRUE(node_container->node()->joined());
@@ -193,9 +191,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   // network
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   bootstrap_contacts = online_contacts;
   bootstrap_contacts.insert(bootstrap_contacts.begin(),
@@ -209,9 +206,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   // position in the list followed by offline contacts - should fail to join
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   std::vector<Contact> offline_contacts;
   for (Port port = 5000; port < 5003; ++port) {
@@ -237,9 +233,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   // join
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   bootstrap_contacts = offline_contacts;
   EXPECT_EQ(kContactFailedToRespond,
@@ -252,9 +247,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   // should join the existing network
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   bootstrap_contacts = online_contacts;
   bootstrap_contacts.insert(bootstrap_contacts.end(), offline_contacts.begin(),
@@ -268,9 +262,8 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
   // should join the existing network
   node_container = NodeContainerPtr(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  node_container->Init(3, securifier,
-      AlternativeStorePtr(new TestNodeAlternativeStore), false, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  node_container->Init(3, securifier, AlternativeStorePtr(), false, env_->k_,
+                       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
   std::reverse(bootstrap_contacts.begin(), bootstrap_contacts.end());
   EXPECT_EQ(kSuccess, StartNode(node_container, bootstrap_contacts));
@@ -282,9 +275,9 @@ TEST_F(NodeTest, FUNC_Bootstrap) {
 TEST_F(NodeTest, FUNC_JoinClient) {
   NodeContainerPtr client_node_container(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  client_node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), true, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  client_node_container->Init(3, SecurifierPtr(), AlternativeStorePtr(), true,
+                              env_->k_, env_->alpha_, env_->beta_,
+                              env_->mean_refresh_interval_);
   client_node_container->MakeAllCallbackFunctors(&env_->mutex_,
                                                  &env_->cond_var_);
   std::vector<Contact> bootstrap_contacts;
@@ -452,9 +445,9 @@ TEST_F(NodeTest, FUNC_MultipleNodesFindSingleValue) {
 TEST_F(NodeTest, FUNC_ClientFindValue) {
   NodeContainerPtr client_node_container(
       new maidsafe::dht::kademlia::NodeContainer<Node>());
-  client_node_container->Init(3, SecurifierPtr(),
-      AlternativeStorePtr(new TestNodeAlternativeStore), true, env_->k_,
-      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  client_node_container->Init(3, SecurifierPtr(), AlternativeStorePtr(), true,
+                              env_->k_, env_->alpha_, env_->beta_,
+                              env_->mean_refresh_interval_);
   client_node_container->MakeAllCallbackFunctors(&env_->mutex_,
                                                  &env_->cond_var_);
   std::vector<Contact> bootstrap_contacts;
