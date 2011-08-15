@@ -505,7 +505,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
-
+  // Test that a node with a key in its alternative store returns itself as a
+  // holder for that key when queried
   NodeContainerPtr alternative_container(
       new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
   alternative_container->Init(3, SecurifierPtr(),
@@ -530,6 +531,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   }
   FindValueReturns alternative_find_value_returns;
   {
+    // Attempt to FindValue using the ID of the alternative
+    // store container as the key
     boost::mutex::scoped_lock lock(env_->mutex_);
     test_container_->FindValue(
         alternative_container->node()->contact().node_id(),
