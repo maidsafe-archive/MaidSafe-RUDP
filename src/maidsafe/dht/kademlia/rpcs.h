@@ -549,17 +549,31 @@ void Rpcs<TransportType>::FindValueCallback(
                values, contacts, alternative_value_holder);
       return;
     }
-    for (int i = 0; i < response.signed_values_size(); ++i)
-      values.push_back(response.signed_values(i).value());
 
-    for (int i = 0; i < response.closest_nodes_size(); ++i)
-      contacts.push_back(FromProtobuf(response.closest_nodes(i)));
     if (response.has_alternative_value_holder()) {
       alternative_value_holder =
           FromProtobuf(response.alternative_value_holder());
+      callback(RankInfoPtr(new transport::Info(info)),
+               kFoundAlternativeStoreHolder, values, contacts,
+               alternative_value_holder);
+      return;
     }
 
-    callback(RankInfoPtr(new transport::Info(info)), transport_condition,
+    if (response.signed_values_size() != 0) {
+      for (int i = 0; i < response.signed_values_size(); ++i)
+        values.push_back(response.signed_values(i).value());
+      callback(RankInfoPtr(new transport::Info(info)), kSuccess, values,
+               contacts, alternative_value_holder);
+    }
+
+    if (response.closest_nodes_size() != 0) {
+      for (int i = 0; i < response.closest_nodes_size(); ++i)
+        contacts.push_back(FromProtobuf(response.closest_nodes(i)));
+      callback(RankInfoPtr(new transport::Info(info)), kFailedToFindValue,
+               values, contacts, alternative_value_holder);
+      return;
+    }
+    callback(RankInfoPtr(new transport::Info(info)), kIterativeLookupFailed,
              values, contacts, alternative_value_holder);
   }
 }
