@@ -972,13 +972,13 @@ TEST_F(ServicesTest, BEH_FindNodes) {
     ASSERT_EQ(2 * g_kKademliaK + 1, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
   }
-  
+
   Clear();
   {
     // try to find the target from a 2*k filled routing table
     // (containing the sender, but not containing the target)
-    // where num_nodes_requested < g_kKademliaK, it shoud return 
-    // g_kKademliaK contacts    
+    // where num_nodes_requested < g_kKademliaK, it shoud return
+    // g_kKademliaK contacts
     PopulateRoutingTable(g_kKademliaK, 500);
     PopulateRoutingTable(g_kKademliaK, 501);
     EXPECT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
@@ -990,12 +990,12 @@ TEST_F(ServicesTest, BEH_FindNodes) {
     ASSERT_EQ(g_kKademliaK, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
-  }  
+  }
   Clear();
   {
     // try to find the target from a 2*k filled routing table
     // (containing the sender, but not containing the target)
-    // where num_nodes_requested > g_kKademliaK, it shoud return 
+    // where num_nodes_requested > g_kKademliaK, it shoud return
     // num_nodes_requested contacts
     PopulateRoutingTable(g_kKademliaK, 500);
     PopulateRoutingTable(g_kKademliaK, 501);
@@ -1008,7 +1008,7 @@ TEST_F(ServicesTest, BEH_FindNodes) {
     ASSERT_EQ(g_kKademliaK*3/2, find_nodes_rsp.closest_nodes_size());
     ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
-  }  
+  }
 }
 
 TEST_F(ServicesTest, BEH_FindValue) {
@@ -1065,12 +1065,12 @@ TEST_F(ServicesTest, BEH_FindValue) {
 
   Clear();
   {
-    // Search in empty datastore with 2*k populated routing table 
+    // Search in empty datastore with 2*k populated routing table
     // no alternative_store_,  where num_nodes_requested < g_kKademliaK.
     // The response should contain g_kKademliaK contacts.
     PopulateRoutingTable(g_kKademliaK, 500);
     PopulateRoutingTable(g_kKademliaK, 501);
-    
+
     find_value_req.set_num_nodes_requested(g_kKademliaK/2);
     protobuf::FindValueResponse find_value_rsp;
     service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
@@ -1078,17 +1078,17 @@ TEST_F(ServicesTest, BEH_FindValue) {
     ASSERT_EQ(g_kKademliaK, find_value_rsp.closest_nodes_size());
     ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
-  }  
+  }
   Clear();
 
   {
     // Search in empty datastore
     // but with 2*k populated routing table no alternative_store_,
-    // where num_nodes_requested > g_kKademliaK. The response should contain 
+    // where num_nodes_requested > g_kKademliaK. The response should contain
     // num_nodes_requested contacts.
     PopulateRoutingTable(g_kKademliaK, 500);
     PopulateRoutingTable(g_kKademliaK, 501);
-    
+
     find_value_req.set_num_nodes_requested(g_kKademliaK*3/2);
     protobuf::FindValueResponse find_value_rsp;
     service_->FindValue(info_, find_value_req, &find_value_rsp, &time_out);
@@ -1096,9 +1096,9 @@ TEST_F(ServicesTest, BEH_FindValue) {
     ASSERT_EQ(g_kKademliaK*3/2, find_value_rsp.closest_nodes_size());
     ASSERT_EQ(2 * g_kKademliaK, GetRoutingTableSize());
     ASSERT_EQ(1U, CountUnValidatedContacts());
-  }  
-  Clear();  
-  
+  }
+  Clear();
+
   {
     // Search in k populated datastore (not containing the target)
     // but with an empty routing table

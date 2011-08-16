@@ -406,13 +406,17 @@ void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
     switch ((*itr).second.rpc_state) {
       case ContactInfo::kNotSent: {
         if (lookup_args->kOperationType == LookupArgs::kFindValue) {
-          rpcs_->FindValue(lookup_args->kTarget, lookup_args->securifier,
+          rpcs_->FindValue(lookup_args->kTarget,
+                           lookup_args->kNumContactsRequested,
+                           lookup_args->securifier,
                            (*itr).first,
                            std::bind(&NodeImpl::IterativeFindCallback,
                                      this, arg::_1, arg::_2, arg::_3, arg::_4,
                                      arg::_5, (*itr).first, lookup_args));
         } else {
-          rpcs_->FindNodes(lookup_args->kTarget, default_securifier_,
+          rpcs_->FindNodes(lookup_args->kTarget,
+                           lookup_args->kNumContactsRequested,
+                           default_securifier_,
                            (*itr).first,
                            std::bind(&NodeImpl::IterativeFindCallback,
                                      this, arg::_1, arg::_2,

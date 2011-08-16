@@ -351,10 +351,11 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
   std::vector<Contact> contact_list;
   Key key = this->service_contact_.node_id();
 
-  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                &contact_list, &done, &response_code));
-
+  this->rpcs_->FindNodes(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindNodesCallback, arg::_1, arg::_2,
+                                   arg::_3, &contact_list, &done,
+                                   &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   this->StopAndReset();
@@ -372,10 +373,11 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->service_contact_.node_id();
 
-  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                &contact_list, &done, &response_code));
-
+  this->rpcs_->FindNodes(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindNodesCallback, arg::_1, arg::_2,
+                                   arg::_3, &contact_list, &done,
+                                   &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   this->StopAndReset();
@@ -409,10 +411,11 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
   AddContact(this->routing_table_, this->service_contact_, this->rank_info_);
   Key key = this->service_contact_.node_id();
 
-  this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
-                &contact_list, &done, &response_code));
-
+  this->rpcs_->FindNodes(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindNodesCallback, arg::_1, arg::_2,
+                                   arg::_3, &contact_list, &done,
+                                   &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   this->StopAndReset();
@@ -449,10 +452,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -477,11 +481,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   return_contacts.clear();
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
-
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
@@ -505,11 +509,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
-
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
@@ -533,11 +537,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   return_contacts.clear();
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
-
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(0, response_code);
@@ -559,11 +563,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   return_contacts.clear();
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
-
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   this->StopAndReset();
@@ -602,11 +606,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
-
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
   // Value not stored in data store
@@ -714,10 +718,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
   response_code = 0;
   return_values.clear();
   return_contacts.clear();
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -744,10 +749,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
   response_code = 0;
   return_values.clear();
   return_contacts.clear();
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -863,10 +869,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -907,10 +914,11 @@ TYPED_TEST_P(RpcsTest, BEH_Delete) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = 0;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -954,10 +962,11 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
   return_contacts.clear();
   done = false;
   response_code = -1;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -1084,10 +1093,11 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -1138,10 +1148,11 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
-  this->rpcs_->FindValue(key, this->rpcs_securifier_, this->service_contact_,
-      std::bind(&TestFindValueCallback, arg::_1, arg::_2, arg::_3, arg::_4,
-                arg::_5, &return_values, &return_contacts, &done,
-                &response_code));
+  this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
+                         this->service_contact_,
+                         std::bind(&TestFindValueCallback, arg::_1, arg::_2,
+                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(100));
@@ -1296,6 +1307,7 @@ REGISTER_TYPED_TEST_CASE_P(RpcsTest,
                            BEH_FindNodesEmptyRT,
                            BEH_FindNodesPopulatedRTnoNode,
                            BEH_FindNodesPopulatedRTwithNode,
+                           BEH_FindNodesVariableNodesRequest,
                            BEH_StoreAndFindValue,
                            BEH_StoreAndFindAndDeleteValueXXXToBeRemoved,
                            BEH_StoreMalicious,
@@ -1492,7 +1504,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     *done = false;
     *response_code = 0;
 
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+    rpcs_[index]->FindValue(key, g_kKademliaK, rpcs_securifier_[index],
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
@@ -1522,7 +1534,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     return_contacts.clear();
     ldone = false;
     *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+    rpcs_[index]->FindValue(key, g_kKademliaK, rpcs_securifier_[index],
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
@@ -1553,7 +1565,8 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     return_contacts.clear();
     *done = false;
     *response_code = 0;
-    rpcs_[index]->FindValue(key, rpcs_securifier_[index],
+    rpcs_[index]->FindValue(key, g_kKademliaK,
+                            rpcs_securifier_[index],
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
