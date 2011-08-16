@@ -30,8 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact_impl.h"
 #include "maidsafe/dht/kademlia/utils.h"
 
-namespace arg = std::placeholders;
-
 namespace maidsafe {
 
 namespace dht {
@@ -169,14 +167,6 @@ bool RemoveContact(const NodeId &node_id, std::vector<Contact> *contacts) {
                                  std::bind(&HasId, arg::_1, node_id)),
                   contacts->end());
   return contacts->size() != size_before;
-}
-
-inline OrderedContacts CreateOrderedContacts(const NodeId &target) {
-  return OrderedContacts(
-      std::bind(static_cast<bool(*)(const Contact&,
-                                    const Contact&,
-                                    const NodeId&)>(&CloserToTarget),
-                arg::_1, arg::_2, target));
 }
 
 }  // namespace kademlia

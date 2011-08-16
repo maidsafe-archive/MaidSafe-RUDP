@@ -237,42 +237,92 @@ class NodeImpl {
                              JoinFunctor callback,
                              bool none_reached);
 
-  /** Template Callback from the rpc->findnode requests.
-   *  Used by: Store, Delete, Update
-   *  @param[in] T StoreArgs, UpdateArgs, DeleteArgs
-   *  @param[in] contacts the k-closest nodes to the key
-   *  @param[in] Key The key to be passed further.
-   *  @param[in] value The value to be passed further.
-   *  @param[in] signature The signature to be passed further.
-   *  @param[in] ttl The ttl to be passed further.
-   *  @param[in] securifier The securifier to be passed further.
-   *  @param[in] args The arguments struct holding all shared info. */
-  template <class T>
-  void FindNodesCallback(int result,
-                         const std::vector<Contact> &contacts,
-                         const Key &key,
-                         const std::string &value,
-                         const std::string &signature,
-                         const bptime::time_duration &ttl,
-                         SecurifierPtr securifier,
-                         std::shared_ptr<T> args);
+  /** Callback used if we hold the target's contact details in our own routing
+   *  table - i.e. we only did a Ping rather than an iterative lookup. */
+  void GetContactPingCallback(RankInfoPtr rank_info,
+                              int result,
+                              Contact peer,
+                              GetContactFunctor callback);
+
+  void PingCallback(RankInfoPtr rank_info,
+                    int result,
+                    Contact peer,
+                    PingFunctor callback);
+
+  void StartLookup(LookupArgsPtr lookup_args);
+
+  /** Function to execute iterative rpc->findnode or findvalue requests.
+   *  @param[in] find_args The arguments struct holding all shared info. */
+  void DoLookupIteration(LookupArgsPtr lookup_args);
+
+  /** Callback from the rpc->findvalue or findnodes requests.
+   *  @param[in] rank_info rank info
+   *  @param[in] result Indicator from the rpc. Any negative value shall be
+   *  considered as the enquired contact got some problems.
+   *  @param[in] values The values of the key.
+   *  @param[in] contacts The closest contacts.
+   *  @param[in] alternative_store The alternative store contact.
+   *  @param[in] peer The Contact being queried.
+   *  @param[in] lookup_args The arguments struct holding all shared info. */
+  void IterativeFindCallback(RankInfoPtr rank_info,
+                             int result,
+                             const std::vector<std::string> &values,
+                             const std::vector<Contact> &contacts,
+                             const Contact &alternative_store,
+                             Contact peer,
+                             LookupArgsPtr lookup_args);
+
+  bool AbortLookup(int result,
+                   const std::vector<std::string> &values,
+                   const std::vector<Contact> &contacts,
+                   const Contact &alternative_store,
+                   const Contact &peer,
+                   LookupArgsPtr lookup_args);
+
+  /** Moves any Contacts found in the downlist from "contacts" to the
+   *  downlist */
+  void RemoveDownlistedContacts(LookupArgsPtr lookup_args,
+                                LookupContacts::iterator this_peer,
+                                OrderedContacts *contacts);
+
+  /** Adds "contacts" to the current lookup shortlist and return an iterator to
+   *  the current (n+1)th closest where n is the number of contacts requested */
+  LookupContacts::iterator InsertCloseContacts(
+      const OrderedContacts &contacts,
+      LookupArgsPtr lookup_args,
+      LookupContacts::iterator this_peer);
+
+  void AssessLookupState(LookupArgsPtr lookup_args,
+                         LookupContacts::iterator shortlist_upper_bound,
+                         bool *iteration_complete,
+                         size_t *shortlist_ok_count);
+
+  void HandleCompletedLookup(LookupArgsPtr lookup_args,
+                             LookupContacts::iterator closest_upper_bound,
+                             const size_t &closest_count);
+
+  void InitiateStorePhase(StoreArgsPtr store_args,
+                          LookupContacts::iterator closest_upper_bound,
+                          const size_t &closest_count);
+
+  void InitiateDeletePhase(DeleteArgsPtr delete_args,
+                           LookupContacts::iterator closest_upper_bound,
+                           const size_t &closest_count);
+
+  void InitiateUpdatePhase(UpdateArgsPtr update_args,
+                           LookupContacts::iterator closest_upper_bound,
+                           const size_t &closest_count);
 
   /** Callback from the rpc->store requests, during the Store operation.
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->store. Any negative value shall
    *  be considered as the enquired contact got some problems.
-   *  @param[in] store_rpc_args The arguments struct holding all shared info.
-   *  @param[in] Key The key to be passed further.
-   *  @param[in] value The value to be passed further.
-   *  @param[in] signature The signature to be passed further.
-   *  @param[in] securifier The securifier to be passed further. */
+   *  @param[in] peer The Contact being queried.
+   *  @param[in] store_args The arguments struct holding all shared info. */
   void StoreCallback(RankInfoPtr rank_info,
                      int result,
-                     RpcArgsPtr store_rpc_args,
-                     const Key &key,
-                     const std::string &value,
-                     const std::string &signature,
-                     SecurifierPtr securifier);
+                     Contact peer,
+                     StoreArgsPtr store_args);
 
   /** Template Callback from the rpc->delete requests. Need to calculate number
    *  of success and report back the final result.
@@ -281,101 +331,26 @@ class NodeImpl {
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->delete. Any negative value shall
    *  be considered as the enquired contact got some problems.
-   *  @param[in] delete_rpc_args The arguments struct holding all shared info */
+   *  @param[in] peer The Contact being queried.
+   *  @param[in] args The arguments struct holding all shared info */
   template <class T>
   void DeleteCallback(RankInfoPtr rank_info,
                       int result,
-                      RpcArgsPtr delete_rpc_args);
+                      Contact peer,
+                      std::shared_ptr<T> args);
 
   /** Callback from the rpc->store requests, during the Update operation.
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->store. Any negative value shall
    *  be considered as the enquired contact got some problems.
-   *  @param[in] update_rpc_args The arguments struct holding all shared info.
-   *  @param[in] Key The key to be passed further.
-   *  @param[in] securifier The securifier to be passed further. */
+   *  @param[in] peer The Contact being queried.
+   *  @param[in] update_args The arguments struct holding all shared info. */
   void UpdateCallback(RankInfoPtr rank_info,
                      int result,
-                     RpcArgsPtr update_rpc_args,
-                     const Key &key,
-                     SecurifierPtr securifier);
+                     Contact peer,
+                     UpdateArgsPtr update_args);
 
-  /** Callback from the rpc->findnode request for GetContact.
-   *  @param[in] result_size The number of closest contacts find.
-   *  @param[in] contacts the k-closest contacts to the node_id
-   *  @param[in] node_id The node_id of the contact to search.
-   *  @param[in] callback The callback to report the results. */
-  void GetContactCallBack(int result_size,
-                          const std::vector<Contact> &contacts,
-                          const NodeId &node_id,
-                          GetContactFunctor callback);
-
-  void PingResponse(RankInfoPtr rank_info, const int& result,
-                    PingFunctor callback);
-
-  /** Function to add acquired closest contacts into shared struct info, during
-   *  the execution of iterative search.
-   *  Used by: FindNodes, FindValue
-   *  @param[in] T FindNodesArgs, FindValueArgs
-   *  @param[in] contacts The closest contacts.
-   *  @param[in] find_args The arguments struct holding all shared info. */
-  template <class T>
-  void AddContactsToContainer(const OrderedContacts &contacts,
-                              std::shared_ptr<T> find_args);
-
-  /** Function to execute iterative rpc->findnode requests.
-   *  Used by: FindNodes, FindValue
-   *  @param[in] T FindNodesArgs, FindValueArgs
-   *  @param[in] find_args The arguments struct holding all shared info. */
-  template <class T>
-  void IterativeSearch(std::shared_ptr<T> find_args);
-
-  /** Callback from the rpc->findvalue requests, during the FindValue operation.
-   *  @param[in] rank_info rank info
-   *  @param[in] result Indicator from the rpc->findvalue. Any negative
-   *  value shall be considered as the enquired contact got some problems.
-   *  @param[in] values The values of the key.
-   *  @param[in] contacts The closest contacts.
-   *  @param[in] alternative_store The alternative store contact.
-   *  @param[in] find_value_rpc_args The arguments struct holding all shared
-   *  info. */
-  void IterativeSearchValueCallback(RankInfoPtr rank_info,
-                                    int result,
-                                    const std::vector<std::string> &values,
-                                    const std::vector<Contact> &contacts,
-                                    const Contact &alternative_store,
-                                    RpcArgsPtr find_value_rpc_args);
-
-  /** Callback from the rpc->findnodes requests, during the FindNodes operation.
-   *  @param[in] rank_info rank info
-   *  @param[in] result Indicator from the rpc->findnodes. Any negative
-   *  value shall be considered as the enquired contact got some problems.
-   *  @param[in] contacts The closest contacts.
-   *  @param[in] find_nodes_rpc_args The arguments struct holding all shared
-   *  info. */
-  void IterativeSearchNodeCallback(RankInfoPtr rank_info,
-                                   int result,
-                                   const std::vector<Contact> &contacts,
-                                   RpcArgsPtr find_nodes_rpc_args);
-
-  /** Function to handle the iteration search structure.
-   *  Used by: FindNodes, FindValue
-   *  @param[in] T FindNodesArgs, FindValueArgs
-   *  @param[in] contact The current responding contact
-   *  @param[in] find_args The arguments struct holding all shared info.
-   *  @param[in] mark Indicate if the current responding contact is down or not
-   *  @param[out] closest_contacts The closest contacts in case of search can be
-   *  stopped.
-   *  @param[out] cur_iteration_done Indicates if a new iteration can be
-   *  started.
-   *  @param[out] called_back Indicates if a the search can be stopped. */
-  template <class T>
-  bool HandleIterationStructure(const Contact &contact,
-                                std::shared_ptr<T> find_args,
-                                NodeSearchState mark,
-                                std::vector<Contact> *closest_contacts,
-                                bool *cur_iteration_done,
-                                bool *called_back);
+  void SendDownlist(const Downlist &downlist);
 
   void RefreshDataStore();
 

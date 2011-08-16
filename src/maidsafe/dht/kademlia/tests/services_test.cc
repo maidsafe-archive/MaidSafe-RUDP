@@ -137,9 +137,10 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
         routing_table_(new RoutingTable(node_id_, g_kKademliaK)),
         alternative_store_(),
         securifier_(new SecurifierGetPublicKeyAndValidation("", "", "")),
-        info_(), rank_info_(),
-        service_(new Service(routing_table_, data_store_,
-        alternative_store_, securifier_, g_kKademliaK)),
+        info_(),
+        rank_info_(),
+        service_(new Service(routing_table_, data_store_, alternative_store_,
+                             securifier_, g_kKademliaK)),
         num_of_pings_(0) {
     service_->set_node_joined(true);
   }
@@ -1209,14 +1210,15 @@ TEST_F(ServicesTest, BEH_Ping) {
   ping_request.mutable_sender()->CopyFrom(ToProtobuf(contact));
 
   {
-    // Check failure with ping set incorrectly.
+    // Check with ping set to empty string.
     ping_request.set_ping("");
     protobuf::PingResponse ping_response;
     service_->Ping(info_, ping_request, &ping_response, &time_out);
-    EXPECT_FALSE(ping_response.IsInitialized());
-    EXPECT_FALSE(ping_response.has_echo());
+    EXPECT_TRUE(ping_response.IsInitialized());
+    EXPECT_TRUE(ping_response.has_echo());
+    EXPECT_TRUE(ping_response.echo().empty());
     EXPECT_EQ(0U, GetRoutingTableSize());
-    ASSERT_EQ(0U, CountUnValidatedContacts());
+    EXPECT_EQ(0U, CountUnValidatedContacts());
   }
   {
     // Check success.

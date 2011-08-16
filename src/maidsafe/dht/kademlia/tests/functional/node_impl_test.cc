@@ -43,13 +43,11 @@ namespace dht {
 namespace kademlia {
 namespace test {
 
-namespace {
 class TestAlternativeStoreReturnsTrue : public AlternativeStore {
  public:
   ~TestAlternativeStoreReturnsTrue() {}
-  bool Has(const std::string&) { return true; }
+  virtual bool Has(const std::string&) const { return true; }
 };
-}  // unnamed namespace
 
 class NodeImplTest : public testing::TestWithParam<bool> {
  protected:
@@ -478,8 +476,10 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     }
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
     ASSERT_FALSE(find_value_returns.values.empty());
-    ASSERT_EQ(values.size(), find_value_returns.values.size());
-    for (size_t k = 0; k != values.size(); ++k)
+    EXPECT_EQ(values.size(), find_value_returns.values.size());
+    size_t num_values(std::min(values.size(),
+                               find_value_returns.values.size()));
+    for (size_t k = 0; k != num_values; ++k)
       EXPECT_EQ(values[k], find_value_returns.values[k]);
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
@@ -504,6 +504,46 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   EXPECT_TRUE(find_value_returns.values.empty());
   EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
+
+  // Test that a node with a key in its alternative store returns itself as a
+  // holder for that key when queried
+  NodeContainerPtr alternative_container(
+      new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
+  alternative_container->Init(3, SecurifierPtr(),
+      AlternativeStorePtr(new TestAlternativeStoreReturnsTrue), false, env_->k_,
+      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  alternative_container->MakeAllCallbackFunctors(&env_->mutex_,
+                                                 &env_->cond_var_);
+  (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+        &bootstrap_contacts_);
+  result = kPendingResult;
+  {
+    int attempts(0), max_attempts(5);
+    Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
+    while ((result = alternative_container->Start(bootstrap_contacts_, port)) !=
+            kSuccess && (attempts != max_attempts)) {
+      port = static_cast<Port>((RandomUint32() % 55535) + 10000);
+      ++attempts;
+    }
+    ASSERT_EQ(kSuccess, result) << debug_msg_;
+    ASSERT_TRUE(alternative_container->node()->joined()) << debug_msg_;
+  }
+  FindValueReturns alternative_find_value_returns;
+  {
+    // Attempt to FindValue using the ID of the alternative
+    // store container as the key
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->FindValue(
+        alternative_container->node()->contact().node_id(),
+        test_container_->securifier());
+    ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                test_container_->wait_for_find_value_functor()));
+    test_container_->GetAndResetFindValueResult(
+        &alternative_find_value_returns);
+    EXPECT_TRUE(alternative_find_value_returns.values.empty());
+    ASSERT_EQ(alternative_find_value_returns.alternative_store_holder.node_id(),
+              alternative_container->node()->contact().node_id());
+  }
 }
 
 TEST_P(NodeImplTest, FUNC_Delete) {
