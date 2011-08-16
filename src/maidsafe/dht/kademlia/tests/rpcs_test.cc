@@ -372,7 +372,6 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->service_contact_.node_id();
 
-
   this->rpcs_->FindNodes(key, this->rpcs_securifier_, this->service_contact_,
       std::bind(&TestFindNodesCallback, arg::_1, arg::_2, arg::_3,
                 &contact_list, &done, &response_code));
