@@ -45,6 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     Please update the maidsafe-dht library.
 #endif
 
+namespace arg = std::placeholders;
+
 
 namespace maidsafe {
 
@@ -151,7 +153,11 @@ class Contact {
 
   // @{
   /** Equality and inequality operators.
-   *  Equality is based on node ID or (IP and port) if dummy */
+   *  Equality is based on node ID.  However if both node IDs are kZeroId,
+   *  equality is then based on endpoint IPs.  Note that this means that
+   *  equality is not the same as equivalence for Contacts, where equivalence is
+   *  defined as neither of two Contacts comparing < than the other, since
+   *  operator< only considers node IDs. */
   bool operator==(const Contact &other) const;
   bool operator!=(const Contact &other) const;
   // @}
@@ -198,14 +204,20 @@ typedef std::set<Contact, std::function<bool(const Contact&,  // NOLINT (Fraser)
                                              const Contact&)>> OrderedContacts;
 
 /** Creates an new empty set of Contacts ordered by closeness to target. */
-inline OrderedContacts CreateOrderedContacts(const NodeId &target);
+inline OrderedContacts CreateOrderedContacts(const NodeId &target) {
+  return OrderedContacts(
+      std::bind(static_cast<bool(*)(const Contact&,
+                                    const Contact&,
+                                    const NodeId&)>(&CloserToTarget),
+                arg::_1, arg::_2, target));
+}
 
 /** Creates an new set of Contacts ordered by closeness to target, initialised
  *  with a copy of elements between first (inclusive) and last (exclusive). */
 template <typename InputIterator>
-inline OrderedContacts CreateOrderedContacts(InputIterator first,
-                                             InputIterator last,
-                                             const NodeId &target) {
+OrderedContacts CreateOrderedContacts(InputIterator first,
+                                      InputIterator last,
+                                      const NodeId &target) {
   return OrderedContacts(first, last,
       std::bind(static_cast<bool(*)(const Contact&,
                                     const Contact&,
