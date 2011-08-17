@@ -1112,6 +1112,43 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
       ++step;
     }
   }
+  
+  new_rpcs->respond_contacts_->clear();  
+  {
+    // attempts to find nodes requestin n < k; the response should contain
+    // k nodes
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
+                      new_rpcs.get(), arg::_1, arg::_2))));
+    std::vector<Contact> lcontacts;
+    node_->FindNodes(target,
+                     std::bind(&FindNodeCallback, rank_info_, arg::_1,
+                               arg::_2, &cond_var_, &lcontacts),
+                     g_kKademliaK/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK, lcontacts.size());
+  }
+  
+  new_rpcs->respond_contacts_->clear();  
+  {
+    // attempts to find nodes requestin n > k; the response should contain
+    // n nodes
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
+                      new_rpcs.get(), arg::_1, arg::_2))));
+    std::vector<Contact> lcontacts;
+    node_->FindNodes(target,
+                     std::bind(&FindNodeCallback, rank_info_, arg::_1,
+                               arg::_2, &cond_var_, &lcontacts),
+                     g_kKademliaK*3/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK*3/2, lcontacts.size());
+  }  
+  
   new_rpcs->respond_contacts_->clear();
   std::shared_ptr<RoutingTableContactsContainer> down_list
       (new RoutingTableContactsContainer());
@@ -1149,7 +1186,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
       // result (the chance is very small).
       EXPECT_LE(new_rpcs->respond_contacts_->size(), lcontacts.size());
     }
-  }
+  }  
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
