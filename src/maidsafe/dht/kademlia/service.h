@@ -187,6 +187,11 @@ class Service : public std::enable_shared_from_this<Service> {
   /** Set the securifier
    *  @param securifier The securifier. */
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
+
+  friend class test::ServicesTest;
+  template <typename T>
+  friend class test::RpcsTest;
+
  private:
   /** Copy Constructor.
    *  @param Service The object to be copied. */
@@ -282,10 +287,6 @@ class Service : public std::enable_shared_from_this<Service> {
 
   void AddContactToRoutingTable(const Contact &contact,
                                 const transport::Info &info);
-
-  friend class test::ServicesTest;
-  template <typename T>
-  friend class test::RpcsTest;
 
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;

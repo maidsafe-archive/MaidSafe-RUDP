@@ -24,6 +24,10 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#include <algorithm>
+#include <functional>
+#include <set>
 #include <utility>
 #include <bitset>
 
@@ -254,6 +258,14 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
     EXPECT_EQ(expectation, ops()) <<"For: " << op;
   }
 
+  void PingDownlistCallback(const Contact &contact,
+                            std::set<NodeId> *ids,
+                            boost::mutex *mutex,
+                            boost::condition_variable *cond_var) {
+    boost::thread(&ServicesTest::DoPingDownlistCallback, this, contact, ids,
+                  mutex, cond_var);
+  }
+
   virtual void TearDown() {}
 
  protected:
@@ -324,6 +336,16 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
       return bptime::neg_infin;
     return (*it).refresh_time;
   }
+
+  void DoPingDownlistCallback(const Contact &contact,
+                              std::set<NodeId> *ids,
+                              boost::mutex *mutex,
+                              boost::condition_variable *cond_var) {
+    boost::mutex::scoped_lock lock(*mutex);
+    ids->insert(contact.node_id());
+    cond_var->notify_one();
+  }
+
 
   Contact contact_;
   kademlia::NodeId node_id_;
@@ -1195,7 +1217,68 @@ TEST_F(ServicesTest, BEH_FindValue) {
 }
 
 TEST_F(ServicesTest, BEH_Downlist) {
-  FAIL() << "Not implemented.";
+  // Try with a downlist with 2 x k_ NodeIds with all in routing table
+  PopulateRoutingTable(5 * g_kKademliaK);
+  std::vector<Contact> contacts;
+  routing_table_->GetAllContacts(&contacts);
+  std::sort(contacts.begin(), contacts.end());
+
+  protobuf::DownlistNotification downlist_notification;
+  NodeId contact_id(NodeId::kRandomId);
+  Contact contact = ComposeContact(contact_id, 5000);
+  downlist_notification.mutable_sender()->CopyFrom(ToProtobuf(contact));
+  std::set<NodeId> node_ids, pinged_node_ids;
+  for (size_t i(0); i != 2 * g_kKademliaK; ++i) {
+    downlist_notification.add_node_ids(contacts.at(i).node_id().String());
+    node_ids.insert(contacts.at(i).node_id());
+  }
+
+  boost::mutex mutex;
+  boost::condition_variable cond_var;
+  routing_table_->ping_down_contact()->connect(
+      std::bind(&ServicesTest::PingDownlistCallback, this, arg::_1,
+                &pinged_node_ids, &mutex, &cond_var));
+  {
+    boost::mutex::scoped_lock lock(mutex);
+    service_->Downlist(info_, downlist_notification, &time_out);
+    while (node_ids.size() != pinged_node_ids.size())
+      EXPECT_TRUE(cond_var.timed_wait(lock, bptime::milliseconds(10)));
+  }
+  ASSERT_EQ(node_ids.size(), pinged_node_ids.size());
+  auto in_itr(node_ids.begin()), out_itr(pinged_node_ids.begin());
+  while (in_itr != node_ids.end()) {
+    EXPECT_EQ(*in_itr, *out_itr);
+    ++in_itr;
+    ++out_itr;
+  }
+
+  // Try with a downlist with (2 x k_) + 1 NodeIds
+  pinged_node_ids.clear();
+  protobuf::DownlistNotification original_downlist_notification =
+      downlist_notification;
+  downlist_notification.add_node_ids(contacts.back().node_id().String());
+  node_ids.insert(contacts.back().node_id());
+  {
+    boost::mutex::scoped_lock lock(mutex);
+    service_->Downlist(info_, downlist_notification, &time_out);
+    while (node_ids.size() != pinged_node_ids.size()) {
+      if (!cond_var.timed_wait(lock, bptime::milliseconds(10)))
+        break;
+    }
+  }
+  EXPECT_TRUE(pinged_node_ids.empty());
+
+  // Try original downlist, but on an empty routing table
+  Clear();
+  {
+    boost::mutex::scoped_lock lock(mutex);
+    service_->Downlist(info_, original_downlist_notification, &time_out);
+    while (node_ids.size() != pinged_node_ids.size()) {
+      if (!cond_var.timed_wait(lock, bptime::milliseconds(10)))
+        break;
+    }
+  }
+  EXPECT_TRUE(pinged_node_ids.empty());
 }
 
 TEST_F(ServicesTest, BEH_Ping) {
