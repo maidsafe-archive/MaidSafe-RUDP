@@ -300,12 +300,29 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
     EXPECT_EQ(*prior_it, *it) << debug_msg_;
   }
 
+  // verify n > k number of nodes are returned on request
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    for (size_t i = 0; i < env_->num_full_nodes_; i++) {
+      closest_nodes.clear();
+      env_->node_containers_[i]->FindNodes(
+          test_container_->node()->contact().node_id(), env_->k_*3/2);
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_find_nodes_functor()))
+                      << debug_msg_;
+      env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
+                                                            &closest_nodes);
+      EXPECT_EQ(kSuccess, result);
+      EXPECT_EQ(env_->k_*3/2, closest_nodes.size());
+    }
+  }
+
   // verify a node which has left isn't included in the returned list
-  closest_nodes.clear();
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
     test_container_->Stop(NULL);
     for (size_t i = 0; i < env_->num_full_nodes_; i++) {
+      closest_nodes.clear();
       env_->node_containers_[i]->FindNodes(
           test_container_->node()->contact().node_id());
       EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
