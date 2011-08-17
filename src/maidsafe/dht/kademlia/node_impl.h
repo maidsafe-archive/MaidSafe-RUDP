@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
+#include "boost/asio/deadline_timer.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/signals2/connection.hpp"
 #include "boost/thread/shared_mutex.hpp"
@@ -43,7 +44,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/config.h"
 #include "maidsafe/dht/kademlia/node-api.h"
 #include "maidsafe/dht/kademlia/contact.h"
-#include "maidsafe/dht/kademlia/timed_task.h"
 #include "maidsafe/dht/kademlia/node_container.h"
 
 
@@ -324,20 +324,17 @@ class NodeImpl {
                      Contact peer,
                      StoreArgsPtr store_args);
 
-  /** Template Callback from the rpc->delete requests. Need to calculate number
-   *  of success and report back the final result.
-   *  Used by: Delete, Update
-   *  @param[in] T UpdateArgs, DeleteArgs
+  /** Callback from the rpc->delete requests. Need to calculate number of
+   *  success and report back the final result.  Used by: Delete, Update
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc->delete. Any negative value shall
    *  be considered as the enquired contact got some problems.
    *  @param[in] peer The Contact being queried.
    *  @param[in] args The arguments struct holding all shared info */
-  template <class T>
   void DeleteCallback(RankInfoPtr rank_info,
                       int result,
                       Contact peer,
-                      std::shared_ptr<T> args);
+                      LookupArgsPtr args);
 
   /** Callback from the rpc->store requests, during the Update operation.
    *  @param[in] rank_info rank info
@@ -350,9 +347,12 @@ class NodeImpl {
                      Contact peer,
                      UpdateArgsPtr update_args);
 
+  template <typename T>
+  void HandleSecondPhaseCallback(int result, T args);
+
   void SendDownlist(const Downlist &downlist);
 
-  void RefreshDataStore();
+  void RefreshDataStore(const boost::system::error_code &error_code);
 
   void RefreshData(const KeyValueTuple &key_value_tuple);
 

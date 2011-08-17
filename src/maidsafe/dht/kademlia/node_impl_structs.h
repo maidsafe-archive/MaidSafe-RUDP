@@ -146,22 +146,25 @@ struct StoreArgs : public LookupArgs {
   StoreArgs(const NodeId &target,
             const uint16_t &num_contacts_requested,
             const OrderedContacts &close_contacts,
-            const size_t &success_threshold_in,
-            const std::string &value_in,
-            const std::string &signature_in,
-            const bptime::time_duration &ttl_in,
+            const size_t &success_threshold,
+            const std::string &value,
+            const std::string &signature,
+            const bptime::time_duration &time_to_live,
             SecurifierPtr securifier,
             StoreFunctor callback_in)
       : LookupArgs(kStore, target, close_contacts, num_contacts_requested,
                    securifier),
-        success_threshold(success_threshold_in),
-        value(value_in),
-        signature(signature_in),
-        ttl(ttl_in),
+        kSuccessThreshold(success_threshold),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kValue(value),
+        kSignature(signature),
+        kSecondsToLive(time_to_live.total_seconds()),
         callback(callback_in) {}
-  size_t success_threshold;
-  std::string value, signature;
-  bptime::time_duration ttl;
+  const size_t kSuccessThreshold;
+  size_t second_phase_rpcs_in_flight, successes;
+  const std::string kValue, kSignature;
+  const bptime::seconds kSecondsToLive;
   StoreFunctor callback;
 };
 
@@ -169,19 +172,22 @@ struct DeleteArgs : public LookupArgs {
   DeleteArgs(const NodeId &target,
              const uint16_t &num_contacts_requested,
              const OrderedContacts &close_contacts,
-             const size_t &success_threshold_in,
-             const std::string &value_in,
-             const std::string &signature_in,
+             const size_t &success_threshold,
+             const std::string &value,
+             const std::string &signature,
              SecurifierPtr securifier,
              DeleteFunctor callback_in)
       : LookupArgs(kDelete, target, close_contacts, num_contacts_requested,
                    securifier),
-        success_threshold(success_threshold_in),
-        value(value_in),
-        signature(signature_in),
+        kSuccessThreshold(success_threshold),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kValue(value),
+        kSignature(signature),
         callback(callback_in) {}
-  size_t success_threshold;
-  std::string value, signature;
+  const size_t kSuccessThreshold;
+  size_t second_phase_rpcs_in_flight, successes;
+  const std::string kValue, kSignature;
   DeleteFunctor callback;
 };
 
@@ -189,29 +195,35 @@ struct UpdateArgs : public LookupArgs {
   UpdateArgs(const NodeId &target,
              const uint16_t &num_contacts_requested,
              const OrderedContacts &close_contacts,
-             const size_t &success_threshold_in,
-             const std::string &old_value_in,
-             const std::string &old_signature_in,
-             const std::string &new_value_in,
-             const std::string &new_signature_in,
-             const bptime::time_duration &ttl_in,
+             const size_t &success_threshold,
+             const std::string &old_value,
+             const std::string &old_signature,
+             const std::string &new_value,
+             const std::string &new_signature,
+             const bptime::time_duration &time_to_live,
              SecurifierPtr securifier,
              UpdateFunctor callback_in)
       : LookupArgs(kUpdate, target, close_contacts, num_contacts_requested,
                    securifier),
-        success_threshold(success_threshold_in),
-        old_value(old_value_in),
-        old_signature(old_signature_in),
-        new_value(new_value_in),
-        new_signature(new_signature_in),
-        ttl(ttl_in),
+        kSuccessThreshold(success_threshold),
+        store_rpcs_in_flight(0),
+        store_successes(0),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kOldValue(old_value),
+        kOldSignature(old_signature),
+        kNewValue(new_value),
+        kNewSignature(new_signature),
+        kSecondsToLive(time_to_live.total_seconds()),
         callback(callback_in) {}
-  size_t success_threshold;
-  std::string old_value;
-  std::string old_signature;
-  std::string new_value;
-  std::string new_signature;
-  bptime::time_duration ttl;
+  const size_t kSuccessThreshold;
+  // store_rpcs_in_flight and store_successes relate to the Store part of the
+  // second phase.  second_phase_rpcs_in_flight and successes relate to the
+  // Delete part of the second phase.
+  size_t store_rpcs_in_flight, store_successes, second_phase_rpcs_in_flight,
+         successes;
+  const std::string kOldValue, kOldSignature, kNewValue, kNewSignature;
+  const bptime::seconds kSecondsToLive;
   UpdateFunctor callback;
 };
 

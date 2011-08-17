@@ -211,8 +211,9 @@ void NodeImpl::JoinFindValueCallback(
       service_->set_node_joined(true);
       service_->set_node_contact(contact_);
       service_->ConnectToSignals(message_handler_);
+      refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
       refresh_data_store_timer_.async_wait(
-          std::bind(&NodeImpl::RefreshDataStore, this));
+          std::bind(&NodeImpl::RefreshDataStore, this, arg::_1));
     }
     data_store_->set_debug_id(DebugId(contact_));
     callback(kSuccess);
@@ -546,6 +547,7 @@ bool NodeImpl::AbortLookup(int result,
       lookup_args->lookup_phase_complete = true;
       std::static_pointer_cast<FindValueArgs>(lookup_args)->callback(
           find_value_returns);
+      // TODO(Fraser#5#): 2011-08-16 - Send value to cache_candidate here.
     }
   } else if (lookup_args->kOperationType == LookupArgs::kGetContact) {
     // If the peer is the target, we're finished with the lookup, whether the
@@ -587,10 +589,19 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
     LookupArgsPtr lookup_args,
     LookupContacts::iterator this_peer) {
   auto existing_contacts_itr(lookup_args->lookup_contacts.begin());
-  auto new_contacts_itr(contacts.begin());
-  auto insertion_point(lookup_args->lookup_contacts.end());
   auto shortlist_upper_bound(lookup_args->lookup_contacts.end());
+  auto new_contacts_itr(contacts.begin());
   uint16_t count(0);
+  if (new_contacts_itr == contacts.end()) {
+    while (count != lookup_args->kNumContactsRequested &&
+           existing_contacts_itr != lookup_args->lookup_contacts.end()) {
+      if (++count == lookup_args->kNumContactsRequested)
+        shortlist_upper_bound = ++existing_contacts_itr;
+    }
+    return shortlist_upper_bound;
+  }
+
+  auto insertion_point(lookup_args->lookup_contacts.end());
   ContactInfo contact_info((*this_peer).first);
   for (;;) {
     if ((*existing_contacts_itr).first < *new_contacts_itr) {
@@ -720,7 +731,7 @@ void NodeImpl::HandleCompletedLookup(
 void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
                                   LookupContacts::iterator closest_upper_bound,
                                   const size_t &closest_count) {
-  if (closest_count < store_args->success_threshold) {
+  if (closest_count < store_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before store phase.";
       store_args->callback(kIterativeLookupFailed);
@@ -733,13 +744,14 @@ void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
   auto itr(store_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
     rpcs_->Store(store_args->kTarget,
-                 store_args->value,
-                 store_args->signature,
-                 bptime::seconds(store_args->ttl.total_seconds()),
+                 store_args->kValue,
+                 store_args->kSignature,
+                 store_args->kSecondsToLive,
                  store_args->securifier,
                  (*itr).first,
-                 std::bind(&NodeImpl::StoreCallback, this,
-                           arg::_1, arg::_2, (*itr).first, store_args));
+                 std::bind(&NodeImpl::StoreCallback, this, arg::_1, arg::_2,
+                           (*itr).first, store_args));
+    ++store_args->second_phase_rpcs_in_flight;
     ++itr;
   }
 }
@@ -747,7 +759,7 @@ void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
 void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
                                    LookupContacts::iterator closest_upper_bound,
                                    const size_t &closest_count) {
-  if (closest_count < delete_args->success_threshold) {
+  if (closest_count < delete_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before delete phase.";
       delete_args->callback(kIterativeLookupFailed);
@@ -760,12 +772,13 @@ void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
   auto itr(delete_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
     rpcs_->Delete(delete_args->kTarget,
-                  delete_args->value,
-                  delete_args->signature,
+                  delete_args->kValue,
+                  delete_args->kSignature,
                   delete_args->securifier,
                   (*itr).first,
-                  std::bind(&NodeImpl::DeleteCallback<DeleteArgs>, this,
-                            arg::_1, arg::_2, (*itr).first, delete_args));
+                  std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
+                            (*itr).first, delete_args));
+    ++delete_args->second_phase_rpcs_in_flight;
     ++itr;
   }
 }
@@ -773,7 +786,7 @@ void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
 void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
                                    LookupContacts::iterator closest_upper_bound,
                                    const size_t &closest_count) {
-  if (closest_count < update_args->success_threshold) {
+  if (closest_count < update_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before update phase.";
       update_args->callback(kIterativeLookupFailed);
@@ -786,13 +799,19 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
   auto itr(update_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
     rpcs_->Store(update_args->kTarget,
-                 update_args->new_value,
-                 update_args->new_signature,
-                 bptime::seconds(update_args->ttl.total_seconds()),
+                 update_args->kNewValue,
+                 update_args->kNewSignature,
+                 update_args->kSecondsToLive,
                  update_args->securifier,
                  (*itr).first,
-                 std::bind(&NodeImpl::UpdateCallback, this,
-                           arg::_1, arg::_2, (*itr).first, update_args));
+                 std::bind(&NodeImpl::UpdateCallback, this, arg::_1, arg::_2,
+                           (*itr).first, update_args));
+    ++update_args->store_rpcs_in_flight;
+    // Increment second_phase_rpcs_in_flight (representing the subsequent Delete
+    // RPC) to avoid the DeleteCallback finishing early.  This assumes the
+    // Store RPC will succeed - if it fails, we need to decrement
+    // second_phase_rpcs_in_flight.
+    ++update_args->second_phase_rpcs_in_flight;
     ++itr;
   }
 }
@@ -803,105 +822,41 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
                              StoreArgsPtr store_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(store_args->mutex);
-//  NodeSearchState mark(kContacted);
-//  if (result != kSuccess)
-//    mark = kDown;
-//
-//  // Mark the enquired contact
-//  NodeGroupByNodeId key_node_indx =
-//      store_args->node_group.get<NodeGroupTuple::Id>();
-//  auto it_tuple = key_node_indx.find(store_rpc_args->contact.node_id());
-//  key_node_indx.modify(it_tuple, ChangeState(mark));
-//
-//  auto pit_pending =
-//      store_args->node_group.get<NodeGroupTuple::SearchState>().
-//      equal_range(kSelectedAlpha);
-//  int num_of_pending =
-//      static_cast<int>(std::distance(pit_pending.first, pit_pending.second));
-//
-//  auto pit_contacted = store_args->node_group.
-//      get<NodeGroupTuple::SearchState>().equal_range(kContacted);
-//  size_t num_of_contacted = std::distance(pit_contacted.first,
-//                                          pit_contacted.second);
-//
-//  auto pit_down = store_args->node_group.
-//      get<NodeGroupTuple::SearchState>().equal_range(kDown);
-//  size_t num_of_down = std::distance(pit_down.first, pit_down.second);
-//
-//  if (!store_args->called_back) {
-//    if (num_of_down > (k_ - threshold_)) {
-//      // report back a failure once has more down contacts than the margin
-//      store_args->called_back = true;
-//      store_args->callback(kStoreTooFewNodes);
-//    } else if (num_of_contacted >= threshold_) {
-//      // report back once has enough succeed contacts
-//      store_args->called_back = true;
-//      store_args->callback(kSuccess);
-//      return;
-//    }
-//  }
-//  // delete those succeeded contacts if a failure was report back
-//  // the response for the last responded contact shall be responsible to do it
-//  if ((num_of_pending == 0) && (num_of_contacted < threshold_)) {
-//    auto it = pit_down.first;
-//    while (it != pit_down.second) {
-//      rpcs_->Delete(key, value, signature, securifier, (*it).contact,
-//                    std::bind(&NodeImpl::HandleRpcCallback, this, (*it).contact,
-//                              arg::_1, arg::_2));
-//      ++it;
-//    }
-//  }
+  HandleSecondPhaseCallback<StoreArgsPtr>(result, store_args);
+
+  // If this is the last RPC, and the overall store failed, delete the value
+  if (store_args->second_phase_rpcs_in_flight == 0 &&
+      store_args->successes < store_args->kSuccessThreshold) {
+    auto itr(store_args->lookup_contacts.begin());
+    while (itr != store_args->lookup_contacts.end()) {
+      rpcs_->Delete(store_args->kTarget,
+                    store_args->kValue,
+                    store_args->kSignature,
+                    store_args->securifier,
+                    (*itr).first,
+                    std::bind(&NodeImpl::HandleRpcCallback, this, (*itr).first,
+                              arg::_1, arg::_2));
+      ++itr;
+    }
+  }
 }
 
-template <class T>
 void NodeImpl::DeleteCallback(RankInfoPtr rank_info,
                               int result,
                               Contact peer,
-                              std::shared_ptr<T> args) {
+                              LookupArgsPtr args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(args->mutex);
-//  if (delete_args->called_back)
-//    return;
-//
-//  NodeSearchState mark(kContacted);
-//  if (result != kSuccess)
-//    mark = kDown;
-//
-//  // Mark the enquired contact
-//  NodeGroupByNodeId key_node_indx =
-//      delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::Id>();
-//  auto it_tuple = key_node_indx.find(delete_rpc_args->contact.node_id());
-//  key_node_indx.modify(it_tuple, ChangeState(mark));
-//
-//  auto pit_pending =
-//      delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
-//      equal_range(kSelectedAlpha);
-//// size_t num_of_pending = std::distance(pit_pending.first, pit_pending.second);
-//
-//  auto pit_contacted =
-//      delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
-//      equal_range(kContacted);
-//  size_t num_of_contacted = std::distance(pit_contacted.first,
-//                                          pit_contacted.second);
-//
-//  auto pit_down =
-//      delete_rpc_args->rpc_args->node_group.get<NodeGroupTuple::SearchState>().
-//      equal_range(kDown);
-//  size_t num_of_down = std::distance(pit_down.first, pit_down.second);
-//
-//  if (num_of_down > (k_ - threshold_)) {
-//    // report back a failure once has more down contacts than the margin
-//    delete_args->called_back = true;
-//    delete_args->callback(kDeleteTooFewNodes);
-//  }
-//  if (num_of_contacted >= threshold_) {
-//    // report back once has enough succeed contacts
-//    delete_args->called_back = true;
-//    delete_args->callback(kSuccess);
-//  }
-
-  // by far only report failure defined, unlike to what happens in Store,
-  // there is no restore (undo those success deleted) operation in delete
+  if (args->kOperationType == LookupArgs::kDelete) {
+    HandleSecondPhaseCallback<DeleteArgsPtr>(result,
+        std::static_pointer_cast<DeleteArgs>(args));
+  } else {
+    HandleSecondPhaseCallback<UpdateArgsPtr>(result,
+        std::static_pointer_cast<UpdateArgs>(args));
+  }
+  // TODO(Fraser#5#): 2011-08-16 - Decide if we want to try to re-store the
+  //                  if the delete operation failed.  The problem is that we
+  //                  don't have the outstanding TTL available here.
 }
 
 void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
@@ -909,30 +864,54 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
                               Contact peer,
                               UpdateArgsPtr update_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
-  if (result != kSuccess) {
-    boost::mutex::scoped_lock lock(update_args->mutex);
-//    // once store operation failed, the contact will be marked as DOWN
-//    // and no DELETE operation for that contact will be executed
-//    NodeGroupByNodeId key_node_indx =
-//        update_args->node_group.get<NodeGroupTuple::Id>();
-//    auto it_tuple = key_node_indx.find(update_rpc_args->contact.node_id());
-//    key_node_indx.modify(it_tuple, ChangeState(kDown));
-//
-//    // ensure this down contact is not the last one, prevent a deadend
-//    auto pit_pending =
-//        update_args->node_group.get<NodeGroupTuple::SearchState>().
-//        equal_range(kSelectedAlpha);
-//    int num_of_total_pending = static_cast<int>(std::distance(pit_pending.first,
-//                                                pit_pending.second));
-//    if (num_of_total_pending == 0) {
-//      update_args->called_back = true;
-//      update_args->callback(kUpdateTooFewNodes);
-//    }
-//  } else {
-//    rpcs_->Delete(key, update_args->old_value, update_args->old_signature,
-//                  securifier, update_rpc_args->contact,
-//                  std::bind(&NodeImpl::DeleteCallback<UpdateArgs>, this,
-//                            arg::_1, arg::_2, update_rpc_args));
+  --update_args->store_rpcs_in_flight;
+  if (result == kSuccess && update_args->kSuccessThreshold <=
+      update_args->store_successes + update_args->store_rpcs_in_flight) {
+    ++update_args->store_successes;
+    rpcs_->Delete(update_args->kTarget,
+                  update_args->kOldValue,
+                  update_args->kOldSignature,
+                  update_args->securifier,
+                  peer,
+                  std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
+                            peer, update_args));
+  } else {
+    // Increment second_phase_rpcs_in_flight (representing the subsequent Delete
+    // RPC) to avoid the DeleteCallback finishing early.  This assumes the
+    // Store RPC will succeed - if it fails, we need to decrement
+    // second_phase_rpcs_in_flight.
+    --update_args->second_phase_rpcs_in_flight;
+    if (update_args->kSuccessThreshold ==
+        update_args->store_successes + update_args->store_rpcs_in_flight + 1) {
+      update_args->callback(kUpdateTooFewNodes);
+    }
+  }
+}
+
+template <typename T>
+void NodeImpl::HandleSecondPhaseCallback(int result, T args) {
+  --args->second_phase_rpcs_in_flight;
+  if (result == kSuccess) {
+    ++args->successes;
+    if (args->successes == args->kSuccessThreshold)
+      args->callback(kSuccess);
+  } else {
+    if (args->kSuccessThreshold ==
+        args->successes + args->second_phase_rpcs_in_flight + 1) {
+      switch (args->kOperationType) {
+        case LookupArgs::kStore:
+          args->callback(kStoreTooFewNodes);
+          break;
+        case LookupArgs::kDelete:
+          args->callback(kDeleteTooFewNodes);
+          break;
+        case LookupArgs::kUpdate:
+          args->callback(kUpdateTooFewNodes);
+          break;
+        default:
+          break;
+      }
+    }
   }
 }
 
@@ -963,16 +942,24 @@ void NodeImpl::SendDownlist(const Downlist &downlist) {
   }
 }
 
-void NodeImpl::RefreshDataStore() {
+void NodeImpl::RefreshDataStore(const boost::system::error_code &error_code) {
+  if (error_code) {
+    if (error_code != boost::asio::error::operation_aborted) {
+      DLOG(ERROR) << "DataStore refresh timer error: " << error_code.message();
+    } else {
+      return;
+    }
+  }
   if (!joined_)
-    refresh_data_store_timer_.cancel();
+    return;
   std::vector<KeyValueTuple> key_value_tuples;
   data_store_->Refresh(&key_value_tuples);
   std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                 std::bind(&NodeImpl::RefreshData, this, arg::_1));
-  refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
+  refresh_data_store_timer_.expires_at(refresh_data_store_timer_.expires_at() +
+                                       bptime::seconds(10));
   refresh_data_store_timer_.async_wait(std::bind(&NodeImpl::RefreshDataStore,
-                                                 this));
+                                                 this, arg::_1));
 }
 
 void NodeImpl::RefreshData(const KeyValueTuple &key_value_tuple) {
