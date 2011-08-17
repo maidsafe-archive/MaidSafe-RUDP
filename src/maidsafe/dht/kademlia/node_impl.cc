@@ -976,8 +976,8 @@ void NodeImpl::RefreshDataFindNodesCallback(
     int result,
     std::vector<Contact> contacts,
     const KeyValueTuple &key_value_tuple) {
-   if (result != kSuccess)
-     return;
+  if (result != kSuccess)
+    return;
 
   for (auto it(contacts.begin()); it != contacts.end(); ++it) {
     if ((*it).node_id() != contact_.node_id()) {

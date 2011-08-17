@@ -371,7 +371,7 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                              public_key_validation,
                              request.key() ) ) {
     DLOG(WARNING) << "Failed to validate Store request for kademlia value"
-                  << " (is_refresh = " << is_refresh << " )";
+                  << " (is_refresh = " << std::boolalpha << is_refresh << ")";
     return false;
   }
   return datastore_->StoreValue(key_value_signature,
@@ -551,7 +551,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              public_key_validation,
                              request.key() ) ) {
     DLOG(WARNING) << "Failed to validate Delete request for kademlia value"
-                  << " (is_refresh = " << is_refresh << " )";
+                  << " (is_refresh = " << std::boolalpha << is_refresh << ")";
     return false;
   }
 

@@ -28,8 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "boost/thread/mutex.hpp"
 #ifdef __MSVC__
@@ -60,8 +62,8 @@ namespace kademlia {
 struct ContactInfo {
   enum RpcState { kNotSent, kSent, kDelayed, kRepliedOK };
   ContactInfo() : providers(), rpc_state(kNotSent) {}
-  ContactInfo(const Contact &provider) : providers(1, provider),
-                                         rpc_state(kNotSent) {}
+  explicit ContactInfo(const Contact &provider) : providers(1, provider),
+                                                  rpc_state(kNotSent) {}
   std::vector<Contact> providers;
   RpcState rpc_state;
 };
@@ -86,7 +88,7 @@ struct LookupArgs {
              const OrderedContacts &close_contacts,
              const uint16_t &num_contacts_requested,
              SecurifierPtr securifier_in)
-      : lookup_contacts(std::bind(static_cast<bool(*)(const Contact&,
+      : lookup_contacts(std::bind(static_cast<bool(*)(const Contact&,  // NOLINT (Fraser)
             const Contact&, const NodeId&)>(&CloserToTarget),
             arg::_1, arg::_2, target)),
         downlist(),

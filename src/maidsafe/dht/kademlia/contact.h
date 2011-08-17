@@ -206,7 +206,7 @@ typedef std::set<Contact, std::function<bool(const Contact&,  // NOLINT (Fraser)
 /** Creates an new empty set of Contacts ordered by closeness to target. */
 inline OrderedContacts CreateOrderedContacts(const NodeId &target) {
   return OrderedContacts(
-      std::bind(static_cast<bool(*)(const Contact&,
+      std::bind(static_cast<bool(*)(const Contact&,           // NOLINT (Fraser)
                                     const Contact&,
                                     const NodeId&)>(&CloserToTarget),
                 arg::_1, arg::_2, target));
@@ -219,7 +219,7 @@ OrderedContacts CreateOrderedContacts(InputIterator first,
                                       InputIterator last,
                                       const NodeId &target) {
   return OrderedContacts(first, last,
-      std::bind(static_cast<bool(*)(const Contact&,
+      std::bind(static_cast<bool(*)(const Contact&,           // NOLINT (Fraser)
                                     const Contact&,
                                     const NodeId&)>(&CloserToTarget),
                 arg::_1, arg::_2, target));
