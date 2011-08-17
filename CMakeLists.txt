@@ -34,7 +34,7 @@
 #==============================================================================#
 
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.4 FATAL_ERROR)
 MESSAGE("================================================================================\n")
 
 SET(ERROR_MESSAGE_CMAKE_PATH "cmake ../../..")
@@ -289,7 +289,7 @@ IF(MSVC)
   # Disabled as per advice at http://lists.boost.org/boost-users/2009/01/44368.php
   # C4996 'Function call with parameters that may be unsafe' caused by boost signals2
   # Disabled as per advice at https://svn.boost.org/trac/boost/wiki/Guidelines/WarningsGuidelines
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4503 /wd4512 /wd4996 /WX")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4503 /wd4512 /wd4996")
 
   # Warnings switched off for protocol buffer generated files and libupnp files
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/transport.pb.cc
@@ -302,14 +302,14 @@ IF(MSVC)
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
   SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTnode_functional TESTnode_impl_functional TESTnode_churn KademliaDemo benchmark_static PROPERTIES
-                          LINK_FLAGS "/STACK:1048576"
+#                          LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
   IF(Mysqlpp_FOUND)
     SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES
-                            LINK_FLAGS "/STACK:1048576"
+#                            LINK_FLAGS "/STACK:1048576"
                             LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                             LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
                             LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
