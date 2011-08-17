@@ -111,10 +111,12 @@ class Rpcs {
                     const Contact &peer,
                     RpcPingFunctor callback);
   virtual void FindValue(const Key &key,
+                         const uint16_t &nodes_requested,
                          SecurifierPtr securifier,
                          const Contact &peer,
                          RpcFindValueFunctor callback);
   virtual void FindNodes(const Key &key,
+                         const uint16_t &nodes_requested,
                          SecurifierPtr securifier,
                          const Contact &peer,
                          RpcFindNodesFunctor callback);
@@ -261,6 +263,7 @@ void Rpcs<TransportType>::Ping(SecurifierPtr securifier,
 
 template <typename TransportType>
 void Rpcs<TransportType>::FindValue(const Key &key,
+                                    const uint16_t &nodes_requested,
                                     SecurifierPtr securifier,
                                     const Contact &peer,
                                     RpcFindValueFunctor callback) {
@@ -273,6 +276,7 @@ void Rpcs<TransportType>::FindValue(const Key &key,
   protobuf::FindValueRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
+  request.set_num_nodes_requested(nodes_requested);
   std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
   rpcs_failure_peer->peer = peer;
 
@@ -292,6 +296,7 @@ void Rpcs<TransportType>::FindValue(const Key &key,
 
 template <typename TransportType>
 void Rpcs<TransportType>::FindNodes(const Key &key,
+                                    const uint16_t &nodes_requested,
                                     SecurifierPtr securifier,
                                     const Contact &peer,
                                     RpcFindNodesFunctor callback) {
@@ -304,6 +309,7 @@ void Rpcs<TransportType>::FindNodes(const Key &key,
   protobuf::FindNodesRequest request;
   *request.mutable_sender() = ToProtobuf(contact_);
   request.set_key(key.String());
+  request.set_num_nodes_requested(nodes_requested);
   std::shared_ptr<RpcsFailurePeer> rpcs_failure_peer(new RpcsFailurePeer);
   rpcs_failure_peer->peer = peer;
 
