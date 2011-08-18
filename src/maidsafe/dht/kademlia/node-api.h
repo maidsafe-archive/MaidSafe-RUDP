@@ -100,7 +100,7 @@ class Node {
        SecurifierPtr default_securifier,
        AlternativeStorePtr alternative_store,
        bool client_only_node,
-       const std::uint16_t &k,
+       const uint16_t &k,
        const uint16_t &alpha,
        const uint16_t &beta,
        const boost::posix_time::time_duration &mean_refresh_interval);
@@ -161,22 +161,29 @@ class Node {
               SecurifierPtr securifier,
               UpdateFunctor callback);
 
-  // Find value(s) on the network.  Unless the method returns failure, the
+  // Find value(s) on the network.  Unless the method returns an error, the
   // callback will always have passed to it the contact details of the node
   // needing a cache copy of the value(s) (i.e. the last node during the search
   // to not hold the value(s)).  Other than this, the callback parameters are
   // populated as follows: If any queried peer holds the value(s) in its
   // alternative_store, its details are passed in the callback and no other
-  // callback parameters are completed.  If any queried peer holds the value(s)
+  // callback parameters are completed.  In this case, the return code is
+  // kFoundAlternativeStoreHolder.  If any queried peer holds the value(s)
   // in its kademlia datastore, the value(s) and signature(s) are passed in the
-  // callback and no other callback parameters are completed.  Otherwise, iff no
-  // value exists under key the k closest nodes' details are passed in callback.
+  // callback and no other callback parameters are completed.  In this case, the
+  // return code is kSuccess.  Otherwise, iff no value exists under key, the
+  // (k + extra) closest nodes' details are passed in callback.  In this case,
+  // the return code is kFailedToFindValue.  Any other return code indicates an
+  // error in the lookup process.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
-                 FindValueFunctor callback);
+                 FindValueFunctor callback,
+                 const uint16_t &extra_contacts = 0);
 
-  // Find the k closest nodes to key.
-  void FindNodes(const Key &key, FindNodesFunctor callback);
+  // Find the (k + extra) closest nodes to key.
+  void FindNodes(const Key &key,
+                 FindNodesFunctor callback,
+                 const uint16_t &extra_contacts = 0);
 
   // Find the contact details of a node.  If the node is not in this node's
   // routing table, a FindNode will be executed.

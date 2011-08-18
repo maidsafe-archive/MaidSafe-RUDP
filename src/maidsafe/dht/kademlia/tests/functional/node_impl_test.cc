@@ -513,11 +513,10 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   NodeContainerPtr alternative_container(
       new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
   alternative_container->Init(3, SecurifierPtr(),
-                     AlternativeStorePtr(new TestAlternativeStoreReturnsTrue),
-                     false, env_->k_, env_->alpha_,
-                     env_->beta_, env_->mean_refresh_interval_);
-  alternative_container->MakeAllCallbackFunctors(
-      &env_->mutex_, &env_->cond_var_);
+      AlternativeStorePtr(new TestAlternativeStoreReturnsTrue), false, env_->k_,
+      env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
+  alternative_container->MakeAllCallbackFunctors(&env_->mutex_,
+                                                 &env_->cond_var_);
   (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
         &bootstrap_contacts_);
   result = kPendingResult;
@@ -543,7 +542,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     ASSERT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
                 test_container_->wait_for_find_value_functor()));
     test_container_->GetAndResetFindValueResult(
-                &alternative_find_value_returns);
+        &alternative_find_value_returns);
     EXPECT_TRUE(alternative_find_value_returns.values.empty());
     EXPECT_EQ(alternative_find_value_returns.alternative_store_holder.node_id(),
               alternative_container->node()->contact().node_id());

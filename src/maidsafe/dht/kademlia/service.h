@@ -73,8 +73,6 @@ template <typename T>
 class RpcsTest;
 }  // namespace test
 
-typedef std::shared_ptr<boost::signals2::signal<void(const Contact&)>>
-        PingDownListContactsPtr;
 
 /** Object handling service requests on a node.
  *  Contains tables of the routing contacts and <value,sig,key> tuples
@@ -180,9 +178,6 @@ class Service : public std::enable_shared_from_this<Service> {
   void Downlist(const transport::Info &info,
                 const protobuf::DownlistNotification &request,
                 transport::Timeout *timeout);
-  /** Getter.
-   *  @return The signal handler. */
-  PingDownListContactsPtr GetPingDownListSignalHandler();
   /** Set the status to be joined or not joined
    *  @param joined The bool switch. */
   void set_node_joined(bool joined) { node_joined_ = joined; }
@@ -192,6 +187,11 @@ class Service : public std::enable_shared_from_this<Service> {
   /** Set the securifier
    *  @param securifier The securifier. */
   void set_securifier(SecurifierPtr securifier) { securifier_ = securifier; }
+
+  friend class test::ServicesTest;
+  template <typename T>
+  friend class test::RpcsTest;
+
  private:
   /** Copy Constructor.
    *  @param Service The object to be copied. */
@@ -284,9 +284,9 @@ class Service : public std::enable_shared_from_this<Service> {
                          const std::string &public_key,
                          const std::string &public_key_validation,
                          const bool is_refresh);
-  friend class test::ServicesTest;
-  template <typename T>
-  friend class test::RpcsTest;
+
+  void AddContactToRoutingTable(const Contact &contact,
+                                const transport::Info &info);
 
   /** routing table */
   std::shared_ptr<RoutingTable> routing_table_;
@@ -302,8 +302,6 @@ class Service : public std::enable_shared_from_this<Service> {
   Contact node_contact_;
     /** k closest to the target */
   const uint16_t k_;
-  /** Singal handler */
-  PingDownListContactsPtr ping_down_list_contacts_;
   /** sender task */
   std::shared_ptr<SenderTask> sender_task_;
   /** client node id that gets ignored by RT **/

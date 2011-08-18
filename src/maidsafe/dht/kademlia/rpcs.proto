@@ -20,6 +20,7 @@ message PingResponse {
 message FindValueRequest {
   required Contact sender = 1;
   required bytes key = 2;
+  optional int32 num_nodes_requested = 3;
 }
 
 message FindValueResponse {
@@ -32,6 +33,7 @@ message FindValueResponse {
 message FindNodesRequest {
   required Contact sender = 1;
   required bytes key = 2;
+  optional int32 num_nodes_requested = 3;
 }
 
 message FindNodesResponse {

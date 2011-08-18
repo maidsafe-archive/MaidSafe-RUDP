@@ -34,7 +34,7 @@
 #==============================================================================#
 
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.4 FATAL_ERROR)
 MESSAGE("================================================================================\n")
 
 SET(ERROR_MESSAGE_CMAKE_PATH "cmake ../../..")
@@ -289,7 +289,7 @@ IF(MSVC)
   # Disabled as per advice at http://lists.boost.org/boost-users/2009/01/44368.php
   # C4996 'Function call with parameters that may be unsafe' caused by boost signals2
   # Disabled as per advice at https://svn.boost.org/trac/boost/wiki/Guidelines/WarningsGuidelines
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4503 /wd4512 /wd4996 /WX")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4503 /wd4512 /wd4996")
 
   # Warnings switched off for protocol buffer generated files and libupnp files
   SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/transport.pb.cc
@@ -302,14 +302,14 @@ IF(MSVC)
 
   # SET_TARGET_PROPERTIES(TESTkademlia TESTnode TESTnatpmp TESTtransport TESTupnp KademliaDemo benchmark_static PROPERTIES
   SET_TARGET_PROPERTIES(TESTkademlia TESTtransport TESTnode_functional TESTnode_impl_functional TESTnode_churn KademliaDemo benchmark_static PROPERTIES
-                          LINK_FLAGS "/STACK:1048576"
+#                          LINK_FLAGS "/STACK:1048576"
                           LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                           LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
                           LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
   IF(Mysqlpp_FOUND)
     SET_TARGET_PROPERTIES(distributed_net_clients PROPERTIES
-                            LINK_FLAGS "/STACK:1048576"
+#                            LINK_FLAGS "/STACK:1048576"
                             LINK_FLAGS_RELEASE "/OPT:REF /OPT:ICF /LTCG /INCREMENTAL:NO ${LINKER_LIBS_DIRS_RELEASE}"
                             LINK_FLAGS_DEBUG "${LINKER_LIBS_DIRS_DEBUG}"
                             LINK_FLAGS_RELWITHDEBINFO "${LINKER_LIBS_DIRS_DEBUG}"
@@ -371,6 +371,50 @@ FOREACH(TEST_TARGET ${TEST_TARGETS})
 ENDFOREACH()
 
 TEST_SUMMARY_OUTPUT()
+
+# Remove files from coverage stats
+ADD_COVERAGE_EXCLUDE(libupnp/)
+ADD_COVERAGE_EXCLUDE(nat-pmp/)
+ADD_COVERAGE_EXCLUDE(upnp/)
+
+# Remove most lengthy tests and style checkers from MemCheck runs.
+ADD_MEMCHECK_IGNORE(STYLE_CHECK_KAD)
+ADD_MEMCHECK_IGNORE(STYLE_CHECK_TRANSPORT)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_Ping)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_Bootstrap)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_JoinClient)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_StoreAndFindSmallValue)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_StoreAndFindBigValue)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_StoreAndFindMultipleValues)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_MultipleNodesFindSingleValue)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_ClientFindValue)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_GetContact)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_FindNonExistingValue)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_FindDeadNode)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_JoinLeave)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_StoreWithInvalidRequest)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_Update)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_FindNodes)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_Delete)
+ADD_MEMCHECK_IGNORE(NodeTest.FUNC_InvalidDeleteRequest)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_JoinLeave/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_JoinLeave/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_FindNodes/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_FindNodes/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_Store/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_Store/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_FindValue/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_FindValue/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_Delete/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_Delete/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_Update/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_StoreRefresh/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_StoreRefresh/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_DeleteRefresh/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_DeleteRefresh/1)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_GetContact/0)
+ADD_MEMCHECK_IGNORE(FullOrClient/NodeImplTest.FUNC_GetContact/1)
+ADD_MEMCHECK_IGNORE(NodeChurnTest.FUNC_RandomStartStopNodes)
 
 
 ###################################################################################################

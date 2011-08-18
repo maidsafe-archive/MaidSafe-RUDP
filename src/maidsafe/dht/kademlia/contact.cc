@@ -30,8 +30,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact_impl.h"
 #include "maidsafe/dht/kademlia/utils.h"
 
-namespace arg = std::placeholders;
-
 namespace maidsafe {
 
 namespace dht {

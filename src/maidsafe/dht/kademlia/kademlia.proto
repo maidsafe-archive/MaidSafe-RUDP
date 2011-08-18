@@ -14,8 +14,3 @@ message Contact {
   optional bytes public_key = 9;
   optional bytes other_info = 10;
 }
-
-message KadConfig {
-  optional int32 port = 1;
-  repeated Contact contact = 2;
-}

@@ -28,8 +28,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 #define MAIDSAFE_DHT_KADEMLIA_NODE_IMPL_STRUCTS_H_
 
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "boost/thread/mutex.hpp"
 #ifdef __MSVC__
@@ -57,188 +59,195 @@ namespace dht {
 
 namespace kademlia {
 
-class Signature;
-class SignedValue;
-
-enum RemoteFindMethod { kFindNode, kFindValue, kBootstrap };
-
-enum NodeSearchState { kNew, kContacted, kDown, kSelectedAlpha };
-
-enum OperationMethod {
-  kOpDelete,
-  kOpStore,
-  kOpUpdate,
-  kOpFindNode,
-  kOpFindValue
+struct ContactInfo {
+  enum RpcState { kNotSent, kSent, kDelayed, kRepliedOK };
+  ContactInfo() : providers(), rpc_state(kNotSent) {}
+  explicit ContactInfo(const Contact &provider) : providers(1, provider),
+                                                  rpc_state(kNotSent) {}
+  std::vector<Contact> providers;
+  RpcState rpc_state;
 };
 
-struct NodeGroupTuple {
-  // Tags
-  struct Id;
-  struct SearchState;
-  struct Distance;
-  struct StateAndRound;
-  struct StateAndDistance;
-  NodeGroupTuple(const Contact &cont, const NodeId &target_id)
-      : contact(cont),
-        contact_id(cont.node_id()),
-        search_state(kNew),
-        distance_to_target(contact_id ^ target_id),
-        round(-1) {}
-  NodeGroupTuple(const Contact &cont, const NodeId &target_id, int rnd)
-      : contact(cont),
-        contact_id(cont.node_id()),
-        search_state(kNew),
-        distance_to_target(contact_id ^ target_id),
-        round(rnd) {}
-  Contact contact;
-  NodeId contact_id;
-  NodeSearchState search_state;
-  NodeId distance_to_target;
-  int round;
-};
+typedef std::map<Contact,
+                 ContactInfo,
+                 std::function<bool(const Contact&,  // NOLINT (Fraser)
+                                    const Contact&)>> LookupContacts;
+typedef std::map<Contact, ContactInfo> Downlist;
 
-// Modifiers
-struct ChangeState {
-  explicit ChangeState(NodeSearchState new_state) : new_state(new_state) {}
-  void operator()(NodeGroupTuple &node_container_tuple) {  // NOLINT
-    node_container_tuple.search_state = new_state;
-  }
-  NodeSearchState new_state;
-};
-
-struct ChangeRound {
-  explicit ChangeRound(int new_round) : new_round(new_round) {}
-  void operator()(NodeGroupTuple &node_container_tuple) {  // NOLINT
-    node_container_tuple.round = new_round;
-  }
-  int new_round;
-};
-
-typedef boost::multi_index_container<
-  NodeGroupTuple,
-  boost::multi_index::indexed_by<
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<NodeGroupTuple::Id>,
-      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, contact_id)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<NodeGroupTuple::SearchState>,
-      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state)
-    >,
-    boost::multi_index::ordered_unique<
-      boost::multi_index::tag<NodeGroupTuple::Distance>,
-      BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, distance_to_target)
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<NodeGroupTuple::StateAndRound>,
-      boost::multi_index::composite_key<
-        NodeGroupTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state),
-        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, int, round)
-      >
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<NodeGroupTuple::StateAndDistance>,
-      boost::multi_index::composite_key<
-        NodeGroupTuple,
-        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeSearchState, search_state),
-        BOOST_MULTI_INDEX_MEMBER(NodeGroupTuple, NodeId, distance_to_target)
-      >
-    >
-  >
-> NodeGroup;
-
-typedef NodeGroup::index<NodeGroupTuple::Id>::type& NodeGroupByNodeId;
-
-typedef NodeGroup::index<NodeGroupTuple::Distance>::type& NodeGroupByDistance;
-
-struct Args {
-  explicit Args(OperationMethod operation_type)
-      : node_group(),
+struct LookupArgs {
+  enum OperationType {
+    kFindNodes,
+    kFindValue,
+    kStore,
+    kDelete,
+    kUpdate,
+    kGetContact
+  };
+  LookupArgs(OperationType operation_type,
+             const NodeId &target,
+             const OrderedContacts &close_contacts,
+             const uint16_t &num_contacts_requested,
+             SecurifierPtr securifier_in)
+      : lookup_contacts(std::bind(static_cast<bool(*)(const Contact&,  // NOLINT (Fraser)
+            const Contact&, const NodeId&)>(&CloserToTarget),
+            arg::_1, arg::_2, target)),
+        downlist(),
+        cache_candidate(),
         mutex(),
-        called_back(false),
-        operation_type(operation_type) {}
-  virtual ~Args() {}
-  NodeGroup node_group;
+        total_lookup_rpcs_in_flight(0),
+        rpcs_in_flight_for_current_iteration(0),
+        lookup_phase_complete(false),
+        kOperationType(operation_type),
+        kTarget(target),
+        kNumContactsRequested(num_contacts_requested),
+        securifier(securifier_in) {
+    auto insert_itr(lookup_contacts.end());
+    for (auto it(close_contacts.begin()); it != close_contacts.end(); ++it) {
+      insert_itr = lookup_contacts.insert(insert_itr,
+                                          std::make_pair((*it), ContactInfo()));
+    }
+  }
+  virtual ~LookupArgs() {}
+  LookupContacts lookup_contacts;
+  Downlist downlist;
+  Contact cache_candidate;
   boost::mutex mutex;
-  bool called_back;
-  OperationMethod operation_type;
-};
-
-typedef std::shared_ptr<Args> ArgsPtr;
-
-struct RpcArgs {
-  RpcArgs(const Contact &c, ArgsPtr a) : contact(c), rpc_args(a) {}
-  Contact contact;
-  ArgsPtr rpc_args;
-};
-
-struct FindNodesArgs : public Args {
-  FindNodesArgs(const NodeId &fna_key, FindNodesFunctor fna_callback)
-      : Args(kOpFindNode),
-        key(fna_key),
-        callback(fna_callback),
-        round(0) {}
-  NodeId key;
-  FindNodesFunctor callback;
-  int round;
-};
-
-struct FindValueArgs : public Args {
-  FindValueArgs(const NodeId &fva_key,
-                SecurifierPtr securifier,
-                FindValueFunctor fva_callback)
-      : Args(kOpFindValue),
-        key(fva_key),
-        securifier(securifier),
-        callback(fva_callback),
-        round(0) {}
-  NodeId key;
+  int total_lookup_rpcs_in_flight, rpcs_in_flight_for_current_iteration;
+  bool lookup_phase_complete;
+  const OperationType kOperationType;
+  const NodeId kTarget;
+  const uint16_t kNumContactsRequested;
   SecurifierPtr securifier;
-  FindValueFunctor callback;
-  int round;
 };
 
-struct StoreArgs : public Args {
-  explicit StoreArgs(StoreFunctor sa_callback)
-      : Args(kOpStore),
-        callback(sa_callback) {}
+struct FindNodesArgs : public LookupArgs {
+  FindNodesArgs(const NodeId &target,
+                const uint16_t &num_contacts_requested,
+                const OrderedContacts &close_contacts,
+                SecurifierPtr securifier,
+                FindNodesFunctor callback_in)
+      : LookupArgs(kFindNodes, target, close_contacts, num_contacts_requested,
+                   securifier),
+        callback(callback_in) {}
+  FindNodesFunctor callback;
+};
+
+struct FindValueArgs : public LookupArgs {
+  FindValueArgs(const NodeId &target,
+                const uint16_t &num_contacts_requested,
+                const OrderedContacts &close_contacts,
+                SecurifierPtr securifier,
+                FindValueFunctor callback_in)
+      : LookupArgs(kFindValue, target, close_contacts, num_contacts_requested,
+                   securifier),
+        callback(callback_in) {}
+  FindValueFunctor callback;
+};
+
+struct StoreArgs : public LookupArgs {
+  StoreArgs(const NodeId &target,
+            const uint16_t &num_contacts_requested,
+            const OrderedContacts &close_contacts,
+            const size_t &success_threshold,
+            const std::string &value,
+            const std::string &signature,
+            const bptime::time_duration &time_to_live,
+            SecurifierPtr securifier,
+            StoreFunctor callback_in)
+      : LookupArgs(kStore, target, close_contacts, num_contacts_requested,
+                   securifier),
+        kSuccessThreshold(success_threshold),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kValue(value),
+        kSignature(signature),
+        kSecondsToLive(time_to_live.total_seconds()),
+        callback(callback_in) {}
+  const size_t kSuccessThreshold;
+  size_t second_phase_rpcs_in_flight, successes;
+  const std::string kValue, kSignature;
+  const bptime::seconds kSecondsToLive;
   StoreFunctor callback;
 };
 
-struct DeleteArgs : public Args {
-  explicit DeleteArgs(DeleteFunctor da_callback)
-    : Args(kOpDelete),
-      callback(da_callback) {}
+struct DeleteArgs : public LookupArgs {
+  DeleteArgs(const NodeId &target,
+             const uint16_t &num_contacts_requested,
+             const OrderedContacts &close_contacts,
+             const size_t &success_threshold,
+             const std::string &value,
+             const std::string &signature,
+             SecurifierPtr securifier,
+             DeleteFunctor callback_in)
+      : LookupArgs(kDelete, target, close_contacts, num_contacts_requested,
+                   securifier),
+        kSuccessThreshold(success_threshold),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kValue(value),
+        kSignature(signature),
+        callback(callback_in) {}
+  const size_t kSuccessThreshold;
+  size_t second_phase_rpcs_in_flight, successes;
+  const std::string kValue, kSignature;
   DeleteFunctor callback;
 };
 
-struct UpdateArgs : public Args {
-  UpdateArgs(const std::string &new_value,
-             const std::string &new_signature,
+struct UpdateArgs : public LookupArgs {
+  UpdateArgs(const NodeId &target,
+             const uint16_t &num_contacts_requested,
+             const OrderedContacts &close_contacts,
+             const size_t &success_threshold,
              const std::string &old_value,
              const std::string &old_signature,
-             UpdateFunctor ua_callback)
-      : Args(kOpUpdate),
-        callback(ua_callback),
-        new_value(new_value),
-        new_signature(new_signature),
-        old_value(old_value),
-        old_signature(old_signature) {}
+             const std::string &new_value,
+             const std::string &new_signature,
+             const bptime::time_duration &time_to_live,
+             SecurifierPtr securifier,
+             UpdateFunctor callback_in)
+      : LookupArgs(kUpdate, target, close_contacts, num_contacts_requested,
+                   securifier),
+        kSuccessThreshold(success_threshold),
+        store_rpcs_in_flight(0),
+        store_successes(0),
+        second_phase_rpcs_in_flight(0),
+        successes(0),
+        kOldValue(old_value),
+        kOldSignature(old_signature),
+        kNewValue(new_value),
+        kNewSignature(new_signature),
+        kSecondsToLive(time_to_live.total_seconds()),
+        callback(callback_in) {}
+  const size_t kSuccessThreshold;
+  // store_rpcs_in_flight and store_successes relate to the Store part of the
+  // second phase.  second_phase_rpcs_in_flight and successes relate to the
+  // Delete part of the second phase.
+  size_t store_rpcs_in_flight, store_successes, second_phase_rpcs_in_flight,
+         successes;
+  const std::string kOldValue, kOldSignature, kNewValue, kNewSignature;
+  const bptime::seconds kSecondsToLive;
   UpdateFunctor callback;
-  std::string new_value;
-  std::string new_signature;
-  std::string old_value;
-  std::string old_signature;
 };
 
-typedef std::shared_ptr<RpcArgs> RpcArgsPtr;
+struct GetContactArgs : public LookupArgs {
+  GetContactArgs(const NodeId &target,
+                 const uint16_t &num_contacts_requested,
+                 const OrderedContacts &close_contacts,
+                 SecurifierPtr securifier,
+                 GetContactFunctor callback_in)
+      : LookupArgs(kGetContact, target, close_contacts, num_contacts_requested,
+                   securifier),
+        callback(callback_in) {}
+  GetContactFunctor callback;
+};
+
+typedef std::shared_ptr<LookupArgs> LookupArgsPtr;
 typedef std::shared_ptr<FindNodesArgs> FindNodesArgsPtr;
 typedef std::shared_ptr<FindValueArgs> FindValueArgsPtr;
 typedef std::shared_ptr<StoreArgs> StoreArgsPtr;
 typedef std::shared_ptr<DeleteArgs> DeleteArgsPtr;
 typedef std::shared_ptr<UpdateArgs> UpdateArgsPtr;
+typedef std::shared_ptr<GetContactArgs> GetContactArgsPtr;
 
 }  // namespace kademlia
 

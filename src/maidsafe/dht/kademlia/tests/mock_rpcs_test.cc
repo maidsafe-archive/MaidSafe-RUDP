@@ -720,7 +720,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
                                         arg::_1, arg::_2, arg::_3, &b, &m,
                                         &result);
 
-    rpcs->FindNodes(NodeId(NodeId::kRandomId), securifier_, peer_, fnf);
+    rpcs->FindNodes(NodeId(NodeId::kRandomId), 1, securifier_, peer_, fnf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock lock(m);
@@ -780,7 +780,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
                                         arg::_1, arg::_2, arg::_3, arg::_4,
                                         arg::_5, &b, &m, &result);
 
-    rpcs->FindValue(NodeId(NodeId::kRandomId), securifier_, peer_, fvf);
+    rpcs->FindValue(NodeId(NodeId::kRandomId), 1, securifier_, peer_, fvf);
     while (!b2) {
       Sleep(boost::posix_time::milliseconds(100));
       boost::mutex::scoped_lock lock(m);
