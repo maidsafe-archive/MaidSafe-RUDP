@@ -152,6 +152,7 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
                                           sender_crypto_key_id_);
     rpcs_->set_contact(rpcs_contact_);
     // service setup
+    data_store_->set_debug_id(DebugId(node_id_));
     service_securifier_ = std::shared_ptr<Securifier>(
         new SecurifierGetPublicKeyAndValidation("",
                 receiver_crypto_key_id_.public_key(),
@@ -174,7 +175,7 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
         transport::OnMessageReceived::element_type::slot_type(
             &MessageHandler::OnMessageReceived, handler_.get(),
             _1, _2, _3, _4).track_foreign(handler_));
-    ASSERT_EQ(transport::kSuccess,
+    EXPECT_EQ(kSuccess,
               transport_->StartListening(service_contact_.endpoint()));
   }
 
@@ -319,35 +320,35 @@ TYPED_TEST_CASE_P(RpcsTest);
 
 TYPED_TEST_P(RpcsTest, FUNC_PingNoTarget) {
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
 
   this->rpcs_->Ping(this->rpcs_securifier_, this->rpcs_contact_,
       std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
-  ASSERT_GT(0, response_code);
+  EXPECT_GT(0, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_PingTarget) {
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->rpcs_->Ping(this->rpcs_securifier_, this->service_contact_,
       std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
   // tests FindNodes using empty routing table
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   std::vector<Contact> contact_list;
   Key key = this->service_contact_.node_id();
 
@@ -357,18 +358,18 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
                                    arg::_3, &contact_list, &done,
                                    &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
-  ASSERT_TRUE(contact_list.empty());
-  ASSERT_EQ(0, response_code);
+  EXPECT_TRUE(contact_list.empty());
+  EXPECT_EQ(kSuccess, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
   // tests FindNodes with a populated routing table not containing the node
   // being sought
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   std::vector<Contact> contact_list;
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->service_contact_.node_id();
@@ -379,7 +380,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
                                    arg::_3, &contact_list, &done,
                                    &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
   bool found(false);
@@ -394,18 +395,18 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
       }
     ++it;
   }
-  ASSERT_FALSE(found);
-  ASSERT_GE(this->GetDistance(contact_list, 0),
+  EXPECT_FALSE(found);
+  EXPECT_GE(this->GetDistance(contact_list, 0),
             this->GetDistance(this->contacts_, 1));
-  ASSERT_EQ(g_kKademliaK, contact_list.size());
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(g_kKademliaK, contact_list.size());
+  EXPECT_EQ(kSuccess, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
   // tests FindNodes with a populated routing table which contains the node
   // being sought
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK-1);
   std::vector<Contact> contact_list;
   AddContact(this->routing_table_, this->service_contact_, this->rank_info_);
@@ -417,7 +418,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
                                    arg::_3, &contact_list, &done,
                                    &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
   bool found(false);
@@ -431,11 +432,11 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
       }
     ++it;
   }
-  ASSERT_TRUE(found);
-  ASSERT_GE(this->GetDistance(contact_list, 0),
+  EXPECT_TRUE(found);
+  EXPECT_GE(this->GetDistance(contact_list, 0),
             this->GetDistance(this->contacts_, 1));
-  ASSERT_EQ(g_kKademliaK, contact_list.size());
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(g_kKademliaK, contact_list.size());
+  EXPECT_EQ(kSuccess, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
@@ -443,7 +444,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
   // being sought, where num_nodes_requested < g_kKademliaK, it should return
   // g_kKademliaK contacts
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK-1);
   std::vector<Contact> contact_list;
   AddContact(this->routing_table_, this->service_contact_, this->rank_info_);
@@ -455,15 +456,15 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
                                    arg::_3, &contact_list, &done,
                                    &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(g_kKademliaK, contact_list.size());
-  ASSERT_EQ(0, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(g_kKademliaK, contact_list.size());
+  EXPECT_EQ(kSuccess, response_code);
 
   // tests FindNodes with a populated routing table which contains the node
   // being sought, where num_nodes_requested > g_kKademliaK, it should return
   // num_nodes_requested
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   contact_list.clear();
 
   this->rpcs_->FindNodes(key, g_kKademliaK*3/2, this->rpcs_securifier_,
@@ -472,15 +473,15 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
                                    arg::_3, &contact_list, &done,
                                    &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
-  ASSERT_EQ(g_kKademliaK*3/2, contact_list.size());
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(g_kKademliaK*3/2, contact_list.size());
+  EXPECT_EQ(kSuccess, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, BEH_FindValueVariableNodesRequest) {
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
@@ -490,7 +491,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindValueVariableNodesRequest) {
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
 
   // attempt to find a value when number_of_nodes_requeste < g_kKademliaK,
   // the response should contain g_kKademliaK nodes.
@@ -501,31 +502,31 @@ TYPED_TEST_P(RpcsTest, BEH_FindValueVariableNodesRequest) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kFailedToFindValue, response_code);
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
 
   // attempt to find a value when number_of_nodes_requeste > g_kKademliaK,
   // the response should contain number_of_nodes_requeste nodes.
   return_values.clear();
   return_contacts.clear();
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK*3/2, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(kFailedToFindValue, response_code);
-  ASSERT_EQ(g_kKademliaK*3/2, return_contacts.size());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_EQ(g_kKademliaK*3/2, return_contacts.size());
   this->StopAndReset();
 }
 
 TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
@@ -536,7 +537,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
@@ -544,45 +545,44 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_TRUE(return_values.empty());
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
-  response_code = 0;
   this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
                      this->service_contact_,
                      std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   // attempt to retrieve value stored
   return_values.clear();
   return_contacts.clear();
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_TRUE(return_contacts.empty());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
+  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_TRUE(return_contacts.empty());
 
   this->StopAndReset();
 }
 
 TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
   Key key = this->rpcs_contact_.node_id();
   KeyValueSignature kvs = MakeKVS(this->sender_crypto_key_id_, 1024,
@@ -593,71 +593,74 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_TRUE(return_values.empty());
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->Store(key, kvs.value, kvs.signature, ttl, this->rpcs_securifier_,
                      this->service_contact_,
                      std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
+
+  // Allow for simulated delay in validation of request by service_.
+  Sleep(kNetworkDelay);
 
   // attempt to retrieve value stored
   return_values.clear();
   return_contacts.clear();
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_TRUE(return_contacts.empty());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
+  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_TRUE(return_contacts.empty());
 
   this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
       this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                   &response_code));
 
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_EQ(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   return_values.clear();
   return_contacts.clear();
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
   // Value deleted
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kFailedToFindValue, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -668,7 +671,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
 TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(3600);
   KeyValueSignature kvs =
@@ -682,26 +685,26 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   // Sender receives kSuccess, but value not stored in receiver's datastore
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
                                    arg::_3, arg::_4, arg::_5, &return_values,
                                    &return_contacts, &done, &response_code));
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   // Value not stored in data store
-  ASSERT_EQ(0, response_code);
-  ASSERT_TRUE(return_values.empty());
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   this->StopAndReset();
 }
@@ -737,7 +740,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
     for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        Sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(10));
         --i;
       }
     }
@@ -747,7 +750,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
 
   // Checking results
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(transport::kSuccess, status_response[i].second);
+    EXPECT_EQ(kSuccess, status_response[i].second);
     if (i%2)
       EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     else
@@ -758,7 +761,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
 TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   Key key = this->rpcs_contact_.node_id();
@@ -780,27 +783,27 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
   bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
   Sleep(boost::posix_time::seconds(1));
 
   // send store refresh request
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
       this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   JoinNetworkLookup(this->service_securifier_);
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 
   // attempt to find original value
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   return_values.clear();
   return_contacts.clear();
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
@@ -810,28 +813,28 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_TRUE(return_contacts.empty());
-  ASSERT_GT(this->GetRefreshTime(kvs), refresh_time_old);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
+  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_TRUE(return_contacts.empty());
+  EXPECT_GT(this->GetRefreshTime(kvs), refresh_time_old);
 
   // attempt store refresh then find - ttl has expired so refresh should be
   // unsuccessful and find should fail
   Sleep(boost::posix_time::seconds(1));
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
       this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   JoinNetworkLookup(this->service_securifier_);
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   return_values.clear();
   return_contacts.clear();
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
@@ -841,11 +844,11 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_TRUE(return_values.empty());
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   this->StopAndReset();
 }
@@ -865,7 +868,7 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMultipleRequests) {
     this->AddToReceiverDataStore(kvs_vector[i], this->sender_crypto_key_id_,
                                  sender, request_signature);
     req_sig_vector.push_back(request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     status_response.push_back(std::make_pair(false, -1));
     refresh_time_old_vector.push_back(this->GetRefreshTime(kvs_vector[i]));
     AddTestValidation(this->service_securifier_, sender_id.String(),
@@ -908,7 +911,7 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMultipleRequests) {
 TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
-  int response_code(0);
+  int response_code(kGeneralError);
   Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(2);
   KeyValueSignature kvs =
@@ -927,7 +930,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(0, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
@@ -938,22 +941,22 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
                     "Different Public Key found on Network Lookup!!");
   Sleep(boost::posix_time::seconds(1));
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->StoreRefresh(message, store_message_sig, this->rpcs_securifier_,
       this->service_contact_, std::bind(&TestCallback, arg::_1, arg::_2, &done,
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   JoinNetworkLookup(this->service_securifier_);
-  ASSERT_EQ(0, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 
   // attempt to find value - refresh should have failed and ttl expired from
   // original store, so no value returned
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
@@ -961,10 +964,10 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(0, response_code);
-  ASSERT_TRUE(return_values.empty());
-  ASSERT_EQ(g_kKademliaK, return_contacts.size());
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kFailedToFindValue, response_code);
+  EXPECT_TRUE(return_values.empty());
+  EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   this->StopAndReset();
@@ -981,7 +984,7 @@ TYPED_TEST_P(RpcsTest, BEH_Delete) {
   RequestAndSignature request_signature("", "");
   this->AddToReceiverDataStore(kvs, this->sender_crypto_key_id_,
                                this->rpcs_contact_, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
   AddTestValidation(this->service_securifier_,
                     this->rpcs_contact_.node_id().String(),
                     this->sender_crypto_key_id_.public_key());
@@ -991,14 +994,14 @@ TYPED_TEST_P(RpcsTest, BEH_Delete) {
                                         &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_EQ(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
   std::vector<Contact> return_contacts;
   done = false;
-  response_code = 0;
+  response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
@@ -1006,10 +1009,10 @@ TYPED_TEST_P(RpcsTest, BEH_Delete) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
   // Value deleted
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kFailedToFindValue, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1025,7 +1028,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
   RequestAndSignature request_signature("", "");
   this->AddToReceiverDataStore(kvs, this->sender_crypto_key_id_,
                                this->rpcs_contact_, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
   AddTestValidation(this->service_securifier_,
                     this->rpcs_contact_.node_id().String(),
                     "Different Public Key found on Network Lookup!!");
@@ -1036,9 +1039,9 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   // Sender receives kSuccess, but value not deleted from receiver's datastore
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
   // attempt to retrieve value stored
   std::vector<std::string> return_values;
@@ -1054,10 +1057,10 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
   // Value not deleted from data store
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kSuccess, response_code);
   EXPECT_EQ(kvs.value, return_values[0]);
   EXPECT_TRUE(return_contacts.empty());
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1070,7 +1073,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
   KeyValueSignature kvs =
       MakeKVS(this->sender_crypto_key_id_, 1024, key.String(), "");
 
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   AddTestValidation(this->service_securifier_,
                     this->rpcs_contact_.node_id().String(),
                     this->sender_crypto_key_id_.public_key());
@@ -1080,9 +1083,9 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
                                   &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
-  EXPECT_NE(transport::kSuccess, response_code);
+  EXPECT_NE(kSuccess, response_code);
 
   JoinNetworkLookup(this->service_securifier_);
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1101,7 +1104,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
     RequestAndSignature request_signature("", "");
     this->AddToReceiverDataStore(kvs_vector[i], this->sender_crypto_key_id_,
                                  this->rpcs_contact_, request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
   }
   AddTestValidation(this->service_securifier_,
                     this->rpcs_contact_.node_id().String(),
@@ -1122,7 +1125,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
     for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        Sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(10));
         --i;
       }
     }
@@ -1132,7 +1135,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
 
   // Checking results
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(transport::kSuccess, status_response[i].second);
+    EXPECT_EQ(kSuccess, status_response[i].second);
     if (i%2)
       EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     else
@@ -1154,14 +1157,14 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   RequestAndSignature request_signature("", "");
   this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   AddTestValidation(this->service_securifier_, sender_id.String(),
                     crypto_key_data.public_key());
   // Deleting
   this->DeleteFromReceiverDataStore(kvs, crypto_key_data, sender,
                                     request_signature);
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
   this->rpcs_->DeleteRefresh(request_signature.first, request_signature.second,
@@ -1170,8 +1173,8 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
                                        &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_EQ(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
@@ -1185,10 +1188,10 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
 
-  EXPECT_EQ(transport::kSuccess, response_code);
+  EXPECT_EQ(kFailedToFindValue, response_code);
   EXPECT_TRUE(return_values.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1210,13 +1213,13 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
   RequestAndSignature request_sig("", "");
   KeyValueSignature kvs = MakeKVS(crypto_key_data, 1024, key.String(), "");
   this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_sig);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   AddTestValidation(this->service_securifier_, sender_id.String(),
                     crypto_key_data.public_key());
   // Value not deleted
   RequestAndSignature request_signature("", "");
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
   bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
   // Delete refresh without deleting
@@ -1225,8 +1228,8 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
       std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_NE(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_NE(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
   std::vector<std::string> return_values;
@@ -1240,12 +1243,12 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
                                    &return_contacts, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
   // Value present in data store
-  ASSERT_EQ(transport::kSuccess, response_code);
-  ASSERT_EQ(kvs.value, return_values[0]);
-  ASSERT_TRUE(return_contacts.empty());
+  EXPECT_EQ(kSuccess, response_code);
+  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_TRUE(return_contacts.empty());
 
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
   // Not Refreshed
@@ -1264,12 +1267,12 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMalicious) {
                                                crypto_key_data);
   RequestAndSignature request_signature("", "");
   this->AddToReceiverDataStore(kvs, crypto_key_data, sender, request_signature);
-  ASSERT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 
   // Deleting
   this->DeleteFromReceiverDataStore(kvs, crypto_key_data, sender,
                                     request_signature);
-  ASSERT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
+  EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   bptime::ptime refresh_time_old = this->GetRefreshTime(kvs);
 
   AddTestValidation(this->service_securifier_, sender_id.String(),
@@ -1280,8 +1283,8 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMalicious) {
       std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_EQ(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_EQ(kSuccess, response_code);
 
   this->StopAndReset();
   JoinNetworkLookup(this->service_securifier_);
@@ -1312,8 +1315,8 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshNonExistingKey) {
       std::bind(&TestCallback, arg::_1, arg::_2, &done, &response_code));
 
   while (!done)
-    Sleep(boost::posix_time::milliseconds(100));
-  EXPECT_NE(transport::kSuccess, response_code);
+    Sleep(boost::posix_time::milliseconds(10));
+  EXPECT_NE(kSuccess, response_code);
 
   this->StopAndReset();
   JoinNetworkLookup(this->service_securifier_);
@@ -1337,14 +1340,14 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
     RequestAndSignature request_signature("", "");
     this->AddToReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
                            request_signature);
-    ASSERT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    EXPECT_TRUE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     status_response.push_back(std::make_pair(false, -1));
 
     // Deleting
     this->DeleteFromReceiverDataStore(kvs_vector[i], crypto_key_data, sender,
                                 request_signature);
     req_sig_vector.push_back(request_signature);
-    ASSERT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
+    EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     refresh_time_old_vector.push_back(this->GetRefreshTime(kvs_vector[i]));
     AddTestValidation(this->service_securifier_, sender_id.String(),
                       crypto_key_data.public_key());
@@ -1365,7 +1368,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
     for (size_t i = 0; i < 10; ++i) {
       done = status_response[i].first;
       if (!done) {
-        Sleep(boost::posix_time::milliseconds(100));
+        Sleep(boost::posix_time::milliseconds(10));
         --i;
       }
     }
@@ -1374,7 +1377,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
   JoinNetworkLookup(this->service_securifier_);
   // Checking results
   for (size_t i = 0; i < 10; ++i) {
-    EXPECT_EQ(transport::kSuccess, status_response[i].second);
+    EXPECT_EQ(kSuccess, status_response[i].second);
     EXPECT_FALSE(IsKeyValueInDataStore(kvs_vector[i], this->data_store_));
     if (i%2) {
       EXPECT_EQ(this->GetRefreshTime(kvs_vector[i]),
@@ -1540,7 +1543,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
           transport::OnMessageReceived::element_type::slot_type(
               &MessageHandler::OnMessageReceived, handler_[index].get(),
               _1, _2, _3, _4).track_foreign(handler_[index]));
-      ASSERT_EQ(transport::kSuccess,
+      EXPECT_EQ(kSuccess,
                 transport_[index]->StartListening(
                                        service_contact_[index].endpoint()));
     }
@@ -1578,7 +1581,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
   void RpcOperations(const int index, const int server_index,
                      bool* done, int* response_code) {
     *done = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
     bool ldone = false;
     Key key = rpcs_contact_[index].node_id();
     KeyValueSignature kvs = MakeKVS(senders_crypto_key_id3_[index], 1024,
@@ -1588,7 +1591,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     std::vector<std::string> return_values;
     std::vector<Contact> return_contacts;
     *done = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
 
     rpcs_[index]->FindValue(key, g_kKademliaK, rpcs_securifier_[index],
                             service_contact_[server_index],
@@ -1597,29 +1600,29 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                                       &return_values, &return_contacts,
                                       &ldone, response_code));
     while (!ldone)
-      Sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(10));
 
-    ASSERT_EQ(0, *response_code);
-    ASSERT_TRUE(return_values.empty());
+    EXPECT_EQ(0, *response_code);
+    EXPECT_TRUE(return_values.empty());
 
     ldone = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
     rpcs_[index]->Store(key, kvs.value, kvs.signature, ttl,
                         rpcs_securifier_[index],
                         service_contact_[server_index],
                         std::bind(&TestCallback, arg::_1, arg::_2, &ldone,
                                   response_code));
     while (!ldone)
-      Sleep(boost::posix_time::milliseconds(500));
+      Sleep(boost::posix_time::milliseconds(10));
 
-    ASSERT_EQ(0, *response_code);
+    EXPECT_EQ(0, *response_code);
     JoinNetworkLookup(services_securifier_[server_index]);
 
     // attempt to retrieve value stored
     return_values.clear();
     return_contacts.clear();
     ldone = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
     rpcs_[index]->FindValue(key, g_kKademliaK, rpcs_securifier_[index],
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
@@ -1628,29 +1631,29 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                                       &ldone, response_code));
 
     while (!ldone)
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
 
-    ASSERT_EQ(0, *response_code);
-    ASSERT_EQ(kvs.value, return_values[0]);
-    ASSERT_TRUE(return_contacts.empty());
+    EXPECT_EQ(0, *response_code);
+    EXPECT_EQ(kvs.value, return_values[0]);
+    EXPECT_TRUE(return_contacts.empty());
 
     ldone = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
     rpcs_[index]->Delete(key, kvs.value, kvs.signature,
                          rpcs_securifier_[index],
                          service_contact_[server_index],
                          std::bind(&TestCallback, arg::_1, arg::_2,
                                    &ldone, response_code));
     while (!ldone)
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
 
-    EXPECT_EQ(transport::kSuccess, *response_code);
+    EXPECT_EQ(kSuccess, *response_code);
     JoinNetworkLookup(services_securifier_[server_index]);
 
     return_values.clear();
     return_contacts.clear();
     *done = false;
-    *response_code = 0;
+    *response_code = kGeneralError;
     rpcs_[index]->FindValue(key, g_kKademliaK,
                             rpcs_securifier_[index],
                             service_contact_[server_index],
@@ -1659,10 +1662,10 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                                       &return_values, &return_contacts,
                                       done, response_code));
     while (!*done)
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
 
     // Value deleted
-    EXPECT_EQ(transport::kSuccess, *response_code);
+    EXPECT_EQ(kFailedToFindValue, *response_code);
     EXPECT_TRUE(return_values.empty());
   }
 
@@ -1730,7 +1733,7 @@ TYPED_TEST_P(RpcsMultiServerNodesTest, FUNC_MultipleServerOperations) {
         localdone = localdone && done[client_index][index];
       }
     }
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   }
   this->StopAndReset();
 }
