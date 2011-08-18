@@ -570,6 +570,7 @@ void Rpcs<TransportType>::FindValueCallback(
         values.push_back(response.signed_values(i).value());
       callback(RankInfoPtr(new transport::Info(info)), kSuccess, values,
                contacts, alternative_value_holder);
+      return;
     }
 
     if (response.closest_nodes_size() != 0) {

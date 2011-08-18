@@ -288,6 +288,8 @@ bool DataStore::GetValues(
           itr_pair.first->key_value_signature.signature));
     ++itr_pair.first;
   }
+  DLOG(INFO) << debug_id_ << ": Found key " << EncodeToHex(key).substr(0, 10)
+             << " with " << values->size() << " values.";
   return (!values->empty());
 }
 
