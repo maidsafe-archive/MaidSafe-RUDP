@@ -338,9 +338,8 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
-  void FindNodeSeveralResponse(const Contact &/*contact*/,
-                                      RpcFindNodesFunctor callback,
-                                      const uint16_t &extra_contacts) {
+  void FindNodeSeveralResponse(RpcFindNodesFunctor callback,
+                               const uint16_t &extra_contacts) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     if (num_of_acquired_ <= std::max(g_kKademliaK, extra_contacts)) {
@@ -1114,7 +1113,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
                                arg::_2, &cond_var_, &lcontacts));
     EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
-    EXPECT_EQ(g_kKademliaK, lcontacts.size());
+    ASSERT_EQ(g_kKademliaK, lcontacts.size());
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK - 1]);
 
@@ -1133,14 +1132,14 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   new_rpcs->num_of_acquired_ = 0;
   new_rpcs->respond_contacts_->clear();
   {
-    // attempts to find nodes requestin n < k; the response should contain
+    // attempts to find nodes requesting n < k; the response should contain
     // k nodes
     EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                      testing::_))
-        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+        .WillRepeatedly(testing::WithArgs<3>(testing::Invoke(
             std::bind(
                 &MockRpcs<transport::TcpTransport>::FindNodeSeveralResponse,
-                      new_rpcs.get(), arg::_1, arg::_2, g_kKademliaK/2))));
+                      new_rpcs.get(), arg::_1, g_kKademliaK/2))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
@@ -1153,14 +1152,14 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   new_rpcs->num_of_acquired_ = 0;
   new_rpcs->respond_contacts_->clear();
   {
-    // attempts to find nodes requestin n > k; the response should contain
+    // attempts to find nodes requesting n > k; the response should contain
     // n nodes
     EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                      testing::_))
-        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+        .WillRepeatedly(testing::WithArgs<3>(testing::Invoke(
             std::bind(
                 &MockRpcs<transport::TcpTransport>::FindNodeSeveralResponse,
-                      new_rpcs.get(), arg::_1, arg::_2, g_kKademliaK*3/2))));
+                      new_rpcs.get(), arg::_1, g_kKademliaK*3/2))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
@@ -1790,7 +1789,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(kSuccess, results.return_code);
     EXPECT_TRUE(results.closest_nodes.empty());
-    EXPECT_EQ(1, results.values.size());
+    ASSERT_EQ(1, results.values.size());
     EXPECT_EQ("FIND", results.values[0]);
     EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
   }
@@ -1817,7 +1816,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   Sleep(bptime::milliseconds(1000));
-}  // FindValue test
+}
 
 TEST_F(MockNodeImplTest, BEH_SetLastSeenToNow) {
   // Try to set a non-existing contact
@@ -1864,6 +1863,10 @@ TEST_F(MockNodeImplTest, BEH_Getters) {
     // contact()
     EXPECT_EQ(Contact(), node_->contact());
   }
+  std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
+      new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
+  new_rpcs->set_node_id(node_id_);
+  SetLocalRpcs<transport::TcpTransport>(new_rpcs);
   {
     // joined()
     EXPECT_FALSE(local_node_->joined());

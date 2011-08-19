@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
       if (!ReadBootstrapFile(&bootstrap_contacts, bootstrap_file)) {
          return 1;
       }
-      if (bootstrap_contacts.size() == 0) {
+      if (bootstrap_contacts.empty()) {
         LOG(ERROR) << "No contacts found in bootstrap contacts file.";
         return 1;
       }
