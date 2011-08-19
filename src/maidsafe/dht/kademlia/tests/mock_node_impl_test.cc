@@ -377,6 +377,24 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     callback(rank_info_, transport::kError, response_list);
   }
 
+  void FindValueSeveralResponse(RpcFindValueFunctor callback,
+                               const uint16_t &extra_contacts) {
+    boost::mutex::scoped_lock lock(node_list_mutex_);
+    std::vector<Contact> response_contact_list;
+    std::vector<std::string> response_value_list;
+    if (num_of_acquired_ <= std::max(g_kKademliaK, extra_contacts)) {
+      boost::thread(
+          std::bind(
+              &MockRpcs<transport::TcpTransport>::FindValueNoResponseThread,
+                  this, callback, response_value_list, response_contact_list));
+    } else {
+      boost::thread(std::bind(
+          &MockRpcs<transport::TcpTransport>::FindValueNoResponseThread, this,
+          callback, response_value_list, response_contact_list));
+    }
+    ++num_of_acquired_;
+  }
+
   void FindValueNoResponse(const Contact &/*contact*/,
                            RpcFindValueFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
@@ -1812,6 +1830,45 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
     EXPECT_GT(40 * g_kKademliaK, new_rpcs->num_of_acquired_);
   }
+
+  new_rpcs->SetCountersToZero();
+  {
+    // attempts to find value requesting n < k; the response should contain
+    // k nodes
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<3>(testing::Invoke(
+            std::bind(
+                &MockRpcs<transport::TcpTransport>::FindValueSeveralResponse,
+                      new_rpcs.get(), arg::_1, g_kKademliaK/2))));
+    FindValueReturns results;
+    node_->FindValue(key, securifier_,
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results),
+                     g_kKademliaK/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
+  }
+
+  new_rpcs->SetCountersToZero();
+  {
+    // attempts to find value requesting n > k; the response should contain
+    // n nodes
+    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<3>(testing::Invoke(
+            std::bind(
+                &MockRpcs<transport::TcpTransport>::FindValueSeveralResponse,
+                      new_rpcs.get(), arg::_1, g_kKademliaK*3/2))));
+    FindValueReturns results;
+    node_->FindValue(key, securifier_,
+                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
+                               &results),
+                     g_kKademliaK*3/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK*3/2, results.closest_nodes.size());
+  }
+
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
