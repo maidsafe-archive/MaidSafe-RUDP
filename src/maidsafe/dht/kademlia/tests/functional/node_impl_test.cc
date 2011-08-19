@@ -399,7 +399,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
   for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
-//        std::cout << DebugId(*node_containers_[i]) << ": ";
       EXPECT_TRUE(GetDataStore(
           env_->node_containers_[i])->HasKey(key.String()));
       EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
@@ -414,8 +413,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
-  // std:: cout << "TEST NODE ID: "
-  // << DebugId(test_container_->node()->contact().node_id()) << std::endl;
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
   {
@@ -553,19 +550,14 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   // needs_cache_copy field
   Key saturation_key(NodeId::kRandomId);
   std::string saturation_value = RandomString(RandomUint32() % 1024);
-    maidsafe::crypto::RsaKeyPair crypto_key;
-    crypto_key.GenerateKeys(4096);
-    KeyValueTuple kvt = MakeKVT(crypto_key, saturation_value.size(), duration,
-                                saturation_key.String(), saturation_value);
+  maidsafe::crypto::RsaKeyPair crypto_key;
+  crypto_key.GenerateKeys(4096);
+  KeyValueTuple kvt = MakeKVT(crypto_key, saturation_value.size(), duration,
+                              saturation_key.String(), saturation_value);
   for (auto it(env_->node_containers_.begin());
         it != env_->node_containers_.end(); ++it) {
-    result = kPendingResult;
-    result = (GetDataStore(*it))->StoreValue(kvt.key_value_signature,
-                                                      duration,
-                                                      kvt.request_and_signature,
-                                                      crypto_key.public_key(),
-                                                      false);
-    ASSERT_EQ(kSuccess, result);
+    ASSERT_EQ(kSuccess, (GetDataStore(*it))->StoreValue(kvt.key_value_signature,
+        duration, kvt.request_and_signature, crypto_key.public_key(), false));
   }
   FindValueReturns saturation_find_value_returns;
   {
@@ -595,10 +587,9 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   }
   {
     std::deque<bool> had_key;
-    bool node_had_key;
     for (auto it(env_->node_containers_.begin());
-        it != env_->node_containers_.end(); ++it) {
-        had_key.push_back(
+         it != env_->node_containers_.end(); ++it) {
+      had_key.push_back(
           GetDataStore(*it)->HasKey(needs_cache_copy_key.String()));
     }
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -613,22 +604,22 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
 
     Contact needs_contact = need_cache_copy_returns.needs_cache_copy;
     NodeContainerPtr needs_container;
+    bool node_had_key(true);
     for (auto it(env_->node_containers_.begin());
-        it != env_->node_containers_.end(); ++it) {
-        node_had_key = had_key.front();
-        had_key.pop_front();
-        if ((*it)->node()->contact() == needs_contact) {
-          needs_container = *it;
-          break;
-        }
+         it != env_->node_containers_.end(); ++it) {
+      node_had_key = had_key.front();
+      had_key.pop_front();
+      if ((*it)->node()->contact() == needs_contact) {
+        needs_container = *it;
+        break;
+      }
     }
     ASSERT_TRUE(needs_container ? true : false);
     ASSERT_FALSE(node_had_key);
     bool node_now_has_key =
         GetDataStore(needs_container)->HasKey(needs_cache_copy_key.String());
     boost::posix_time::time_duration short_duration(kTimeout_/1000);
-    for (int timeout(0); timeout != 1000 &&
-      !node_now_has_key; ++timeout) {
+    for (int timeout(0); timeout != 1000 && !node_now_has_key; ++timeout) {
       Sleep(short_duration);
       node_now_has_key =
           GetDataStore(needs_container)->HasKey(needs_cache_copy_key.String());
