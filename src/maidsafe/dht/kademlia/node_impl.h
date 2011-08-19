@@ -237,6 +237,10 @@ class NodeImpl {
                              JoinFunctor callback,
                              bool none_reached);
 
+  void JoinSucceeded(JoinFunctor callback);
+
+  void JoinFailed(JoinFunctor callback, int result);
+
   /** Callback used if we hold the target's contact details in our own routing
    *  table - i.e. we only did a Ping rather than an iterative lookup. */
   void GetContactPingCallback(RankInfoPtr rank_info,
@@ -443,34 +447,25 @@ class NodeImpl {
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
   OnOnlineStatusChangePtr on_online_status_change_;
-
-  /** If the node is Client Only, then it shall not put anything into its local
-   *  routing table. Only Vault is allowed to do so. */
   bool client_only_node_;
-
-  /** Global K parameter */
+  /** Kademlia k parameter */
   const uint16_t k_;
-
-  /** Alpha parameter to define how many contacts to be enquired during one
-   *  iteration */
+  /** Kademlia alpha parameter to define how many contacts are to be queried
+   *  per lookup iteration */
   const uint16_t kAlpha_;
-
-  /** Beta parameter to define how many contacted contacts required in one
-   *  iteration before starting a new iteration */
+  /** Kademlia beta parameter to define how many contacts are required to have
+   *  responded in a lookup iteration before starting a new iteration */
   const uint16_t kBeta_;
   const bptime::seconds kMeanRefreshInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs<transport::TcpTransport>> rpcs_;
-
   /** Own info of nodeid, ip and port */
   Contact contact_;
-  bool joined_, refresh_routine_started_, stopping_;
-
+  bool joined_;
   boost::signals2::connection ping_oldest_contact_, validate_contact_,
                               ping_down_contact_;
-
   boost::asio::deadline_timer refresh_data_store_timer_;
 };
 

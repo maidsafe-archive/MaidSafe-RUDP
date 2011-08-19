@@ -91,8 +91,6 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       rpcs_(),
       contact_(),
       joined_(false),
-      refresh_routine_started_(false),
-      stopping_(false),
       ping_oldest_contact_(),
       ping_down_contact_(),
       validate_contact_(),
@@ -112,8 +110,8 @@ void NodeImpl::Join(const NodeId &node_id,
           std::bind(&HasId, arg::_1, node_id)), bootstrap_contacts.end());
 
   if (!client_only_node_ && listening_transport_->listening_port() == 0) {
-    callback(kNotListening);
-    return;
+    return asio_service_.post(std::bind(&NodeImpl::JoinFailed, this, callback,
+                                        kNotListening));
   }
 
   if (!default_securifier_) {
@@ -161,12 +159,17 @@ void NodeImpl::Join(const NodeId &node_id,
 
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
-    FindValueReturns find_value_returns;
-    find_value_returns.return_code = kSuccess;
-    asio_service_.post(std::bind(&NodeImpl::JoinFindValueCallback, this,
-                                 find_value_returns, bootstrap_contacts,
-                                 node_id, callback, true));
+    asio_service_.post(std::bind(&NodeImpl::JoinSucceeded, this, callback));
     return;
+  }
+
+  // Ensure bootstrap contacts are valid
+  bootstrap_contacts.erase(std::remove(bootstrap_contacts.begin(),
+                                       bootstrap_contacts.end(), Contact()),
+                           bootstrap_contacts.end());
+  if (bootstrap_contacts.empty()) {
+    return asio_service_.post(std::bind(&NodeImpl::JoinFailed, this, callback,
+                                        kInvalidBootstrapContacts));
   }
 
   OrderedContacts search_contacts(CreateOrderedContacts(node_id));
@@ -179,21 +182,20 @@ void NodeImpl::Join(const NodeId &node_id,
   StartLookup(find_value_args);
 }
 
-void NodeImpl::JoinFindValueCallback(
-    FindValueReturns find_value_returns,
-    std::vector<Contact> bootstrap_contacts,
-    const NodeId &node_id,
-    JoinFunctor callback,
-    bool none_reached) {
+void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
+                                     std::vector<Contact> bootstrap_contacts,
+                                     const NodeId &node_id,
+                                     JoinFunctor callback,
+                                     bool none_reached) {
   if (!find_value_returns.values.empty()) {
-    callback(kValueAlreadyExists);
+    JoinFailed(callback, kValueAlreadyExists);
     return;
   }
   if (none_reached && !NodeContacted(find_value_returns.return_code) &&
       bootstrap_contacts.empty()) {
-    callback(kContactFailedToRespond);
+    JoinFailed(callback, kContactFailedToRespond);
   } else if ((find_value_returns.return_code != kFailedToFindValue) &&
-      !bootstrap_contacts.empty()) {
+             !bootstrap_contacts.empty()) {
     if (NodeContacted(find_value_returns.return_code))
       none_reached = false;
     OrderedContacts search_contacts(CreateOrderedContacts(node_id));
@@ -205,20 +207,28 @@ void NodeImpl::JoinFindValueCallback(
                       bootstrap_contacts, node_id, callback, none_reached)));
     StartLookup(find_value_args);
   } else {
-    joined_ = true;
-    if (!client_only_node_) {
-      service_.reset(new Service(routing_table_, data_store_,
-                                 alternative_store_, default_securifier_, k_));
-      service_->set_node_joined(true);
-      service_->set_node_contact(contact_);
-      service_->ConnectToSignals(message_handler_);
-      refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
-      refresh_data_store_timer_.async_wait(
-          std::bind(&NodeImpl::RefreshDataStore, this, arg::_1));
-    }
-    data_store_->set_debug_id(DebugId(contact_));
-    callback(kSuccess);
+    JoinSucceeded(callback);
   }
+}
+
+void NodeImpl::JoinSucceeded(JoinFunctor callback) {
+  joined_ = true;
+  if (!client_only_node_) {
+    service_.reset(new Service(routing_table_, data_store_,
+                                alternative_store_, default_securifier_, k_));
+    service_->set_node_joined(true);
+    service_->set_node_contact(contact_);
+    service_->ConnectToSignals(message_handler_);
+    refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
+    refresh_data_store_timer_.async_wait(
+        std::bind(&NodeImpl::RefreshDataStore, this, arg::_1));
+  }
+  data_store_->set_debug_id(DebugId(contact_));
+  callback(kSuccess);
+}
+
+void NodeImpl::JoinFailed(JoinFunctor callback, int result) {
+  callback(result);
 }
 
 void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {

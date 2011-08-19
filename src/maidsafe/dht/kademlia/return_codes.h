@@ -71,18 +71,19 @@ enum ReturnCode {
 
   // Node
   kNoOnlineBootstrapContacts = -303001,
-  kNotListening = -303002,
-  kFindNodesFailed = -303003,
-  kFoundTooFewNodes = -303004,
-  kStoreTooFewNodes = -303005,
-  kDeleteTooFewNodes = -303006,
-  kUpdateTooFewNodes = -303007,
-  kFailedToGetContact = -303008,
-  kFailedToFindValue = 303009,  // value intentionally positive
-  kFoundAlternativeStoreHolder = 303010,  // value intentionally positive
-  kIterativeLookupFailed = -303011,
-  kContactFailedToRespond = -303012,
-  kValueAlreadyExists = -303013
+  kInvalidBootstrapContacts = -303002,
+  kNotListening = -303003,
+  kFindNodesFailed = -303004,
+  kFoundTooFewNodes = -303005,
+  kStoreTooFewNodes = -303006,
+  kDeleteTooFewNodes = -303007,
+  kUpdateTooFewNodes = -303008,
+  kFailedToGetContact = -303009,
+  kFailedToFindValue = 303010,  // value intentionally positive
+  kFoundAlternativeStoreHolder = 303011,  // value intentionally positive
+  kIterativeLookupFailed = -303012,
+  kContactFailedToRespond = -303013,
+  kValueAlreadyExists = -303014
 };
 
 }  // namespace kademlia
