@@ -1602,8 +1602,10 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(10));
 
-    EXPECT_EQ(0, *response_code);
+    // Returns kIterativeLookupFailed as the service has an empty routing table.
+    EXPECT_EQ(kIterativeLookupFailed, *response_code);
     EXPECT_TRUE(return_values.empty());
+    EXPECT_TRUE(return_contacts.empty());
 
     ldone = false;
     *response_code = kGeneralError;
@@ -1664,9 +1666,11 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     while (!*done)
       Sleep(boost::posix_time::milliseconds(10));
 
-    // Value deleted
-    EXPECT_EQ(kFailedToFindValue, *response_code);
+    // Value deleted.
+    // Returns kIterativeLookupFailed as the service has an empty routing table.
+    EXPECT_EQ(kIterativeLookupFailed, *response_code);
     EXPECT_TRUE(return_values.empty());
+    EXPECT_TRUE(return_contacts.empty());
   }
 
  protected:
