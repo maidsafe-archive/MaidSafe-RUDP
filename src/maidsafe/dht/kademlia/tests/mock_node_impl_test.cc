@@ -338,6 +338,23 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     ++num_of_acquired_;
   }
 
+  void FindNodeSeveralResponse(const Contact &/*contact*/,
+                                      RpcFindNodesFunctor callback,
+                                      const uint16_t &extra_contacts) {
+    boost::mutex::scoped_lock lock(node_list_mutex_);
+    std::vector<Contact> response_list;
+    if (num_of_acquired_ <= std::max(g_kKademliaK, extra_contacts)) {
+      boost::thread(
+          std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseThread,
+                    this, callback, response_list));
+    } else {
+      boost::thread(std::bind(
+          &MockRpcs<transport::TcpTransport>::FindNodeNoResponseThread, this,
+          callback, response_list));
+    }
+    ++num_of_acquired_;
+  }
+
   void FindNodeNoResponse(const Contact &/*contact*/,
                           RpcFindNodesFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
@@ -1112,6 +1129,47 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
       ++step;
     }
   }
+
+  new_rpcs->num_of_acquired_ = 0;
+  new_rpcs->respond_contacts_->clear();
+  {
+    // attempts to find nodes requestin n < k; the response should contain
+    // k nodes
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            std::bind(
+                &MockRpcs<transport::TcpTransport>::FindNodeSeveralResponse,
+                      new_rpcs.get(), arg::_1, arg::_2, g_kKademliaK/2))));
+    std::vector<Contact> lcontacts;
+    node_->FindNodes(target,
+                     std::bind(&FindNodeCallback, rank_info_, arg::_1,
+                               arg::_2, &cond_var_, &lcontacts),
+                     g_kKademliaK/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK, lcontacts.size());
+  }
+
+  new_rpcs->num_of_acquired_ = 0;
+  new_rpcs->respond_contacts_->clear();
+  {
+    // attempts to find nodes requestin n > k; the response should contain
+    // n nodes
+    EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
+                                     testing::_))
+        .WillRepeatedly(testing::WithArgs<2, 3>(testing::Invoke(
+            std::bind(
+                &MockRpcs<transport::TcpTransport>::FindNodeSeveralResponse,
+                      new_rpcs.get(), arg::_1, arg::_2, g_kKademliaK*3/2))));
+    std::vector<Contact> lcontacts;
+    node_->FindNodes(target,
+                     std::bind(&FindNodeCallback, rank_info_, arg::_1,
+                               arg::_2, &cond_var_, &lcontacts),
+                     g_kKademliaK*3/2);
+    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK*3/2, lcontacts.size());
+  }
+
   new_rpcs->respond_contacts_->clear();
   std::shared_ptr<RoutingTableContactsContainer> down_list
       (new RoutingTableContactsContainer());
