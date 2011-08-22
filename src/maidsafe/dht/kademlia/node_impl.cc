@@ -215,7 +215,7 @@ void NodeImpl::JoinSucceeded(JoinFunctor callback) {
   joined_ = true;
   if (!client_only_node_) {
     service_.reset(new Service(routing_table_, data_store_,
-                                alternative_store_, default_securifier_, k_));
+                               alternative_store_, default_securifier_, k_));
     service_->set_node_joined(true);
     service_->set_node_contact(contact_);
     service_->ConnectToSignals(message_handler_);
@@ -564,6 +564,7 @@ bool NodeImpl::AbortLookup(int result,
           find_value_returns);
       // TODO(Fraser#5#): 2011-08-16 - Send value to cache_candidate here.
     }
+    return lookup_args->lookup_phase_complete;
   } else if (lookup_args->kOperationType == LookupArgs::kGetContact) {
     // If the peer is the target, we're finished with the lookup, whether the
     // RPC timed out or not.
@@ -577,8 +578,9 @@ bool NodeImpl::AbortLookup(int result,
             kFailedToGetContact, Contact());
       }
     }
+    return lookup_args->lookup_phase_complete;
   }
-  return lookup_args->lookup_phase_complete;
+  return false;
 }
 
 void NodeImpl::RemoveDownlistedContacts(LookupArgsPtr lookup_args,
@@ -666,7 +668,7 @@ void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
                                  bool *iteration_complete,
                                  size_t *shortlist_ok_count) {
   *iteration_complete =
-      (lookup_args->rpcs_in_flight_for_current_iteration == 0);
+      (lookup_args->rpcs_in_flight_for_current_iteration <= kAlpha_ - kBeta_);
 
   lookup_args->lookup_phase_complete = true;
   auto itr(lookup_args->lookup_contacts.begin());

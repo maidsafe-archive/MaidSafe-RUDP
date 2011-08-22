@@ -172,21 +172,24 @@ class Node {
   // in its kademlia datastore, the value(s) and signature(s) are passed in the
   // callback and no other callback parameters are completed.  In this case, the
   // return code is kSuccess.  Otherwise, iff no value exists under key, the
-  // (k + extra) closest nodes' details are passed in callback.  In this case,
-  // the return code is kFailedToFindValue.  Any other return code indicates an
-  // error in the lookup process.
+  // (k + extra) closest nodes' details are passed in callback, ordered by
+  // kademlia closeness to key, closest first.  In this case, the return code is
+  // kFailedToFindValue.  Any other return code indicates an error in the lookup
+  // process.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
                  const uint16_t &extra_contacts = 0);
 
-  // Find the (k + extra) closest nodes to key.
+  // Find details of (k + extra) nodes closest to key.  The details are passed
+  // in callback, ordered by kademlia closeness to key, closest first.
   void FindNodes(const Key &key,
                  FindNodesFunctor callback,
                  const uint16_t &extra_contacts = 0);
 
   // Find the contact details of a node.  If the node is not in this node's
-  // routing table, a FindNode will be executed.
+  // routing table, a FindNode will be executed.  If the node is offline, a
+  // default-constructed Contact will be passed back in the callback.
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
 
   // Mark contact in routing table as having just been seen (i.e. contacted).
