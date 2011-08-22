@@ -86,74 +86,74 @@ void MessageHandler::OnError(const TransportCondition &transport_condition,
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ManagedEndpointMessage &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionRequest &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::NatDetectionResponse &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectRequest &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ProxyConnectResponse &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousResponse &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousRequest &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 std::string MessageHandler::WrapMessage(
     const protobuf::RendezvousAcknowledgement &msg) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-                                      msg.SerializeAsString(),
-                                      kNone,
-                                      "");
+                                      msg.SerializeAsString(), kNone, "");
 }
 
 void MessageHandler::ProcessSerialisedMessage(
