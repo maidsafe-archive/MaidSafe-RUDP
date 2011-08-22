@@ -48,6 +48,8 @@ namespace kademlia {
 std::string MessageHandler::WrapMessage(
     const protobuf::PingRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kPingRequest, msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
 }
@@ -55,6 +57,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::PingResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kPingResponse, msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
 }
@@ -62,6 +66,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::FindValueRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kFindValueRequest,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -70,6 +76,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::FindValueResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kFindValueResponse,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -78,6 +86,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::FindNodesRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kFindNodesRequest,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -86,6 +96,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::FindNodesResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kFindNodesResponse,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -94,6 +106,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::StoreRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kStoreRequest, msg.SerializeAsString(),
                                       kSign | kAsymmetricEncrypt,
                                       recipient_public_key);
@@ -102,6 +116,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::StoreResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kStoreResponse, msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
 }
@@ -109,6 +125,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::StoreRefreshRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kStoreRefreshRequest,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -117,6 +135,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::StoreRefreshResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kStoreRefreshResponse,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -125,6 +145,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::DeleteRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kDeleteRequest, msg.SerializeAsString(),
                                       kSign | kAsymmetricEncrypt,
                                       recipient_public_key);
@@ -133,6 +155,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::DeleteResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kDeleteResponse, msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
 }
@@ -140,6 +164,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::DeleteRefreshRequest &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kDeleteRefreshRequest,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -148,6 +174,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::DeleteRefreshResponse &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kDeleteRefreshResponse,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);
@@ -156,6 +184,8 @@ std::string MessageHandler::WrapMessage(
 std::string MessageHandler::WrapMessage(
     const protobuf::DownlistNotification &msg,
     const std::string &recipient_public_key) {
+  if (!msg.IsInitialized())
+    return "";
   return MakeSerialisedWrapperMessage(kDownlistNotification,
                                       msg.SerializeAsString(),
                                       kAsymmetricEncrypt, recipient_public_key);

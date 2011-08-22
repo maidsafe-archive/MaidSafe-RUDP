@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(push, 1)
 #endif
 #include "boost/filesystem.hpp"
+#include "google/protobuf/stubs/common.h"
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
@@ -87,5 +88,6 @@ int main(int argc, char **argv) {
 #endif
   int result(RUN_ALL_TESTS());
   int test_count = testing::UnitTest::GetInstance()->test_to_run_count();
+  google::protobuf::ShutdownProtobufLibrary();
   return (test_count == 0) ? -1 : result;
 }
