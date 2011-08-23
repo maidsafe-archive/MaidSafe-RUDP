@@ -106,6 +106,11 @@ NodeImpl::~NodeImpl() {
 void NodeImpl::Join(const NodeId &node_id,
                     std::vector<Contact> bootstrap_contacts,
                     JoinFunctor callback) {
+  if (joined_) {
+    asio_service_.post(std::bind(&NodeImpl::JoinSucceeded, this, callback));
+    return;
+  }
+
   // Remove our own Contact if present
   bootstrap_contacts.erase(
       std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(),
@@ -239,6 +244,8 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   ping_oldest_contact_.disconnect();
   validate_contact_.disconnect();
   ping_down_contact_.disconnect();
+  if (!client_only_node_)
+    service_.reset();
   GetBootstrapContacts(bootstrap_contacts);
 }
 
@@ -263,6 +270,10 @@ void NodeImpl::Store(const Key &key,
                      const bptime::time_duration &ttl,
                      SecurifierPtr securifier,
                      StoreFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<StoreFunctor>,
+                                        this, callback));
+  }
   if (!securifier)
     securifier = default_securifier_;
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
@@ -277,6 +288,10 @@ void NodeImpl::Delete(const Key &key,
                       const std::string &signature,
                       SecurifierPtr securifier,
                       DeleteFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<DeleteFunctor>,
+                                        this, callback));
+  }
   if (!securifier)
     securifier = default_securifier_;
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
@@ -294,6 +309,10 @@ void NodeImpl::Update(const Key &key,
                       const bptime::time_duration &ttl,
                       SecurifierPtr securifier,
                       UpdateFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<UpdateFunctor>,
+                                        this, callback));
+  }
   if (!securifier)
     securifier = default_securifier_;
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
@@ -307,6 +326,10 @@ void NodeImpl::FindValue(const Key &key,
                          SecurifierPtr securifier,
                          FindValueFunctor callback,
                          const uint16_t &extra_contacts) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<FindValueFunctor>,
+                                        this, callback));
+  }
   if (!securifier)
     securifier = default_securifier_;
   OrderedContacts close_contacts(
@@ -360,6 +383,10 @@ void NodeImpl::FoundValueLocally(const FindValueReturns &find_value_returns,
 void NodeImpl::FindNodes(const Key &key,
                          FindNodesFunctor callback,
                          const uint16_t &extra_contacts) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<FindNodesFunctor>,
+                                        this, callback));
+  }
   OrderedContacts close_contacts(
       GetClosestContactsLocally(key, k_ + extra_contacts));
   FindNodesArgsPtr find_nodes_args(new FindNodesArgs(key, k_ + extra_contacts,
@@ -371,6 +398,11 @@ void NodeImpl::GetContact(const NodeId &node_id, GetContactFunctor callback) {
   if (node_id == contact_.node_id()) {
     asio_service_.post(std::bind(&NodeImpl::GetOwnContact, this, callback));
     return;
+  }
+
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<GetContactFunctor>,
+                                        this, callback));
   }
 
   std::vector<Contact> close_nodes, excludes;
@@ -408,6 +440,10 @@ void NodeImpl::GetContactPingCallback(RankInfoPtr rank_info,
 }
 
 void NodeImpl::Ping(const Contact &contact, PingFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<PingFunctor>,
+                                        this, callback));
+  }
   rpcs_->Ping(SecurifierPtr(), contact,
               std::bind(&NodeImpl::PingCallback, this, arg::_1, arg::_2,
                         contact, callback));
@@ -452,6 +488,27 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
   routing_table_->GetBootstrapContacts(contacts);
   if (contacts->empty())
     contacts->push_back(contact_);
+}
+
+template <typename T>
+void NodeImpl::NotJoined(T callback) {
+  callback(kNotJoined);
+}
+
+template <>
+void NodeImpl::NotJoined<FindValueFunctor> (FindValueFunctor callback) {
+  callback(FindValueReturns(kNotJoined, std::vector<std::string>(),
+                            std::vector<Contact>(), Contact(), Contact()));
+}
+
+template <>
+void NodeImpl::NotJoined<FindNodesFunctor> (FindNodesFunctor callback) {
+  callback(kNotJoined, std::vector<Contact>());
+}
+
+template <>
+void NodeImpl::NotJoined<GetContactFunctor> (GetContactFunctor callback) {
+  callback(kNotJoined, Contact());
 }
 
 void NodeImpl::StartLookup(LookupArgsPtr lookup_args) {

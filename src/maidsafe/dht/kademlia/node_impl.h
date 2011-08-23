@@ -261,6 +261,18 @@ class NodeImpl {
                     Contact peer,
                     PingFunctor callback);
 
+  template <typename T>
+  void NotJoined(T callback);
+
+  template <>
+  void NotJoined<FindValueFunctor> (FindValueFunctor callback);
+
+  template <>
+  void NotJoined<FindNodesFunctor> (FindNodesFunctor callback);
+
+  template <>
+  void NotJoined<GetContactFunctor> (GetContactFunctor callback);
+
   void StartLookup(LookupArgsPtr lookup_args);
 
   /** Function to execute iterative rpc->findnode or findvalue requests.

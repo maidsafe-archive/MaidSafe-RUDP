@@ -188,6 +188,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   node_container->node()->Leave(&bootstrap_contacts);
   EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   // Node that has left shouldn't be able to send/ recieve RPCs
   if (!client_only_node_) {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -197,7 +198,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
                   << debug_msg_;
     result = kPendingResult;
     (*env_->node_containers_.rbegin())->GetAndResetPingResult(&result);
-    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+    EXPECT_EQ(transport::kReceiveFailure, result) << debug_msg_;
   }
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -207,7 +208,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
                   << debug_msg_;
     result = kPendingResult;
     node_container->GetAndResetPingResult(&result);
-    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+    EXPECT_EQ(kNotJoined, result) << debug_msg_;
   }
   // Re-join
   result = kPendingResult;
