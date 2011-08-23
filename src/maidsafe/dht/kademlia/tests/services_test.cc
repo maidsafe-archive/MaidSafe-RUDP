@@ -146,6 +146,7 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
         service_(new Service(routing_table_, data_store_, alternative_store_,
                              securifier_, g_kKademliaK)),
         num_of_pings_(0) {
+                                                        FLAGS_minloglevel = google::INFO;
     service_->set_node_joined(true);
   }
 
@@ -568,7 +569,7 @@ TEST_F(ServicesTest, BEH_Delete) {
     protobuf::DeleteResponse delete_response;
     service_->Delete(info_, delete_request, delete_message,
                      delete_message_sig, &delete_response, &time_out);
-    EXPECT_FALSE(delete_response.result());
+    EXPECT_TRUE(delete_response.result());
     EXPECT_EQ(0U, GetSenderTaskSize());
     JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
@@ -816,7 +817,7 @@ TEST_F(ServicesTest, BEH_DeleteRefresh) {
     protobuf::DeleteRefreshResponse delete_refresh_response;
     service_->DeleteRefresh(info_, delete_refresh_request,
                             &delete_refresh_response, &time_out);
-    EXPECT_FALSE(delete_refresh_response.result());
+    EXPECT_TRUE(delete_refresh_response.result());
     EXPECT_EQ(0U, GetSenderTaskSize());
     JoinNetworkLookup(securifier_);
     ASSERT_EQ(0U, GetDataStoreSize());
