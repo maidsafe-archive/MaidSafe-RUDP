@@ -29,6 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <map>
 
+#include "maidsafe/common/alternative_store.h"
+
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/node_impl.h"
 #include "maidsafe/dht/kademlia/data_store.h"
@@ -240,6 +242,21 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   GetBootstrapContacts(bootstrap_contacts);
 }
 
+OrderedContacts NodeImpl::GetClosestContactsLocally(
+    const Key &key,
+    const uint16_t &total_contacts) {
+  std::vector<Contact> close_nodes, excludes;
+  routing_table_->GetCloseContacts(key, total_contacts, excludes, &close_nodes);
+  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
+                                                       close_nodes.end(), key));
+  // This node's ID will not be held in the routing table, so add it now.  The
+  // iterative lookup will take care of the (likely) case that it's not within
+  // the requested number of closest contacts.
+  if (!client_only_node_)
+    close_contacts.insert(contact_);
+  return close_contacts;
+}
+
 void NodeImpl::Store(const Key &key,
                      const std::string &value,
                      const std::string &signature,
@@ -248,10 +265,7 @@ void NodeImpl::Store(const Key &key,
                      StoreFunctor callback) {
   if (!securifier)
     securifier = default_securifier_;
-  std::vector<Contact> close_nodes, excludes;
-  routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
-  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
-                                                       close_nodes.end(), key));
+  OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   StoreArgsPtr store_args(new StoreArgs(key, k_, close_contacts,
       static_cast<size_t>(k_ * kMinSuccessfulPecentageStore), value, signature,
       ttl, securifier, callback));
@@ -265,10 +279,7 @@ void NodeImpl::Delete(const Key &key,
                       DeleteFunctor callback) {
   if (!securifier)
     securifier = default_securifier_;
-  std::vector<Contact> close_nodes, excludes;
-  routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
-  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
-                                                       close_nodes.end(), key));
+  OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   DeleteArgsPtr delete_args(new DeleteArgs(key, k_, close_contacts,
       static_cast<size_t>(k_ * kMinSuccessfulPecentageDelete), value, signature,
       securifier, callback));
@@ -285,10 +296,7 @@ void NodeImpl::Update(const Key &key,
                       UpdateFunctor callback) {
   if (!securifier)
     securifier = default_securifier_;
-  std::vector<Contact> close_nodes, excludes;
-  routing_table_->GetCloseContacts(key, k_, excludes, &close_nodes);
-  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
-                                                       close_nodes.end(), key));
+  OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   UpdateArgsPtr update_args(new UpdateArgs(key, k_, close_contacts,
       static_cast<size_t>(k_ * kMinSuccessfulPecentageUpdate), old_value,
       old_signature, new_value, new_signature, ttl, securifier, callback));
@@ -301,30 +309,70 @@ void NodeImpl::FindValue(const Key &key,
                          const uint16_t &extra_contacts) {
   if (!securifier)
     securifier = default_securifier_;
-  std::vector<Contact> close_nodes, excludes;
-  routing_table_->GetCloseContacts(key, k_ + extra_contacts, excludes,
-                                   &close_nodes);
-  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
-                                                       close_nodes.end(), key));
+  OrderedContacts close_contacts(
+      GetClosestContactsLocally(key, k_ + extra_contacts));
+
+  // If this node is not client-only & is within the k_ closest do a local find.
+  if (!client_only_node_) {
+    uint16_t closest_count(0);
+    auto itr(close_contacts.begin());
+    while (itr != close_contacts.end() && closest_count != k_) {
+      if (*itr == contact_) {
+        std::vector<std::string> values;
+        std::vector<std::pair<std::string, std::string>> values_str;
+        std::vector<Contact> contacts;
+        if (alternative_store_->Has(key.String())) {
+          FindValueReturns find_value_returns(kFoundAlternativeStoreHolder,
+                                              values, contacts, contact_,
+                                              Contact());
+          asio_service_.post(std::bind(&NodeImpl::FoundValueLocally, this,
+                                       find_value_returns, callback));
+          return;
+        }
+        if (data_store_->GetValues(key.String(), &values_str)) {
+          values.reserve(values_str.size());
+          for (auto values_itr(values_str.begin());
+               values_itr != values_str.end(); ++values_itr) {
+            values.push_back((*values_itr).first);
+          }
+          FindValueReturns find_value_returns(kSuccess, values, contacts,
+                                              Contact(), Contact());
+          asio_service_.post(std::bind(&NodeImpl::FoundValueLocally, this,
+                                       find_value_returns, callback));
+          return;
+        }
+      }
+      ++itr;
+      ++closest_count;
+    }
+  }
+
   FindValueArgsPtr find_value_args(new FindValueArgs(key, k_ + extra_contacts,
       close_contacts, securifier, callback));
   StartLookup(find_value_args);
 }
 
+void NodeImpl::FoundValueLocally(const FindValueReturns &find_value_returns,
+                                 FindValueFunctor callback) {
+  callback(find_value_returns);
+}
+
 void NodeImpl::FindNodes(const Key &key,
                          FindNodesFunctor callback,
                          const uint16_t &extra_contacts) {
-  std::vector<Contact> close_nodes, excludes;
-  routing_table_->GetCloseContacts(key, k_ + extra_contacts, excludes,
-                                   &close_nodes);
-  OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
-                                                       close_nodes.end(), key));
+  OrderedContacts close_contacts(
+      GetClosestContactsLocally(key, k_ + extra_contacts));
   FindNodesArgsPtr find_nodes_args(new FindNodesArgs(key, k_ + extra_contacts,
       close_contacts, default_securifier_, callback));
   StartLookup(find_nodes_args);
 }
 
 void NodeImpl::GetContact(const NodeId &node_id, GetContactFunctor callback) {
+  if (node_id == contact_.node_id()) {
+    asio_service_.post(std::bind(&NodeImpl::GetOwnContact, this, callback));
+    return;
+  }
+
   std::vector<Contact> close_nodes, excludes;
   routing_table_->GetCloseContacts(node_id, k_, excludes, &close_nodes);
   OrderedContacts close_contacts(CreateOrderedContacts(close_nodes.begin(),
@@ -342,6 +390,10 @@ void NodeImpl::GetContact(const NodeId &node_id, GetContactFunctor callback) {
                            callback));
     StartLookup(get_contact_args);
   }
+}
+
+void NodeImpl::GetOwnContact(GetContactFunctor callback) {
+  callback(kSuccess, contact_);
 }
 
 void NodeImpl::GetContactPingCallback(RankInfoPtr rank_info,
@@ -410,6 +462,7 @@ void NodeImpl::StartLookup(LookupArgsPtr lookup_args) {
 
 void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
   lookup_args->rpcs_in_flight_for_current_iteration = 0;
+  lookup_args->lookup_phase_complete = false;
   size_t good_contact_count(0), pending_result_count(0);
   bool wait_for_in_flight_rpcs(false);
   auto itr(lookup_args->lookup_contacts.begin());
@@ -417,27 +470,33 @@ void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
          !wait_for_in_flight_rpcs) {
     switch ((*itr).second.rpc_state) {
       case ContactInfo::kNotSent: {
-        if (lookup_args->kOperationType == LookupArgs::kFindValue) {
-          rpcs_->FindValue(lookup_args->kTarget,
-                           lookup_args->kNumContactsRequested,
-                           lookup_args->securifier,
-                           (*itr).first,
-                           std::bind(&NodeImpl::IterativeFindCallback,
-                                     this, arg::_1, arg::_2, arg::_3, arg::_4,
-                                     arg::_5, (*itr).first, lookup_args));
+        if (!client_only_node_ && (*itr).first == contact_) {
+          // If this node isn't a client and is the current contact, we've
+          // already added the closest it knows of at the start of the op.
+          (*itr).second.rpc_state = ContactInfo::kRepliedOK;
         } else {
-          rpcs_->FindNodes(lookup_args->kTarget,
-                           lookup_args->kNumContactsRequested,
-                           default_securifier_,
-                           (*itr).first,
-                           std::bind(&NodeImpl::IterativeFindCallback,
-                                     this, arg::_1, arg::_2,
-                                     std::vector<std::string>(), arg::_3,
-                                     Contact(), (*itr).first, lookup_args));
+          if (lookup_args->kOperationType == LookupArgs::kFindValue) {
+            rpcs_->FindValue(lookup_args->kTarget,
+                             lookup_args->kNumContactsRequested,
+                             lookup_args->securifier,
+                             (*itr).first,
+                             std::bind(&NodeImpl::IterativeFindCallback,
+                                       this, arg::_1, arg::_2, arg::_3, arg::_4,
+                                       arg::_5, (*itr).first, lookup_args));
+          } else {
+            rpcs_->FindNodes(lookup_args->kTarget,
+                             lookup_args->kNumContactsRequested,
+                             default_securifier_,
+                             (*itr).first,
+                             std::bind(&NodeImpl::IterativeFindCallback,
+                                       this, arg::_1, arg::_2,
+                                       std::vector<std::string>(), arg::_3,
+                                       Contact(), (*itr).first, lookup_args));
+          }
+          ++lookup_args->total_lookup_rpcs_in_flight;
+          ++lookup_args->rpcs_in_flight_for_current_iteration;
+          (*itr).second.rpc_state = ContactInfo::kSent;
         }
-        ++lookup_args->total_lookup_rpcs_in_flight;
-        ++lookup_args->rpcs_in_flight_for_current_iteration;
-        (*itr).second.rpc_state = ContactInfo::kSent;
         break;
       }
       case ContactInfo::kSent: {
@@ -458,8 +517,8 @@ void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
     wait_for_in_flight_rpcs =
         (lookup_args->rpcs_in_flight_for_current_iteration == kAlpha_) ||
         ((lookup_args->rpcs_in_flight_for_current_iteration +
-        pending_result_count + good_contact_count) ==
-        lookup_args->kNumContactsRequested);
+            pending_result_count + good_contact_count) ==
+            lookup_args->kNumContactsRequested);
     ++itr;
   }
 }
@@ -760,15 +819,19 @@ void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
   }
   auto itr(store_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
-    rpcs_->Store(store_args->kTarget,
-                 store_args->kValue,
-                 store_args->kSignature,
-                 store_args->kSecondsToLive,
-                 store_args->securifier,
-                 (*itr).first,
-                 std::bind(&NodeImpl::StoreCallback, this, arg::_1, arg::_2,
-                           (*itr).first, store_args));
-    ++store_args->second_phase_rpcs_in_flight;
+    if (!client_only_node_ && ((*itr).first == contact_)) {
+      HandleStoreToSelf(store_args);
+    } else {
+      rpcs_->Store(store_args->kTarget,
+                   store_args->kValue,
+                   store_args->kSignature,
+                   store_args->kSecondsToLive,
+                   store_args->securifier,
+                   (*itr).first,
+                   std::bind(&NodeImpl::StoreCallback, this, arg::_1, arg::_2,
+                             (*itr).first, store_args));
+      ++store_args->second_phase_rpcs_in_flight;
+    }
     ++itr;
   }
 }
@@ -788,14 +851,18 @@ void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
   }
   auto itr(delete_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
-    rpcs_->Delete(delete_args->kTarget,
-                  delete_args->kValue,
-                  delete_args->kSignature,
-                  delete_args->securifier,
-                  (*itr).first,
-                  std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
-                            (*itr).first, delete_args));
-    ++delete_args->second_phase_rpcs_in_flight;
+    if (!client_only_node_ && ((*itr).first == contact_)) {
+      HandleDeleteToSelf(delete_args);
+    } else {
+      rpcs_->Delete(delete_args->kTarget,
+                    delete_args->kValue,
+                    delete_args->kSignature,
+                    delete_args->securifier,
+                    (*itr).first,
+                    std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
+                              (*itr).first, delete_args));
+      ++delete_args->second_phase_rpcs_in_flight;
+    }
     ++itr;
   }
 }
@@ -815,21 +882,180 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
   }
   auto itr(update_args->lookup_contacts.begin());
   while (itr != closest_upper_bound) {
-    rpcs_->Store(update_args->kTarget,
-                 update_args->kNewValue,
-                 update_args->kNewSignature,
-                 update_args->kSecondsToLive,
-                 update_args->securifier,
-                 (*itr).first,
-                 std::bind(&NodeImpl::UpdateCallback, this, arg::_1, arg::_2,
-                           (*itr).first, update_args));
-    ++update_args->store_rpcs_in_flight;
-    // Increment second_phase_rpcs_in_flight (representing the subsequent Delete
-    // RPC) to avoid the DeleteCallback finishing early.  This assumes the
-    // Store RPC will succeed - if it fails, we need to decrement
-    // second_phase_rpcs_in_flight.
-    ++update_args->second_phase_rpcs_in_flight;
+    if (!client_only_node_ && ((*itr).first == contact_)) {
+      HandleUpdateToSelf(update_args);
+    } else {
+      rpcs_->Store(update_args->kTarget,
+                   update_args->kNewValue,
+                   update_args->kNewSignature,
+                   update_args->kSecondsToLive,
+                   update_args->securifier,
+                   (*itr).first,
+                   std::bind(&NodeImpl::UpdateCallback, this, arg::_1, arg::_2,
+                             (*itr).first, update_args));
+      ++update_args->store_rpcs_in_flight;
+      // Increment second_phase_rpcs_in_flight (representing the subsequent
+      // Delete RPC) to avoid the DeleteCallback finishing early.  This assumes
+      // the Store RPC will succeed - if it fails, we need to decrement
+      // second_phase_rpcs_in_flight.
+      ++update_args->second_phase_rpcs_in_flight;
+    }
     ++itr;
+  }
+}
+
+void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
+  // Check this node signed other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (data_store_->GetValues(store_args->kTarget.String(), &values)) {
+    ++store_args->second_phase_rpcs_in_flight;
+    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
+                                       contact_.public_key(), "", "")) {
+      HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
+      return;
+    }
+  }
+
+  // Check the signature validates with this node's public key
+  if (!default_securifier_->Validate(store_args->kValue, store_args->kSignature,
+                                     "", contact_.public_key(), "", "")) {
+    DLOG(ERROR) << "Failed to validate Store request for kademlia value";
+    HandleSecondPhaseCallback<StoreArgsPtr>(kGeneralError, store_args);
+    return;
+  }
+
+  // Store the value
+  KeyValueSignature key_value_signature(store_args->kTarget.String(),
+                                        store_args->kValue,
+                                        store_args->kSignature);
+  RequestAndSignature store_request_and_signature(
+      rpcs_->MakeStoreRequestAndSignature(store_args->kTarget,
+                                          store_args->kValue,
+                                          store_args->kSignature,
+                                          store_args->kSecondsToLive,
+                                          store_args->securifier));
+  int result(data_store_->StoreValue(key_value_signature,
+                                     store_args->kSecondsToLive,
+                                     store_request_and_signature,
+                                     contact_.public_key(), false));
+  if (result == kSuccess) {
+    HandleSecondPhaseCallback<StoreArgsPtr>(kSuccess, store_args);
+  } else {
+    DLOG(ERROR) << "Failed to store value: " << result;
+    HandleSecondPhaseCallback<StoreArgsPtr>(kGeneralError, store_args);
+  }
+}
+
+void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
+  if (!data_store_->HasKey(delete_args->kTarget.String())) {
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kSuccess, delete_args);
+    return;
+  }
+
+  // Check this node signed other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (data_store_->GetValues(delete_args->kTarget.String(), &values)) {
+    ++delete_args->second_phase_rpcs_in_flight;
+    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
+                                       contact_.public_key(), "", "")) {
+      HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
+      return;
+    }
+  }
+
+  // Check the signature validates with this node's public key
+  if (!default_securifier_->Validate(delete_args->kValue,
+                                     delete_args->kSignature, "",
+                                     contact_.public_key(), "", "")) {
+    DLOG(ERROR) << "Failed to validate Delete request for kademlia value";
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
+    return;
+  }
+
+  // Delete the value
+  KeyValueSignature key_value_signature(delete_args->kTarget.String(),
+                                        delete_args->kValue,
+                                        delete_args->kSignature);
+  RequestAndSignature delete_request_and_signature(
+      rpcs_->MakeDeleteRequestAndSignature(delete_args->kTarget,
+                                           delete_args->kValue,
+                                           delete_args->kSignature,
+                                           delete_args->securifier));
+  bool result(data_store_->DeleteValue(key_value_signature,
+                                       delete_request_and_signature, false));
+  if (result) {
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kSuccess, delete_args);
+  } else {
+    DLOG(ERROR) << "Failed to delete value";
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
+  }
+}
+
+void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
+  // Check this node signed other values under same key in datastore
+  std::vector<std::pair<std::string, std::string>> values;
+  if (data_store_->GetValues(update_args->kTarget.String(), &values)) {
+    ++update_args->second_phase_rpcs_in_flight;
+    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
+                                       contact_.public_key(), "", "")) {
+      HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+      return;
+    }
+  }
+
+  // Check the new signature validates with this node's public key
+  if (!default_securifier_->Validate(update_args->kNewValue,
+                                     update_args->kNewSignature,
+                                     "", contact_.public_key(), "", "")) {
+    DLOG(ERROR) << "Failed to validate Update new request for kademlia value";
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
+  }
+
+  // Store the value
+  KeyValueSignature new_key_value_signature(update_args->kTarget.String(),
+                                            update_args->kNewValue,
+                                            update_args->kNewSignature);
+  RequestAndSignature store_request_and_signature(
+      rpcs_->MakeStoreRequestAndSignature(update_args->kTarget,
+                                          update_args->kNewValue,
+                                          update_args->kNewSignature,
+                                          update_args->kSecondsToLive,
+                                          update_args->securifier));
+  int result(data_store_->StoreValue(new_key_value_signature,
+                                     update_args->kSecondsToLive,
+                                     store_request_and_signature,
+                                     contact_.public_key(), false));
+  if (result != kSuccess) {
+    DLOG(ERROR) << "Failed to store value: " << result;
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
+  }
+
+  // Check the old signature validates with this node's public key
+  if (!default_securifier_->Validate(update_args->kOldValue,
+                                     update_args->kOldSignature, "",
+                                     contact_.public_key(), "", "")) {
+    DLOG(ERROR) << "Failed to validate Update old request for kademlia value";
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
+  }
+
+  // Delete the value
+  KeyValueSignature old_key_value_signature(update_args->kTarget.String(),
+                                            update_args->kOldValue,
+                                            update_args->kOldSignature);
+  RequestAndSignature delete_request_and_signature(
+      rpcs_->MakeDeleteRequestAndSignature(update_args->kTarget,
+                                           update_args->kOldValue,
+                                           update_args->kOldSignature,
+                                           update_args->securifier));
+  if (data_store_->DeleteValue(old_key_value_signature,
+                               delete_request_and_signature, false)) {
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kSuccess, update_args);
+  } else {
+    DLOG(ERROR) << "Failed to delete value";
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
   }
 }
 
@@ -893,10 +1119,8 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
                   std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
                             peer, update_args));
   } else {
-    // Increment second_phase_rpcs_in_flight (representing the subsequent Delete
-    // RPC) to avoid the DeleteCallback finishing early.  This assumes the
-    // Store RPC will succeed - if it fails, we need to decrement
-    // second_phase_rpcs_in_flight.
+    // Decrement second_phase_rpcs_in_flight (representing the subsequent Delete
+    // RPC) to avoid the DeleteCallback finishing early.
     --update_args->second_phase_rpcs_in_flight;
     if (update_args->kSuccessThreshold ==
         update_args->store_successes + update_args->store_rpcs_in_flight + 1) {

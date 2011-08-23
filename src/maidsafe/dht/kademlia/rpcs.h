@@ -30,6 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
@@ -153,6 +154,19 @@ class Rpcs {
   virtual void Prepare(SecurifierPtr securifier,
                        TransportPtr &transport,
                        MessageHandlerPtr &message_handler);
+
+  std::pair<std::string, std::string> MakeStoreRequestAndSignature(
+    const Key &key,
+    const std::string &value,
+    const std::string &signature,
+    const boost::posix_time::seconds &ttl,
+    SecurifierPtr securifier);
+
+  std::pair<std::string, std::string> MakeDeleteRequestAndSignature(
+    const Key &key,
+    const std::string &value,
+    const std::string &signature,
+    SecurifierPtr securifier);
 
  protected:
   AsioService &asio_service_;
@@ -755,6 +769,53 @@ void Rpcs<TransportType>::Prepare(SecurifierPtr securifier,
       transport::OnError::element_type::slot_type(
           &MessageHandler::OnError, message_handler.get(),
           _1, _2).track_foreign(message_handler));
+}
+
+template <typename T>
+std::pair<std::string, std::string> Rpcs<T>::MakeStoreRequestAndSignature(
+    const Key &key,
+    const std::string &value,
+    const std::string &signature,
+    const boost::posix_time::seconds &ttl,
+    SecurifierPtr securifier) {
+  MessageHandlerPtr message_handler(new MessageHandler(securifier));
+
+  protobuf::StoreRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+
+  protobuf::SignedValue *signed_value(request.mutable_signed_value());
+  signed_value->set_value(value);
+  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
+                              signature);
+  request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
+  std::string message(request.SerializeAsString());
+  std::string message_signature(securifier->Sign(
+        boost::lexical_cast<std::string>(kStoreRequest) + message));
+  return std::make_pair(message, message_signature);
+}
+
+template <typename T>
+std::pair<std::string, std::string> Rpcs<T>::MakeDeleteRequestAndSignature(
+    const Key &key,
+    const std::string &value,
+    const std::string &signature,
+    SecurifierPtr securifier) {
+  MessageHandlerPtr message_handler(new MessageHandler(securifier));
+
+  protobuf::DeleteRequest request;
+  *request.mutable_sender() = ToProtobuf(contact_);
+  request.set_key(key.String());
+
+  protobuf::SignedValue *signed_value(request.mutable_signed_value());
+  signed_value->set_value(value);
+  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
+                              signature);
+
+  std::string message(request.SerializeAsString());
+  std::string message_signature(securifier->Sign(
+        boost::lexical_cast<std::string>(kDeleteRequest) + message));
+  return std::make_pair(message, message_signature);
 }
 
 }  // namespace kademlia
