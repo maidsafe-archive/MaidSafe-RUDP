@@ -563,8 +563,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
     return;
 
   // Handle result if RPC was successful.
-  LookupContacts::iterator shortlist_upper_bound(
-      lookup_args->lookup_contacts.begin());
+  auto shortlist_upper_bound(lookup_args->lookup_contacts.begin());
   if (FindResultError(result)) {
     uint16_t i(0);
     while (i != lookup_args->kNumContactsRequested &&
@@ -665,60 +664,42 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
     LookupArgsPtr lookup_args,
     LookupContacts::iterator this_peer) {
   auto existing_contacts_itr(lookup_args->lookup_contacts.begin());
-  auto shortlist_upper_bound(lookup_args->lookup_contacts.end());
-  auto new_contacts_itr(contacts.begin());
-  uint16_t count(0);
-  if (new_contacts_itr == contacts.end()) {
-    while (count != lookup_args->kNumContactsRequested &&
-           existing_contacts_itr != lookup_args->lookup_contacts.end()) {
-      if (++count == lookup_args->kNumContactsRequested)
-        shortlist_upper_bound = ++existing_contacts_itr;
-    }
-    return shortlist_upper_bound;
-  }
-
-  auto insertion_point(lookup_args->lookup_contacts.end());
-  ContactInfo contact_info((*this_peer).first);
-  for (;;) {
-    if ((*existing_contacts_itr).first < *new_contacts_itr) {
-      insertion_point = existing_contacts_itr++;
-      ++count;
-    } else if (*new_contacts_itr < (*existing_contacts_itr).first) {
-      insertion_point = lookup_args->lookup_contacts.insert(
-          insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
-      ++count;
-    } else {
-      insertion_point = existing_contacts_itr;
-      (*existing_contacts_itr++).second.providers.push_back((*this_peer).first);
-      ++new_contacts_itr;
-      ++count;
-    }
-
-    if (count == lookup_args->kNumContactsRequested)
-      shortlist_upper_bound = existing_contacts_itr;
-
-    if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
-      while (new_contacts_itr != contacts.end()) {
+  if (!contacts.empty()) {
+    auto new_contacts_itr(contacts.begin());
+    auto insertion_point(lookup_args->lookup_contacts.end());
+    ContactInfo contact_info((*this_peer).first);
+    for (;;) {
+      if ((*existing_contacts_itr).first < *new_contacts_itr) {
+        insertion_point = existing_contacts_itr++;
+      } else if (*new_contacts_itr < (*existing_contacts_itr).first) {
         insertion_point = lookup_args->lookup_contacts.insert(
             insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
-        if (++count == lookup_args->kNumContactsRequested)
-          shortlist_upper_bound = insertion_point;
+      } else {
+        insertion_point = existing_contacts_itr;
+        (*existing_contacts_itr++).second.providers.push_back((*this_peer).first);
+        ++new_contacts_itr;
       }
-      break;
-    }
 
-    if (new_contacts_itr == contacts.end()) {
-      existing_contacts_itr = insertion_point;
-      while (count != lookup_args->kNumContactsRequested &&
-             existing_contacts_itr != lookup_args->lookup_contacts.end()) {
-        ++existing_contacts_itr;
-        if (++count == lookup_args->kNumContactsRequested)
-          shortlist_upper_bound = insertion_point;
+      if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
+        while (new_contacts_itr != contacts.end()) {
+          insertion_point = lookup_args->lookup_contacts.insert(
+              insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
+        }
+        break;
       }
-      break;
+
+      if (new_contacts_itr == contacts.end())
+        break;
     }
   }
 
+  uint16_t count(0);
+  auto shortlist_upper_bound(lookup_args->lookup_contacts.begin());
+  while (count != lookup_args->kNumContactsRequested &&
+         shortlist_upper_bound != lookup_args->lookup_contacts.end()) {
+    ++shortlist_upper_bound;
+    ++count;
+  }
   return shortlist_upper_bound;
 }
 
