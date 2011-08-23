@@ -161,21 +161,27 @@ class Node {
               SecurifierPtr securifier,
               UpdateFunctor callback);
 
-  // Find value(s) on the network.  Unless the method returns an error, the
-  // callback will always have passed to it the contact details of the node
-  // needing a cache copy of the value(s) (i.e. the last node during the search
-  // to not hold the value(s)).  Other than this, the callback parameters are
-  // populated as follows: If any queried peer holds the value(s) in its
-  // alternative_store, its details are passed in the callback and no other
-  // callback parameters are completed.  In this case, the return code is
-  // kFoundAlternativeStoreHolder.  If any queried peer holds the value(s)
-  // in its kademlia datastore, the value(s) and signature(s) are passed in the
-  // callback and no other callback parameters are completed.  In this case, the
-  // return code is kSuccess.  Otherwise, iff no value exists under key, the
-  // (k + extra) closest nodes' details are passed in callback, ordered by
-  // kademlia closeness to key, closest first.  In this case, the return code is
-  // kFailedToFindValue.  Any other return code indicates an error in the lookup
-  // process.
+  // Find value(s) on the network.  The callback will always have passed to it
+  // the contact details of the node needing a cache copy of the value(s) (i.e.
+  // the last node during the search to not hold the value(s)).  This could be
+  // an empty contact (e.g. if the lookup failed, or was completed by the first
+  // RPC's callback).
+  //
+  // Other than this, the callback parameters are populated as follows:
+  // * If any queried peer holds the value(s) in its alternative_store, its
+  //   details are passed in the callback and no other callback parameters are
+  //   completed.  In this case, the return code is kFoundAlternativeStoreHolder
+  // * If any queried peer holds the value(s) in its kademlia datastore, the
+  //   value(s) and signature(s) are passed in the callback and no other
+  //   callback parameters are completed.  In this case, the return code is
+  //   kSuccess.
+  // * Otherwise, iff no value exists under key, the (k + extra) closest nodes'
+  //   details are passed in callback, ordered by kademlia closeness to key,
+  //   closest first.  In this case, the return code is kFailedToFindValue.
+  //
+  // Any other return code indicates an error in the lookup process.  N.B. This
+  // node could be returned as the alternative_store holder or as one of the
+  // closest contacts.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
@@ -183,13 +189,15 @@ class Node {
 
   // Find details of (k + extra) nodes closest to key.  The details are passed
   // in callback, ordered by kademlia closeness to key, closest first.
+  // N.B. This node could be returned as one of the closest contacts.
   void FindNodes(const Key &key,
                  FindNodesFunctor callback,
                  const uint16_t &extra_contacts = 0);
 
-  // Find the contact details of a node.  If the node is not in this node's
-  // routing table, a FindNode will be executed.  If the node is offline, a
-  // default-constructed Contact will be passed back in the callback.
+  // Find the contact details of a node.  If the target node is not in this
+  // node's routing table (and is not this node), a FindNode will be executed.
+  // If the node is offline, a default-constructed Contact will be passed back
+  // in the callback.
   void GetContact(const NodeId &node_id, GetContactFunctor callback);
 
   // Mark contact in routing table as having just been seen (i.e. contacted).

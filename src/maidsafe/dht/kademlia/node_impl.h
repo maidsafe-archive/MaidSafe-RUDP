@@ -65,14 +65,10 @@ class Rpcs;
 namespace test {
 class NodeImplTest;
 class MockNodeImplTest;
-class MockNodeImplTest_FUNC_HandleIterationStructure_Test;
-class MockNodeImplTest_BEH_Join_Test;
-class MockNodeImplTest_BEH_Getters_Test;
-class MockNodeImplTest_BEH_Leave_Test;
-class MockNodeImplTest_BEH_DownlistClient_Test;
-class MockNodeApiTest_BEH_Join_Server_Test;
 class MockNodeImplTest_BEH_ValidateContact_Test;
 class MockNodeImplTest_BEH_PingOldestContact_Test;
+class MockNodeImplTest_BEH_Join_Test;
+class MockNodeImplTest_BEH_Getters_Test;
 }  // namespace test
 
 typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
@@ -219,12 +215,10 @@ class NodeImpl {
   friend class NodeContainer<maidsafe::dht::kademlia::NodeImpl>;
   friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
-  friend class test::MockNodeImplTest_FUNC_HandleIterationStructure_Test;
-  friend class test::MockNodeImplTest_BEH_Join_Test;
-  friend class test::MockNodeImplTest_BEH_Getters_Test;
-  friend class test::MockNodeImplTest_BEH_Leave_Test;
   friend class test::MockNodeImplTest_BEH_ValidateContact_Test;
   friend class test::MockNodeImplTest_BEH_PingOldestContact_Test;
+  friend class test::MockNodeImplTest_BEH_Join_Test;
+  friend class test::MockNodeImplTest_BEH_Getters_Test;
 
 
  private:
@@ -240,6 +234,20 @@ class NodeImpl {
   void JoinSucceeded(JoinFunctor callback);
 
   void JoinFailed(JoinFunctor callback, int result);
+
+  /** Returns the closest contacts to key from this node's routing table.  If
+   *  this node is within the required closest, it is included in the result. */
+  OrderedContacts GetClosestContactsLocally(const Key &key,
+                                            const uint16_t &total_contacts);
+
+  /** Runs the FindValue callback for the case where this node has the value(s)
+   *  locally (i.e. in its alternative_store_ or data_store_). */
+  void FoundValueLocally(const FindValueReturns &find_value_returns,
+                         FindValueFunctor callback);
+
+  /** Runs the GetContact callback for the case where it's this node's Contact
+   *  which is the target. */
+  void GetOwnContact(GetContactFunctor callback);
 
   /** Callback used if we hold the target's contact details in our own routing
    *  table - i.e. we only did a Ping rather than an iterative lookup. */
@@ -316,6 +324,12 @@ class NodeImpl {
   void InitiateUpdatePhase(UpdateArgsPtr update_args,
                            LookupContacts::iterator closest_upper_bound,
                            const size_t &closest_count);
+
+  void HandleStoreToSelf(StoreArgsPtr store_args);
+
+  void HandleDeleteToSelf(DeleteArgsPtr delete_args);
+
+  void HandleUpdateToSelf(UpdateArgsPtr update_args);
 
   /** Callback from the rpc->store requests, during the Store operation.
    *  @param[in] rank_info rank info

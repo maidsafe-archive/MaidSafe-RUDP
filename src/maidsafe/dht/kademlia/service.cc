@@ -400,9 +400,11 @@ void Service::Delete(const transport::Info &info,
     return;
   }
 
-  // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasKey(request.key()))
+  if (!datastore_->HasKey(request.key())) {
+    response->set_result(true);
     return;
+  }
+
   // Check if same private key signs other values under same key in datastore
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(request.key(), &values)) {
@@ -460,9 +462,11 @@ void Service::DeleteRefresh(const transport::Info &info,
     return;
   }
 
-  // Avoid CPU-heavy validation work if key doesn't exist.
-  if (!datastore_->HasKey(ori_delete_request.key()))
+  if (!datastore_->HasKey(ori_delete_request.key())) {
+    response->set_result(true);
     return;
+  }
+
   // Check if same private key signs other values under same key in datastore
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(ori_delete_request.key(), &values)) {
