@@ -55,7 +55,7 @@ class NodeImplTest : public testing::TestWithParam<bool> {
       NodeContainerPtr;
   NodeImplTest()
       : env_(NodesEnvironment<NodeImpl>::g_environment()),
-        kTimeout_(bptime::seconds(10)),
+        kTimeout_(bptime::seconds(11)),
         client_only_node_(GetParam()),
         debug_msg_(client_only_node_ ? "Client node." : "Full node."),
         test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
@@ -302,18 +302,19 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
 
   // verify n > k number of nodes are returned on request
   {
+    const uint16_t kExtras(3);
     boost::mutex::scoped_lock lock(env_->mutex_);
     for (size_t i = 0; i < env_->num_full_nodes_; i++) {
       closest_nodes.clear();
       env_->node_containers_[i]->FindNodes(
-          test_container_->node()->contact().node_id(), env_->k_*3/2);
+          test_container_->node()->contact().node_id(), kExtras);
       EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
                   env_->node_containers_[i]->wait_for_find_nodes_functor()))
                       << debug_msg_;
       env_->node_containers_[i]->GetAndResetFindNodesResult(&result,
                                                             &closest_nodes);
       EXPECT_EQ(kSuccess, result);
-      EXPECT_EQ(env_->k_*3/2, closest_nodes.size());
+      EXPECT_EQ(env_->k_ + kExtras, closest_nodes.size());
     }
   }
 
