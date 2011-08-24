@@ -633,6 +633,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
                                      LookupArgsPtr lookup_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(lookup_args->mutex);
+//  std::cout << "IterativeFindCallback \n";
   auto this_peer(lookup_args->lookup_contacts.find(peer));
   --lookup_args->total_lookup_rpcs_in_flight;
   BOOST_ASSERT(lookup_args->total_lookup_rpcs_in_flight >= 0);
@@ -644,7 +645,9 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= 0);
+  if (lookup_args->rpcs_in_flight_for_current_iteration < -1 ) 
+    std::cout << lookup_args->rpcs_in_flight_for_current_iteration << std::endl;
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -832,6 +835,7 @@ void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
     }
     ++itr;
   }
+//  std::cout << "AssessLookupState "   << lookup_args->lookup_phase_complete << " " <<  *iteration_complete << std::endl;
 }
 
 void NodeImpl::HandleCompletedLookup(
