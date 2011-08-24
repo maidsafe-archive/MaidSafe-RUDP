@@ -160,8 +160,6 @@ const Timeout kMinTimeout(bptime::milliseconds(500));
 const float kTimeoutFactor(0.01f);
 // Maximum period of inactivity on a send or receive before timeout triggered
 const Timeout kStallTimeout(bptime::seconds(3));
-// Maximum number of accepted incoming connections
-const int kMaxAcceptedConnections(5);
 
 // transport signals
 typedef std::shared_ptr<bs2::signal<void(const std::string&,

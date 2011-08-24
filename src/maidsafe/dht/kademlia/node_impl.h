@@ -237,6 +237,12 @@ class NodeImpl {
 
   void JoinFailed(JoinFunctor callback, int result);
 
+  template <typename T>
+  void NotJoined(T callback);
+
+  template <typename T>
+  void FailedValidation(T callback);
+
   /** Returns the closest contacts to key from this node's routing table.  If
    *  this node is within the required closest, it is included in the result. */
   OrderedContacts GetClosestContactsLocally(const Key &key,
@@ -268,21 +274,6 @@ class NodeImpl {
                     int result,
                     Contact peer,
                     PingFunctor callback);
-
-  template <typename T>
-  void NotJoined(T callback);
-
-  template <>
-  void NotJoined<FindValueFunctor> (FindValueFunctor callback);
-
-  template <>
-  void NotJoined<FindNodesFunctor> (FindNodesFunctor callback);
-
-  template <>
-  void NotJoined<GetContactFunctor> (GetContactFunctor callback);
-
-  template <typename T>
-  void FailedValidation(T callback);
 
   void StartLookup(LookupArgsPtr lookup_args);
 
@@ -330,23 +321,23 @@ class NodeImpl {
   void AssessLookupState(LookupArgsPtr lookup_args,
                          LookupContacts::iterator shortlist_upper_bound,
                          bool *iteration_complete,
-                         size_t *shortlist_ok_count);
+                         int *shortlist_ok_count);
 
   void HandleCompletedLookup(LookupArgsPtr lookup_args,
                              LookupContacts::iterator closest_upper_bound,
-                             const size_t &closest_count);
+                             const int &closest_count);
 
   void InitiateStorePhase(StoreArgsPtr store_args,
                           LookupContacts::iterator closest_upper_bound,
-                          const size_t &closest_count);
+                          const int &closest_count);
 
   void InitiateDeletePhase(DeleteArgsPtr delete_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
 
   void InitiateUpdatePhase(UpdateArgsPtr update_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
 
   void HandleStoreToSelf(StoreArgsPtr store_args);
 

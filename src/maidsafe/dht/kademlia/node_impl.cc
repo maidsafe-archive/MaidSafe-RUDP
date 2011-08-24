@@ -94,8 +94,8 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       contact_(),
       joined_(false),
       ping_oldest_contact_(),
-      ping_down_contact_(),
       validate_contact_(),
+      ping_down_contact_(),
       refresh_data_store_timer_(asio_service_) {}
 
 NodeImpl::~NodeImpl() {
@@ -248,6 +248,32 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   if (!client_only_node_)
     service_.reset();
   GetBootstrapContacts(bootstrap_contacts);
+}
+
+template <typename T>
+void NodeImpl::NotJoined(T callback) {
+  callback(kNotJoined);
+}
+
+template <>
+void NodeImpl::NotJoined<FindValueFunctor> (FindValueFunctor callback) {
+  callback(FindValueReturns(kNotJoined, std::vector<std::string>(),
+                            std::vector<Contact>(), Contact(), Contact()));
+}
+
+template <>
+void NodeImpl::NotJoined<FindNodesFunctor> (FindNodesFunctor callback) {
+  callback(kNotJoined, std::vector<Contact>());
+}
+
+template <>
+void NodeImpl::NotJoined<GetContactFunctor> (GetContactFunctor callback) {
+  callback(kNotJoined, Contact());
+}
+
+template <typename T>
+void NodeImpl::FailedValidation(T callback) {
+  callback(kFailedValidation);
 }
 
 OrderedContacts NodeImpl::GetClosestContactsLocally(
@@ -529,32 +555,6 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
     contacts->push_back(contact_);
 }
 
-template <typename T>
-void NodeImpl::NotJoined(T callback) {
-  callback(kNotJoined);
-}
-
-template <>
-void NodeImpl::NotJoined<FindValueFunctor> (FindValueFunctor callback) {
-  callback(FindValueReturns(kNotJoined, std::vector<std::string>(),
-                            std::vector<Contact>(), Contact(), Contact()));
-}
-
-template <>
-void NodeImpl::NotJoined<FindNodesFunctor> (FindNodesFunctor callback) {
-  callback(kNotJoined, std::vector<Contact>());
-}
-
-template <>
-void NodeImpl::NotJoined<GetContactFunctor> (GetContactFunctor callback) {
-  callback(kNotJoined, Contact());
-}
-
-template <typename T>
-void NodeImpl::FailedValidation(T callback) {
-  callback(kFailedValidation);
-}
-
 void NodeImpl::StartLookup(LookupArgsPtr lookup_args) {
   BOOST_ASSERT(lookup_args->kNumContactsRequested >= k_);
   boost::mutex::scoped_lock lock(lookup_args->mutex);
@@ -685,7 +685,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
 
   // Check to see if the lookup phase and/or iteration is now finished.
   bool iteration_complete(false);
-  size_t shortlist_ok_count(0);
+  int shortlist_ok_count(0);
   AssessLookupState(lookup_args, shortlist_upper_bound, &iteration_complete,
                     &shortlist_ok_count);
 
@@ -812,7 +812,7 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
 void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
                                  LookupContacts::iterator shortlist_upper_bound,
                                  bool *iteration_complete,
-                                 size_t *shortlist_ok_count) {
+                                 int *shortlist_ok_count) {
   *iteration_complete =
       (lookup_args->rpcs_in_flight_for_current_iteration <= kAlpha_ - kBeta_);
 
@@ -837,7 +837,7 @@ void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
 void NodeImpl::HandleCompletedLookup(
     LookupArgsPtr lookup_args,
     LookupContacts::iterator closest_upper_bound,
-    const size_t &closest_count) {
+    const int &closest_count) {
   switch (lookup_args->kOperationType) {
     case LookupArgs::kFindNodes:
     case LookupArgs::kFindValue: {
@@ -893,7 +893,7 @@ void NodeImpl::HandleCompletedLookup(
 
 void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
                                   LookupContacts::iterator closest_upper_bound,
-                                  const size_t &closest_count) {
+                                  const int &closest_count) {
   if (closest_count < store_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before store phase.";
@@ -925,7 +925,7 @@ void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
 
 void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
                                    LookupContacts::iterator closest_upper_bound,
-                                   const size_t &closest_count) {
+                                   const int &closest_count) {
   if (closest_count < delete_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before delete phase.";
@@ -956,7 +956,7 @@ void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
 
 void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
                                    LookupContacts::iterator closest_upper_bound,
-                                   const size_t &closest_count) {
+                                   const int &closest_count) {
   if (closest_count < update_args->kSuccessThreshold) {
     if (closest_count == 0) {
       DLOG(ERROR) << "Failed to get any contacts before update phase.";
