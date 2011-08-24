@@ -147,11 +147,13 @@ class NodeImpl {
    *  @param[in] securifier The securifier to pass further.
    *  @param[in] callback The callback to report the results.
    *  @param[in] extra_contacts The number of additional to k contacts to
-   *  return. */
+   *  return.
+   *  @param[in] cache Whether to cache the value(s) if found. */
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
-                 const uint16_t &extra_contacts = 0);
+                 const uint16_t &extra_contacts = 0,
+                 bool cache = true);
 
   /** Function to FIND k-closest NODES to the Key from the Kademlia network.
    *  @param[in] Key The key to locate

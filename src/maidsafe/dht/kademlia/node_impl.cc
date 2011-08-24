@@ -183,7 +183,7 @@ void NodeImpl::Join(const NodeId &node_id,
   search_contacts.insert(bootstrap_contacts.front());
   bootstrap_contacts.erase(bootstrap_contacts.begin());
   FindValueArgsPtr find_value_args(
-      new FindValueArgs(node_id, k_, search_contacts, default_securifier_,
+      new FindValueArgs(node_id, k_, search_contacts, true, default_securifier_,
           std::bind(&NodeImpl::JoinFindValueCallback, this, arg::_1,
                     bootstrap_contacts, node_id, callback, true)));
   StartLookup(find_value_args);
@@ -209,9 +209,10 @@ void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
     search_contacts.insert(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindValueArgsPtr find_value_args(
-        new FindValueArgs(node_id, k_, search_contacts, default_securifier_,
-            std::bind(&NodeImpl::JoinFindValueCallback, this, arg::_1,
-                      bootstrap_contacts, node_id, callback, none_reached)));
+        new FindValueArgs(node_id, k_, search_contacts, true,
+            default_securifier_, std::bind(&NodeImpl::JoinFindValueCallback,
+                                           this, arg::_1, bootstrap_contacts,
+                                           node_id, callback, none_reached)));
     StartLookup(find_value_args);
   } else {
     JoinSucceeded(callback);
@@ -362,7 +363,8 @@ void NodeImpl::Update(const Key &key,
 void NodeImpl::FindValue(const Key &key,
                          SecurifierPtr securifier,
                          FindValueFunctor callback,
-                         const uint16_t &extra_contacts) {
+                         const uint16_t &extra_contacts,
+                         bool cache) {
   if (!joined_) {
     return asio_service_.post(std::bind(&NodeImpl::NotJoined<FindValueFunctor>,
                                         this, callback));
@@ -408,7 +410,7 @@ void NodeImpl::FindValue(const Key &key,
   }
 
   FindValueArgsPtr find_value_args(new FindValueArgs(key, k_ + extra_contacts,
-      close_contacts, securifier, callback));
+      close_contacts, cache, securifier, callback));
   StartLookup(find_value_args);
 }
 
@@ -722,6 +724,7 @@ bool NodeImpl::AbortLookup(int result,
       std::static_pointer_cast<FindValueArgs>(lookup_args)->callback(
           find_value_returns);
       // TODO(Fraser#5#): 2011-08-16 - Send value to cache_candidate here.
+//      if (std::static_pointer_cast<FindValueArgs>(lookup_args)->cache)
     }
     return lookup_args->lookup_phase_complete;
   } else if (lookup_args->kOperationType == LookupArgs::kGetContact) {
@@ -777,14 +780,16 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
             insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
       } else {
         insertion_point = existing_contacts_itr;
-        (*existing_contacts_itr++).second.providers.push_back((*this_peer).first);
+        (*existing_contacts_itr++).second.providers.push_back(
+            (*this_peer).first);
         ++new_contacts_itr;
       }
 
       if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
         while (new_contacts_itr != contacts.end()) {
           insertion_point = lookup_args->lookup_contacts.insert(
-              insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
+              insertion_point, std::make_pair(*new_contacts_itr++,
+                                              contact_info));
         }
         break;
       }

@@ -363,8 +363,7 @@ void Rpcs<TransportType>::Store(const Key &key,
 
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
   signed_value->set_value(value);
-  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
-                              signature);
+  signed_value->set_signature(signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
@@ -436,8 +435,7 @@ void Rpcs<TransportType>::Delete(const Key &key,
   request.set_key(key.String());
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
   signed_value->set_value(value);
-  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
-                              signature);
+  signed_value->set_signature(signature);
   std::string message =
       message_handler->WrapMessage(request, peer.public_key());
   // Connect callback to message handler for incoming parsed response or error
@@ -786,8 +784,7 @@ std::pair<std::string, std::string> Rpcs<T>::MakeStoreRequestAndSignature(
 
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
   signed_value->set_value(value);
-  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
-                              signature);
+  signed_value->set_signature(signature);
   request.set_ttl(ttl.is_pos_infinity() ? -1 : ttl.total_seconds());
   std::string message(request.SerializeAsString());
   std::string message_signature(securifier->Sign(
@@ -809,8 +806,7 @@ std::pair<std::string, std::string> Rpcs<T>::MakeDeleteRequestAndSignature(
 
   protobuf::SignedValue *signed_value(request.mutable_signed_value());
   signed_value->set_value(value);
-  signed_value->set_signature(signature.empty() ? securifier->Sign(value) :
-                              signature);
+  signed_value->set_signature(signature);
 
   std::string message(request.SerializeAsString());
   std::string message_signature(securifier->Sign(

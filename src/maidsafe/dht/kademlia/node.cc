@@ -94,8 +94,9 @@ void Node::Update(const Key &key,
 void Node::FindValue(const Key &key,
                      SecurifierPtr securifier,
                      FindValueFunctor callback,
-                     const uint16_t &extra_contacts) {
-  pimpl_->FindValue(key, securifier, callback, extra_contacts);
+                     const uint16_t &extra_contacts,
+                     bool cache) {
+  pimpl_->FindValue(key, securifier, callback, extra_contacts, cache);
 }
 
 void Node::FindNodes(const Key &key,

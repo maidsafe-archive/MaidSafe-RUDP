@@ -136,11 +136,14 @@ struct FindValueArgs : public LookupArgs {
   FindValueArgs(const NodeId &target,
                 const uint16_t &num_contacts_requested,
                 const OrderedContacts &close_contacts,
+                bool cache_in,
                 SecurifierPtr securifier,
                 FindValueFunctor callback_in)
       : LookupArgs(kFindValue, target, close_contacts, num_contacts_requested,
                    securifier),
+        cache(cache_in),
         callback(callback_in) {}
+  bool cache;
   FindValueFunctor callback;
 };
 
