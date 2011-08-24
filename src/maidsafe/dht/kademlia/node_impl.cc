@@ -106,6 +106,11 @@ NodeImpl::~NodeImpl() {
 void NodeImpl::Join(const NodeId &node_id,
                     std::vector<Contact> bootstrap_contacts,
                     JoinFunctor callback) {
+  if (joined_) {
+    asio_service_.post(std::bind(&NodeImpl::JoinSucceeded, this, callback));
+    return;
+  }
+
   // Remove our own Contact if present
   bootstrap_contacts.erase(
       std::remove_if(bootstrap_contacts.begin(), bootstrap_contacts.end(),
@@ -178,7 +183,7 @@ void NodeImpl::Join(const NodeId &node_id,
   search_contacts.insert(bootstrap_contacts.front());
   bootstrap_contacts.erase(bootstrap_contacts.begin());
   FindValueArgsPtr find_value_args(
-      new FindValueArgs(node_id, k_, search_contacts, default_securifier_,
+      new FindValueArgs(node_id, k_, search_contacts, true, default_securifier_,
           std::bind(&NodeImpl::JoinFindValueCallback, this, arg::_1,
                     bootstrap_contacts, node_id, callback, true)));
   StartLookup(find_value_args);
@@ -204,9 +209,10 @@ void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
     search_contacts.insert(bootstrap_contacts.front());
     bootstrap_contacts.erase(bootstrap_contacts.begin());
     FindValueArgsPtr find_value_args(
-        new FindValueArgs(node_id, k_, search_contacts, default_securifier_,
-            std::bind(&NodeImpl::JoinFindValueCallback, this, arg::_1,
-                      bootstrap_contacts, node_id, callback, none_reached)));
+        new FindValueArgs(node_id, k_, search_contacts, true,
+            default_securifier_, std::bind(&NodeImpl::JoinFindValueCallback,
+                                           this, arg::_1, bootstrap_contacts,
+                                           node_id, callback, none_reached)));
     StartLookup(find_value_args);
   } else {
     JoinSucceeded(callback);
@@ -239,6 +245,8 @@ void NodeImpl::Leave(std::vector<Contact> *bootstrap_contacts) {
   ping_oldest_contact_.disconnect();
   validate_contact_.disconnect();
   ping_down_contact_.disconnect();
+  if (!client_only_node_)
+    service_.reset();
   GetBootstrapContacts(bootstrap_contacts);
 }
 
@@ -257,18 +265,42 @@ OrderedContacts NodeImpl::GetClosestContactsLocally(
   return close_contacts;
 }
 
+bool NodeImpl::ValidateOrSign(const std::string &value,
+                              SecurifierPtr securifier,
+                              std::string *signature) {
+  if (signature->empty()) {
+    *signature = securifier->Sign(value);
+    return true;
+  } else {
+    return securifier->Validate(value, *signature, "",
+                                securifier->kSigningPublicKey(), "", "");
+  }
+}
+
 void NodeImpl::Store(const Key &key,
                      const std::string &value,
                      const std::string &signature,
                      const bptime::time_duration &ttl,
                      SecurifierPtr securifier,
                      StoreFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<StoreFunctor>,
+                                        this, callback));
+  }
+
   if (!securifier)
     securifier = default_securifier_;
+
+  std::string sig(signature);
+  if (!ValidateOrSign(value, securifier, &sig)) {
+    return asio_service_.post(
+        std::bind(&NodeImpl::FailedValidation<StoreFunctor>, this, callback));
+  }
+
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   StoreArgsPtr store_args(new StoreArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageStore), value, signature,
-      ttl, securifier, callback));
+      static_cast<size_t>(k_ * kMinSuccessfulPecentageStore), value, sig, ttl,
+      securifier, callback));
   StartLookup(store_args);
 }
 
@@ -277,11 +309,23 @@ void NodeImpl::Delete(const Key &key,
                       const std::string &signature,
                       SecurifierPtr securifier,
                       DeleteFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<DeleteFunctor>,
+                                        this, callback));
+  }
+
   if (!securifier)
     securifier = default_securifier_;
+
+  std::string sig(signature);
+  if (!ValidateOrSign(value, securifier, &sig)) {
+    return asio_service_.post(
+        std::bind(&NodeImpl::FailedValidation<DeleteFunctor>, this, callback));
+  }
+
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   DeleteArgsPtr delete_args(new DeleteArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageDelete), value, signature,
+      static_cast<size_t>(k_ * kMinSuccessfulPecentageDelete), value, sig,
       securifier, callback));
   StartLookup(delete_args);
 }
@@ -294,19 +338,37 @@ void NodeImpl::Update(const Key &key,
                       const bptime::time_duration &ttl,
                       SecurifierPtr securifier,
                       UpdateFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<UpdateFunctor>,
+                                        this, callback));
+  }
+
   if (!securifier)
     securifier = default_securifier_;
+
+  std::string new_sig(new_signature), old_sig(old_signature);
+  if (!ValidateOrSign(old_value, securifier, &old_sig) ||
+      !ValidateOrSign(new_value, securifier, &new_sig)) {
+    return asio_service_.post(
+        std::bind(&NodeImpl::FailedValidation<UpdateFunctor>, this, callback));
+  }
+
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   UpdateArgsPtr update_args(new UpdateArgs(key, k_, close_contacts,
       static_cast<size_t>(k_ * kMinSuccessfulPecentageUpdate), old_value,
-      old_signature, new_value, new_signature, ttl, securifier, callback));
+      old_sig, new_value, new_sig, ttl, securifier, callback));
   StartLookup(update_args);
 }
 
 void NodeImpl::FindValue(const Key &key,
                          SecurifierPtr securifier,
                          FindValueFunctor callback,
-                         const uint16_t &extra_contacts) {
+                         const uint16_t &extra_contacts,
+                         bool cache) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<FindValueFunctor>,
+                                        this, callback));
+  }
   if (!securifier)
     securifier = default_securifier_;
   OrderedContacts close_contacts(
@@ -348,7 +410,7 @@ void NodeImpl::FindValue(const Key &key,
   }
 
   FindValueArgsPtr find_value_args(new FindValueArgs(key, k_ + extra_contacts,
-      close_contacts, securifier, callback));
+      close_contacts, cache, securifier, callback));
   StartLookup(find_value_args);
 }
 
@@ -360,6 +422,10 @@ void NodeImpl::FoundValueLocally(const FindValueReturns &find_value_returns,
 void NodeImpl::FindNodes(const Key &key,
                          FindNodesFunctor callback,
                          const uint16_t &extra_contacts) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<FindNodesFunctor>,
+                                        this, callback));
+  }
   OrderedContacts close_contacts(
       GetClosestContactsLocally(key, k_ + extra_contacts));
   FindNodesArgsPtr find_nodes_args(new FindNodesArgs(key, k_ + extra_contacts,
@@ -371,6 +437,11 @@ void NodeImpl::GetContact(const NodeId &node_id, GetContactFunctor callback) {
   if (node_id == contact_.node_id()) {
     asio_service_.post(std::bind(&NodeImpl::GetOwnContact, this, callback));
     return;
+  }
+
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<GetContactFunctor>,
+                                        this, callback));
   }
 
   std::vector<Contact> close_nodes, excludes;
@@ -408,6 +479,10 @@ void NodeImpl::GetContactPingCallback(RankInfoPtr rank_info,
 }
 
 void NodeImpl::Ping(const Contact &contact, PingFunctor callback) {
+  if (!joined_) {
+    return asio_service_.post(std::bind(&NodeImpl::NotJoined<PingFunctor>,
+                                        this, callback));
+  }
   rpcs_->Ping(SecurifierPtr(), contact,
               std::bind(&NodeImpl::PingCallback, this, arg::_1, arg::_2,
                         contact, callback));
@@ -452,6 +527,32 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
   routing_table_->GetBootstrapContacts(contacts);
   if (contacts->empty())
     contacts->push_back(contact_);
+}
+
+template <typename T>
+void NodeImpl::NotJoined(T callback) {
+  callback(kNotJoined);
+}
+
+template <>
+void NodeImpl::NotJoined<FindValueFunctor> (FindValueFunctor callback) {
+  callback(FindValueReturns(kNotJoined, std::vector<std::string>(),
+                            std::vector<Contact>(), Contact(), Contact()));
+}
+
+template <>
+void NodeImpl::NotJoined<FindNodesFunctor> (FindNodesFunctor callback) {
+  callback(kNotJoined, std::vector<Contact>());
+}
+
+template <>
+void NodeImpl::NotJoined<GetContactFunctor> (GetContactFunctor callback) {
+  callback(kNotJoined, Contact());
+}
+
+template <typename T>
+void NodeImpl::FailedValidation(T callback) {
+  callback(kFailedValidation);
 }
 
 void NodeImpl::StartLookup(LookupArgsPtr lookup_args) {
@@ -534,6 +635,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   boost::mutex::scoped_lock lock(lookup_args->mutex);
   auto this_peer(lookup_args->lookup_contacts.find(peer));
   --lookup_args->total_lookup_rpcs_in_flight;
+  BOOST_ASSERT(lookup_args->total_lookup_rpcs_in_flight >= 0);
   if (this_peer == lookup_args->lookup_contacts.end()) {
     DLOG(ERROR) << "Can't find " << DebugId(peer) << " in lookup args.";
     return;
@@ -542,6 +644,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= 0);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -621,6 +724,7 @@ bool NodeImpl::AbortLookup(int result,
       std::static_pointer_cast<FindValueArgs>(lookup_args)->callback(
           find_value_returns);
       // TODO(Fraser#5#): 2011-08-16 - Send value to cache_candidate here.
+//      if (std::static_pointer_cast<FindValueArgs>(lookup_args)->cache)
     }
     return lookup_args->lookup_phase_complete;
   } else if (lookup_args->kOperationType == LookupArgs::kGetContact) {
@@ -676,14 +780,16 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
             insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
       } else {
         insertion_point = existing_contacts_itr;
-        (*existing_contacts_itr++).second.providers.push_back((*this_peer).first);
+        (*existing_contacts_itr++).second.providers.push_back(
+            (*this_peer).first);
         ++new_contacts_itr;
       }
 
       if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
         while (new_contacts_itr != contacts.end()) {
           insertion_point = lookup_args->lookup_contacts.insert(
-              insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
+              insertion_point, std::make_pair(*new_contacts_itr++,
+                                              contact_info));
         }
         break;
       }
@@ -1053,13 +1159,17 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
       store_args->successes < store_args->kSuccessThreshold) {
     auto itr(store_args->lookup_contacts.begin());
     while (itr != store_args->lookup_contacts.end()) {
-      rpcs_->Delete(store_args->kTarget,
-                    store_args->kValue,
-                    store_args->kSignature,
-                    store_args->securifier,
-                    (*itr).first,
-                    std::bind(&NodeImpl::HandleRpcCallback, this, (*itr).first,
-                              arg::_1, arg::_2));
+      if (!client_only_node_ && ((*itr).first == contact_)) {
+        // TODO(Fraser#5#): 2011-08-24 - HandleDeleteToSelf(delete_args);
+      } else {
+        rpcs_->Delete(store_args->kTarget,
+                      store_args->kValue,
+                      store_args->kSignature,
+                      store_args->securifier,
+                      (*itr).first,
+                      std::bind(&NodeImpl::HandleRpcCallback, this,
+                                (*itr).first, arg::_1, arg::_2));
+      }
       ++itr;
     }
   }
@@ -1089,6 +1199,8 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
                               UpdateArgsPtr update_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
   --update_args->store_rpcs_in_flight;
+  BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
+
   if (result == kSuccess && update_args->kSuccessThreshold <=
       update_args->store_successes + update_args->store_rpcs_in_flight) {
     ++update_args->store_successes;
@@ -1103,6 +1215,7 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
     // Decrement second_phase_rpcs_in_flight (representing the subsequent Delete
     // RPC) to avoid the DeleteCallback finishing early.
     --update_args->second_phase_rpcs_in_flight;
+    BOOST_ASSERT(update_args->second_phase_rpcs_in_flight >= 0);
     if (update_args->kSuccessThreshold ==
         update_args->store_successes + update_args->store_rpcs_in_flight + 1) {
       update_args->callback(kUpdateTooFewNodes);
@@ -1113,6 +1226,7 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
 template <typename T>
 void NodeImpl::HandleSecondPhaseCallback(int result, T args) {
   --args->second_phase_rpcs_in_flight;
+  BOOST_ASSERT(args->second_phase_rpcs_in_flight >= 0);
   if (result == kSuccess) {
     ++args->successes;
     if (args->successes == args->kSuccessThreshold)

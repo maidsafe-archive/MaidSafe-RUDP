@@ -147,11 +147,13 @@ class NodeImpl {
    *  @param[in] securifier The securifier to pass further.
    *  @param[in] callback The callback to report the results.
    *  @param[in] extra_contacts The number of additional to k contacts to
-   *  return. */
+   *  return.
+   *  @param[in] cache Whether to cache the value(s) if found. */
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
-                 const uint16_t &extra_contacts = 0);
+                 const uint16_t &extra_contacts = 0,
+                 bool cache = true);
 
   /** Function to FIND k-closest NODES to the Key from the Kademlia network.
    *  @param[in] Key The key to locate
@@ -240,6 +242,12 @@ class NodeImpl {
   OrderedContacts GetClosestContactsLocally(const Key &key,
                                             const uint16_t &total_contacts);
 
+  /** If signature is empty, it is set to the signature of value.  If not, it is
+   *  validated. */
+  bool ValidateOrSign(const std::string &value,
+                      SecurifierPtr securifier,
+                      std::string *signature);
+
   /** Runs the FindValue callback for the case where this node has the value(s)
    *  locally (i.e. in its alternative_store_ or data_store_). */
   void FoundValueLocally(const FindValueReturns &find_value_returns,
@@ -260,6 +268,21 @@ class NodeImpl {
                     int result,
                     Contact peer,
                     PingFunctor callback);
+
+  template <typename T>
+  void NotJoined(T callback);
+
+  template <>
+  void NotJoined<FindValueFunctor> (FindValueFunctor callback);
+
+  template <>
+  void NotJoined<FindNodesFunctor> (FindNodesFunctor callback);
+
+  template <>
+  void NotJoined<GetContactFunctor> (GetContactFunctor callback);
+
+  template <typename T>
+  void FailedValidation(T callback);
 
   void StartLookup(LookupArgsPtr lookup_args);
 
