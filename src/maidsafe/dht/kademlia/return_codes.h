@@ -84,7 +84,8 @@ enum ReturnCode {
   kFoundAlternativeStoreHolder = 303012,  // value intentionally positive
   kIterativeLookupFailed = -303013,
   kContactFailedToRespond = -303014,
-  kValueAlreadyExists = -303015
+  kValueAlreadyExists = -303015,
+  kFailedValidation = -303016
 };
 
 }  // namespace kademlia

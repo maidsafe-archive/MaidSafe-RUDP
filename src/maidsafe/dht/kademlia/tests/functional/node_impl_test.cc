@@ -55,7 +55,8 @@ class NodeImplTest : public testing::TestWithParam<bool> {
       NodeContainerPtr;
   NodeImplTest()
       : env_(NodesEnvironment<NodeImpl>::g_environment()),
-        kTimeout_(bptime::seconds(11)),
+        kTimeout_(transport::kDefaultInitialTimeout +
+                  transport::kDefaultInitialTimeout),
         client_only_node_(GetParam()),
         debug_msg_(client_only_node_ ? "Client node." : "Full node."),
         test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
@@ -390,7 +391,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
   size_t index = (test_node_index + 1 +
                    RandomUint32() % (env_->node_containers_.size() - 1)) %
                        (env_->node_containers_.size());
-  value = (RandomString(RandomUint32() % 1024));
   result = kPendingResult;
   {
     boost::mutex::scoped_lock lock(env_->mutex_);

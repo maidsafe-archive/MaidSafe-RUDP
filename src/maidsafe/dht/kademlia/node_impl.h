@@ -240,6 +240,12 @@ class NodeImpl {
   OrderedContacts GetClosestContactsLocally(const Key &key,
                                             const uint16_t &total_contacts);
 
+  /** If signature is empty, it is set to the signature of value.  If not, it is
+   *  validated. */
+  bool ValidateOrSign(const std::string &value,
+                      SecurifierPtr securifier,
+                      std::string *signature);
+
   /** Runs the FindValue callback for the case where this node has the value(s)
    *  locally (i.e. in its alternative_store_ or data_store_). */
   void FoundValueLocally(const FindValueReturns &find_value_returns,
@@ -272,6 +278,9 @@ class NodeImpl {
 
   template <>
   void NotJoined<GetContactFunctor> (GetContactFunctor callback);
+
+  template <typename T>
+  void FailedValidation(T callback);
 
   void StartLookup(LookupArgsPtr lookup_args);
 
