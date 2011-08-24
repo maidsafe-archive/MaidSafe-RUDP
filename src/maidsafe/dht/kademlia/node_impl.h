@@ -147,11 +147,13 @@ class NodeImpl {
    *  @param[in] securifier The securifier to pass further.
    *  @param[in] callback The callback to report the results.
    *  @param[in] extra_contacts The number of additional to k contacts to
-   *  return. */
+   *  return.
+   *  @param[in] cache Whether to cache the value(s) if found. */
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
-                 const uint16_t &extra_contacts = 0);
+                 const uint16_t &extra_contacts = 0,
+                 bool cache = true);
 
   /** Function to FIND k-closest NODES to the Key from the Kademlia network.
    *  @param[in] Key The key to locate
@@ -235,10 +237,22 @@ class NodeImpl {
 
   void JoinFailed(JoinFunctor callback, int result);
 
+  template <typename T>
+  void NotJoined(T callback);
+
+  template <typename T>
+  void FailedValidation(T callback);
+
   /** Returns the closest contacts to key from this node's routing table.  If
    *  this node is within the required closest, it is included in the result. */
   OrderedContacts GetClosestContactsLocally(const Key &key,
                                             const uint16_t &total_contacts);
+
+  /** If signature is empty, it is set to the signature of value.  If not, it is
+   *  validated. */
+  bool ValidateOrSign(const std::string &value,
+                      SecurifierPtr securifier,
+                      std::string *signature);
 
   /** Runs the FindValue callback for the case where this node has the value(s)
    *  locally (i.e. in its alternative_store_ or data_store_). */
@@ -307,23 +321,23 @@ class NodeImpl {
   void AssessLookupState(LookupArgsPtr lookup_args,
                          LookupContacts::iterator shortlist_upper_bound,
                          bool *iteration_complete,
-                         size_t *shortlist_ok_count);
+                         int *shortlist_ok_count);
 
   void HandleCompletedLookup(LookupArgsPtr lookup_args,
                              LookupContacts::iterator closest_upper_bound,
-                             const size_t &closest_count);
+                             const int &closest_count);
 
   void InitiateStorePhase(StoreArgsPtr store_args,
                           LookupContacts::iterator closest_upper_bound,
-                          const size_t &closest_count);
+                          const int &closest_count);
 
   void InitiateDeletePhase(DeleteArgsPtr delete_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
 
   void InitiateUpdatePhase(UpdateArgsPtr update_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
 
   void HandleStoreToSelf(StoreArgsPtr store_args);
 

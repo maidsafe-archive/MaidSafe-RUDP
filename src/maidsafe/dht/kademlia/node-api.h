@@ -165,7 +165,9 @@ class Node {
   // the contact details of the node needing a cache copy of the value(s) (i.e.
   // the last node during the search to not hold the value(s)).  This could be
   // an empty contact (e.g. if the lookup failed, or was completed by the first
-  // RPC's callback).
+  // RPC's callback).  If cache is true for this lookup, the cache contact is
+  // not empty, and the value(s) are found, then the cache contact is sent the
+  // value(s) for caching.
   //
   // Other than this, the callback parameters are populated as follows:
   // * If any queried peer holds the value(s) in its alternative_store, its
@@ -185,7 +187,8 @@ class Node {
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
-                 const uint16_t &extra_contacts = 0);
+                 const uint16_t &extra_contacts = 0,
+                 bool cache = true);
 
   // Find details of (k + extra) nodes closest to key.  The details are passed
   // in callback, ordered by kademlia closeness to key, closest first.

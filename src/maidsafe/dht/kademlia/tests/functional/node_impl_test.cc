@@ -55,7 +55,8 @@ class NodeImplTest : public testing::TestWithParam<bool> {
       NodeContainerPtr;
   NodeImplTest()
       : env_(NodesEnvironment<NodeImpl>::g_environment()),
-        kTimeout_(bptime::seconds(11)),
+        kTimeout_(transport::kDefaultInitialTimeout +
+                  transport::kDefaultInitialTimeout),
         client_only_node_(GetParam()),
         debug_msg_(client_only_node_ ? "Client node." : "Full node."),
         test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
@@ -188,6 +189,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   node_container->node()->Leave(&bootstrap_contacts);
   EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
+  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
   // Node that has left shouldn't be able to send/ recieve RPCs
   if (!client_only_node_) {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -197,7 +199,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
                   << debug_msg_;
     result = kPendingResult;
     (*env_->node_containers_.rbegin())->GetAndResetPingResult(&result);
-    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+    EXPECT_EQ(transport::kReceiveFailure, result) << debug_msg_;
   }
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -207,7 +209,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
                   << debug_msg_;
     result = kPendingResult;
     node_container->GetAndResetPingResult(&result);
-    EXPECT_EQ(kTimedOut, result) << debug_msg_;
+    EXPECT_EQ(kNotJoined, result) << debug_msg_;
   }
   // Re-join
   result = kPendingResult;
@@ -389,7 +391,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
   size_t index = (test_node_index + 1 +
                    RandomUint32() % (env_->node_containers_.size() - 1)) %
                        (env_->node_containers_.size());
-  value = (RandomString(RandomUint32() % 1024));
   result = kPendingResult;
   {
     boost::mutex::scoped_lock lock(env_->mutex_);

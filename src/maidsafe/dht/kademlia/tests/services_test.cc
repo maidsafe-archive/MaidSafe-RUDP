@@ -146,7 +146,6 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
         service_(new Service(routing_table_, data_store_, alternative_store_,
                              securifier_, g_kKademliaK)),
         num_of_pings_(0) {
-                                                        FLAGS_minloglevel = google::INFO;
     service_->set_node_joined(true);
   }
 
