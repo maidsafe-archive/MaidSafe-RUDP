@@ -366,6 +366,13 @@ TEST_P(NodeImplTest, FUNC_Store) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
 //        std::cout << DebugId(*node_containers_[i]) << ": ";
+      bptime::time_duration total_sleep_time(bptime::milliseconds(0));
+      const bptime::milliseconds kIterSleep(100);
+      while (!GetDataStore(env_->node_containers_[i])->HasKey(key.String()) &&
+             total_sleep_time < kTimeout_) {
+        total_sleep_time += kIterSleep;
+        Sleep(kIterSleep);
+      }
       EXPECT_TRUE(GetDataStore(env_->node_containers_[i])->
                   HasKey(key.String()));
     } else {
