@@ -182,9 +182,8 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
       &boost::asio::io_service::run),
       std::ref(Rpcs<TransportType>::asio_service_)));
   }
-  ~MockRpcs() {
+  void Stop() {
     work_.reset();
-    Rpcs<TransportType>::asio_service_.stop();
     thread_group_.join_all();
   }
   MOCK_METHOD7_T(Store, void(const Key &key,
@@ -1269,11 +1268,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
       EXPECT_LE(new_rpcs->respond_contacts_->size(), lcontacts.size());
     }
   }
-  // sleep for a while to prevent the situation that resources got destructed
-  // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.*/
-  Sleep(bptime::milliseconds(100));
-  // SetRpcs<transport::TcpTransport>(old_rpcs);
+  new_rpcs->Stop();
 }
 
 TEST_F(MockNodeImplTest, BEH_Store) {
@@ -1570,7 +1565,6 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.
   Sleep(bptime::milliseconds(1000));
-
   // SetRpcs<transport::TcpTransport>(old_rpcs);
 }
 
@@ -1924,11 +1918,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     }
     EXPECT_EQ(g_kKademliaK * 3 / 2, results.closest_nodes.size());
   }
-
-  // sleep for a while to prevent the situation that resources got destructed
-  // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.*/
-  Sleep(bptime::milliseconds(1000));
+  new_rpcs->Stop();
 }
 
 TEST_F(MockNodeImplTest, BEH_SetLastSeenToNow) {
