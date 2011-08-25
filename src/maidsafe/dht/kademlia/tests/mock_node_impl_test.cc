@@ -1272,7 +1272,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
   // Fault" in execution.*/
-  //  Sleep(bptime::milliseconds(1000));
+  Sleep(bptime::milliseconds(100));
   // SetRpcs<transport::TcpTransport>(old_rpcs);
 }
 
