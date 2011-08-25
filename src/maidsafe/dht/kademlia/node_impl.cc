@@ -325,7 +325,7 @@ void NodeImpl::Store(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   StoreArgsPtr store_args(new StoreArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageStore), value, sig, ttl,
+      static_cast<int>(k_ * kMinSuccessfulPecentageStore), value, sig, ttl,
       securifier, callback));
   StartLookup(store_args);
 }
@@ -351,7 +351,7 @@ void NodeImpl::Delete(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   DeleteArgsPtr delete_args(new DeleteArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageDelete), value, sig,
+      static_cast<int>(k_ * kMinSuccessfulPecentageDelete), value, sig,
       securifier, callback));
   StartLookup(delete_args);
 }
@@ -381,7 +381,7 @@ void NodeImpl::Update(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   UpdateArgsPtr update_args(new UpdateArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageUpdate), old_value,
+      static_cast<int>(k_ * kMinSuccessfulPecentageUpdate), old_value,
       old_sig, new_value, new_sig, ttl, securifier, callback));
   StartLookup(update_args);
 }
@@ -1025,7 +1025,7 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   int result(data_store_->StoreValue(key_value_signature,
                                      store_args->kSecondsToLive,
                                      store_request_and_signature,
-                                     contact_.public_key(), false));
+                                     false));
   if (result == kSuccess) {
     HandleSecondPhaseCallback<StoreArgsPtr>(kSuccess, store_args);
   } else {
@@ -1113,7 +1113,7 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   int result(data_store_->StoreValue(new_key_value_signature,
                                      update_args->kSecondsToLive,
                                      store_request_and_signature,
-                                     contact_.public_key(), false));
+                                     false));
   if (result != kSuccess) {
     DLOG(ERROR) << "Failed to store value: " << result;
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);

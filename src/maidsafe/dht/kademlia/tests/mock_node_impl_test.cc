@@ -968,8 +968,8 @@ TEST_F(MockNodeImplTest, BEH_Join) {
 
     node_->data_store_.reset(new DataStore(bptime::seconds(1)));
     ASSERT_EQ(kSuccess, node_->data_store_->StoreValue(
-        KeyValueSignature("key1", "value1", "sig1"), ttl, request_signature, "",
-        false));
+              KeyValueSignature("key1", "value1", "sig1"), ttl,
+              request_signature, false));
     int result(1);
     JoinFunctor callback = std::bind(&MockNodeImplTest::NodeImplJoinCallback,
                                      this, arg::_1, &result, &cond_var_);

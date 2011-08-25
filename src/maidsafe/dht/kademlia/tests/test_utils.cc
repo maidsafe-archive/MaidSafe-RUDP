@@ -264,8 +264,8 @@ KeyValueTuple MakeKVT(const crypto::RsaKeyPair &rsa_key_pair,
   std::string request = RandomString(1024);
   std::string req_sig = crypto::AsymSign(request, rsa_key_pair.private_key());
   return KeyValueTuple(KeyValueSignature(key, value, signature),
-                        expire_time, refresh_time,
-                        RequestAndSignature(request, req_sig), false);
+                       expire_time, refresh_time,
+                       RequestAndSignature(request, req_sig), false);
 }
 
 protobuf::StoreRequest MakeStoreRequest(

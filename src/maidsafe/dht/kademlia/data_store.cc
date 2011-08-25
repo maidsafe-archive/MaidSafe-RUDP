@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
+#include "maidsafe/dht/kademlia/securifier.h"
 
 namespace arg = std::placeholders;
 namespace bptime = boost::posix_time;
@@ -87,26 +88,26 @@ DataStore::DataStore(const bptime::seconds &mean_refresh_interval)
       shared_mutex_(),
       debug_id_("Uninitialised Debug ID") {}
 
-bool DataStore::HasKey(const std::string &key) {
+bool DataStore::HasKey(const std::string &key) const {
   if (key.empty())
     return false;
   SharedLock shared_lock(shared_mutex_);
-  KeyValueIndex::index<TagKey>::type& index_by_key =
-      key_value_index_->get<TagKey>();
-  auto itr_pair = index_by_key.equal_range(key);
+  auto itr(key_value_index_->get<TagKey>().find(key));
   DLOG(INFO) << debug_id_ << ": HasKey " << EncodeToHex(key).substr(0, 10)
-             << ": " << std::boolalpha << (itr_pair.first != itr_pair.second);
-  return (itr_pair.first != itr_pair.second);
+             << ": " << std::boolalpha
+             << (itr != key_value_index_->get<TagKey>().end());
+  return (itr != key_value_index_->get<TagKey>().end());
 }
 
 int DataStore::StoreValue(
     const KeyValueSignature &key_value_signature,
     const bptime::time_duration &ttl,
     const RequestAndSignature &store_request_and_signature,
-    const std::string &public_key,
     bool is_refresh) {
   // Assumes that check on signature of request and signature of value using
-  // public_key has already been done.
+  // the public key has already been done.  Also assumes that if the key
+  // pre-exists, a check has been made to ensure that the same private key was
+  // used to sign all pre-existing values under that key.
   if (key_value_signature.key.empty()) {
     DLOG(WARNING) << debug_id_ << ": Key empty.";
     return kEmptyKey;
@@ -120,73 +121,22 @@ int DataStore::StoreValue(
   KeyValueTuple tuple(key_value_signature, now + ttl, now + refresh_interval_,
                       store_request_and_signature, false);
 
-  // Check if the key already exists.
-  UpgradeLock upgrade_lock(shared_mutex_);
-  KeyValueIndex::index<TagKey>::type& index_by_key =
-      key_value_index_->get<TagKey>();
-  auto itr_pair = index_by_key.equal_range(key_value_signature.key);
-  if (itr_pair.first == itr_pair.second) {
-    // The key doesn't exist - insert the entry.
-    UpgradeToUniqueLock unique_lock(upgrade_lock);
-    auto p = index_by_key.insert(tuple);
-#ifdef DEBUG
-    if (p.second) {
-      DLOG(INFO) << debug_id_ << ": Stored key "
-                 << EncodeToHex(key_value_signature.key).substr(0, 10);
-    } else {
-      DLOG(WARNING) << debug_id_ << ": Failed to stored key "
-                    << EncodeToHex(key_value_signature.key).substr(0, 10);
-    }
-#endif
-    return p.second ? kSuccess : kFailedToInsertKeyValue;
-  }
+  // Try to insert key,value
+  UniqueLock unique_lock(shared_mutex_);
+  KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+      key_value_index_->get<TagKeyValue>();
+  auto insertion_result = index_by_key_value.insert(tuple);
 
-  // Check if the key AND value already exists.
-  bool value_exists(false);
-  while ((itr_pair.first != itr_pair.second) && !value_exists) {
-    if ((*itr_pair.first).key_value_signature.value ==
-        key_value_signature.value)
-      value_exists = true;
-    else
-      ++itr_pair.first;
-  }
-
-  if (!value_exists) {
-    --itr_pair.first;
-    // Check the same private key was used to sign other values under this key.
-    if (!crypto::AsymCheckSig((*itr_pair.first).key_value_signature.value,
-                              (*itr_pair.first).key_value_signature.signature,
-                              public_key)) {
-      DLOG(WARNING) << debug_id_ << ": Failed key signature check for key "
-                    << EncodeToHex(key_value_signature.key).substr(0, 10);
-      return kFailedSignatureCheck;
-    }
-    UpgradeToUniqueLock unique_lock(upgrade_lock);
-    auto p = index_by_key.insert(tuple);
-#ifdef DEBUG
-    if (p.second) {
-      DLOG(INFO) << debug_id_ << ": Stored key "
-                 << EncodeToHex(key_value_signature.key).substr(0, 10);
-    } else {
-      DLOG(WARNING) << debug_id_ << ": Failed to stored key "
-                    << EncodeToHex(key_value_signature.key).substr(0, 10);
-    }
-#endif
-    return p.second ? kSuccess : kFailedToInsertKeyValue;
-  }
-
-  // The key and value exists - check the value signature is the same as before.
-  if ((*itr_pair.first).key_value_signature.signature !=
-      key_value_signature.signature) {
-    DLOG(WARNING) << debug_id_ << ": Failed value signature check for key "
-                  << EncodeToHex(key_value_signature.key).substr(0, 10);
-    return kFailedSignatureCheck;
+  // If the insertion succeeded, we're done.  If not, the key,value pre-existed.
+  if (insertion_result.second) {
+    DLOG(INFO) << debug_id_ << ": Stored key "
+                << EncodeToHex(key_value_signature.key).substr(0, 10);
+    return kSuccess;
   }
 
   // Allow original signer to modify it.
   if (!is_refresh) {
-    UpgradeToUniqueLock unique_lock(upgrade_lock);
-    if (index_by_key.modify(itr_pair.first,
+    if (index_by_key_value.modify(insertion_result.first,
         std::bind(&KeyValueTuple::UpdateStatus, arg::_1, now + ttl,
                   now + refresh_interval_, now + kPendingConfirmDuration,
                   store_request_and_signature, false))) {
@@ -202,16 +152,15 @@ int DataStore::StoreValue(
 
   // For refreshing, only the refresh time can be reset, and only for
   // non-deleted values.
-  if ((*itr_pair.first).deleted) {
+  if ((*insertion_result.first).deleted) {
     DLOG(WARNING) << debug_id_ << ": Failed to refresh key "
                   << EncodeToHex(key_value_signature.key).substr(0, 10)
                   << " - marked for deletion.";
     return kMarkedForDeletion;
   }
-  UpgradeToUniqueLock unique_lock(upgrade_lock);
-  if (index_by_key.modify(itr_pair.first,
-                          std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
-                                    now + refresh_interval_))) {
+  if (index_by_key_value.modify(insertion_result.first,
+      std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
+                now + refresh_interval_))) {
     DLOG(INFO) << debug_id_ << ": Successfully refreshed key "
                << EncodeToHex(key_value_signature.key).substr(0, 10);
     return kSuccess;
@@ -236,12 +185,6 @@ bool DataStore::DeleteValue(
                                     key_value_signature.value));
   if (it == index_by_key_value.end())
     return true;
-
-  // Check the value signature is the same as before (assumes that check on
-  // signature of request and signature of value using public_key has
-  // already been done).
-  if ((*it).key_value_signature.signature != key_value_signature.signature)
-    return false;
 
   bptime::ptime now(bptime::microsec_clock::universal_time());
   // If the value is already marked as deleted, allow refresh to reset the
@@ -268,7 +211,7 @@ bool DataStore::DeleteValue(
 
 bool DataStore::GetValues(
     const std::string &key,
-    std::vector<std::pair<std::string, std::string>> *values) {
+    std::vector<std::pair<std::string, std::string>> *values) const {
   if (!values)
     return false;
   values->clear();
@@ -328,6 +271,24 @@ void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
     return;
   key_value_tuples->assign(index_by_refresh_time.begin(),
                            index_by_refresh_time.upper_bound(now));
+}
+
+bool DataStore::DifferentSigner(
+    const KeyValueSignature &key_value_signature,
+    const std::string &public_key,
+    std::shared_ptr<Securifier> securifier) const {
+  SharedLock shared_lock(shared_mutex_);
+  auto it(key_value_index_->get<TagKey>().find(key_value_signature.key));
+
+  if (it == key_value_index_->get<TagKey>().end())
+    return false;
+
+  if ((*it).key_value_signature.signature == key_value_signature.signature)
+    return false;
+
+  return !securifier->Validate((*it).key_value_signature.value,
+                               (*it).key_value_signature.signature, "",
+                               public_key, "", "");
 }
 
 bptime::seconds DataStore::refresh_interval() const {
