@@ -99,27 +99,20 @@ void FindNodeCallback(RankInfoPtr/* rank_info */,
                       int /* result_size */,
                       const std::vector<Contact> &cs,
                       boost::condition_variable* cond_var,
-                      std::vector<Contact> *contacts) {
-  contacts->clear();
-  *contacts = cs;
-  cond_var->notify_one();
-}
-
-void FindNodeCallback1(RankInfoPtr/* rank_info */,
-                      int /*result_size*/,
-                      const std::vector<Contact> &cs,
-                      boost::condition_variable* cond_var,
                       std::vector<Contact> *contacts,
-                      size_t requested){
+                      bool *done) {
   contacts->clear();
   *contacts = cs;
+  *done = true;
   cond_var->notify_one();
 }
 
 void FindValueCallback(FindValueReturns find_value_returns_in,
                        boost::condition_variable* cond_var,
-                       FindValueReturns *find_value_returns_out) {
+                       FindValueReturns *find_value_returns_out,
+                       bool* done) {
   *find_value_returns_out = find_value_returns_in;
+  *done = true;
   cond_var->notify_one();
 }
 
@@ -198,10 +191,10 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
                               const Contact &peer,
                               RpcDeleteFunctor callback));
 
-  MOCK_METHOD5_T(FindNodes, void(const NodeId &key,
+  MOCK_METHOD5_T(FindNodes, void(const Key &key,
                                  const uint16_t &nodes_requested,
-                                 const SecurifierPtr securifier,
-                                 const Contact &contact,
+                                 SecurifierPtr securifier,
+                                 const Contact &peer,
                                  RpcFindNodesFunctor callback));
 
   MOCK_METHOD5_T(FindValue, void(const NodeId &key,
@@ -306,6 +299,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeFirstNoResponse(const Contact &/*contact*/,
                                RpcFindNodesFunctor callback) {
+//    boost::this_thread::sleep(boost::posix_time::millisec(100));
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
     if (num_of_acquired_ == 0) {
@@ -324,7 +318,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
                                       RpcFindNodesFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_list;
-    if ((num_of_acquired_ == (g_kKademliaK)) || (num_of_acquired_ == 0)) {
+    if ((num_of_acquired_ == (g_kKademliaK * 2 - 1)) || (num_of_acquired_ == 0)) {
       boost::thread(std::bind(
           &MockRpcs<transport::TcpTransport>::FindNodeNoResponseThread, this,
           callback, response_list));
@@ -399,19 +393,19 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindNodeResponseThread(RpcFindNodesFunctor callback,
                               std::vector<Contact> response_list) {
-//    uint16_t interval(10 * (RandomUint32() % 4) + 11);
-    Sleep(bptime::milliseconds(30));
+//    uint16_t interval((RandomUint32() % 400) + 500);
+//    Sleep(bptime::milliseconds(interval));
     callback(rank_info_, transport::kSuccess, response_list);
   }
 
   void FindNodeNoResponseThread(RpcFindNodesFunctor callback,
                                 std::vector<Contact> response_list) {
-    uint16_t interval(100 * (RandomUint32() % 4) + 101);
-    Sleep(bptime::milliseconds(300));
+//    uint16_t interval((RandomUint32() % 400) + 800);
+//    Sleep(bptime::milliseconds(interval));
     callback(rank_info_, transport::kError, response_list);
   }
 
-  void FindValueSeveralResponse(RpcFindValueFunctor callback,
+/*  void FindValueSeveralResponse(RpcFindValueFunctor callback,
                                const uint16_t &extra_contacts) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
@@ -428,7 +422,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     }
     ++num_of_acquired_;
   }
-
+*/
   void FindValueNoResponse(const Contact &/*contact*/,
                            RpcFindValueFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
@@ -436,7 +430,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     std::vector<std::string> response_value_list;
     boost::thread(
         std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponseThread,
-                  this, callback, response_value_list, response_contact_list));
+                  this, callback, response_value_list, response_contact_list, transport::kError));
   }
 
   void FindValueResponseCloseOnly(const Contact &/*contact*/,
@@ -450,8 +444,9 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     }
     std::vector<std::string> response_value_list;
     boost::thread(
-        std::bind(&MockRpcs<transport::TcpTransport>::FindValueResponseThread,
-                  this, callback, response_value_list, response_contact_list));
+        std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponseThread,
+                  this, callback, response_value_list, response_contact_list,
+                  kFailedToFindValue));
   }
 
   void FindValueNthResponse(const Contact &/*contact*/,
@@ -470,12 +465,17 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
                                                       0);
         respond_contacts_->insert(new_routing_table_contact);
       }
+      boost::thread(
+        std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponseThread,
+                  this, callback, response_value_list, response_contact_list,
+                  kFailedToFindValue));
     } else {
       response_value_list.push_back("FIND");
+      boost::thread(
+          std::bind(&MockRpcs<transport::TcpTransport>::FindValueResponseThread,
+                    this, callback, response_value_list,
+                    response_contact_list));
     }
-    boost::thread(
-        std::bind(&MockRpcs<transport::TcpTransport>::FindValueResponseThread,
-                  this, callback, response_value_list, response_contact_list));
   }
 
   void FindValueNoValueResponse(const Contact &/*contact*/,
@@ -490,15 +490,16 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
       response_contact_list.push_back(node_list_[element]);
     }
     boost::thread(
-        std::bind(&MockRpcs<transport::TcpTransport>::FindValueResponseThread,
-                  this, callback, response_value_list, response_contact_list));
+        std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponseThread,
+                  this, callback, response_value_list, response_contact_list,
+                  kFailedToFindValue));
   }
 
   void FindValueResponseThread(RpcFindValueFunctor callback,
                                std::vector<std::string> response_value_list,
                                std::vector<Contact> response_contact_list) {
-    uint16_t interval(10 * (RandomUint32() % 5) + 1);
-    Sleep(bptime::milliseconds(interval));
+//    uint16_t interval(10 * (RandomUint32() % 5) + 1);
+//    Sleep(bptime::milliseconds(interval));
     Contact alternative_store;
     callback(rank_info_, transport::kSuccess, response_value_list,
              response_contact_list, alternative_store);
@@ -506,11 +507,12 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
 
   void FindValueNoResponseThread(RpcFindValueFunctor callback,
                                  std::vector<std::string> response_value_list,
-                                 std::vector<Contact> response_contact_list) {
-    uint16_t interval(500 * (RandomUint32() % 5) + 1);
-    Sleep(bptime::milliseconds(interval));
+                                 std::vector<Contact> response_contact_list,
+                                 int result) {
+//    uint16_t interval(500 * (RandomUint32() % 5) + 1);
+//    Sleep(bptime::milliseconds(interval));
     Contact alternative_store;
-    callback(rank_info_, transport::kError, response_value_list,
+    callback(rank_info_, result, response_value_list,
              response_contact_list, alternative_store);
   }
 
@@ -1080,7 +1082,9 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
 }
 
 TEST_F(MockNodeImplTest, BEH_FindNodes) {
-  PopulateRoutingTable(g_kKademliaK + 1, 500);
+  bool done(false);
+  PopulateRoutingTable(g_kKademliaK *2, 500);
+  node_->joined_ = true;
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
@@ -1096,11 +1100,13 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                       new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(key, std::bind(&FindNodeCallback, rank_info_, arg::_1,
-                                    arg::_2, &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                                    arg::_2, &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_TRUE((lcontacts.size() == 1) && (lcontacts[0] == node_->contact()));
     
   }
+  done = false;
   new_rpcs->num_of_acquired_ = 0;
   {
     // The first of the populated contacts giving no response
@@ -1113,10 +1119,12 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(g_kKademliaK, lcontacts.size());
   }
+  done = false;
   new_rpcs->num_of_acquired_ = 0;
   {
     // The first and the last of the k populated contacts giving no response
@@ -1129,10 +1137,12 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(g_kKademliaK , lcontacts.size());
   }
+  done = false;
   new_rpcs->num_of_acquired_ = 0;
   {
     // All k populated contacts response with an empty closest list
@@ -1144,8 +1154,9 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(g_kKademliaK, lcontacts.size());
   }
   int count = 10 * g_kKademliaK;
@@ -1153,7 +1164,8 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   NodeId target = GenerateRandomId(node_id_, 498);
   new_rpcs->target_id_ = target;
   std::shared_ptr<RoutingTableContactsContainer> temp
-      (new RoutingTableContactsContainer());
+      (new RoutingTableContactsContainer()); 
+  done = false;    
   new_rpcs->respond_contacts_ = temp;
   {
     // All k populated contacts response with random closest list (not greater
@@ -1166,8 +1178,9 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
-                               arg::_2, &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               arg::_2, &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     ASSERT_EQ(g_kKademliaK, lcontacts.size());
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
     EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK - 1]);
@@ -1183,7 +1196,8 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
       ++step;
     }
   }
-
+  
+  done = false;
   new_rpcs->num_of_acquired_ = 0;
   new_rpcs->respond_contacts_->clear();
   {
@@ -1198,15 +1212,17 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1,
-                               arg::_2, &cond_var_, &lcontacts),
+                               arg::_2, &cond_var_, &lcontacts, &done),
                      g_kKademliaK / 2);
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(g_kKademliaK * 3 / 2, lcontacts.size());
   } 
   
   new_rpcs->respond_contacts_->clear();
   std::shared_ptr<RoutingTableContactsContainer> down_list
       (new RoutingTableContactsContainer());
+  done = false;
   new_rpcs->down_contacts_ = down_list;
   {
     // All k populated contacts randomly response with random closest list
@@ -1219,8 +1235,9 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
-                               &cond_var_, &lcontacts));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &cond_var_, &lcontacts, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     if (new_rpcs->respond_contacts_->size() >= g_kKademliaK) {
       EXPECT_EQ(g_kKademliaK, lcontacts.size());
       EXPECT_NE(lcontacts[0], lcontacts[g_kKademliaK / 2]);
@@ -1760,13 +1777,15 @@ TEST_F(MockNodeImplTest, BEH_Update) {
 }
 
 TEST_F(MockNodeImplTest, BEH_FindValue) {
-  PopulateRoutingTable(g_kKademliaK, 500);
+  bool done(false);
+  PopulateRoutingTable(g_kKademliaK * 2, 500);
+  node_->joined_ = true;
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
   SetRpcs<transport::TcpTransport>(new_rpcs);
   NodeId key = GenerateRandomId(node_id_, 498);
-/*  {
+  {
     // All k populated contacts giving no response
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
@@ -1776,13 +1795,15 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &results, &done));
+    if (!done) 
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
     EXPECT_EQ(kFailedToFindValue, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_TRUE((results.closest_nodes.size() == 1) &&
         (results.closest_nodes[0] == node_->contact()));
-  } */
+  }
+  done = false;
   new_rpcs->SetCountersToZero();
   int count = 10 * g_kKademliaK;
   new_rpcs->PopulateResponseCandidates(count, 499);
@@ -1797,13 +1818,15 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results));
-    //EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
-    cond_var_.wait(unique_lock_);    
-    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
+                               &results, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    
+    EXPECT_EQ(kFailedToFindValue, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
   }
+  done = false;
   new_rpcs->SetCountersToZero();
   std::shared_ptr<RoutingTableContactsContainer> temp
       (new RoutingTableContactsContainer());
@@ -1822,14 +1845,17 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results));
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+                               &results, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+      
     EXPECT_EQ(kSuccess, results.return_code);
     EXPECT_TRUE(results.closest_nodes.empty());
     ASSERT_EQ(1, results.values.size());
     EXPECT_EQ("FIND", results.values[0]);
     EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
-  }
+  } 
+  done = false;
   new_rpcs->SetCountersToZero();
   {
     // value not existed, search shall stop once top-k-closest achieved
@@ -1841,56 +1867,39 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results));
-
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
-    EXPECT_EQ(kIterativeLookupFailed, results.return_code);
+                               &results, &done));
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(kFailedToFindValue, results.return_code);
     EXPECT_TRUE(results.values.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
     EXPECT_GT(40 * g_kKademliaK, new_rpcs->num_of_acquired_);
   }
-
-  new_rpcs->SetCountersToZero();
-  {
-    // attempts to find value requesting n < k; the response should contain
-    // k nodes
-    EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
-                                     testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
-            std::bind(
-                &MockRpcs<transport::TcpTransport>::FindValueSeveralResponse,
-                      new_rpcs.get(), arg::_1, g_kKademliaK/2))));
-    FindValueReturns results;
-    node_->FindValue(key, securifier_,
-                     std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results),
-                     g_kKademliaK/2);
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
-    EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
-  }
-
+  
+  done = false;
   new_rpcs->SetCountersToZero();
   {
     // attempts to find value requesting n > k; the response should contain
     // n nodes
     EXPECT_CALL(*new_rpcs, FindValue(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))
-        .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
+        .WillRepeatedly(testing::WithArgs<3, 4>(testing::Invoke(
             std::bind(
-                &MockRpcs<transport::TcpTransport>::FindValueSeveralResponse,
-                      new_rpcs.get(), arg::_1, g_kKademliaK*3/2))));
+                &MockRpcs<transport::TcpTransport>::FindValueResponseCloseOnly,
+                      new_rpcs.get(), arg::_1, arg::_2))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
-                               &results),
-                     g_kKademliaK*3/2);
-    EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
-    EXPECT_EQ(g_kKademliaK*3/2, results.closest_nodes.size());
-  }
+                               &results, &done),
+                     g_kKademliaK / 2);
+    if (!done)
+      EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+    EXPECT_EQ(g_kKademliaK * 3 / 2, results.closest_nodes.size());
+  } 
 
   // sleep for a while to prevent the situation that resources got destructed
   // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.
+  // Fault" in execution.*/
   Sleep(bptime::milliseconds(1000));
 }
 
