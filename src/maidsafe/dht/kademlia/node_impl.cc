@@ -645,8 +645,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
-  if (lookup_args->rpcs_in_flight_for_current_iteration < -1 ) 
-    std::cout << lookup_args->rpcs_in_flight_for_current_iteration << std::endl;
+  // If DoLookupIteration didn't send any RPCs, this will hit -1.
   BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
@@ -997,9 +996,9 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
 
 void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check this node signed other values under same key in datastore
+  ++store_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(store_args->kTarget.String(), &values)) {
-    ++store_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
@@ -1044,9 +1043,9 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   }
 
   // Check this node signed other values under same key in datastore
+  ++delete_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(delete_args->kTarget.String(), &values)) {
-    ++delete_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
@@ -1084,9 +1083,9 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
 
 void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   // Check this node signed other values under same key in datastore
+  ++update_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(update_args->kTarget.String(), &values)) {
-    ++update_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);

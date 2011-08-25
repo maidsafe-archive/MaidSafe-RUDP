@@ -198,6 +198,15 @@ class Service : public std::enable_shared_from_this<Service> {
   Service(const Service&);
   /** Assignment overload */
   Service& operator = (const Service&);
+  /** Standard parameter checks.  Non-NULL parameters are checked for validity.
+   *  @param[in] method_name The name of the method calling this function.
+   *  @param[in] key Kademlia key.
+   *  @param[in] message Serialised message.
+   *  @param[in] message_signature Message signature. */
+  bool CheckParameters(const std::string &method_name,
+                       const Key *key = NULL,
+                       const std::string *message = NULL,
+                       const std::string *message_signature = NULL) const;
   /** Store Callback.
    *  @param[in] key_value_signature tuple of <key, value, signature>.
    *  @param[in] request The request.
