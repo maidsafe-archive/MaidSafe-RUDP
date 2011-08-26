@@ -538,7 +538,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
                 getting_container->wait_for_find_value_functor()));
     getting_container->GetAndResetFindValueResult(&find_value_returns);
   }
-  EXPECT_EQ(kSuccess, find_value_returns.return_code);
+  EXPECT_EQ(kFailedToFindValue, find_value_returns.return_code);
   EXPECT_TRUE(find_value_returns.values.empty());
   EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields

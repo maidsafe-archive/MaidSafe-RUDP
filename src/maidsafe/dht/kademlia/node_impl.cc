@@ -409,7 +409,7 @@ void NodeImpl::FindValue(const Key &key,
         std::vector<std::string> values;
         std::vector<std::pair<std::string, std::string>> values_str;
         std::vector<Contact> contacts;
-        if (alternative_store_->Has(key.String())) {
+        if (alternative_store_ && alternative_store_->Has(key.String())) {
           FindValueReturns find_value_returns(kFoundAlternativeStoreHolder,
                                               values, contacts, contact_,
                                               Contact());
