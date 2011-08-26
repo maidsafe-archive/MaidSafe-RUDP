@@ -208,7 +208,6 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
     bptime::time_duration ttl(bptime::pos_infin);
     request_signature = std::make_pair(store_message, store_message_sig);
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
   }
 
@@ -1085,7 +1084,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
-  EXPECT_NE(kSuccess, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 
   JoinNetworkLookup(this->service_securifier_);
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1109,13 +1108,14 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
   AddTestValidation(this->service_securifier_,
                     this->rpcs_contact_.node_id().String(),
                     this->sender_crypto_key_id_.public_key());
-  std::string signature("");
+  std::string signature;
 
   for (size_t i = 0; i < 10; ++i) {
     if (i%2)
       signature = "invalid signature";
     else
-      signature.clear();
+      signature = crypto::AsymSign(kvs_vector[i].value,
+                                   this->sender_crypto_key_id_.private_key());
     this->rpcs_->Delete(key, kvs_vector[i].value, signature,
         this->rpcs_securifier_, this->service_contact_,
         std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
@@ -1316,7 +1316,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshNonExistingKey) {
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
-  EXPECT_NE(kSuccess, response_code);
+  EXPECT_EQ(kSuccess, response_code);
 
   this->StopAndReset();
   JoinNetworkLookup(this->service_securifier_);

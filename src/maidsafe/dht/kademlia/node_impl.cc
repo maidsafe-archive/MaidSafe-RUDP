@@ -325,7 +325,7 @@ void NodeImpl::Store(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   StoreArgsPtr store_args(new StoreArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageStore), value, sig, ttl,
+      static_cast<int>(k_ * kMinSuccessfulPecentageStore), value, sig, ttl,
       securifier, callback));
   StartLookup(store_args);
 }
@@ -351,7 +351,7 @@ void NodeImpl::Delete(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   DeleteArgsPtr delete_args(new DeleteArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageDelete), value, sig,
+      static_cast<int>(k_ * kMinSuccessfulPecentageDelete), value, sig,
       securifier, callback));
   StartLookup(delete_args);
 }
@@ -381,7 +381,7 @@ void NodeImpl::Update(const Key &key,
 
   OrderedContacts close_contacts(GetClosestContactsLocally(key, k_));
   UpdateArgsPtr update_args(new UpdateArgs(key, k_, close_contacts,
-      static_cast<size_t>(k_ * kMinSuccessfulPecentageUpdate), old_value,
+      static_cast<int>(k_ * kMinSuccessfulPecentageUpdate), old_value,
       old_sig, new_value, new_sig, ttl, securifier, callback));
   StartLookup(update_args);
 }
@@ -409,7 +409,7 @@ void NodeImpl::FindValue(const Key &key,
         std::vector<std::string> values;
         std::vector<std::pair<std::string, std::string>> values_str;
         std::vector<Contact> contacts;
-        if (alternative_store_->Has(key.String())) {
+        if (alternative_store_ && alternative_store_->Has(key.String())) {
           FindValueReturns find_value_returns(kFoundAlternativeStoreHolder,
                                               values, contacts, contact_,
                                               Contact());
@@ -633,7 +633,6 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
                                      LookupArgsPtr lookup_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(lookup_args->mutex);
-//  std::cout << "IterativeFindCallback \n";
   auto this_peer(lookup_args->lookup_contacts.find(peer));
   --lookup_args->total_lookup_rpcs_in_flight;
   BOOST_ASSERT(lookup_args->total_lookup_rpcs_in_flight >= 0);
@@ -645,8 +644,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
-  if (lookup_args->rpcs_in_flight_for_current_iteration < -1 ) 
-    std::cout << lookup_args->rpcs_in_flight_for_current_iteration << std::endl;
+  // If DoLookupIteration didn't send any RPCs, this will hit -1.
   BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
@@ -835,7 +833,6 @@ void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
     }
     ++itr;
   }
-//  std::cout << "AssessLookupState "   << lookup_args->lookup_phase_complete << " " <<  *iteration_complete << std::endl;
 }
 
 void NodeImpl::HandleCompletedLookup(
@@ -997,9 +994,9 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
 
 void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check this node signed other values under same key in datastore
+  ++store_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(store_args->kTarget.String(), &values)) {
-    ++store_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
@@ -1028,7 +1025,7 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   int result(data_store_->StoreValue(key_value_signature,
                                      store_args->kSecondsToLive,
                                      store_request_and_signature,
-                                     contact_.public_key(), false));
+                                     false));
   if (result == kSuccess) {
     HandleSecondPhaseCallback<StoreArgsPtr>(kSuccess, store_args);
   } else {
@@ -1044,9 +1041,9 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   }
 
   // Check this node signed other values under same key in datastore
+  ++delete_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(delete_args->kTarget.String(), &values)) {
-    ++delete_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
@@ -1084,9 +1081,9 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
 
 void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   // Check this node signed other values under same key in datastore
+  ++update_args->second_phase_rpcs_in_flight;
   std::vector<std::pair<std::string, std::string>> values;
   if (data_store_->GetValues(update_args->kTarget.String(), &values)) {
-    ++update_args->second_phase_rpcs_in_flight;
     if (!default_securifier_->Validate(values[0].first, values[0].second, "",
                                        contact_.public_key(), "", "")) {
       HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
@@ -1116,7 +1113,7 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   int result(data_store_->StoreValue(new_key_value_signature,
                                      update_args->kSecondsToLive,
                                      store_request_and_signature,
-                                     contact_.public_key(), false));
+                                     false));
   if (result != kSuccess) {
     DLOG(ERROR) << "Failed to store value: " << result;
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);

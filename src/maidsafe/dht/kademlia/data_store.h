@@ -54,6 +54,8 @@ namespace maidsafe {
 
 namespace dht {
 
+class Securifier;
+
 namespace kademlia {
 
 namespace test {
@@ -149,14 +151,11 @@ class DataStore {
   explicit DataStore(const bptime::seconds &mean_refresh_interval);
   // Returns whether the key exists in the datastore or not.  This returns true
   // even if the value(s) are marked as deleted.
-  bool HasKey(const std::string &key);
+  bool HasKey(const std::string &key) const;
   // Stores the key, value, signature and marks the expire time as ttl from
   // time of insertion.  Infinite ttl is indicated by bptime::pos_infin.
-  // If the key doesn't already exist, the k,v,s is added and the method returns
-  // kSuccess.
-  // If the key already exists, but the value doesn't, the k,v,s is added iff
-  // the signer of this attempt is the same as that of the previously stored
-  // value(s) under that key.  Method returns kSuccess if the value was added.
+  // If the value doesn't already exist under key, the k,v,s is added and the
+  // method returns kSuccess.
   // If the key and value already exists, is not marked as deleted, and
   // is_refresh is true, the method resets the value's refresh time only (ttl is
   // ignored) and returns kSuccess.
@@ -168,10 +167,12 @@ class DataStore {
   // If the key and value already exists, is marked as deleted, and is_refresh
   // is false, the method sets deleted to false, resets the confirm time and
   // returns kSuccess.
+  // NB - DifferentSigner should have been called and returned false before
+  // using this method to ensure that only the original signer can modify
+  // existing key,values
   int StoreValue(const KeyValueSignature &key_value_signature,
                  const bptime::time_duration &ttl,
                  const RequestAndSignature &store_request_and_signature,
-                 const std::string &public_key,
                  bool is_refresh);
   // Marks the key, value, signature as deleted.
   // If the key and value doesn't already exist, the method returns true.
@@ -183,19 +184,29 @@ class DataStore {
   // If the key and value already exists, is not marked as deleted, and
   // is_refresh is false or confirm time has expired, the method sets deleted to
   // true, resets the confirm time and returns true.
+  // NB - DifferentSigner should have been called and returned false before
+  // using this method to ensure that only the original signer can modify
+  // existing key,values
   bool DeleteValue(const KeyValueSignature &key_value_signature,
                    const RequestAndSignature &delete_request_and_signature,
                    bool is_refresh);
   // If any values exist under key and are not marked as deleted, they are added
   // along with the signatures to the vector of pairs and the method returns
   // true.
-  bool GetValues(const std::string &key,
-                 std::vector<std::pair<std::string, std::string>> *values);
+  bool GetValues(
+      const std::string &key,
+      std::vector<std::pair<std::string, std::string>> *values) const;
   // Refreshes datastore.  Values which have expired confirm times and which are
   // marked as deleted are removed from the datastore.  Values with expired
   // expire times are marked as deleted.  All values with expired refresh times
   // (whether marked as deleted or not) are returned.
   void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
+  // If a value already exists under key, this returns true if its existing
+  // signature doesn't match the input one or cannot be validated using
+  // public_key.
+  bool DifferentSigner(const KeyValueSignature &key_value_signature,
+                       const std::string &public_key,
+                       std::shared_ptr<Securifier> securifier) const;
   bptime::seconds refresh_interval() const;
   void set_debug_id(const std::string &debug_id) { debug_id_ = debug_id; }
   friend class test::DataStoreTest;
@@ -210,7 +221,7 @@ class DataStore {
       UpgradeToUniqueLock;
   std::shared_ptr<KeyValueIndex> key_value_index_;
   const bptime::seconds refresh_interval_;
-  boost::shared_mutex shared_mutex_;
+  mutable boost::shared_mutex shared_mutex_;
   std::string debug_id_;
 };
 

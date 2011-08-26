@@ -549,7 +549,6 @@ void NodeContainer<NodeType>::FindValueCallback(
     FindValueReturns find_value_returns_in,
     boost::mutex *mutex,
     boost::condition_variable *cond_var) {
-  std::cout << "FindValueCallback\n";
   boost::mutex::scoped_lock lock(*mutex);
   find_value_returns_ = find_value_returns_in;
   cond_var->notify_one();

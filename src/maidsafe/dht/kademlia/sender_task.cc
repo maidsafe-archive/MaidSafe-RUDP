@@ -26,6 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/dht/kademlia/sender_task.h"
+#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 
@@ -64,9 +65,28 @@ bool SenderTask::AddTask(const KeyValueSignature &key_value_signature,
                          const std::string &public_key_id,
                          TaskCallback ops_callback,
                          bool *is_new_id) {
-  if (key_value_signature.key.empty() || key_value_signature.value.empty() ||
-      key_value_signature.signature.empty() || public_key_id.empty() ||
-      request_signature.first.empty() || ops_callback == NULL) {
+  if (key_value_signature.key.empty()) {
+    DLOG(WARNING) << "Empty key.";
+    return false;
+  }
+  if (key_value_signature.value.empty()) {
+    DLOG(WARNING) << "Empty value.";
+    return false;
+  }
+  if (key_value_signature.signature.empty()) {
+    DLOG(WARNING) << "Empty signature.";
+    return false;
+  }
+  if (public_key_id.empty()) {
+    DLOG(WARNING) << "Empty public_key_id.";
+    return false;
+  }
+  if (request_signature.first.empty()) {
+    DLOG(WARNING) << "Empty request.";
+    return false;
+  }
+  if (!ops_callback) {
+    DLOG(WARNING) << "Invalid callback.";
     return false;
   }
 
@@ -79,17 +99,21 @@ bool SenderTask::AddTask(const KeyValueSignature &key_value_signature,
   auto it = index_by_public_key_id.find(public_key_id);
   *is_new_id = (it == index_by_public_key_id.end());
 
-  // Rejecting if stored key is associated with different public_key_id
   TaskIndex::index<TagTaskKey>::type& index_by_key =
       task_index_->get<TagTaskKey>();
   auto itr = index_by_key.find(key_value_signature.key);
   if (itr != index_by_key.end()) {
     if ((*itr).public_key_id != public_key_id) {
+      DLOG(WARNING) << "Stored key is associated with different public_key_id.";
       return false;
     }
   }
   UpgradeToUniqueLock unique_lock(upgrade_lock);
   auto itr_return = index_by_public_key_id.insert(task);
+#ifdef DEBUG
+  if (!itr_return.second)
+      DLOG(WARNING) << "Task already exists.";
+#endif
   return itr_return.second;
 }
 
@@ -97,6 +121,7 @@ void SenderTask::SenderTaskCallback(std::string public_key_id,
                                     std::string public_key,
                                     std::string public_key_validation) {
   if (public_key_id.empty()) {
+    DLOG(WARNING) << "Empty public_key_id.";
     return;
   }
   UpgradeLock upgrade_lock(shared_mutex_);

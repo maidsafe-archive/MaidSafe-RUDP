@@ -279,7 +279,6 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
       EXPECT_EQ(kSuccess, data_store_->StoreValue(cur_kvt.key_value_signature,
                                                   old_ttl,
                                                   cur_kvt.request_and_signature,
-                                                  crypto_key.public_key(),
                                                   false));
     }
   }
@@ -470,7 +469,6 @@ TEST_F(ServicesTest, BEH_Store) {
     AddTestValidation(securifier_, sender_id.String(),
                       crypto_key_data.public_key());
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
@@ -543,7 +541,6 @@ TEST_F(ServicesTest, BEH_Delete) {
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
@@ -699,7 +696,6 @@ TEST_F(ServicesTest, BEH_StoreRefresh) {
     // Try to storerefresh a validated tuple into the datastore already
     // containing it
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
     ASSERT_EQ(1U, GetDataStoreSize());
     bptime::ptime refresh_time_old = GetRefreshTime(kvs);
@@ -790,7 +786,6 @@ TEST_F(ServicesTest, BEH_DeleteRefresh) {
     service.set_node_joined(true);
 
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, old_ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
     ASSERT_EQ(1U, GetDataStoreSize());
 
@@ -1148,7 +1143,6 @@ TEST_F(ServicesTest, BEH_FindValue) {
               data_store_->StoreValue(target_kvt.key_value_signature,
                                       old_ttl,
                                       target_kvt.request_and_signature,
-                                      crypto_key.public_key(),
                                       false));
     ASSERT_EQ(g_kKademliaK + 1, GetDataStoreSize());
 
@@ -1574,6 +1568,7 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     EXPECT_GT(refresh_time_new_k1_v3, refresh_time_old_k1_v3);
   }
   Clear();
+                                                                  Sleep(bptime::seconds(5));
   // Store refresh request for same key from different requester
   // Case 1 : key already present in datastore
   {
@@ -1581,16 +1576,18 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
     bptime::ptime refresh_time_old_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_FALSE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
-                                k1_v1, crypto_key_data_2));
-    EXPECT_TRUE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
-                               k1_v1, crypto_key_data_1));
+    // Invalid request recieves true but value doesn't get stored
+    EXPECT_TRUE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
+                               k1_v1, crypto_key_data_2));
+    // If the valid sender calls just after invalid sender it recieves false
+    EXPECT_FALSE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
+                                k1_v1, crypto_key_data_1));
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v1));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
     bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_EQ(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
   }
   Clear();
   // Store refresh request for same key from different requester
