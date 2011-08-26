@@ -69,6 +69,8 @@ class MockNodeImplTest_BEH_ValidateContact_Test;
 class MockNodeImplTest_BEH_PingOldestContact_Test;
 class MockNodeImplTest_BEH_Join_Test;
 class MockNodeImplTest_BEH_Getters_Test;
+class MockNodeImplTest_BEH_FindNodes_Test;
+class MockNodeImplTest_BEH_FindValue_Test;
 }  // namespace test
 
 typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
@@ -221,7 +223,8 @@ class NodeImpl {
   friend class test::MockNodeImplTest_BEH_PingOldestContact_Test;
   friend class test::MockNodeImplTest_BEH_Join_Test;
   friend class test::MockNodeImplTest_BEH_Getters_Test;
-
+  friend class test::MockNodeImplTest_BEH_FindNodes_Test;
+  friend class test::MockNodeImplTest_BEH_FindValue_Test;
 
  private:
   NodeImpl(const NodeImpl&);
