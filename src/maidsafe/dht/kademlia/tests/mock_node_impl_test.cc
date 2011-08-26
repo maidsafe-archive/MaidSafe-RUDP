@@ -184,6 +184,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   }
   void Stop() {
     work_.reset();
+    Rpcs<TransportType>::asio_service_.stop();
     thread_group_.join_all();
   }
   MOCK_METHOD7_T(Store, void(const Key &key,
@@ -806,10 +807,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     EXPECT_EQ(kSuccess, response_code);
     EXPECT_EQ(target, result);
   }
-  // sleep for a while to prevent the situation that resources got destructed
-  // before all call back from rpc completed. Which will cause "Segmentation
-  // Fault" in execution.
-  Sleep(bptime::milliseconds(1000));
+  new_rpcs->Stop();  
 }
 
 TEST_F(MockNodeImplTest, BEH_ValidateContact) {
