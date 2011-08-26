@@ -1024,13 +1024,15 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
 void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check this node signed other values under same key in datastore
   ++store_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(store_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
-      return;
-    }
+  KeyValueSignature key_value_signature(store_args->kTarget.String(),
+                                        store_args->kValue,
+                                        store_args->kSignature);
+  if (data_store_->DifferentSigner(key_value_signature, contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't store to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
+    return;
   }
 
   // Check the signature validates with this node's public key
@@ -1042,9 +1044,6 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   }
 
   // Store the value
-  KeyValueSignature key_value_signature(store_args->kTarget.String(),
-                                        store_args->kValue,
-                                        store_args->kSignature);
   RequestAndSignature store_request_and_signature(
       rpcs_->MakeStoreRequestAndSignature(store_args->kTarget,
                                           store_args->kValue,
@@ -1069,15 +1068,18 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
     return;
   }
 
-  // Check this node signed other values under same key in datastore
   ++delete_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(delete_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
-      return;
-    }
+
+  // Check this node signed other values under same key in datastore
+  KeyValueSignature key_value_signature(delete_args->kTarget.String(),
+                                        delete_args->kValue,
+                                        delete_args->kSignature);
+  if (data_store_->DifferentSigner(key_value_signature, contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't delete to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
+    return;
   }
 
   // Check the signature validates with this node's public key
@@ -1090,9 +1092,6 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   }
 
   // Delete the value
-  KeyValueSignature key_value_signature(delete_args->kTarget.String(),
-                                        delete_args->kValue,
-                                        delete_args->kSignature);
   RequestAndSignature delete_request_and_signature(
       rpcs_->MakeDeleteRequestAndSignature(delete_args->kTarget,
                                            delete_args->kValue,
@@ -1111,13 +1110,16 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
 void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   // Check this node signed other values under same key in datastore
   ++update_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(update_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
-      return;
-    }
+  KeyValueSignature new_key_value_signature(update_args->kTarget.String(),
+                                            update_args->kNewValue,
+                                            update_args->kNewSignature);
+  if (data_store_->DifferentSigner(new_key_value_signature,
+                                   contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't update to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
   }
 
   // Check the new signature validates with this node's public key
@@ -1130,9 +1132,6 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   }
 
   // Store the value
-  KeyValueSignature new_key_value_signature(update_args->kTarget.String(),
-                                            update_args->kNewValue,
-                                            update_args->kNewSignature);
   RequestAndSignature store_request_and_signature(
       rpcs_->MakeStoreRequestAndSignature(update_args->kTarget,
                                           update_args->kNewValue,
@@ -1188,9 +1187,23 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
   if (store_args->second_phase_rpcs_in_flight == 0 &&
       store_args->successes < store_args->kSuccessThreshold) {
     auto itr(store_args->lookup_contacts.begin());
-    while (itr != store_args->lookup_contacts.end()) {
+    uint16_t count(0);
+    while (itr != store_args->lookup_contacts.end() &&
+           count != store_args->kNumContactsRequested) {
       if (!client_only_node_ && ((*itr).first == contact_)) {
-        // TODO(Fraser#5#): 2011-08-24 - HandleDeleteToSelf(delete_args);
+        // Handle deleting from self
+        KeyValueSignature key_value_signature(store_args->kTarget.String(),
+                                              store_args->kValue,
+                                              store_args->kSignature);
+        RequestAndSignature delete_request_and_signature(
+            rpcs_->MakeDeleteRequestAndSignature(store_args->kTarget,
+                                                 store_args->kValue,
+                                                 store_args->kSignature,
+                                                 store_args->securifier));
+        if (!data_store_->DeleteValue(key_value_signature,
+                                      delete_request_and_signature, false)) {
+          DLOG(WARNING) << "Failed to delete value from self after bad store.";
+        }
       } else {
         rpcs_->Delete(store_args->kTarget,
                       store_args->kValue,
