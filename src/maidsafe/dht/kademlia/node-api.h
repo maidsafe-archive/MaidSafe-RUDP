@@ -181,9 +181,9 @@ class Node {
   //   details are passed in callback, ordered by kademlia closeness to key,
   //   closest first.  In this case, the return code is kFailedToFindValue.
   //
-  // Any other return code indicates an error in the lookup process.  N.B. This
-  // node could be returned as the alternative_store holder or as one of the
-  // closest contacts.
+  // These return codes are all >= 0.  Any other return code indicates an error
+  // in the lookup process and will be < 0.  N.B. This node could be returned as
+  // the alternative_store holder or as one of the closest contacts.
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
