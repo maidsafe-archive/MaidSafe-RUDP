@@ -1092,7 +1092,6 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
 }
 
 TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
-
   bool done(false);
   Key key = this->rpcs_contact_.node_id();
   std::vector<KeyValueSignature> kvs_vector;
@@ -1117,7 +1116,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
       signature = "invalid signature";
     else
       signature = crypto::AsymSign(kvs_vector[i].value,
-                                   this->sender_crypto_key_id_.private_key());;
+                                   this->sender_crypto_key_id_.private_key());
     this->rpcs_->Delete(key, kvs_vector[i].value, signature,
         this->rpcs_securifier_, this->service_contact_,
         std::bind(&TestCallback, arg::_1, arg::_2, &status_response[i].first,
