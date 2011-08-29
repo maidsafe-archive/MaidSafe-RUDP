@@ -417,13 +417,13 @@ int NodeContainer<NodeType>::Start(
     transport::Endpoint endpoint;
     // Workaround until NAT detection is up.
     std::vector<dht::transport::IP> ips = transport::GetLocalAddresses();
-    if (ips.size() != 0) {
+    if (!ips.empty()) {
       endpoint.ip = ips.at(0);
     } else {
       endpoint.ip = IP::from_string("127.0.0.1");
     }
     uint16_t port(0);
-    int result(-1);
+    int result(transport::kError);
     for (port = port_range.first; port <= port_range.second; ++port) {
       endpoint.port = port;
       result = listening_transport_->StartListening(endpoint);
