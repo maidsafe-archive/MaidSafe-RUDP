@@ -1,0 +1,25 @@
+v0.31.03 (WIP)
+--------------
+
+* Bootstrap changed to accept empty bootstrap list, or a list containing only
+  joining node's details.  These cause the node to create a new network.
+* Most Node methods now call back with kNotJoined if node not joined.
+* If node not joined, it now doesn't responds to incoming requests.
+* Significant rework of iterative lookup process.
+* Implemented Downlist functionality.
+* FindValue now returns kSuccess only if the value was found.  If an alternative
+  store holder was found, returns kFoundAlternativeStoreHolder.  If closest
+  contacts are returned, kFailedToFindValue is returned.  These codes are >= 0.
+  Any other return code will be negative and will indicate failure.
+* Own contact is now considered during lookups.  This means that it can be
+  returned by FindNodes, FindValue, GetContact and that Store, Delete and Update
+  will operate on the node initiating the request.
+* Own contact can also be returned as the "needs_cache_copy" Contact.
+* FindValue and FindNodes can look for > k contacts if required.
+* Created OrderedContacts typedef (set of Contacts ordered by closeness to a
+  target ID).
+* Added methods for constructing an OrderedContacts instance.
+* Devolved some of the signature validation from DataStore to Service.
+* Changed Transport MessageHandler to handle uninitialised messages.
+* Changed Kademlia MessageHandler to handle uninitialised messages.
+* Added error logging to NodeImpl, SenderTask, and Kad Service.
