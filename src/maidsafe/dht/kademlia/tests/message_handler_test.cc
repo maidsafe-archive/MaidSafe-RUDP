@@ -1501,7 +1501,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDownlist) {
   ASSERT_EQ(1U, total);
 }
 
-TEST_F(KademliaMessageHandlerTest, BEH_ThreadedMessageHandling) {
+TEST_F(KademliaMessageHandlerTest, FUNC_ThreadedMessageHandling) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
