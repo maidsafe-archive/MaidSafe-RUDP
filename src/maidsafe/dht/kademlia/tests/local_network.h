@@ -28,6 +28,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_DHT_KADEMLIA_TESTS_LOCAL_NETWORK_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "maidsafe/common/alternative_store.h"
@@ -101,17 +102,13 @@ void LocalNetwork<NodeType>::SetUp() {
     std::shared_ptr<maidsafe::dht::kademlia::NodeContainer<NodeType>>
         node_container(new maidsafe::dht::kademlia::NodeContainer<NodeType>());
     node_container->Init(threads_per_node_, SecurifierPtr(),
-                         AlternativeStorePtr(), false, k_, alpha_, beta_,
-                         mean_refresh_interval_);
+                         MessageHandlerPtr(), AlternativeStorePtr(), false, k_,
+                         alpha_, beta_, mean_refresh_interval_);
     node_container->MakeAllCallbackFunctors(&mutex_, &cond_var_);
 
-    int attempts(0), max_attempts(5), result(kPendingResult);
-    Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-    while ((result = node_container->Start(bootstrap_contacts, port)) !=
-           kSuccess && (attempts != max_attempts)) {
-      port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-      ++attempts;
-    }
+    int result(kPendingResult);
+    std::pair<Port, Port> port_range(8000, 65535);
+    result = node_container->Start(bootstrap_contacts, port_range);
     ASSERT_EQ(kSuccess, result);
     ASSERT_TRUE(node_container->node()->joined());
     if (i < num_full_nodes_)
