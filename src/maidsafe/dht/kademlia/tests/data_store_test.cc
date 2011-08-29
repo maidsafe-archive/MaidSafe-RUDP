@@ -688,7 +688,7 @@ TEST_F(DataStoreTest, BEH_GetValues) {
   }
 }
 
-TEST_F(DataStoreTest, BEH_Refresh) {
+TEST_F(DataStoreTest, FUNC_Refresh) {
   crypto::RsaKeyPair crypto_keys;
   crypto_keys.GenerateKeys(4096);
   bptime::time_duration two_seconds(bptime::seconds(2));
