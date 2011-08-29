@@ -1214,6 +1214,7 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
                                 (*itr).first, arg::_1, arg::_2));
       }
       ++itr;
+      ++count;
     }
   }
 }
