@@ -63,23 +63,19 @@ class NodeImplTest : public testing::TestWithParam<bool> {
         bootstrap_contacts_() {}
 
   void SetUp() {
-    test_container_->Init(3, SecurifierPtr(), AlternativeStorePtr(),
-                          client_only_node_, env_->k_, env_->alpha_,
-                          env_->beta_, env_->mean_refresh_interval_);
+    test_container_->Init(3, SecurifierPtr(), MessageHandlerPtr(),
+                          AlternativeStorePtr(), client_only_node_, env_->k_,
+                          env_->alpha_, env_->beta_,
+                          env_->mean_refresh_interval_);
     test_container_->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
     (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
         &bootstrap_contacts_);
     int result(kPendingResult);
     if (client_only_node_) {
-      result = test_container_->Start(bootstrap_contacts_, 0);
+      result = test_container_->StartClient(bootstrap_contacts_);
     } else {
-      int attempts(0), max_attempts(5);
-      Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-      while ((result = test_container_->Start(bootstrap_contacts_, port)) !=
-              kSuccess && (attempts != max_attempts)) {
-        port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-        ++attempts;
-      }
+      std::pair<Port, Port> port_range(8000, 65535);
+      result = test_container_->Start(bootstrap_contacts_, port_range);
     }
     ASSERT_EQ(kSuccess, result) << debug_msg_;
     ASSERT_TRUE(test_container_->node()->joined()) << debug_msg_;
@@ -117,7 +113,7 @@ class NodeImplTest : public testing::TestWithParam<bool> {
 TEST_P(NodeImplTest, FUNC_JoinLeave) {
   NodeContainerPtr node_container(
       new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
-  node_container->Init(3, SecurifierPtr(),
+  node_container->Init(3, SecurifierPtr(), MessageHandlerPtr(),
                        AlternativeStorePtr(), client_only_node_, env_->k_,
                        env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   node_container->MakeAllCallbackFunctors(&env_->mutex_, &env_->cond_var_);
@@ -137,15 +133,10 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   // For client, start without listening, for full try to start with listening
   int result(kPendingResult);
   if (client_only_node_) {
-    result = node_container->Start(bootstrap_contacts, 0);
+    result = node_container->StartClient(bootstrap_contacts);
   } else {
-    int attempts(0), max_attempts(5);
-    Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-    while ((result = node_container->Start(bootstrap_contacts, port)) !=
-            kSuccess && (attempts != max_attempts)) {
-      port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-      ++attempts;
-    }
+    std::pair<Port, Port> port_range(8000, 65535);
+    result = node_container->Start(bootstrap_contacts, port_range);
   }
   EXPECT_EQ(kSuccess, result) << debug_msg_;
   EXPECT_TRUE(node_container->node()->joined()) << debug_msg_;
@@ -189,7 +180,7 @@ TEST_P(NodeImplTest, FUNC_JoinLeave) {
   node_container->node()->Leave(&bootstrap_contacts);
   EXPECT_FALSE(node_container->node()->joined()) << debug_msg_;
   EXPECT_FALSE(bootstrap_contacts.empty()) << debug_msg_;
-  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+  Sleep(bptime::milliseconds(1000));
   // Node that has left shouldn't be able to send/ recieve RPCs
   if (!client_only_node_) {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -547,7 +538,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   // holder for that key when queried
   NodeContainerPtr alternative_container(
       new maidsafe::dht::kademlia::NodeContainer<NodeImpl>());
-  alternative_container->Init(3, SecurifierPtr(),
+  alternative_container->Init(3, SecurifierPtr(), MessageHandlerPtr(),
       AlternativeStorePtr(new TestAlternativeStoreReturnsTrue), false, env_->k_,
       env_->alpha_, env_->beta_, env_->mean_refresh_interval_);
   alternative_container->MakeAllCallbackFunctors(&env_->mutex_,
@@ -556,13 +547,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
         &bootstrap_contacts_);
   result = kPendingResult;
   {
-    int attempts(0), max_attempts(5);
-    Port port(static_cast<Port>((RandomUint32() % 55535) + 10000));
-    while ((result = alternative_container->Start(bootstrap_contacts_, port)) !=
-            kSuccess && (attempts != max_attempts)) {
-      port = static_cast<Port>((RandomUint32() % 55535) + 10000);
-      ++attempts;
-    }
+    std::pair<Port, Port> port_range(8000, 65535);
+    result = alternative_container->Start(bootstrap_contacts_, port_range);
     ASSERT_EQ(kSuccess, result) << debug_msg_;
     ASSERT_TRUE(alternative_container->node()->joined()) << debug_msg_;
   }
