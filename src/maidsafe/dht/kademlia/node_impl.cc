@@ -809,6 +809,15 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
     if (this_peer != lookup_args->lookup_contacts.end())
       contact_info = ContactInfo((*this_peer).first);
     for (;;) {
+      if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
+        while (new_contacts_itr != contacts.end()) {
+          insertion_point = lookup_args->lookup_contacts.insert(
+              insertion_point, std::make_pair(*new_contacts_itr++,
+                                              contact_info));
+        }
+        break;
+      }
+
       if ((*existing_contacts_itr).first < *new_contacts_itr) {
         insertion_point = existing_contacts_itr++;
       } else if (*new_contacts_itr < (*existing_contacts_itr).first) {
@@ -821,15 +830,6 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
               (*this_peer).first);
         }
         ++new_contacts_itr;
-      }
-
-      if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
-        while (new_contacts_itr != contacts.end()) {
-          insertion_point = lookup_args->lookup_contacts.insert(
-              insertion_point, std::make_pair(*new_contacts_itr++,
-                                              contact_info));
-        }
-        break;
       }
 
       if (new_contacts_itr == contacts.end())
