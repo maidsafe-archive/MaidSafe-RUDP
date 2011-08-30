@@ -38,6 +38,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include "maidsafe/dht/transport/transport.h"
 
+// TODO(Fraser#5#): 2011-08-30 - remove #include version.h and #if block once
+//                  NAT detection is implemented and this is file is not
+//                  #included by node_container.h
+
+#include "maidsafe/dht/version.h"
+
+#if MAIDSAFE_DHT_VERSION != 3103
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-dht library.
+#endif
+
 namespace maidsafe {
 
 namespace dht {
