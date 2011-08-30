@@ -46,6 +46,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
+// TODO(Fraser#5#): 2011-08-30 - remove #include utils.h once NAT detection is
+//                  implemented.
 #include "maidsafe/dht/transport/utils.h"
 
 #if MAIDSAFE_DHT_VERSION != 3103
