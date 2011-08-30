@@ -337,7 +337,7 @@ int RoutingTable::IncrementFailedRpcCount(const NodeId &node_id) {
   ContactsById key_indx = contacts_.get<NodeIdTag>();
   auto it = key_indx.find(node_id);
   if (it == key_indx.end()) {
-    DLOG(WARNING) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
+    DLOG(INFO) << kDebugId_ << ": Failed to find node " << DebugId(node_id);
     return kFailedToFindContact;
   }
   uint16_t num_failed_rpcs = (*it).num_failed_rpcs + 1;

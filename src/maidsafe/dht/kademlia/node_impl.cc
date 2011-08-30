@@ -1478,9 +1478,9 @@ void NodeImpl::HandleRpcCallback(const Contact &contact,
   }
 #ifdef DEBUG
   if (routing_table_result != kSuccess)
-    DLOG(WARNING) << "Failed to update routing table for contact "
-                  << DebugId(contact) << ".  RPC result: " << result
-                  << "  Update result: " << routing_table_result;
+    DLOG(INFO) << "Failed to update routing table for contact "
+               << DebugId(contact) << ".  RPC result: " << result
+               << "  Update result: " << routing_table_result;
 #endif
 }
 
