@@ -152,6 +152,15 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
                                           sender_crypto_key_id_);
     rpcs_->set_contact(rpcs_contact_);
     // service setup
+    int start_listening_result(transport::kError), attempts(0);
+    transport_.reset(new T(local_asio_));
+    while (start_listening_result != kSuccess && attempts != 5) {
+      Port port((RandomUint32() % 64511) + 1025);
+      start_listening_result =
+          transport_->StartListening(transport::Endpoint("127.0.0.1", port));
+      ++attempts;
+    }
+    ASSERT_EQ(start_listening_result, kSuccess);
     data_store_->set_debug_id(DebugId(node_id_));
     service_securifier_ = std::shared_ptr<Securifier>(
         new SecurifierGetPublicKeyAndValidation("",
@@ -159,24 +168,21 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
                     receiver_crypto_key_id_.private_key()));
     NodeId service_node_id = GenerateRandomId(node_id_, 503);
     service_contact_ = ComposeContactWithKey(service_node_id,
-                                             5011,
+                                             transport_->listening_port(),
                                              receiver_crypto_key_id_);
     service_ = std::shared_ptr<Service>(new Service(routing_table_,
                                                     data_store_,
                                                     alternative_store_,
                                                     service_securifier_,
                                                     g_kKademliaK));
-    service_->set_node_contact(service_contact_);
     service_->set_node_joined(true);
-    transport_.reset(new T(local_asio_));
+    service_->set_node_contact(service_contact_);
     handler_.reset(new MessageHandler(service_securifier_));
     service_->ConnectToSignals(handler_);
     transport_->on_message_received()->connect(
         transport::OnMessageReceived::element_type::slot_type(
             &MessageHandler::OnMessageReceived, handler_.get(),
             _1, _2, _3, _4).track_foreign(handler_));
-    EXPECT_EQ(kSuccess,
-              transport_->StartListening(service_contact_.endpoint()));
   }
 
   virtual void TearDown() { }
