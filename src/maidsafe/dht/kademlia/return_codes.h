@@ -46,16 +46,14 @@ enum ReturnCode {
   kGeneralError = -300001,
   kUndefined = -300002,
   kPendingResult = -300003,
-  kFailedSignatureCheck = -300004,
-  kInvalidPointer = -300005,
-  kTimedOut = -300006,
+  kInvalidPointer = -300004,
+  kTimedOut = -300005,
 
   // DataStore
   kEmptyKey = -301001,
   kZeroTTL = -301002,
-  kFailedToInsertKeyValue = -301003,
-  kFailedToModifyKeyValue = -301004,
-  kMarkedForDeletion = -301005,
+  kFailedToModifyKeyValue = -301003,
+  kMarkedForDeletion = -301004,
 
   // RoutingTable
   kOwnIdNotIncludable = -302001,

@@ -396,8 +396,8 @@ TEST_P(NodeImplTest, FUNC_Store) {
   //  verify storing a second value to a given key fails for different storing
   //  node
   size_t index = (test_node_index + 1 +
-                   RandomUint32() % (env_->node_containers_.size() - 1)) %
-                       (env_->node_containers_.size());
+                  RandomUint32() % (env_->node_containers_.size() - 1)) %
+                      (env_->node_containers_.size());
   result = kPendingResult;
   {
     boost::mutex::scoped_lock lock(env_->mutex_);
@@ -425,6 +425,18 @@ TEST_P(NodeImplTest, FUNC_Store) {
   for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (WithinKClosest(env_->node_containers_[i]->node()->contact().node_id(),
                        key, env_->node_ids_, env_->k_)) {
+      bptime::time_duration total_sleep_time(bptime::milliseconds(0));
+      const bptime::milliseconds kIterSleep(100);
+      bool found_all(false);
+      while (!found_all && total_sleep_time < kTimeout_) {
+        found_all =
+            IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                  key.String(), value) &&
+            IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
+                                  key.String(), value1);
+        total_sleep_time += kIterSleep;
+        Sleep(kIterSleep);
+      }
       EXPECT_TRUE(GetDataStore(
           env_->node_containers_[i])->HasKey(key.String()));
       EXPECT_TRUE(IsKeyValueInDataStore(GetDataStore(env_->node_containers_[i]),
@@ -526,7 +538,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
                 getting_container->wait_for_find_value_functor()));
     getting_container->GetAndResetFindValueResult(&find_value_returns);
   }
-  EXPECT_EQ(kSuccess, find_value_returns.return_code);
+  EXPECT_EQ(kFailedToFindValue, find_value_returns.return_code);
   EXPECT_TRUE(find_value_returns.values.empty());
   EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
@@ -583,7 +595,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   for (auto it(env_->node_containers_.begin());
         it != env_->node_containers_.end(); ++it) {
     ASSERT_EQ(kSuccess, (GetDataStore(*it))->StoreValue(kvt.key_value_signature,
-        duration, kvt.request_and_signature, crypto_key.public_key(), false));
+        duration, kvt.request_and_signature, false));
   }
   FindValueReturns saturation_find_value_returns;
   {

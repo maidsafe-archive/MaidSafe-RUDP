@@ -208,7 +208,6 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
     bptime::time_duration ttl(bptime::pos_infin);
     request_signature = std::make_pair(store_message, store_message_sig);
     EXPECT_EQ(kSuccess, data_store_->StoreValue(kvs, ttl, request_signature,
-                                                crypto_key_data.public_key(),
                                                 false));
   }
 

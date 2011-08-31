@@ -232,21 +232,18 @@ void Service::Store(const transport::Info &info,
     return;
 
   // Check if same private key signs other values under same key in datastore
-  std::vector<std::pair<std::string, std::string>> values;
-  if (datastore_->GetValues(key.String(), &values)) {
-    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                              request.sender().public_key())) {
-      DLOG(WARNING) << DebugId(node_contact_) << ": a value already exists "
-                    << "under this key, but is signed by a different node.";
-      routing_table_->AddContact(FromProtobuf(request.sender()),
-                                 RankInfoPtr(new transport::Info(info)));
-      return;
-    }
-  }
-
   KeyValueSignature key_value_signature(key.String(),
                                         request.signed_value().value(),
                                         request.signed_value().signature());
+  if (datastore_->DifferentSigner(key_value_signature,
+                                  request.sender().public_key(),
+                                  securifier_)) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Can't store - different "
+                  << "signing key used to store under Kad key.";
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+    return;
+  }
 
   RequestAndSignature request_signature(message, message_signature);
   TaskCallback store_cb = std::bind(&Service::StoreCallback, this, arg::_1,
@@ -291,19 +288,19 @@ void Service::StoreRefresh(const transport::Info &info,
   }
 
   // Check if same private key signs other values under same key in datastore
-  std::vector<std::pair<std::string, std::string>> values;
-  if (datastore_->GetValues(ori_store_request.key(), &values)) {
-    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                              ori_store_request.sender().public_key())) {
-      routing_table_->AddContact(FromProtobuf(request.sender()),
-                                 RankInfoPtr(new transport::Info(info)));
-      return;
-    }
+  KeyValueSignature key_value_signature(
+      ori_store_request.key(), ori_store_request.signed_value().value(),
+      ori_store_request.signed_value().signature());
+  if (datastore_->DifferentSigner(key_value_signature,
+                                  ori_store_request.sender().public_key(),
+                                  securifier_)) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Can't refresh store - "
+                  << "different signing key used to store under Kad key.";
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+    return;
   }
 
-  KeyValueSignature key_value_signature(ori_store_request.key(),
-                        ori_store_request.signed_value().value(),
-                        ori_store_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_store_request(),
                           request.serialised_store_request_signature());
   TaskCallback store_refresh_cb = std::bind(&Service::StoreRefreshCallback,
@@ -385,7 +382,7 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
     return false;
   }
   if (datastore_->StoreValue(key_value_signature,
-      boost::posix_time::seconds(request.ttl()), request_signature, public_key,
+      boost::posix_time::seconds(request.ttl()), request_signature,
       is_refresh) == kSuccess) {
     return true;
   } else {
@@ -411,22 +408,19 @@ void Service::Delete(const transport::Info &info,
   }
 
   // Check if same private key signs other values under same key in datastore
-  std::vector<std::pair<std::string, std::string>> values;
-  if (datastore_->GetValues(request.key(), &values)) {
-    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                              request.sender().public_key())) {
-      routing_table_->AddContact(FromProtobuf(request.sender()),
-                                 RankInfoPtr(new transport::Info(info)));
-      return;
-    }
+  KeyValueSignature key_value_signature(key.String(),
+                                        request.signed_value().value(),
+                                        request.signed_value().signature());
+  if (datastore_->DifferentSigner(key_value_signature,
+                                  request.sender().public_key(),
+                                  securifier_)) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Can't delete - different "
+                  << "signing key used to store key,value.";
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+    return;
   }
-    // Only the signer of the value can delete it.
-    // this will be done in message_handler, no need to do it here
-//   if (!crypto::AsymCheckSig(message, message_signature,
-//                             request.sender().public_key()))
-//     return;
-  KeyValueSignature key_value_signature(request.key(),
-      request.signed_value().value(), request.signed_value().signature());
+
   RequestAndSignature request_signature(message, message_signature);
   TaskCallback delete_cb = std::bind(&Service::DeleteCallback, this, arg::_1,
                                      request, arg::_2, arg::_3, arg::_4,
@@ -477,6 +471,20 @@ void Service::DeleteRefresh(const transport::Info &info,
   }
 
   // Check if same private key signs other values under same key in datastore
+  KeyValueSignature key_value_signature(
+      ori_delete_request.key(),
+      ori_delete_request.signed_value().value(),
+      ori_delete_request.signed_value().signature());
+  if (datastore_->DifferentSigner(key_value_signature,
+                                  ori_delete_request.sender().public_key(),
+                                  securifier_)) {
+    DLOG(WARNING) << DebugId(node_contact_) << ": Can't refresh delete - "
+                  << "different signing key used to store key,value.";
+    routing_table_->AddContact(FromProtobuf(request.sender()),
+                               RankInfoPtr(new transport::Info(info)));
+    return;
+  }
+
   std::vector<std::pair<std::string, std::string>> values;
   if (datastore_->GetValues(ori_delete_request.key(), &values)) {
     if (!crypto::AsymCheckSig(values[0].first, values[0].second,
@@ -487,9 +495,6 @@ void Service::DeleteRefresh(const transport::Info &info,
     }
   }
 
-  KeyValueSignature key_value_signature(ori_delete_request.key(),
-                        ori_delete_request.signed_value().value(),
-                            ori_delete_request.signed_value().signature());
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
   TaskCallback delete_refresh_cb = std::bind(&Service::DeleteRefreshCallback,
