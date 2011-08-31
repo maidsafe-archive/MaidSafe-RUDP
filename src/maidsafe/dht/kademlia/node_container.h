@@ -400,6 +400,10 @@ void NodeContainer<NodeType>::Init(
         transport::OnMessageReceived::element_type::slot_type(
             &MessageHandler::OnMessageReceived, message_handler_.get(),
             _1, _2, _3, _4).track_foreign(message_handler_));
+    listening_transport_->on_error()->connect(
+        transport::OnError::element_type::slot_type(
+            &MessageHandler::OnError, message_handler_.get(),
+            _1, _2).track_foreign(message_handler));
   }
 
   // Create node
