@@ -1568,7 +1568,6 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     EXPECT_GT(refresh_time_new_k1_v3, refresh_time_old_k1_v3);
   }
   Clear();
-                                                                  Sleep(bptime::seconds(5));
   // Store refresh request for same key from different requester
   // Case 1 : key already present in datastore
   {

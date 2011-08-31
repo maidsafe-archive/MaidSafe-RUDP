@@ -271,7 +271,7 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
                   << " - No public key for receiver provided.";
       return "";
     }
-    std::string seed = RandomString(48);
+    std::string seed = SRandomString(48);
     std::string key = seed.substr(0, 32);
     std::string kIV = seed.substr(32, 16);
     std::string encrypt_message =

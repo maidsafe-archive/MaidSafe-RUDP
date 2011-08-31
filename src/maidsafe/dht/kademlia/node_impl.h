@@ -308,6 +308,8 @@ class NodeImpl {
                    const Contact &peer,
                    LookupArgsPtr lookup_args);
 
+  LookupContacts::iterator GetShortlistUpperBound(LookupArgsPtr lookup_args);
+
   /** Moves any Contacts found in the downlist from "contacts" to the
    *  downlist */
   void RemoveDownlistedContacts(LookupArgsPtr lookup_args,

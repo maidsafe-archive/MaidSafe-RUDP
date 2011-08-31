@@ -645,7 +645,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
   // If DoLookupIteration didn't send any RPCs, this will hit -1.
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -2);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -669,12 +669,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Handle result if RPC was successful.
   auto shortlist_upper_bound(lookup_args->lookup_contacts.begin());
   if (FindResultError(result)) {
-    uint16_t i(0);
-    while (i != lookup_args->kNumContactsRequested &&
-           shortlist_upper_bound != lookup_args->lookup_contacts.end()) {
-      ++shortlist_upper_bound;
-      ++i;
-    }
+    shortlist_upper_bound = GetShortlistUpperBound(lookup_args);
   } else {
     (*this_peer).second.rpc_state = ContactInfo::kRepliedOK;
     OrderedContacts close_contacts(CreateOrderedContacts(contacts.begin(),
@@ -689,6 +684,32 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   int shortlist_ok_count(0);
   AssessLookupState(lookup_args, shortlist_upper_bound, &iteration_complete,
                     &shortlist_ok_count);
+
+  // If the lookup phase is marked complete, but we still have <
+  // kNumContactsRequested then try to get more contacts from the local routing
+  // table.
+  if (lookup_args->lookup_phase_complete &&
+      shortlist_ok_count != lookup_args->kNumContactsRequested) {
+    std::vector<Contact> close_nodes, excludes;
+    excludes.reserve(shortlist_ok_count + lookup_args->downlist.size());
+    auto shortlist_itr(lookup_args->lookup_contacts.begin());
+    while (shortlist_itr != lookup_args->lookup_contacts.end())
+      excludes.push_back((*shortlist_itr++).first);
+    auto downlist_itr(lookup_args->downlist.begin());
+    while (downlist_itr != lookup_args->downlist.end())
+      excludes.push_back((*downlist_itr++).first);
+    routing_table_->GetCloseContacts(lookup_args->kTarget, k_, excludes,
+                                     &close_nodes);
+    if (!close_nodes.empty()) {
+      OrderedContacts close_contacts(
+          CreateOrderedContacts(close_nodes.begin(), close_nodes.end(),
+                                lookup_args->kTarget));
+      shortlist_upper_bound =
+          InsertCloseContacts(close_contacts, lookup_args,
+                              lookup_args->lookup_contacts.end());
+      lookup_args->lookup_phase_complete = false;
+    }
+  }
 
   // If the lookup phase is still not finished, set cache candidate and start
   // next iteration if due.
@@ -746,6 +767,18 @@ bool NodeImpl::AbortLookup(int result,
   return false;
 }
 
+LookupContacts::iterator NodeImpl::GetShortlistUpperBound(
+    LookupArgsPtr lookup_args) {
+  uint16_t count(0);
+  auto shortlist_upper_bound(lookup_args->lookup_contacts.begin());
+  while (count != lookup_args->kNumContactsRequested &&
+         shortlist_upper_bound != lookup_args->lookup_contacts.end()) {
+    ++shortlist_upper_bound;
+    ++count;
+  }
+  return shortlist_upper_bound;
+}
+
 void NodeImpl::RemoveDownlistedContacts(LookupArgsPtr lookup_args,
                                         LookupContacts::iterator this_peer,
                                         OrderedContacts *contacts) {
@@ -772,7 +805,9 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
   if (!contacts.empty()) {
     auto new_contacts_itr(contacts.begin());
     auto insertion_point(lookup_args->lookup_contacts.end());
-    ContactInfo contact_info((*this_peer).first);
+    ContactInfo contact_info;
+    if (this_peer != lookup_args->lookup_contacts.end())
+      contact_info = ContactInfo((*this_peer).first);
     for (;;) {
       if ((*existing_contacts_itr).first < *new_contacts_itr) {
         insertion_point = existing_contacts_itr++;
@@ -781,8 +816,10 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
             insertion_point, std::make_pair(*new_contacts_itr++, contact_info));
       } else {
         insertion_point = existing_contacts_itr;
-        (*existing_contacts_itr++).second.providers.push_back(
-            (*this_peer).first);
+        if (this_peer != lookup_args->lookup_contacts.end()) {
+          (*existing_contacts_itr++).second.providers.push_back(
+              (*this_peer).first);
+        }
         ++new_contacts_itr;
       }
 
@@ -799,15 +836,7 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
         break;
     }
   }
-
-  uint16_t count(0);
-  auto shortlist_upper_bound(lookup_args->lookup_contacts.begin());
-  while (count != lookup_args->kNumContactsRequested &&
-         shortlist_upper_bound != lookup_args->lookup_contacts.end()) {
-    ++shortlist_upper_bound;
-    ++count;
-  }
-  return shortlist_upper_bound;
+  return GetShortlistUpperBound(lookup_args);
 }
 
 void NodeImpl::AssessLookupState(LookupArgsPtr lookup_args,
@@ -995,13 +1024,15 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
 void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check this node signed other values under same key in datastore
   ++store_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(store_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
-      return;
-    }
+  KeyValueSignature key_value_signature(store_args->kTarget.String(),
+                                        store_args->kValue,
+                                        store_args->kSignature);
+  if (data_store_->DifferentSigner(key_value_signature, contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't store to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<StoreArgsPtr>(kValueAlreadyExists, store_args);
+    return;
   }
 
   // Check the signature validates with this node's public key
@@ -1013,9 +1044,6 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   }
 
   // Store the value
-  KeyValueSignature key_value_signature(store_args->kTarget.String(),
-                                        store_args->kValue,
-                                        store_args->kSignature);
   RequestAndSignature store_request_and_signature(
       rpcs_->MakeStoreRequestAndSignature(store_args->kTarget,
                                           store_args->kValue,
@@ -1040,15 +1068,18 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
     return;
   }
 
-  // Check this node signed other values under same key in datastore
   ++delete_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(delete_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
-      return;
-    }
+
+  // Check this node signed other values under same key in datastore
+  KeyValueSignature key_value_signature(delete_args->kTarget.String(),
+                                        delete_args->kValue,
+                                        delete_args->kSignature);
+  if (data_store_->DifferentSigner(key_value_signature, contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't delete to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
+    return;
   }
 
   // Check the signature validates with this node's public key
@@ -1061,9 +1092,6 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   }
 
   // Delete the value
-  KeyValueSignature key_value_signature(delete_args->kTarget.String(),
-                                        delete_args->kValue,
-                                        delete_args->kSignature);
   RequestAndSignature delete_request_and_signature(
       rpcs_->MakeDeleteRequestAndSignature(delete_args->kTarget,
                                            delete_args->kValue,
@@ -1082,13 +1110,16 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
 void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   // Check this node signed other values under same key in datastore
   ++update_args->second_phase_rpcs_in_flight;
-  std::vector<std::pair<std::string, std::string>> values;
-  if (data_store_->GetValues(update_args->kTarget.String(), &values)) {
-    if (!default_securifier_->Validate(values[0].first, values[0].second, "",
-                                       contact_.public_key(), "", "")) {
-      HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
-      return;
-    }
+  KeyValueSignature new_key_value_signature(update_args->kTarget.String(),
+                                            update_args->kNewValue,
+                                            update_args->kNewSignature);
+  if (data_store_->DifferentSigner(new_key_value_signature,
+                                   contact_.public_key(),
+                                   default_securifier_)) {
+    DLOG(WARNING) << DebugId(contact_) << ": Can't update to self - different "
+                  << "signing key used to store under Kad key.";
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
   }
 
   // Check the new signature validates with this node's public key
@@ -1101,9 +1132,6 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   }
 
   // Store the value
-  KeyValueSignature new_key_value_signature(update_args->kTarget.String(),
-                                            update_args->kNewValue,
-                                            update_args->kNewSignature);
   RequestAndSignature store_request_and_signature(
       rpcs_->MakeStoreRequestAndSignature(update_args->kTarget,
                                           update_args->kNewValue,
@@ -1154,14 +1182,27 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(store_args->mutex);
   HandleSecondPhaseCallback<StoreArgsPtr>(result, store_args);
-
   // If this is the last RPC, and the overall store failed, delete the value
   if (store_args->second_phase_rpcs_in_flight == 0 &&
       store_args->successes < store_args->kSuccessThreshold) {
     auto itr(store_args->lookup_contacts.begin());
-    while (itr != store_args->lookup_contacts.end()) {
+    uint16_t count(0);
+    while (itr != store_args->lookup_contacts.end() &&
+           count != store_args->kNumContactsRequested) {
       if (!client_only_node_ && ((*itr).first == contact_)) {
-        // TODO(Fraser#5#): 2011-08-24 - HandleDeleteToSelf(delete_args);
+        // Handle deleting from self
+        KeyValueSignature key_value_signature(store_args->kTarget.String(),
+                                              store_args->kValue,
+                                              store_args->kSignature);
+        RequestAndSignature delete_request_and_signature(
+            rpcs_->MakeDeleteRequestAndSignature(store_args->kTarget,
+                                                 store_args->kValue,
+                                                 store_args->kSignature,
+                                                 store_args->securifier));
+        if (!data_store_->DeleteValue(key_value_signature,
+                                      delete_request_and_signature, false)) {
+          DLOG(WARNING) << "Failed to delete value from self after bad store.";
+        }
       } else {
         rpcs_->Delete(store_args->kTarget,
                       store_args->kValue,
@@ -1172,6 +1213,7 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
                                 (*itr).first, arg::_1, arg::_2));
       }
       ++itr;
+      ++count;
     }
   }
 }
@@ -1335,6 +1377,7 @@ bool NodeImpl::NodeContacted(const int &code) {
     case transport::kSendFailure:
     case transport::kSendTimeout:
     case transport::kSendStalled:
+    case kIterativeLookupFailed:
       return false;
     default:
       return true;

@@ -286,10 +286,10 @@ int main(int argc, char **argv) {
     mk::demo::DemoNodePtr demo_node(new mk::demo::DemoNode);
     ULOG(INFO) << "Creating node...";
     demo_node->Init(static_cast<uint8_t>(thread_count), mk::SecurifierPtr(),
-                    mk::AlternativeStorePtr(), client_only_node, k, alpha, beta,
-                    mean_refresh_interval);
-
-    int result = demo_node->Start(bootstrap_contacts, listening_port);
+                    mk::MessageHandlerPtr(), mk::AlternativeStorePtr(),
+                    client_only_node, k, alpha, beta, mean_refresh_interval);
+    std::pair<mt::Port, mt::Port> port_range(listening_port, listening_port);
+    int result = demo_node->Start(bootstrap_contacts, port_range);
 
     if (first_node)
       demo_node->node()->GetBootstrapContacts(&bootstrap_contacts);

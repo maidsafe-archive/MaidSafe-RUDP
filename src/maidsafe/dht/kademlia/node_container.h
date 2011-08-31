@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
@@ -45,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/securifier.h"
 #include "maidsafe/dht/transport/tcp_transport.h"
+#include "maidsafe/dht/transport/utils.h"
 
 #if MAIDSAFE_DHT_VERSION != 3103
 #  error This API is not compatible with the installed library.\
@@ -69,6 +71,7 @@ class NodeContainer {
   virtual void Init(
       uint8_t thread_count,
       SecurifierPtr securifier,
+      MessageHandlerPtr message_handler,
       AlternativeStorePtr alternative_store,
       bool client_only_node,
       uint16_t k = 8,
@@ -78,7 +81,10 @@ class NodeContainer {
 
   // For a non-client, starts listening on port.  Then for all types, joins
   // network.
-  int Start(const std::vector<Contact> &bootstrap_contacts, const Port &port);
+  int Start(const std::vector<Contact> &bootstrap_contacts,
+            const std::pair<Port, Port> &port_range);
+  // Joins the network. Only for a client only nodes.
+  int StartClient(const std::vector<Contact> &bootstrap_contacts);
 
   // Stops listening (if non-client) and leaves network.  Joins all threads.
   int Stop(std::vector<Contact> *bootstrap_contacts);
@@ -351,6 +357,7 @@ template <typename NodeType>
 void NodeContainer<NodeType>::Init(
     uint8_t thread_count,
     SecurifierPtr securifier,
+    MessageHandlerPtr message_handler,
     AlternativeStorePtr alternative_store,
     bool client_only_node,
     uint16_t k,
@@ -376,12 +383,17 @@ void NodeContainer<NodeType>::Init(
                                      key_pair.private_key()));
   }
 
+  if (message_handler) {
+    message_handler_ = message_handler;
+  } else {
+    message_handler_.reset(new MessageHandler(securifier_));
+  }
+
   // If this is not a client node, connect message handler to transport for
   // incoming raw messages.  Don't need to connect to on_error() as service
   // doesn't care if reply succeeds or not.
   if (!client_only_node) {
     listening_transport_.reset(new transport::TcpTransport(asio_service_));
-    message_handler_.reset(new MessageHandler(securifier_));
     listening_transport_->on_message_received()->connect(
         transport::OnMessageReceived::element_type::slot_type(
             &MessageHandler::OnMessageReceived, message_handler_.get(),
@@ -398,14 +410,30 @@ void NodeContainer<NodeType>::Init(
 template <typename NodeType>
 int NodeContainer<NodeType>::Start(
     const std::vector<dht::kademlia::Contact> &bootstrap_contacts,
-    const boost::uint16_t &port) {
+    const std::pair<uint16_t, uint16_t> &port_range) {
   bootstrap_contacts_ = bootstrap_contacts;
   int result(kPendingResult);
   if (!node_->client_only_node()) {
-    transport::Endpoint endpoint("127.0.0.1", port);
-    int result = listening_transport_->StartListening(endpoint);
+    transport::Endpoint endpoint;
+    // Workaround until NAT detection is up.
+    std::vector<dht::transport::IP> ips = transport::GetLocalAddresses();
+    if (!ips.empty()) {
+      endpoint.ip = ips.at(0);
+    } else {
+      endpoint.ip = IP::from_string("127.0.0.1");
+    }
+    uint16_t port(0);
+    int result(transport::kError);
+    for (port = port_range.first; port <= port_range.second; ++port) {
+      endpoint.port = port;
+      result = listening_transport_->StartListening(endpoint);
+      if (transport::kSuccess == result) {
+        break;
+      } else {
+        listening_transport_->StopListening();
+      }
+    }
     if (transport::kSuccess != result) {
-      listening_transport_->StopListening();
       return result;
     }
   }
@@ -425,6 +453,16 @@ int NodeContainer<NodeType>::Start(
   result = kPendingResult;
   GetAndResetJoinResult(&result);
   return (wait_success ? result : kTimedOut);
+}
+
+template <typename NodeType>
+int NodeContainer<NodeType>::StartClient(
+    const std::vector<dht::kademlia::Contact> &bootstrap_contacts) {
+  if (node_->client_only_node()) {
+    std::pair<Port, Port> port_range(0, 0);
+    return Start(bootstrap_contacts, port_range);
+  }
+  return kGeneralError;
 }
 
 template <typename NodeType>
