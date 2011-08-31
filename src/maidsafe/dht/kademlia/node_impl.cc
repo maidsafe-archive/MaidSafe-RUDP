@@ -87,7 +87,8 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       kBeta_(beta),
       kMeanRefreshInterval_(mean_refresh_interval.is_special() ? 3600 :
                             mean_refresh_interval.total_seconds()),
-      data_store_(new DataStore(kMeanRefreshInterval_)),
+      kDataStoreCheckInterval_(bptime::seconds(10)),
+      data_store_(),
       service_(),
       routing_table_(),
       rpcs_(),
@@ -222,16 +223,17 @@ void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
 void NodeImpl::JoinSucceeded(JoinFunctor callback) {
   joined_ = true;
   if (!client_only_node_) {
+    data_store_.reset(new DataStore(kMeanRefreshInterval_));
     service_.reset(new Service(routing_table_, data_store_,
                                alternative_store_, default_securifier_, k_));
     service_->set_node_joined(true);
     service_->set_node_contact(contact_);
     service_->ConnectToSignals(message_handler_);
-    refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
+    refresh_data_store_timer_.expires_from_now(kDataStoreCheckInterval_);
     refresh_data_store_timer_.async_wait(
         std::bind(&NodeImpl::RefreshDataStore, this, arg::_1));
+    data_store_->set_debug_id(DebugId(contact_));
   }
-  data_store_->set_debug_id(DebugId(contact_));
   callback(kSuccess);
 }
 
@@ -708,6 +710,9 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
           InsertCloseContacts(close_contacts, lookup_args,
                               lookup_args->lookup_contacts.end());
       lookup_args->lookup_phase_complete = false;
+    } else {
+      DLOG(WARNING) << "Lookup is returning only " << shortlist_ok_count
+                    << " contacts (k is " << k_ << ").";
     }
   }
 
@@ -1337,7 +1342,7 @@ void NodeImpl::RefreshDataStore(const boost::system::error_code &error_code) {
   std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                 std::bind(&NodeImpl::RefreshData, this, arg::_1));
   refresh_data_store_timer_.expires_at(refresh_data_store_timer_.expires_at() +
-                                       bptime::seconds(10));
+                                       kDataStoreCheckInterval_);
   refresh_data_store_timer_.async_wait(std::bind(&NodeImpl::RefreshDataStore,
                                                  this, arg::_1));
 }

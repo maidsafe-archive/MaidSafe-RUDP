@@ -445,8 +445,6 @@ TEST_P(NodeImplTest, FUNC_Store) {
 }
 
 TEST_P(NodeImplTest, FUNC_FindValue) {
-  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
-  NodeContainerPtr putting_container(env_->node_containers_[test_node_index]);
   {
     // Attempt to find value for a non-existent key
     Key nonexistent_key(NodeId::kRandomId);
@@ -485,7 +483,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   }
 
   // Assert test_container_ didn't store the value
-  ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
+  if (!client_only_node_)
+    ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
 
   FindValueReturns find_value_returns;
   for (size_t i = 0; i != env_->k_; ++i) {
@@ -510,7 +509,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
       if (WithinKClosest(env_->node_containers_[j]->node()->contact().node_id(),
                          far_key_, env_->node_ids_, env_->k_) &&
           env_->node_containers_[j]->node()->joined()) {
-        env_->node_containers_[j]->Stop(NULL);
+        env_->node_containers_[j]->node()->Leave(NULL);
         break;
       }
     }
@@ -532,8 +531,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
     if (!env_->node_containers_[i]->node()->joined()) {
       std::pair<Port, Port> port_range(8000, 65535);
-//      EXPECT_EQ(kSuccess, env_->node_containers_[i]->Start(
-//                env_->node_containers_[i]->bootstrap_contacts(), port_range)) << i;
+      EXPECT_EQ(kSuccess, env_->node_containers_[i]->Start(
+                env_->node_containers_[i]->bootstrap_contacts(), port_range));
     }
   }
 

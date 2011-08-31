@@ -489,7 +489,7 @@ class NodeImpl {
   /** Kademlia beta parameter to define how many contacts are required to have
    *  responded in a lookup iteration before starting a new iteration */
   const uint16_t kBeta_;
-  const bptime::seconds kMeanRefreshInterval_;
+  const bptime::seconds kMeanRefreshInterval_, kDataStoreCheckInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
