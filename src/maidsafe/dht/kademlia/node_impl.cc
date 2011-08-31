@@ -645,7 +645,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
   // If DoLookupIteration didn't send any RPCs, this will hit -1.
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -2);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -1182,7 +1182,6 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(store_args->mutex);
   HandleSecondPhaseCallback<StoreArgsPtr>(result, store_args);
-
   // If this is the last RPC, and the overall store failed, delete the value
   if (store_args->second_phase_rpcs_in_flight == 0 &&
       store_args->successes < store_args->kSuccessThreshold) {
@@ -1214,6 +1213,7 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
                                 (*itr).first, arg::_1, arg::_2));
       }
       ++itr;
+      ++count;
     }
   }
 }
@@ -1377,6 +1377,7 @@ bool NodeImpl::NodeContacted(const int &code) {
     case transport::kSendFailure:
     case transport::kSendTimeout:
     case transport::kSendStalled:
+    case kIterativeLookupFailed:
       return false;
     default:
       return true;
