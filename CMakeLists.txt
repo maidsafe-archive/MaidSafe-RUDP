@@ -438,7 +438,7 @@ ENDFOREACH()
 
 SET(MAIDSAFE_KAD_TEST_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/kademlia/tests/local_network.h)
-FOREACH(MAIDSAFE_KAD_TEST_INSTALL_FILE ${MAIDSAFE_KAD_INSTALL_FILES})
+FOREACH(MAIDSAFE_KAD_TEST_INSTALL_FILE ${MAIDSAFE_KAD_TEST_INSTALL_FILES})
   CHECK_INSTALL_HEADER_HAS_VERSION_GUARD(${MAIDSAFE_KAD_TEST_INSTALL_FILE})
 ENDFOREACH()
 
@@ -453,7 +453,8 @@ SET(MAIDSAFE_TRANS_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/transport.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/tcp_transport.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.h)
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/udp_transport.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/dht/transport/utils.h)  # TODO - remove utils.h once NAT detection is implemented and this is not #included by node_container.h
 FOREACH(MAIDSAFE_TRANS_INSTALL_FILE ${MAIDSAFE_TRANS_INSTALL_FILES})
   CHECK_INSTALL_HEADER_HAS_VERSION_GUARD(${MAIDSAFE_TRANS_INSTALL_FILE})
 ENDFOREACH()

@@ -46,16 +46,14 @@ enum ReturnCode {
   kGeneralError = -300001,
   kUndefined = -300002,
   kPendingResult = -300003,
-  kFailedSignatureCheck = -300004,
-  kInvalidPointer = -300005,
-  kTimedOut = -300006,
+  kInvalidPointer = -300004,
+  kTimedOut = -300005,
 
   // DataStore
   kEmptyKey = -301001,
   kZeroTTL = -301002,
-  kFailedToInsertKeyValue = -301003,
-  kFailedToModifyKeyValue = -301004,
-  kMarkedForDeletion = -301005,
+  kFailedToModifyKeyValue = -301003,
+  kMarkedForDeletion = -301004,
 
   // RoutingTable
   kOwnIdNotIncludable = -302001,
@@ -71,18 +69,21 @@ enum ReturnCode {
 
   // Node
   kNoOnlineBootstrapContacts = -303001,
-  kNotListening = -303002,
-  kFindNodesFailed = -303003,
-  kFoundTooFewNodes = -303004,
-  kStoreTooFewNodes = -303005,
-  kDeleteTooFewNodes = -303006,
-  kUpdateTooFewNodes = -303007,
-  kFailedToGetContact = -303008,
-  kFailedToFindValue = 303009,  // value intentionally positive
-  kFoundAlternativeStoreHolder = 303010,  // value intentionally positive
-  kIterativeLookupFailed = -303011,
-  kContactFailedToRespond = -303012,
-  kValueAlreadyExists = -303013
+  kInvalidBootstrapContacts = -303002,
+  kNotListening = -303003,
+  kNotJoined = -303004,
+  kFindNodesFailed = -303005,
+  kFoundTooFewNodes = -303006,
+  kStoreTooFewNodes = -303007,
+  kDeleteTooFewNodes = -303008,
+  kUpdateTooFewNodes = -303009,
+  kFailedToGetContact = -303010,
+  kFailedToFindValue = 303011,  // value intentionally positive
+  kFoundAlternativeStoreHolder = 303012,  // value intentionally positive
+  kIterativeLookupFailed = -303013,
+  kContactFailedToRespond = -303014,
+  kValueAlreadyExists = -303015,
+  kFailedValidation = -303016
 };
 
 }  // namespace kademlia

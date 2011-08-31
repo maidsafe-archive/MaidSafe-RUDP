@@ -65,14 +65,12 @@ class Rpcs;
 namespace test {
 class NodeImplTest;
 class MockNodeImplTest;
-class MockNodeImplTest_FUNC_HandleIterationStructure_Test;
-class MockNodeImplTest_BEH_Join_Test;
-class MockNodeImplTest_BEH_Getters_Test;
-class MockNodeImplTest_BEH_Leave_Test;
-class MockNodeImplTest_BEH_DownlistClient_Test;
-class MockNodeApiTest_BEH_Join_Server_Test;
 class MockNodeImplTest_BEH_ValidateContact_Test;
 class MockNodeImplTest_BEH_PingOldestContact_Test;
+class MockNodeImplTest_BEH_Join_Test;
+class MockNodeImplTest_BEH_Getters_Test;
+class MockNodeImplTest_BEH_FindNodes_Test;
+class MockNodeImplTest_BEH_FindValue_Test;
 }  // namespace test
 
 typedef std::function<void(RankInfoPtr, const int&)> StoreRefreshFunctor;
@@ -151,11 +149,13 @@ class NodeImpl {
    *  @param[in] securifier The securifier to pass further.
    *  @param[in] callback The callback to report the results.
    *  @param[in] extra_contacts The number of additional to k contacts to
-   *  return. */
+   *  return.
+   *  @param[in] cache Whether to cache the value(s) if found. */
   void FindValue(const Key &key,
                  SecurifierPtr securifier,
                  FindValueFunctor callback,
-                 const uint16_t &extra_contacts = 0);
+                 const uint16_t &extra_contacts = 0,
+                 bool cache = true);
 
   /** Function to FIND k-closest NODES to the Key from the Kademlia network.
    *  @param[in] Key The key to locate
@@ -219,13 +219,12 @@ class NodeImpl {
   friend class NodeContainer<maidsafe::dht::kademlia::NodeImpl>;
   friend class test::NodeImplTest;
   friend class test::MockNodeImplTest;
-  friend class test::MockNodeImplTest_FUNC_HandleIterationStructure_Test;
-  friend class test::MockNodeImplTest_BEH_Join_Test;
-  friend class test::MockNodeImplTest_BEH_Getters_Test;
-  friend class test::MockNodeImplTest_BEH_Leave_Test;
   friend class test::MockNodeImplTest_BEH_ValidateContact_Test;
   friend class test::MockNodeImplTest_BEH_PingOldestContact_Test;
-
+  friend class test::MockNodeImplTest_BEH_Join_Test;
+  friend class test::MockNodeImplTest_BEH_Getters_Test;
+  friend class test::MockNodeImplTest_BEH_FindNodes_Test;
+  friend class test::MockNodeImplTest_BEH_FindValue_Test;
 
  private:
   NodeImpl(const NodeImpl&);
@@ -236,6 +235,36 @@ class NodeImpl {
                              const NodeId &node_id,
                              JoinFunctor callback,
                              bool none_reached);
+
+  void JoinSucceeded(JoinFunctor callback);
+
+  void JoinFailed(JoinFunctor callback, int result);
+
+  template <typename T>
+  void NotJoined(T callback);
+
+  template <typename T>
+  void FailedValidation(T callback);
+
+  /** Returns the closest contacts to key from this node's routing table.  If
+   *  this node is within the required closest, it is included in the result. */
+  OrderedContacts GetClosestContactsLocally(const Key &key,
+                                            const uint16_t &total_contacts);
+
+  /** If signature is empty, it is set to the signature of value.  If not, it is
+   *  validated. */
+  bool ValidateOrSign(const std::string &value,
+                      SecurifierPtr securifier,
+                      std::string *signature);
+
+  /** Runs the FindValue callback for the case where this node has the value(s)
+   *  locally (i.e. in its alternative_store_ or data_store_). */
+  void FoundValueLocally(const FindValueReturns &find_value_returns,
+                         FindValueFunctor callback);
+
+  /** Runs the GetContact callback for the case where it's this node's Contact
+   *  which is the target. */
+  void GetOwnContact(GetContactFunctor callback);
 
   /** Callback used if we hold the target's contact details in our own routing
    *  table - i.e. we only did a Ping rather than an iterative lookup. */
@@ -279,6 +308,8 @@ class NodeImpl {
                    const Contact &peer,
                    LookupArgsPtr lookup_args);
 
+  LookupContacts::iterator GetShortlistUpperBound(LookupArgsPtr lookup_args);
+
   /** Moves any Contacts found in the downlist from "contacts" to the
    *  downlist */
   void RemoveDownlistedContacts(LookupArgsPtr lookup_args,
@@ -295,23 +326,29 @@ class NodeImpl {
   void AssessLookupState(LookupArgsPtr lookup_args,
                          LookupContacts::iterator shortlist_upper_bound,
                          bool *iteration_complete,
-                         size_t *shortlist_ok_count);
+                         int *shortlist_ok_count);
 
   void HandleCompletedLookup(LookupArgsPtr lookup_args,
                              LookupContacts::iterator closest_upper_bound,
-                             const size_t &closest_count);
+                             const int &closest_count);
 
   void InitiateStorePhase(StoreArgsPtr store_args,
                           LookupContacts::iterator closest_upper_bound,
-                          const size_t &closest_count);
+                          const int &closest_count);
 
   void InitiateDeletePhase(DeleteArgsPtr delete_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
 
   void InitiateUpdatePhase(UpdateArgsPtr update_args,
                            LookupContacts::iterator closest_upper_bound,
-                           const size_t &closest_count);
+                           const int &closest_count);
+
+  void HandleStoreToSelf(StoreArgsPtr store_args);
+
+  void HandleDeleteToSelf(DeleteArgsPtr delete_args);
+
+  void HandleUpdateToSelf(UpdateArgsPtr update_args);
 
   /** Callback from the rpc->store requests, during the Store operation.
    *  @param[in] rank_info rank info
@@ -443,34 +480,25 @@ class NodeImpl {
   SecurifierPtr default_securifier_;
   AlternativeStorePtr alternative_store_;
   OnOnlineStatusChangePtr on_online_status_change_;
-
-  /** If the node is Client Only, then it shall not put anything into its local
-   *  routing table. Only Vault is allowed to do so. */
   bool client_only_node_;
-
-  /** Global K parameter */
+  /** Kademlia k parameter */
   const uint16_t k_;
-
-  /** Alpha parameter to define how many contacts to be enquired during one
-   *  iteration */
+  /** Kademlia alpha parameter to define how many contacts are to be queried
+   *  per lookup iteration */
   const uint16_t kAlpha_;
-
-  /** Beta parameter to define how many contacted contacts required in one
-   *  iteration before starting a new iteration */
+  /** Kademlia beta parameter to define how many contacts are required to have
+   *  responded in a lookup iteration before starting a new iteration */
   const uint16_t kBeta_;
   const bptime::seconds kMeanRefreshInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;
   std::shared_ptr<Rpcs<transport::TcpTransport>> rpcs_;
-
   /** Own info of nodeid, ip and port */
   Contact contact_;
-  bool joined_, refresh_routine_started_, stopping_;
-
+  bool joined_;
   boost::signals2::connection ping_oldest_contact_, validate_contact_,
                               ping_down_contact_;
-
   boost::asio::deadline_timer refresh_data_store_timer_;
 };
 

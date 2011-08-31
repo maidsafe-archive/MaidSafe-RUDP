@@ -403,7 +403,7 @@ class MockRpcsTest : public testing::Test {
 
 crypto::RsaKeyPair MockRpcsTest::crypto_key_pair_;
 
-TEST_F(MockRpcsTest, BEH_Rpcs_Ping) {
+TEST_F(MockRpcsTest, BEH_Ping) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -425,7 +425,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Ping) {
                                   arg::_2, &b, &m, &result);
     rpcs->Ping(securifier_, peer_, pf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       {
         boost::mutex::scoped_lock lock(m);
         b2 = b;
@@ -463,7 +463,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Ping) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_Store) {
+TEST_F(MockRpcsTest, BEH_Store) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -486,7 +486,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Store) {
     rpcs->Store(NodeId(NodeId::kRandomId), "", "",
                 boost::posix_time::seconds(1), securifier_, peer_, sf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       {
         boost::mutex::scoped_lock lock(m);
         b2 = b;
@@ -524,7 +524,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Store) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_StoreRefresh) {
+TEST_F(MockRpcsTest, BEH_StoreRefresh) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -546,7 +546,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_StoreRefresh) {
                                            arg::_1, arg::_2, &b, &m, &result);
     rpcs->StoreRefresh("", "", securifier_, peer_, srf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
@@ -582,7 +582,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_StoreRefresh) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_Delete) {
+TEST_F(MockRpcsTest, BEH_Delete) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -604,7 +604,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Delete) {
                                     arg::_2, &b, &m, &result);
     rpcs->Delete(NodeId(NodeId::kRandomId), "", "", securifier_, peer_, df);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
@@ -640,7 +640,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Delete) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_DeleteRefresh) {
+TEST_F(MockRpcsTest, BEH_DeleteRefresh) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -662,7 +662,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_DeleteRefresh) {
                                             arg::_1, arg::_2, &b, &m, &result);
     rpcs->DeleteRefresh("", "", securifier_, peer_, drf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
@@ -698,7 +698,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_DeleteRefresh) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
+TEST_F(MockRpcsTest, BEH_FindNodes) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -722,7 +722,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
 
     rpcs->FindNodes(NodeId(NodeId::kRandomId), 1, securifier_, peer_, fnf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
@@ -758,7 +758,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindNodes) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
+TEST_F(MockRpcsTest, BEH_FindValue) {
   uint16_t repeat_factor(1);
   int result_type(1);
   for (int i = 0; i < 5; ++i) {
@@ -782,34 +782,34 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
 
     rpcs->FindValue(NodeId(NodeId::kRandomId), 1, securifier_, peer_, fvf);
     while (!b2) {
-      Sleep(boost::posix_time::milliseconds(100));
+      Sleep(boost::posix_time::milliseconds(10));
       boost::mutex::scoped_lock lock(m);
       b2 = b;
     }
     switch (i) {
       case 0: {
-        ASSERT_EQ(transport::kSuccess, result) << i;
+        EXPECT_EQ(kFoundAlternativeStoreHolder, result) << i;
         result_type = 2;
         break;
       }
       case 1: {
-        ASSERT_EQ(transport::kError, result);
+        EXPECT_EQ(transport::kError, result);
         result_type = 1;
         repeat_factor = rpcs->kFailureTolerance();
         break;
       }
       case 2: {
-        ASSERT_EQ(transport::kSuccess, result);
+        EXPECT_EQ(kFoundAlternativeStoreHolder, result);
         repeat_factor = 0;
         break;
       }
       case 3: {
-        ASSERT_EQ(transport::kError, result);
+        EXPECT_EQ(transport::kError, result);
         repeat_factor = rpcs->kFailureTolerance() - 1;
         break;
       }
       case 4: {
-        ASSERT_EQ(transport::kSuccess, result);
+        EXPECT_EQ(kFoundAlternativeStoreHolder, result);
         break;
       }
       default:
@@ -818,7 +818,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_FindValue) {
   }
 }
 
-TEST_F(MockRpcsTest, BEH_Rpcs_Downlist) {
+TEST_F(MockRpcsTest, BEH_Downlist) {
   boost::mutex m;
   std::vector<NodeId> node_ids;
   NodeId node_id(NodeId::kRandomId);
@@ -837,7 +837,7 @@ TEST_F(MockRpcsTest, BEH_Rpcs_Downlist) {
 
   rpcs->Downlist(node_ids, securifier_, peer_);
   while (!MockMessageHandler::ops_completion_flag) {
-    Sleep(boost::posix_time::milliseconds(100));
+    Sleep(boost::posix_time::milliseconds(10));
   }
   MockMessageHandler::ops_completion_flag = false;
 }
