@@ -1372,10 +1372,17 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
   // Invalid request recieves true but value doesn't get stored
   EXPECT_TRUE(DoStore(sender_id_2, k1_v2, crypto_key_data_2));
   EXPECT_FALSE(DoStore(sender_id_3, k1_v3, crypto_key_data_3));
-  // If the valid sender calls just after invalid sender it recieves false
-  EXPECT_FALSE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  // If the valid sender calls just after invalid sender it could fail
+  int attempts(0);
+  bool succeeded(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  while (attempts != 100 && !succeeded) {
+    Sleep(bptime::milliseconds(10));
+    succeeded = DoStore(sender_id_1, k1_v1, crypto_key_data_1);
+    ++attempts;
+  }
+  EXPECT_TRUE(succeeded);
   JoinNetworkLookup(securifier_);
-  EXPECT_EQ(0U, GetDataStoreSize());
+  EXPECT_EQ(1U, GetDataStoreSize());
   Clear();
 
   // Store request for same key from different senders
@@ -1578,15 +1585,22 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     // Invalid request recieves true but value doesn't get stored
     EXPECT_TRUE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
                                k1_v1, crypto_key_data_2));
-    // If the valid sender calls just after invalid sender it recieves false
-    EXPECT_FALSE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
-                                k1_v1, crypto_key_data_1));
+    // If the valid sender calls just after invalid sender it could fail
+    int attempts(0);
+    bool succeeded(false);
+    while (attempts != 100 && !succeeded) {
+      Sleep(bptime::milliseconds(10));
+      succeeded = DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
+                                 k1_v1, crypto_key_data_1);
+      ++attempts;
+    }
+    EXPECT_TRUE(succeeded);
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v1));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
     bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_EQ(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
   }
   Clear();
   // Store refresh request for same key from different requester
@@ -1595,11 +1609,18 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     // Invalid request recieves true but value doesn't get stored
     EXPECT_TRUE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
                                k1_v1, crypto_key_data_2));
-    // If the valid sender calls just after invalid sender it recieves false
-    EXPECT_FALSE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
-                                k1_v1, crypto_key_data_1));
+    // If the valid sender calls just after invalid sender it could fail
+    int attempts(0);
+    bool succeeded(false);
+    while (attempts != 100 && !succeeded) {
+      Sleep(bptime::milliseconds(10));
+      succeeded = DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
+                                 k1_v1, crypto_key_data_1);
+      ++attempts;
+    }
+    EXPECT_TRUE(succeeded);
     JoinNetworkLookup(securifier_);
-    EXPECT_EQ(0U, GetDataStoreSize());
+    EXPECT_EQ(1U, GetDataStoreSize());
   }
   Clear();
   // Store Refresh request for same key from different requester
