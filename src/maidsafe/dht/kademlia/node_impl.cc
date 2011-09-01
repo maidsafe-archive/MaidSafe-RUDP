@@ -1187,7 +1187,6 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(store_args->mutex);
   HandleSecondPhaseCallback<StoreArgsPtr>(result, store_args);
-
   // If this is the last RPC, and the overall store failed, delete the value
   if (store_args->second_phase_rpcs_in_flight == 0 &&
       store_args->successes < store_args->kSuccessThreshold) {
@@ -1383,6 +1382,7 @@ bool NodeImpl::NodeContacted(const int &code) {
     case transport::kSendFailure:
     case transport::kSendTimeout:
     case transport::kSendStalled:
+    case kIterativeLookupFailed:
       return false;
     default:
       return true;
