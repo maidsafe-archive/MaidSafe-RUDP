@@ -549,6 +549,17 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
   if (!contacts)
     return;
   routing_table_->GetBootstrapContacts(contacts);
+
+  // Allow time to validate and add the first node on the network in the case
+  // where this node is the second.
+  int attempts(0);
+  const int kMaxAttempts(50);
+  while (attempts != kMaxAttempts && contacts->empty()) {
+    Sleep(bptime::milliseconds(100));
+    routing_table_->GetBootstrapContacts(contacts);
+    ++attempts;
+  }
+
   if (contacts->empty())
     contacts->push_back(contact_);
 }
@@ -629,6 +640,15 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
                                      const Contact &alternative_store,
                                      Contact peer,
                                      LookupArgsPtr lookup_args) {
+  // It is only OK for a node to return no meaningful information if this is
+  // the second to join the network (peer being the first)
+  bool second_node(false);
+  if (result == kIterativeLookupFailed &&
+      lookup_args->lookup_contacts.size() == 1) {
+    result = kSuccess;
+    second_node = true;
+  }
+
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(lookup_args->mutex);
   auto this_peer(lookup_args->lookup_contacts.find(peer));
@@ -646,14 +666,6 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // If DoLookupIteration didn't send any RPCs, this will hit -1.
   BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
-  // Make sure a node doesn't return kSuccess and no meaningful information
-  // unless the node is only the second to join the network
-  if (result == kSuccess && contacts.empty()
-                         && values.empty()
-                         && alternative_store == Contact()
-                         && lookup_args->lookup_contacts.size() > 1)
-    result = kGeneralError;
-
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
     lookup_args->downlist.insert(*this_peer);
@@ -670,7 +682,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
 
   // If we should stop early (found value, or found single contact), do so.
   if (AbortLookup(result, values, contacts, alternative_store, peer,
-                  lookup_args))
+                  second_node, lookup_args))
     return;
 
   // Handle result if RPC was successful.
@@ -743,12 +755,21 @@ bool NodeImpl::AbortLookup(int result,
                            const std::vector<Contact> &contacts,
                            const Contact &alternative_store,
                            const Contact &peer,
+                           bool second_node,
                            LookupArgsPtr lookup_args) {
   if (lookup_args->kOperationType == LookupArgs::kFindValue) {
     // If the value was returned, or the peer claimed to have the value in its
     // alternative store, we're finished with the lookup.
-    if (result == kSuccess || result == kFoundAlternativeStoreHolder) {
-      BOOST_ASSERT(!values.empty() || alternative_store == peer);
+    if (result == kSuccess || result == kFoundAlternativeStoreHolder ||
+        second_node) {
+#ifdef DEBUG
+      if (second_node) {
+        BOOST_ASSERT(values.empty() && contacts.empty() &&
+                     alternative_store == Contact());
+      } else {
+        BOOST_ASSERT(!values.empty() || alternative_store == peer);
+      }
+#endif
       FindValueReturns find_value_returns(result, values, contacts,
                                           alternative_store,
                                           lookup_args->cache_candidate);

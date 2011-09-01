@@ -306,6 +306,7 @@ class NodeImpl {
                    const std::vector<Contact> &contacts,
                    const Contact &alternative_store,
                    const Contact &peer,
+                   bool second_node,
                    LookupArgsPtr lookup_args);
 
   LookupContacts::iterator GetShortlistUpperBound(LookupArgsPtr lookup_args);
