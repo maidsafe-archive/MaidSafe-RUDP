@@ -65,9 +65,11 @@ namespace kademlia {
 
 namespace test {
 
+namespace {
 typedef std::vector<std::pair<std::string, std::string>> KeyValuePairGroup;
 const uint16_t kIteratorSize = 23;
 const uint16_t kThreadBarrierSize = 5;
+}  // unnamed namespace
 
 class DataStoreTest: public testing::Test {
  public:
@@ -822,7 +824,7 @@ TEST_F(DataStoreTest, FUNC_Refresh) {
 }
 
 TEST_F(DataStoreTest, FUNC_MultipleThreads) {
-  const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
+  const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(55);
   const size_t kValuesPerEntry(4);
 
   AsioService asio_service;

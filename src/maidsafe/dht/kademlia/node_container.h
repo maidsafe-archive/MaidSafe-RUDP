@@ -81,10 +81,10 @@ class NodeContainer {
       uint16_t beta = 2,
       bptime::time_duration mean_refresh_interval = bptime::hours(1));
 
-  // For a non-client, starts listening on port.  Then for all types, joins
-  // network.
+  // For a non-client, starts listening on a random port within the range.  Then
+  // for all types, joins network.
   int Start(const std::vector<Contact> &bootstrap_contacts,
-            const std::pair<Port, Port> &port_range);
+            std::pair<uint16_t, uint16_t> port_range);
   // Joins the network. Only for a client only nodes.
   int StartClient(const std::vector<Contact> &bootstrap_contacts);
 
@@ -416,22 +416,25 @@ void NodeContainer<NodeType>::Init(
 template <typename NodeType>
 int NodeContainer<NodeType>::Start(
     const std::vector<dht::kademlia::Contact> &bootstrap_contacts,
-    const std::pair<uint16_t, uint16_t> &port_range) {
+    std::pair<uint16_t, uint16_t> port_range) {
   bootstrap_contacts_ = bootstrap_contacts;
   int result(kPendingResult);
   if (!node_->client_only_node()) {
-    transport::Endpoint endpoint;
+    if (port_range.first > port_range.second)
+      port_range = std::make_pair(port_range.second, port_range.first);
     // Workaround until NAT detection is up.
     std::vector<dht::transport::IP> ips = transport::GetLocalAddresses();
-    if (!ips.empty()) {
-      endpoint.ip = ips.at(0);
-    } else {
-      endpoint.ip = IP::from_string("127.0.0.1");
-    }
-    uint16_t port(0);
+    transport::Endpoint endpoint(
+        ips.empty() ? IP::from_string("127.0.0.1") : ips.front(), 0);
     int result(transport::kError);
-    for (port = port_range.first; port <= port_range.second; ++port) {
-      endpoint.port = port;
+    uint16_t port_range_size(port_range.second - port_range.first);
+    std::vector<Port> try_ports;
+    try_ports.reserve(port_range_size);
+    for (Port port(port_range.first); port != port_range.second; ++port)
+      try_ports.push_back(port);
+    std::random_shuffle(try_ports.begin(), try_ports.end());
+    for (auto itr(try_ports.begin()); itr != try_ports.end(); ++itr) {
+      endpoint.port = *itr;
       result = listening_transport_->StartListening(endpoint);
       if (transport::kSuccess == result) {
         break;
