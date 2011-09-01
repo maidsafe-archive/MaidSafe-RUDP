@@ -337,7 +337,7 @@ TYPED_TEST_P(RpcsTest, FUNC_PingNoTarget) {
   EXPECT_GT(0, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_PingTarget) {
+TYPED_TEST_P(RpcsTest, FUNC_PingTarget) {
   bool done(false);
   int response_code(kGeneralError);
   this->rpcs_->Ping(this->rpcs_securifier_, this->service_contact_,
@@ -350,7 +350,7 @@ TYPED_TEST_P(RpcsTest, BEH_PingTarget) {
   EXPECT_EQ(kSuccess, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
+TYPED_TEST_P(RpcsTest, FUNC_FindNodesEmptyRT) {
   // tests FindNodes using empty routing table
   bool done(false);
   int response_code(kGeneralError);
@@ -370,7 +370,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesEmptyRT) {
   EXPECT_EQ(kSuccess, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
+TYPED_TEST_P(RpcsTest, FUNC_FindNodesPopulatedRTnoNode) {
   // tests FindNodes with a populated routing table not containing the node
   // being sought
   bool done(false);
@@ -407,7 +407,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTnoNode) {
   EXPECT_EQ(kSuccess, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
+TYPED_TEST_P(RpcsTest, FUNC_FindNodesPopulatedRTwithNode) {
   // tests FindNodes with a populated routing table which contains the node
   // being sought
   bool done(false);
@@ -444,7 +444,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesPopulatedRTwithNode) {
   EXPECT_EQ(kSuccess, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
+TYPED_TEST_P(RpcsTest, FUNC_FindNodesVariableNodesRequest) {
   // tests FindNodes with a populated routing table which contains the node
   // being sought, where num_nodes_requested < g_kKademliaK, it should return
   // g_kKademliaK contacts
@@ -484,7 +484,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindNodesVariableNodesRequest) {
   EXPECT_EQ(kSuccess, response_code);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_FindValueVariableNodesRequest) {
+TYPED_TEST_P(RpcsTest, FUNC_FindValueVariableNodesRequest) {
   bool done(false);
   int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
@@ -529,7 +529,7 @@ TYPED_TEST_P(RpcsTest, BEH_FindValueVariableNodesRequest) {
   this->StopAndReset();
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindValue) {
   bool done(false);
   int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
@@ -585,7 +585,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindValue) {
   this->StopAndReset();
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   bool done(false);
   int response_code(kGeneralError);
   this->PopulateRoutingTable(2*g_kKademliaK);
@@ -673,7 +673,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   this->StopAndReset();
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreMalicious) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(kGeneralError);
@@ -714,7 +714,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMalicious) {
   this->StopAndReset();
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreMultipleRequest) {
   bool done(false);
   Key key = this->rpcs_contact_.node_id();
   std::vector<KeyValueSignature> kvs_vector;
@@ -763,7 +763,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreMultipleRequest) {
   }
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreRefresh) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreRefresh) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(kGeneralError);
@@ -913,7 +913,7 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMultipleRequests) {
   }
 }
 
-TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
+TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMalicious) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(kGeneralError);
@@ -978,7 +978,7 @@ TYPED_TEST_P(RpcsTest, BEH_StoreRefreshMalicious) {
   this->StopAndReset();
 }
 
-TYPED_TEST_P(RpcsTest, BEH_Delete) {
+TYPED_TEST_P(RpcsTest, FUNC_Delete) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
@@ -1023,7 +1023,7 @@ TYPED_TEST_P(RpcsTest, BEH_Delete) {
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteMalicious) {
   bool done(false);
   int response_code(-1);
   Key key = this->rpcs_contact_.node_id();
@@ -1071,7 +1071,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMalicious) {
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteNonExistingKey) {
   bool done(false);
   int response_code(-1);
   Key key = this->rpcs_contact_.node_id();
@@ -1096,7 +1096,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteNonExistingKey) {
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteMultipleRequest) {
   bool done(false);
   Key key = this->rpcs_contact_.node_id();
   std::vector<KeyValueSignature> kvs_vector;
@@ -1149,7 +1149,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteMultipleRequest) {
   }
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteRefresh) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
@@ -1205,7 +1205,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefresh) {
   EXPECT_GT(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshStoredValue) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(-1);
@@ -1261,7 +1261,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshStoredValue) {
   EXPECT_EQ(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMalicious) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshMalicious) {
   bool done(false);
   int response_code(-1);
   // Adding key value from different contact in the receiver's datastore
@@ -1298,7 +1298,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMalicious) {
   EXPECT_EQ(this->GetRefreshTime(kvs), refresh_time_old);
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshNonExistingKey) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshNonExistingKey) {
   bool done(false);
   int response_code(-1);
   // Creating Delete request
@@ -1329,7 +1329,7 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshNonExistingKey) {
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
 
-TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
+TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshMultipleRequests) {
   bool done(false);
   std::vector<KeyValueSignature> kvs_vector;
   std::vector<std::pair<bool, int>> status_response;
@@ -1397,28 +1397,28 @@ TYPED_TEST_P(RpcsTest, BEH_DeleteRefreshMultipleRequests) {
 
 REGISTER_TYPED_TEST_CASE_P(RpcsTest,
                            FUNC_PingNoTarget,
-                           BEH_PingTarget,
-                           BEH_FindNodesEmptyRT,
-                           BEH_FindNodesPopulatedRTnoNode,
-                           BEH_FindNodesPopulatedRTwithNode,
-                           BEH_FindNodesVariableNodesRequest,
-                           BEH_FindValueVariableNodesRequest,
-                           BEH_StoreAndFindValue,
-                           BEH_StoreAndFindAndDeleteValueXXXToBeRemoved,
-                           BEH_StoreMalicious,
-                           BEH_StoreMultipleRequest,
-                           BEH_StoreRefresh,
+                           FUNC_PingTarget,
+                           FUNC_FindNodesEmptyRT,
+                           FUNC_FindNodesPopulatedRTnoNode,
+                           FUNC_FindNodesPopulatedRTwithNode,
+                           FUNC_FindNodesVariableNodesRequest,
+                           FUNC_FindValueVariableNodesRequest,
+                           FUNC_StoreAndFindValue,
+                           FUNC_StoreAndFindAndDeleteValueXXXToBeRemoved,
+                           FUNC_StoreMalicious,
+                           FUNC_StoreMultipleRequest,
+                           FUNC_StoreRefresh,
                            FUNC_StoreRefreshMultipleRequests,
-                           BEH_StoreRefreshMalicious,
-                           BEH_Delete,
-                           BEH_DeleteMalicious,
-                           BEH_DeleteNonExistingKey,
-                           BEH_DeleteMultipleRequest,
-                           BEH_DeleteRefresh,
-                           BEH_DeleteRefreshStoredValue,
-                           BEH_DeleteRefreshMalicious,
-                           BEH_DeleteRefreshNonExistingKey,
-                           BEH_DeleteRefreshMultipleRequests);
+                           FUNC_StoreRefreshMalicious,
+                           FUNC_Delete,
+                           FUNC_DeleteMalicious,
+                           FUNC_DeleteNonExistingKey,
+                           FUNC_DeleteMultipleRequest,
+                           FUNC_DeleteRefresh,
+                           FUNC_DeleteRefreshStoredValue,
+                           FUNC_DeleteRefreshMalicious,
+                           FUNC_DeleteRefreshNonExistingKey,
+                           FUNC_DeleteRefreshMultipleRequests);
 
 typedef ::testing::Types<transport::TcpTransport,
                          transport::UdpTransport> TransportTypes;

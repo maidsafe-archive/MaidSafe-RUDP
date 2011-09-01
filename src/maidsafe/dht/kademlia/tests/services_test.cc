@@ -600,7 +600,7 @@ TEST_F(ServicesTest, BEH_Delete) {
   }
 }
 
-TEST_F(ServicesTest, BEH_StoreRefresh) {
+TEST_F(ServicesTest, FUNC_StoreRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -717,7 +717,7 @@ TEST_F(ServicesTest, BEH_StoreRefresh) {
   }
 }
 
-TEST_F(ServicesTest, BEH_DeleteRefresh) {
+TEST_F(ServicesTest, FUNC_DeleteRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -1024,7 +1024,7 @@ TEST_F(ServicesTest, BEH_FindNodes) {
   }
 }
 
-TEST_F(ServicesTest, BEH_FindValue) {
+TEST_F(ServicesTest, FUNC_FindValue) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -1304,7 +1304,7 @@ TEST_F(ServicesTest, BEH_Ping) {
   }
 }
 
-TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
+TEST_F(ServicesTest, FUNC_MultipleStoreRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1398,9 +1398,15 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
 
   // Store request from different senders (valid)
   EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  EXPECT_EQ(1U, GetSenderTaskSize());
+  // Sleep to allow task callback to execute and remove task.
+  Sleep(kNetworkDelay + kNetworkDelay);
   EXPECT_TRUE(DoStore(sender_id_2, k2_v1, crypto_key_data_2));
+  EXPECT_EQ(1U, GetSenderTaskSize());
+  // Sleep to allow task callback to execute and remove task.
+  Sleep(kNetworkDelay + kNetworkDelay);
   EXPECT_TRUE(DoStore(sender_id_3, k3_v1, crypto_key_data_3));
-  EXPECT_EQ(3U, GetSenderTaskSize());
+  EXPECT_EQ(1U, GetSenderTaskSize());
   JoinNetworkLookup(securifier_);
   EXPECT_EQ(3U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
@@ -1410,7 +1416,7 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleDeleteRequests) {
+TEST_F(ServicesTest, FUNC_MultipleDeleteRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1496,7 +1502,7 @@ TEST_F(ServicesTest, BEH_MultipleDeleteRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
+TEST_F(ServicesTest, FUNC_MultipleStoreRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1667,7 +1673,7 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleDeleteRefreshRequests) {
+TEST_F(ServicesTest, FUNC_MultipleDeleteRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1801,7 +1807,7 @@ TEST_F(ServicesTest, BEH_MultipleDeleteRefreshRequests) {
   }
 }
 
-TEST_F(ServicesTest, BEH_MultipleThreads) {
+TEST_F(ServicesTest, FUNC_MultipleThreads) {
   const size_t kNumberOfThreads(8);
   // Preparing data
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
