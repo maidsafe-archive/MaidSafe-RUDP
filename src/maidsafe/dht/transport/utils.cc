@@ -26,30 +26,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/dht/transport/utils.h"
-
-//  #include <ctype.h>
-//
-//  #include <algorithm>
-//  #include <limits>
-//  #include <string>
-//
-//  #ifdef __MSVC__
-//  #  pragma warning(push)
-//  #  pragma warning(disable: 4127)
-//  #endif
-//  #include "boost/date_time/posix_time/posix_time.hpp"
-//  #ifdef __MSVC__
-//  #  pragma warning(pop)
-//  #endif
-//  #include "boost/lexical_cast.hpp"
-//  #include "boost/scoped_array.hpp"
-//  #include "boost/thread/mutex.hpp"
-//
-//  #include "maidsafe/dht/cryptopp/integer.h"
-//  #include "maidsafe/dht/cryptopp/osrng.h"
-//  #include "maidsafe/dht/cryptopp/base32.h"
-//  #include "maidsafe/dht/cryptopp/base64.h"
-//  #include "maidsafe/dht/cryptopp/hex.h"
 #include "maidsafe/dht/log.h"
 #include "maidsafe/dht/transport/network_interface.h"
 
