@@ -646,6 +646,14 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // If DoLookupIteration didn't send any RPCs, this will hit -1.
   BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
+  // Make sure a node doesn't return kSuccess and no meaningful information
+  // unless the node is only the second to join the network
+  if (result == kSuccess && contacts.empty()
+                         && values.empty()
+                         && alternative_store == Contact()
+                         && lookup_args->lookup_contacts.size() > 1)
+    result = kGeneralError;
+
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
     lookup_args->downlist.insert(*this_peer);
