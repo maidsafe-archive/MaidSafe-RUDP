@@ -620,14 +620,14 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
         data_store_(),
         alternative_store_(),
         securifier_(new Securifier("", "", "")),
-        transport_(new MockTransport),
+        mock_transport_(new MockTransport),
         rank_info_(),
         asio_service_(),
         work_(new boost::asio::io_service::work(asio_service_)),
         thread_group_(),
         message_handler_(new MessageHandler(securifier_)),
         node_(new NodeImpl(asio_service_,
-                           transport_,
+                           mock_transport_,
                            message_handler_,
                            securifier_,
                            alternative_store_,
@@ -638,7 +638,7 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
                            bptime::seconds(3600))),
         threshold_((g_kKademliaK * 3) / 4),
         local_node_(new NodeImpl(asio_service_,
-                                 transport_,
+                                 mock_transport_,
                                  message_handler_,
                                  SecurifierPtr(new SecurifierValidateTrue(
                                                "", "", "")),
@@ -700,7 +700,7 @@ class MockNodeImplTest : public CreateContactAndNodeId, public testing::Test {
   std::shared_ptr<DataStore> data_store_;
   AlternativeStorePtr alternative_store_;
   SecurifierPtr securifier_;
-  TransportPtr transport_;
+  TransportPtr mock_transport_;
   RankInfoPtr rank_info_;
   boost::asio::io_service asio_service_;
   std::shared_ptr<boost::asio::io_service::work> work_;
@@ -748,7 +748,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
           std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                    new_rpcs, arg::_1))));
+                    new_rpcs.get(), arg::_1))));
   NodeId target_id = GenerateRandomId(node_id_, 498);
   {
     // All k populated contacts response with random closest list
@@ -768,6 +768,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     EXPECT_EQ(kFailedToGetContact, response_code);
     EXPECT_EQ(Contact(), result);
   }
+
   Contact target = ComposeContact(target_id, 5000);
   AddContact(routing_table_, target, rank_info_);
   {
@@ -781,7 +782,7 @@ TEST_F(MockNodeImplTest, BEH_GetContact) {
     EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcPingFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     node_->GetContact(target_id, std::bind(&GetContactCallback, arg::_1,
                                            arg::_2, &result, &cond_var_,
                                            &response_code, &done));
@@ -831,7 +832,7 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
     EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcPingFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     AddContact(routing_table_, new_contact, rank_info_);
 
     Contact result_new;
@@ -847,7 +848,7 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
     EXPECT_CALL(*new_rpcs, Ping(testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<2>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::NoResponse<RpcPingFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     AddContact(routing_table_, new_contact, rank_info_);
 
     Contact result_new;
@@ -877,14 +878,7 @@ TEST_F(MockNodeImplTest, BEH_Join) {
   new_rpcs->respond_contacts_ = temp;
   new_rpcs->SetCountersToZero();
 
-  int listen_attempts(0), listening_result(kGeneralError);
-  while (listen_attempts != 5 && listening_result != kSuccess) {
-    Port port((RandomUint32() % 64512) + 1024);
-    listening_result =
-        transport_->StartListening(transport::Endpoint("127.0.0.1", port));
-    ++listen_attempts;
-  }
-  ASSERT_EQ(kSuccess, listening_result);
+  mock_transport_->StartListening(transport::Endpoint("127.0.0.1", 1234));
 
   // When last contact in bootstrap_contacts is valid
   {
@@ -904,13 +898,13 @@ TEST_F(MockNodeImplTest, BEH_Join) {
                                      testing::_, testing::_))
         .WillOnce(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))))
+                      new_rpcs.get(), arg::_1))))
         .WillOnce(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))))
+                      new_rpcs.get(), arg::_1))))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done) {
       bool not_timed_out = cond_var_.timed_wait(unique_lock_, kTaskTimeout_);
@@ -942,7 +936,7 @@ TEST_F(MockNodeImplTest, BEH_Join) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done) {
       bool not_timed_out = cond_var_.timed_wait(unique_lock_, kTaskTimeout_);
@@ -975,13 +969,13 @@ TEST_F(MockNodeImplTest, BEH_Join) {
                                      testing::_, testing::_))
         .WillOnce(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))))
+                      new_rpcs.get(), arg::_1))))
         .WillOnce(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))))
+                      new_rpcs.get(), arg::_1))))
         .WillOnce(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done) {
       bool not_timed_out = cond_var_.timed_wait(unique_lock_, kTaskTimeout_);
@@ -1021,12 +1015,12 @@ TEST_F(MockNodeImplTest, BEH_Join) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     EXPECT_CALL(*new_rpcs, StoreRefresh(testing::_, testing::_, testing::_,
                                         testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::StoreRefreshCallback,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     node_->Join(node_id_, bootstrap_contacts, callback);
     while (!done) {
       bool not_timed_out = cond_var_.timed_wait(unique_lock_, kTaskTimeout_);
@@ -1073,7 +1067,7 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
           &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-          new_rpcs, arg::_1))));
+          new_rpcs.get(), arg::_1))));
   node_->Join(node_id_, bootstrap_contacts, callback);
   EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
   ASSERT_EQ(kSuccess, result);
@@ -1102,7 +1096,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindNodeNoResponse,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(key, std::bind(&FindNodeCallback, rank_info_, arg::_1,
                                     arg::_2, &mutex_, &cond_var_, &lcontacts,
@@ -1125,7 +1119,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindNodeFirstNoResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1148,7 +1142,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindNodeFirstAndLastNoResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1169,7 +1163,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindNodeResponseNoClose,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(key,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1197,7 +1191,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1234,7 +1228,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                  new_rpcs, arg::_1))));
+                  new_rpcs.get(), arg::_1))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1261,7 +1255,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<3, 4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindNodeRandomResponseClose,
-            new_rpcs, arg::_1, arg::_2))));
+            new_rpcs.get(), arg::_1, arg::_2))));
     std::vector<Contact> lcontacts;
     node_->FindNodes(target,
                      std::bind(&FindNodeCallback, rank_info_, arg::_1, arg::_2,
@@ -1319,7 +1313,7 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
           std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                    new_rpcs, arg::_1))));
+                    new_rpcs.get(), arg::_1))));
   std::string key_str(kKeySizeBytes, -1);
   NodeId key = NodeId(key_str);
   crypto::RsaKeyPair crypto_key_data;
@@ -1335,7 +1329,7 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1354,7 +1348,7 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                 testing::_, testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
           std::bind(&MockRpcs<transport::TcpTransport>::SingleDeleteResponse,
-                    new_rpcs, arg::_1, &cond_var_, g_kKademliaK))));
+                    new_rpcs.get(), arg::_1, &cond_var_, g_kKademliaK))));
   {
     // All k populated contacts response with random closest list
     // (not greater than k)
@@ -1365,7 +1359,8 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1398,7 +1393,8 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1432,7 +1428,8 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastLessNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                LastLessNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1456,13 +1453,15 @@ TEST_F(MockNodeImplTest, BEH_Store) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                      FindNodeSeveralResponseNoClose, new_rpcs, arg::_1))));
+                      FindNodeSeveralResponseNoClose, new_rpcs.get(),
+                      arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastLessNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                LastLessNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Store(key, kvs.value, kvs.signature, old_ttl, securifier_,
                  std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1499,7 +1498,7 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
           std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                    new_rpcs, arg::_1))));
+                    new_rpcs.get(), arg::_1))));
 
   std::string key_str(kKeySizeBytes, -1);
   NodeId key = NodeId(key_str);
@@ -1514,7 +1513,7 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1538,7 +1537,8 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastSeveralNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                LastSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(0);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1564,7 +1564,8 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                FirstSeveralNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                FirstSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1589,7 +1590,8 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastLessNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                LastLessNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1610,12 +1612,14 @@ TEST_F(MockNodeImplTest, BEH_Delete) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                      FindNodeSeveralResponseNoClose, new_rpcs, arg::_1))));
+                      FindNodeSeveralResponseNoClose, new_rpcs.get(),
+                      arg::_1))));
     EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastLessNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                LastLessNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Delete(key, kvs.value, kvs.signature, securifier_,
              std::bind(&ErrorCodeCallback, arg::_1, &cond_var_,
@@ -1652,7 +1656,7 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                    testing::_, testing::_))
       .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
           std::bind(&MockRpcs<transport::TcpTransport>::FindNodeResponseClose,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
 
   std::string key_str(kKeySizeBytes, -1);
   NodeId key = NodeId(key_str);
@@ -1669,13 +1673,13 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1700,13 +1704,14 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                FirstSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1733,13 +1738,14 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs, arg::_1))));
+                LastSeveralNoResponse<RpcStoreFunctor>, new_rpcs.get(),
+                arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1766,13 +1772,14 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                LastSeveralNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                LastSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1799,13 +1806,14 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                FirstSeveralNoResponse<RpcDeleteFunctor>, new_rpcs, arg::_1))));
+                FirstSeveralNoResponse<RpcDeleteFunctor>, new_rpcs.get(),
+                arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1830,18 +1838,19 @@ TEST_F(MockNodeImplTest, BEH_Update) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::
-                      FindNodeSeveralResponseNoClose, new_rpcs, arg::_1))));
+                      FindNodeSeveralResponseNoClose, new_rpcs.get(),
+                      arg::_1))));
     EXPECT_CALL(*new_rpcs, Delete(testing::_, testing::_, testing::_,
                                   testing::_, testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<5>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcDeleteFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     EXPECT_CALL(*new_rpcs, Store(testing::_, testing::_, testing::_,
                                  testing::_, testing::_, testing::_,
                                  testing::_))
         .WillRepeatedly(testing::WithArgs<6>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::Response<RpcStoreFunctor>,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     int response_code(-2);
     node_->Update(key, kvs_new.value, kvs_new.signature,
                   kvs.value, kvs.signature, old_ttl, securifier_,
@@ -1874,7 +1883,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNoResponse,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
@@ -1901,7 +1910,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueResponseCloseOnly,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
@@ -1931,7 +1940,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(
             std::bind(&MockRpcs<transport::TcpTransport>::FindValueNthResponse,
-                      new_rpcs, arg::_1))));
+                      new_rpcs.get(), arg::_1))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
@@ -1956,7 +1965,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
-            new_rpcs, arg::_1))));
+            new_rpcs.get(), arg::_1))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,
@@ -1982,7 +1991,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
                                      testing::_, testing::_))
         .WillRepeatedly(testing::WithArgs<4>(testing::Invoke(std::bind(
             &MockRpcs<transport::TcpTransport>::FindValueResponseCloseOnly,
-                new_rpcs, arg::_1))));
+                new_rpcs.get(), arg::_1))));
     FindValueReturns results;
     node_->FindValue(key, securifier_,
                      std::bind(&FindValueCallback, arg::_1, &cond_var_,

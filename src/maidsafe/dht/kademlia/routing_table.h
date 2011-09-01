@@ -198,9 +198,6 @@ struct ChangeLastSeen {
       return;
     }
 
-                                    if (routing_table_contact.contact.endpoint().port != contact.endpoint().port)
-                                      DLOG(INFO) << "\t\t\tCHANGING CONTACT'S PORT";
-
     routing_table_contact.last_seen = bptime::microsec_clock::universal_time();
     routing_table_contact.num_failed_rpcs = 0;
     transport::Endpoint preferred =
