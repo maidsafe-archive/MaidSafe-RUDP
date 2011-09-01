@@ -645,7 +645,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
   // If DoLookupIteration didn't send any RPCs, this will hit -1.
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -2);
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
