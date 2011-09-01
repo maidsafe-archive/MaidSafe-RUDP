@@ -64,6 +64,14 @@ class NodeImplTest : public testing::TestWithParam<bool> {
         far_key_() {}
 
   void SetUp() {
+    // Restart any stopped nodes.
+    for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
+      if (!env_->node_containers_[i]->node()->joined()) {
+        std::pair<Port, Port> port_range(8000, 65535);
+        EXPECT_EQ(kSuccess, env_->node_containers_[i]->Start(
+                  env_->node_containers_[i]->bootstrap_contacts(), port_range));
+      }
+    }
     test_container_->Init(3, SecurifierPtr(), MessageHandlerPtr(),
                           AlternativeStorePtr(), client_only_node_, env_->k_,
                           env_->alpha_, env_->beta_,
@@ -510,6 +518,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
                          far_key_, env_->node_ids_, env_->k_) &&
           env_->node_containers_[j]->node()->joined()) {
         env_->node_containers_[j]->node()->Leave(NULL);
+        DLOG(INFO) << "\t\tSTOPPED "
+                   << DebugId(env_->node_containers_[j]->node()->contact());
         break;
       }
     }
@@ -567,8 +577,11 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     test_container_->GetAndResetFindValueResult(
         &alternative_find_value_returns);
     EXPECT_TRUE(alternative_find_value_returns.values.empty());
-    EXPECT_EQ(alternative_find_value_returns.alternative_store_holder.node_id(),
-              alternative_container->node()->contact().node_id());
+    EXPECT_EQ(alternative_container->node()->contact().node_id(),
+        alternative_find_value_returns.alternative_store_holder.node_id())
+        << "Expected: " << DebugId(alternative_container->node()->contact())
+        << "\tFound: "
+        << DebugId(alternative_find_value_returns.alternative_store_holder);
     alternative_container->node()->Leave(&bootstrap_contacts_);
   }
 

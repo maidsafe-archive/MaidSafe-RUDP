@@ -29,7 +29,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/utils.h"
-#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 
@@ -71,9 +70,11 @@ int RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   auto it_node = key_indx.find(node_id);
   if (it_node != key_indx.end()) {
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
-    // will update the num_failed_rpcs to 0 as well
-    if (contacts_.modify(it_node,
-        ChangeLastSeen(bptime::microsec_clock::universal_time()))) {
+    // will update the num_failed_rpcs to 0 as well and update the IPs ports if
+    // changed.
+    if (contacts_.modify(it_node, ChangeLastSeen(contact))) {
+      DLOG(INFO) << kDebugId_ << ": Updated last seen time for "
+                 << DebugId(contact);
       return kSuccess;
     } else {
       DLOG(WARNING) << kDebugId_ << ": Failed to update last seen time for "

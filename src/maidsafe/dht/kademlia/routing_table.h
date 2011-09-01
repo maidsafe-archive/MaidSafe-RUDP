@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
+#include "maidsafe/dht/log.h"
 
 
 namespace bptime = boost::posix_time;
@@ -184,14 +185,38 @@ struct ChangeNumFailedRpc {
 };
 
 struct ChangeLastSeen {
-  explicit ChangeLastSeen(const bptime::ptime &new_last_seen)
-      : new_last_seen(new_last_seen) {}
+  explicit ChangeLastSeen(const Contact &contact_in) : contact(contact_in) {}
   // Anju: use nolint to satisfy multi-indexing
   void operator()(RoutingTableContact &routing_table_contact) {  // NOLINT
-    routing_table_contact.last_seen = new_last_seen;
+    if (routing_table_contact.contact.public_key() != contact.public_key()) {
+      DLOG(WARNING) << "Contacts have different public keys.";
+      return;
+    }
+    if (routing_table_contact.contact.public_key_id() !=
+        contact.public_key_id()) {
+      DLOG(WARNING) << "Contacts have different public key IDs.";
+      return;
+    }
+
+                                    if (routing_table_contact.contact.endpoint().port != contact.endpoint().port)
+                                      DLOG(INFO) << "\t\t\tCHANGING CONTACT'S PORT";
+
+    routing_table_contact.last_seen = bptime::microsec_clock::universal_time();
     routing_table_contact.num_failed_rpcs = 0;
+    transport::Endpoint preferred =
+       routing_table_contact.contact.PreferredEndpoint();
+    routing_table_contact.contact = Contact(contact.node_id(),
+                                            contact.endpoint(),
+                                            contact.local_endpoints(),
+                                            contact.rendezvous_endpoint(),
+                                            contact.tcp443endpoint().ip != IP(),
+                                            contact.tcp80endpoint().ip != IP(),
+                                            contact.public_key_id(),
+                                            contact.public_key(),
+                                            contact.other_info());
+    routing_table_contact.contact.SetPreferredEndpoint(preferred.ip);
   }
-  bptime::ptime new_last_seen;
+  Contact contact;
 };
 
 struct NodeIdTag;
