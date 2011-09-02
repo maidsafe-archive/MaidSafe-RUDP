@@ -127,8 +127,10 @@ void NodeImpl::Join(const NodeId &node_id,
         SecurifierPtr(new Securifier(node_id.String(), "", ""));
   }
 
-  rpcs_.reset(new Rpcs<transport::TcpTransport>(asio_service_,
-                                                default_securifier_));
+  if (!rpcs_) {
+    rpcs_.reset(new Rpcs<transport::TcpTransport>(asio_service_,
+                                                  default_securifier_));
+  }
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
   if (!client_only_node_) {
@@ -642,6 +644,7 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
                                      LookupArgsPtr lookup_args) {
   // It is only OK for a node to return no meaningful information if this is
   // the second to join the network (peer being the first)
+  boost::mutex::scoped_lock lock(lookup_args->mutex);
   bool second_node(false);
   if (result == kIterativeLookupFailed &&
       lookup_args->lookup_contacts.size() == 1) {
@@ -650,7 +653,6 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   }
 
   AsyncHandleRpcCallback(peer, rank_info, result);
-  boost::mutex::scoped_lock lock(lookup_args->mutex);
   auto this_peer(lookup_args->lookup_contacts.find(peer));
   --lookup_args->total_lookup_rpcs_in_flight;
   BOOST_ASSERT(lookup_args->total_lookup_rpcs_in_flight >= 0);
@@ -663,8 +665,6 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
-  // If DoLookupIteration didn't send any RPCs, this will hit -1.
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -679,6 +679,9 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
       SendDownlist(lookup_args->downlist);
     return;
   }
+
+  // If DoLookupIteration didn't send any RPCs, this will hit -1.
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If we should stop early (found value, or found single contact), do so.
   if (AbortLookup(result, values, contacts, alternative_store, peer,
@@ -1283,6 +1286,7 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
                               Contact peer,
                               UpdateArgsPtr update_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
+  boost::mutex::scoped_lock lock(update_args->mutex);
   --update_args->store_rpcs_in_flight;
   BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
 

@@ -178,9 +178,23 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
         num_of_deleted_(0),
         respond_(0),
         no_respond_(0),
+        last_response_(true),
         respond_contacts_(),
         target_id_(),
         threshold_((g_kKademliaK * 3) / 4) {}
+  MOCK_METHOD3_T(Ping, void(SecurifierPtr securifier,
+                            const Contact &peer,
+                            RpcPingFunctor callback));
+  MOCK_METHOD5_T(FindValue, void(const Key &key,
+                                 const uint16_t &nodes_requested,
+                                 SecurifierPtr securifier,
+                                 const Contact &peer,
+                                 RpcFindValueFunctor callback));
+  MOCK_METHOD5_T(FindNodes, void(const Key &key,
+                                 const uint16_t &nodes_requested,
+                                 SecurifierPtr securifier,
+                                 const Contact &peer,
+                                 RpcFindNodesFunctor callback));
   MOCK_METHOD7_T(Store, void(const Key &key,
                              const std::string &value,
                              const std::string &signature,
@@ -188,36 +202,24 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
                              SecurifierPtr securifier,
                              const Contact &peer,
                              RpcStoreFunctor callback));
-
-  MOCK_METHOD6_T(Delete, void(const Key &key,
-                              const std::string &value,
-                              const std::string &signature,
-                              SecurifierPtr securifier,
-                              const Contact &peer,
-                              RpcDeleteFunctor callback));
-
-  MOCK_METHOD5_T(FindNodes, void(const Key &key,
-                                 const uint16_t &nodes_requested,
-                                 SecurifierPtr securifier,
-                                 const Contact &peer,
-                                 RpcFindNodesFunctor callback));
-
-  MOCK_METHOD5_T(FindValue, void(const NodeId &key,
-                                 const uint16_t &nodes_requested,
-                                 const SecurifierPtr securifier,
-                                 const Contact &contact,
-                                 RpcFindValueFunctor callback));
-
-  MOCK_METHOD3_T(Ping, void(SecurifierPtr securifier,
-                            const Contact &peer,
-                            RpcPingFunctor callback));
-
   MOCK_METHOD5_T(StoreRefresh,
                  void(const std::string &serialised_store_request,
                       const std::string &serialised_store_request_signature,
                       SecurifierPtr securifier,
                       const Contact &peer,
                       RpcStoreRefreshFunctor callback));
+  MOCK_METHOD6_T(Delete, void(const Key &key,
+                              const std::string &value,
+                              const std::string &signature,
+                              SecurifierPtr securifier,
+                              const Contact &peer,
+                              RpcDeleteFunctor callback));
+  MOCK_METHOD5_T(DeleteRefresh,
+                 void(const std::string &serialised_delete_request,
+                 const std::string &serialised_delete_request_signature,
+                 SecurifierPtr securifier,
+                 const Contact &peer,
+                 RpcDeleteRefreshFunctor callback));
 
   void StoreRefreshThread(RpcStoreRefreshFunctor callback) {
     RankInfoPtr rank_info;
@@ -230,15 +232,17 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   }
   void FindNodeRandomResponseClose(const Contact &c,
                                    RpcFindNodesFunctor callback) {
-    int response_factor = RandomUint32() % 100;
     bool response(true);
-    if (response_factor < g_kRandomNoResponseRate)
-      response = false;
+    int response_factor = RandomUint32() % 100;
+    if (response_factor < g_kRandomNoResponseRate && last_response_ == true)
+      response = last_response_ = false;
+    else
+      last_response_ = true;
+
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock lock(node_list_mutex_);
     if (response) {
-      int elements = RandomUint32() % g_kKademliaK;
-      for (int n = 0; n < elements; ++n) {
+      for (int n = 0; n < g_kKademliaK; ++n) {
         int element = RandomUint32() % node_list_.size();
         // make sure the new one hasn't been set as down previously
         ContactsById key_indx = down_contacts_->get<NodeIdTag>();
@@ -249,8 +253,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
           auto it = key_indx.find(node_list_[element].node_id());
           if (it == key_indx.end()) {
             RoutingTableContact new_routing_table_contact(node_list_[element],
-                                                          target_id_,
-                                                          0);
+                                                          target_id_, 0);
             respond_contacts_->insert(new_routing_table_contact);
           }
         }
@@ -274,13 +277,11 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   void FindNodeResponseClose(RpcFindNodesFunctor callback) {
     std::vector<Contact> response_list;
     boost::mutex::scoped_lock lock(node_list_mutex_);
-    int elements = RandomUint32() % g_kKademliaK;
-    for (int n = 0; n < elements; ++n) {
+    for (int n = 0; n < g_kKademliaK; ++n) {
       int element = RandomUint32() % node_list_.size();
       response_list.push_back(node_list_[element]);
       RoutingTableContact new_routing_table_contact(node_list_[element],
-                                                    target_id_,
-                                                    0);
+                                                    target_id_, 0);
       respond_contacts_->insert(new_routing_table_contact);
     }
     Rpcs<TransportType>::asio_service_.post(
@@ -304,6 +305,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
           &MockRpcs<TransportType>::FindNodeNoResponseThread, this,
           callback, response_list));
     } else {
+      response_list.push_back(ComposeContact(NodeId(NodeId::kRandomId), 5000));
       Rpcs<TransportType>::asio_service_.post(
           std::bind(&MockRpcs<TransportType>::FindNodeResponseThread,
                     this, callback, response_list));
@@ -320,6 +322,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
           &MockRpcs<TransportType>::FindNodeNoResponseThread, this,
           callback, response_list));
     } else {
+      response_list.push_back(ComposeContact(NodeId(NodeId::kRandomId), 5000));
       Rpcs<TransportType>::asio_service_.post(
           std::bind(&MockRpcs<TransportType>::FindNodeResponseThread,
                     this, callback, response_list));
@@ -333,9 +336,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     // Use < (threshold_ - 2) since own contact is added to lookup shortlist
     // and will be considered as a valid closest contact.
     if (num_of_acquired_ < threshold_ - 2) {
-      NodeId id(NodeId::kRandomId);
-      Contact contact = ComposeContact(id, 5000);
-      response_list.push_back(contact);
+      response_list.push_back(ComposeContact(NodeId(NodeId::kRandomId), 5000));
       Rpcs<TransportType>::asio_service_.post(
           std::bind(&MockRpcs<TransportType>::FindNodeResponseThread,
                     this, callback, response_list));
@@ -356,8 +357,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
       int element = RandomUint32() % node_list_.size();
       response_list.push_back(node_list_[element]);
       RoutingTableContact new_routing_table_contact(node_list_[element],
-                                                    target_id_,
-                                                    0);
+                                                    target_id_, 0);
       respond_contacts_->insert(new_routing_table_contact);
     }
     Rpcs<TransportType>::asio_service_.post(
@@ -593,6 +593,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   uint16_t num_of_deleted_;
   uint16_t respond_;
   uint16_t no_respond_;
+  bool last_response_;
 
   std::shared_ptr<RoutingTableContactsContainer> respond_contacts_;
   std::shared_ptr<RoutingTableContactsContainer> down_contacts_;
@@ -808,7 +809,7 @@ TEST_F(MockNodeImplTest, BEH_ValidateContact) {
     do {
       routing_table_->GetContact(contact.node_id(), &result);
       Sleep(bptime::milliseconds(10));
-    } while ((result == Contact()) && (count++ < 100));
+    } while ((result == Contact()) && (count++ < 1000));
     EXPECT_EQ(contact, result);
   }
 }
@@ -840,7 +841,7 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
     do {
       routing_table_->GetContact(new_contact.node_id(), &result_new);
       Sleep(bptime::milliseconds(10));
-    } while ((result_new == Contact()) && (count++ < 100));
+    } while ((result_new == Contact()) && (count++ < 1000));
     EXPECT_EQ(Contact(), result_new);
   }
   {
@@ -856,13 +857,14 @@ TEST_F(MockNodeImplTest, BEH_PingOldestContact) {
     do {
       routing_table_->GetContact(new_contact.node_id(), &result_new);
       Sleep(bptime::milliseconds(10));
-    } while ((result_new == Contact()) && (count++ < 100));
+    } while ((result_new == Contact()) && (count++ < 1000));
     EXPECT_EQ(new_contact, result_new);
   }
 }
 
 TEST_F(MockNodeImplTest, BEH_Join) {
   bool done(false);
+  node_->joined_ = false;
   std::vector<Contact> bootstrap_contacts;
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
@@ -1082,8 +1084,7 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
 
 TEST_F(MockNodeImplTest, BEH_FindNodes) {
   bool done(false);
-  PopulateRoutingTable(g_kKademliaK *2, 500);
-  node_->joined_ = true;
+  PopulateRoutingTable(g_kKademliaK * 2, 500);
   std::shared_ptr<MockRpcs<transport::TcpTransport>> new_rpcs(
       new MockRpcs<transport::TcpTransport>(asio_service_, securifier_));
   new_rpcs->set_node_id(node_id_);
@@ -1249,7 +1250,7 @@ TEST_F(MockNodeImplTest, BEH_FindNodes) {
   done = false;
   new_rpcs->down_contacts_ = down_list;
   {
-    // All k populated contacts randomly response with random closest list
+    // All k populated contacts randomly respond with random closest list
     // (not greater than k)
     EXPECT_CALL(*new_rpcs, FindNodes(testing::_, testing::_, testing::_,
                                      testing::_, testing::_))

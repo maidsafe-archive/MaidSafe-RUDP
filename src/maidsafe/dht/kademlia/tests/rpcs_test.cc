@@ -367,7 +367,7 @@ TYPED_TEST_P(RpcsTest, FUNC_FindNodesEmptyRT) {
   this->StopAndReset();
 
   EXPECT_TRUE(contact_list.empty());
-  EXPECT_EQ(kSuccess, response_code);
+  EXPECT_EQ(kIterativeLookupFailed, response_code);
 }
 
 TYPED_TEST_P(RpcsTest, FUNC_FindNodesPopulatedRTnoNode) {
