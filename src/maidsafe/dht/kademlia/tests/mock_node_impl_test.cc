@@ -1071,7 +1071,13 @@ TEST_F(MockNodeImplTest, BEH_Leave) {
           &MockRpcs<transport::TcpTransport>::FindValueNoValueResponse,
           new_rpcs.get(), arg::_1))));
   node_->Join(node_id_, bootstrap_contacts, callback);
-  EXPECT_TRUE(cond_var_.timed_wait(unique_lock_, kTaskTimeout_));
+  while (!done) {
+    bool not_timed_out = cond_var_.timed_wait(unique_lock_, kTaskTimeout_);
+    if (!not_timed_out) {
+      done = true;
+    }
+    EXPECT_TRUE(not_timed_out);
+  }
   ASSERT_EQ(kSuccess, result);
   node_->Leave(NULL);
   ASSERT_FALSE(node_->joined());
