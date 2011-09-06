@@ -270,10 +270,15 @@ TEST_P(RoutingTableTest, BEH_SetValidated) {
 
   // Set the entry to in-valid
   routing_table_.SetValidated(contact_id, false);
+  ASSERT_EQ(0U, GetUnValidatedContactsContainer().size());
+  ASSERT_EQ(0U, GetContainer().size());
+
+  // Add the entry again
+  routing_table_.AddContact(contact, rank_info_);
   ASSERT_EQ(1U, GetUnValidatedContactsContainer().size());
   ASSERT_EQ(0U, GetContainer().size());
 
-  // Set the entry to in-valid again, this shall remove the entry
+  // Set the entry to in-valid, this shall remove the entry
   routing_table_.SetValidated(contact_id, false);
   ASSERT_EQ(0U, GetUnValidatedContactsContainer().size());
   ASSERT_EQ(0U, GetContainer().size());

@@ -802,9 +802,9 @@ TEST_F(ServicesTest, FUNC_DeleteRefresh) {
   }
   Clear();
   {
-    // Try to deleterefresh a validated tuple
-    // from empty datastore, but the routingtable already contains the sender
-    AddContact(routing_table_, sender, rank_info_);
+    // Try to deleterefresh a validated tuple from empty datastore, but the
+    // routingtable already contains the sender - should add the deleted value
+    AddContact(routing_table_, new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
 
@@ -812,9 +812,9 @@ TEST_F(ServicesTest, FUNC_DeleteRefresh) {
     service_->DeleteRefresh(info_, delete_refresh_request,
                             &delete_refresh_response, &time_out);
     EXPECT_TRUE(delete_refresh_response.result());
-    EXPECT_EQ(0U, GetSenderTaskSize());
+    EXPECT_EQ(1U, GetSenderTaskSize());
     JoinNetworkLookup(securifier_);
-    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
   }

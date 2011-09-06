@@ -379,10 +379,8 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRefreshRequest: {
-      if (message_signature.empty() &&
-          !securifier_->kSigningKeyId().empty())
-        return;
-      if (security_type != kAsymmetricEncrypt)
+      if ((security_type != (kSign | kAsymmetricEncrypt)) ||
+          (message_signature.empty() && !securifier_->kSigningKeyId().empty()))
         return;
       protobuf::DeleteRefreshRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {

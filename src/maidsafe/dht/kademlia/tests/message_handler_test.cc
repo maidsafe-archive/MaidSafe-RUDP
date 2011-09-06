@@ -427,7 +427,7 @@ class KademliaMessageHandlerTest: public testing::Test {
     wrap.Clear();
     wrap.set_msg_type(kStoreRefreshRequest);
     wrap.set_payload(sr_req.SerializeAsString());
-    messages.push_back(std::string(1, kAsymmetricEncrypt)
+    messages.push_back(std::string(1, kSignAndAsymEncrypt)
                        + wrap.SerializeAsString());
 
     wrap.Clear();
@@ -451,7 +451,7 @@ class KademliaMessageHandlerTest: public testing::Test {
     wrap.Clear();
     wrap.set_msg_type(kDeleteRefreshRequest);
     wrap.set_payload(dr_req.SerializeAsString());
-    messages.push_back(std::string(1, kAsymmetricEncrypt)
+    messages.push_back(std::string(1, kSignAndAsymEncrypt)
                        + wrap.SerializeAsString());
 
     wrap.Clear();
@@ -1278,7 +1278,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageStoreRefRqst) {  
   ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
-                                      kAsymmetricEncrypt,
+                                      kSignAndAsymEncrypt,
                                       message_signature, info,
                                       message_response, timeout);
   it = invoked_slots_->find(kStoreRefreshRequest);
@@ -1428,7 +1428,7 @@ TEST_F(KademliaMessageHandlerTest, BEH_ProcessSerialisedMessageDeleteRefRqst) { 
   ASSERT_EQ(0U, total);
 
   msg_hndlr_.ProcessSerialisedMessage(message_type, payload,
-                                      kAsymmetricEncrypt,
+                                      kSignAndAsymEncrypt,
                                       message_signature, info,
                                       message_response, timeout);
   it = invoked_slots_->find(kDeleteRefreshRequest);
@@ -1518,8 +1518,7 @@ TEST_F(KademliaMessageHandlerTest, FUNC_ThreadedMessageHandling) {
   }
 
   thg.join_all();
-  std::shared_ptr<std::map<MessageType,
-                  uint16_t>> slots = invoked_slots();
+  std::shared_ptr<std::map<MessageType, uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
     ASSERT_EQ(uint16_t(total_messages), (*it).second);
 }

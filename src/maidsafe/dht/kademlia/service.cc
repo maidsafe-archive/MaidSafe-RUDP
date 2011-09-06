@@ -470,16 +470,6 @@ void Service::DeleteRefresh(const transport::Info &info,
     return;
   }
 
-  std::vector<std::pair<std::string, std::string>> values;
-  if (datastore_->GetValues(ori_delete_request.key(), &values)) {
-    if (!crypto::AsymCheckSig(values[0].first, values[0].second,
-                              ori_delete_request.sender().public_key())) {
-      routing_table_->AddContact(FromProtobuf(request.sender()),
-                                 RankInfoPtr(new transport::Info(info)));
-      return;
-    }
-  }
-
   RequestAndSignature request_signature(request.serialised_delete_request(),
                           request.serialised_delete_request_signature());
   TaskCallback delete_refresh_cb = std::bind(&Service::DeleteRefreshCallback,
@@ -554,7 +544,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
   }
 
   if (datastore_->DeleteValue(key_value_signature, request_signature,
-                               is_refresh)) {
+                              is_refresh)) {
     return true;
   } else {
     DLOG(WARNING) << DebugId(node_contact_) << ": Failed to delete Kad value.";
