@@ -56,7 +56,7 @@ class NodeImplTest : public testing::TestWithParam<bool> {
   NodeImplTest()
       : env_(NodesEnvironment<NodeImpl>::g_environment()),
         kTimeout_(transport::kDefaultInitialTimeout +
-                  transport::kDefaultInitialTimeout * 10),
+                  transport::kDefaultInitialTimeout),
         client_only_node_(GetParam()),
         debug_msg_(client_only_node_ ? "Client node." : "Full node."),
         test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
