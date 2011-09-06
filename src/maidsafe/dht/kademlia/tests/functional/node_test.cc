@@ -643,18 +643,20 @@ TEST_F(NodeTest, FUNC_Update) {
   EXPECT_EQ(kSuccess, result);
 
   find_value_returns = FindValueReturns();
-  int counter(0);
-  do {
-    Sleep(kTimeout_/100);
-    ++counter;
+  {
     boost::mutex::scoped_lock lock(env_->mutex_);
     chosen_container_->FindValue(kKey, chosen_container_->securifier());
     EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
                 chosen_container_->wait_for_find_value_functor()));
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
-  } while ((find_value_returns.values.size() != 1U
-    && find_value_returns.values.front() != kAnotherValue)
-    || counter < 100);
+  }
+  int counter(0);
+  while ((find_value_returns.values.size() != 1U &&
+         find_value_returns.values.front() != kAnotherValue) ||
+         counter != 100) {
+    Sleep(kTimeout_ / 100);
+    ++counter;
+  }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
   ASSERT_EQ(1U, find_value_returns.values.size());
   EXPECT_EQ(kAnotherValue, find_value_returns.values.front());
