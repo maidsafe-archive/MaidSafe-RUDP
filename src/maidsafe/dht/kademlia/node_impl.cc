@@ -1332,7 +1332,11 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
   boost::mutex::scoped_lock lock(update_args->mutex);
   --update_args->store_rpcs_in_flight;
   BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
-
+  std::cout << "Successes so far: "
+  << update_args->store_successes
+  << " Store RPCs in flight: "
+  << update_args->store_rpcs_in_flight + 1
+  << std::endl;
   if (result == kSuccess && update_args->kSuccessThreshold <=
       update_args->store_successes + update_args->store_rpcs_in_flight) {
     ++update_args->store_successes;
@@ -1350,6 +1354,7 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
     BOOST_ASSERT(update_args->second_phase_rpcs_in_flight >= 0);
     if (update_args->kSuccessThreshold ==
         update_args->store_successes + update_args->store_rpcs_in_flight + 1) {
+      std::cout << "Probably the Store RPC" << std::endl;
       update_args->callback(kUpdateTooFewNodes);
     }
   }
@@ -1374,6 +1379,7 @@ void NodeImpl::HandleSecondPhaseCallback(int result, T args) {
           args->callback(kDeleteTooFewNodes);
           break;
         case LookupArgs::kUpdate:
+          std::cout << "Definitely the Delete RPC" << std::endl;
           args->callback(kUpdateTooFewNodes);
           break;
         default:
