@@ -304,17 +304,15 @@ void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {
     --(upper_bound_itr);  // Avoid potentially updating entries twice.
     for (;;) {
       bool end(itr == upper_bound_itr);
-#ifdef DEBUG
-      std::string debug_key =
-          EncodeToHex((*itr).key_value_signature.key).substr(0, 10);
-#endif
       if (index_by_refresh_time.modify(itr++,
           std::bind(&KeyValueTuple::set_refresh_time, arg::_1,
                     now + kRefreshInterval_))) {
-        DLOG(INFO) << debug_id_ << ": Successfully refreshed key " << debug_key;
+        DLOG(INFO) << debug_id_ << ": Successfully refreshed key "
+                   << EncodeToHex((*itr).key_value_signature.key).substr(0, 10);
       } else {
-        DLOG(WARNING) << debug_id_ << ": Failed to refresh key " << debug_key
-                      << " - modify failed.";
+        DLOG(WARNING) << debug_id_ << ": Failed to refresh key "
+            << EncodeToHex((*itr).key_value_signature.key).substr(0, 10)
+            << " - modify failed.";
       }
       if (end)
         break;
