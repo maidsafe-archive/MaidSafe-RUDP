@@ -1,5 +1,10 @@
-v0.31.03 (WIP)
+v0.31.04 (WIP)
 --------------
+
+
+
+v0.31.03
+--------
 
 * Bootstrap changed to accept empty bootstrap list, or a list containing only
   joining node's details.  These cause the node to create a new network.
@@ -7,6 +12,7 @@ v0.31.03 (WIP)
 * If node not joined, it now doesn't responds to incoming requests.
 * Significant rework of iterative lookup process.
 * Implemented Downlist functionality.
+* Implemented StoreRefresh and DeleteRefresh functionality.
 * FindValue now returns kSuccess only if the value was found.  If an alternative
   store holder was found, returns kFoundAlternativeStoreHolder.  If closest
   contacts are returned, kFailedToFindValue is returned.  These codes are >= 0.
@@ -23,3 +29,9 @@ v0.31.03 (WIP)
 * Changed Transport MessageHandler to handle uninitialised messages.
 * Changed Kademlia MessageHandler to handle uninitialised messages.
 * Added error logging to NodeImpl, SenderTask, and Kad Service.
+* Switched off reuse_address for TCP connections.
+* Removed DataStore for client-only nodes.
+* Routing Table now updates contacts' details if they change.
+* Better handling of second node joining existing network of one.
+* Various work on NodeContainer.
+* Various test fixes.
