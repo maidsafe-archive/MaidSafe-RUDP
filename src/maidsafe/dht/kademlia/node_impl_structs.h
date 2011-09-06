@@ -81,7 +81,9 @@ struct LookupArgs {
     kStore,
     kDelete,
     kUpdate,
-    kGetContact
+    kGetContact,
+    kStoreRefresh,
+    kDeleteRefresh
   };
   LookupArgs(OperationType operation_type,
              const NodeId &target,
@@ -244,6 +246,24 @@ struct GetContactArgs : public LookupArgs {
   GetContactFunctor callback;
 };
 
+struct RefreshArgs : public LookupArgs {
+  RefreshArgs(const LookupArgs::OperationType &op_type,
+              const NodeId &target,
+              const uint16_t &num_contacts_requested,
+              const OrderedContacts &close_contacts,
+              SecurifierPtr securifier,
+              const std::string &serialised_request,
+              const std::string &serialised_request_signature)
+      : LookupArgs(op_type, target, close_contacts, num_contacts_requested,
+                   securifier),
+        kSerialisedRequest(serialised_request),
+        kSerialisedRequestSignature(serialised_request_signature) {
+    BOOST_ASSERT(op_type == LookupArgs::kStoreRefresh ||
+                 op_type == LookupArgs::kDeleteRefresh);
+  }
+  const std::string kSerialisedRequest, kSerialisedRequestSignature;
+};
+
 typedef std::shared_ptr<LookupArgs> LookupArgsPtr;
 typedef std::shared_ptr<FindNodesArgs> FindNodesArgsPtr;
 typedef std::shared_ptr<FindValueArgs> FindValueArgsPtr;
@@ -251,6 +271,7 @@ typedef std::shared_ptr<StoreArgs> StoreArgsPtr;
 typedef std::shared_ptr<DeleteArgs> DeleteArgsPtr;
 typedef std::shared_ptr<UpdateArgs> UpdateArgsPtr;
 typedef std::shared_ptr<GetContactArgs> GetContactArgsPtr;
+typedef std::shared_ptr<RefreshArgs> RefreshArgsPtr;
 
 }  // namespace kademlia
 

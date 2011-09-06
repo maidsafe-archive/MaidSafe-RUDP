@@ -87,7 +87,7 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       kBeta_(beta),
       kMeanRefreshInterval_(mean_refresh_interval.is_special() ? 3600 :
                             mean_refresh_interval.total_seconds()),
-      kDataStoreCheckInterval_(bptime::seconds(10)),
+      kDataStoreCheckInterval_(bptime::seconds(1)),
       data_store_(),
       service_(),
       routing_table_(),
@@ -951,6 +951,12 @@ void NodeImpl::HandleCompletedLookup(
             kFailedToGetContact, Contact());
       break;
     }
+    case LookupArgs::kStoreRefresh:
+    case LookupArgs::kDeleteRefresh: {
+      InitiateRefreshPhase(std::static_pointer_cast<RefreshArgs>(lookup_args),
+                           closest_upper_bound, closest_count);
+      break;
+    }
     default: break;
   }
 }
@@ -1058,6 +1064,43 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
       ++update_args->second_phase_rpcs_in_flight;
     }
     ++itr;
+  }
+}
+
+void NodeImpl::InitiateRefreshPhase(
+    RefreshArgsPtr refresh_args,
+    LookupContacts::iterator closest_upper_bound,
+    const int &closest_count) {
+  if (closest_count == 0) {
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to get any contacts "
+                << "before refresh phase.";
+    return;
+  }
+  auto itr(refresh_args->lookup_contacts.begin());
+  bool this_node_within_closest(false);
+  while (itr != closest_upper_bound) {
+    if (!client_only_node_ && ((*itr).first == contact_)) {
+      this_node_within_closest = true;
+    } else {
+      if (refresh_args->kOperationType == LookupArgs::kStoreRefresh) {
+        rpcs_->StoreRefresh(refresh_args->kSerialisedRequest,
+                            refresh_args->kSerialisedRequestSignature,
+                            refresh_args->securifier, (*itr).first,
+                            std::bind(&NodeImpl::HandleRpcCallback, this,
+                                      (*itr).first, arg::_1, arg::_2));
+      } else {
+        rpcs_->DeleteRefresh(refresh_args->kSerialisedRequest,
+                             refresh_args->kSerialisedRequestSignature,
+                             refresh_args->securifier, (*itr).first,
+                             std::bind(&NodeImpl::HandleRpcCallback, this,
+                                       (*itr).first, arg::_1, arg::_2));
+      }
+    }
+    ++itr;
+  }
+  if (!this_node_within_closest) {
+    // TODO(Fraser#5#): 2011-09-02 - Remove k,v from data_store_, or move it to
+    //                               a cache store.
   }
 }
 
@@ -1389,33 +1432,16 @@ void NodeImpl::RefreshDataStore(const boost::system::error_code &error_code) {
 }
 
 void NodeImpl::RefreshData(const KeyValueTuple &key_value_tuple) {
-  FindNodes(NodeId(key_value_tuple.key()),
-            std::bind(&NodeImpl::RefreshDataFindNodesCallback, this, arg::_1,
-                      arg::_2, key_value_tuple));
-}
-
-void NodeImpl::RefreshDataFindNodesCallback(
-    int result,
-    std::vector<Contact> contacts,
-    const KeyValueTuple &key_value_tuple) {
-  if (result != kSuccess)
-    return;
-
-  for (auto it(contacts.begin()); it != contacts.end(); ++it) {
-    if ((*it).node_id() != contact_.node_id()) {
-      std::function<void(RankInfoPtr, const int&)> rpc_callback =
-          std::bind(&NodeImpl::HandleRpcCallback, this, *it, arg::_1, arg::_2);
-      if (key_value_tuple.deleted) {
-        rpcs_->DeleteRefresh(key_value_tuple.request_and_signature.first,
-                             key_value_tuple.request_and_signature.second,
-                             default_securifier_, *it, rpc_callback);
-      } else {
-        rpcs_->StoreRefresh(key_value_tuple.request_and_signature.first,
-                            key_value_tuple.request_and_signature.second,
-                            default_securifier_, *it, rpc_callback);
-      }
-    }
-  }
+  OrderedContacts close_contacts(
+      GetClosestContactsLocally(Key(key_value_tuple.key()), k_));
+  LookupArgs::OperationType op_type(key_value_tuple.deleted ?
+                                    LookupArgs::kDeleteRefresh :
+                                    LookupArgs::kStoreRefresh);
+  RefreshArgsPtr refresh_args(new RefreshArgs(op_type,
+      NodeId(key_value_tuple.key()), k_, close_contacts, default_securifier_,
+      key_value_tuple.request_and_signature.first,
+      key_value_tuple.request_and_signature.second));
+  StartLookup(refresh_args);
 }
 
 bool NodeImpl::NodeContacted(const int &code) {

@@ -331,8 +331,6 @@ void Service::StoreCallback(KeyValueSignature key_value_signature,
                             RequestAndSignature request_signature,
                             std::string public_key,
                             std::string public_key_validation) {
-  // no matter the store succeed or not, once validated, the sender shall
-  // always be add into the routing table
   if (ValidateAndStore(key_value_signature, request, info, request_signature,
                        public_key, public_key_validation, false))
     if (request.sender().node_id() != client_node_id_)
@@ -348,14 +346,6 @@ void Service::StoreRefreshCallback(KeyValueSignature key_value_signature,
                                    std::string public_key_validation) {
   protobuf::StoreRequest ori_store_request;
   ori_store_request.ParseFromString(request.serialised_store_request());
-  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
-                            public_key)) {
-    DLOG(WARNING) << DebugId(node_contact_) << ": Failed to validate "
-                  << "request_signature";
-    return;
-  }
-  // no matter the store succeed or not, once validated, the sender shall
-  // always be add into the routing table
   if (ValidateAndStore(key_value_signature, ori_store_request, info,
       request_signature, public_key, public_key_validation, true))
     if (request.sender().node_id() != client_node_id_)
@@ -375,7 +365,7 @@ bool Service::ValidateAndStore(const KeyValueSignature &key_value_signature,
                              request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
-                             request.key() ) ) {
+                             request.key())) {
     DLOG(WARNING) << DebugId(node_contact_) << ": Failed to validate Store "
                   << "request for kademlia value (is_refresh = "
                   << std::boolalpha << is_refresh << ")";
@@ -465,11 +455,6 @@ void Service::DeleteRefresh(const transport::Info &info,
     return;
   }
 
-  if (!datastore_->HasKey(ori_delete_request.key())) {
-    response->set_result(true);
-    return;
-  }
-
   // Check if same private key signs other values under same key in datastore
   KeyValueSignature key_value_signature(
       ori_delete_request.key(),
@@ -525,8 +510,6 @@ void Service::DeleteCallback(KeyValueSignature key_value_signature,
                              RequestAndSignature request_signature,
                              std::string public_key,
                              std::string public_key_validation) {
-  // no matter the store succeed or not, once validated, the sender shall
-  // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, request, info, request_signature,
                         public_key, public_key_validation, false))
     if (request.sender().node_id() != client_node_id_)
@@ -542,14 +525,6 @@ void Service::DeleteRefreshCallback(KeyValueSignature key_value_signature,
                                     std::string public_key_validation) {
   protobuf::DeleteRequest ori_delete_request;
   ori_delete_request.ParseFromString(request.serialised_delete_request());
-  if (!crypto::AsymCheckSig(request_signature.first, request_signature.second,
-                            public_key)) {
-    DLOG(WARNING) << DebugId(node_contact_) << ": Failed to validate "
-                  << "request_signature";
-    return;
-  }
-  // no matter the store succeed or not, once validated, the sender shall
-  // always be add into the routing table
   if (ValidateAndDelete(key_value_signature, ori_delete_request, info,
                         request_signature, public_key, public_key_validation,
                         true)) {
@@ -571,7 +546,7 @@ bool Service::ValidateAndDelete(const KeyValueSignature &key_value_signature,
                              request.sender().public_key_id(),
                              public_key,
                              public_key_validation,
-                             request.key() ) ) {
+                             request.key())) {
     DLOG(WARNING) << DebugId(node_contact_) << ": Failed to validate Delete "
                   << "request for kademlia value (is_refresh = "
                   << std::boolalpha << is_refresh << ")";

@@ -815,7 +815,7 @@ TEST_F(DataStoreTest, FUNC_Refresh) {
   for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
     key_value_index_->modify(it,
            std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
-                     (*it).expire_time, now + data_store_->refresh_interval(),
+                     (*it).expire_time, now + data_store_->kRefreshInterval(),
                      now, (*it).request_and_signature, (*it).deleted));
   }
   data_store_->Refresh(&returned_kvts);

@@ -63,6 +63,9 @@ class DataStoreTest;
 class ServicesTest;
 template <typename T>
 class RpcsTest;
+class NodeImplTest;
+class NodeImplTest_FUNC_StoreRefresh_Test;
+class NodeImplTest_FUNC_DeleteRefresh_Test;
 }
 
 struct KeyValueSignature {
@@ -175,7 +178,10 @@ class DataStore {
                  const RequestAndSignature &store_request_and_signature,
                  bool is_refresh);
   // Marks the key, value, signature as deleted.
-  // If the key and value doesn't already exist, the method returns true.
+  // If the key and value doesn't already exist, and is_refresh is true, the
+  // k,v,s is added, marked as deleted and the method returns true.
+  // If the key and value doesn't already exist, and is_refresh is false, no
+  // action is taken and the method returns true.
   // If the key and value already exists and is marked as deleted, the method
   // resets the value's refresh time only and returns true.
   // If the key and value already exists, is not marked as deleted, confirm time
@@ -199,7 +205,8 @@ class DataStore {
   // Refreshes datastore.  Values which have expired confirm times and which are
   // marked as deleted are removed from the datastore.  Values with expired
   // expire times are marked as deleted.  All values with expired refresh times
-  // (whether marked as deleted or not) are returned.
+  // (whether marked as deleted or not) are returned, and their refresh times
+  // updated.
   void Refresh(std::vector<KeyValueTuple> *key_value_tuples);
   // If a value already exists under key, this returns true if its existing
   // signature doesn't match the input one or cannot be validated using
@@ -207,12 +214,15 @@ class DataStore {
   bool DifferentSigner(const KeyValueSignature &key_value_signature,
                        const std::string &public_key,
                        std::shared_ptr<Securifier> securifier) const;
-  bptime::seconds refresh_interval() const;
+  bptime::seconds kRefreshInterval() const { return kRefreshInterval_; }
   void set_debug_id(const std::string &debug_id) { debug_id_ = debug_id; }
   friend class test::DataStoreTest;
   friend class test::ServicesTest;
   template <typename T>
   friend class test::RpcsTest;
+  friend class test::NodeImplTest;
+  friend class test::NodeImplTest_FUNC_StoreRefresh_Test;
+  friend class test::NodeImplTest_FUNC_DeleteRefresh_Test;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;
   typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
@@ -220,7 +230,7 @@ class DataStore {
   typedef boost::upgrade_to_unique_lock<boost::shared_mutex>
       UpgradeToUniqueLock;
   std::shared_ptr<KeyValueIndex> key_value_index_;
-  const bptime::seconds refresh_interval_;
+  const bptime::seconds kRefreshInterval_;
   mutable boost::shared_mutex shared_mutex_;
   std::string debug_id_;
 };

@@ -64,13 +64,16 @@ class NodeImplTest : public testing::TestWithParam<bool> {
         far_key_() {}
 
   void SetUp() {
-    // Restart any stopped nodes.
+    // Clear all DataStores and restart any stopped nodes.
     for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
       if (!env_->node_containers_[i]->node()->joined()) {
-        std::pair<Port, Port> port_range(8000, 65535);
-        EXPECT_EQ(kSuccess, env_->node_containers_[i]->Start(
-                  env_->node_containers_[i]->bootstrap_contacts(), port_range));
+        env_->node_containers_[i]->Join(
+            env_->node_containers_[i]->node()->contact().node_id(),
+            env_->node_containers_[i]->bootstrap_contacts());
       }
+      boost::unique_lock<boost::shared_mutex> lock(
+          GetDataStore(env_->node_containers_[i])->shared_mutex_);
+      GetDataStore(env_->node_containers_[i])->key_value_index_->clear();
     }
     test_container_->Init(3, SecurifierPtr(), MessageHandlerPtr(),
                           AlternativeStorePtr(), client_only_node_, env_->k_,
@@ -349,7 +352,7 @@ TEST_P(NodeImplTest, FUNC_FindNodes) {
 TEST_P(NodeImplTest, FUNC_Store) {
   std::string value = RandomString(RandomUint32() % 1024),
       value1 = RandomString(RandomUint32() % 1024);
-  bptime::time_duration duration(bptime::minutes(1));
+  bptime::time_duration duration(bptime::pos_infin);
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
   DLOG(INFO) << "Node " << test_node_index << " - "
@@ -475,7 +478,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
   const int kNumValues(4);
   for (int i = 0; i != kNumValues; ++i)
     values.push_back(RandomString(RandomUint32() % 1024));
-  bptime::time_duration duration(bptime::minutes(1));
+  bptime::time_duration duration(bptime::pos_infin);
   int result(kPendingResult);
   for (int i = 0; i != kNumValues; ++i) {
     result = kPendingResult;
@@ -672,7 +675,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
 TEST_P(NodeImplTest, FUNC_Delete) {
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
-  bptime::time_duration duration(bptime::minutes(1));
+  bptime::time_duration duration(bptime::pos_infin);
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
   boost::mutex::scoped_lock lock(env_->mutex_);
@@ -685,42 +688,63 @@ TEST_P(NodeImplTest, FUNC_Delete) {
               chosen_container->wait_for_delete_functor()));
 }
 
-TEST_P(NodeImplTest, FUNC_Update) {
+TEST_P(NodeImplTest, DISABLED_FUNC_Update) {
   FAIL() << "Not implemented.";
 }
 
 TEST_P(NodeImplTest, FUNC_StoreRefresh) {
-  Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
-  bptime::time_duration duration(bptime::seconds(20));
-  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
-  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
-  int result(kPendingResult);
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container->Store(key, value, "", duration,
-                            chosen_container->securifier());
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container->wait_for_store_functor()));
-    chosen_container->GetAndResetStoreResult(&result);
+  auto itr(env_->node_containers_.begin()), refresh_node(itr);
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      refresh_node = itr;
+      break;
+    }
   }
-  ASSERT_EQ(kSuccess, result);
+
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(10);
+
+  std::vector<std::string> values;
+  const int kNumValues(4);
+  for (int i = 0; i != kNumValues; ++i)
+    values.push_back(RandomString(RandomUint32() % 1024));
+  bptime::time_duration duration(bptime::pos_infin);
+  int result(kPendingResult);
+  for (int i = 0; i != kNumValues; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      test_container_->Store(far_key_, values[i], "", duration,
+                             test_container_->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                             test_container_->wait_for_store_functor()));
+      test_container_->GetAndResetStoreResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
+  }
+
+  // Assert test_container_ didn't store the value
+  if (!client_only_node_)
+    ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
 
   // Ensure k closest hold the value and tag the one to leave
-  auto itr(env_->node_containers_.begin()), node_to_leave(itr);
+  itr = env_->node_containers_.begin();
+  auto node_to_leave(itr);
   for (; itr != env_->node_containers_.end(); ++itr) {
-    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
                        env_->node_ids_, env_->k_)) {
-      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
       node_to_leave = itr;
     }
   }
   auto id_itr = std::find(env_->node_ids_.begin(), env_->node_ids_.end(),
                           (*node_to_leave)->node()->contact().node_id());
   ASSERT_NE(env_->node_ids_.end(), id_itr);
-  (*node_to_leave)->Stop(NULL);
-  env_->node_containers_.erase(node_to_leave);
-  env_->node_ids_.erase(id_itr);
+  (*node_to_leave)->node()->Leave(NULL);
+
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(3600);
 
   // Having set refresh time to 20 seconds, wait for 30 seconds
   Sleep(bptime::seconds(30));
@@ -728,59 +752,86 @@ TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   // If a refresh has happened, the current k closest should hold the value
   for (itr = env_->node_containers_.begin();
        itr != env_->node_containers_.end(); ++itr) {
-    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
-                       env_->node_ids_, env_->k_)) {
-      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_ + 1)) {
+      if (itr != node_to_leave)
+        EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
     }
   }
 }
 
 TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
-  Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
-  bptime::time_duration duration(bptime::seconds(20));
-  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
-  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
+  auto itr(env_->node_containers_.begin()), refresh_node(itr);
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      refresh_node = itr;
+      break;
+    }
+  }
 
-  // Store the value
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(10);
+
+  std::vector<std::string> values;
+  const int kNumValues(4);
+  for (int i = 0; i != kNumValues; ++i)
+    values.push_back(RandomString(RandomUint32() % 1024));
+  bptime::time_duration duration(bptime::pos_infin);
+
+  // Store the values
   int result(kPendingResult);
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container->Store(key, value, "", duration,
-                            chosen_container->securifier());
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container->wait_for_store_functor()));
-    chosen_container->GetAndResetStoreResult(&result);
+  for (int i = 0; i != kNumValues; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      test_container_->Store(far_key_, values[i], "", duration,
+                             test_container_->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                             test_container_->wait_for_store_functor()));
+      test_container_->GetAndResetStoreResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
   }
-  ASSERT_EQ(kSuccess, result);
 
-  // Delete the value
-  result = kPendingResult;
-  {
-    boost::mutex::scoped_lock lock(env_->mutex_);
-    chosen_container->Delete(key, value, "", chosen_container->securifier());
-    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
-                chosen_container->wait_for_delete_functor()));
-    chosen_container->GetAndResetStoreResult(&result);
+  // Assert test_container_ didn't store the value
+  if (!client_only_node_)
+    ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
+
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(10);
+
+  // Delete all but the last value
+  for (int i = 0; i != kNumValues - 1; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      test_container_->Delete(far_key_, values[i], "",
+                              test_container_->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  test_container_->wait_for_delete_functor()));
+      test_container_->GetAndResetDeleteResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
   }
-  ASSERT_EQ(kSuccess, result);
 
   // Ensure k closest hold the value (albeit marked as deleted) and tag the one
   // to leave
-  auto itr(env_->node_containers_.begin()), node_to_leave(itr);
+  itr = env_->node_containers_.begin();
+  auto node_to_leave(itr);
   for (; itr != env_->node_containers_.end(); ++itr) {
-    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
                        env_->node_ids_, env_->k_)) {
-      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
       node_to_leave = itr;
     }
   }
   auto id_itr = std::find(env_->node_ids_.begin(), env_->node_ids_.end(),
                           (*node_to_leave)->node()->contact().node_id());
   ASSERT_NE(env_->node_ids_.end(), id_itr);
-  (*node_to_leave)->Stop(NULL);
-  env_->node_containers_.erase(node_to_leave);
-  env_->node_ids_.erase(id_itr);
+  (*node_to_leave)->node()->Leave(NULL);
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(3600);
 
 
   // Having set refresh time to 20 seconds, wait for 30 seconds
@@ -790,14 +841,15 @@ TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   // (albeit marked as deleted)
   for (itr = env_->node_containers_.begin();
        itr != env_->node_containers_.end(); ++itr) {
-    if (WithinKClosest((*itr)->node()->contact().node_id(), key,
-                       env_->node_ids_, env_->k_)) {
-      EXPECT_TRUE(GetDataStore(*itr)->HasKey(key.String()));
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_ + 1)) {
+      if (itr != node_to_leave)
+        EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
     }
   }
 }
 
-TEST_P(NodeImplTest, FUNC_GetContact) {
+TEST_P(NodeImplTest, DISABLED_FUNC_GetContact) {
   FAIL() << "Not implemented.";
 }
 

@@ -345,6 +345,10 @@ class NodeImpl {
                            LookupContacts::iterator closest_upper_bound,
                            const int &closest_count);
 
+  void InitiateRefreshPhase(RefreshArgsPtr refresh_args,
+                            LookupContacts::iterator closest_upper_bound,
+                            const int &closest_count);
+
   void HandleStoreToSelf(StoreArgsPtr store_args);
 
   void HandleDeleteToSelf(DeleteArgsPtr delete_args);
@@ -393,10 +397,6 @@ class NodeImpl {
   void RefreshDataStore(const boost::system::error_code &error_code);
 
   void RefreshData(const KeyValueTuple &key_value_tuple);
-
-  void RefreshDataFindNodesCallback(int result,
-                                    std::vector<Contact> contacts,
-                                    const KeyValueTuple &key_value_tuple);
 
   /** returns true if the code conveys that the node has not been reached 
    *  @param[in] code  the code denoting the response type*/
