@@ -56,7 +56,7 @@ class NodeImplTest : public testing::TestWithParam<bool> {
   NodeImplTest()
       : env_(NodesEnvironment<NodeImpl>::g_environment()),
         kTimeout_(transport::kDefaultInitialTimeout +
-                  transport::kDefaultInitialTimeout),
+                  transport::kDefaultInitialTimeout * 10),
         client_only_node_(GetParam()),
         debug_msg_(client_only_node_ ? "Client node." : "Full node."),
         test_container_(new maidsafe::dht::kademlia::NodeContainer<NodeImpl>()),
@@ -673,6 +673,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
 }
 
 TEST_P(NodeImplTest, FUNC_Delete) {
+  int result(kPendingResult);
+  FindValueReturns find_value_returns;
   Key key(NodeId::kRandomId);
   std::string value = RandomString(RandomUint32() % 1024);
   bptime::time_duration duration(bptime::pos_infin);
@@ -683,9 +685,35 @@ TEST_P(NodeImplTest, FUNC_Delete) {
                           chosen_container->securifier());
   EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_store_functor()));
+  chosen_container->GetAndResetStoreResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
   chosen_container->Delete(key, value, "", chosen_container->securifier());
   EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_delete_functor()));
+  chosen_container->GetAndResetDeleteResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  chosen_container->FindValue(key, chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_find_value_functor()));
+  chosen_container->GetAndResetFindValueResult(&find_value_returns);
+  EXPECT_NE(kSuccess, find_value_returns.return_code);
+  // verify that the original storer can re-store the deleted value
+  result = kPendingResult;
+  chosen_container->Store(key, value, "", duration,
+                          chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_store_functor()));
+  chosen_container->GetAndResetStoreResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  chosen_container->FindValue(key, chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_find_value_functor()));
+  chosen_container->GetAndResetFindValueResult(&find_value_returns);
+  EXPECT_EQ(kSuccess, find_value_returns.return_code);
+  EXPECT_EQ(value, find_value_returns.values[0]);
 }
 
 TEST_P(NodeImplTest, DISABLED_FUNC_Update) {
