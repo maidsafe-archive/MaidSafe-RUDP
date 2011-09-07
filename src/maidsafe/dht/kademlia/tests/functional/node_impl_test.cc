@@ -688,8 +688,40 @@ TEST_P(NodeImplTest, FUNC_Delete) {
               chosen_container->wait_for_delete_functor()));
 }
 
-TEST_P(NodeImplTest, DISABLED_FUNC_Update) {
-  FAIL() << "Not implemented.";
+TEST_P(NodeImplTest, FUNC_Update) {
+  int result(kPendingResult);
+  std::string value = RandomString(RandomUint32() % 1024),
+      new_value = RandomString(RandomUint32() % 1024);
+  Key key(NodeId::kRandomId);
+  size_t values_size(5);
+  bptime::time_duration duration(bptime::pos_infin);
+  size_t test_node_index(RandomUint32() % env_->node_containers_.size());
+  //  verify updating fails for all but the original storer
+  NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Store(key, value, "", duration,
+                            chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_store_functor()));
+    chosen_container->GetAndResetStoreResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  for (size_t i = 0; i < env_->node_containers_.size(); ++i) {
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      env_->node_containers_[i]->Update(key, new_value, "", value, "",
+          duration, env_->node_containers_[i]->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_update_functor()));
+      env_->node_containers_[i]->GetAndResetUpdateResult(&result);
+    }
+    if (test_node_index == i)
+      EXPECT_EQ(kSuccess, result);
+    else
+      EXPECT_NE(kSuccess, result);
+  }
 }
 
 TEST_P(NodeImplTest, FUNC_StoreRefresh) {
