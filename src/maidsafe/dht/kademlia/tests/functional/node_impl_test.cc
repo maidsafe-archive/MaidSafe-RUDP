@@ -693,7 +693,6 @@ TEST_P(NodeImplTest, FUNC_Update) {
   std::string value = RandomString(RandomUint32() % 1024),
       new_value = RandomString(RandomUint32() % 1024);
   Key key(NodeId::kRandomId);
-  size_t values_size(5);
   bptime::time_duration duration(bptime::pos_infin);
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   //  verify updating fails for all but the original storer
