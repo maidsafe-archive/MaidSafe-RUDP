@@ -717,7 +717,7 @@ TEST_P(NodeImplTest, FUNC_Delete) {
 }
 
 TEST_P(NodeImplTest, FUNC_Update) {
-int result(kPendingResult);
+  int result(kPendingResult);
   FindValueReturns find_value_returns;
   std::string value = RandomString(RandomUint32() % 1000 + 24),
       new_value = RandomString(RandomUint32() % 1000 + 24);
