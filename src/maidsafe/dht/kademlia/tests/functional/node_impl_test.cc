@@ -673,8 +673,10 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
 }
 
 TEST_P(NodeImplTest, FUNC_Delete) {
+  int result(kPendingResult);
+  FindValueReturns find_value_returns;
   Key key(NodeId::kRandomId);
-  std::string value = RandomString(RandomUint32() % 1024);
+  std::string value = RandomString(RandomUint32() % 1000 + 24);
   bptime::time_duration duration(bptime::pos_infin);
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
   NodeContainerPtr chosen_container(env_->node_containers_[test_node_index]);
@@ -683,15 +685,42 @@ TEST_P(NodeImplTest, FUNC_Delete) {
                           chosen_container->securifier());
   EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_store_functor()));
+  chosen_container->GetAndResetStoreResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
   chosen_container->Delete(key, value, "", chosen_container->securifier());
   EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
               chosen_container->wait_for_delete_functor()));
+  chosen_container->GetAndResetDeleteResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  chosen_container->FindValue(key, chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_find_value_functor()));
+  chosen_container->GetAndResetFindValueResult(&find_value_returns);
+  EXPECT_NE(kSuccess, find_value_returns.return_code);
+  // verify that the original storer can re-store the deleted value
+  result = kPendingResult;
+  chosen_container->Store(key, value, "", duration,
+                          chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_store_functor()));
+  chosen_container->GetAndResetStoreResult(&result);
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  chosen_container->FindValue(key, chosen_container->securifier());
+  EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_find_value_functor()));
+  chosen_container->GetAndResetFindValueResult(&find_value_returns);
+  EXPECT_EQ(kSuccess, find_value_returns.return_code);
+  EXPECT_EQ(value, find_value_returns.values[0]);
 }
 
 TEST_P(NodeImplTest, FUNC_Update) {
-  int result(kPendingResult);
+int result(kPendingResult);
   FindValueReturns find_value_returns;
-  std::string value = RandomString(RandomUint32() % 1000 + 24);
+  std::string value = RandomString(RandomUint32() % 1000 + 24),
+      new_value = RandomString(RandomUint32() % 1000 + 24);
   Key key(NodeId::kRandomId);
   bptime::time_duration duration(bptime::pos_infin);
   size_t test_node_index(RandomUint32() % env_->node_containers_.size());
@@ -727,7 +756,107 @@ TEST_P(NodeImplTest, FUNC_Update) {
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
   EXPECT_EQ(value, find_value_returns.values[0]);
+
+  //  verify updating fails for all but the original storer
+  for (size_t i = 0; i < env_->node_containers_.size(); ++i) {
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      env_->node_containers_[i]->Update(key, new_value, "", value, "",
+          duration, env_->node_containers_[i]->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  env_->node_containers_[i]->wait_for_update_functor()));
+      env_->node_containers_[i]->GetAndResetUpdateResult(&result);
+    }
+    if (test_node_index == i)
+      EXPECT_EQ(kSuccess, result);
+    else
+      EXPECT_NE(kSuccess, result);
+  }
+
+  // verify updating a deleted key,value succeeds for original storing node
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Delete(key, new_value, "",
+                             chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+              chosen_container->wait_for_delete_functor()));
+    chosen_container->GetAndResetDeleteResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Update(key, value, "", new_value, "",
+        duration, chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_update_functor()));
+    chosen_container->GetAndResetUpdateResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->FindValue(key, chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_find_value_functor()));
+    chosen_container->GetAndResetFindValueResult(&find_value_returns);
+  }
+  EXPECT_EQ(kSuccess, find_value_returns.return_code);
+  EXPECT_EQ(value, find_value_returns.values[0]);
+
+  // verify single value is updated correctly out of multiple values
+  // stored under a key
+  std::vector<std::string> values;
+  size_t values_size(5);
+  for (size_t index = 0; index < values_size; ++index)
+     values.push_back(RandomString(RandomUint32() % 1000 + 24));
+  for (size_t index = 0; index < values_size; ++index) {
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      chosen_container->Store(key, values[index], "", duration,
+                              chosen_container->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                  chosen_container->wait_for_store_functor()));
+      chosen_container->GetAndResetStoreResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
+    result = kPendingResult;
+  }
+  size_t index = RandomUint32() % values_size;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->Update(key, new_value, "", values[index], "", duration,
+                             chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_update_functor()));
+    chosen_container->GetAndResetUpdateResult(&result);
+  }
+  EXPECT_EQ(kSuccess, result);
+  result = kPendingResult;
+  {
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    chosen_container->FindValue(key, chosen_container->securifier());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                chosen_container->wait_for_find_value_functor()));
+    chosen_container->GetAndResetFindValueResult(&find_value_returns);
+    EXPECT_EQ(kSuccess, find_value_returns.return_code);
+    EXPECT_NE(find_value_returns.values.end(),
+              std::find(find_value_returns.values.begin(),
+                        find_value_returns.values.end(), new_value));
+    EXPECT_EQ(find_value_returns.values.end(),
+              std::find(find_value_returns.values.begin(),
+                        find_value_returns.values.end(), values[index]));
+    for (size_t i = 0; i < values_size; ++i) {
+      if (i != index) {
+        EXPECT_NE(find_value_returns.values.end(),
+                  std::find(find_value_returns.values.begin(),
+                            find_value_returns.values.end(), values[i]));
+      }
+    }
+  }
 }
+
 
 TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   auto itr(env_->node_containers_.begin()), refresh_node(itr);
