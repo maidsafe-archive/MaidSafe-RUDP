@@ -1333,17 +1333,20 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
   boost::mutex::scoped_lock lock(update_args->mutex);
   --update_args->store_rpcs_in_flight;
   BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
-
   if (result == kSuccess && update_args->kSuccessThreshold <=
       update_args->store_successes + update_args->store_rpcs_in_flight) {
     ++update_args->store_successes;
-    rpcs_->Delete(update_args->kTarget,
-                  update_args->kOldValue,
-                  update_args->kOldSignature,
-                  update_args->securifier,
-                  peer,
-                  std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
-                            peer, update_args));
+    if (update_args->kOldValue != update_args->kNewValue)
+      rpcs_->Delete(update_args->kTarget,
+                    update_args->kOldValue,
+                    update_args->kOldSignature,
+                    update_args->securifier,
+                    peer,
+                    std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
+                              peer, update_args));
+    else
+      HandleSecondPhaseCallback<UpdateArgsPtr>(result,
+          std::static_pointer_cast<UpdateArgs>(update_args));
   } else {
     // Decrement second_phase_rpcs_in_flight (representing the subsequent Delete
     // RPC) to avoid the DeleteCallback finishing early.
