@@ -1333,6 +1333,7 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
   boost::mutex::scoped_lock lock(update_args->mutex);
   --update_args->store_rpcs_in_flight;
   BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
+
   if (result == kSuccess && update_args->kSuccessThreshold <=
       update_args->store_successes + update_args->store_rpcs_in_flight) {
     ++update_args->store_successes;
