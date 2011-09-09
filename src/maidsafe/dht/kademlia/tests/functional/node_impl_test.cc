@@ -857,7 +857,6 @@ TEST_P(NodeImplTest, FUNC_Update) {
   }
 }
 
-
 TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   auto itr(env_->node_containers_.begin()), refresh_node(itr);
   for (; itr != env_->node_containers_.end(); ++itr) {

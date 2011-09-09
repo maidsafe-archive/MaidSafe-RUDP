@@ -1235,6 +1235,11 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   }
   ++update_args->store_successes;
 
+  if (update_args->kOldValue == update_args->kNewValue) {
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kSuccess, update_args);
+    return;
+  }
+
   // Check the old signature validates with this node's public key
   if (!default_securifier_->Validate(update_args->kOldValue,
                                      update_args->kOldSignature, "",
