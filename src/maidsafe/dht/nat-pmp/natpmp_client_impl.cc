@@ -282,11 +282,10 @@ void NatPmpClientImpl::HandleReceiveFrom(const boost::system::error_code & ec,
   if (ec == boost::asio::error::operation_aborted) {
     // ...
   } else if (ec) {
-#if NDEBUG
+#ifdef NDEBUG
     DLOG(ERROR) << Protocol::StringFromOpcode(Protocol::kErrorReceiveFrom) <<
         " : " << ec.message();
-#endif
-#ifndef NDEBUG
+#else
     DLOG(ERROR) << "No NAT-PMP compatible gateway found, calling stop.";
 #endif
     // Call stop.

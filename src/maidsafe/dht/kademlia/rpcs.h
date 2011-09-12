@@ -133,7 +133,7 @@ class Rpcs {
       const std::string &serialised_store_request_signature,
       SecurifierPtr securifier,
       const Contact &peer,
-      RpcStoreFunctor callback);
+      RpcStoreRefreshFunctor callback);
   virtual void Delete(const Key &key,
                       const std::string &value,
                       const std::string &signature,
@@ -145,7 +145,7 @@ class Rpcs {
       const std::string &serialised_delete_request_signature,
       SecurifierPtr securifier,
       const Contact &peer,
-      RpcDeleteFunctor callback);
+      RpcDeleteRefreshFunctor callback);
   virtual void Downlist(const std::vector<NodeId> &node_ids,
                         SecurifierPtr securifier,
                         const Contact &peer);
@@ -627,11 +627,15 @@ void Rpcs<TransportType>::FindNodesCallback(
       return;
     }
 
-    for (int i = 0; i < response.closest_nodes_size(); ++i)
-      contacts.push_back(FromProtobuf(response.closest_nodes(i)));
-
-    callback(RankInfoPtr(new transport::Info(info)), transport_condition,
-                         contacts);
+    if (response.closest_nodes_size() != 0) {
+      for (int i = 0; i < response.closest_nodes_size(); ++i)
+        contacts.push_back(FromProtobuf(response.closest_nodes(i)));
+      callback(RankInfoPtr(new transport::Info(info)), transport::kSuccess,
+               contacts);
+      return;
+    }
+    callback(RankInfoPtr(new transport::Info(info)), kIterativeLookupFailed,
+             contacts);
   }
 }
 

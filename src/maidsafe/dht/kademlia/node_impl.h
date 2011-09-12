@@ -306,6 +306,7 @@ class NodeImpl {
                    const std::vector<Contact> &contacts,
                    const Contact &alternative_store,
                    const Contact &peer,
+                   bool second_node,
                    LookupArgsPtr lookup_args);
 
   LookupContacts::iterator GetShortlistUpperBound(LookupArgsPtr lookup_args);
@@ -343,6 +344,10 @@ class NodeImpl {
   void InitiateUpdatePhase(UpdateArgsPtr update_args,
                            LookupContacts::iterator closest_upper_bound,
                            const int &closest_count);
+
+  void InitiateRefreshPhase(RefreshArgsPtr refresh_args,
+                            LookupContacts::iterator closest_upper_bound,
+                            const int &closest_count);
 
   void HandleStoreToSelf(StoreArgsPtr store_args);
 
@@ -392,10 +397,6 @@ class NodeImpl {
   void RefreshDataStore(const boost::system::error_code &error_code);
 
   void RefreshData(const KeyValueTuple &key_value_tuple);
-
-  void RefreshDataFindNodesCallback(int result,
-                                    std::vector<Contact> contacts,
-                                    const KeyValueTuple &key_value_tuple);
 
   /** returns true if the code conveys that the node has not been reached 
    *  @param[in] code  the code denoting the response type*/
@@ -489,7 +490,7 @@ class NodeImpl {
   /** Kademlia beta parameter to define how many contacts are required to have
    *  responded in a lookup iteration before starting a new iteration */
   const uint16_t kBeta_;
-  const bptime::seconds kMeanRefreshInterval_;
+  const bptime::seconds kMeanRefreshInterval_, kDataStoreCheckInterval_;
   std::shared_ptr<DataStore> data_store_;
   std::shared_ptr<Service> service_;
   std::shared_ptr<RoutingTable> routing_table_;

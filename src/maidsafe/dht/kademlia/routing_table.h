@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/node_id.h"
+#include "maidsafe/dht/log.h"
 
 
 namespace bptime = boost::posix_time;
@@ -184,14 +185,35 @@ struct ChangeNumFailedRpc {
 };
 
 struct ChangeLastSeen {
-  explicit ChangeLastSeen(const bptime::ptime &new_last_seen)
-      : new_last_seen(new_last_seen) {}
+  explicit ChangeLastSeen(const Contact &contact_in) : contact(contact_in) {}
   // Anju: use nolint to satisfy multi-indexing
   void operator()(RoutingTableContact &routing_table_contact) {  // NOLINT
-    routing_table_contact.last_seen = new_last_seen;
+    if (routing_table_contact.contact.public_key() != contact.public_key()) {
+      DLOG(WARNING) << "Contacts have different public keys.";
+      return;
+    }
+    if (routing_table_contact.contact.public_key_id() !=
+        contact.public_key_id()) {
+      DLOG(WARNING) << "Contacts have different public key IDs.";
+      return;
+    }
+
+    routing_table_contact.last_seen = bptime::microsec_clock::universal_time();
     routing_table_contact.num_failed_rpcs = 0;
+    transport::Endpoint preferred =
+       routing_table_contact.contact.PreferredEndpoint();
+    routing_table_contact.contact = Contact(contact.node_id(),
+                                            contact.endpoint(),
+                                            contact.local_endpoints(),
+                                            contact.rendezvous_endpoint(),
+                                            contact.tcp443endpoint().ip != IP(),
+                                            contact.tcp80endpoint().ip != IP(),
+                                            contact.public_key_id(),
+                                            contact.public_key(),
+                                            contact.other_info());
+    routing_table_contact.contact.SetPreferredEndpoint(preferred.ip);
   }
-  bptime::ptime new_last_seen;
+  Contact contact;
 };
 
 struct NodeIdTag;
@@ -319,8 +341,6 @@ class RoutingTable {
   int GetContact(const NodeId &node_id, Contact *contact);
   /** Finds a number of known nodes closest to the target node in the current
    *  routing table.
-   *  NOTE: unless for special purpose, the target shall be considered to be
-   *  always put into the exclude_contacts list.
    *  @param[in] target_id The Kademlia ID of the target node.
    *  @param[in] count Number of closest nodes looking for.
    *  @param[in] exclude_contacts List of contacts that shall be excluded.
@@ -469,9 +489,8 @@ class RoutingTable {
   /** Signal to be fired when adding a new contact. The contact will be added
    *  into the routing table directly, but having the Validated tag to be false.
    *  The new added contact will be passed as signal signature. Slot should
-   *  validate the contact (looking for its public_key and public_key_sig in
-   *  KAD network, then to validate), then set the corresponding Validated tag
-   *  in the routing table or to remove the contact from the routing table, if
+   *  validate the contact, then set the corresponding Validated tag in the
+   *  routing table or to remove the contact from the routing table, if
    *  validation failed. */
   ValidateContactPtr validate_contact_;
   /** Signal to be fired when we receive notification that a contact we hold is

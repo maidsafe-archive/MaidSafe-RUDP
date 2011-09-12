@@ -87,7 +87,8 @@ NodeImpl::NodeImpl(AsioService &asio_service,                 // NOLINT (Fraser)
       kBeta_(beta),
       kMeanRefreshInterval_(mean_refresh_interval.is_special() ? 3600 :
                             mean_refresh_interval.total_seconds()),
-      data_store_(new DataStore(kMeanRefreshInterval_)),
+      kDataStoreCheckInterval_(bptime::seconds(1)),
+      data_store_(),
       service_(),
       routing_table_(),
       rpcs_(),
@@ -127,8 +128,8 @@ void NodeImpl::Join(const NodeId &node_id,
   }
 
   if (!rpcs_) {
-    rpcs_ = std::shared_ptr<Rpcs<transport::TcpTransport>>(   // NOLINT (Fraser)
-        new Rpcs<transport::TcpTransport>(asio_service_, default_securifier_));
+    rpcs_.reset(new Rpcs<transport::TcpTransport>(asio_service_,
+                                                  default_securifier_));
   }
 
   // TODO(Fraser#5#): 2011-07-08 - Need to update code for local endpoints.
@@ -156,13 +157,11 @@ void NodeImpl::Join(const NodeId &node_id,
     rpcs_->set_contact(FromProtobuf(proto_contact));
   }
 
-  if (!routing_table_) {
-    routing_table_.reset(new RoutingTable(node_id, k_));
-    // Connect the slots to the routing table signals.
-    ConnectPingOldestContact();
-    ConnectValidateContact();
-    ConnectPingDownContact();
-  }
+  routing_table_.reset(new RoutingTable(node_id, k_));
+  // Connect the slots to the routing table signals.
+  ConnectPingOldestContact();
+  ConnectValidateContact();
+  ConnectPingDownContact();
 
   if (bootstrap_contacts.empty()) {
     // This is the first node on the network.
@@ -222,16 +221,17 @@ void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
 void NodeImpl::JoinSucceeded(JoinFunctor callback) {
   joined_ = true;
   if (!client_only_node_) {
+    data_store_.reset(new DataStore(kMeanRefreshInterval_));
     service_.reset(new Service(routing_table_, data_store_,
                                alternative_store_, default_securifier_, k_));
     service_->set_node_joined(true);
     service_->set_node_contact(contact_);
     service_->ConnectToSignals(message_handler_);
-    refresh_data_store_timer_.expires_from_now(bptime::seconds(10));
+    refresh_data_store_timer_.expires_from_now(kDataStoreCheckInterval_);
     refresh_data_store_timer_.async_wait(
         std::bind(&NodeImpl::RefreshDataStore, this, arg::_1));
+    data_store_->set_debug_id(DebugId(contact_));
   }
-  data_store_->set_debug_id(DebugId(contact_));
   callback(kSuccess);
 }
 
@@ -551,6 +551,17 @@ void NodeImpl::GetBootstrapContacts(std::vector<Contact> *contacts) {
   if (!contacts)
     return;
   routing_table_->GetBootstrapContacts(contacts);
+
+  // Allow time to validate and add the first node on the network in the case
+  // where this node is the second.
+  int attempts(0);
+  const int kMaxAttempts(50);
+  while (attempts != kMaxAttempts && contacts->empty()) {
+    Sleep(bptime::milliseconds(100));
+    routing_table_->GetBootstrapContacts(contacts);
+    ++attempts;
+  }
+
   if (contacts->empty())
     contacts->push_back(contact_);
 }
@@ -631,21 +642,29 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
                                      const Contact &alternative_store,
                                      Contact peer,
                                      LookupArgsPtr lookup_args) {
-  AsyncHandleRpcCallback(peer, rank_info, result);
+  // It is only OK for a node to return no meaningful information if this is
+  // the second to join the network (peer being the first)
   boost::mutex::scoped_lock lock(lookup_args->mutex);
+  bool second_node(false);
+  if (result == kIterativeLookupFailed &&
+      lookup_args->lookup_contacts.size() == 1) {
+    result = kSuccess;
+    second_node = true;
+  }
+
+  AsyncHandleRpcCallback(peer, rank_info, result);
   auto this_peer(lookup_args->lookup_contacts.find(peer));
   --lookup_args->total_lookup_rpcs_in_flight;
   BOOST_ASSERT(lookup_args->total_lookup_rpcs_in_flight >= 0);
   if (this_peer == lookup_args->lookup_contacts.end()) {
-    DLOG(ERROR) << "Can't find " << DebugId(peer) << " in lookup args.";
+    DLOG(ERROR) << DebugId(contact_) << ": Can't find " << DebugId(peer)
+                << " in lookup args.";
     return;
   }
 
   // Note - if the RPC isn't from this iteration, it will be marked as kDelayed.
   if ((*this_peer).second.rpc_state == ContactInfo::kSent)
     --lookup_args->rpcs_in_flight_for_current_iteration;
-  // If DoLookupIteration didn't send any RPCs, this will hit -1.
-  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If the RPC returned an error, move peer to the downlist.
   if (FindResultError(result)) {
@@ -661,9 +680,12 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
     return;
   }
 
+  // If DoLookupIteration didn't send any RPCs, this will hit -1.
+  BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
+
   // If we should stop early (found value, or found single contact), do so.
   if (AbortLookup(result, values, contacts, alternative_store, peer,
-                  lookup_args))
+                  second_node, lookup_args))
     return;
 
   // Handle result if RPC was successful.
@@ -708,6 +730,9 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
           InsertCloseContacts(close_contacts, lookup_args,
                               lookup_args->lookup_contacts.end());
       lookup_args->lookup_phase_complete = false;
+    } else {
+      DLOG(WARNING) << DebugId(contact_) << ": Lookup is returning only "
+                    << shortlist_ok_count << " contacts (k is " << k_ << ").";
     }
   }
 
@@ -733,12 +758,21 @@ bool NodeImpl::AbortLookup(int result,
                            const std::vector<Contact> &contacts,
                            const Contact &alternative_store,
                            const Contact &peer,
+                           bool second_node,
                            LookupArgsPtr lookup_args) {
   if (lookup_args->kOperationType == LookupArgs::kFindValue) {
     // If the value was returned, or the peer claimed to have the value in its
     // alternative store, we're finished with the lookup.
-    if (result == kSuccess || result == kFoundAlternativeStoreHolder) {
-      BOOST_ASSERT(!values.empty() || alternative_store == peer);
+    if (result == kSuccess || result == kFoundAlternativeStoreHolder ||
+        second_node) {
+#ifdef DEBUG
+      if (second_node) {
+        BOOST_ASSERT(values.empty() && contacts.empty() &&
+                     alternative_store == Contact());
+      } else {
+        BOOST_ASSERT(!values.empty() || alternative_store == peer);
+      }
+#endif
       FindValueReturns find_value_returns(result, values, contacts,
                                           alternative_store,
                                           lookup_args->cache_candidate);
@@ -809,6 +843,15 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
     if (this_peer != lookup_args->lookup_contacts.end())
       contact_info = ContactInfo((*this_peer).first);
     for (;;) {
+      if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
+        while (new_contacts_itr != contacts.end()) {
+          insertion_point = lookup_args->lookup_contacts.insert(
+              insertion_point, std::make_pair(*new_contacts_itr++,
+                                              contact_info));
+        }
+        break;
+      }
+
       if ((*existing_contacts_itr).first < *new_contacts_itr) {
         insertion_point = existing_contacts_itr++;
       } else if (*new_contacts_itr < (*existing_contacts_itr).first) {
@@ -821,15 +864,6 @@ LookupContacts::iterator NodeImpl::InsertCloseContacts(
               (*this_peer).first);
         }
         ++new_contacts_itr;
-      }
-
-      if (existing_contacts_itr == lookup_args->lookup_contacts.end()) {
-        while (new_contacts_itr != contacts.end()) {
-          insertion_point = lookup_args->lookup_contacts.insert(
-              insertion_point, std::make_pair(*new_contacts_itr++,
-                                              contact_info));
-        }
-        break;
       }
 
       if (new_contacts_itr == contacts.end())
@@ -917,6 +951,12 @@ void NodeImpl::HandleCompletedLookup(
             kFailedToGetContact, Contact());
       break;
     }
+    case LookupArgs::kStoreRefresh:
+    case LookupArgs::kDeleteRefresh: {
+      InitiateRefreshPhase(std::static_pointer_cast<RefreshArgs>(lookup_args),
+                           closest_upper_bound, closest_count);
+      break;
+    }
     default: break;
   }
 }
@@ -926,10 +966,12 @@ void NodeImpl::InitiateStorePhase(StoreArgsPtr store_args,
                                   const int &closest_count) {
   if (closest_count < store_args->kSuccessThreshold) {
     if (closest_count == 0) {
-      DLOG(ERROR) << "Failed to get any contacts before store phase.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get any contacts "
+                  << "before store phase.";
       store_args->callback(kIterativeLookupFailed);
     } else {
-      DLOG(ERROR) << "Failed to get enough contacts to initiate store.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get enough contacts "
+                  << "to initiate store.";
       store_args->callback(kFoundTooFewNodes);
     }
     return;
@@ -958,10 +1000,12 @@ void NodeImpl::InitiateDeletePhase(DeleteArgsPtr delete_args,
                                    const int &closest_count) {
   if (closest_count < delete_args->kSuccessThreshold) {
     if (closest_count == 0) {
-      DLOG(ERROR) << "Failed to get any contacts before delete phase.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get any contacts "
+                  << "before delete phase.";
       delete_args->callback(kIterativeLookupFailed);
     } else {
-      DLOG(ERROR) << "Failed to get enough contacts to initiate delete.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get enough contacts "
+                  << "to initiate delete.";
       delete_args->callback(kFoundTooFewNodes);
     }
     return;
@@ -989,10 +1033,12 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
                                    const int &closest_count) {
   if (closest_count < update_args->kSuccessThreshold) {
     if (closest_count == 0) {
-      DLOG(ERROR) << "Failed to get any contacts before update phase.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get any contacts "
+                  << "before update phase.";
       update_args->callback(kIterativeLookupFailed);
     } else {
-      DLOG(ERROR) << "Failed to get enough contacts to initiate update.";
+      DLOG(ERROR) << DebugId(contact_) << ": Failed to get enough contacts "
+                  << "to initiate update.";
       update_args->callback(kFoundTooFewNodes);
     }
     return;
@@ -1021,6 +1067,43 @@ void NodeImpl::InitiateUpdatePhase(UpdateArgsPtr update_args,
   }
 }
 
+void NodeImpl::InitiateRefreshPhase(
+    RefreshArgsPtr refresh_args,
+    LookupContacts::iterator closest_upper_bound,
+    const int &closest_count) {
+  if (closest_count == 0) {
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to get any contacts "
+                << "before refresh phase.";
+    return;
+  }
+  auto itr(refresh_args->lookup_contacts.begin());
+  bool this_node_within_closest(false);
+  while (itr != closest_upper_bound) {
+    if (!client_only_node_ && ((*itr).first == contact_)) {
+      this_node_within_closest = true;
+    } else {
+      if (refresh_args->kOperationType == LookupArgs::kStoreRefresh) {
+        rpcs_->StoreRefresh(refresh_args->kSerialisedRequest,
+                            refresh_args->kSerialisedRequestSignature,
+                            refresh_args->securifier, (*itr).first,
+                            std::bind(&NodeImpl::HandleRpcCallback, this,
+                                      (*itr).first, arg::_1, arg::_2));
+      } else {
+        rpcs_->DeleteRefresh(refresh_args->kSerialisedRequest,
+                             refresh_args->kSerialisedRequestSignature,
+                             refresh_args->securifier, (*itr).first,
+                             std::bind(&NodeImpl::HandleRpcCallback, this,
+                                       (*itr).first, arg::_1, arg::_2));
+      }
+    }
+    ++itr;
+  }
+  if (!this_node_within_closest) {
+    // TODO(Fraser#5#): 2011-09-02 - Remove k,v from data_store_, or move it to
+    //                               a cache store.
+  }
+}
+
 void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check this node signed other values under same key in datastore
   ++store_args->second_phase_rpcs_in_flight;
@@ -1038,7 +1121,8 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   // Check the signature validates with this node's public key
   if (!default_securifier_->Validate(store_args->kValue, store_args->kSignature,
                                      "", contact_.public_key(), "", "")) {
-    DLOG(ERROR) << "Failed to validate Store request for kademlia value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to validate Store request "
+                << "for kademlia value";
     HandleSecondPhaseCallback<StoreArgsPtr>(kGeneralError, store_args);
     return;
   }
@@ -1057,7 +1141,7 @@ void NodeImpl::HandleStoreToSelf(StoreArgsPtr store_args) {
   if (result == kSuccess) {
     HandleSecondPhaseCallback<StoreArgsPtr>(kSuccess, store_args);
   } else {
-    DLOG(ERROR) << "Failed to store value: " << result;
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to store value: " << result;
     HandleSecondPhaseCallback<StoreArgsPtr>(kGeneralError, store_args);
   }
 }
@@ -1086,7 +1170,8 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   if (!default_securifier_->Validate(delete_args->kValue,
                                      delete_args->kSignature, "",
                                      contact_.public_key(), "", "")) {
-    DLOG(ERROR) << "Failed to validate Delete request for kademlia value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to validate Delete request "
+                << "for kademlia value";
     HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
     return;
   }
@@ -1102,7 +1187,7 @@ void NodeImpl::HandleDeleteToSelf(DeleteArgsPtr delete_args) {
   if (result) {
     HandleSecondPhaseCallback<DeleteArgsPtr>(kSuccess, delete_args);
   } else {
-    DLOG(ERROR) << "Failed to delete value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to delete value";
     HandleSecondPhaseCallback<DeleteArgsPtr>(kGeneralError, delete_args);
   }
 }
@@ -1126,7 +1211,8 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   if (!default_securifier_->Validate(update_args->kNewValue,
                                      update_args->kNewSignature,
                                      "", contact_.public_key(), "", "")) {
-    DLOG(ERROR) << "Failed to validate Update new request for kademlia value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to validate Update new "
+                << "request for kademlia value";
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
     return;
   }
@@ -1143,8 +1229,14 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
                                      store_request_and_signature,
                                      false));
   if (result != kSuccess) {
-    DLOG(ERROR) << "Failed to store value: " << result;
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to store value: " << result;
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
+    return;
+  }
+  ++update_args->store_successes;
+
+  if (update_args->kOldValue == update_args->kNewValue) {
+    HandleSecondPhaseCallback<UpdateArgsPtr>(kSuccess, update_args);
     return;
   }
 
@@ -1152,7 +1244,8 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
   if (!default_securifier_->Validate(update_args->kOldValue,
                                      update_args->kOldSignature, "",
                                      contact_.public_key(), "", "")) {
-    DLOG(ERROR) << "Failed to validate Update old request for kademlia value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to validate Update old "
+                << "request for kademlia value";
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
     return;
   }
@@ -1170,7 +1263,7 @@ void NodeImpl::HandleUpdateToSelf(UpdateArgsPtr update_args) {
                                delete_request_and_signature, false)) {
     HandleSecondPhaseCallback<UpdateArgsPtr>(kSuccess, update_args);
   } else {
-    DLOG(ERROR) << "Failed to delete value";
+    DLOG(ERROR) << DebugId(contact_) << ": Failed to delete value";
     HandleSecondPhaseCallback<UpdateArgsPtr>(kGeneralError, update_args);
   }
 }
@@ -1182,7 +1275,6 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
   AsyncHandleRpcCallback(peer, rank_info, result);
   boost::mutex::scoped_lock lock(store_args->mutex);
   HandleSecondPhaseCallback<StoreArgsPtr>(result, store_args);
-
   // If this is the last RPC, and the overall store failed, delete the value
   if (store_args->second_phase_rpcs_in_flight == 0 &&
       store_args->successes < store_args->kSuccessThreshold) {
@@ -1202,7 +1294,8 @@ void NodeImpl::StoreCallback(RankInfoPtr rank_info,
                                                  store_args->securifier));
         if (!data_store_->DeleteValue(key_value_signature,
                                       delete_request_and_signature, false)) {
-          DLOG(WARNING) << "Failed to delete value from self after bad store.";
+          DLOG(WARNING) << DebugId(contact_) << ": Failed to delete value "
+                        << "from self after bad store.";
         }
       } else {
         rpcs_->Delete(store_args->kTarget,
@@ -1242,19 +1335,24 @@ void NodeImpl::UpdateCallback(RankInfoPtr rank_info,
                               Contact peer,
                               UpdateArgsPtr update_args) {
   AsyncHandleRpcCallback(peer, rank_info, result);
+  boost::mutex::scoped_lock lock(update_args->mutex);
   --update_args->store_rpcs_in_flight;
   BOOST_ASSERT(update_args->store_rpcs_in_flight >= 0);
 
   if (result == kSuccess && update_args->kSuccessThreshold <=
       update_args->store_successes + update_args->store_rpcs_in_flight) {
     ++update_args->store_successes;
-    rpcs_->Delete(update_args->kTarget,
-                  update_args->kOldValue,
-                  update_args->kOldSignature,
-                  update_args->securifier,
-                  peer,
-                  std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
-                            peer, update_args));
+    if (update_args->kOldValue != update_args->kNewValue)
+      rpcs_->Delete(update_args->kTarget,
+                    update_args->kOldValue,
+                    update_args->kOldSignature,
+                    update_args->securifier,
+                    peer,
+                    std::bind(&NodeImpl::DeleteCallback, this, arg::_1, arg::_2,
+                              peer, update_args));
+    else
+      HandleSecondPhaseCallback<UpdateArgsPtr>(result,
+          std::static_pointer_cast<UpdateArgs>(update_args));
   } else {
     // Decrement second_phase_rpcs_in_flight (representing the subsequent Delete
     // RPC) to avoid the DeleteCallback finishing early.
@@ -1325,7 +1423,8 @@ void NodeImpl::SendDownlist(const Downlist &downlist) {
 void NodeImpl::RefreshDataStore(const boost::system::error_code &error_code) {
   if (error_code) {
     if (error_code != boost::asio::error::operation_aborted) {
-      DLOG(ERROR) << "DataStore refresh timer error: " << error_code.message();
+      DLOG(ERROR) << DebugId(contact_) << ": DataStore refresh timer error: "
+                  << error_code.message();
     } else {
       return;
     }
@@ -1337,39 +1436,22 @@ void NodeImpl::RefreshDataStore(const boost::system::error_code &error_code) {
   std::for_each(key_value_tuples.begin(), key_value_tuples.end(),
                 std::bind(&NodeImpl::RefreshData, this, arg::_1));
   refresh_data_store_timer_.expires_at(refresh_data_store_timer_.expires_at() +
-                                       bptime::seconds(10));
+                                       kDataStoreCheckInterval_);
   refresh_data_store_timer_.async_wait(std::bind(&NodeImpl::RefreshDataStore,
                                                  this, arg::_1));
 }
 
 void NodeImpl::RefreshData(const KeyValueTuple &key_value_tuple) {
-  FindNodes(NodeId(key_value_tuple.key()),
-            std::bind(&NodeImpl::RefreshDataFindNodesCallback, this, arg::_1,
-                      arg::_2, key_value_tuple));
-}
-
-void NodeImpl::RefreshDataFindNodesCallback(
-    int result,
-    std::vector<Contact> contacts,
-    const KeyValueTuple &key_value_tuple) {
-  if (result != kSuccess)
-    return;
-
-  for (auto it(contacts.begin()); it != contacts.end(); ++it) {
-    if ((*it).node_id() != contact_.node_id()) {
-      std::function<void(RankInfoPtr, const int&)> rpc_callback =
-          std::bind(&NodeImpl::HandleRpcCallback, this, *it, arg::_1, arg::_2);
-      if (key_value_tuple.deleted) {
-        rpcs_->DeleteRefresh(key_value_tuple.request_and_signature.first,
-                             key_value_tuple.request_and_signature.second,
-                             default_securifier_, *it, rpc_callback);
-      } else {
-        rpcs_->StoreRefresh(key_value_tuple.request_and_signature.first,
-                            key_value_tuple.request_and_signature.second,
-                            default_securifier_, *it, rpc_callback);
-      }
-    }
-  }
+  OrderedContacts close_contacts(
+      GetClosestContactsLocally(Key(key_value_tuple.key()), k_));
+  LookupArgs::OperationType op_type(key_value_tuple.deleted ?
+                                    LookupArgs::kDeleteRefresh :
+                                    LookupArgs::kStoreRefresh);
+  RefreshArgsPtr refresh_args(new RefreshArgs(op_type,
+      NodeId(key_value_tuple.key()), k_, close_contacts, default_securifier_,
+      key_value_tuple.request_and_signature.first,
+      key_value_tuple.request_and_signature.second));
+  StartLookup(refresh_args);
 }
 
 bool NodeImpl::NodeContacted(const int &code) {
@@ -1378,6 +1460,7 @@ bool NodeImpl::NodeContacted(const int &code) {
     case transport::kSendFailure:
     case transport::kSendTimeout:
     case transport::kSendStalled:
+    case kIterativeLookupFailed:
       return false;
     default:
       return true;
@@ -1478,8 +1561,8 @@ void NodeImpl::HandleRpcCallback(const Contact &contact,
   }
 #ifdef DEBUG
   if (routing_table_result != kSuccess)
-    DLOG(INFO) << "Failed to update routing table for contact "
-               << DebugId(contact) << ".  RPC result: " << result
+    DLOG(INFO) << DebugId(contact_) << ": Failed to update routing table for "
+               << "contact " << DebugId(contact) << ".  RPC result: " << result
                << "  Update result: " << routing_table_result;
 #endif
 }

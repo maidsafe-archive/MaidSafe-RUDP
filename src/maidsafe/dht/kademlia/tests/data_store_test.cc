@@ -65,9 +65,11 @@ namespace kademlia {
 
 namespace test {
 
+namespace {
 typedef std::vector<std::pair<std::string, std::string>> KeyValuePairGroup;
 const uint16_t kIteratorSize = 23;
 const uint16_t kThreadBarrierSize = 5;
+}  // unnamed namespace
 
 class DataStoreTest: public testing::Test {
  public:
@@ -348,15 +350,15 @@ TEST_F(DataStoreTest, BEH_DeleteUnderEmptyKey) {
 
   EXPECT_TRUE(data_store_->DeleteValue(kvt2.key_value_signature,
               kvt2.request_and_signature, true));
-  EXPECT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(2U, key_value_index_->size());
 
   EXPECT_TRUE(data_store_->DeleteValue(kvt3.key_value_signature,
               kvt3.request_and_signature, false));
-  EXPECT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(2U, key_value_index_->size());
 
   EXPECT_TRUE(data_store_->DeleteValue(kvt3.key_value_signature,
               kvt3.request_and_signature, true));
-  EXPECT_EQ(1U, key_value_index_->size());
+  EXPECT_EQ(3U, key_value_index_->size());
 }
 
 TEST_F(DataStoreTest, BEH_DeleteExistingKeyValue) {
@@ -813,7 +815,7 @@ TEST_F(DataStoreTest, FUNC_Refresh) {
   for (size_t i = 0; i != (kTotalEntries + kRepeatedValues) / 2; ++i, ++it) {
     key_value_index_->modify(it,
            std::bind(&KeyValueTuple::UpdateStatus, arg::_1,
-                     (*it).expire_time, now + data_store_->refresh_interval(),
+                     (*it).expire_time, now + data_store_->kRefreshInterval(),
                      now, (*it).request_and_signature, (*it).deleted));
   }
   data_store_->Refresh(&returned_kvts);
@@ -822,7 +824,7 @@ TEST_F(DataStoreTest, FUNC_Refresh) {
 }
 
 TEST_F(DataStoreTest, FUNC_MultipleThreads) {
-  const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(123);
+  const size_t kThreadCount(10), kSigners(5), kEntriesPerSigner(55);
   const size_t kValuesPerEntry(4);
 
   AsioService asio_service;

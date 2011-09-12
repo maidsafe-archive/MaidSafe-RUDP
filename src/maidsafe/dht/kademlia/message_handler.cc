@@ -129,7 +129,8 @@ std::string MessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kStoreRefreshRequest,
                                       msg.SerializeAsString(),
-                                      kAsymmetricEncrypt, recipient_public_key);
+                                      kSign | kAsymmetricEncrypt,
+                                      recipient_public_key);
 }
 
 std::string MessageHandler::WrapMessage(
@@ -168,7 +169,8 @@ std::string MessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kDeleteRefreshRequest,
                                       msg.SerializeAsString(),
-                                      kAsymmetricEncrypt, recipient_public_key);
+                                      kSign | kAsymmetricEncrypt,
+                                      recipient_public_key);
 }
 
 std::string MessageHandler::WrapMessage(
@@ -286,7 +288,7 @@ void MessageHandler::ProcessSerialisedMessage(
                                    request.sender().node_id()))
           return;
         protobuf::StoreResponse response;
-        (*on_store_request_)(info, request, message, message_signature,
+        (*on_store_request_)(info, request, payload, message_signature,
                              &response, timeout);
         *message_response = WrapMessage(response,
                                         request.sender().public_key());
@@ -302,10 +304,8 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kStoreRefreshRequest: {
-      if (message_signature.empty() &&
-          !securifier_->kSigningKeyId().empty())
-        return;
-      if (security_type != kAsymmetricEncrypt)
+      if ((security_type != (kSign | kAsymmetricEncrypt)) ||
+          (message_signature.empty() && !securifier_->kSigningKeyId().empty()))
         return;
       protobuf::StoreRefreshRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
@@ -363,7 +363,7 @@ void MessageHandler::ProcessSerialisedMessage(
                                    request.sender().node_id()))
           return;
         protobuf::DeleteResponse response;
-        (*on_delete_request_)(info, request, message, message_signature,
+        (*on_delete_request_)(info, request, payload, message_signature,
                               &response, timeout);
         *message_response = WrapMessage(response,
                                         request.sender().public_key());
@@ -379,10 +379,8 @@ void MessageHandler::ProcessSerialisedMessage(
       break;
     }
     case kDeleteRefreshRequest: {
-      if (message_signature.empty() &&
-          !securifier_->kSigningKeyId().empty())
-        return;
-      if (security_type != kAsymmetricEncrypt)
+      if ((security_type != (kSign | kAsymmetricEncrypt)) ||
+          (message_signature.empty() && !securifier_->kSigningKeyId().empty()))
         return;
       protobuf::DeleteRefreshRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {

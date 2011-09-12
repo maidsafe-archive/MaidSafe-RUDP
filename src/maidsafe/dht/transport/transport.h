@@ -47,7 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/version.h"
 
 
-#if MAIDSAFE_DHT_VERSION != 3103
+#if MAIDSAFE_DHT_VERSION != 3104
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-dht library.
 #endif

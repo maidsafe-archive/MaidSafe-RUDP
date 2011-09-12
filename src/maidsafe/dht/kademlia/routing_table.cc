@@ -29,7 +29,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/utils.h"
 #include "maidsafe/dht/kademlia/return_codes.h"
 #include "maidsafe/dht/kademlia/utils.h"
-#include "maidsafe/dht/log.h"
 
 namespace maidsafe {
 
@@ -71,9 +70,9 @@ int RoutingTable::AddContact(const Contact &contact, RankInfoPtr rank_info) {
   auto it_node = key_indx.find(node_id);
   if (it_node != key_indx.end()) {
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
-    // will update the num_failed_rpcs to 0 as well
-    if (contacts_.modify(it_node,
-        ChangeLastSeen(bptime::microsec_clock::universal_time()))) {
+    // will update the num_failed_rpcs to 0 as well and update the IPs ports if
+    // changed.
+    if (contacts_.modify(it_node, ChangeLastSeen(contact))) {
       return kSuccess;
     } else {
       DLOG(WARNING) << kDebugId_ << ": Failed to update last seen time for "
@@ -298,7 +297,7 @@ int RoutingTable::SetValidated(const NodeId &node_id, bool validated) {
       unvalidated_contacts_.get<NodeIdTag>();
   auto it_contact = contact_indx.find(node_id);
 
-  // if the contact can be find in the un-validated contacts container
+  // if the contact can be found in the un-validated contacts container
   if (it_contact != contact_indx.end()) {
     // If an un-validated entry proved to be valid remove it from un-validated
     // container and insert it into routing_table.  Otherwise, drop it.
@@ -319,14 +318,11 @@ int RoutingTable::SetValidated(const NodeId &node_id, bool validated) {
   }
 
   if (!validated) {
-    // if the contact proved to be invalid, remove it from the routing_table
-    // and put it into the un-validated contacts container.
+    // if the contact proved to be invalid, remove it from the routing_table.
     DLOG(WARNING) << kDebugId_ << ": Node " << DebugId(node_id)
                   << " removed from routing table - failed to validate.  "
                   << contacts_.size() << " contacts.";
     UpgradeToUniqueLock unique_lock(*upgrade_lock);
-    UnValidatedContact new_entry((*it).contact, (*it).rank_info);
-    unvalidated_contacts_.insert(new_entry);
     key_indx.erase(it);
   }
   return kSuccess;

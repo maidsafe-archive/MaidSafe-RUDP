@@ -600,7 +600,7 @@ TEST_F(ServicesTest, BEH_Delete) {
   }
 }
 
-TEST_F(ServicesTest, BEH_StoreRefresh) {
+TEST_F(ServicesTest, FUNC_StoreRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -717,7 +717,7 @@ TEST_F(ServicesTest, BEH_StoreRefresh) {
   }
 }
 
-TEST_F(ServicesTest, BEH_DeleteRefresh) {
+TEST_F(ServicesTest, FUNC_DeleteRefresh) {
   crypto::RsaKeyPair crypto_key_data;
   crypto_key_data.GenerateKeys(4096);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -802,9 +802,9 @@ TEST_F(ServicesTest, BEH_DeleteRefresh) {
   }
   Clear();
   {
-    // Try to deleterefresh a validated tuple
-    // from empty datastore, but the routingtable already contains the sender
-    AddContact(routing_table_, sender, rank_info_);
+    // Try to deleterefresh a validated tuple from empty datastore, but the
+    // routingtable already contains the sender - should add the deleted value
+    AddContact(routing_table_, new_sender, rank_info_);
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
 
@@ -812,9 +812,9 @@ TEST_F(ServicesTest, BEH_DeleteRefresh) {
     service_->DeleteRefresh(info_, delete_refresh_request,
                             &delete_refresh_response, &time_out);
     EXPECT_TRUE(delete_refresh_response.result());
-    EXPECT_EQ(0U, GetSenderTaskSize());
+    EXPECT_EQ(1U, GetSenderTaskSize());
     JoinNetworkLookup(securifier_);
-    ASSERT_EQ(0U, GetDataStoreSize());
+    ASSERT_EQ(1U, GetDataStoreSize());
     ASSERT_EQ(1U, GetRoutingTableSize());
     ASSERT_EQ(0U, CountUnValidatedContacts());
   }
@@ -1024,7 +1024,7 @@ TEST_F(ServicesTest, BEH_FindNodes) {
   }
 }
 
-TEST_F(ServicesTest, BEH_FindValue) {
+TEST_F(ServicesTest, FUNC_FindValue) {
   NodeId target_id = GenerateUniqueRandomId(node_id_, 503);
   Contact target = ComposeContact(target_id, 5001);
   NodeId sender_id = GenerateUniqueRandomId(node_id_, 502);
@@ -1304,7 +1304,7 @@ TEST_F(ServicesTest, BEH_Ping) {
   }
 }
 
-TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
+TEST_F(ServicesTest, FUNC_MultipleStoreRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1372,10 +1372,17 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
   // Invalid request recieves true but value doesn't get stored
   EXPECT_TRUE(DoStore(sender_id_2, k1_v2, crypto_key_data_2));
   EXPECT_FALSE(DoStore(sender_id_3, k1_v3, crypto_key_data_3));
-  // If the valid sender calls just after invalid sender it recieves false
-  EXPECT_FALSE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  // If the valid sender calls just after invalid sender it could fail
+  int attempts(0);
+  bool succeeded(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  while (attempts != 100 && !succeeded) {
+    Sleep(bptime::milliseconds(10));
+    succeeded = DoStore(sender_id_1, k1_v1, crypto_key_data_1);
+    ++attempts;
+  }
+  EXPECT_TRUE(succeeded);
   JoinNetworkLookup(securifier_);
-  EXPECT_EQ(0U, GetDataStoreSize());
+  EXPECT_EQ(1U, GetDataStoreSize());
   Clear();
 
   // Store request for same key from different senders
@@ -1391,9 +1398,15 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
 
   // Store request from different senders (valid)
   EXPECT_TRUE(DoStore(sender_id_1, k1_v1, crypto_key_data_1));
+  EXPECT_EQ(1U, GetSenderTaskSize());
+  // Sleep to allow task callback to execute and remove task.
+  Sleep(kNetworkDelay + kNetworkDelay);
   EXPECT_TRUE(DoStore(sender_id_2, k2_v1, crypto_key_data_2));
+  EXPECT_EQ(1U, GetSenderTaskSize());
+  // Sleep to allow task callback to execute and remove task.
+  Sleep(kNetworkDelay + kNetworkDelay);
   EXPECT_TRUE(DoStore(sender_id_3, k3_v1, crypto_key_data_3));
-  EXPECT_EQ(3U, GetSenderTaskSize());
+  EXPECT_EQ(1U, GetSenderTaskSize());
   JoinNetworkLookup(securifier_);
   EXPECT_EQ(3U, GetDataStoreSize());
   EXPECT_EQ(3U, CountUnValidatedContacts());
@@ -1403,7 +1416,7 @@ TEST_F(ServicesTest, BEH_MultipleStoreRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleDeleteRequests) {
+TEST_F(ServicesTest, FUNC_MultipleDeleteRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1489,7 +1502,7 @@ TEST_F(ServicesTest, BEH_MultipleDeleteRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
+TEST_F(ServicesTest, FUNC_MultipleStoreRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1578,15 +1591,22 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     // Invalid request recieves true but value doesn't get stored
     EXPECT_TRUE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
                                k1_v1, crypto_key_data_2));
-    // If the valid sender calls just after invalid sender it recieves false
-    EXPECT_FALSE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
-                                k1_v1, crypto_key_data_1));
+    // If the valid sender calls just after invalid sender it could fail
+    int attempts(0);
+    bool succeeded(false);
+    while (attempts != 100 && !succeeded) {
+      Sleep(bptime::milliseconds(10));
+      succeeded = DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
+                                 k1_v1, crypto_key_data_1);
+      ++attempts;
+    }
+    EXPECT_TRUE(succeeded);
     JoinNetworkLookup(securifier_);
     EXPECT_EQ(1U, GetDataStoreSize());
     EXPECT_TRUE(IsKeyValueInDataStore(k1_v1));
     EXPECT_FALSE(IsKeyValueInDataStore(k1_v2));
     bptime::ptime refresh_time_new_k1_v1 = GetRefreshTime(k1_v1);
-    EXPECT_EQ(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
+    EXPECT_GT(refresh_time_new_k1_v1, refresh_time_old_k1_v1);
   }
   Clear();
   // Store refresh request for same key from different requester
@@ -1595,11 +1615,18 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
     // Invalid request recieves true but value doesn't get stored
     EXPECT_TRUE(DoStoreRefresh(sender_id_3, crypto_key_data_3, sender_id_2,
                                k1_v1, crypto_key_data_2));
-    // If the valid sender calls just after invalid sender it recieves false
-    EXPECT_FALSE(DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
-                                k1_v1, crypto_key_data_1));
+    // If the valid sender calls just after invalid sender it could fail
+    int attempts(0);
+    bool succeeded(false);
+    while (attempts != 100 && !succeeded) {
+      Sleep(bptime::milliseconds(10));
+      succeeded = DoStoreRefresh(sender_id_2, crypto_key_data_2, sender_id_1,
+                                 k1_v1, crypto_key_data_1);
+      ++attempts;
+    }
+    EXPECT_TRUE(succeeded);
     JoinNetworkLookup(securifier_);
-    EXPECT_EQ(0U, GetDataStoreSize());
+    EXPECT_EQ(1U, GetDataStoreSize());
   }
   Clear();
   // Store Refresh request for same key from different requester
@@ -1646,7 +1673,7 @@ TEST_F(ServicesTest, BEH_MultipleStoreRefreshRequests) {
   Clear();
 }
 
-TEST_F(ServicesTest, BEH_MultipleDeleteRefreshRequests) {
+TEST_F(ServicesTest, FUNC_MultipleDeleteRefreshRequests) {
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_2 = GenerateUniqueRandomId(node_id_, 502);
   NodeId sender_id_3 = GenerateUniqueRandomId(node_id_, 502);
@@ -1780,7 +1807,7 @@ TEST_F(ServicesTest, BEH_MultipleDeleteRefreshRequests) {
   }
 }
 
-TEST_F(ServicesTest, BEH_MultipleThreads) {
+TEST_F(ServicesTest, FUNC_MultipleThreads) {
   const size_t kNumberOfThreads(8);
   // Preparing data
   NodeId sender_id_1 = GenerateUniqueRandomId(node_id_, 502);
