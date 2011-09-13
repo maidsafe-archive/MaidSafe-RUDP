@@ -1018,7 +1018,6 @@ TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
        itr != env_->node_containers_.end(); ++itr) {
     if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
                        env_->node_ids_, env_->k_ + 1)) {
-      // TODO(Fraser#5#): 2011-09-06 - Check values and deleted states.
       if (itr != node_to_leave &&
           (GetDataStore(*itr)->key_value_index_->size() == kNumValues - 1))
         not_refreshed = true;
