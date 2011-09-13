@@ -386,7 +386,7 @@ class MockRpcsTest : public testing::Test {
   }
   void FindValueCallback(RankInfoPtr rank_info,
                          const int &result,
-                         const std::vector<std::string> &/*values*/,
+                         const std::vector<ValueAndSignature> &/*values*/,
                          const std::vector<Contact> &/*contacts*/,
                          const Contact &/*contact*/,
                          bool *b,

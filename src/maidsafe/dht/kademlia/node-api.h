@@ -247,22 +247,23 @@ class Node {
 
 struct FindValueReturns {
   FindValueReturns() : return_code(kPendingResult),
-                       values(),
+                       values_and_signatures(),
                        closest_nodes(),
                        alternative_store_holder(),
                        needs_cache_copy() {}
-  FindValueReturns(int return_code_in,
-                   const std::vector<std::string> &values_in,
-                   const std::vector<Contact> &closest_nodes_in,
-                   const Contact &alternative_store_holder_in,
-                   const Contact &needs_cache_copy_in)
-      : return_code(return_code_in),
-        values(values_in),
-        closest_nodes(closest_nodes_in),
-        alternative_store_holder(alternative_store_holder_in),
-        needs_cache_copy(needs_cache_copy_in) {}
+  FindValueReturns(
+      int return_code_in,
+      const std::vector<ValueAndSignature> &values_and_signatures_in,
+      const std::vector<Contact> &closest_nodes_in,
+      const Contact &alternative_store_holder_in,
+      const Contact &needs_cache_copy_in)
+          : return_code(return_code_in),
+            values_and_signatures(values_and_signatures_in),
+            closest_nodes(closest_nodes_in),
+            alternative_store_holder(alternative_store_holder_in),
+            needs_cache_copy(needs_cache_copy_in) {}
   int return_code;
-  std::vector<std::string> values;
+  std::vector<ValueAndSignature> values_and_signatures;
   std::vector<Contact> closest_nodes;
   Contact alternative_store_holder;
   Contact needs_cache_copy;

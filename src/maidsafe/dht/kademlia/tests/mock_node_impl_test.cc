@@ -391,11 +391,11 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   void FindValueNoResponse(RpcFindValueFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
-    std::vector<std::string> response_value_list;
+    std::vector<ValueAndSignature> response_values_and_signatures;
     Rpcs<TransportType>::asio_service_.post(
         std::bind(&MockRpcs<TransportType>::FindValueNoResponseThread,
-                  this, callback, response_value_list, response_contact_list,
-                  transport::kError));
+                  this, callback, response_values_and_signatures,
+                  response_contact_list, transport::kError));
   }
 
   void FindValueResponseCloseOnly(RpcFindValueFunctor callback) {
@@ -406,17 +406,17 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
       int element = RandomUint32() % node_list_.size();
       response_contact_list.push_back(node_list_[element]);
     }
-    std::vector<std::string> response_value_list;
+    std::vector<ValueAndSignature> response_values_and_signatures;
     Rpcs<TransportType>::asio_service_.post(
         std::bind(&MockRpcs<TransportType>::FindValueNoResponseThread,
-                  this, callback, response_value_list, response_contact_list,
-                  kFailedToFindValue));
+                  this, callback, response_values_and_signatures,
+                  response_contact_list, kFailedToFindValue));
   }
 
   void FindValueNthResponse(RpcFindValueFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
-    std::vector<std::string> response_value_list;
+    std::vector<ValueAndSignature> response_values_and_signatures;
     ++num_of_acquired_;
     if (respond_ != num_of_acquired_) {
       int elements = RandomUint32() % g_kKademliaK + 1;
@@ -430,13 +430,13 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
       }
       Rpcs<TransportType>::asio_service_.post(
         std::bind(&MockRpcs<TransportType>::FindValueNoResponseThread,
-                  this, callback, response_value_list, response_contact_list,
-                  kFailedToFindValue));
+                  this, callback, response_values_and_signatures,
+                  response_contact_list, kFailedToFindValue));
     } else {
-      response_value_list.push_back("FIND");
+      response_values_and_signatures.push_back(std::make_pair("FIND", "SIG"));
       Rpcs<TransportType>::asio_service_.post(
           std::bind(&MockRpcs<TransportType>::FindValueResponseThread,
-                    this, callback, response_value_list,
+                    this, callback, response_values_and_signatures,
                     response_contact_list));
     }
   }
@@ -444,7 +444,7 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
   void FindValueNoValueResponse(RpcFindValueFunctor callback) {
     boost::mutex::scoped_lock lock(node_list_mutex_);
     std::vector<Contact> response_contact_list;
-    std::vector<std::string> response_value_list;
+    std::vector<ValueAndSignature> response_values_and_signatures;
     ++num_of_acquired_;
     int elements = RandomUint32() % g_kKademliaK;
     for (int n = 0; n < elements; ++n) {
@@ -453,28 +453,30 @@ class MockRpcs : public Rpcs<TransportType>, public CreateContactAndNodeId {
     }
     Rpcs<TransportType>::asio_service_.post(
         std::bind(&MockRpcs<TransportType>::FindValueNoResponseThread,
-                  this, callback, response_value_list, response_contact_list,
-                  kFailedToFindValue));
+                  this, callback, response_values_and_signatures,
+                  response_contact_list, kFailedToFindValue));
   }
 
-  void FindValueResponseThread(RpcFindValueFunctor callback,
-                               std::vector<std::string> response_value_list,
-                               std::vector<Contact> response_contact_list) {
+  void FindValueResponseThread(
+      RpcFindValueFunctor callback,
+      std::vector<ValueAndSignature> response_values_and_signatures,
+      std::vector<Contact> response_contact_list) {
     uint16_t interval(10 * (RandomUint32() % 5) + 1);
     Sleep(bptime::milliseconds(interval));
     Contact alternative_store;
-    callback(rank_info_, transport::kSuccess, response_value_list,
+    callback(rank_info_, transport::kSuccess, response_values_and_signatures,
              response_contact_list, alternative_store);
   }
 
-  void FindValueNoResponseThread(RpcFindValueFunctor callback,
-                                 std::vector<std::string> response_value_list,
-                                 std::vector<Contact> response_contact_list,
-                                 int result) {
+  void FindValueNoResponseThread(
+      RpcFindValueFunctor callback,
+      std::vector<ValueAndSignature> response_values_and_signatures,
+      std::vector<Contact> response_contact_list,
+      int result) {
     uint16_t interval(100 * (RandomUint32() % 5) + 1);
     Sleep(bptime::milliseconds(interval));
     Contact alternative_store;
-    callback(rank_info_, result, response_value_list,
+    callback(rank_info_, result, response_values_and_signatures,
              response_contact_list, alternative_store);
   }
 
@@ -1902,7 +1904,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
       EXPECT_TRUE(not_timed_out);
     }
     EXPECT_EQ(kFailedToFindValue, results.return_code);
-    EXPECT_TRUE(results.values.empty());
+    EXPECT_TRUE(results.values_and_signatures.empty());
     EXPECT_TRUE((results.closest_nodes.size() == 1) &&
         (results.closest_nodes[0] == node_->contact()));
   }
@@ -1929,7 +1931,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
       EXPECT_TRUE(not_timed_out);
     }
     EXPECT_EQ(kFailedToFindValue, results.return_code);
-    EXPECT_TRUE(results.values.empty());
+    EXPECT_TRUE(results.values_and_signatures.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
   }
   done = false;
@@ -1960,8 +1962,8 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
     }
     EXPECT_EQ(kSuccess, results.return_code);
     EXPECT_TRUE(results.closest_nodes.empty());
-    ASSERT_EQ(1, results.values.size());
-    EXPECT_EQ("FIND", results.values[0]);
+    ASSERT_EQ(1, results.values_and_signatures.size());
+    EXPECT_EQ("FIND", results.values_and_signatures[0].first);
     EXPECT_LE(new_rpcs->respond_, new_rpcs->num_of_acquired_);
   }
   done = false;
@@ -1984,7 +1986,7 @@ TEST_F(MockNodeImplTest, BEH_FindValue) {
       EXPECT_TRUE(not_timed_out);
     }
     EXPECT_EQ(kFailedToFindValue, results.return_code);
-    EXPECT_TRUE(results.values.empty());
+    EXPECT_TRUE(results.values_and_signatures.empty());
     EXPECT_EQ(g_kKademliaK, results.closest_nodes.size());
     EXPECT_GT(40 * g_kKademliaK, new_rpcs->num_of_acquired_);
   }

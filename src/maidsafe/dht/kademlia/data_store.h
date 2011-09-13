@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "boost/thread/shared_mutex.hpp"
 #include "boost/thread/locks.hpp"
+#include "maidsafe/dht/kademlia/config.h"
 
 namespace bptime = boost::posix_time;
 
@@ -199,9 +200,8 @@ class DataStore {
   // If any values exist under key and are not marked as deleted, they are added
   // along with the signatures to the vector of pairs and the method returns
   // true.
-  bool GetValues(
-      const std::string &key,
-      std::vector<std::pair<std::string, std::string>> *values) const;
+  bool GetValues(const std::string &key,
+                 std::vector<ValueAndSignature> *values_and_signatures) const;
   // Refreshes datastore.  Values which have expired confirm times and which are
   // marked as deleted are removed from the datastore.  Values with expired
   // expire times are marked as deleted.  All values with expired refresh times

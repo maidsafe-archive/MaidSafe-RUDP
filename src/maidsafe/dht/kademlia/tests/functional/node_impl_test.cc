@@ -104,10 +104,10 @@ class NodeImplTest : public testing::TestWithParam<bool> {
 
   bool IsKeyValueInDataStore(std::shared_ptr<DataStore> data_store,
                              std::string key, std::string value) {
-    std::vector<std::pair<std::string, std::string>> values;
-    data_store->GetValues(key, &values);
-    for (size_t i = 0; i < values.size(); ++i) {
-      if (values[i].first == value)
+    std::vector<ValueAndSignature> values_and_signatures;
+    data_store->GetValues(key, &values_and_signatures);
+    for (size_t i = 0; i < values_and_signatures.size(); ++i) {
+      if (values_and_signatures[i].first == value)
         return true;
     }
     return false;
@@ -469,7 +469,8 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
         &find_value_returns_nonexistent_key);
     EXPECT_EQ(kFailedToFindValue,
               find_value_returns_nonexistent_key.return_code);
-    EXPECT_TRUE(find_value_returns_nonexistent_key.values.empty());
+    EXPECT_TRUE(
+        find_value_returns_nonexistent_key.values_and_signatures.empty());
     EXPECT_EQ(env_->k_,
               find_value_returns_nonexistent_key.closest_nodes.size());
   }
@@ -507,12 +508,16 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
       test_container_->GetAndResetFindValueResult(&find_value_returns);
     }
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
-    ASSERT_FALSE(find_value_returns.values.empty());
-    ASSERT_EQ(values.size(), find_value_returns.values.size());
+    ASSERT_FALSE(find_value_returns.values_and_signatures.empty());
+    ASSERT_EQ(values.size(), find_value_returns.values_and_signatures.size());
     size_t num_values(std::min(values.size(),
-                               find_value_returns.values.size()));
-    for (size_t k = 0; k != num_values; ++k)
-      EXPECT_EQ(values[k], find_value_returns.values[k]);
+                      find_value_returns.values_and_signatures.size()));
+    for (size_t k = 0; k != num_values; ++k) {
+      EXPECT_EQ(values[k], find_value_returns.values_and_signatures[k].first);
+      EXPECT_TRUE(test_container_->securifier()->Validate(values[k],
+                  find_value_returns.values_and_signatures[k].second, "",
+                  test_container_->securifier()->kSigningPublicKey(), "", ""));
+    }
     // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
     // Stop nodes holding value one at a time and retry getting value
@@ -536,7 +541,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
     test_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kFailedToFindValue, find_value_returns.return_code);
-  EXPECT_TRUE(find_value_returns.values.empty());
+  EXPECT_TRUE(find_value_returns.values_and_signatures.empty());
   EXPECT_EQ(env_->k_, find_value_returns.closest_nodes.size());
   // TODO(Fraser#5#): 2011-07-14 - Handle other return fields
 
@@ -579,7 +584,7 @@ TEST_P(NodeImplTest, FUNC_FindValue) {
                 test_container_->wait_for_find_value_functor()));
     test_container_->GetAndResetFindValueResult(
         &alternative_find_value_returns);
-    EXPECT_TRUE(alternative_find_value_returns.values.empty());
+    EXPECT_TRUE(alternative_find_value_returns.values_and_signatures.empty());
     EXPECT_EQ(alternative_container->node()->contact().node_id(),
         alternative_find_value_returns.alternative_store_holder.node_id())
         << "Expected: " << DebugId(alternative_container->node()->contact())
@@ -713,7 +718,10 @@ TEST_P(NodeImplTest, FUNC_Delete) {
               chosen_container->wait_for_find_value_functor()));
   chosen_container->GetAndResetFindValueResult(&find_value_returns);
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  EXPECT_EQ(value, find_value_returns.values[0]);
+  EXPECT_EQ(value, find_value_returns.values_and_signatures[0].first);
+  EXPECT_TRUE(chosen_container->securifier()->Validate(value,
+              find_value_returns.values_and_signatures[0].second, "",
+              chosen_container->securifier()->kSigningPublicKey(), "", ""));
 }
 
 TEST_P(NodeImplTest, FUNC_Update) {
@@ -755,7 +763,10 @@ TEST_P(NodeImplTest, FUNC_Update) {
     chosen_container->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  EXPECT_EQ(value, find_value_returns.values[0]);
+  EXPECT_EQ(value, find_value_returns.values_and_signatures[0].first);
+  EXPECT_TRUE(chosen_container->securifier()->Validate(value,
+              find_value_returns.values_and_signatures[0].second, "",
+              chosen_container->securifier()->kSigningPublicKey(), "", ""));
 
   //  verify updating fails for all but the original storer
   for (size_t i = 0; i < env_->node_containers_.size(); ++i) {
@@ -803,7 +814,10 @@ TEST_P(NodeImplTest, FUNC_Update) {
     chosen_container->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  EXPECT_EQ(value, find_value_returns.values[0]);
+  EXPECT_EQ(value, find_value_returns.values_and_signatures[0].first);
+  EXPECT_TRUE(chosen_container->securifier()->Validate(value,
+              find_value_returns.values_and_signatures[0].second, "",
+              chosen_container->securifier()->kSigningPublicKey(), "", ""));
 
   // verify single value is updated correctly out of multiple values
   // stored under a key
@@ -841,17 +855,21 @@ TEST_P(NodeImplTest, FUNC_Update) {
                 chosen_container->wait_for_find_value_functor()));
     chosen_container->GetAndResetFindValueResult(&find_value_returns);
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
-    EXPECT_NE(find_value_returns.values.end(),
-              std::find(find_value_returns.values.begin(),
-                        find_value_returns.values.end(), new_value));
-    EXPECT_EQ(find_value_returns.values.end(),
-              std::find(find_value_returns.values.begin(),
-                        find_value_returns.values.end(), values[index]));
+    std::vector<std::string> returned_values;
+    for (size_t i(0); i != find_value_returns.values_and_signatures.size(); ++i)
+      returned_values.push_back(
+          find_value_returns.values_and_signatures.at(i).first);
+    EXPECT_NE(returned_values.end(), std::find(returned_values.begin(),
+                                               returned_values.end(),
+                                               new_value));
+    EXPECT_EQ(returned_values.end(), std::find(returned_values.begin(),
+                                               returned_values.end(),
+                                               values[index]));
     for (size_t i = 0; i < values_size; ++i) {
       if (i != index) {
-        EXPECT_NE(find_value_returns.values.end(),
-                  std::find(find_value_returns.values.begin(),
-                            find_value_returns.values.end(), values[i]));
+        EXPECT_NE(returned_values.end(), std::find(returned_values.begin(),
+                                                   returned_values.end(),
+                                                   values[i]));
       }
     }
   }

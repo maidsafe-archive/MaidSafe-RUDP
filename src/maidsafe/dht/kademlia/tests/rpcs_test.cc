@@ -92,18 +92,19 @@ void TestFindNodesCallback(RankInfoPtr,
   *contact_list = contacts;
 }
 
-void TestFindValueCallback(RankInfoPtr,
-                           int callback_code,
-                           std::vector<std::string> values,
-                           std::vector<Contact> contacts,
-                           Contact/* alternative_value_holder */,
-                           std::vector<std::string> *return_values,
-                           std::vector<Contact> *return_contacts,
-                           bool *done,
-                           int *response_code) {
+void TestFindValueCallback(
+    RankInfoPtr,
+    int callback_code,
+    std::vector<ValueAndSignature> values_and_signatures,
+    std::vector<Contact> contacts,
+    Contact/* alternative_value_holder */,
+    std::vector<ValueAndSignature> *return_values_and_signatures,
+    std::vector<Contact> *return_contacts,
+    bool *done,
+    int *response_code) {
   *done = true;
   *response_code = callback_code;
-  *return_values = values;
+  *return_values_and_signatures = values_and_signatures;
   *return_contacts = contacts;
 }
 
@@ -231,11 +232,11 @@ class RpcsTest : public CreateContactAndNodeId, public testing::Test {
   // Checks for not deleted value which are not marked as deleted
   bool IsKeyValueInDataStore(KeyValueSignature kvs,
                              std::shared_ptr<DataStore> data_store) {
-    std::vector<std::pair<std::string, std::string>> values;
-    data_store->GetValues(kvs.key, &values);
-    for (size_t i = 0; i < values.size(); ++i) {
-      if ((values[i].first == kvs.value) &&
-          (values[i].second == kvs.signature)) {
+    std::vector<ValueAndSignature> values_and_signatures;
+    data_store->GetValues(kvs.key, &values_and_signatures);
+    for (size_t i = 0; i < values_and_signatures.size(); ++i) {
+      if ((values_and_signatures[i].first == kvs.value) &&
+          (values_and_signatures[i].second == kvs.signature)) {
         return true;
       }
     }
@@ -493,7 +494,7 @@ TYPED_TEST_P(RpcsTest, FUNC_FindValueVariableNodesRequest) {
                                   key.String(), "");
   boost::posix_time::seconds ttl(3600);
 
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
@@ -503,7 +504,8 @@ TYPED_TEST_P(RpcsTest, FUNC_FindValueVariableNodesRequest) {
   this->rpcs_->FindValue(key, g_kKademliaK/2, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
@@ -513,14 +515,15 @@ TYPED_TEST_P(RpcsTest, FUNC_FindValueVariableNodesRequest) {
 
   // attempt to find a value when number_of_nodes_requeste > g_kKademliaK,
   // the response should contain number_of_nodes_requeste nodes.
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK*3/2, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
@@ -539,20 +542,21 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindValue) {
   boost::posix_time::seconds ttl(3600);
 
   // attempt to find value before any stored
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
@@ -567,19 +571,20 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindValue) {
   JoinNetworkLookup(this->service_securifier_);
 
   // attempt to retrieve value stored
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kSuccess, response_code);
-  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
   EXPECT_TRUE(return_contacts.empty());
 
   this->StopAndReset();
@@ -595,19 +600,20 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   boost::posix_time::seconds ttl(3600);
 
   // attempt to find value before any stored
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
 
   done = false;
@@ -626,19 +632,20 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   Sleep(kNetworkDelay);
 
   // attempt to retrieve value stored
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kSuccess, response_code);
-  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
   EXPECT_TRUE(return_contacts.empty());
 
   this->rpcs_->Delete(key, kvs.value, kvs.signature, this->rpcs_securifier_,
@@ -652,21 +659,22 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreAndFindAndDeleteValueXXXToBeRemoved) {
   EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   this->StopAndReset();
   // Value deleted
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
@@ -695,20 +703,21 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreMalicious) {
   EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   // Value not stored in data store
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   this->StopAndReset();
@@ -767,7 +776,7 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefresh) {
   this->PopulateRoutingTable(2*g_kKademliaK);
   bool done(false);
   int response_code(kGeneralError);
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   Key key = this->rpcs_contact_.node_id();
   boost::posix_time::seconds ttl(2);
@@ -809,18 +818,19 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefresh) {
   // attempt to find original value
   done = false;
   response_code = kGeneralError;
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kSuccess, response_code);
-  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
   EXPECT_TRUE(return_contacts.empty());
   EXPECT_GT(this->GetRefreshTime(kvs), refresh_time_old);
 
@@ -840,18 +850,19 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefresh) {
 
   done = false;
   response_code = kGeneralError;
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
@@ -960,20 +971,21 @@ TYPED_TEST_P(RpcsTest, FUNC_StoreRefreshMalicious) {
 
   // attempt to find value - refresh should have failed and ttl expired from
   // original store, so no value returned
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
     Sleep(boost::posix_time::milliseconds(10));
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 
@@ -1005,14 +1017,15 @@ TYPED_TEST_P(RpcsTest, FUNC_Delete) {
   EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = kGeneralError;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
@@ -1020,7 +1033,7 @@ TYPED_TEST_P(RpcsTest, FUNC_Delete) {
   this->StopAndReset();
   // Value deleted
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
@@ -1051,16 +1064,17 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteMalicious) {
   EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
   // attempt to retrieve value stored
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
-  return_values.clear();
+  return_values_and_signatures.clear();
   return_contacts.clear();
   done = false;
   response_code = -1;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
@@ -1068,7 +1082,7 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteMalicious) {
   this->StopAndReset();
   // Value not deleted from data store
   EXPECT_EQ(kSuccess, response_code);
-  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
   EXPECT_TRUE(return_contacts.empty());
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
 }
@@ -1185,14 +1199,15 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteRefresh) {
   EXPECT_EQ(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
@@ -1200,7 +1215,7 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteRefresh) {
   this->StopAndReset();
 
   EXPECT_EQ(kFailedToFindValue, response_code);
-  EXPECT_TRUE(return_values.empty());
+  EXPECT_TRUE(return_values_and_signatures.empty());
   EXPECT_EQ(g_kKademliaK, return_contacts.size());
   EXPECT_FALSE(IsKeyValueInDataStore(kvs, this->data_store_));
   // Refreshed
@@ -1240,14 +1255,15 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshStoredValue) {
   EXPECT_NE(kSuccess, response_code);
   JoinNetworkLookup(this->service_securifier_);
 
-  std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
   std::vector<Contact> return_contacts;
   done = false;
   response_code = -1;
   this->rpcs_->FindValue(key, g_kKademliaK, this->rpcs_securifier_,
                          this->service_contact_,
                          std::bind(&TestFindValueCallback, arg::_1, arg::_2,
-                                   arg::_3, arg::_4, arg::_5, &return_values,
+                                   arg::_3, arg::_4, arg::_5,
+                                   &return_values_and_signatures,
                                    &return_contacts, &done, &response_code));
 
   while (!done)
@@ -1255,7 +1271,7 @@ TYPED_TEST_P(RpcsTest, FUNC_DeleteRefreshStoredValue) {
   this->StopAndReset();
   // Value present in data store
   EXPECT_EQ(kSuccess, response_code);
-  EXPECT_EQ(kvs.value, return_values[0]);
+  EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
   EXPECT_TRUE(return_contacts.empty());
 
   EXPECT_TRUE(IsKeyValueInDataStore(kvs, this->data_store_));
@@ -1598,7 +1614,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                                     key.String(), "");
     boost::posix_time::seconds ttl(3600);
     // attempt to find value before any stored
-    std::vector<std::string> return_values;
+  std::vector<ValueAndSignature> return_values_and_signatures;
     std::vector<Contact> return_contacts;
     *done = false;
     *response_code = kGeneralError;
@@ -1607,14 +1623,14 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      &ldone, response_code));
+                                      &return_values_and_signatures,
+                                      &return_contacts, &ldone, response_code));
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(10));
 
     // Returns kIterativeLookupFailed as the service has an empty routing table.
     EXPECT_EQ(kIterativeLookupFailed, *response_code);
-    EXPECT_TRUE(return_values.empty());
+    EXPECT_TRUE(return_values_and_signatures.empty());
     EXPECT_TRUE(return_contacts.empty());
 
     ldone = false;
@@ -1631,7 +1647,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     JoinNetworkLookup(services_securifier_[server_index]);
 
     // attempt to retrieve value stored
-    return_values.clear();
+    return_values_and_signatures.clear();
     return_contacts.clear();
     ldone = false;
     *response_code = kGeneralError;
@@ -1639,14 +1655,14 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      &ldone, response_code));
+                                      &return_values_and_signatures,
+                                      &return_contacts, &ldone, response_code));
 
     while (!ldone)
       Sleep(boost::posix_time::milliseconds(10));
 
     EXPECT_EQ(0, *response_code);
-    EXPECT_EQ(kvs.value, return_values[0]);
+    EXPECT_EQ(kvs.value, return_values_and_signatures[0].first);
     EXPECT_TRUE(return_contacts.empty());
 
     ldone = false;
@@ -1662,7 +1678,7 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
     EXPECT_EQ(kSuccess, *response_code);
     JoinNetworkLookup(services_securifier_[server_index]);
 
-    return_values.clear();
+    return_values_and_signatures.clear();
     return_contacts.clear();
     *done = false;
     *response_code = kGeneralError;
@@ -1671,15 +1687,15 @@ class RpcsMultiServerNodesTest : public CreateContactAndNodeId,
                             service_contact_[server_index],
                             std::bind(&TestFindValueCallback, arg::_1,
                                       arg::_2, arg::_3, arg::_4, arg::_5,
-                                      &return_values, &return_contacts,
-                                      done, response_code));
+                                      &return_values_and_signatures,
+                                      &return_contacts, done, response_code));
     while (!*done)
       Sleep(boost::posix_time::milliseconds(10));
 
     // Value deleted.
     // Returns kIterativeLookupFailed as the service has an empty routing table.
     EXPECT_EQ(kIterativeLookupFailed, *response_code);
-    EXPECT_TRUE(return_values.empty());
+    EXPECT_TRUE(return_values_and_signatures.empty());
     EXPECT_TRUE(return_contacts.empty());
   }
 

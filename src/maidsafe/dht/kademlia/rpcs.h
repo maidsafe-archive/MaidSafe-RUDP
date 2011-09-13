@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/dht/kademlia/contact.h"
 #include "maidsafe/dht/kademlia/rpcs_objects.h"
 #include "maidsafe/dht/transport/transport.h"
+#include "maidsafe/dht/log.h"
 
 namespace arg = std::placeholders;
 
@@ -84,7 +85,7 @@ typedef std::function<void(RankInfoPtr, const int&)> RpcPingFunctor,
                                                      RpcDeleteRefreshFunctor;
 typedef std::function<void(RankInfoPtr,
                            const int&,
-                           const std::vector<std::string>&,
+                           const std::vector<ValueAndSignature>&,
                            const std::vector<Contact>&,
                            const Contact&)> RpcFindValueFunctor;
 typedef std::function<void(RankInfoPtr,
@@ -270,6 +271,7 @@ void Rpcs<TransportType>::Ping(SecurifierPtr securifier,
       std::bind(&Rpcs::PingCallback, this, random_data, arg::_1,
                 transport::Info(), protobuf::PingResponse(), object_indx,
                 callback, message, rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " PING to " << DebugId(peer);
   transport->Send(message,
                   peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
@@ -304,6 +306,7 @@ void Rpcs<TransportType>::FindValue(const Key &key,
       &Rpcs::FindValueCallback, this, arg::_1, transport::Info(),
       protobuf::FindValueResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " FIND_VALUE to " << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -337,6 +340,7 @@ void Rpcs<TransportType>::FindNodes(const Key &key,
       &Rpcs::FindNodesCallback, this, arg::_1, transport::Info(),
       protobuf::FindNodesResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " FIND_NODES to " << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -375,6 +379,7 @@ void Rpcs<TransportType>::Store(const Key &key,
       &Rpcs::StoreCallback, this, arg::_1, transport::Info(),
       protobuf::StoreResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " STORE to " << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -410,6 +415,8 @@ void Rpcs<TransportType>::StoreRefresh(
       &Rpcs::StoreRefreshCallback, this, arg::_1, transport::Info(),
       protobuf::StoreRefreshResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " STORE_REFRESH to "
+             << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -446,6 +453,7 @@ void Rpcs<TransportType>::Delete(const Key &key,
       &Rpcs::DeleteCallback, this, arg::_1, transport::Info(),
       protobuf::DeleteResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " DELETE to " << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -481,6 +489,8 @@ void Rpcs<TransportType>::DeleteRefresh(
       &Rpcs::DeleteRefreshCallback, this, arg::_1, transport::Info(),
       protobuf::DeleteRefreshResponse(), object_indx, callback, message,
       rpcs_failure_peer));
+  DLOG(INFO) << "\t" << DebugId(contact_) << " DELETE_REFRESH to "
+             << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -499,6 +509,7 @@ void Rpcs<TransportType>::Downlist(const std::vector<NodeId> &node_ids,
     notification.add_node_ids(node_ids[i].String());
   std::string message =
       message_handler->WrapMessage(notification, peer.public_key());
+  DLOG(INFO) << "\t" << DebugId(contact_) << " DOWNLIST to " << DebugId(peer);
   transport->Send(message, peer.PreferredEndpoint(),
                   transport::kDefaultInitialTimeout);
 }
@@ -553,18 +564,18 @@ void Rpcs<TransportType>::FindValueCallback(
   } else {
     connected_objects_.RemoveObject(index);
 
-    std::vector<std::string> values;
+    std::vector<ValueAndSignature> values_and_signatures;
     std::vector<Contact> contacts;
     Contact alternative_value_holder;
 
     if (transport_condition != transport::kSuccess) {
       callback(RankInfoPtr(new transport::Info(info)), transport_condition,
-               values, contacts, alternative_value_holder);
+               values_and_signatures, contacts, alternative_value_holder);
       return;
     }
     if (!response.IsInitialized() || !response.result()) {
       callback(RankInfoPtr(new transport::Info(info)), transport::kError,
-               values, contacts, alternative_value_holder);
+               values_and_signatures, contacts, alternative_value_holder);
       return;
     }
 
@@ -572,16 +583,19 @@ void Rpcs<TransportType>::FindValueCallback(
       alternative_value_holder =
           FromProtobuf(response.alternative_value_holder());
       callback(RankInfoPtr(new transport::Info(info)),
-               kFoundAlternativeStoreHolder, values, contacts,
+               kFoundAlternativeStoreHolder, values_and_signatures, contacts,
                alternative_value_holder);
       return;
     }
 
     if (response.signed_values_size() != 0) {
-      for (int i = 0; i < response.signed_values_size(); ++i)
-        values.push_back(response.signed_values(i).value());
-      callback(RankInfoPtr(new transport::Info(info)), kSuccess, values,
-               contacts, alternative_value_holder);
+      for (int i = 0; i < response.signed_values_size(); ++i) {
+        values_and_signatures.push_back(
+            std::make_pair(response.signed_values(i).value(),
+                           response.signed_values(i).signature()));
+      }
+      callback(RankInfoPtr(new transport::Info(info)), kSuccess,
+               values_and_signatures, contacts, alternative_value_holder);
       return;
     }
 
@@ -589,11 +603,11 @@ void Rpcs<TransportType>::FindValueCallback(
       for (int i = 0; i < response.closest_nodes_size(); ++i)
         contacts.push_back(FromProtobuf(response.closest_nodes(i)));
       callback(RankInfoPtr(new transport::Info(info)), kFailedToFindValue,
-               values, contacts, alternative_value_holder);
+               values_and_signatures, contacts, alternative_value_holder);
       return;
     }
     callback(RankInfoPtr(new transport::Info(info)), kIterativeLookupFailed,
-             values, contacts, alternative_value_holder);
+             values_and_signatures, contacts, alternative_value_holder);
   }
 }
 

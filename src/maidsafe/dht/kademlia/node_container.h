@@ -763,7 +763,7 @@ void NodeContainer<NodeType>::GetAndResetFindValueResult(
   find_value_returns_.closest_nodes.clear();
   find_value_returns_.needs_cache_copy = Contact();
   find_value_returns_.return_code = kPendingResult;
-  find_value_returns_.values.clear();
+  find_value_returns_.values_and_signatures.clear();
 }
 
 template <typename NodeType>

@@ -193,7 +193,7 @@ void NodeImpl::JoinFindValueCallback(FindValueReturns find_value_returns,
                                      const NodeId &node_id,
                                      JoinFunctor callback,
                                      bool none_reached) {
-  if (!find_value_returns.values.empty()) {
+  if (!find_value_returns.values_and_signatures.empty()) {
     JoinFailed(callback, kValueAlreadyExists);
     return;
   }
@@ -257,7 +257,7 @@ void NodeImpl::NotJoined(T callback) {
 
 template <>
 void NodeImpl::NotJoined<FindValueFunctor> (FindValueFunctor callback) {
-  callback(FindValueReturns(kNotJoined, std::vector<std::string>(),
+  callback(FindValueReturns(kNotJoined, std::vector<ValueAndSignature>(),
                             std::vector<Contact>(), Contact(), Contact()));
 }
 
@@ -406,25 +406,19 @@ void NodeImpl::FindValue(const Key &key,
     auto itr(close_contacts.begin());
     while (itr != close_contacts.end() && closest_count != k_) {
       if (*itr == contact_) {
-        std::vector<std::string> values;
-        std::vector<std::pair<std::string, std::string>> values_str;
+        std::vector<ValueAndSignature> values_and_sigs;
         std::vector<Contact> contacts;
         if (alternative_store_ && alternative_store_->Has(key.String())) {
           FindValueReturns find_value_returns(kFoundAlternativeStoreHolder,
-                                              values, contacts, contact_,
-                                              Contact());
+                                              values_and_sigs, contacts,
+                                              contact_, Contact());
           asio_service_.post(std::bind(&NodeImpl::FoundValueLocally, this,
                                        find_value_returns, callback));
           return;
         }
-        if (data_store_->GetValues(key.String(), &values_str)) {
-          values.reserve(values_str.size());
-          for (auto values_itr(values_str.begin());
-               values_itr != values_str.end(); ++values_itr) {
-            values.push_back((*values_itr).first);
-          }
-          FindValueReturns find_value_returns(kSuccess, values, contacts,
-                                              Contact(), Contact());
+        if (data_store_->GetValues(key.String(), &values_and_sigs)) {
+          FindValueReturns find_value_returns(kSuccess, values_and_sigs,
+                                              contacts, Contact(), Contact());
           asio_service_.post(std::bind(&NodeImpl::FoundValueLocally, this,
                                        find_value_returns, callback));
           return;
@@ -602,8 +596,9 @@ void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
                              (*itr).first,
                              std::bind(&NodeImpl::IterativeFindCallback,
                                        this, arg::_1, arg::_2,
-                                       std::vector<std::string>(), arg::_3,
-                                       Contact(), (*itr).first, lookup_args));
+                                       std::vector<ValueAndSignature>(),
+                                       arg::_3, Contact(), (*itr).first,
+                                       lookup_args));
           }
           ++lookup_args->total_lookup_rpcs_in_flight;
           ++lookup_args->rpcs_in_flight_for_current_iteration;
@@ -635,13 +630,14 @@ void NodeImpl::DoLookupIteration(LookupArgsPtr lookup_args) {
   }
 }
 
-void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
-                                     int result,
-                                     const std::vector<std::string> &values,
-                                     const std::vector<Contact> &contacts,
-                                     const Contact &alternative_store,
-                                     Contact peer,
-                                     LookupArgsPtr lookup_args) {
+void NodeImpl::IterativeFindCallback(
+    RankInfoPtr rank_info,
+    int result,
+    const std::vector<ValueAndSignature> &values_and_signatures,
+    const std::vector<Contact> &contacts,
+    const Contact &alternative_store,
+    Contact peer,
+    LookupArgsPtr lookup_args) {
   // It is only OK for a node to return no meaningful information if this is
   // the second to join the network (peer being the first)
   boost::mutex::scoped_lock lock(lookup_args->mutex);
@@ -684,8 +680,8 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
   BOOST_ASSERT(lookup_args->rpcs_in_flight_for_current_iteration >= -1);
 
   // If we should stop early (found value, or found single contact), do so.
-  if (AbortLookup(result, values, contacts, alternative_store, peer,
-                  second_node, lookup_args))
+  if (AbortLookup(result, values_and_signatures, contacts, alternative_store,
+                  peer, second_node, lookup_args))
     return;
 
   // Handle result if RPC was successful.
@@ -753,13 +749,14 @@ void NodeImpl::IterativeFindCallback(RankInfoPtr rank_info,
     SendDownlist(lookup_args->downlist);
 }
 
-bool NodeImpl::AbortLookup(int result,
-                           const std::vector<std::string> &values,
-                           const std::vector<Contact> &contacts,
-                           const Contact &alternative_store,
-                           const Contact &peer,
-                           bool second_node,
-                           LookupArgsPtr lookup_args) {
+bool NodeImpl::AbortLookup(
+    int result,
+    const std::vector<ValueAndSignature> &values_and_signatures,
+    const std::vector<Contact> &contacts,
+    const Contact &alternative_store,
+    const Contact &peer,
+    bool second_node,
+    LookupArgsPtr lookup_args) {
   if (lookup_args->kOperationType == LookupArgs::kFindValue) {
     // If the value was returned, or the peer claimed to have the value in its
     // alternative store, we're finished with the lookup.
@@ -767,14 +764,15 @@ bool NodeImpl::AbortLookup(int result,
         second_node) {
 #ifdef DEBUG
       if (second_node) {
-        BOOST_ASSERT(values.empty() && contacts.empty() &&
+        BOOST_ASSERT(values_and_signatures.empty() && contacts.empty() &&
                      alternative_store == Contact());
       } else {
-        BOOST_ASSERT(!values.empty() || alternative_store == peer);
+        BOOST_ASSERT(!values_and_signatures.empty() ||
+                     alternative_store == peer);
       }
 #endif
-      FindValueReturns find_value_returns(result, values, contacts,
-                                          alternative_store,
+      FindValueReturns find_value_returns(result, values_and_signatures,
+                                          contacts, alternative_store,
                                           lookup_args->cache_candidate);
       lookup_args->lookup_phase_complete = true;
       std::static_pointer_cast<FindValueArgs>(lookup_args)->callback(
@@ -921,7 +919,8 @@ void NodeImpl::HandleCompletedLookup(
         // store holder was found (in AbortLookup).
         int result(contacts.empty() ? kIterativeLookupFailed :
                    kFailedToFindValue);
-        FindValueReturns find_value_returns(result, std::vector<std::string>(),
+        FindValueReturns find_value_returns(result,
+                                            std::vector<ValueAndSignature>(),
                                             contacts, Contact(),
                                             lookup_args->cache_candidate);
         std::static_pointer_cast<FindValueArgs>(lookup_args)->callback(

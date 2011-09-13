@@ -237,10 +237,10 @@ bool DataStore::DeleteValue(
 
 bool DataStore::GetValues(
     const std::string &key,
-    std::vector<std::pair<std::string, std::string>> *values) const {
-  if (!values)
+    std::vector<ValueAndSignature> *values_and_signatures) const {
+  if (!values_and_signatures)
     return false;
-  values->clear();
+  values_and_signatures->clear();
 
   KeyValueIndex::index<TagKey>::type& index_by_key =
       key_value_index_->get<TagKey>();
@@ -252,14 +252,14 @@ bool DataStore::GetValues(
   bptime::ptime now = bptime::microsec_clock::universal_time();
   while (itr_pair.first != itr_pair.second) {
     if (((*itr_pair.first).expire_time > now) && !(*itr_pair.first).deleted)
-      values->push_back(std::make_pair(
+      values_and_signatures->push_back(std::make_pair(
           (*itr_pair.first).key_value_signature.value,
           (*itr_pair.first).key_value_signature.signature));
     ++itr_pair.first;
   }
   DLOG(INFO) << debug_id_ << ": Found key " << EncodeToHex(key).substr(0, 10)
-             << " with " << values->size() << " values.";
-  return (!values->empty());
+             << " with " << values_and_signatures->size() << " values.";
+  return (!values_and_signatures->empty());
 }
 
 void DataStore::Refresh(std::vector<KeyValueTuple> *key_value_tuples) {

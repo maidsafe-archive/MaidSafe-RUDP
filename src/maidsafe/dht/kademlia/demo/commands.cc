@@ -177,7 +177,8 @@ void Commands::FindValueCallback(FindValueReturns find_value_returns,
   } else {
     ULOG(INFO)
         << boost::format("FindValue returned: %1% value(s), %2% closest "
-                         "contact(s).") % find_value_returns.values.size() %
+                         "contact(s).") %
+                         find_value_returns.values_and_signatures.size() %
                          find_value_returns.closest_nodes.size();
     ULOG(INFO)
         << boost::format("Node holding value in its alternative_store: [ %1% ]")
@@ -187,8 +188,9 @@ void Commands::FindValueCallback(FindValueReturns find_value_returns,
         << boost::format("Node needing a cache copy of the values: [ %1% ]")
               % find_value_returns.needs_cache_copy.node_id().
               ToStringEncoded(NodeId::kBase64);
-    if (!find_value_returns.values.empty() && !path.empty())
-      WriteFile(path, find_value_returns.values[0]);  // Writing only 1st value
+    // Writing only 1st value
+    if (!find_value_returns.values_and_signatures.empty() && !path.empty())
+      WriteFile(path, find_value_returns.values_and_signatures[0].first);
   }
   demo_node_->asio_service().post(mark_results_arrived_);
 }

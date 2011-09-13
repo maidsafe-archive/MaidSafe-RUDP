@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/asio/ip/address.hpp"
@@ -72,6 +73,8 @@ enum OnlineStatus { kOffline, kOnline, kAttemptingConnect };
 
 struct FindValueReturns;
 
+typedef std::pair<std::string, std::string> ValueAndSignature;
+
 typedef std::shared_ptr<boost::signals2::signal<void(OnlineStatus)>>
         OnOnlineStatusChangePtr;
 
@@ -81,9 +84,9 @@ typedef std::function<void(int)> JoinFunctor, StoreFunctor, DeleteFunctor,  // N
                                  UpdateFunctor, PingFunctor;
 
 // Functor for use in Node::FindValue.  Parameters in order are: return code,
-// value(s) if found, k closest nodes if value not found, contact details of
-// node holding value in its alternative_store, and contact details of node
-// needing a cache copy of the values.
+// value(s) and signature(s) if found, k closest nodes if value not found,
+// contact details of node holding value in its alternative_store, and contact
+// details of node needing a cache copy of the values.
 typedef std::function<void(FindValueReturns)> FindValueFunctor;
 
 // Functor for use in Node::FindNodes.  Parameters in order are: return code,

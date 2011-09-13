@@ -316,8 +316,11 @@ TEST_F(NodeTest, FUNC_StoreAndFindSmallValue) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  ASSERT_EQ(1U, find_value_returns.values.size());
-  EXPECT_EQ(kValue, find_value_returns.values.front());
+  ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+  EXPECT_EQ(kValue, find_value_returns.values_and_signatures.front().first);
+  EXPECT_TRUE(chosen_container_->securifier()->Validate(kValue,
+              find_value_returns.values_and_signatures.front().second, "",
+              chosen_container_->securifier()->kSigningPublicKey(), "", ""));
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -347,8 +350,11 @@ TEST_F(NodeTest, FUNC_StoreAndFindBigValue) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  ASSERT_EQ(1U, find_value_returns.values.size());
-  EXPECT_EQ(kValue, find_value_returns.values.front());
+  ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+  EXPECT_EQ(kValue, find_value_returns.values_and_signatures.front().first);
+  EXPECT_TRUE(chosen_container_->securifier()->Validate(kValue,
+              find_value_returns.values_and_signatures.front().second, "",
+              chosen_container_->securifier()->kSigningPublicKey(), "", ""));
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -392,8 +398,12 @@ TEST_F(NodeTest, FUNC_StoreAndFindMultipleValues) {
       chosen_container_->GetAndResetFindValueResult(&find_value_returns);
     }
     EXPECT_EQ(kSuccess, find_value_returns.return_code);
-    ASSERT_EQ(1U, find_value_returns.values.size());
-    EXPECT_EQ(*value_itr, find_value_returns.values.front());
+    ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+    EXPECT_EQ(*value_itr,
+              find_value_returns.values_and_signatures.front().first);
+    EXPECT_TRUE(chosen_container_->securifier()->Validate(*value_itr,
+                find_value_returns.values_and_signatures.front().second, "",
+                chosen_container_->securifier()->kSigningPublicKey(), "", ""));
     EXPECT_TRUE(find_value_returns.closest_nodes.empty());
     EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
     // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -442,8 +452,11 @@ TEST_F(NodeTest, FUNC_MultipleNodesFindSingleValue) {
   for (auto it(find_value_returns_container.begin());
        it != find_value_returns_container.end(); ++it) {
     EXPECT_EQ(kSuccess, (*it).return_code);
-    ASSERT_EQ(1U, (*it).values.size());
-    EXPECT_EQ(kValue, (*it).values.front());
+    ASSERT_EQ(1U, (*it).values_and_signatures.size());
+    EXPECT_EQ(kValue, (*it).values_and_signatures.front().first);
+    EXPECT_TRUE(chosen_container_->securifier()->Validate(kValue,
+                (*it).values_and_signatures.front().second, "",
+                chosen_container_->securifier()->kSigningPublicKey(), "", ""));
     EXPECT_TRUE((*it).closest_nodes.empty());
     EXPECT_EQ(Contact(), (*it).alternative_store_holder);
     // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -490,8 +503,12 @@ TEST_F(NodeTest, FUNC_ClientFindValue) {
     client_node_container->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  ASSERT_EQ(1U, find_value_returns.values.size());
-  EXPECT_EQ(kValue, find_value_returns.values.front());
+  ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+  EXPECT_EQ(kValue, find_value_returns.values_and_signatures.front().first);
+  EXPECT_TRUE(client_node_container->securifier()->Validate(kValue,
+              find_value_returns.values_and_signatures.front().second, "",
+              client_node_container->securifier()->kSigningPublicKey(), "",
+              ""));
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -526,7 +543,7 @@ TEST_F(NodeTest, FUNC_FindNonExistingValue) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kFailedToFindValue, find_value_returns.return_code);
-  EXPECT_TRUE(find_value_returns.values.empty());
+  EXPECT_TRUE(find_value_returns.values_and_signatures.empty());
   EXPECT_FALSE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -621,8 +638,11 @@ TEST_F(NodeTest, FUNC_Update) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  ASSERT_EQ(1U, find_value_returns.values.size());
-  EXPECT_EQ(kValue, find_value_returns.values.front());
+  ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+  EXPECT_EQ(kValue, find_value_returns.values_and_signatures.front().first);
+  EXPECT_TRUE(chosen_container_->securifier()->Validate(kValue,
+              find_value_returns.values_and_signatures.front().second, "",
+              chosen_container_->securifier()->kSigningPublicKey(), "", ""));
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -651,15 +671,19 @@ TEST_F(NodeTest, FUNC_Update) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   int counter(0);
-  while ((find_value_returns.values.size() != 1U &&
-         find_value_returns.values.front() != kAnotherValue) ||
-         counter != 100) {
+  while ((find_value_returns.values_and_signatures.size() != 1U &&
+         find_value_returns.values_and_signatures.front().first !=
+         kAnotherValue) || counter != 100) {
     Sleep(kTimeout_ / 100);
     ++counter;
   }
   EXPECT_EQ(kSuccess, find_value_returns.return_code);
-  ASSERT_EQ(1U, find_value_returns.values.size());
-  EXPECT_EQ(kAnotherValue, find_value_returns.values.front());
+  ASSERT_EQ(1U, find_value_returns.values_and_signatures.size());
+  EXPECT_EQ(kAnotherValue,
+            find_value_returns.values_and_signatures.front().first);
+  EXPECT_TRUE(chosen_container_->securifier()->Validate(kAnotherValue,
+              find_value_returns.values_and_signatures.front().second, "",
+              chosen_container_->securifier()->kSigningPublicKey(), "", ""));
   EXPECT_TRUE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented
@@ -742,7 +766,7 @@ TEST_F(NodeTest, FUNC_Delete) {
     chosen_container_->GetAndResetFindValueResult(&find_value_returns);
   }
   EXPECT_EQ(kFailedToFindValue, find_value_returns.return_code);
-  EXPECT_TRUE(find_value_returns.values.empty());
+  EXPECT_TRUE(find_value_returns.values_and_signatures.empty());
   EXPECT_FALSE(find_value_returns.closest_nodes.empty());
   EXPECT_EQ(Contact(), find_value_returns.alternative_store_holder);
   // TODO(Philip#5#): 2011-09-01 - Re-introduce when caching is implemented

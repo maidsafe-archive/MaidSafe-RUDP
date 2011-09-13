@@ -288,21 +288,22 @@ class NodeImpl {
    *  @param[in] rank_info rank info
    *  @param[in] result Indicator from the rpc. Any negative value shall be
    *  considered as the enquired contact got some problems.
-   *  @param[in] values The values of the key.
+   *  @param[in] values_and_signatures The values and signatures of the key.
    *  @param[in] contacts The closest contacts.
    *  @param[in] alternative_store The alternative store contact.
    *  @param[in] peer The Contact being queried.
    *  @param[in] lookup_args The arguments struct holding all shared info. */
-  void IterativeFindCallback(RankInfoPtr rank_info,
-                             int result,
-                             const std::vector<std::string> &values,
-                             const std::vector<Contact> &contacts,
-                             const Contact &alternative_store,
-                             Contact peer,
-                             LookupArgsPtr lookup_args);
+  void IterativeFindCallback(
+      RankInfoPtr rank_info,
+      int result,
+      const std::vector<ValueAndSignature> &values_and_signatures,
+      const std::vector<Contact> &contacts,
+      const Contact &alternative_store,
+      Contact peer,
+      LookupArgsPtr lookup_args);
 
   bool AbortLookup(int result,
-                   const std::vector<std::string> &values,
+                   const std::vector<ValueAndSignature> &values_and_signatures,
                    const std::vector<Contact> &contacts,
                    const Contact &alternative_store,
                    const Contact &peer,

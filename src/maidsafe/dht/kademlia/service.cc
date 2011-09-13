@@ -159,7 +159,6 @@ void Service::FindValue(const transport::Info &info,
   Contact sender(FromProtobuf(request.sender()));
 
   // Are we the alternative value holder?
-  std::vector<std::pair<std::string, std::string>> values_str;
   if (alternative_store_ && (alternative_store_->Has(key.String()))) {
     *(response->mutable_alternative_value_holder()) = ToProtobuf(node_contact_);
     response->set_result(true);
@@ -168,11 +167,12 @@ void Service::FindValue(const transport::Info &info,
   }
 
   // Do we have the values?
-  if (datastore_->GetValues(key.String(), &values_str)) {
-    for (unsigned int i = 0; i < values_str.size(); i++) {
+  std::vector<ValueAndSignature> values_and_signatures;
+  if (datastore_->GetValues(key.String(), &values_and_signatures)) {
+    for (unsigned int i = 0; i < values_and_signatures.size(); i++) {
       protobuf::SignedValue *signed_value = response->add_signed_values();
-      signed_value->set_value(values_str[i].first);
-      signed_value->set_signature(values_str[i].second);
+      signed_value->set_value(values_and_signatures[i].first);
+      signed_value->set_signature(values_and_signatures[i].second);
     }
     response->set_result(true);
     AddContactToRoutingTable(sender, info);

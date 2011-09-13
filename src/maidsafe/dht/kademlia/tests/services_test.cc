@@ -316,11 +316,11 @@ class ServicesTest: public CreateContactAndNodeId, public testing::Test {
 
   // Checks for not deleted value which are not marked as deleted
   bool IsKeyValueInDataStore(KeyValueSignature kvs) {
-    std::vector<std::pair<std::string, std::string>> values;
-    data_store_->GetValues(kvs.key, &values);
-    for (size_t i = 0; i < values.size(); ++i) {
-      if ((values[i].first == kvs.value) &&
-          (values[i].second == kvs.signature)) {
+    std::vector<ValueAndSignature> values_and_signatures;
+    data_store_->GetValues(kvs.key, &values_and_signatures);
+    for (size_t i = 0; i < values_and_signatures.size(); ++i) {
+      if ((values_and_signatures[i].first == kvs.value) &&
+          (values_and_signatures[i].second == kvs.signature)) {
         return true;
       }
     }
