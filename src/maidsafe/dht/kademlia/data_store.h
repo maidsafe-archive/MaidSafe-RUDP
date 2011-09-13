@@ -65,6 +65,7 @@ template <typename T>
 class RpcsTest;
 class NodeImplTest;
 class NodeImplTest_FUNC_StoreRefresh_Test;
+class NodeImplTest_FUNC_StoreRefreshInvalidSigner_Test;
 class NodeImplTest_FUNC_DeleteRefresh_Test;
 }
 
@@ -222,6 +223,7 @@ class DataStore {
   friend class test::RpcsTest;
   friend class test::NodeImplTest;
   friend class test::NodeImplTest_FUNC_StoreRefresh_Test;
+  friend class test::NodeImplTest_FUNC_StoreRefreshInvalidSigner_Test;
   friend class test::NodeImplTest_FUNC_DeleteRefresh_Test;
  private:
   typedef boost::shared_lock<boost::shared_mutex> SharedLock;

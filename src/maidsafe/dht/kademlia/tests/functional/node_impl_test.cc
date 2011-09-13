@@ -926,6 +926,107 @@ TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   }
 }
 
+TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
+  auto itr(env_->node_containers_.begin()), refresh_node(itr);
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      refresh_node = itr;
+      break;
+    }
+  }
+
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(10);
+
+  std::vector<std::string> values;
+  const int kNumValues(4);
+  for (int i = 0; i != kNumValues; ++i)
+    values.push_back(RandomString(RandomUint32() % 1024));
+  bptime::time_duration duration(bptime::pos_infin);
+  int result(kPendingResult);
+  for (int i = 0; i != kNumValues; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      test_container_->Store(far_key_, values[i], "", duration,
+                             test_container_->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                             test_container_->wait_for_store_functor()));
+      test_container_->GetAndResetStoreResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
+  }
+
+  // Assert test_container_ didn't store the value
+  if (!client_only_node_)
+    ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
+
+  // sign the message in datasore with a node which is not the original signer
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(10);
+  std::shared_ptr<DataStore> data_store(GetDataStore(*refresh_node));
+  std::pair<std::string, std::string> pair;
+  auto itr1(data_store->key_value_index_->get<TagKey>().find(
+      far_key_.String()));
+  if (itr1 != data_store->key_value_index_->end()) {
+    const Key key((*itr1).key_value_signature.key);
+    const bptime::seconds seconds(3600);
+    pair = (*refresh_node)->node()->rpcs_->MakeStoreRequestAndSignature(
+        key,
+        (*itr1).key_value_signature.value,
+        (*itr1).key_value_signature.signature,
+        seconds,
+        (*refresh_node)->securifier());
+    bptime::ptime now(bptime::microsec_clock::universal_time());
+    KeyValueTuple tuple((*itr1).key_value_signature, now + duration,
+                        now + GetDataStore(*refresh_node)->kRefreshInterval_,
+                        pair, false);
+    data_store->key_value_index_->erase(itr1);
+    // Try to insert key,value
+    KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+        GetDataStore(*refresh_node)->key_value_index_->get<TagKeyValue>();
+    auto insertion_result = index_by_key_value.insert(tuple);
+  }
+
+  itr = env_->node_containers_.begin();
+  auto node_to_leave = itr;
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
+      node_to_leave = itr;
+    }
+  }
+  auto id_itr = std::find(env_->node_ids_.begin(), env_->node_ids_.end(),
+                          (*node_to_leave)->node()->contact().node_id());
+  ASSERT_NE(env_->node_ids_.end(), id_itr);
+  (*node_to_leave)->node()->Leave(NULL);
+
+  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+      bptime::seconds(3600);
+
+  // Having set refresh time to 20 seconds, wait for 30 seconds
+  Sleep(bptime::seconds(30));
+
+  bool not_refreshed(false);
+
+  // If a refresh has happened, the current k closest should hold the value,
+  // k-1 nodes should have kNumValues entries, and the new joined node
+  // kNumValues - 1 entries.
+  for (itr = env_->node_containers_.begin();
+       itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_ + 1)) {
+      // TODO(Fraser#5#): 2011-09-06 - Check values and deleted states.
+      if (itr != node_to_leave &&
+          (GetDataStore(*itr)->key_value_index_->size() == kNumValues - 1))
+        not_refreshed = true;
+    }
+  }
+  ASSERT_TRUE(not_refreshed);
+}
+
 TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   auto itr(env_->node_containers_.begin()), refresh_node(itr);
   for (; itr != env_->node_containers_.end(); ++itr) {
