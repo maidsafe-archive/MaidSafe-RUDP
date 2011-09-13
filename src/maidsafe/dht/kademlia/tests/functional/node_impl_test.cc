@@ -1016,8 +1016,84 @@ TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   }
 }
 
-TEST_P(NodeImplTest, DISABLED_FUNC_GetContact) {
-  FAIL() << "Not implemented.";
+TEST_P(NodeImplTest, FUNC_GetContact) {
+  int result(kPendingResult);
+  std::vector<Contact> contacts;
+  test_container_->node()->GetAllContacts(&contacts);
+  Contact not_in_rt_contact = *(contacts.begin());
+  std::cout << "Contact: " << DebugId(not_in_rt_contact.node_id()) << std::endl;
+  std::cout << "Test Container: "
+    << DebugId(test_container_->node()->contact().node_id()) << std::endl;
+  // Remove contact from routing table by incrementing failed rpc count
+  for (int i = 0; i <= kFailedRpcTolerance; ++i) {
+    test_container_->node()->IncrementFailedRpcs(not_in_rt_contact);
+  }
+
+  // Test that getting an online contact not held in the test container's
+  // routing table succeeds
+  {
+    Contact contact;
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->GetContact(not_in_rt_contact.node_id());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                              test_container_->wait_for_get_contact_functor()));
+    test_container_->GetAndResetGetContactResult(&result, &contact);
+    EXPECT_EQ(not_in_rt_contact, contact);
+    EXPECT_EQ(kSuccess, result);
+  }
+
+  std::vector<Contact> bootstrap_contacts;
+  (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+      &bootstrap_contacts);
+
+  // make one of the environment containers offline
+  auto offline_container = *(env_->node_containers_.begin());
+  offline_container->node()->Leave(&bootstrap_contacts);
+  EXPECT_FALSE(offline_container->node()->joined());
+  EXPECT_FALSE(bootstrap_contacts.empty());
+
+  result = kPendingResult;
+  // Test that getting an offline contact returns no contact
+  {
+    Contact contact;
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->GetContact(offline_container->node()->contact().node_id());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                              test_container_->wait_for_get_contact_functor()));
+    test_container_->GetAndResetGetContactResult(&result, &contact);
+    EXPECT_EQ(Contact(), contact);
+    EXPECT_EQ(kFailedToGetContact, result);
+  }
+  result = kPendingResult;
+  {
+    // bring the offline environment container back online
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    offline_container->Join(
+        offline_container->node()->contact().node_id(),
+        offline_container->bootstrap_contacts());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                offline_container->wait_for_join_functor())) << debug_msg_;
+    offline_container->GetAndResetJoinResult(&result);
+    EXPECT_EQ(kSuccess, result) << debug_msg_;
+    EXPECT_TRUE(offline_container->node()->joined()) << debug_msg_;
+  }
+  {
+    // ping the other environment containers to make sure contact info
+    // is up to date
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    for (auto it = env_->node_containers_.begin();
+         it != env_->node_containers_.end(); ++it) {
+      if (offline_container->node()->contact()
+        != ((*it)->node()->contact())) {
+        offline_container->Ping((*it)->node()->contact());
+        EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                    offline_container->wait_for_ping_functor()))
+                    << debug_msg_;
+        result = kPendingResult;
+        offline_container->GetAndResetPingResult(&result);
+      }
+    }
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(FullOrClient, NodeImplTest, testing::Bool());
