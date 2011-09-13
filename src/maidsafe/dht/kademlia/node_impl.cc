@@ -123,8 +123,11 @@ void NodeImpl::Join(const NodeId &node_id,
   }
 
   if (!default_securifier_) {
+    crypto::RsaKeyPair key_pair;
+    key_pair.GenerateKeys(4096);
     default_securifier_ =
-        SecurifierPtr(new Securifier(node_id.String(), "", ""));
+        SecurifierPtr(new Securifier(node_id.String(), key_pair.public_key(),
+                                     key_pair.private_key()));
   }
 
   if (!rpcs_) {
