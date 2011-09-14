@@ -67,9 +67,25 @@ class NodeImplTest : public testing::TestWithParam<bool> {
     // Clear all DataStores and restart any stopped nodes.
     for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
       if (!env_->node_containers_[i]->node()->joined()) {
+        boost::mutex::scoped_lock lock(env_->mutex_);
         env_->node_containers_[i]->Join(
             env_->node_containers_[i]->node()->contact().node_id(),
             env_->node_containers_[i]->bootstrap_contacts());
+        env_->cond_var_.timed_wait(lock, kTimeout_,
+            env_->node_containers_[i]->wait_for_join_functor());
+        int result;
+        env_->node_containers_[i]->GetAndResetJoinResult(&result);
+        // ping the other environment containers to make sure their contact info
+        // is up to date
+        for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
+          if (i != j) {
+            env_->node_containers_[i]->Ping(
+                env_->node_containers_[j]->node()->contact());
+            env_->cond_var_.timed_wait(lock, kTimeout_,
+                env_->node_containers_[i]->wait_for_ping_functor());
+            env_->node_containers_[i]->GetAndResetPingResult(&result);
+          }
+        }
       }
       boost::unique_lock<boost::shared_mutex> lock(
           GetDataStore(env_->node_containers_[i])->shared_mutex_);
@@ -936,7 +952,8 @@ TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
     }
   }
 
-  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+  std::shared_ptr<DataStore> data_store(GetDataStore(*refresh_node));
+  const_cast<bptime::seconds&>(data_store->kRefreshInterval_) =
       bptime::seconds(10);
 
   std::vector<std::string> values;
@@ -963,30 +980,27 @@ TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
     ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
 
   // sign the message in datasore with a node which is not the original signer
-  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
-      bptime::seconds(10);
-  std::shared_ptr<DataStore> data_store(GetDataStore(*refresh_node));
-  std::pair<std::string, std::string> pair;
   auto itr1(data_store->key_value_index_->get<TagKey>().find(
       far_key_.String()));
   if (itr1 != data_store->key_value_index_->end()) {
     const Key key((*itr1).key_value_signature.key);
     const bptime::seconds seconds(3600);
-    pair = (*refresh_node)->node()->rpcs_->MakeStoreRequestAndSignature(
-        key,
-        (*itr1).key_value_signature.value,
-        (*itr1).key_value_signature.signature,
-        seconds,
-        (*refresh_node)->securifier());
+    std::pair<std::string, std::string> request_and_signature =
+        (*refresh_node)->node()->rpcs_->MakeStoreRequestAndSignature(
+            key,
+            (*itr1).key_value_signature.value,
+            (*itr1).key_value_signature.signature,
+            seconds,
+            (*refresh_node)->securifier());
     bptime::ptime now(bptime::microsec_clock::universal_time());
     KeyValueTuple tuple((*itr1).key_value_signature, now + duration,
-                        now + GetDataStore(*refresh_node)->kRefreshInterval_,
-                        pair, false);
+                        now + data_store->kRefreshInterval_,
+                        request_and_signature, false);
     data_store->key_value_index_->erase(itr1);
     // Try to insert key,value
     KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
-        GetDataStore(*refresh_node)->key_value_index_->get<TagKeyValue>();
-    auto insertion_result = index_by_key_value.insert(tuple);
+        data_store->key_value_index_->get<TagKeyValue>();
+    index_by_key_value.insert(tuple);
   }
 
   itr = env_->node_containers_.begin();
@@ -1003,7 +1017,7 @@ TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
   ASSERT_NE(env_->node_ids_.end(), id_itr);
   (*node_to_leave)->node()->Leave(NULL);
 
-  const_cast<bptime::seconds&>(GetDataStore(*refresh_node)->kRefreshInterval_) =
+  const_cast<bptime::seconds&>(data_store->kRefreshInterval_) =
       bptime::seconds(3600);
 
   // Having set refresh time to 20 seconds, wait for 30 seconds
