@@ -1021,9 +1021,6 @@ TEST_P(NodeImplTest, FUNC_GetContact) {
   std::vector<Contact> contacts;
   test_container_->node()->GetAllContacts(&contacts);
   Contact not_in_rt_contact = *(contacts.begin());
-  std::cout << "Contact: " << DebugId(not_in_rt_contact.node_id()) << std::endl;
-  std::cout << "Test Container: "
-    << DebugId(test_container_->node()->contact().node_id()) << std::endl;
   // Remove contact from routing table by incrementing failed rpc count
   for (int i = 0; i <= kFailedRpcTolerance; ++i) {
     test_container_->node()->IncrementFailedRpcs(not_in_rt_contact);
