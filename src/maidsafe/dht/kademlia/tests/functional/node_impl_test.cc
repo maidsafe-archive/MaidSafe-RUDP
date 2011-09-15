@@ -67,9 +67,25 @@ class NodeImplTest : public testing::TestWithParam<bool> {
     // Clear all DataStores and restart any stopped nodes.
     for (size_t i = 0; i != env_->num_full_nodes_; ++i) {
       if (!env_->node_containers_[i]->node()->joined()) {
+        boost::mutex::scoped_lock lock(env_->mutex_);
         env_->node_containers_[i]->Join(
             env_->node_containers_[i]->node()->contact().node_id(),
             env_->node_containers_[i]->bootstrap_contacts());
+        env_->cond_var_.timed_wait(lock, kTimeout_,
+            env_->node_containers_[i]->wait_for_join_functor());
+        int result;
+        env_->node_containers_[i]->GetAndResetJoinResult(&result);
+        // ping the other environment containers to make sure their contact info
+        // is up to date
+        for (size_t j = 0; j != env_->num_full_nodes_; ++j) {
+          if (i != j) {
+            env_->node_containers_[i]->Ping(
+                env_->node_containers_[j]->node()->contact());
+            env_->cond_var_.timed_wait(lock, kTimeout_,
+                env_->node_containers_[i]->wait_for_ping_functor());
+            env_->node_containers_[i]->GetAndResetPingResult(&result);
+          }
+        }
       }
       boost::unique_lock<boost::shared_mutex> lock(
           GetDataStore(env_->node_containers_[i])->shared_mutex_);
@@ -944,6 +960,104 @@ TEST_P(NodeImplTest, FUNC_StoreRefresh) {
   }
 }
 
+TEST_P(NodeImplTest, FUNC_StoreRefreshInvalidSigner) {
+  auto itr(env_->node_containers_.begin()), refresh_node(itr);
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      refresh_node = itr;
+      break;
+    }
+  }
+
+  std::shared_ptr<DataStore> data_store(GetDataStore(*refresh_node));
+  const_cast<bptime::seconds&>(data_store->kRefreshInterval_) =
+      bptime::seconds(10);
+
+  std::vector<std::string> values;
+  const int kNumValues(4);
+  for (int i = 0; i != kNumValues; ++i)
+    values.push_back(RandomString(RandomUint32() % 1024));
+  bptime::time_duration duration(bptime::pos_infin);
+  int result(kPendingResult);
+  for (int i = 0; i != kNumValues; ++i) {
+    result = kPendingResult;
+    {
+      boost::mutex::scoped_lock lock(env_->mutex_);
+      test_container_->Store(far_key_, values[i], "", duration,
+                             test_container_->securifier());
+      EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                             test_container_->wait_for_store_functor()));
+      test_container_->GetAndResetStoreResult(&result);
+    }
+    EXPECT_EQ(kSuccess, result);
+  }
+
+  // Assert test_container_ didn't store the value
+  if (!client_only_node_)
+    ASSERT_FALSE(GetDataStore(test_container_)->HasKey(far_key_.String()));
+
+  // sign the message in datasore with a node which is not the original signer
+  auto itr1(data_store->key_value_index_->get<TagKey>().find(
+      far_key_.String()));
+  if (itr1 != data_store->key_value_index_->end()) {
+    const Key key((*itr1).key_value_signature.key);
+    const bptime::seconds seconds(3600);
+    std::pair<std::string, std::string> request_and_signature =
+        (*refresh_node)->node()->rpcs_->MakeStoreRequestAndSignature(
+            key,
+            (*itr1).key_value_signature.value,
+            (*itr1).key_value_signature.signature,
+            seconds,
+            (*refresh_node)->securifier());
+    bptime::ptime now(bptime::microsec_clock::universal_time());
+    KeyValueTuple tuple((*itr1).key_value_signature, now + duration,
+                        now + data_store->kRefreshInterval_,
+                        request_and_signature, false);
+    data_store->key_value_index_->erase(itr1);
+    // Try to insert key,value
+    KeyValueIndex::index<TagKeyValue>::type& index_by_key_value =
+        data_store->key_value_index_->get<TagKeyValue>();
+    index_by_key_value.insert(tuple);
+  }
+
+  itr = env_->node_containers_.begin();
+  auto node_to_leave = itr;
+  for (; itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_)) {
+      EXPECT_TRUE(GetDataStore(*itr)->HasKey(far_key_.String()));
+      node_to_leave = itr;
+    }
+  }
+  auto id_itr = std::find(env_->node_ids_.begin(), env_->node_ids_.end(),
+                          (*node_to_leave)->node()->contact().node_id());
+  ASSERT_NE(env_->node_ids_.end(), id_itr);
+  (*node_to_leave)->node()->Leave(NULL);
+
+  const_cast<bptime::seconds&>(data_store->kRefreshInterval_) =
+      bptime::seconds(3600);
+
+  // Having set refresh time to 20 seconds, wait for 30 seconds
+  Sleep(bptime::seconds(30));
+
+  bool not_refreshed(false);
+
+  // If a refresh has happened, the current k closest should hold the value,
+  // k-1 nodes should have kNumValues entries, and the new joined node
+  // kNumValues - 1 entries.
+  for (itr = env_->node_containers_.begin();
+       itr != env_->node_containers_.end(); ++itr) {
+    if (WithinKClosest((*itr)->node()->contact().node_id(), far_key_,
+                       env_->node_ids_, env_->k_ + 1)) {
+      if (itr != node_to_leave &&
+          (GetDataStore(*itr)->key_value_index_->size() == kNumValues - 1))
+        not_refreshed = true;
+    }
+  }
+  ASSERT_TRUE(not_refreshed);
+}
+
 TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   auto itr(env_->node_containers_.begin()), refresh_node(itr);
   for (; itr != env_->node_containers_.end(); ++itr) {
@@ -1034,8 +1148,81 @@ TEST_P(NodeImplTest, FUNC_DeleteRefresh) {
   }
 }
 
-TEST_P(NodeImplTest, DISABLED_FUNC_GetContact) {
-  FAIL() << "Not implemented.";
+TEST_P(NodeImplTest, FUNC_GetContact) {
+  int result(kPendingResult);
+  std::vector<Contact> contacts;
+  test_container_->node()->GetAllContacts(&contacts);
+  Contact not_in_rt_contact = *(contacts.begin());
+  // Remove contact from routing table by incrementing failed rpc count
+  for (int i = 0; i <= kFailedRpcTolerance; ++i) {
+    test_container_->node()->IncrementFailedRpcs(not_in_rt_contact);
+  }
+
+  // Test that getting an online contact not held in the test container's
+  // routing table succeeds
+  {
+    Contact contact;
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->GetContact(not_in_rt_contact.node_id());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                              test_container_->wait_for_get_contact_functor()));
+    test_container_->GetAndResetGetContactResult(&result, &contact);
+    EXPECT_EQ(not_in_rt_contact, contact);
+    EXPECT_EQ(kSuccess, result);
+  }
+
+  std::vector<Contact> bootstrap_contacts;
+  (*env_->node_containers_.rbegin())->node()->GetBootstrapContacts(
+      &bootstrap_contacts);
+
+  // make one of the environment containers offline
+  auto offline_container = *(env_->node_containers_.begin());
+  offline_container->node()->Leave(&bootstrap_contacts);
+  EXPECT_FALSE(offline_container->node()->joined());
+  EXPECT_FALSE(bootstrap_contacts.empty());
+
+  result = kPendingResult;
+  // Test that getting an offline contact returns no contact
+  {
+    Contact contact;
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    test_container_->GetContact(offline_container->node()->contact().node_id());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                              test_container_->wait_for_get_contact_functor()));
+    test_container_->GetAndResetGetContactResult(&result, &contact);
+    EXPECT_EQ(Contact(), contact);
+    EXPECT_EQ(kFailedToGetContact, result);
+  }
+  result = kPendingResult;
+  {
+    // bring the offline environment container back online
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    offline_container->Join(
+        offline_container->node()->contact().node_id(),
+        offline_container->bootstrap_contacts());
+    EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                offline_container->wait_for_join_functor())) << debug_msg_;
+    offline_container->GetAndResetJoinResult(&result);
+    EXPECT_EQ(kSuccess, result) << debug_msg_;
+    EXPECT_TRUE(offline_container->node()->joined()) << debug_msg_;
+  }
+  {
+    // ping the other environment containers to make sure contact info
+    // is up to date
+    boost::mutex::scoped_lock lock(env_->mutex_);
+    for (auto it = env_->node_containers_.begin();
+         it != env_->node_containers_.end(); ++it) {
+      if (offline_container->node()->contact()
+        != ((*it)->node()->contact())) {
+        offline_container->Ping((*it)->node()->contact());
+        EXPECT_TRUE(env_->cond_var_.timed_wait(lock, kTimeout_,
+                    offline_container->wait_for_ping_functor()))
+                    << debug_msg_;
+        result = kPendingResult;
+        offline_container->GetAndResetPingResult(&result);
+      }
+    }
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(FullOrClient, NodeImplTest, testing::Bool());
