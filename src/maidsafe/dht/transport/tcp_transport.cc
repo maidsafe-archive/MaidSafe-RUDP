@@ -61,8 +61,8 @@ TcpTransport::TcpTransport(boost::asio::io_service &asio_service)  // NOLINT
       strand_(asio_service) {}
 
 TcpTransport::~TcpTransport() {
-  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    (*it)->Close();
+  for (auto it = connections_.begin(); it != connections_.end();)
+    (*it++)->Close();
 }
 
 TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
