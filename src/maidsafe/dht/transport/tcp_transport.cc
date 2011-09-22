@@ -157,6 +157,15 @@ void TcpTransport::HandleAccept(AcceptorPtr acceptor,
 void TcpTransport::Send(const std::string &data,
                         const Endpoint &endpoint,
                         const Timeout &timeout) {
+  DataSize msg_size(static_cast<DataSize>(data.size()));
+  if (msg_size > kMaxTransportMessageSize()) {
+    DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
+                << kMaxTransportMessageSize() << ")";
+    Endpoint ep;
+    (*on_error_)(kMessageSizeTooLarge, ep);
+    return;
+  }
+
   ip::tcp::endpoint tcp_endpoint(endpoint.ip, endpoint.port);
   ConnectionPtr connection(std::make_shared<TcpConnection>(shared_from_this(),
                                                            tcp_endpoint));

@@ -210,7 +210,10 @@ void TcpConnection::DispatchMessage() {
                                        info,
                                        &response,
                                        &response_timeout);
-    if (response.empty()) {
+    DataSize msg_size(static_cast<DataSize>(response.size()));
+    if (response.empty() || msg_size > transport->kMaxTransportMessageSize()) {
+      DLOG(INFO) << "Data size " << msg_size << " bytes ("
+                 << transport->kMaxTransportMessageSize() << ")";
       Close();
       return;
     }
@@ -225,17 +228,6 @@ void TcpConnection::DispatchMessage() {
 void TcpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = static_cast<DataSize>(data.size());
-  if (std::shared_ptr<TcpTransport> transport = transport_.lock()) {
-    if (msg_size > transport->kMaxTransportMessageSize()) {
-      DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                  << transport->kMaxTransportMessageSize() << ")";
-      Endpoint ep;
-      (*transport->on_error_)(kMessageSizeTooLarge, ep);
-      return;
-    }
-  } else {
-    return;
-  }
   for (int i = 0; i != 4; ++i)
     size_buffer_.at(i) = static_cast<char>(msg_size >> (8 * (3 - i)));
   data_buffer_.assign(data.begin(), data.end());
