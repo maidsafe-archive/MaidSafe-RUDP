@@ -161,14 +161,13 @@ ADD_LIBRARY(maidsafe_transport_static STATIC ${ALL_FILES})
 SET_TARGET_PROPERTIES(maidsafe_transport_static PROPERTIES OUTPUT_NAME maidsafe_transport FOLDER "MaidSafe Libraries")
 
 TARGET_LINK_LIBRARIES(maidsafe_transport_static
-#                        maidsafe_common_static
-#                        cryptopp_static
+                        maidsafe_common_static
+                        cryptopp_static
                         protobuf_static
                         glog_static
                         boost_date_time
-#                        boost_filesystem
-#                        boost_regex
-#                        boost_system
+                        boost_filesystem
+                        boost_system
                         boost_thread
                         ${SYS_LIB})
 TARGET_LINK_LIBRARIES(TESTtransport maidsafe_transport_static gtest_static)

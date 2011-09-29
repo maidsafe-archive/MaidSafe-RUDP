@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe/transport/kademlia/securifier.h"
+#include "maidsafe/common/securifier.h"
 #include "maidsafe/transport/message_handler.h"
 #ifdef __MSVC__
 #  pragma warning(push)

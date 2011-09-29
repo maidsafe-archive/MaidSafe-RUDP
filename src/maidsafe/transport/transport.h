@@ -194,8 +194,6 @@ class Transport {
    * @param data The message data to transmit.
    * @param endpoint The data receiver's endpoint.
    * @param timeout Time after which to terminate a conversation.
-   * @param close_on_response Whether the connection should be kept alive after
-   * the response arrives (or timeout occurs) or not.
    */
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
