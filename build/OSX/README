@@ -7,6 +7,6 @@ OSX Build Instructions
 
     *  Run make Experimental to configure, build, test and upload to our dashboard.
     *  Run make package to create auto rpm or deb.
-    *  Run make install to install the maidsafe-dht library to /usr/lib and headers to /usr/include.
+    *  Run make install to install MaidSafe-Transport (by default to MaidSafe-Common/installed/)
 
-For full build instructions, see http://code.google.com/p/maidsafe-dht/wiki/DevBuild
+For full build instructions, see https://github.com/maidsafe/MaidSafe-Transport/wiki/Developer-Build-Instructions

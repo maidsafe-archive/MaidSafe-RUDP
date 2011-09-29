@@ -1,4 +1,4 @@
-For full build instructions, see https://github.com/maidsafe/MaidSafe-DHT/wiki/Developer-Build-Instructions
+For full build instructions, see https://github.com/maidsafe/MaidSafe-Transport/wiki/Developer-Build-Instructions
 Abbreviated instructions can be found in build/<DirAppropriateToYourOS>/README
 
 Directory structure
@@ -17,3 +17,4 @@ Directory structure
     - Win_MSVC
 - src
     - maidsafe
+        - transport
