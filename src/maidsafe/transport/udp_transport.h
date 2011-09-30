@@ -37,7 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/ip/udp.hpp"
 #include "boost/asio/strand.hpp"
 #include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/udp_request.h"
 #include "maidsafe/transport/version.h"
 
 #if MAIDSAFE_TRANSPORT_VERSION != 100
@@ -49,6 +48,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 namespace transport {
+
+class UdpRequest;
 
 class UdpTransport : public Transport,
                      public std::enable_shared_from_this<UdpTransport> {

@@ -25,11 +25,13 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <array>  // NOLINT
+#include "maidsafe/transport/udp_transport.h"
+
+#include <array>
 #include <cstring>
 #include <functional>
 
-#include "maidsafe/transport/udp_transport.h"
+#include "maidsafe/transport/udp_request.h"
 #include "maidsafe/transport/log.h"
 #include "maidsafe/common/utils.h"
 

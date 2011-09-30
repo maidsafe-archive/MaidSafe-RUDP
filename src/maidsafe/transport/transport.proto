@@ -56,9 +56,3 @@ message RendezvousRequest {
 message RendezvousAcknowledgement {
   required Endpoint originator_endpoint = 1;
 }
-
-message CrashReport {
-  required bytes content = 1;
-  required bytes project_name = 2;
-  required bytes project_version = 3;
-}
