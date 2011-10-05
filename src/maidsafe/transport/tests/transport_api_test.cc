@@ -359,7 +359,11 @@ TYPED_TEST_P(TransportAPITest, BEH_StartStopListening) {
 TYPED_TEST_P(TransportAPITest, BEH_Send) {
   TransportPtr sender(new TypeParam(this->asio_service_));
   TransportPtr listener(new TypeParam(this->asio_service_));
-  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2000)));
+  Port p(20000);
+  while (listener->StartListening(Endpoint(kIP, p)) != kSuccess)
+    ++p;
+  ASSERT_NE(0, listener->listening_port());
+
   TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
   TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
   sender->on_message_received()->connect(
@@ -376,7 +380,7 @@ TYPED_TEST_P(TransportAPITest, BEH_Send) {
   std::string request(RandomString(23));
   sender->Send(request, Endpoint(kIP, listener->listening_port()),
                bptime::seconds(1));
-  uint16_t timeout = 100;
+  uint16_t timeout(100);
   while (msgh_sender->responses_received().size() == 0 && timeout < 1100) {
     Sleep(boost::posix_time::milliseconds(100));
     timeout +=100;
