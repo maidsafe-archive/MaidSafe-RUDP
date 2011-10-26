@@ -178,6 +178,8 @@ void MessageHandler::ProcessSerialisedMessage(
     case kNatDetectionRequest: {
       protobuf::NatDetectionRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
+        Contact rendezvous_contact;
+        (*on_rendezvous_contact_request_)(&rendezvous_contact);
         protobuf::NatDetectionResponse response;
         (*on_nat_detection_request_)(request, &response, timeout);
         *message_response = WrapMessage(response);
