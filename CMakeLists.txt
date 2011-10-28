@@ -165,6 +165,7 @@ TARGET_LINK_LIBRARIES(maidsafe_transport_static
                         cryptopp_static
                         protobuf_static
                         glog_static
+                        boost_serialization
                         boost_date_time
                         boost_filesystem
                         boost_system
@@ -247,6 +248,7 @@ ADD_COVERAGE_EXCLUDE(upnp/)
 FINAL_MESSAGE()
 
 SET(MAIDSAFE_INSTALL_FILES
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/contact.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/transport.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/version.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/message_handler.h
