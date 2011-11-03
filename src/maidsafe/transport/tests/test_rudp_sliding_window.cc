@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,56 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 101
+#include "gtest/gtest.h"
+#include "maidsafe/common/log.h"
+#include "maidsafe/transport/rudp/rudp_sliding_window.h"
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+namespace maidsafe {
 
-#include "maidsafe/common/version.h"
+namespace transport {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1003
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace test {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+static const size_t kTestPacketCount = 100000;
+
+static void TestWindowRange(boost::uint32_t first_sequence_number) {
+  RudpSlidingWindow<boost::uint32_t> window(first_sequence_number);
+
+  for (int i = 0; i < window.MaximumSize(); ++i) {
+    boost::uint32_t n = window.Append();
+    window[n] = n;
+  }
+
+  for (int i = 0; i < kTestPacketCount; ++i) {
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
+    window.Remove();
+    boost::uint32_t n = window.Append();
+    window[n] = n;
+  }
+
+  for (int i = 0; i < window.MaximumSize(); ++i) {
+    ASSERT_EQ(window.Begin(), window[window.Begin()]);
+    window.Remove();
+  }
+}
+
+TEST(RudpSlidingWindowTest, BEH_FromZero) {
+  TestWindowRange(0);
+}
+
+TEST(RudpSlidingWindowTest, BEH_FromN) {
+  TestWindowRange(123456);
+}
+
+TEST(RudpSlidingWindowTest, BEH_Wraparound) {
+  TestWindowRange(RudpSlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
+                  kTestPacketCount / 2);
+}
+
+}  // namespace test
+
+}  // namespace transport
+
+}  // namespace maidsafe

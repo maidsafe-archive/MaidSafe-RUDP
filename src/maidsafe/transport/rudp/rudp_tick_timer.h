@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,65 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 101
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+#include "boost/asio/deadline_timer.hpp"
 
-#include "maidsafe/common/version.h"
+namespace maidsafe {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1003
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace transport {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+// Lightweight wrapper around a deadline_timer that avoids modifying the expiry
+// time if it would move it further away.
+class RudpTickTimer {
+ public:
+  RudpTickTimer(boost::asio::io_service &asio_service)
+    : timer_(asio_service) {
+    Reset();
+  }
+
+  static boost::posix_time::ptime Now() {
+    return boost::asio::deadline_timer::traits_type::now();
+  }
+
+  void Cancel() {
+    timer_.cancel();
+  }
+
+  void Reset() {
+    timer_.expires_at(boost::posix_time::pos_infin);
+  }
+
+  bool Expired() const {
+    // Infinate time out will be counted as expired
+    if (timer_.expires_at() == boost::posix_time::pos_infin)
+      return true;
+    return Now() >= timer_.expires_at();
+  }
+
+  void TickAt(const boost::posix_time::ptime &time) {
+    if (time < timer_.expires_at())
+      timer_.expires_at(time);
+  }
+
+  void TickAfter(const boost::posix_time::time_duration &duration) {
+    TickAt(Now() + duration);
+  }
+
+  template <typename WaitHandler>
+  void AsyncWait(WaitHandler handler) {
+    timer_.async_wait(handler);
+  }
+
+ private:
+  boost::asio::deadline_timer timer_;
+};
+
+}  // namespace transport
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_TICK_TIMER_H_

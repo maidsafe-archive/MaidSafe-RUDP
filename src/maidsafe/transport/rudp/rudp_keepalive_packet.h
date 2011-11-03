@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,32 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 101
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_KEEPALIVE_PACKET_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_KEEPALIVE_PACKET_H_
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+#include "boost/asio/buffer.hpp"
+#include "rudp_control_packet.h"
 
-#include "maidsafe/common/version.h"
+namespace maidsafe {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1003
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace transport {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+class RudpKeepalivePacket : public RudpControlPacket {
+ public:
+  enum { kPacketSize = RudpControlPacket::kHeaderSize };
+  enum { kPacketType = 1 };
+
+  RudpKeepalivePacket();
+
+  static bool IsValid(const boost::asio::const_buffer &buffer);
+  bool Decode(const boost::asio::const_buffer &buffer);
+  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+};
+
+}  // namespace transport
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_KEEPALIVE_PACKET_H_

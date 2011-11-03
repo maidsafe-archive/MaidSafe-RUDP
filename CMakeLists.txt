@@ -103,8 +103,8 @@ SET(ALL_FILES_NATPMP_DIR ${SOURCE_FILES_NATPMP_DIR} ${HEADER_FILES_NATPMP_DIR})
 SOURCE_GROUP("NAT-PMP Source Files" FILES ${SOURCE_FILES_NATPMP_DIR})
 SOURCE_GROUP("NAT-PMP Header Files" FILES ${HEADER_FILES_NATPMP_DIR})
 
-FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.cc")
-FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.h")
+FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.cc" "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp/*.cc")
+FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.h" "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp/*.h")
 SET(ALL_FILES_TRANSPORT_DIR ${SOURCE_FILES_TRANSPORT_DIR} ${HEADER_FILES_TRANSPORT_DIR})
 SET(STYLE_TRANSPORT ${ALL_FILES_TRANSPORT_DIR})
 LIST(REMOVE_ITEM STYLE_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/transport.pb.cc")
@@ -203,16 +203,36 @@ IF(MSVC)
                           LINK_FLAGS_MINSIZEREL "${LINKER_LIBS_DIRS_DEBUG}")
   SET_TARGET_PROPERTIES(maidsafe_transport_static PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 ELSEIF(UNIX)
-  FILE(GLOB PROTO_SOURCE_FILES "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.pb.cc")
-  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_connection.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_transport.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_request.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_transport.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tests/transport_api_test.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tests/tcp_transport_test.cc
-                              ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tests/udp_transport_test.cc
-                                PROPERTIES COMPILE_FLAGS "-Wno-effc++")
-  SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
+  ADD_DEFINITIONS(-Wno-effc++)
+  FILE(GLOB PROTO_SOURCE_FILES_KADEMLIA "${PROJECT_SOURCE_DIR}/src/maidsafe/kademlia/*.pb.cc")
+  FILE(GLOB PROTO_SOURCE_FILES_TRANSPORT "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.pb.cc")
+  SET(PROTO_SOURCE_FILES "${PROTO_SOURCE_FILES_KADEMLIA};${PROTO_SOURCE_FILES_TRANSPORT}")
+  SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES}
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/main.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_node_impl.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_node_id.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_service.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_routing_table.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_datastore.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/kademlia/test_contact.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/nat-pmp/test_natpmp.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_tcp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_rudp_sliding_window.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_rudp_socket.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_rudp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_udp_transport.cc
+                              ${PROJECT_SOURCE_DIR}/src/maidsafe/tests/upnp/test_upnp.cc
+                                PROPERTIES COMPILE_FLAGS "-w")
+  SET_PROPERTY(SOURCE "${PROJECT_SOURCE_DIR}/src/maidsafe/kademlia/rpcs.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/kademlia/node_impl.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/kademlia/service.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_transport.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_connection.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp/*.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_transport.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_request.cc"
+                      "${PROJECT_SOURCE_DIR}/src/maidsafe/tests/transport/test_transport_api.cc"
+                        PROPERTY COMPILE_FLAGS "-w -fPIC -Wall -Wextra -pedantic -pedantic-errors -std=c++0x")
 ENDIF()
 
 

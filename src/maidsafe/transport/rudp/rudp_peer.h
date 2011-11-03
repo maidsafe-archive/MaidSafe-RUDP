@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,50 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 101
+#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
+#define MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+#include "boost/asio/ip/udp.hpp"
+#include "boost/cstdint.hpp"
+#include "rudp_multiplexer.h"
 
-#include "maidsafe/common/version.h"
+namespace maidsafe {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1003
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace transport {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+class RudpPeer {
+ public:
+  explicit RudpPeer(RudpMultiplexer &multiplexer)
+    : multiplexer_(multiplexer), id_(0) {}
+
+  const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
+  void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }
+
+  boost::uint32_t Id() const { return id_; }
+  void SetId(boost::uint32_t id) { id_ = id; }
+
+  template <typename Packet>
+  TransportCondition Send(const Packet &packet) {
+    return multiplexer_.SendTo(packet, endpoint_);
+  }
+
+ private:
+  // Disallow copying and assignment.
+  RudpPeer(const RudpPeer&);
+  RudpPeer &operator=(const RudpPeer&);
+
+  // The multiplexer used to send and receive UDP packets.
+  RudpMultiplexer &multiplexer_;
+
+  // The remote socket's endpoint and identifier.
+  boost::asio::ip::udp::endpoint endpoint_;
+  boost::uint32_t id_;
+};
+
+}  // namespace transport
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_

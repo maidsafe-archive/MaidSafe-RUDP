@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,43 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 101
+#include "rudp_packet.h"
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+namespace asio = boost::asio;
 
-#include "maidsafe/common/version.h"
+namespace maidsafe {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1003
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace transport {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+RudpPacket::~RudpPacket() {
+}
+
+bool RudpPacket::DecodeDestinationSocketId(boost::uint32_t *id,
+                                           const asio::const_buffer &data) {
+  // Refuse to decode anything that's too short.
+  if (asio::buffer_size(data) < 16)
+    return false;
+
+  DecodeUint32(id, asio::buffer_cast<const unsigned char*>(data) + 12);
+  return true;
+}
+
+void RudpPacket::DecodeUint32(boost::uint32_t *n, const unsigned char *p) {
+  *n = p[0];
+  *n = ((*n << 8) | p[1]);
+  *n = ((*n << 8) | p[2]);
+  *n = ((*n << 8) | p[3]);
+}
+
+void RudpPacket::EncodeUint32(boost::uint32_t n, unsigned char *p) {
+  p[0] = ((n >> 24) & 0xff);
+  p[1] = ((n >> 16) & 0xff);
+  p[2] = ((n >> 8) & 0xff);
+  p[3] = (n & 0xff);
+}
+
+}  // namespace transport
+
+}  // namespace maidsafe
