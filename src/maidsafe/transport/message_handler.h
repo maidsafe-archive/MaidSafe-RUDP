@@ -132,9 +132,8 @@ class MessageHandler {
                                            const Endpoint&)>>
           ErrorSigPtr;
 
-  explicit MessageHandler(std::shared_ptr<Securifier> securifier)
-    : securifier_(securifier),
-      on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
+  explicit MessageHandler()
+    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
@@ -147,11 +146,10 @@ class MessageHandler {
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
       on_error_(new ErrorSigPtr::element_type) {}
   virtual ~MessageHandler() {}
-
-  void OnMessageReceived(const std::string &request,
-                         const Info &info,
-                         std::string *response,
-                         Timeout *timeout);
+  virtual void OnMessageReceived(const std::string &request,
+                                 const Info &info,
+                                 std::string *response,
+                                 Timeout *timeout);
   void OnError(const TransportCondition &transport_condition,
                const Endpoint &remote_endpoint);
 
@@ -198,12 +196,18 @@ class MessageHandler {
                                         const Info &info,
                                         std::string *message_response,
                                         Timeout *timeout);
-  std::string MakeSerialisedWrapperMessage(
+  bool UnwrapWrapperMessage(const std::string& serialised_message,
+                            int* msg_type,
+                            std::string* payload,
+                            std::string* message_signature);
+  std::string WrapWrapperMessage(const int& msg_type,
+                                 const std::string& payload,
+                                 const std::string& message_signature);
+  virtual std::string MakeSerialisedWrapperMessage(
       const int &message_type,
       const std::string &payload,
       SecurityType security_type,
       const std::string &recipient_public_key);
-  std::shared_ptr<Securifier> securifier_;
 
  private:
   friend class test::TransportMessageHandlerTest_BEH_WrapMessageNatDetectionResponse_Test;  // NOLINT
@@ -211,7 +215,6 @@ class MessageHandler {
   friend class test::TransportMessageHandlerTest_BEH_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
   friend class test::TransportMessageHandlerTest_BEH_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
   friend class test::TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
-
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 

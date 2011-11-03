@@ -49,24 +49,9 @@ namespace transport {
 
 namespace test {
 
-class TestSecurifier : public Securifier {
- public:
-  TestSecurifier(const std::string &public_key_id,
-                 const std::string &public_key,
-                 const std::string &private_key)
-      : Securifier(public_key_id, public_key, private_key) {}
-
-  bool Validate(const std::string&, const std::string&,
-                const std::string&, const std::string&,
-                const std::string&, const std::string&) const { return true; }
-};
-
 class TransportMessageHandlerTest : public testing::Test {
  public:
-  TransportMessageHandlerTest() : sec_ptr_(),
-                                  msg_hndlr_(),
-                                  securifier_null_(),
-                                  msg_hndlr_no_securifier_(securifier_null_),
+  TransportMessageHandlerTest() : msg_hndlr_(),
                                   invoked_slots_(),
                                   slots_mutex_(),
                                   error_count_(0) {}
@@ -75,10 +60,7 @@ class TransportMessageHandlerTest : public testing::Test {
   }
 
   virtual void SetUp() {
-    sec_ptr_.reset(new TestSecurifier("",
-                                      crypto_key_pair_.public_key(),
-                                      crypto_key_pair_.private_key()));
-    msg_hndlr_.reset(new MessageHandler(sec_ptr_));
+    msg_hndlr_.reset(new MessageHandler());
   }
   virtual void TearDown() {}
 
@@ -308,10 +290,7 @@ class TransportMessageHandlerTest : public testing::Test {
 
  protected:
   static crypto::RsaKeyPair crypto_key_pair_;
-  std::shared_ptr<Securifier> sec_ptr_;
   std::shared_ptr<MessageHandler> msg_hndlr_;
-  std::shared_ptr<Securifier> securifier_null_;
-  MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
   int error_count_;
@@ -341,7 +320,7 @@ TEST_F(TransportMessageHandlerTest, BEH_OnMessageNullSecurifier) {
   std::string response;
   Timeout timeout;
   for (size_t n = 0; n < messages.size(); ++n)
-    msg_hndlr_no_securifier_.OnMessageReceived(
+    msg_hndlr_->OnMessageReceived(
         std::string(1, kAsymmetricEncrypt) + messages[n],
         info, &response, &timeout);
   std::shared_ptr<std::map<MessageType,
@@ -523,27 +502,23 @@ TEST_F(TransportMessageHandlerTest, BEH_ThreadedMessageHandling) {
 
 TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   std::string payload(RandomString(5 * 1024));
-  ASSERT_EQ("",
-            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
-                0, payload, kAsymmetricEncrypt, crypto_key_pair_.public_key()));
-  ASSERT_EQ("",
-            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
-                0, payload, kSignAndAsymEncrypt,
-                crypto_key_pair_.public_key()));
 
-  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
+  EXPECT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kAsymmetricEncrypt,
                                                          ""));
-  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
+  EXPECT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kSignAndAsymEncrypt,
                                                          ""));
-
-  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
+  EXPECT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
+                                                         payload,
+                                                         kNone,
+                                                         ""));
+  EXPECT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
                     0, payload, kAsymmetricEncrypt,
                     crypto_key_pair_.public_key()));
-  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
+  EXPECT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
                     0, payload, kSignAndAsymEncrypt,
                     crypto_key_pair_.public_key()));
 }
