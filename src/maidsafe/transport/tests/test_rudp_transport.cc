@@ -25,7 +25,7 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/rudp/rudp_transport.h"
+#include "maidsafe/transport/rudp_transport.h"
 #include "maidsafe/transport/tests/transport_api_test.h"
 
 namespace maidsafe {
