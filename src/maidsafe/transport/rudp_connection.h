@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_CONNECTION_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_CONNECTION_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_CONNECTION_H_
+#define MAIDSAFE_TRANSPORT_RUDP_CONNECTION_H_
 
 #ifdef __MSVC__
 #pragma warning(disable:4996)
@@ -119,4 +119,4 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_CONNECTION_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_CONNECTION_H_

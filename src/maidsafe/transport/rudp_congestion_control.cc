@@ -182,11 +182,13 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
   // otherwise decrease size
   if ((corrupted_packets_ + lost_packets_) > AllowedLost()) {
     send_data_size_ = 0.9 * send_data_size_;
-    send_data_size_ = std::max(RudpParameters::kDefaultDataSize,
-                               send_data_size_);
+    send_data_size_ =
+        std::max(static_cast<size_t> (RudpParameters::kDefaultDataSize),
+                 send_data_size_);
   } else {
     send_data_size_ = 1.5 * send_data_size_;
-    send_data_size_ = std::min(RudpParameters::kMaxDataSize,
+    send_data_size_ =
+        std::min(static_cast<size_t> (RudpParameters::kMaxDataSize),
                                send_data_size_);
   }
   corrupted_packets_ = 0;
@@ -200,11 +202,11 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
     send_window_size_ += (available_buffer_size + 1) /
                          RudpParameters::kMaxDataSize;
     send_window_size_ = std::min(send_window_size_,
-                                 RudpParameters::kMaximumWindowSize);
+        static_cast<size_t> (RudpParameters::kMaximumWindowSize));
   } else {
     send_window_size_ = 0.9 * send_window_size_;
     send_window_size_ = std::max(send_window_size_,
-                                 RudpParameters::kDefaultWindowSize);
+        static_cast<size_t>(RudpParameters::kDefaultWindowSize));
   }
 }
 

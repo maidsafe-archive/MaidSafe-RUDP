@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_SESSION_H_
+#define MAIDSAFE_TRANSPORT_RUDP_SESSION_H_
 
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
@@ -114,4 +114,4 @@ class RudpSession {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SESSION_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_SESSION_H_

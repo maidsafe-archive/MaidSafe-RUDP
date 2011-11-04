@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_
+#define MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_
 
 #include <unordered_map>
 #include "boost/asio/buffer.hpp"
@@ -80,4 +80,4 @@ class RudpDispatcher {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCHER_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_

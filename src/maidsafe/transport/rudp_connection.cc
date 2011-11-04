@@ -250,7 +250,7 @@ void RudpConnection::StartReadData() {
     return CloseOnError(kNoConnection);
 
   size_t buffer_size = data_received_;
-  buffer_size += std::min(socket_.BestReadBufferSize(),
+  buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
                           data_size_ - data_received_);
   buffer_.resize(buffer_size);
   asio::mutable_buffer data_buffer = asio::buffer(buffer_) + data_received_;

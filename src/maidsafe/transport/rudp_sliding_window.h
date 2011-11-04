@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SLIDING_WINDOW_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_SLIDING_WINDOW_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_SLIDING_WINDOW_H_
+#define MAIDSAFE_TRANSPORT_RUDP_SLIDING_WINDOW_H_
 
 #include <cassert>
 #include <deque>
@@ -230,4 +230,4 @@ class RudpSlidingWindow {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SLIDING_WINDOW_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_SLIDING_WINDOW_H_

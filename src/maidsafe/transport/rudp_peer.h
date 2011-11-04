@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_PEER_H_
+#define MAIDSAFE_TRANSPORT_RUDP_PEER_H_
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
@@ -71,4 +71,4 @@ class RudpPeer {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_PEER_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_PEER_H_

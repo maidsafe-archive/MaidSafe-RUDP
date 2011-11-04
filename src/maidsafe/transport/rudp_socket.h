@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SOCKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_SOCKET_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_
+#define MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_
 
 #ifdef __MSVC__
 #pragma warning(disable:4996)
@@ -262,4 +262,4 @@ class RudpSocket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SOCKET_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_

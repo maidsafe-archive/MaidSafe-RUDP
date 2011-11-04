@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
+#define MAIDSAFE_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
 #include "rudp_control_packet.h"
@@ -53,4 +53,4 @@ class RudpShutdownPacket : public RudpControlPacket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_SHUTDOWN_PACKET_H_

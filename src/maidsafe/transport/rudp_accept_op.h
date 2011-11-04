@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
-#define MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_ACCEPT_OP_H_
+#define MAIDSAFE_TRANSPORT_RUDP_ACCEPT_OP_H_
 
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
@@ -82,4 +82,4 @@ class RudpAcceptOp {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_ACCEPT_OP_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_ACCEPT_OP_H_
