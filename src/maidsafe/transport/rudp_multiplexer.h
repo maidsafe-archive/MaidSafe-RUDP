@@ -36,10 +36,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/transport/transport.h"
-#include "rudp_dispatch_op.h"
-#include "rudp_dispatcher.h"
-#include "rudp_packet.h"
-#include "rudp_parameters.h"
+#include "maidsafe/transport/rudp_dispatch_op.h"
+#include "maidsafe/transport/rudp_dispatcher.h"
+#include "maidsafe/transport/rudp_packet.h"
+#include "maidsafe/transport/rudp_parameters.h"
 
 namespace maidsafe {
 

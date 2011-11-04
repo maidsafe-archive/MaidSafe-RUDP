@@ -34,10 +34,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "rudp_receiver.h"
-#include "rudp_sender.h"
-#include "rudp_session.h"
-#include "rudp_tick_timer.h"
+#include "maidsafe/transport/rudp_receiver.h"
+#include "maidsafe/transport/rudp_sender.h"
+#include "maidsafe/transport/rudp_session.h"
+#include "maidsafe/transport/rudp_tick_timer.h"
 
 namespace maidsafe {
 

@@ -31,9 +31,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 
-#include "rudp_acceptor.h"
-#include "rudp_packet.h"
-#include "rudp_socket.h"
+#include "maidsafe/transport/rudp_acceptor.h"
+#include "maidsafe/transport/rudp_packet.h"
+#include "maidsafe/transport/rudp_socket.h"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 

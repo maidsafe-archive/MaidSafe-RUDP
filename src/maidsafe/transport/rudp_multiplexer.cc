@@ -27,11 +27,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "rudp_multiplexer.h"
+#include "maidsafe/transport/rudp_multiplexer.h"
 
 #include <cassert>
 
-#include "rudp_packet.h"
+#include "maidsafe/transport/rudp_packet.h"
 #include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;

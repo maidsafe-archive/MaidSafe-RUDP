@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cmath>
 
-#include "rudp_congestion_control.h"
+#include "maidsafe/transport/rudp_congestion_control.h"
 
 namespace bptime = boost::posix_time;
 

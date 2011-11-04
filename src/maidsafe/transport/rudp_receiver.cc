@@ -34,10 +34,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstring>
 #include <limits>
 
-#include "rudp_congestion_control.h"
-#include "rudp_negative_ack_packet.h"
-#include "rudp_peer.h"
-#include "rudp_tick_timer.h"
+#include "maidsafe/transport/rudp_congestion_control.h"
+#include "maidsafe/transport/rudp_negative_ack_packet.h"
+#include "maidsafe/transport/rudp_peer.h"
+#include "maidsafe/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;

@@ -27,14 +27,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "rudp_session.h"
+#include "maidsafe/transport/rudp_session.h"
 
 #include <cassert>
 
-#include "rudp_data_packet.h"
-#include "rudp_peer.h"
-#include "rudp_sliding_window.h"
-#include "rudp_tick_timer.h"
+#include "maidsafe/transport/rudp_data_packet.h"
+#include "maidsafe/transport/rudp_peer.h"
+#include "maidsafe/transport/rudp_sliding_window.h"
+#include "maidsafe/transport/rudp_tick_timer.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

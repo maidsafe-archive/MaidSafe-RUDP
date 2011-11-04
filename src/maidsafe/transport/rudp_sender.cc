@@ -27,15 +27,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "rudp_sender.h"
+#include "maidsafe/transport/rudp_sender.h"
 
 #include <algorithm>
 #include <cassert>
 
-#include "rudp_ack_of_ack_packet.h"
-#include "rudp_congestion_control.h"
-#include "rudp_peer.h"
-#include "rudp_tick_timer.h"
+#include "maidsafe/transport/rudp_ack_of_ack_packet.h"
+#include "maidsafe/transport/rudp_congestion_control.h"
+#include "maidsafe/transport/rudp_peer.h"
+#include "maidsafe/transport/rudp_tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;

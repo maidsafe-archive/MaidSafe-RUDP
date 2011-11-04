@@ -34,9 +34,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
-#include "rudp_connection.h"
-#include "rudp_multiplexer.h"
-#include "rudp_transport.h"
+#include "maidsafe/transport/rudp_connection.h"
+#include "maidsafe/transport/rudp_multiplexer.h"
+#include "maidsafe/transport/rudp_transport.h"
 
 #include "maidsafe/common/log.h"
 

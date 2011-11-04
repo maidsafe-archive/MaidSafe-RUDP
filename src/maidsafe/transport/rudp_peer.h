@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
-#include "rudp_multiplexer.h"
+#include "maidsafe/transport/rudp_multiplexer.h"
 
 namespace maidsafe {
 

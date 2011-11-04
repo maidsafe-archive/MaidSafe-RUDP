@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "rudp_handshake_packet.h"
+#include "maidsafe/transport/rudp_handshake_packet.h"
 
 #include <cassert>
 #include <cstring>
@@ -96,8 +96,7 @@ void RudpHandshakePacket::SetConnectionType(boost::uint32_t n) {
   connection_type_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::SocketId() const
-{
+boost::uint32_t RudpHandshakePacket::SocketId() const {
   return socket_id_;
 }
 
@@ -106,25 +105,21 @@ void RudpHandshakePacket::SetSocketId(boost::uint32_t n)
   socket_id_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::SynCookie() const
-{
+boost::uint32_t RudpHandshakePacket::SynCookie() const {
   return syn_cookie_;
 }
 
-void RudpHandshakePacket::SetSynCookie(boost::uint32_t n)
-{
+void RudpHandshakePacket::SetSynCookie(boost::uint32_t n) {
   syn_cookie_ = n;
 }
 
-asio::ip::address RudpHandshakePacket::IpAddress() const
-{
+asio::ip::address RudpHandshakePacket::IpAddress() const {
   if (ip_address_.is_v4_compatible())
     return ip_address_.to_v4();
   return ip_address_;
 }
 
-void RudpHandshakePacket::SetIpAddress(const asio::ip::address &address)
-{
+void RudpHandshakePacket::SetIpAddress(const asio::ip::address &address) {
   if (address.is_v4())
     ip_address_ = asio::ip::address_v6::v4_compatible(address.to_v4());
   else

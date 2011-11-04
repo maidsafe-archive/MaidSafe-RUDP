@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe/transport/transport.h"
-#include "rudp_packet.h"
+#include "maidsafe/transport/rudp_packet.h"
 
 namespace maidsafe {
 
