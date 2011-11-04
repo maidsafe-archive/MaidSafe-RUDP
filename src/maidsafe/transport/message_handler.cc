@@ -36,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 #include "maidsafe/transport/log.h"
-#include "maidsafe/common/securifier.h"
 
 
 namespace maidsafe {
@@ -54,8 +53,8 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   protobuf::WrapperMessage wrapper;
   if (wrapper.ParseFromString(serialised_message) && wrapper.IsInitialized()) {
     ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
-                                    security_type, wrapper.message_signature(),
-                                    info, response, timeout);
+                             security_type, wrapper.message_signature(),
+                             info, response, timeout);
   }
 }
 
@@ -75,8 +74,7 @@ bool MessageHandler::UnwrapWrapperMessage(const std::string& serialised_message,
 }
 
 std::string MessageHandler::WrapWrapperMessage(const int& msg_type,
-                                         const std::string& payload,
-                                         const std::string& message_signature) {
+    const std::string& payload, const std::string& message_signature) {
   protobuf::WrapperMessage wrapper;
   wrapper.set_msg_type(msg_type);
   wrapper.set_payload(payload);
@@ -84,7 +82,6 @@ std::string MessageHandler::WrapWrapperMessage(const int& msg_type,
     wrapper.set_message_signature(message_signature);
   return wrapper.SerializeAsString();
 }
-
 
 void MessageHandler::OnError(const TransportCondition &transport_condition,
                              const Endpoint &remote_endpoint) {

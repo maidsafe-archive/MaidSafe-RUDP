@@ -47,8 +47,6 @@ namespace bs2 = boost::signals2;
 
 namespace maidsafe {
 
-class Securifier;
-
 typedef char SecurityType;
 const SecurityType kNone(0x0);
 const SecurityType kSign(0x1);
@@ -189,13 +187,13 @@ class MessageHandler {
   ErrorSigPtr on_error() { return on_error_; }
 
  protected:
-  virtual void ProcessSerialisedMessage(const int &message_type,
-                                        const std::string &payload,
-                                        const SecurityType &security_type,
-                                        const std::string &message_signature,
-                                        const Info &info,
-                                        std::string *message_response,
-                                        Timeout *timeout);
+  void ProcessSerialisedMessage(const int &message_type,
+                                const std::string &payload,
+                                const SecurityType &security_type,
+                                const std::string &message_signature,
+                                const Info &info,
+                                std::string *message_response,
+                                Timeout *timeout);
   bool UnwrapWrapperMessage(const std::string& serialised_message,
                             int* msg_type,
                             std::string* payload,
@@ -203,7 +201,7 @@ class MessageHandler {
   std::string WrapWrapperMessage(const int& msg_type,
                                  const std::string& payload,
                                  const std::string& message_signature);
-  virtual std::string MakeSerialisedWrapperMessage(
+  std::string MakeSerialisedWrapperMessage(
       const int &message_type,
       const std::string &payload,
       SecurityType security_type,
