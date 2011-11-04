@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,41 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 102
+#ifndef MAIDSAFE_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
+#define MAIDSAFE_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+#include <vector>
 
-#include "maidsafe/common/version.h"
+#include "boost/asio/buffer.hpp"
+#include "maidsafe/transport/rudp_control_packet.h"
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1004
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace maidsafe {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+namespace transport {
+
+class RudpNegativeAckPacket : public RudpControlPacket {
+ public:
+  enum { kPacketType = 3 };
+
+  RudpNegativeAckPacket();
+
+  void AddSequenceNumber(boost::uint32_t n);
+  void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
+  bool ContainsSequenceNumber(boost::uint32_t n) const;
+  bool HasSequenceNumbers() const;
+
+  static bool IsValid(const boost::asio::const_buffer &buffer);
+  bool Decode(const boost::asio::const_buffer &buffer);
+  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+
+ private:
+  std::vector<boost::uint32_t> sequence_numbers_;
+};
+
+}  // namespace transport
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_TRANSPORT_RUDP_NEGATIVE_ACK_PACKET_H_

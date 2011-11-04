@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,25 +25,57 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_VERSION_H_
-#define MAIDSAFE_TRANSPORT_VERSION_H_
+// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#define MAIDSAFE_TRANSPORT_VERSION 102
+#ifndef MAIDSAFE_TRANSPORT_RUDP_FLUSH_OP_H_
+#define MAIDSAFE_TRANSPORT_RUDP_FLUSH_OP_H_
 
-#if defined CMAKE_MAIDSAFE_TRANSPORT_VERSION &&\
-            MAIDSAFE_TRANSPORT_VERSION != CMAKE_MAIDSAFE_TRANSPORT_VERSION
-#  error The project version has changed.  Re-run CMake.
-#endif
+#include "boost/asio/handler_alloc_hook.hpp"
+#include "boost/asio/handler_invoke_hook.hpp"
+#include "boost/system/error_code.hpp"
+#include "maidsafe/transport/transport.h"
 
-#include "maidsafe/common/version.h"
+namespace maidsafe {
 
-#define THIS_NEEDS_MAIDSAFE_COMMON_VERSION 1004
-#if MAIDSAFE_COMMON_VERSION < THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-common library.
-#elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
-#  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
-#endif
+namespace transport {
 
-#endif  // MAIDSAFE_TRANSPORT_VERSION_H_
+// Helper class to adapt a flush handler into a waiting operation.
+template <typename FlushHandler>
+class RudpFlushOp {
+ public:
+  RudpFlushOp(FlushHandler handler,
+              const boost::system::error_code *ec)
+    : handler_(handler),
+      ec_(ec) {
+  }
+
+  void operator()(boost::system::error_code) {
+    handler_(*ec_);
+  }
+
+  friend void *asio_handler_allocate(size_t n, RudpFlushOp *op) {
+    using boost::asio::asio_handler_allocate;
+    return asio_handler_allocate(n, &op->handler_);
+  }
+
+  friend void asio_handler_deallocate(void *p, size_t n, RudpFlushOp *op) {
+    using boost::asio::asio_handler_deallocate;
+    asio_handler_deallocate(p, n, &op->handler_);
+  }
+
+  template <typename Function>
+  friend void asio_handler_invoke(const Function &f, RudpFlushOp *op) {
+    using boost::asio::asio_handler_invoke;
+    asio_handler_invoke(f, &op->handler_);
+  }
+
+ private:
+  FlushHandler handler_;
+  const boost::system::error_code *ec_;
+};
+
+}  // namespace transport
+
+}  // namespace maidsafe
+
+#endif  // MAIDSAFE_TRANSPORT_RUDP_FLUSH_OP_H_
