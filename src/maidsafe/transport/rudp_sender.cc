@@ -87,7 +87,7 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
     size_t length = std::min<size_t>(congestion_control_.SendDataSize(),
                                      end - ptr);
     p.packet.SetData(ptr, ptr + length);
-    p.lost = true; // Mark as lost so that DoSend() will send it.
+    p.lost = true;  // Mark as lost so that DoSend() will send it.
 
     ptr += length;
   }

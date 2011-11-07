@@ -240,7 +240,7 @@ void RudpCongestionControl::SetPeerConnectionType(uint32_t connection_type) {
   peer_connection_type_ = connection_type;
   boost::uint32_t local_connection_type = RudpParameters::kConnectionType;
   boost::uint32_t worst_connection_type =
-      std::min (peer_connection_type_, local_connection_type);
+      std::min(peer_connection_type_, local_connection_type);
   if (worst_connection_type <= RudpParameters::kWireless) {
     allowed_lost_ = 5;
   } else if (worst_connection_type <= RudpParameters::kE1) {

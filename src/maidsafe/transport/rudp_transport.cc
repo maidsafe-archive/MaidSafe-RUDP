@@ -116,7 +116,7 @@ void RudpTransport::HandleDispatch(MultiplexerPtr multiplexer,
 }
 
 void RudpTransport::StartAccept() {
-  ip::udp::endpoint endpoint; // Endpoint is assigned when socket is accepted.
+  ip::udp::endpoint endpoint;  // Endpoint is assigned when socket is accepted.
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
                                                            strand_,
                                                            multiplexer_,

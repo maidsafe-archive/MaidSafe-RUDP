@@ -35,7 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe/transport/rudp_ack_packet.h"
-#include "rudp_data_packet.h"
+#include "maidsafe/transport/rudp_data_packet.h"
 #include "maidsafe/transport/rudp_negative_ack_packet.h"
 #include "maidsafe/transport/rudp_shutdown_packet.h"
 #include "maidsafe/transport/rudp_sliding_window.h"

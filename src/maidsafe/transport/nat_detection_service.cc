@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,57 +25,54 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
+#include "maidsafe/transport/nat_detection_service.h"
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_
-#define MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_
-
-#include "boost/asio/handler_alloc_hook.hpp"
-#include "boost/asio/handler_invoke_hook.hpp"
-#include "boost/system/error_code.hpp"
 #include "maidsafe/transport/transport.h"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
+#include "maidsafe/transport/transport.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt a connect handler into a waiting operation.
-template <typename ConnectHandler>
-class RudpConnectOp {
- public:
-  RudpConnectOp(ConnectHandler handler,
-                const boost::system::error_code *ec)
-    : handler_(handler),
-      ec_(ec) {
+void NatDetectionService::NatDetection(
+    const protobuf::NatDetectionRequest &request,
+    const Info &info,
+    protobuf::NatDetectionResponse *response,
+    transport::Timeout*) {
+  if (!request.full_detection()) {
+    protobuf::Endpoint *ep = response->mutable_endpoint();
+    ep->set_ip(info.endpoint.ip.to_string());
+    ep->set_port(info.endpoint.port);
+    response->set_nat_type(5);
+    for (int n = 0; n < request.local_ips_size(); ++n) {
+      if (ep->ip() == request.local_ips(n)) {
+        response->set_nat_type(0);
+        n = request.local_ips_size();
+      }
+    }
+  } else {
+    // TODO(Team): Implement full nat detection.
   }
+}
 
-  void operator()(boost::system::error_code) {
-    handler_(*ec_);
-  }
+void NatDetectionService::ProxyConnect(const protobuf::ProxyConnectRequest&,
+                           protobuf::ProxyConnectResponse*,
+                           transport::Timeout*) {}
 
-  friend void *asio_handler_allocate(size_t n, RudpConnectOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
-  }
+void NatDetectionService::ForwardRendezvous(
+    const protobuf::ForwardRendezvousRequest&,
+    protobuf::ForwardRendezvousResponse*,
+    transport::Timeout*) {}
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpConnectOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
-  }
-
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpConnectOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
-  }
-
- private:
-  ConnectHandler handler_;
-  const boost::system::error_code *ec_;
-};
+void NatDetectionService::Rendezvous(const protobuf::RendezvousRequest &) {}
 
 }  // namespace transport
 
 }  // namespace maidsafe
-
-#endif  // MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_

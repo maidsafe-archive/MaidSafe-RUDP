@@ -71,7 +71,7 @@ void RudpAcceptor::Close() {
 }
 
 void RudpAcceptor::StartAccept(RudpSocket &socket) {
-  assert(waiting_accept_socket_ == 0); // Only one accept operation at a time.
+  assert(waiting_accept_socket_ == 0);  // Only one accept operation at a time.
 
   if (!pending_requests_.empty()) {
     socket.peer_.SetEndpoint(pending_requests_.front().remote_endpoint);

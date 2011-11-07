@@ -25,8 +25,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_RUDP_PARAMETERS_H_
-#define MAIDSAFE_TRANSPORT_RUDP_RUDP_PARAMETERS_H_
+#ifndef MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_
+#define MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_
 
 #include <cassert>
 #include <deque>
@@ -52,7 +52,7 @@ class RudpParameters {
   enum { kUDPPayload = 65500 };
 
   // Data Payload size permitted in RUDP
-  // Shall not exceed Packet Size defined 
+  // Shall not exceed Packet Size defined
   static boost::uint32_t kDefaultDataSize;
   static boost::uint32_t kMaxDataSize;
 
@@ -104,4 +104,4 @@ class RudpParameters {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_RUDP_PARAMETERS_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_

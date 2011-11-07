@@ -141,9 +141,9 @@ class RUDPConfigurableTransportAPITest
       public ::testing::TestWithParam<int> {
  public:
   RUDPConfigurableTransportAPITest() : TransportAPI<RudpTransport>() {
-    int configurations[3][6] = {{ 16,  128, 1400, 6400, 1024, 6000 },
-                                { 64,  256, 1400, 1400, 1024, 1024 },
-                                { 32,   64, 2800, 4800, 2038, 4076 }};
+    int configurations[3][6] = { { 16,  128, 1400, 6400, 1024, 6000 },
+                                 { 64,  256, 1400, 1400, 1024, 1024 },
+                                 { 32,   64, 2800, 4800, 2038, 4076 }};
     int config_selected = GetParam();
     RudpParameters::kDefaultWindowSize = configurations[config_selected][0];
     RudpParameters::kMaximumWindowSize = configurations[config_selected][1];

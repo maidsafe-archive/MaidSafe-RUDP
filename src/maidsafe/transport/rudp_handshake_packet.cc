@@ -100,8 +100,7 @@ boost::uint32_t RudpHandshakePacket::SocketId() const {
   return socket_id_;
 }
 
-void RudpHandshakePacket::SetSocketId(boost::uint32_t n)
-{
+void RudpHandshakePacket::SetSocketId(boost::uint32_t n) {
   socket_id_ = n;
 }
 

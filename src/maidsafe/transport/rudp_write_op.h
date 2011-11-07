@@ -81,4 +81,4 @@ class RudpWriteOp {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_WRITE_OP_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_WRITE_OP_H_

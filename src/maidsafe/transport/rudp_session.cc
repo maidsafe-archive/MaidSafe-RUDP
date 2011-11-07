@@ -162,7 +162,7 @@ void RudpSession::SendCookieChallenge() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(RudpParameters::kConnectionType);
-  packet.SetSynCookie(1); // TODO calculate cookie
+  packet.SetSynCookie(1);  // TODO calculate cookie
 
   peer_.Send(packet);
 }
@@ -180,7 +180,7 @@ void RudpSession::SendCookieResponse() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(RudpParameters::kConnectionType);
-  packet.SetSynCookie(1); // TODO calculate cookie
+  packet.SetSynCookie(1);  // TODO calculate cookie
 
   peer_.Send(packet);
 
@@ -201,7 +201,7 @@ void RudpSession::SendConnectionAccepted() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(0xffffffff);
-  packet.SetSynCookie(0); // TODO calculate cookie
+  packet.SetSynCookie(0);  // TODO calculate cookie
 
   peer_.Send(packet);
 }

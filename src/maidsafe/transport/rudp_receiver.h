@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "rudp_ack_packet.h"
+#include "maidsafe/transport/rudp_ack_packet.h"
 #include "maidsafe/transport/rudp_ack_of_ack_packet.h"
 #include "maidsafe/transport/rudp_data_packet.h"
 #include "maidsafe/transport/rudp_sliding_window.h"

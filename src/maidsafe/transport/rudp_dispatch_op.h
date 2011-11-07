@@ -102,4 +102,4 @@ class RudpDispatchOp {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_DISPATCH_OP_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_DISPATCH_OP_H_

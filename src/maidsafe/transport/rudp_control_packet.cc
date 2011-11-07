@@ -118,7 +118,7 @@ size_t RudpControlPacket::EncodeBase(const asio::mutable_buffer &buffer) const {
   p[0] = ((type_ >> 8) & 0x7f);
   p[0] |= 0x80;
   p[1] = (type_ & 0xff);
-  p[2] = p[3] = 0; // Reserved.
+  p[2] = p[3] = 0;  // Reserved.
   EncodeUint32(additional_info_, p + 4);
   EncodeUint32(time_stamp_, p + 8);
   EncodeUint32(destination_socket_id_, p + 12);

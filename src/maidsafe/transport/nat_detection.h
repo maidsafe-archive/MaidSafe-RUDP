@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 maidsafe.net limited
+/* Copyright (c) 2011 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,57 +25,18 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
-
-#ifndef MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_
-#define MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_
-
-#include "boost/asio/handler_alloc_hook.hpp"
-#include "boost/asio/handler_invoke_hook.hpp"
-#include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
+#ifndef MAIDSAFE_TRANSPORT_NAT_DETECTION_H_
+#define MAIDSAFE_TRANSPORT_NAT_DETECTION_H_
 
 namespace maidsafe {
 
 namespace transport {
 
-// Helper class to adapt a connect handler into a waiting operation.
-template <typename ConnectHandler>
-class RudpConnectOp {
- public:
-  RudpConnectOp(ConnectHandler handler,
-                const boost::system::error_code *ec)
-    : handler_(handler),
-      ec_(ec) {
-  }
-
-  void operator()(boost::system::error_code) {
-    handler_(*ec_);
-  }
-
-  friend void *asio_handler_allocate(size_t n, RudpConnectOp *op) {
-    using boost::asio::asio_handler_allocate;
-    return asio_handler_allocate(n, &op->handler_);
-  }
-
-  friend void asio_handler_deallocate(void *p, size_t n, RudpConnectOp *op) {
-    using boost::asio::asio_handler_deallocate;
-    asio_handler_deallocate(p, n, &op->handler_);
-  }
-
-  template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpConnectOp *op) {
-    using boost::asio::asio_handler_invoke;
-    asio_handler_invoke(f, &op->handler_);
-  }
-
- private:
-  ConnectHandler handler_;
-  const boost::system::error_code *ec_;
+class NatDetection {
 };
 
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_CONNECT_OP_H_
+#endif  // MAIDSAFE_TRANSPORT_NAT_DETECTION_H_

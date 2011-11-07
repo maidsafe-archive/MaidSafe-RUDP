@@ -66,7 +66,7 @@ bptime::time_duration RudpParameters::kDefaultReceiveDelay =
 bptime::time_duration RudpParameters::kAckInterval =
                                                     bptime::milliseconds(100);
 RudpParameters::ConnectionType RudpParameters::kConnectionType =
-                                 RudpParameters::ConnectionType::kWireless;
+                                                    RudpParameters::kWireless;
 bptime::time_duration RudpParameters::kSpeedCalculateInverval =
                                                     bptime::milliseconds(1000);
 boost::uint32_t RudpParameters::SlowSpeedThreshold = 1024;  // b/s
@@ -305,7 +305,7 @@ void TransportAPI<T>::RunTransportTest(const int &num_messages,
     waiting = false;
     boost::this_thread::sleep(boost::posix_time::seconds(1));
     ++i;
-    for (auto it = msg_handlers.begin(); it != msg_handlers.end(); ++it){
+    for (auto it = msg_handlers.begin(); it != msg_handlers.end(); ++it) {
       if ((!(*it)->finished_) ||
           ((*it)->responses_received().size() < num_messages))
         waiting = true;
@@ -599,7 +599,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
             msgh_sender->responses_received().at(0).first);
 }
 
-// TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSimMultipleLargeMessage) {
+// TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSimMultipleLargeMessage) { //NOLINT
 //   this->SetupTransport(false, 0);
 //   this->SetupTransport(true, 0);
 //   // Send out a bunch of messages simultaneously, each one is 16MB = 2^24
@@ -630,7 +630,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
     int waited_seconds(0);
     while ((msgh_sender->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-      ++ waited_seconds;
+      ++waited_seconds;
       if (waited_seconds == 1)
           listener->StopListening();
     }
@@ -662,7 +662,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
     int waited_seconds(0);
     while ((msgh_listener->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-      ++ waited_seconds;
+      ++waited_seconds;
       if (waited_seconds == 1)
           sender->StopListening();
     }
@@ -710,7 +710,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowSendSpeed) {
     int waited_seconds(0);
     while ((msgh_sender->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-      ++ waited_seconds;
+      ++waited_seconds;
     }
     EXPECT_GT(3, waited_seconds);
   }
@@ -755,7 +755,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowReceiveSpeed) {
     int waited_seconds(0);
     while ((msgh_listener->results().size() == 0) && (waited_seconds < 10)) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-      ++ waited_seconds;
+      ++waited_seconds;
     }
     EXPECT_GT(3, waited_seconds);
   }

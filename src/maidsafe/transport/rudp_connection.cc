@@ -52,7 +52,7 @@ namespace transport {
 
 RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
                                const asio::io_service::strand &strand,
-                               const std::shared_ptr<RudpMultiplexer> &multiplexer,
+                               const std::shared_ptr<RudpMultiplexer> &multiplexer, //NOLINT
                                const ip::udp::endpoint &remote)
   : transport_(transport),
     strand_(strand),
@@ -88,8 +88,7 @@ void RudpConnection::DoClose() {
     socket_.AsyncFlush(strand_.wrap(std::bind(&RudpConnection::DoClose,
                                               shared_from_this())));
     timer_.expires_from_now(kStallTimeout);
-  }
-  else {
+  } else {
     // We've already had a go at graceful closure. Just tear down the socket.
     socket_.Close();
     timer_.cancel();
@@ -317,7 +316,8 @@ void RudpConnection::EncodeData(const std::string &data) {
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(RudpTransport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << RudpTransport::kMaxTransportMessageSize() << ")" << std::endl;
+                << RudpTransport::kMaxTransportMessageSize() << ")"
+                << std::endl;
     CloseOnError(kMessageSizeTooLarge);
     return;
   }
@@ -339,7 +339,7 @@ void RudpConnection::StartWrite() {
 }
 
 void RudpConnection::HandleWrite(const bs::error_code &ec) {
-  if (Stopped())    
+  if (Stopped())
     return CloseOnError(kNoConnection);
 
   if (ec)

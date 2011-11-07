@@ -127,7 +127,7 @@ void RudpSocket::Close() {
 
 void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
   peer_.SetEndpoint(remote);
-  peer_.SetId(0); // Assigned when handshake response is received.
+  peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
                 sender_.GetNextPacketSequenceNumber(),
                 RudpSession::kClient);
@@ -182,7 +182,7 @@ void RudpSocket::StartRead(const asio::mutable_buffer &data,
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
     waiting_read_.cancel();
-    return; 
+    return;
   }
 
   // Try processing the read immediately. If there's available data then the

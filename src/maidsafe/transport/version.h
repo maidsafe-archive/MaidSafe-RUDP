@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     Please update the maidsafe-common library.
 #elif MAIDSAFE_COMMON_VERSION > THIS_NEEDS_MAIDSAFE_COMMON_VERSION
 #  error This API uses a newer version of the maidsafe-common library.\
-    Please update this project. ( MAIDSAFE_COMMON_VERSION )
+    Please update this project. (MAIDSAFE_COMMON_VERSION)
 #endif
 
 #endif  // MAIDSAFE_TRANSPORT_VERSION_H_

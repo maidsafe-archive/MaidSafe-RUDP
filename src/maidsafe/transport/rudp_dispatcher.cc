@@ -27,7 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "rudp_dispatcher.h"
+#include "maidsafe/transport/rudp_dispatcher.h"
 
 #include <cassert>
 

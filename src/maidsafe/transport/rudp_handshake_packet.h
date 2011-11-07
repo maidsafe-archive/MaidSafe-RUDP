@@ -37,7 +37,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe/transport/transport.h"
-#include "rudp_control_packet.h"
+#include "maidsafe/transport/rudp_control_packet.h"
 
 namespace maidsafe {
 
@@ -99,4 +99,4 @@ class RudpHandshakePacket : public RudpControlPacket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_DHT_TRANSPORT_RUDP_HANDSHAKE_PACKET_H_
+#endif  // MAIDSAFE_TRANSPORT_RUDP_HANDSHAKE_PACKET_H_

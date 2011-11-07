@@ -42,7 +42,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpMultiplexer::RudpMultiplexer(asio::io_service &asio_service)
+RudpMultiplexer::RudpMultiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
     receive_buffer_(RudpParameters::kMaxSize) {
 }
