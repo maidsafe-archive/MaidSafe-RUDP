@@ -33,17 +33,17 @@ namespace maidsafe {
 
 namespace transport {
 
-void Rpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
+void Rpcs::NatDetection(const std::vector<Contact> &/*candidates*/,
                         bool /*full*/,
                         NatResultFunctor /*nat_result_functor*/) {}
 
-void Rpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
+void Rpcs::NatDetection(const std::vector<Contact> &/*candidates*/,
                         std::shared_ptr<Transport> /*listening_transport*/,
                         bool /*full*/,
                         NatResultFunctor /*nat_result_functor*/) {}
 
 void Rpcs::NatDetectionCallback(const protobuf::NatDetectionResponse &/*response*/,  // NOLINT
-                                const std::vector<Endpoint> &/*candidates*/,
+                                const std::vector<Contact> &/*candidates*/,
                                 NatResultFunctor /*nat_result_functor*/,
                                 int /*index*/) {}
 

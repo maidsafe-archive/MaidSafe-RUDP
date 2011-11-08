@@ -57,7 +57,7 @@ class TcpTransport : public Transport,
   explicit TcpTransport(boost::asio::io_service &asio_service);  // NOLINT
   ~TcpTransport();
   virtual TransportCondition StartListening(const Endpoint &endpoint);
-  virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
+  virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
   virtual void StopListening();
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,

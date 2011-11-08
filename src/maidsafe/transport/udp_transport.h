@@ -58,7 +58,7 @@ class UdpTransport : public Transport,
   ~UdpTransport();
 
   virtual TransportCondition StartListening(const Endpoint &endpoint);
-  virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
+  virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
   virtual void StopListening();
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,

@@ -64,6 +64,7 @@ typedef uint16_t Port;
 typedef int32_t DataSize;
 typedef bptime::time_duration Timeout;
 
+class Contact;
 class MessageHandler;
 class Service;
 
@@ -184,7 +185,7 @@ class Transport {
    * @return Success or an appropriate error code.
    */
   virtual TransportCondition Bootstrap(
-      const std::vector<Endpoint> &candidates) = 0;
+      const std::vector<Contact> &candidates) = 0;
   /**
    * Stops the transport from accepting incoming communication.
    */

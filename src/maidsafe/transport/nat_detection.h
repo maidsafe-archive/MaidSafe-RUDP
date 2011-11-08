@@ -28,11 +28,33 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_NAT_DETECTION_H_
 #define MAIDSAFE_TRANSPORT_NAT_DETECTION_H_
 
+#include <vector>
+
+#include "maidsafe/transport/contact.h"
+#include "maidsafe/transport/rudp_connection.h"
+#include "maidsafe/transport/rpcs.h"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition_variable.hpp"
+
 namespace maidsafe {
 
 namespace transport {
 
 class NatDetection {
+ public:
+  void Detect(const std::vector<Contact>& contacts,
+              std::shared_ptr<Transport> transport,
+              NatType* nat_type,
+              TransportDetails* details,
+              std::shared_ptr<RudpConnection> rendezvous_connection);
+ protected:
+  Rpcs rpcs_;
+  boost::mutex mutex_;
+  boost::condition_variable cond_var_;
+
+ private:
+  void DetectCallback(NatType* nat_type, TransportDetails* details,
+                      std::shared_ptr<RudpConnection> rendezvous_connection);
 };
 
 }  // namespace transport

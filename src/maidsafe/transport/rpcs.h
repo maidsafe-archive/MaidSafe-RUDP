@@ -29,9 +29,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_RPCS_H_
 
 #include <vector>
-
 #include "boost/function.hpp"
 
+#include "maidsafe/transport/contact.h"
+#include "maidsafe/transport/rudp_connection.h"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
@@ -50,20 +51,19 @@ struct Endpoint;
 struct TransportDetails;
 
 class Rpcs {
-  typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
-
+  typedef boost::function<void(NatType*, TransportDetails*, std::shared_ptr<RudpConnection>)> NatResultFunctor;
  public:
-  void NatDetection(const std::vector<Endpoint> &candidates,
+  void NatDetection(const std::vector<Contact> &candidates,
                     bool full,
                     NatResultFunctor nrf);
-  void NatDetection(const std::vector<Endpoint> &candidates,
+  void NatDetection(const std::vector<Contact> &candidates,
                     std::shared_ptr<Transport> listening_transport,
                     bool full,
                     NatResultFunctor nrf);
 
  private:
   void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
-                            const std::vector<Endpoint> &candidates,
+                            const std::vector<Contact> &candidates,
                             NatResultFunctor nrf,
                             int index);
 };

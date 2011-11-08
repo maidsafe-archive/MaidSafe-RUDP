@@ -33,6 +33,27 @@ namespace maidsafe {
 
 namespace transport {
 
+void NatDetection::Detect(const std::vector<maidsafe::transport::Contact>& contacts,
+                         std::shared_ptr<Transport> transport,
+                         NatType* nat_type,
+                         TransportDetails* details,
+                         std::shared_ptr<RudpConnection> rendezvous_connection) {
+  std::vector<maidsafe::transport::Contact> directly_connected_contacts;
+  for(auto itr = contacts.begin(); itr != contacts.end(); ++itr)
+    if ((*itr).IsDirectlyConnected())
+      directly_connected_contacts.push_back(*itr);
+  boost::mutex::scoped_lock lock(mutex_);
+  rpcs_.NatDetection(directly_connected_contacts, transport, true,
+      std::bind(&NatDetection::DetectCallback, this, nat_type, details,
+                                              rendezvous_connection));
+  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
+}
+
+void NatDetection::DetectCallback(NatType* nat_type, TransportDetails* details,
+    std::shared_ptr<RudpConnection> rendezvous_connection) {
+  cond_var_.notify_one();
+}
+
 }  // namespace transport
 
 }  // namespace maidsafe
