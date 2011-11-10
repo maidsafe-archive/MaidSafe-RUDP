@@ -5,6 +5,14 @@ message Endpoint {
   required int32 port = 2;
 }
 
+message ConnectRequest {
+  required bool rendezvous = 1;
+}
+
+message ConnectResponse {
+  required bool rendezvous = 1;
+}
+
 message WrapperMessage {
   required int32 msg_type = 1;
   required bytes payload = 2;
@@ -51,6 +59,7 @@ message ForwardRendezvousResponse {
 
 message RendezvousRequest {
   required Endpoint originator_endpoint = 1;
+  required Endpoint proxy_endpoint = 2;
 }
 
 message RendezvousAcknowledgement {

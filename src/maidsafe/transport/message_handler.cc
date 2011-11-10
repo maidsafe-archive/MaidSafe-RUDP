@@ -129,6 +129,22 @@ std::string MessageHandler::WrapMessage(
 }
 
 std::string MessageHandler::WrapMessage(
+    const protobuf::ConnectRequest &msg) {
+  if (!msg.IsInitialized())
+    return "";
+  return MakeSerialisedWrapperMessage(kConnectRequest,
+                                      msg.SerializeAsString(), kNone, "");
+}
+
+std::string MessageHandler::WrapMessage(
+    const protobuf::ConnectResponse &msg) {
+  if (!msg.IsInitialized())
+    return "";
+  return MakeSerialisedWrapperMessage(kConnectResponse,
+                                      msg.SerializeAsString(), kNone, "");
+}
+
+std::string MessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
   if (!msg.IsInitialized())
     return "";
@@ -165,7 +181,7 @@ void MessageHandler::ProcessSerialisedMessage(
     const std::string &payload,
     const SecurityType &/*security_type*/,
     const std::string &/*message_signature*/,
-    const Info &/*info*/,
+    const Info & info,
     std::string *message_response,
     Timeout *timeout) {
   message_response->clear();
@@ -184,9 +200,15 @@ void MessageHandler::ProcessSerialisedMessage(
     case kNatDetectionRequest: {
       protobuf::NatDetectionRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
-        protobuf::NatDetectionResponse response;
-        (*on_nat_detection_request_)(request, &response, timeout);
-        *message_response = WrapMessage(response);
+        protobuf::NatDetectionResponse nat_detection_response;
+        protobuf::RendezvousRequest rendezvous_request;
+        (*on_nat_detection_request_)(info, request, &nat_detection_response,
+                                     &rendezvous_request, timeout);
+        if (nat_detection_response.IsInitialized()) {
+          *message_response = WrapMessage(nat_detection_response);
+        } else if (rendezvous_request.IsInitialized()) {
+          *message_response = WrapMessage(rendezvous_request);
+        }
       }
       break;
     }
@@ -200,7 +222,7 @@ void MessageHandler::ProcessSerialisedMessage(
       protobuf::ProxyConnectRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::ProxyConnectResponse response;
-        (*on_proxy_connect_request_)(request, &response, timeout);
+        (*on_proxy_connect_request_)(info, request, &response, timeout);
         *message_response = WrapMessage(response);
       }
       break;
