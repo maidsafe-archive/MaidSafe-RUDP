@@ -233,6 +233,8 @@ class MessageHandler {
   ErrorSigPtr on_error_;
 };
 
+typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
+
 }  // namespace transport
 
 }  // namespace maidsafe

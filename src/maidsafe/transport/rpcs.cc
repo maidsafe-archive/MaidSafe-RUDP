@@ -33,19 +33,77 @@ namespace maidsafe {
 
 namespace transport {
 
-void Rpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-                        bool /*full*/,
-                        NatResultFunctor /*nat_result_functor*/) {}
+void Rpcs::NatDetection(const std::vector<Contact> &candidates,
+                        bool full,
+                        NatResultFunctor nat_result_functor) {
+}
 
-void Rpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-                        std::shared_ptr<Transport> /*listening_transport*/,
-                        bool /*full*/,
-                        NatResultFunctor /*nat_result_functor*/) {}
+void Rpcs::NatDetection(const std::vector<Contact> &candidates,
+                        TransportPtr transport,
+                        bool full,
+                        NatResultFunctor callback) {
+  MessageHandlerPtr message_handler; 
+//  Prepare(transport, message_handler);
+  protobuf::NatDetectionRequest request;
+//  int index = connected_objects_.AddObject(transport, message_handler);
+  TransportDetails transport_details(transport->transport_details());
+  for (auto itr(transport_details.local_endpoints.begin()); 
+      itr != transport_details.local_endpoints.end(); ++itr)
+    request.add_local_ips((*itr).ip.to_string());
+  request.set_local_port(transport_details.local_endpoints.begin()->port);
+  std::string message(message_handler->WrapMessage(request));
+  // Connect callback to message handler for incoming parsed response or error
+  DoNatDetection(candidates, transport, message_handler, message, full,
+                 callback, 0);
+}
 
-void Rpcs::NatDetectionCallback(const protobuf::NatDetectionResponse &/*response*/,  // NOLINT
-                                const std::vector<Endpoint> &/*candidates*/,
-                                NatResultFunctor /*nat_result_functor*/,
-                                int /*index*/) {}
+void Rpcs::DoNatDetection(const std::vector<Contact> &candidates,
+                          TransportPtr transport,
+                          MessageHandlerPtr message_handler,
+                          const std::string &request,
+                          const bool &full,
+                          NatResultFunctor callback,
+                          const size_t &contact_index) {
+//   message_handler->on_nat_detection_response()->connect(
+//       std::bind(&Rpcs::NatDetectionCallback, this, transport::kSuccess,
+//                 arg::_1, candidates, callback, transport, message_handler,
+//                 request, full, contact_index, index));
+//   message_handler->on_error()->connect(
+//       std::bind(&Rpcs::NatDetectionCallback, this, arg::_1,
+//                 protobuf::NatDetectionResponse(), candidates, callback,
+//                 transport, message_handler, request, full, contact_index,
+//                 index));  
+//   transport->Send(request, candidates[contact_index],
+//                   transport::kDefaultInitialTimeout);  
+}
+
+void Rpcs::NatDetectionCallback(const TransportCondition &result,
+                                const protobuf::NatDetectionResponse &response,
+                                const std::vector<Contact> &candidates,
+                                NatResultFunctor callback,
+                                TransportPtr transport,
+                                MessageHandlerPtr message_handler,
+                                const std::string &request,
+                                const bool &full,
+                                const int &contact_index,
+                                int index) {
+//   TransportDetails transport_details;
+//   if (result == kSuccess) {
+// //    transport_details.endpoint = response.endpoint();
+// //    transport_details.rendezvous_endpoint = (*iterator).endpoint;
+// //    callback(response.nat_type(), transport_details, transport);
+//   }
+//   if (result != kSuccess) {
+//     if (candidates[contact_index + 1] != candidates.end()) {
+//        DoNatDetection(candidates, transport, message_handler, request, full,
+//                       callback, contact_index + 1);    
+//    }
+//   }
+//     else {
+// //      callback(kError, transport_details, transport);
+//     }
+//   }
+}
 
 }  // namespace transport
 

@@ -240,6 +240,8 @@ class Transport {
   Transport& operator=(const Transport&);
 };
 
+typedef std::shared_ptr<Transport> TransportPtr;
+
 }  // namespace transport
 
 }  // namespace maidsafe
