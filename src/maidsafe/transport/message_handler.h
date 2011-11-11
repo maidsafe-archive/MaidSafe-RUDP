@@ -62,6 +62,8 @@ enum MessageType {
   kNatDetectionResponse,
   kProxyConnectRequest,
   kProxyConnectResponse,
+  kConnectRequest,
+  kConnectResponse,
   kForwardRendezvousRequest,
   kForwardRendezvousResponse,
   kRendezvousRequest,
@@ -76,6 +78,8 @@ class NatDetectionRequest;
 class NatDetectionResponse;
 class ProxyConnectRequest;
 class ProxyConnectResponse;
+class ConnectRequest;
+class ConnectResponse;
 class ForwardRendezvousRequest;
 class ForwardRendezvousResponse;
 class RendezvousRequest;
@@ -100,19 +104,30 @@ class MessageHandler {
                        protobuf::ManagedEndpointMessage*,
                        transport::Timeout*)>> ManagedEndpointMsgSigPtr;
   typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::NatDetectionRequest&,
+      bs2::signal<void(const transport::Info&,
+                       const protobuf::NatDetectionRequest&,
                        protobuf::NatDetectionResponse*,
+                       protobuf::RendezvousRequest*,
                        transport::Timeout*)>> NatDetectionReqSigPtr;
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::NatDetectionResponse&)>>
           NatDetectionRspSigPtr;
   typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ProxyConnectRequest&,
+      bs2::signal<void(const transport::Info&,
+                       const protobuf::ProxyConnectRequest&,
                        protobuf::ProxyConnectResponse*,
                        transport::Timeout*)>> ProxyConnectReqSigPtr;
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::ProxyConnectResponse&)>>
           ProxyConnectRspSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ConnectRequest&,
+                       protobuf::ConnectResponse*,
+                       transport::Timeout*)>> ConnectReqSigPtr;
+  typedef std::shared_ptr<
+      bs2::signal<void(const protobuf::ConnectResponse&)>>
+          ConnectRspSigPtr;
+
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::ForwardRendezvousRequest&,
                        protobuf::ForwardRendezvousResponse*,
@@ -136,6 +151,8 @@ class MessageHandler {
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
       on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
       on_proxy_connect_response_(new ProxyConnectRspSigPtr::element_type),
+      on_connect_request_(new ConnectReqSigPtr::element_type),
+      on_connect_response_(new ConnectRspSigPtr::element_type),
       on_forward_rendezvous_request_(
           new ForwardRendezvousReqSigPtr::element_type),
       on_forward_rendezvous_response_(
@@ -154,6 +171,7 @@ class MessageHandler {
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
   std::string WrapMessage(const protobuf::ProxyConnectRequest &msg);
+  std::string WrapMessage(const protobuf::ConnectRequest &msg);
   std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
   std::string WrapMessage(const protobuf::RendezvousRequest &msg);
 
@@ -171,6 +189,12 @@ class MessageHandler {
   }
   ProxyConnectRspSigPtr on_proxy_connect_response() {
     return on_proxy_connect_response_;
+  }
+  ConnectReqSigPtr on_connect_request() {
+    return on_connect_request_;
+  }
+  ConnectRspSigPtr on_connect_response() {
+    return on_connect_response_;
   }
   ForwardRendezvousReqSigPtr on_forward_rendezvous_request() {
     return on_forward_rendezvous_request_;
@@ -218,6 +242,7 @@ class MessageHandler {
 
   std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
   std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
+  std::string WrapMessage(const protobuf::ConnectResponse &msg);
   std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
   std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
 
@@ -226,6 +251,8 @@ class MessageHandler {
   NatDetectionRspSigPtr on_nat_detection_response_;
   ProxyConnectReqSigPtr on_proxy_connect_request_;
   ProxyConnectRspSigPtr on_proxy_connect_response_;
+  ConnectReqSigPtr on_connect_request_;
+  ConnectRspSigPtr on_connect_response_;
   ForwardRendezvousReqSigPtr on_forward_rendezvous_request_;
   ForwardRendezvousRspSigPtr on_forward_rendezvous_response_;
   RendezvousReqSigPtr on_rendezvous_request_;
