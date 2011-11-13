@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/message_handler.h"
 #include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/contact.h"
 
 namespace arg = std::placeholders;
 
@@ -52,12 +53,9 @@ class Transport;
 struct Endpoint;
 struct TransportDetails;
 class RudpTransport;
-class Contact;
-//class MessageHandlerPtr;
-//class TransportPtr;
 
 class Rpcs {
-  typedef boost::function<void(int, TransportDetails, RudpTransport)> 
+  typedef boost::function<void(int, TransportDetails)> 
       NatResultFunctor;
 
  public:
@@ -67,16 +65,16 @@ class Rpcs {
   void NatDetection(const std::vector<Contact> &candidates,
                     TransportPtr listening_transport,
                     bool full,
-                    NatResultFunctor nrf);
+                    NatResultFunctor callback);
+ private:  
   void DoNatDetection(const std::vector<Contact> &candidates,
                       TransportPtr transport,
                       MessageHandlerPtr message_handler,
                       const std::string &request,
                       const bool &full,
-                      NatResultFunctor nat_result_functor,
-                      const size_t &contact_index);
-
- private:
+                      NatResultFunctor callback,
+                      const size_t &contact_index,
+                      const size_t &index);  
   void NatDetectionCallback(const TransportCondition &result,
                             const protobuf::NatDetectionResponse &response,
                             const std::vector<Contact> &candidates,
@@ -85,8 +83,8 @@ class Rpcs {
                             MessageHandlerPtr message_handler,
                             const std::string &request,
                             const bool &full,
-                            const int &contact_index,
-                            int index);
+                            const size_t &contact_index,
+                            const size_t &index);  
 };
 
 }  // namespace transport
