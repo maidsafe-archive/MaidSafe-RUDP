@@ -200,14 +200,10 @@ void MessageHandler::ProcessSerialisedMessage(
     case kNatDetectionRequest: {
       protobuf::NatDetectionRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
-        protobuf::NatDetectionResponse nat_detection_response;
-        protobuf::RendezvousRequest rendezvous_request;
-        (*on_nat_detection_request_)(info, request, &nat_detection_response,
-                                     &rendezvous_request, timeout);
-        if (nat_detection_response.IsInitialized()) {
-          *message_response = WrapMessage(nat_detection_response);
-        } else if (rendezvous_request.IsInitialized()) {
-          *message_response = WrapMessage(rendezvous_request);
+        protobuf::NatDetectionResponse response;
+        (*on_nat_detection_request_)(info, request, &response, timeout);
+        if (response.IsInitialized()) {
+          *message_response = WrapMessage(response);
         }
       }
       break;
@@ -237,7 +233,7 @@ void MessageHandler::ProcessSerialisedMessage(
       protobuf::ForwardRendezvousRequest request;
       if (request.ParseFromString(payload) && request.IsInitialized()) {
         protobuf::ForwardRendezvousResponse response;
-        (*on_forward_rendezvous_request_)(request, &response, timeout);
+        (*on_forward_rendezvous_request_)(info, request, &response);
         *message_response = WrapMessage(response);
       }
       break;
@@ -250,8 +246,10 @@ void MessageHandler::ProcessSerialisedMessage(
     }
     case kRendezvousRequest: {
       protobuf::RendezvousRequest request;
-      if (request.ParseFromString(payload) && request.IsInitialized())
-        (*on_rendezvous_request_)(request);
+      if (request.ParseFromString(payload) && request.IsInitialized()) {
+        protobuf::RendezvousAcknowledgement response;
+        (*on_rendezvous_request_)(info, request, &response);
+      }
       break;
     }
     case kRendezvousAcknowledgement: {

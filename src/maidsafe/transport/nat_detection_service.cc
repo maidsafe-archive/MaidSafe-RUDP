@@ -54,12 +54,22 @@ NatDetectionService::NatDetectionService(AsioService &asio_service, // NOLINT
 void NatDetectionService::ConnectToSignals() {
     message_handler_->on_nat_detection_request()->connect(
         MessageHandler::NatDetectionReqSigPtr::element_type::slot_type(
-            &NatDetectionService::NatDetection, this, _1, _2, _3, _4, _5).
+            &NatDetectionService::NatDetection, this, _1, _2, _3, _4).
                 track_foreign(shared_from_this()));
 
     message_handler_->on_proxy_connect_request()->connect(
         MessageHandler::ProxyConnectReqSigPtr::element_type::slot_type(
             &NatDetectionService::ProxyConnect, this, _1, _2, _3, _4).
+                track_foreign(shared_from_this()));
+
+    message_handler_->on_rendezvous_request()->connect(
+        MessageHandler::RendezvousReqSigPtr::element_type::slot_type(
+            &NatDetectionService::Rendezvous, this, _1, _2, _3).
+                track_foreign(shared_from_this()));
+
+    message_handler_->on_forward_rendezvous_request()->connect(
+        MessageHandler::ForwardRendezvousReqSigPtr::element_type::slot_type(
+            &NatDetectionService::ForwardRendezvous, this, _1, _2, _3).
                 track_foreign(shared_from_this()));
 }
 
@@ -68,8 +78,7 @@ void NatDetectionService::NatDetection(
     const Info &info,
     const protobuf::NatDetectionRequest &request,
     protobuf::NatDetectionResponse *nat_detection_response,
-    protobuf::RendezvousRequest *rendezvous_request,
-    transport::Timeout*) {
+    transport::Timeout* timeout) {
   if (!request.full_detection()) {  // Partial NAT detection
     if (DirectlyConnected(request, info.endpoint))
       SetNatDetectionResponse(nat_detection_response, info.endpoint,
@@ -111,12 +120,12 @@ void NatDetectionService::NatDetection(
     if (result) {
       SetNatDetectionResponse(nat_detection_response, info.endpoint,
                               kFullCone);
+      *timeout = kDefaultInitialTimeout;
       return;
     }
     // message_handler_->on_proxy_connect_response()->disconnect();
     // Port restricted check
     proxy /* = get_live_proxy()*/;  // New contact
-    SetRendezvousRequest(info.endpoint, proxy, rendezvous_request);
     SendProxyConnectRequest(info.endpoint, proxy, true, transport);
   }
 }
@@ -168,7 +177,7 @@ void NatDetectionService::ProxyConnectResponse(
 
 // At proxy
 void NatDetectionService::ProxyConnect(
-    const Info &/*info*/,
+    const Info & info,
     const protobuf::ProxyConnectRequest &request,
     protobuf::ProxyConnectResponse *response,
     transport::Timeout*) {
@@ -203,13 +212,35 @@ void NatDetectionService::ProxyConnect(
     return;
   } else {  // PortRestrictedNatDetection
     rendezvous = false;
-    SendConnectRequest(endpoint, rendezvous, transport);
-    // retry?
+    SendForwardRendezvousRequest(info.endpoint, endpoint, transport);
+    //  Delay ?
+    SendNatDetectionResponse(endpoint, transport);
   }
 }
 
-// TODO(Prakash) : finalise
+// Proxy to Rendezvous
+void NatDetectionService::SendForwardRendezvousRequest(
+    const Endpoint &rendezvous,
+    const Endpoint &originator,
+    TransportPtr transport) {
+  protobuf::ForwardRendezvousRequest request;
+  request.mutable_receiver_endpoint()->set_ip(originator.ip.to_string());
+  request.mutable_receiver_endpoint()->set_port(originator.port);
+  std::string message(message_handler_->WrapMessage(request));
+  transport->Send(message, rendezvous, transport::kDefaultInitialTimeout);
+}
+
 // Proxy to originator
+void NatDetectionService::SendNatDetectionResponse(const Endpoint &originator,
+                                                   TransportPtr transport) {
+  protobuf::NatDetectionResponse response;
+  SetNatDetectionResponse(&response, originator, kPortRestricted);
+  std::string message(message_handler_->WrapMessage(response));
+  transport->Send(message, originator, transport::kDefaultInitialTimeout);
+}
+
+// TODO(Prakash) : to be replaced by rudp connect
+// Proxy <-> originator
 void NatDetectionService::SendConnectRequest(const Endpoint &endpoint,
                                              const bool &rendezvous,
                                              TransportPtr transport) {
@@ -239,20 +270,39 @@ void NatDetectionService::ConnectResponse(
 }
 
 void NatDetectionService::SetRendezvousRequest(
-    const Endpoint &originator,
-    const Endpoint &proxy,
-    protobuf::RendezvousRequest *rendezvous_request) {
-  rendezvous_request->mutable_originator_endpoint()->set_ip(
-      originator.ip.to_string());
-  rendezvous_request->mutable_originator_endpoint()->set_port(originator.port);
+    protobuf::RendezvousRequest *rendezvous_request,
+    const Endpoint &proxy) {
   rendezvous_request->mutable_proxy_endpoint()->set_ip(proxy.ip.to_string());
   rendezvous_request->mutable_proxy_endpoint()->set_port(proxy.port);
 }
 
+// At Rendezvous
 void NatDetectionService::ForwardRendezvous(
-    const protobuf::ForwardRendezvousRequest&,
-    protobuf::ForwardRendezvousResponse*,
-    transport::Timeout*) {}
+    const Info & info,
+    const protobuf::ForwardRendezvousRequest& request,
+    protobuf::ForwardRendezvousResponse*) {
+  protobuf::RendezvousRequest rendezvous_request;
+  SetRendezvousRequest(&rendezvous_request, info.endpoint);
+
+  Endpoint originator(request.receiver_endpoint().ip(),
+      static_cast<uint16_t> (request.receiver_endpoint().port()));
+  // Need listening transport here
+  TransportPtr transport(new transport::RudpTransport(asio_service_));
+  std::string message(message_handler_->WrapMessage(rendezvous_request));
+  transport->Send(message, originator, transport::kDefaultInitialTimeout);
+}
+
+//  At originator
+void NatDetectionService::Rendezvous(const Info & info,
+                                     const protobuf::RendezvousRequest& request,
+                                     protobuf::RendezvousAcknowledgement*) {
+  Endpoint proxy(request.proxy_endpoint().ip(),
+      static_cast<uint16_t> (request.proxy_endpoint().port()));
+  // TODO(Prakash):  Need to send from listening transport
+  TransportPtr transport;
+  // TODO(Prakash):  Need to replace with rudp connect
+  SendConnectRequest(proxy, true, transport);
+}
 
 }  // namespace transport
 
