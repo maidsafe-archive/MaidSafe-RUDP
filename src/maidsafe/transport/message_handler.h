@@ -107,7 +107,6 @@ class MessageHandler {
       bs2::signal<void(const transport::Info&,
                        const protobuf::NatDetectionRequest&,
                        protobuf::NatDetectionResponse*,
-                       protobuf::RendezvousRequest*,
                        transport::Timeout*)>> NatDetectionReqSigPtr;
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::NatDetectionResponse&)>>
@@ -129,15 +128,14 @@ class MessageHandler {
           ConnectRspSigPtr;
 
   typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ForwardRendezvousRequest&,
-                       protobuf::ForwardRendezvousResponse*,
-                       transport::Timeout*)>> ForwardRendezvousReqSigPtr;
+      bs2::signal<void(const Info&, const protobuf::ForwardRendezvousRequest&,
+          protobuf::ForwardRendezvousResponse*)>>  ForwardRendezvousReqSigPtr;
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::ForwardRendezvousResponse&)>>
           ForwardRendezvousRspSigPtr;
   typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::RendezvousRequest&)>>
-          RendezvousReqSigPtr;
+      bs2::signal<void(const Info&, const protobuf::RendezvousRequest&,
+          protobuf::RendezvousAcknowledgement*)>> RendezvousReqSigPtr;
   typedef std::shared_ptr<
       bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
           RendezvousAckSigPtr;
@@ -174,6 +172,9 @@ class MessageHandler {
   std::string WrapMessage(const protobuf::ConnectRequest &msg);
   std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
   std::string WrapMessage(const protobuf::RendezvousRequest &msg);
+  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
+  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
+
 
   ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
     return on_managed_endpoint_message_;
@@ -240,10 +241,8 @@ class MessageHandler {
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
-  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
   std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
   std::string WrapMessage(const protobuf::ConnectResponse &msg);
-  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
   std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
 
   ManagedEndpointMsgSigPtr on_managed_endpoint_message_;

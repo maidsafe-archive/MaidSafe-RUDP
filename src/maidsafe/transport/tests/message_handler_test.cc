@@ -95,11 +95,10 @@ class TransportMessageHandlerTest : public testing::Test {
   }
   void NatDetectionReqSlot(const Info &/*info*/,
       const protobuf::NatDetectionRequest&,
-      protobuf::NatDetectionResponse* nat_detection_response,
-      protobuf::RendezvousRequest * /*rendezvous_request*/,
+      protobuf::NatDetectionResponse* response,
       transport::Timeout*) {
     boost::mutex::scoped_lock lock(slots_mutex_);
-    nat_detection_response->set_nat_type(0);
+    response->set_nat_type(0);
     auto it = invoked_slots_->find(kNatDetectionRequest);
     if (it != invoked_slots_->end())
       ++((*it).second);
@@ -126,9 +125,9 @@ class TransportMessageHandlerTest : public testing::Test {
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
-  void ForwardRendezvousReqSlot(const protobuf::ForwardRendezvousRequest&,
-                                protobuf::ForwardRendezvousResponse* response,
-                                transport::Timeout*) {
+  void ForwardRendezvousReqSlot(const Info & info,
+                                const protobuf::ForwardRendezvousRequest&,
+                                protobuf::ForwardRendezvousResponse* response) {
     boost::mutex::scoped_lock lock(slots_mutex_);
     protobuf::Endpoint *rv_endpoint =
         response->mutable_receiver_rendezvous_endpoint();
@@ -144,7 +143,9 @@ class TransportMessageHandlerTest : public testing::Test {
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
-  void RendezvousReqSlot(const protobuf::RendezvousRequest&) {
+  void RendezvousReqSlot(const Info & info,
+                         const protobuf::RendezvousRequest&,
+                         protobuf::RendezvousAcknowledgement*) {
     boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kRendezvousRequest);
     if (it != invoked_slots_->end())
@@ -162,8 +163,8 @@ class TransportMessageHandlerTest : public testing::Test {
     msg_hndlr_->on_managed_endpoint_message()->connect(boost::bind(
         &TransportMessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
     msg_hndlr_->on_nat_detection_request()->connect(boost::bind(
-        &TransportMessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3, _4,
-            _5));
+        &TransportMessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3,
+            _4));
     msg_hndlr_->on_nat_detection_response()->connect(boost::bind(
         &TransportMessageHandlerTest::NatDetectionRspSlot, this, _1));
     msg_hndlr_->on_proxy_connect_request()->connect(boost::bind(
@@ -177,7 +178,7 @@ class TransportMessageHandlerTest : public testing::Test {
     msg_hndlr_->on_forward_rendezvous_response()->connect(boost::bind(
         &TransportMessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
     msg_hndlr_->on_rendezvous_request()->connect(boost::bind(
-        &TransportMessageHandlerTest::RendezvousReqSlot, this, _1));
+        &TransportMessageHandlerTest::RendezvousReqSlot, this, _1, _2, _3));
     msg_hndlr_->on_rendezvous_acknowledgement()->connect(boost::bind(
         &TransportMessageHandlerTest::RendezvousAckSlot, this, _1));
     msg_hndlr_->on_error()->connect(boost::bind(
@@ -208,7 +209,6 @@ class TransportMessageHandlerTest : public testing::Test {
     me_msg.mutable_endpoint()->CopyFrom(ep);
     pc_req.mutable_endpoint()->CopyFrom(ep);
     fr_req.mutable_receiver_endpoint()->CopyFrom(ep);
-    r_req.mutable_originator_endpoint()->CopyFrom(ep);
     r_req.mutable_proxy_endpoint()->CopyFrom(ep_proxy);
     nd_res.mutable_endpoint()->CopyFrom(ep);
     fr_res.mutable_receiver_rendezvous_endpoint()->CopyFrom(ep);
@@ -406,10 +406,8 @@ TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  
 
 TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
   protobuf::RendezvousRequest rdvz_rqst;
-  protobuf::Endpoint *originator_ep = rdvz_rqst.mutable_originator_endpoint();
+
   protobuf::Endpoint *proxy_endpoint = rdvz_rqst.mutable_proxy_endpoint();
-  originator_ep->set_ip(std::string("192.168.1.1"));
-  originator_ep->set_port(12345);
   proxy_endpoint->set_ip(std::string("192.168.0.9"));
   proxy_endpoint->set_port(12349);
 

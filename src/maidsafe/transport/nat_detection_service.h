@@ -64,12 +64,11 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   void NatDetection(const Info &info,
                     const protobuf::NatDetectionRequest &request,
                     protobuf::NatDetectionResponse *nat_detection_response,
-                    protobuf::RendezvousRequest *rendezvous_request,
                     transport::Timeout *timeout);
 
-  void ForwardRendezvous(const protobuf::ForwardRendezvousRequest &request,
-                         protobuf::ForwardRendezvousResponse *response,
-                         transport::Timeout *timeout);
+  void ForwardRendezvous(const Info & info,
+                         const protobuf::ForwardRendezvousRequest &request,
+                         protobuf::ForwardRendezvousResponse *response);
 
   void ProxyConnectResponse(
       const transport::TransportCondition &transport_condition,
@@ -84,6 +83,10 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                     const protobuf::ProxyConnectRequest &request,
                     protobuf::ProxyConnectResponse *response,
                     transport::Timeout *timeout);
+  // At originator
+  void Rendezvous(const Info & info, const protobuf::RendezvousRequest& request,
+                  protobuf::RendezvousAcknowledgement*);
+
   void ConnectResponse(const bool rendezvous,
                        const transport::TransportCondition &transport_condition,
                        const Endpoint &remote_endpoint,
@@ -103,12 +106,18 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
       protobuf::NatDetectionResponse *nat_detection_response,
      const Endpoint &endpoint, const NatType &nat_type);
 
-  void SetRendezvousRequest(const Endpoint &originator,
-                            const Endpoint &proxy,
-                            protobuf::RendezvousRequest *rendezvous_request);
+  void SetRendezvousRequest(protobuf::RendezvousRequest *rendezvous_request,
+                            const Endpoint &proxy);
 
   bool DirectlyConnected(const protobuf::NatDetectionRequest &request,
                          const Endpoint &endpoint);
+  // Proxy to Rendezvous
+  void SendForwardRendezvousRequest(const Endpoint &rendezvous,
+                                    const Endpoint &originator,
+                                    TransportPtr transport);
+  // Proxy to originator
+  void SendNatDetectionResponse(const Endpoint &originator,
+                                TransportPtr transport);
   // Rendezvous to proxy
   void SendProxyConnectRequest(const Endpoint &originator,
                                const Endpoint &proxy,
