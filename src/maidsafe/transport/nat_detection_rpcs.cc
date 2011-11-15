@@ -34,10 +34,10 @@ namespace maidsafe {
 namespace transport {
 
 void NatDetectionRpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-    bool /*full*/, NatResultFunctor /*nat_result_functor*/) {}
+    const bool& /*full*/, NatResultFunctor /*nat_result_functor*/) {}
 
 void NatDetectionRpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-    std::shared_ptr<Transport> /*listening_transport*/, bool /*full*/,
+    std::shared_ptr<Transport> /*listening_transport*/, const bool& /*full*/,
         NatResultFunctor /*nat_result_functor*/) {}
 
 void NatDetectionRpcs::NatDetectionCallback(

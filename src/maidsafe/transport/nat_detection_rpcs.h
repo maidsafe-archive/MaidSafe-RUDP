@@ -54,17 +54,17 @@ class NatDetectionRpcs {
 
  public:
   void NatDetection(const std::vector<Endpoint> &candidates,
-                    bool full,
-                    NatResultFunctor nrf);
+                    const bool &full,
+                    NatResultFunctor callback);
   void NatDetection(const std::vector<Endpoint> &candidates,
                     std::shared_ptr<Transport> listening_transport,
-                    bool full,
-                    NatResultFunctor nrf);
+                    const bool &full,
+                    NatResultFunctor callback);
 
  private:
   void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
                             const std::vector<Endpoint> &candidates,
-                            NatResultFunctor nrf,
+                            NatResultFunctor callback,
                             int index);
 };
 

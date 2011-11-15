@@ -38,6 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_socket.h"
 #include "maidsafe/common/log.h"
 
+#include "maidsafe/transport/contact.h"
+#include "nat_detection.h"
+
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
@@ -78,8 +81,17 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 }
 
 TransportCondition RudpTransport::Bootstrap(
-    const std::vector<Endpoint> &candidates) {
-  return kSuccess;
+    const std::vector<Contact> &candidates) {
+  NatType nat_type;
+  TransportDetails details;
+  MessageHandlerPtr message_handler;
+  std::shared_ptr<RudpConnection> rendezvous_connection;
+  NatDetection nat_detection;
+  nat_detection.Detect(candidates, shared_from_this(), message_handler,
+                       &nat_type, &details);
+  if (nat_type != kNotConnected)
+    return kSuccess;
+  return kError;
 }
 
 void RudpTransport::StopListening() {

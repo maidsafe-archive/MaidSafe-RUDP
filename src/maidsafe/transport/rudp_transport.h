@@ -37,8 +37,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
 #include "maidsafe/transport/transport.h"
-
+#include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/rudp_parameters.h"
+#include "maidsafe/transport/message_handler.h"
 
 namespace maidsafe {
 
@@ -56,7 +57,8 @@ class RudpTransport : public Transport,
   ~RudpTransport();
 
   virtual TransportCondition StartListening(const Endpoint &endpoint);
-  virtual TransportCondition Bootstrap(const std::vector<Endpoint> &candidates);
+  virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
+
   virtual void StopListening();
   // This timeout define the max allowed duration for the receiver to respond
   // a received request. If the receiver is to be expected respond slow

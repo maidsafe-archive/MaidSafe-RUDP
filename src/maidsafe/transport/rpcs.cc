@@ -40,21 +40,18 @@ void Rpcs::NatDetection(const std::vector<Contact> &candidates,
 
 void Rpcs::NatDetection(const std::vector<Contact> &candidates,
                         TransportPtr transport,
-                        bool full,
+                        MessageHandlerPtr message_handler,
+                        const bool &full,
                         NatResultFunctor callback) {
-  MessageHandlerPtr message_handler; 
-//  Prepare(transport, message_handler);
   protobuf::NatDetectionRequest request;
-  size_t index = 0; /*connected_objects_.AddObject(transport, message_handler);*/
   TransportDetails transport_details(transport->transport_details());
   for (auto itr(transport_details.local_endpoints.begin()); 
       itr != transport_details.local_endpoints.end(); ++itr)
     request.add_local_ips((*itr).ip.to_string());
   request.set_local_port(transport_details.local_endpoints.begin()->port);
   std::string message(message_handler->WrapMessage(request));
-  // Connect callback to message handler for incoming parsed response or error
   DoNatDetection(candidates, transport, message_handler, message, full,
-                 callback, 0, index);
+                 callback, 0);
 }
 
 void Rpcs::DoNatDetection(const std::vector<Contact> &candidates,
@@ -63,18 +60,16 @@ void Rpcs::DoNatDetection(const std::vector<Contact> &candidates,
                           const std::string &request,
                           const bool &full,
                           NatResultFunctor callback,
-                          const size_t &contact_index,
                           const size_t &index) {
     message_handler->on_nat_detection_response()->connect(
         std::bind(&Rpcs::NatDetectionCallback, this, transport::kSuccess,
                   arg::_1, candidates, callback, transport, message_handler,
-                  request, full, contact_index, index));
+                  request, full, index));
     message_handler->on_error()->connect(
         std::bind(&Rpcs::NatDetectionCallback, this, arg::_1,
                   protobuf::NatDetectionResponse(), candidates, callback,
-                  transport, message_handler, request, full, contact_index,
-                  index));  
-   transport->Send(request, candidates[contact_index].endpoint(),
+                  transport, message_handler, request, full, index));  
+   transport->Send(request, candidates[index].endpoint(),
                    transport::kDefaultInitialTimeout);
 }
 
@@ -87,19 +82,18 @@ void Rpcs::NatDetectionCallback(const TransportCondition &result,
                                 MessageHandlerPtr message_handler,
                                 const std::string &request,
                                 const bool &full,
-                                const size_t &contact_index,
                                 const size_t &index) {
    TransportDetails transport_details;
    if (result == kSuccess) {
      transport_details.endpoint.ip.from_string(response.endpoint().ip().data());
      transport_details.endpoint.port = response.endpoint().port();
-     transport_details.rendezvous_endpoint = candidates[contact_index].endpoint();
+     transport_details.rendezvous_endpoint = candidates[index].endpoint();
      callback(response.nat_type(), transport_details);
    }
    if (result != kSuccess) {
-     if (contact_index + 1 < candidates.size()) {
+     if (index + 1 < candidates.size()) {
        DoNatDetection(candidates, transport, message_handler, request, full,
-                      callback, contact_index + 1, index);
+                      callback, index + 1);
      } else {
        callback(kError, transport_details);
      }

@@ -26,12 +26,33 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/nat_detection.h"
-
 #include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/message_handler.h"
 
 namespace maidsafe {
 
 namespace transport {
+
+void NatDetection::Detect(const std::vector<maidsafe::transport::Contact>& contacts,
+                          TransportPtr transport,
+                          MessageHandlerPtr message_handler,
+                          NatType* nat_type,
+                          TransportDetails* details) {
+  std::vector<maidsafe::transport::Contact> directly_connected_contacts;
+  for(auto itr = contacts.begin(); itr != contacts.end(); ++itr)
+    if ((*itr).IsDirectlyConnected())
+      directly_connected_contacts.push_back(*itr);
+  boost::mutex::scoped_lock lock(mutex_);
+   rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
+                      true, std::bind(&NatDetection::DetectCallback, this, 
+                                      nat_type, details));
+  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
+}
+
+void NatDetection::DetectCallback(NatType* nat_type,
+                                  TransportDetails* details) {
+  cond_var_.notify_one();
+}
 
 }  // namespace transport
 

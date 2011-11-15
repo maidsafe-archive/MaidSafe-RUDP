@@ -55,25 +55,23 @@ struct TransportDetails;
 class RudpTransport;
 
 class Rpcs {
-  typedef boost::function<void(int, TransportDetails)> 
-      NatResultFunctor;
-
  public:
+  typedef boost::function<void(int, TransportDetails)> 
+      NatResultFunctor;   
   void NatDetection(const std::vector<Contact> &candidates,
                     bool full,
                     NatResultFunctor nrf);
   void NatDetection(const std::vector<Contact> &candidates,
-                    TransportPtr listening_transport,
-                    bool full,
+                    TransportPtr transport,
+                    MessageHandlerPtr message_handler,
+                    const bool &full,
                     NatResultFunctor callback);
- private:  
   void DoNatDetection(const std::vector<Contact> &candidates,
                       TransportPtr transport,
                       MessageHandlerPtr message_handler,
                       const std::string &request,
                       const bool &full,
                       NatResultFunctor callback,
-                      const size_t &contact_index,
                       const size_t &index);  
   void NatDetectionCallback(const TransportCondition &result,
                             const protobuf::NatDetectionResponse &response,
@@ -83,7 +81,6 @@ class Rpcs {
                             MessageHandlerPtr message_handler,
                             const std::string &request,
                             const bool &full,
-                            const size_t &contact_index,
                             const size_t &index);  
 };
 
