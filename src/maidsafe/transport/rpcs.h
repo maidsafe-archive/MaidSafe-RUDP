@@ -39,50 +39,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 
-#include "maidsafe/transport/message_handler.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/contact.h"
-
-namespace arg = std::placeholders;
-
 namespace maidsafe {
 
 namespace transport {
 
-class Transport;
-struct Endpoint;
-struct TransportDetails;
-class RudpTransport;
-
-class Rpcs {
- public:
-  typedef boost::function<void(int, TransportDetails)> 
-      NatResultFunctor;   
-  void NatDetection(const std::vector<Contact> &candidates,
-                    bool full,
-                    NatResultFunctor nrf);
-  void NatDetection(const std::vector<Contact> &candidates,
-                    TransportPtr transport,
-                    MessageHandlerPtr message_handler,
-                    const bool &full,
-                    NatResultFunctor callback);
-  void DoNatDetection(const std::vector<Contact> &candidates,
-                      TransportPtr transport,
-                      MessageHandlerPtr message_handler,
-                      const std::string &request,
-                      const bool &full,
-                      NatResultFunctor callback,
-                      const size_t &index);  
-  void NatDetectionCallback(const TransportCondition &result,
-                            const protobuf::NatDetectionResponse &response,
-                            const std::vector<Contact> &candidates,
-                            NatResultFunctor callback,
-                            TransportPtr transport,
-                            MessageHandlerPtr message_handler,
-                            const std::string &request,
-                            const bool &full,
-                            const size_t &index);  
-};
+class Rpcs {};
 
 }  // namespace transport
 

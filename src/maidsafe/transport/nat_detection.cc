@@ -33,11 +33,12 @@ namespace maidsafe {
 
 namespace transport {
 
-void NatDetection::Detect(const std::vector<maidsafe::transport::Contact>& contacts,
-                          TransportPtr transport,
-                          MessageHandlerPtr message_handler,
-                          NatType* nat_type,
-                          TransportDetails* details) {
+void NatDetection::Detect(
+    const std::vector<maidsafe::transport::Contact>& contacts,
+    TransportPtr transport,
+    MessageHandlerPtr message_handler,
+    NatType* nat_type,
+    TransportDetails* details) {
   std::vector<maidsafe::transport::Contact> directly_connected_contacts;
   for(auto itr = contacts.begin(); itr != contacts.end(); ++itr)
     if ((*itr).IsDirectlyConnected())

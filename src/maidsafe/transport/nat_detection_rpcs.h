@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_NAT_DETECTION_RPCS_H_
 
 #include <vector>
+#include <string>
 
 #include "boost/function.hpp"
 
@@ -41,6 +42,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 
+#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/transport.h"
+
 namespace maidsafe {
 
 namespace transport {
@@ -48,24 +52,37 @@ namespace transport {
 class Transport;
 struct Endpoint;
 struct TransportDetails;
+class Contact;
 
 class NatDetectionRpcs {
   typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
 
  public:
-  void NatDetection(const std::vector<Endpoint> &candidates,
+  void NatDetection(const std::vector<Contact> &candidates,
+                    const bool &full,
+                    NatResultFunctor nrf);
+  void NatDetection(const std::vector<Contact> &candidates,
+                    TransportPtr transport,
+                    MessageHandlerPtr message_handler,
                     const bool &full,
                     NatResultFunctor callback);
-  void NatDetection(const std::vector<Endpoint> &candidates,
-                    std::shared_ptr<Transport> listening_transport,
-                    const bool &full,
-                    NatResultFunctor callback);
-
  private:
-  void NatDetectionCallback(const protobuf::NatDetectionResponse &response,
-                            const std::vector<Endpoint> &candidates,
+  void DoNatDetection(const std::vector<Contact> &candidates,
+                      TransportPtr transport,
+                      MessageHandlerPtr message_handler,
+                      const std::string &request,
+                      const bool &full,
+                      NatResultFunctor callback,
+                      const size_t &index);
+  void NatDetectionCallback(const TransportCondition &result,
+                            const protobuf::NatDetectionResponse &response,
+                            const std::vector<Contact> &candidates,
                             NatResultFunctor callback,
-                            int index);
+                            TransportPtr transport,
+                            MessageHandlerPtr message_handler,
+                            const std::string &request,
+                            const bool &full,
+                            const size_t &index);
 };
 
 }  // namespace transport

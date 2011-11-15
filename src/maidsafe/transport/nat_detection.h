@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/rudp_connection.h"
-#include "maidsafe/transport/rpcs.h"
+#include "maidsafe/transport/nat_detection_rpcs.h"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/condition_variable.hpp"
 
@@ -48,7 +48,7 @@ class NatDetection {
               NatType* nat_type,
               TransportDetails* details);
  protected:
-  Rpcs rpcs_;
+  NatDetectionRpcs rpcs_;
   boost::mutex mutex_;
   boost::condition_variable cond_var_;
 

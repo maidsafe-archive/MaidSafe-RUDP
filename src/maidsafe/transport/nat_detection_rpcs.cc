@@ -25,26 +25,86 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include"maidsafe/transport/nat_detection_rpcs.h"
-
 #include <vector>
+#include <string>
+
+#include "maidsafe/transport/nat_detection_rpcs.h"
+#include "maidsafe/transport/contact.h"
+#include "maidsafe/transport/message_handler.h"
+
+
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
 namespace transport {
 
-void NatDetectionRpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-    const bool& /*full*/, NatResultFunctor /*nat_result_functor*/) {}
+void NatDetectionRpcs::NatDetection(const std::vector<Contact>& /*candidates*/,
+                                    const bool& /*full*/,
+                                    NatResultFunctor /*nat_result_functor*/) {
+}
 
-void NatDetectionRpcs::NatDetection(const std::vector<Endpoint> &/*candidates*/,
-    std::shared_ptr<Transport> /*listening_transport*/, const bool& /*full*/,
-        NatResultFunctor /*nat_result_functor*/) {}
+void NatDetectionRpcs::NatDetection(const std::vector<Contact> &candidates,
+                                    TransportPtr transport,
+                                    MessageHandlerPtr message_handler,
+                                    const bool &full,
+                                    NatResultFunctor callback) {
+  protobuf::NatDetectionRequest request;
+  TransportDetails transport_details(transport->transport_details());
+  for (auto itr(transport_details.local_endpoints.begin());
+      itr != transport_details.local_endpoints.end(); ++itr)
+    request.add_local_ips((*itr).ip.to_string());
+  request.set_local_port(transport_details.local_endpoints.begin()->port);
+  std::string message(message_handler->WrapMessage(request));
+  DoNatDetection(candidates, transport, message_handler, message, full,
+                 callback, 0);
+}
 
-void NatDetectionRpcs::NatDetectionCallback(
-    const protobuf::NatDetectionResponse &/*response*/,
-    const std::vector<Endpoint> &/*candidates*/,
-    NatResultFunctor /*nat_result_functor*/,
-    int /*index*/) {}
+void NatDetectionRpcs::DoNatDetection(const std::vector<Contact> &candidates,
+                                      TransportPtr transport,
+                                      MessageHandlerPtr message_handler,
+                                      const std::string &request,
+                                      const bool &full,
+                                      NatResultFunctor callback,
+                                      const size_t &index) {
+  message_handler->on_nat_detection_response()->connect(
+      std::bind(&NatDetectionRpcs::NatDetectionCallback, this,
+                transport::kSuccess, arg::_1, candidates, callback, transport,
+                message_handler, request, full, index));
+  message_handler->on_error()->connect(
+      std::bind(&NatDetectionRpcs::NatDetectionCallback, this, arg::_1,
+                protobuf::NatDetectionResponse(), candidates, callback,
+                transport, message_handler, request, full, index));
+  transport->Send(request, candidates[index].endpoint(),
+                   transport::kDefaultInitialTimeout);
+}
+
+
+void NatDetectionRpcs::NatDetectionCallback(const TransportCondition &result,
+                                const protobuf::NatDetectionResponse &response,
+                                const std::vector<Contact> &candidates,
+                                NatResultFunctor callback,
+                                TransportPtr transport,
+                                MessageHandlerPtr message_handler,
+                                const std::string &request,
+                                const bool &full,
+                                const size_t &index) {
+  TransportDetails transport_details;
+  if (result == kSuccess) {
+    transport_details.endpoint.ip.from_string(response.endpoint().ip().data());
+    transport_details.endpoint.port = response.endpoint().port();
+    transport_details.rendezvous_endpoint = candidates[index].endpoint();
+    callback(response.nat_type(), transport_details);
+  }
+  if (result != kSuccess) {
+    if (index + 1 < candidates.size()) {
+      DoNatDetection(candidates, transport, message_handler, request, full,
+                     callback, index + 1);
+    } else {
+      callback(kError, transport_details);
+    }
+  }
+}
 
 }  // namespace transport
 
