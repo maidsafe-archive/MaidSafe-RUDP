@@ -28,17 +28,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_RPCS_H_
 #define MAIDSAFE_TRANSPORT_RPCS_H_
 
-#include <vector>
-
-#ifdef __MSVC__
-#  pragma warning(push)
-#  pragma warning(disable: 4127 4244 4267)
-#endif
-#include "maidsafe/transport/transport.pb.h"
-#ifdef __MSVC__
-#  pragma warning(pop)
-#endif
-
 namespace maidsafe {
 
 namespace transport {

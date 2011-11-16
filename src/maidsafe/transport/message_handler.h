@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace bs2 = boost::signals2;
+namespace arg = std::placeholders;
 
 namespace maidsafe {
 
@@ -73,24 +74,9 @@ enum MessageType {
 namespace protobuf {
 class Endpoint;
 class WrapperMessage;
-class ManagedEndpointMessage;
-class NatDetectionRequest;
-class NatDetectionResponse;
-class ProxyConnectRequest;
-class ProxyConnectResponse;
-class ConnectRequest;
-class ConnectResponse;
-class ForwardRendezvousRequest;
-class ForwardRendezvousResponse;
-class RendezvousRequest;
-class RendezvousAcknowledgement;
-}  // namespace protobuf
+}
 
 namespace test {
-class TransportMessageHandlerTest_BEH_WrapMessageNatDetectionResponse_Test;
-class TransportMessageHandlerTest_BEH_WrapMessageProxyConnectResponse_Test;
-class TransportMessageHandlerTest_BEH_WrapMessageForwardRendezvousResponse_Test;
-class TransportMessageHandlerTest_BEH_WrapMessageRendezvousAcknowledgement_Test;
 class TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
 }  // namespace test
 
@@ -99,65 +85,21 @@ const int kMaxMessageType(1000);
 
 class MessageHandler {
  public:
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ManagedEndpointMessage&,
-                       protobuf::ManagedEndpointMessage*,
-                       transport::Timeout*)>> ManagedEndpointMsgSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const transport::Info&,
-                       const protobuf::NatDetectionRequest&,
-                       protobuf::NatDetectionResponse*,
-                       transport::Timeout*)>> NatDetectionReqSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::NatDetectionResponse&)>>
-          NatDetectionRspSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const transport::Info&,
-                       const protobuf::ProxyConnectRequest&,
-                       protobuf::ProxyConnectResponse*,
-                       transport::Timeout*)>> ProxyConnectReqSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ProxyConnectResponse&)>>
-          ProxyConnectRspSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ConnectRequest&,
-                       protobuf::ConnectResponse*,
-                       transport::Timeout*)>> ConnectReqSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ConnectResponse&)>>
-          ConnectRspSigPtr;
 
-  typedef std::shared_ptr<
-      bs2::signal<void(const Info&, const protobuf::ForwardRendezvousRequest&,
-          protobuf::ForwardRendezvousResponse*)>>  ForwardRendezvousReqSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::ForwardRendezvousResponse&)>>
-          ForwardRendezvousRspSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const Info&, const protobuf::RendezvousRequest&,
-          protobuf::RendezvousAcknowledgement*)>> RendezvousReqSigPtr;
-  typedef std::shared_ptr<
-      bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
-          RendezvousAckSigPtr;
   typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
                                            const Endpoint&)>>
           ErrorSigPtr;
 
   explicit MessageHandler()
-    : on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
-      on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
-      on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
-      on_proxy_connect_request_(new ProxyConnectReqSigPtr::element_type),
-      on_proxy_connect_response_(new ProxyConnectRspSigPtr::element_type),
-      on_connect_request_(new ConnectReqSigPtr::element_type),
-      on_connect_response_(new ConnectRspSigPtr::element_type),
-      on_forward_rendezvous_request_(
-          new ForwardRendezvousReqSigPtr::element_type),
-      on_forward_rendezvous_response_(
-          new ForwardRendezvousRspSigPtr::element_type),
-      on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
-      on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type),
-      on_error_(new ErrorSigPtr::element_type) {}
+    :  on_message_received_(),
+       process_serialised_message_(),
+       on_error_(new ErrorSigPtr::element_type) {
+    on_message_received_ = std::bind(&MessageHandler::OnMessageReceived, this,
+                                     arg::_1, arg::_2, arg::_3, arg::_4);
+    process_serialised_message_ =
+        std::bind(&MessageHandler::ProcessSerialisedMessage, this, arg::_1,
+                  arg::_2, arg::_3, arg::_4, arg::_5, arg::_6, arg::_7);
+  }
   virtual ~MessageHandler() {}
   virtual void OnMessageReceived(const std::string &request,
                                  const Info &info,
@@ -166,49 +108,7 @@ class MessageHandler {
   void OnError(const TransportCondition &transport_condition,
                const Endpoint &remote_endpoint);
 
-  std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
-  std::string WrapMessage(const protobuf::NatDetectionRequest &msg);
-  std::string WrapMessage(const protobuf::ProxyConnectRequest &msg);
-  std::string WrapMessage(const protobuf::ConnectRequest &msg);
-  std::string WrapMessage(const protobuf::ForwardRendezvousRequest &msg);
-  std::string WrapMessage(const protobuf::RendezvousRequest &msg);
-  std::string WrapMessage(const protobuf::NatDetectionResponse &msg);
-  std::string WrapMessage(const protobuf::ForwardRendezvousResponse &msg);
 
-
-  ManagedEndpointMsgSigPtr on_managed_endpoint_message() {
-    return on_managed_endpoint_message_;
-  }
-  NatDetectionReqSigPtr on_nat_detection_request() {
-    return on_nat_detection_request_;
-  }
-  NatDetectionRspSigPtr on_nat_detection_response() {
-    return on_nat_detection_response_;
-  }
-  ProxyConnectReqSigPtr on_proxy_connect_request() {
-    return on_proxy_connect_request_;
-  }
-  ProxyConnectRspSigPtr on_proxy_connect_response() {
-    return on_proxy_connect_response_;
-  }
-  ConnectReqSigPtr on_connect_request() {
-    return on_connect_request_;
-  }
-  ConnectRspSigPtr on_connect_response() {
-    return on_connect_response_;
-  }
-  ForwardRendezvousReqSigPtr on_forward_rendezvous_request() {
-    return on_forward_rendezvous_request_;
-  }
-  ForwardRendezvousRspSigPtr on_forward_rendezvous_response() {
-    return on_forward_rendezvous_response_;
-  }
-  RendezvousReqSigPtr on_rendezvous_request() {
-    return on_rendezvous_request_;
-  }
-  RendezvousAckSigPtr on_rendezvous_acknowledgement() {
-    return on_rendezvous_acknowledgement_;
-  }
   ErrorSigPtr on_error() { return on_error_; }
 
  protected:
@@ -231,35 +131,20 @@ class MessageHandler {
       const std::string &payload,
       SecurityType security_type,
       const std::string &recipient_public_key);
-
+  std::function <void(const std::string &, const Info&, std::string*,
+                      Timeout *)>
+                          on_message_received_;
+  std::function <void(const int&, const std::string&, const SecurityType &,
+                      const std::string&, const transport::Info&,
+                      std::string*, transport::Timeout*)>
+                          process_serialised_message_;
  private:
-  friend class test::TransportMessageHandlerTest_BEH_WrapMessageNatDetectionResponse_Test;  // NOLINT
-  friend class test::TransportMessageHandlerTest_BEH_WrapMessageProxyConnectResponse_Test;  // NOLINT
-  friend class test::TransportMessageHandlerTest_BEH_WrapMessageForwardRendezvousResponse_Test;  // NOLINT
-  friend class test::TransportMessageHandlerTest_BEH_WrapMessageRendezvousAcknowledgement_Test;  // NOLINT
   friend class test::TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
-  std::string WrapMessage(const protobuf::ProxyConnectResponse &msg);
-  std::string WrapMessage(const protobuf::ConnectResponse &msg);
-  std::string WrapMessage(const protobuf::RendezvousAcknowledgement &msg);
-
-  ManagedEndpointMsgSigPtr on_managed_endpoint_message_;
-  NatDetectionReqSigPtr on_nat_detection_request_;
-  NatDetectionRspSigPtr on_nat_detection_response_;
-  ProxyConnectReqSigPtr on_proxy_connect_request_;
-  ProxyConnectRspSigPtr on_proxy_connect_response_;
-  ConnectReqSigPtr on_connect_request_;
-  ConnectRspSigPtr on_connect_response_;
-  ForwardRendezvousReqSigPtr on_forward_rendezvous_request_;
-  ForwardRendezvousRspSigPtr on_forward_rendezvous_response_;
-  RendezvousReqSigPtr on_rendezvous_request_;
-  RendezvousAckSigPtr on_rendezvous_acknowledgement_;
   ErrorSigPtr on_error_;
 };
-
-typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
 
 }  // namespace transport
 

@@ -29,7 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/rudp_transport.h"
-#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/rudp_message_handler.h"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
@@ -53,22 +53,22 @@ NatDetectionService::NatDetectionService(AsioService &asio_service, // NOLINT
 
 void NatDetectionService::ConnectToSignals() {
     message_handler_->on_nat_detection_request()->connect(
-        MessageHandler::NatDetectionReqSigPtr::element_type::slot_type(
+        RudpMessageHandler::NatDetectionReqSigPtr::element_type::slot_type(
             &NatDetectionService::NatDetection, this, _1, _2, _3, _4).
                 track_foreign(shared_from_this()));
 
     message_handler_->on_proxy_connect_request()->connect(
-        MessageHandler::ProxyConnectReqSigPtr::element_type::slot_type(
+        RudpMessageHandler::ProxyConnectReqSigPtr::element_type::slot_type(
             &NatDetectionService::ProxyConnect, this, _1, _2, _3, _4).
                 track_foreign(shared_from_this()));
 
     message_handler_->on_rendezvous_request()->connect(
-        MessageHandler::RendezvousReqSigPtr::element_type::slot_type(
+        RudpMessageHandler::RendezvousReqSigPtr::element_type::slot_type(
             &NatDetectionService::Rendezvous, this, _1, _2, _3).
                 track_foreign(shared_from_this()));
 
     message_handler_->on_forward_rendezvous_request()->connect(
-        MessageHandler::ForwardRendezvousReqSigPtr::element_type::slot_type(
+        RudpMessageHandler::ForwardRendezvousReqSigPtr::element_type::slot_type(
             &NatDetectionService::ForwardRendezvous, this, _1, _2, _3).
                 track_foreign(shared_from_this()));
 }
@@ -293,9 +293,10 @@ void NatDetectionService::ForwardRendezvous(
 }
 
 //  At originator
-void NatDetectionService::Rendezvous(const Info & info,
+void NatDetectionService::Rendezvous(const Info & /*info*/,
                                      const protobuf::RendezvousRequest& request,
                                      protobuf::RendezvousAcknowledgement*) {
+  // TODO(Prakash): validate info if request is sent from rendezvous node
   Endpoint proxy(request.proxy_endpoint().ip(),
       static_cast<uint16_t> (request.proxy_endpoint().port()));
   // TODO(Prakash):  Need to send from listening transport
