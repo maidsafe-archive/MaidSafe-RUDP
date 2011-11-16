@@ -88,7 +88,6 @@ class RudpMessageHandlerTest : public testing::Test {
   void ManagedEndpointSlot(const protobuf::ManagedEndpointMessage&,
                            protobuf::ManagedEndpointMessage*,
                            transport::Timeout*) {
-    std::cout << "ManagedEndpointSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kManagedEndpointMessage);
     if (it != invoked_slots_->end())
@@ -98,7 +97,6 @@ class RudpMessageHandlerTest : public testing::Test {
       const protobuf::NatDetectionRequest&,
       protobuf::NatDetectionResponse* response,
       transport::Timeout*) {
-    std::cout << "NatDetectionReqSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     response->set_nat_type(0);
     auto it = invoked_slots_->find(kNatDetectionRequest);
@@ -106,7 +104,6 @@ class RudpMessageHandlerTest : public testing::Test {
       ++((*it).second);
   }
   void NatDetectionRspSlot(const protobuf::NatDetectionResponse&) {
-    std::cout << "NatDetectionRspSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kNatDetectionResponse);
     if (it != invoked_slots_->end())
@@ -116,7 +113,6 @@ class RudpMessageHandlerTest : public testing::Test {
                            const protobuf::ProxyConnectRequest&,
                            protobuf::ProxyConnectResponse* response,
                            transport::Timeout*) {
-    std::cout << "ProxyConnectReqSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     response->set_result(true);
     auto it = invoked_slots_->find(kProxyConnectRequest);
@@ -124,7 +120,6 @@ class RudpMessageHandlerTest : public testing::Test {
       ++((*it).second);
   }
   void ProxyConnectRspSlot(const protobuf::ProxyConnectResponse&) {
-    std::cout << "ProxyConnectRspSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     auto it = invoked_slots_->find(kProxyConnectResponse);
     if (it != invoked_slots_->end())
@@ -133,7 +128,6 @@ class RudpMessageHandlerTest : public testing::Test {
   void ForwardRendezvousReqSlot(const Info&,
                                 const protobuf::ForwardRendezvousRequest&,
                                 protobuf::ForwardRendezvousResponse* response) {
-    std::cout << "ForwardRendezvousReqSlot" << std::endl;
     boost::mutex::scoped_lock lock(slots_mutex_);
     protobuf::Endpoint *rv_endpoint =
         response->mutable_receiver_rendezvous_endpoint();
@@ -490,10 +484,8 @@ TEST_F(RudpMessageHandlerTest, BEH_OnMessageReceived) {
     msg_hndlr_->OnMessageReceived(messages[n], info, &response, &timeout);
 
   std::shared_ptr<std::map<MessageType, uint16_t>> slots = invoked_slots();
-  for (auto it = slots->begin(); it != slots->end(); ++it) {
-    std::cout << "WWWW" << std::endl;
+  for (auto it = slots->begin(); it != slots->end(); ++it)
     ASSERT_EQ(uint16_t(1), (*it).second);
-  }
 }
 
 TEST_F(RudpMessageHandlerTest, BEH_ThreadedMessageHandling) {
