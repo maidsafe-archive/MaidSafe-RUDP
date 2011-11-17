@@ -88,14 +88,14 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                   const protobuf::RendezvousRequest& request,
                   protobuf::RendezvousAcknowledgement*);
 
-  void ConnectResponse(const bool rendezvous,
-                       const transport::TransportCondition &transport_condition,
-                       const Endpoint &remote_endpoint,
-                       const protobuf::ConnectResponse &response,
-                       const Endpoint &peer,
-                       boost::condition_variable *condition_variable,
-                       transport::TransportCondition *tc,
-                       bool* result);
+  //void ConnectResponse(const bool rendezvous,
+  //                     const transport::TransportCondition &transport_condition,
+  //                     const Endpoint &remote_endpoint,
+  //                     const protobuf::ConnectResponse &response,
+  //                     const Endpoint &peer,
+  //                     boost::condition_variable *condition_variable,
+  //                     transport::TransportCondition *tc,
+  //                     bool* result);
  private:
   /** Copy Constructor.
    *  @param NatDetectionService The object to be copied. */
@@ -125,8 +125,8 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                                const bool &rendezvous,
                                TransportPtr transport);
   // Proxy to originator
-  void SendConnectRequest(const Endpoint &endpoint, const bool &rendezvous,
-                          TransportPtr transport);
+  //void SendConnectRequest(const Endpoint &endpoint, const bool &rendezvous,
+  //                        TransportPtr transport);
 
   AsioService &asio_service_;
   std::shared_ptr<RudpMessageHandler> message_handler_;

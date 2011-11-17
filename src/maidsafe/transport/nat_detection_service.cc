@@ -191,15 +191,16 @@ void NatDetectionService::ProxyConnect(
   boost::condition_variable condition_variable;
   boost::mutex mutex;
   if (!request.rendezvous_connect()) {  // FullConNatDetection
-    message_handler_->on_connect_response()->connect(
-        std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
-                  kSuccess, endpoint, arg::_1, endpoint, &condition_variable,
-                  &tc, &result));
-    message_handler_->on_error()->connect(
-        std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
-                  arg::_1, arg::_2, protobuf::ConnectResponse(), endpoint,
-                  &condition_variable, &tc, &result));
-    SendConnectRequest(endpoint, rendezvous, transport);
+    // TODO(Prakash) : add transport connect here
+    //message_handler_->on_connect_response()->connect(
+    //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
+    //              kSuccess, endpoint, arg::_1, endpoint, &condition_variable,
+    //              &tc, &result));
+    //message_handler_->on_error()->connect(
+    //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
+    //              arg::_1, arg::_2, protobuf::ConnectResponse(), endpoint,
+    //              &condition_variable, &tc, &result));
+    //SendConnectRequest(endpoint, rendezvous, transport);
     {
       boost::mutex::scoped_lock lock(mutex);
       condition_variable.wait(lock);
@@ -241,33 +242,33 @@ void NatDetectionService::SendNatDetectionResponse(const Endpoint &originator,
 
 // TODO(Prakash) : to be replaced by rudp connect
 // Proxy <-> originator
-void NatDetectionService::SendConnectRequest(const Endpoint &endpoint,
-                                             const bool &rendezvous,
-                                             TransportPtr transport) {
-  protobuf::ConnectRequest request;
-  request.set_rendezvous(rendezvous);
-  std::string message(message_handler_->WrapMessage(request));
-  transport->Send(message, endpoint, transport::kDefaultInitialTimeout);
-}
+//void NatDetectionService::SendConnectRequest(const Endpoint &endpoint,
+//                                             const bool &rendezvous,
+//                                             TransportPtr transport) {
+//  protobuf::ConnectRequest request;
+//  request.set_rendezvous(rendezvous);
+//  std::string message(message_handler_->WrapMessage(request));
+//  transport->Send(message, endpoint, transport::kDefaultInitialTimeout);
+//}
 
-void NatDetectionService::ConnectResponse(
-    const bool rendezvous,
-    const transport::TransportCondition &transport_condition,
-    const Endpoint &remote_endpoint,
-    const protobuf::ConnectResponse &response,
-    const Endpoint &peer,
-    boost::condition_variable *condition_variable,
-    transport::TransportCondition *tc,
-    bool* result) {
-  if (remote_endpoint.ip == peer.ip) {
-    if (response.IsInitialized() && response.rendezvous() == rendezvous) {
-      *result = response.rendezvous();
-      *tc = transport_condition;
-      if (response.rendezvous() == false)  // notify only on non-rendezvous
-        condition_variable->notify_one();
-    }
-  }
-}
+//void NatDetectionService::ConnectResponse(
+//    const bool rendezvous,
+//    const transport::TransportCondition &transport_condition,
+//    const Endpoint &remote_endpoint,
+//    const protobuf::ConnectResponse &response,
+//    const Endpoint &peer,
+//    boost::condition_variable *condition_variable,
+//    transport::TransportCondition *tc,
+//    bool* result) {
+//  if (remote_endpoint.ip == peer.ip) {
+//    if (response.IsInitialized() && response.rendezvous() == rendezvous) {
+//      *result = response.rendezvous();
+//      *tc = transport_condition;
+//      if (response.rendezvous() == false)  // notify only on non-rendezvous
+//        condition_variable->notify_one();
+//    }
+//  }
+//}
 
 void NatDetectionService::SetRendezvousRequest(
     protobuf::RendezvousRequest *rendezvous_request,
@@ -302,7 +303,7 @@ void NatDetectionService::Rendezvous(const Info & /*info*/,
   // TODO(Prakash):  Need to send from listening transport
   TransportPtr transport;
   // TODO(Prakash):  Need to replace with rudp connect
-  SendConnectRequest(proxy, true, transport);
+//  SendConnectRequest(proxy, true, transport);
 }
 
 }  // namespace transport

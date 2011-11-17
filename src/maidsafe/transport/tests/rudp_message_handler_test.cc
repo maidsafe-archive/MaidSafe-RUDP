@@ -215,6 +215,8 @@ class RudpMessageHandlerTest : public testing::Test {
     ra_msg.mutable_originator_endpoint()->CopyFrom(ep);
 
     nd_req.set_local_port(12021);
+    nd_req.add_local_ips(std::string("192.168.1.1"));
+    nd_req.add_local_ips(std::string("192.168.1.2"));
     nd_res.set_nat_type(0);
     pc_req.set_rendezvous_connect(true);
     pc_res.set_result(true);
