@@ -36,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
-#include "maidsafe/common/securifier.h"
 
 namespace maidsafe {
 
@@ -49,7 +48,7 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   if (request.empty())
     return;
   SecurityType security_type = request.at(0);
-  if (security_type && !securifier_)
+  if (security_type && !private_key_)
     return;
 
   std::string serialised_message(request.substr(1));
@@ -58,7 +57,8 @@ void MessageHandler::OnMessageReceived(const std::string &request,
     if (aes_seed.size() != 512)
       return;
 
-    std::string encrypt_aes_seed = securifier_->AsymmetricDecrypt(aes_seed);
+    std::string encrypt_aes_seed;
+    Asym::Decrypt(aes_seed, *private_key_, &encrypt_aes_seed);
     if (encrypt_aes_seed.empty()) {
       DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
       return;
@@ -87,7 +87,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -95,7 +96,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -103,7 +105,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -111,7 +114,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -119,7 +123,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -127,7 +132,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -135,7 +141,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -143,7 +150,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 std::string MessageHandler::WrapMessage(
@@ -151,7 +159,8 @@ std::string MessageHandler::WrapMessage(
   if (!msg.IsInitialized())
     return "";
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-                                      msg.SerializeAsString(), kNone, "");
+                                      msg.SerializeAsString(), kNone,
+                                      Asym::PublicKey());
 }
 
 void MessageHandler::ProcessSerialisedMessage(
@@ -240,33 +249,37 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
     const int &message_type,
     const std::string &payload,
     SecurityType security_type,
-    const std::string &recipient_public_key) {
+    const PublicKey &recipient_public_key) {
   protobuf::WrapperMessage wrapper_message;
   wrapper_message.set_msg_type(message_type);
   wrapper_message.set_payload(payload);
 
   // If we asked for security but provided no securifier, fail.
-  if (security_type && !securifier_) {
+  if (security_type && !private_key_) {
     DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
-                << " - No securifier provided.";
+                << " - PrivateKey Validation Failed.";
     return "";
   }
 
   // Handle signing
   if (security_type & kSign) {
-    wrapper_message.set_message_signature(securifier_->Sign(
-        boost::lexical_cast<std::string>(message_type) + payload));
-  } else if (security_type & kSignWithParameters) {
-    wrapper_message.set_message_signature(securifier_->SignWithParameters(
-        boost::lexical_cast<std::string>(message_type) + payload));
+    std::string signature;
+    if (Asym::Sign(boost::lexical_cast<std::string>(message_type) + payload,
+                   *private_key_,
+                   &signature) != kSuccess) {
+      DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                  << " - Sign Failed.";
+      return "";
+    }
+    wrapper_message.set_message_signature(signature);
   }
 
   // Handle encryption
   std::string final_message(1, security_type);
   if (security_type & kAsymmetricEncrypt) {
-    if (recipient_public_key.empty()) {
+    if (!Asym::ValidateKey(recipient_public_key)) {
       DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
-                  << " - No public key for receiver provided.";
+                  << " - PublicKey Validation Failed.";
       return "";
     }
     std::string seed = RandomString(48);
@@ -274,8 +287,13 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
     std::string kIV = seed.substr(32, 16);
     std::string encrypt_message =
         crypto::SymmEncrypt(wrapper_message.SerializeAsString(), key, kIV);
-    std::string encrypt_aes_seed =
-        securifier_->AsymmetricEncrypt(seed, recipient_public_key);
+    std::string encrypt_aes_seed;
+    if (Asym::Encrypt(seed, recipient_public_key, &encrypt_aes_seed) !=
+        kSuccess) {
+      DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                  << " - Encryption Failed.";
+      return "";
+    }
     final_message += encrypt_aes_seed + encrypt_message;
   } else {
     final_message += wrapper_message.SerializeAsString();

@@ -32,7 +32,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe/common/securifier.h"
 #include "maidsafe/transport/message_handler.h"
 #ifdef __MSVC__
 #  pragma warning(push)
@@ -49,36 +48,23 @@ namespace transport {
 
 namespace test {
 
-class TestSecurifier : public Securifier {
- public:
-  TestSecurifier(const std::string &public_key_id,
-                 const std::string &public_key,
-                 const std::string &private_key)
-      : Securifier(public_key_id, public_key, private_key) {}
-
-  bool Validate(const std::string&, const std::string&,
-                const std::string&, const std::string&,
-                const std::string&, const std::string&) const { return true; }
-};
-
 class TransportMessageHandlerTest : public testing::Test {
  public:
-  TransportMessageHandlerTest() : sec_ptr_(),
+  TransportMessageHandlerTest() : private_key_(),
                                   msg_hndlr_(),
-                                  securifier_null_(),
-                                  msg_hndlr_no_securifier_(securifier_null_),
+                                  asym_null_private_key_(),
+                                  msg_hndlr_no_securifier_(
+                                      asym_null_private_key_),
                                   invoked_slots_(),
                                   slots_mutex_(),
                                   error_count_(0) {}
   static void SetUpTestCase() {
-    crypto_key_pair_.GenerateKeys(4096);
+    Asym::GenerateKeyPair(&crypto_key_pair_);
   }
 
   virtual void SetUp() {
-    sec_ptr_.reset(new TestSecurifier("",
-                                      crypto_key_pair_.public_key(),
-                                      crypto_key_pair_.private_key()));
-    msg_hndlr_.reset(new MessageHandler(sec_ptr_));
+    private_key_.reset(new Asym::PrivateKey(crypto_key_pair_.priv_key));
+    msg_hndlr_.reset(new MessageHandler(private_key_));
   }
   virtual void TearDown() {}
 
@@ -307,17 +293,17 @@ class TransportMessageHandlerTest : public testing::Test {
   int error_count() { return error_count_; }
 
  protected:
-  static crypto::RsaKeyPair crypto_key_pair_;
-  std::shared_ptr<Securifier> sec_ptr_;
+  static Asym::Keys crypto_key_pair_;
+  std::shared_ptr<Asym::PrivateKey> private_key_;
   std::shared_ptr<MessageHandler> msg_hndlr_;
-  std::shared_ptr<Securifier> securifier_null_;
+  std::shared_ptr<Asym::PrivateKey> asym_null_private_key_;
   MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
   int error_count_;
 };
 
-crypto::RsaKeyPair TransportMessageHandlerTest::crypto_key_pair_;
+Asym::Keys TransportMessageHandlerTest::crypto_key_pair_;
 
 TEST_F(TransportMessageHandlerTest, BEH_OnError) {
   ConnectToHandlerSignals();
@@ -525,27 +511,27 @@ TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   std::string payload(RandomString(5 * 1024));
   ASSERT_EQ("",
             msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
-                0, payload, kAsymmetricEncrypt, crypto_key_pair_.public_key()));
+                0, payload, kAsymmetricEncrypt, crypto_key_pair_.pub_key));
   ASSERT_EQ("",
             msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
                 0, payload, kSignAndAsymEncrypt,
-                crypto_key_pair_.public_key()));
+                crypto_key_pair_.pub_key));
 
   ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kAsymmetricEncrypt,
-                                                         ""));
+                                                         Asym::PublicKey()));
   ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kSignAndAsymEncrypt,
-                                                         ""));
+                                                         Asym::PublicKey()));
 
   ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
                     0, payload, kAsymmetricEncrypt,
-                    crypto_key_pair_.public_key()));
+                    crypto_key_pair_.pub_key));
   ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
                     0, payload, kSignAndAsymEncrypt,
-                    crypto_key_pair_.public_key()));
+                    crypto_key_pair_.pub_key));
 }
 
 }  // namespace test
