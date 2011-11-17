@@ -24,7 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#include "maidsafe/common/log.h"
 #include "maidsafe/transport/nat_detection_service.h"
 
 #include "maidsafe/transport/transport.h"
@@ -73,6 +73,15 @@ void NatDetectionService::ConnectToSignals() {
                 track_foreign(shared_from_this()));
 }
 
+void GetDirectlyConnectedEndpoint(transport::Endpoint* endpoint,
+                                  TransportPtr transport) {
+  endpoint = new Endpoint("151.151.151.151", 40000);
+  AsioService asio_service;
+  TransportPtr t(new transport::RudpTransport(asio_service));
+  transport = t;
+  transport->StartListening(*endpoint);
+}
+
 // At rendezvous
 void NatDetectionService::NatDetection(
     const Info &info,
@@ -96,10 +105,12 @@ void NatDetectionService::NatDetection(
     }
     // Full cone NAT type check
     Endpoint proxy /*= get_live_proxy()*/;
+    TransportPtr transport;
+    GetDirectlyConnectedEndpoint(&proxy, transport);
     // Waiting for ProxyConnect Callback to return
     boost::condition_variable condition_variable;
     boost::mutex mutex;
-    TransportPtr transport(new transport::RudpTransport(asio_service_));
+    /*TransportPtr transport(new transport::RudpTransport(asio_service_));*/
     bool result(false);
     transport::TransportCondition tc;
     message_handler_->on_proxy_connect_response()->connect(
