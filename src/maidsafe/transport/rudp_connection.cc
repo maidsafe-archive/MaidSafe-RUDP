@@ -106,6 +106,40 @@ void RudpConnection::DoStartReceiving() {
   CheckTimeout();
 }
 
+void RudpConnection::Connect(const Timeout &timeout, ConnectFunctor callback) {
+  timeout_for_response_ = timeout;
+  strand_.dispatch(std::bind(&RudpConnection::DoConnect,
+                             shared_from_this(), callback));
+}
+
+void RudpConnection::DoConnect(ConnectFunctor callback) {
+  StartTick();
+  SimpleClientConnect(callback);
+  CheckTimeout();
+}
+
+void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
+  auto handler = strand_.wrap(
+      std::bind(&RudpConnection::HandleSimpleClientConnect,
+                                        shared_from_this(), arg::_1, callback));
+  socket_.AsyncConnect(remote_endpoint_, handler);
+
+  timer_.expires_from_now(kDefaultInitialTimeout);
+  timeout_state_ = kSending;
+}
+
+void RudpConnection::HandleSimpleClientConnect(const bs::error_code &ec,
+                                               ConnectFunctor callback) {
+  if (Stopped()) {
+    return;
+  }
+
+  if (ec) {
+    return CloseOnError(kSendFailure);
+  }
+  callback(kSuccess);
+}
+
 void RudpConnection::StartSending(const std::string &data,
                                   const Timeout &timeout) {
   EncodeData(data);
