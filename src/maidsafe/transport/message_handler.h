@@ -63,8 +63,6 @@ enum MessageType {
   kNatDetectionResponse,
   kProxyConnectRequest,
   kProxyConnectResponse,
-  //kConnectRequest,
-  //kConnectResponse,
   kForwardRendezvousRequest,
   kForwardRendezvousResponse,
   kRendezvousRequest,

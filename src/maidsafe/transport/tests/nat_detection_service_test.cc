@@ -72,7 +72,6 @@ class NatDetectionServicesTest : public testing::Test {
       std::bind(&NatDetectionServicesTest::GetDirectlyConnectedEndpoint, this);
     service_.reset(new NatDetectionService(asio_service_, message_handler_,
                    listening_transport_, get_directly_connected_endpoint));
-
   }
 
   virtual void TearDown() {}
@@ -107,10 +106,9 @@ TEST_F(NatDetectionServicesTest, BEH_NatDetection) {
         transport::OnMessageReceived::element_type::slot_type(
             &MessageHandler::OnMessageReceived, message_handler_.get(),
             _1, _2, _3, _4).track_foreign(message_handler_));
-   listening_transport_->on_error()->connect(
-   transport::OnError::element_type::slot_type(
-             &MessageHandler::OnError, message_handler_.get(),
-             _1, _2).track_foreign(message_handler_));
+  listening_transport_->on_error()->connect(
+  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
+      message_handler_.get(), _1, _2).track_foreign(message_handler_));
   service_->ConnectToSignals();
   Info info;
   Endpoint endpoint("192.168.0.1", 1000);

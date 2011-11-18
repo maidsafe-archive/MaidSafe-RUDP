@@ -130,7 +130,7 @@ void NatDetectionService::NatDetection(
     }
     // message_handler_->on_proxy_connect_response()->disconnect();
     // Port restricted check
-    proxy /* = get_live_proxy()*/;  // New contact
+    proxy = GetDirectlyConnectedEndpoint()  // new contact
     SendProxyConnectRequest(info.endpoint, proxy, true, transport);
   }
 }
@@ -187,41 +187,48 @@ void NatDetectionService::ProxyConnect(
     protobuf::ProxyConnectResponse *response,
     transport::Timeout*) {
   // validate info ?
-  transport::TransportCondition tc;
+  int result(kError);
   Endpoint endpoint(request.endpoint().ip(),
                     static_cast<uint16_t> (request.endpoint().port()));
   response->set_result(false);
-  TransportPtr transport(new transport::RudpTransport(asio_service_));
-  bool rendezvous(false), result(false);
-  boost::condition_variable condition_variable;
-  boost::mutex mutex;
+  std::shared_ptr<RudpTransport>
+      transport(new transport::RudpTransport(asio_service_));
   if (!request.rendezvous_connect()) {  // FullConNatDetection
-    // TODO(Prakash) : add transport connect here
-    //message_handler_->on_connect_response()->connect(
-    //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
-    //              kSuccess, endpoint, arg::_1, endpoint, &condition_variable,
-    //              &tc, &result));
+    boost::condition_variable condition_variable;
+    boost::mutex mutex;
+    ConnectFunctor callback =
+        std::bind(&NatDetectionService::ConnectResult, this, arg::_1, &result,
+                  true, &condition_variable);
     //message_handler_->on_error()->connect(
     //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
     //              arg::_1, arg::_2, protobuf::ConnectResponse(), endpoint,
-    //              &condition_variable, &tc, &result));
-    //SendConnectRequest(endpoint, rendezvous, transport);
+    //              &condition_variable, tc, &result));
+
+    transport->Connect(endpoint, transport::kDefaultInitialTimeout, callback);
     {
       boost::mutex::scoped_lock lock(mutex);
       condition_variable.wait(lock);
     }
-    if (tc == kSuccess && result) {
+    if (result == kSuccess) {
       response->set_result(true);
     } else {
       response->set_result(false);
     }
     return;
   } else {  // PortRestrictedNatDetection
-    rendezvous = false;
     SendForwardRendezvousRequest(info.endpoint, endpoint, transport);
     //  Delay ?
     SendNatDetectionResponse(endpoint, transport);
   }
+}
+
+void NatDetectionService::ConnectResult(const int &in_result,
+                                        int *out_result,
+                                        const bool &notify_result,
+                                        boost::condition_variable* condition) {
+  *out_result = in_result;
+  if (notify_result)
+    condition->notify_one();
 }
 
 // Proxy to Rendezvous
@@ -245,36 +252,6 @@ void NatDetectionService::SendNatDetectionResponse(const Endpoint &originator,
   transport->Send(message, originator, transport::kDefaultInitialTimeout);
 }
 
-// TODO(Prakash) : to be replaced by rudp connect
-// Proxy <-> originator
-//void NatDetectionService::SendConnectRequest(const Endpoint &endpoint,
-//                                             const bool &rendezvous,
-//                                             TransportPtr transport) {
-//  protobuf::ConnectRequest request;
-//  request.set_rendezvous(rendezvous);
-//  std::string message(message_handler_->WrapMessage(request));
-//  transport->Send(message, endpoint, transport::kDefaultInitialTimeout);
-//}
-
-//void NatDetectionService::ConnectResponse(
-//    const bool rendezvous,
-//    const transport::TransportCondition &transport_condition,
-//    const Endpoint &remote_endpoint,
-//    const protobuf::ConnectResponse &response,
-//    const Endpoint &peer,
-//    boost::condition_variable *condition_variable,
-//    transport::TransportCondition *tc,
-//    bool* result) {
-//  if (remote_endpoint.ip == peer.ip) {
-//    if (response.IsInitialized() && response.rendezvous() == rendezvous) {
-//      *result = response.rendezvous();
-//      *tc = transport_condition;
-//      if (response.rendezvous() == false)  // notify only on non-rendezvous
-//        condition_variable->notify_one();
-//    }
-//  }
-//}
-
 void NatDetectionService::SetRendezvousRequest(
     protobuf::RendezvousRequest *rendezvous_request,
     const Endpoint &proxy) {
@@ -292,10 +269,10 @@ void NatDetectionService::ForwardRendezvous(
 
   Endpoint originator(request.receiver_endpoint().ip(),
       static_cast<uint16_t> (request.receiver_endpoint().port()));
-  // Need listening transport here
-  TransportPtr transport(new transport::RudpTransport(asio_service_));
+  // Need to send from listening transport
   std::string message(message_handler_->WrapMessage(rendezvous_request));
-  transport->Send(message, originator, transport::kDefaultInitialTimeout);
+  listening_transport_->Send(message, originator,
+                             transport::kDefaultInitialTimeout);
 }
 
 //  At originator
@@ -305,10 +282,15 @@ void NatDetectionService::Rendezvous(const Info & /*info*/,
   // TODO(Prakash): validate info if request is sent from rendezvous node
   Endpoint proxy(request.proxy_endpoint().ip(),
       static_cast<uint16_t> (request.proxy_endpoint().port()));
-  // TODO(Prakash):  Need to send from listening transport
-  TransportPtr transport;
-  // TODO(Prakash):  Need to replace with rudp connect
-//  SendConnectRequest(proxy, true, transport);
+  int result(kError);
+  boost::condition_variable condition_variable;
+  ConnectFunctor callback =
+        std::bind(&NatDetectionService::ConnectResult, this, arg::_1, &result,
+                  false, &condition_variable);
+  std::shared_ptr<RudpTransport> rudp_transport =
+      std::static_pointer_cast<RudpTransport> (listening_transport_);
+  rudp_transport->Connect(proxy, transport::kDefaultInitialTimeout,
+                          callback);
 }
 
 }  // namespace transport
