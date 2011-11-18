@@ -42,7 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 
-#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/rudp_message_handler.h"
 #include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
@@ -56,7 +56,7 @@ class Contact;
 
 class NatDetectionRpcs {
   typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
-
+  typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
   void NatDetection(const std::vector<Contact> &candidates,
                     const bool &full,

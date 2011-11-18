@@ -40,13 +40,13 @@ void NatDetection::Detect(
     NatType* nat_type,
     TransportDetails* details) {
   std::vector<maidsafe::transport::Contact> directly_connected_contacts;
-  for(auto itr = contacts.begin(); itr != contacts.end(); ++itr)
+  for (auto itr = contacts.begin(); itr != contacts.end(); ++itr)
     if ((*itr).IsDirectlyConnected())
       directly_connected_contacts.push_back(*itr);
   boost::mutex::scoped_lock lock(mutex_);
-   rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
-                      true, std::bind(&NatDetection::DetectCallback, this, 
-                                      nat_type, details));
+  rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
+                     true, std::bind(&NatDetection::DetectCallback, this,
+                                     nat_type, details));
   cond_var_.timed_wait(lock, kDefaultInitialTimeout);
 }
 

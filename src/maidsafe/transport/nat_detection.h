@@ -41,6 +41,7 @@ namespace maidsafe {
 namespace transport {
 
 class NatDetection {
+  typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
   void Detect(const std::vector<Contact>& contacts,
               std::shared_ptr<Transport> transport,

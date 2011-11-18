@@ -47,10 +47,10 @@ namespace maidsafe {
 
 namespace transport {
 
+class RudpMessageHandler;
 typedef boost::asio::io_service AsioService;
-typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
+typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
-
 
 typedef bptime::time_duration Timeout;
 struct Info;
@@ -84,7 +84,8 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                     protobuf::ProxyConnectResponse *response,
                     transport::Timeout *timeout);
   // At originator
-  void Rendezvous(const Info & info, const protobuf::RendezvousRequest& request,
+  void Rendezvous(const Info & /*info*/,
+                  const protobuf::RendezvousRequest& request,
                   protobuf::RendezvousAcknowledgement*);
 
   void ConnectResponse(const bool rendezvous,
@@ -128,7 +129,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                           TransportPtr transport);
 
   AsioService &asio_service_;
-  MessageHandlerPtr message_handler_;
+  std::shared_ptr<RudpMessageHandler> message_handler_;
 };
 
 }  // namespace transport
