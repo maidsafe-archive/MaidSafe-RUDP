@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/strand.hpp"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/rudp_socket.h"
+#include "maidsafe/transport/rudp_transport.h"
 
 namespace maidsafe {
 
@@ -53,7 +54,6 @@ namespace transport {
 
 class RudpMultiplexer;
 class RudpSocket;
-class RudpTransport;
 
 class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
  public:
@@ -68,6 +68,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data, const Timeout &timeout);
+  void Connect(const Timeout &timeout, ConnectFunctor callback);
 
  private:
   RudpConnection(const RudpConnection&);
@@ -76,6 +77,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void DoClose();
   void DoStartReceiving();
   void DoStartSending();
+  void DoConnect(ConnectFunctor callback);
 
   void CheckTimeout();
   bool Stopped() const;
@@ -88,6 +90,10 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
   void StartClientConnect();
   void HandleClientConnect(const boost::system::error_code &ec);
+
+  void SimpleClientConnect(ConnectFunctor callback);
+  void HandleSimpleClientConnect(const boost::system::error_code &ec,
+                                 ConnectFunctor callback);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);

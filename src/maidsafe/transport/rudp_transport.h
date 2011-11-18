@@ -50,6 +50,8 @@ class RudpConnection;
 class RudpMultiplexer;
 class RudpSocket;
 
+typedef std::function<void(const int&)> ConnectFunctor;
+
 class RudpTransport : public Transport,
                       public std::enable_shared_from_this<RudpTransport> {
  public:
@@ -68,6 +70,8 @@ class RudpTransport : public Transport,
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
+  void Connect(const Endpoint &endpoint, const Timeout &timeout,
+               ConnectFunctor callback);
   static DataSize kMaxTransportMessageSize() { return 67108864; }
 
  private:
@@ -95,6 +99,8 @@ class RudpTransport : public Transport,
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
+  void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
+                 ConnectFunctor callback);
 
   friend class RudpConnection;
   void InsertConnection(ConnectionPtr connection);

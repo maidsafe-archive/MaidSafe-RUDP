@@ -78,6 +78,8 @@ class TestMessageHandler {
                             Timeout *timeout);
   void DoOnError(const TransportCondition &tc);
   void ClearContainers();
+  void ConnectCallback(const int &in_result, int *out_result,
+                       boost::condition_variable* condition);
   IncomingMessages requests_received();
   IncomingMessages responses_received();
   OutgoingResponses responses_sent();

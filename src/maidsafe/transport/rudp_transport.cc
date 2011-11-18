@@ -183,6 +183,28 @@ void RudpTransport::DoSend(const std::string &data,
   connection->StartSending(data, timeout);
 }
 
+void RudpTransport::Connect(const Endpoint &endpoint, const Timeout &timeout,
+                            ConnectFunctor callback) {
+  strand_.dispatch(std::bind(&RudpTransport::DoConnect,
+                             shared_from_this(), endpoint, timeout, callback));
+}
+void RudpTransport::DoConnect(const Endpoint &endpoint,
+                            const Timeout &timeout, ConnectFunctor callback) {
+  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+
+  if (!multiplexer_->IsOpen()) {
+    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    // TODO error
+    StartDispatch();
+  }
+
+  ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
+                                                           strand_,
+                                                           multiplexer_, ep));
+  DoInsertConnection(connection);
+  connection->Connect(timeout, callback);
+}
+
 void RudpTransport::InsertConnection(ConnectionPtr connection) {
   strand_.dispatch(std::bind(&RudpTransport::DoInsertConnection,
                              shared_from_this(), connection));
