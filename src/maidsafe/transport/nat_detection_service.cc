@@ -45,10 +45,15 @@ namespace maidsafe {
 
 namespace transport {
 
-NatDetectionService::NatDetectionService(AsioService &asio_service, // NOLINT
-                                         MessageHandlerPtr message_handler)
+NatDetectionService::NatDetectionService(
+    AsioService &asio_service, // NOLINT
+    MessageHandlerPtr message_handler,
+    TransportPtr listening_transport,
+    GetEndpointFunctor get_endpoint_functor)
     : asio_service_(asio_service),
-      message_handler_(message_handler) {
+      message_handler_(message_handler),
+      listening_transport_(listening_transport),
+      get_directly_connected_endpoint_(get_endpoint_functor) {
 }
 
 void NatDetectionService::ConnectToSignals() {
@@ -73,15 +78,6 @@ void NatDetectionService::ConnectToSignals() {
                 track_foreign(shared_from_this()));
 }
 
-void GetDirectlyConnectedEndpoint(transport::Endpoint* endpoint,
-                                  TransportPtr transport) {
-  endpoint = new Endpoint("151.151.151.151", 40000);
-  AsioService asio_service;
-  TransportPtr t(new transport::RudpTransport(asio_service));
-  transport = t;
-  transport->StartListening(*endpoint);
-}
-
 // At rendezvous
 void NatDetectionService::NatDetection(
     const Info &info,
@@ -104,13 +100,11 @@ void NatDetectionService::NatDetection(
       return;
     }
     // Full cone NAT type check
-    Endpoint proxy /*= get_live_proxy()*/;
-    TransportPtr transport;
-    GetDirectlyConnectedEndpoint(&proxy, transport);
+    Endpoint proxy = GetDirectlyConnectedEndpoint();
     // Waiting for ProxyConnect Callback to return
     boost::condition_variable condition_variable;
     boost::mutex mutex;
-    /*TransportPtr transport(new transport::RudpTransport(asio_service_));*/
+    TransportPtr transport(new transport::RudpTransport(asio_service_));
     bool result(false);
     transport::TransportCondition tc;
     message_handler_->on_proxy_connect_response()->connect(

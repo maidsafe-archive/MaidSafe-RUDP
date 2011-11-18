@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/rudp_transport.h"
-#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/rudp_message_handler.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/log.h"
 #ifdef __MSVC__
@@ -50,28 +50,53 @@ namespace maidsafe {
 namespace transport {
 
 typedef boost::asio::io_service AsioService;
-typedef std::shared_ptr<MessageHandler> MessageHandlerPtr;
 
 namespace test {
-
 class NatDetectionServicesTest : public testing::Test {
  public:
   NatDetectionServicesTest()
-      : asio_service_(), 
-        message_handler_(new MessageHandler()),
-        service_(asio_service_, message_handler_),
-        listening_transport_(new transport::RudpTransport(asio_service_)) {
+      : asio_service_(),
+        work_(),
+        message_handler_(),
+        service_(),
+        listening_transport_() {
   }
- protected:
-  AsioService asio_service_;
-  MessageHandlerPtr message_handler_;
-  NatDetectionService service_;
-  TransportPtr listening_transport_;
-   
-   
-  virtual void SetUp() {}
+
+  virtual void SetUp() {
+    work_.reset(new boost::asio::io_service::work(asio_service_));
+    message_handler_.reset(new RudpMessageHandler());
+    listening_transport_.reset(new transport::RudpTransport(asio_service_));
+    Endpoint endpoint(IP::from_string("127.0.0.1"), 9999);
+    listening_transport_->StartListening(endpoint);
+    GetEndpointFunctor get_directly_connected_endpoint =
+      std::bind(&NatDetectionServicesTest::GetDirectlyConnectedEndpoint, this);
+    service_.reset(new NatDetectionService(asio_service_, message_handler_,
+                   listening_transport_, get_directly_connected_endpoint));
+
+  }
 
   virtual void TearDown() {}
+
+  ~NatDetectionServicesTest() {
+    work_.reset();
+    asio_service_.stop();
+  }
+
+  Endpoint GetDirectlyConnectedEndpoint() {
+    return Endpoint("151.151.151.151", 40000);
+    /*AsioService asio_service;
+    TransportPtr t(new transport::RudpTransport(asio_service));
+    transport = t;
+    transport->StartListening(*endpoint);*/
+  }
+
+ protected:
+  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
+  AsioService asio_service_;
+  WorkPtr work_;
+  MessageHandlerPtr message_handler_;
+  std::shared_ptr<NatDetectionService> service_;
+  TransportPtr listening_transport_;
 };
 
 
@@ -86,7 +111,7 @@ TEST_F(NatDetectionServicesTest, BEH_NatDetection) {
    transport::OnError::element_type::slot_type(
              &MessageHandler::OnError, message_handler_.get(),
              _1, _2).track_foreign(message_handler_));
-  service_.ConnectToSignals();
+  service_->ConnectToSignals();
   Info info;
   Endpoint endpoint("192.168.0.1", 1000);
   info.endpoint = endpoint;
@@ -96,21 +121,19 @@ TEST_F(NatDetectionServicesTest, BEH_NatDetection) {
   request.set_full_detection(true);
   protobuf::NatDetectionResponse
       *nat_detection_response(new protobuf::NatDetectionResponse);
-  protobuf::RendezvousRequest
-      *rendezvous_request(new protobuf::RendezvousRequest);
   transport::Timeout* timeout = new Timeout;
   *timeout = kDefaultInitialTimeout;
-  service_.NatDetection(info, request, nat_detection_response, timeout);
-  EXPECT_EQ(NatType::kDirectConnected, nat_detection_response->nat_type());
+  service_->NatDetection(info, request, nat_detection_response, timeout);
+  EXPECT_EQ(kDirectConnected, nat_detection_response->nat_type());
   endpoint = Endpoint("150.150.150.150", 30000);
   info.endpoint = endpoint;
   delete nat_detection_response;
   nat_detection_response = new protobuf::NatDetectionResponse;
-  service_.NatDetection(info, request, nat_detection_response, timeout);
-  EXPECT_EQ(NatType::kFullCone, nat_detection_response->nat_type());
-  delete nat_detection_response;
-  delete timeout;
-  delete rendezvous_request;
+//  service_->NatDetection(info, request, nat_detection_response, timeout);
+//  EXPECT_EQ(kFullCone, nat_detection_response->nat_type());
+//  delete nat_detection_response;
+//  delete timeout;
+//  delete rendezvous_request;
 }
 
 }  // namespace test

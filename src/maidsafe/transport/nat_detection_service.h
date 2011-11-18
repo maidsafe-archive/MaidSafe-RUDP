@@ -48,6 +48,7 @@ namespace maidsafe {
 namespace transport {
 
 class RudpMessageHandler;
+typedef std::function<transport::Endpoint()> GetEndpointFunctor;
 typedef boost::asio::io_service AsioService;
 typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
@@ -58,7 +59,9 @@ struct Info;
 class NatDetectionService : public std::enable_shared_from_this<NatDetectionService> { // NOLINT
  public:
   NatDetectionService(AsioService &asio_service, // NOLINT
-                      MessageHandlerPtr message_handler);
+                      MessageHandlerPtr message_handler,
+                      TransportPtr listening_transport,
+                      GetEndpointFunctor get_endpoint_functor);
   void ConnectToSignals();
   // At rendezvous
   void NatDetection(const Info &info,
@@ -124,12 +127,21 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                                const Endpoint &proxy,
                                const bool &rendezvous,
                                TransportPtr transport);
+  Endpoint GetDirectlyConnectedEndpoint() {
+    if(get_directly_connected_endpoint_)
+      return get_directly_connected_endpoint_();
+    else
+      return Endpoint();
+  }
+
   // Proxy to originator
   //void SendConnectRequest(const Endpoint &endpoint, const bool &rendezvous,
   //                        TransportPtr transport);
 
   AsioService &asio_service_;
   std::shared_ptr<RudpMessageHandler> message_handler_;
+  TransportPtr listening_transport_;
+  GetEndpointFunctor get_directly_connected_endpoint_;
 };
 
 }  // namespace transport
