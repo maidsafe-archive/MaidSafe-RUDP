@@ -25,7 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/nat_detection.h"
+#include "maidsafe/transport/nat_traversal.h"
+
+#include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/message_handler.h"
 
@@ -33,27 +35,44 @@ namespace maidsafe {
 
 namespace transport {
 
-void NatDetection::Detect(
-    const std::vector<maidsafe::transport::Contact>& contacts,
-    const bool& full,
-    TransportPtr transport,
-    MessageHandlerPtr message_handler,
-    NatType* nat_type,
-    TransportDetails* details) {
-  std::vector<maidsafe::transport::Contact> directly_connected_contacts;
-  for (auto itr = contacts.begin(); itr != contacts.end(); ++itr)
-    if ((*itr).IsDirectlyConnected())
-      directly_connected_contacts.push_back(*itr);
-  boost::mutex::scoped_lock lock(mutex_);
-  rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
-                     full, std::bind(&NatDetection::DetectCallback, this,
-                                     nat_type, details));
-  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
+NatTraversal::NatTraversal(boost::asio::io_service &asio_service, // NOLINT
+                           Timeout interval,
+                           Timeout timeout,
+                           TransportPtr transport,
+                           MessageHandlerPtr message_handler)
+    : rpcs_(new NatDetectionRpcs()),
+      asio_service_(asio_service),
+      interval_(interval),
+      timeout_(timeout),
+      timer_(asio_service, interval),
+      transport_(transport),
+      message_handler_(message_handler),
+      callback_(),
+      endpoint_() {}
+
+void NatTraversal::KeepAlive(const Endpoint &endpoint,
+                             KeepAliveFunctor callback) {
+  if (IsValid(endpoint) && callback) {
+    endpoint_ = endpoint;
+    callback_ = callback;
+    rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
+                     std::bind(&NatTraversal::KeepAliveCallback, this,
+                               arg::_1));
+    timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
+  }
 }
 
-void NatDetection::DetectCallback(NatType* nat_type,
-                                  TransportDetails* details) {
-  cond_var_.notify_one();
+
+void NatTraversal::DoKeepAlive() {
+  rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
+                   std::bind(&NatTraversal::KeepAliveCallback, this, arg::_1));
+  timer_.expires_at(timer_.expires_at() + interval_);
+  timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
+}
+
+void NatTraversal::KeepAliveCallback(const TransportCondition &condition) {
+  timer_.cancel();
+  callback_(condition);
 }
 
 }  // namespace transport

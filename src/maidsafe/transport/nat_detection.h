@@ -30,11 +30,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-#include "maidsafe/transport/contact.h"
-#include "maidsafe/transport/rudp_connection.h"
-#include "maidsafe/transport/nat_detection_rpcs.h"
-#include "boost/thread/mutex.hpp"
 #include "boost/thread/condition_variable.hpp"
+#include "boost/thread/mutex.hpp"
+
+#include "maidsafe/transport/contact.h"
+#include "maidsafe/transport/nat_detection_rpcs.h"
+
 
 namespace maidsafe {
 
@@ -44,6 +45,7 @@ class NatDetection {
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
   void Detect(const std::vector<Contact>& contacts,
+              const bool &full,
               std::shared_ptr<Transport> transport,
               MessageHandlerPtr message_handler,
               NatType* nat_type,
