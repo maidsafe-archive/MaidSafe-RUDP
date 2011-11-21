@@ -64,7 +64,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                       GetEndpointFunctor get_endpoint_functor);
   void ConnectToSignals();
   // At rendezvous
-  void NatDetection(const Info &info,
+  virtual void NatDetection(const Info &info,
                     const protobuf::NatDetectionRequest &request,
                     protobuf::NatDetectionResponse *nat_detection_response,
                     transport::Timeout *timeout);
@@ -135,6 +135,8 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   GetEndpointFunctor get_directly_connected_endpoint_;
 };
 
+typedef std::shared_ptr<NatDetectionService> NatDetectionServicePtr;
+  
 }  // namespace transport
 
 }  // namespace maidsafe

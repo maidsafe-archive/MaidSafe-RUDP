@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(disable: 4127 4244 4267)
 #endif
 #include "maidsafe/transport/transport.pb.h"
+#include <maidsafe/transport/nat_detection.h>
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
@@ -48,10 +49,78 @@ namespace arg = std::placeholders;
 namespace maidsafe {
 
 namespace transport {
-
-typedef boost::asio::io_service AsioService;
-
 namespace test {
+
+namespace {
+class MockNatDetectionServices : public NatDetectionService {
+ public:
+  MockNatDetectionServices(AsioService &asio_service, // NOLINT
+                           MessageHandlerPtr message_handler,
+                           TransportPtr listening_transport,
+                           GetEndpointFunctor get_endpoint_functor);
+ // At rendezvous
+  virtual void NatDetection(const Info &info,
+                    const protobuf::NatDetectionRequest &request,
+                    protobuf::NatDetectionResponse *nat_detection_response,
+                    transport::Timeout *timeout);  
+};
+
+} // unnamed namespace
+
+class MockNatDetectionServicesTest : public testing::Test {
+
+ protected:
+  AsioService asio_service_;  
+};
+
+TEST_F(MockNatDetectionServicesTest, BEH_FullConeDetection) {
+  NatDetection nat_detection;
+  std::shared_ptr<RudpTransport> origin_transport, rendezvous_transport,
+      proxy_transport;
+  MessageHandlerPtr origin_msg_handler, rendezvous_msg_handler,
+      proxy_msg_handler;
+  std::shared_ptr<MockNatDetectionServices> origin_service, rendezvous_service,
+      proxy_service;
+  std::vector<Contact> contacts;
+  Endpoint origin_endpoint(IP::from_string("127.0.0.1"), 20005),
+           rendezvous_endpoint(IP::from_string("127.0.0.1"), 20006),
+           proxy_endpoint(IP::from_string("127.0.0.1"), 20007);
+  std::vector<Endpoint> endpoints;
+  Endpoint endpoint;
+  Contact origin_contact(origin_endpoint, endpoints, endpoint, false, false);
+  origin_transport.reset(new transport::RudpTransport(asio_service_));
+  origin_transport->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, origin_msg_handler.get(),
+            _1, _2, _3, _4).track_foreign(origin_msg_handler));
+  origin_transport->on_error()->connect(
+  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
+      origin_msg_handler.get(), _1, _2).track_foreign(origin_msg_handler));
+  rendezvous_transport.reset(new transport::RudpTransport(asio_service_));
+  rendezvous_transport->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, rendezvous_msg_handler.get(),
+            _1, _2, _3, _4).track_foreign(rendezvous_msg_handler));
+  rendezvous_transport->on_error()->connect(
+  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
+      rendezvous_msg_handler.get(), _1, _2).track_foreign(rendezvous_msg_handler));
+  proxy_transport.reset(new transport::RudpTransport(asio_service_));
+  proxy_transport->on_message_received()->connect(
+        transport::OnMessageReceived::element_type::slot_type(
+            &MessageHandler::OnMessageReceived, proxy_msg_handler.get(),
+            _1, _2, _3, _4).track_foreign(proxy_msg_handler));
+  proxy_transport->on_error()->connect(
+  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
+      proxy_msg_handler.get(), _1, _2).track_foreign(proxy_msg_handler));
+//   origin_service.reset(new MockNatDetectionServices(asio_service_,
+//       origin_msg_handler, origin_transport));
+//   rendezvous_service.reset(new MockNatDetectionServices(asio_service_,
+//       rendezvous_msg_handler, rendezvous_transport));
+//   proxy_service.reset(new MockNatDetectionServices(asio_service_, 
+//     proxy_msg_handler, proxy_transport));
+//   nat_detection.Detect();
+}
+  
 class NatDetectionServicesTest : public testing::Test {
  public:
   NatDetectionServicesTest()
