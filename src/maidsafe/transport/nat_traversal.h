@@ -25,37 +25,46 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "maidsafe/transport/nat_detection.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/message_handler.h"
+#ifndef MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_
+#define MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_
+
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition_variable.hpp"
+
+#include "maidsafe/transport/nat_detection_rpcs.h"
 
 namespace maidsafe {
 
 namespace transport {
+typedef std::function<void(const TransportCondition)> KeepAliveFunctor;
 
-void NatDetection::Detect(
-    const std::vector<maidsafe::transport::Contact>& contacts,
-    const bool& full,
-    TransportPtr transport,
-    MessageHandlerPtr message_handler,
-    NatType* nat_type,
-    TransportDetails* details) {
-  std::vector<maidsafe::transport::Contact> directly_connected_contacts;
-  for (auto itr = contacts.begin(); itr != contacts.end(); ++itr)
-    if ((*itr).IsDirectlyConnected())
-      directly_connected_contacts.push_back(*itr);
-  boost::mutex::scoped_lock lock(mutex_);
-  rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
-                     full, std::bind(&NatDetection::DetectCallback, this,
-                                     nat_type, details));
-  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
-}
+class NatTraversal {
+  typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
+ public:
+  NatTraversal(boost::asio::io_service &asio_service, // NOLINT
+               Timeout interval,
+               Timeout timeout,
+               TransportPtr transport,
+               MessageHandlerPtr message_handler);
+ void KeepAlive(const Endpoint &endpoint, KeepAliveFunctor callback);
+ void KeepAliveCallback(const TransportCondition &condition);
 
-void NatDetection::DetectCallback(NatType* nat_type,
-                                  TransportDetails* details) {
-  cond_var_.notify_one();
-}
+ private:
+  void DoKeepAlive();
+
+  std::shared_ptr<NatDetectionRpcs> rpcs_;
+  boost::asio::io_service &asio_service_;
+  Timeout timeout_, interval_;
+  boost::asio::deadline_timer timer_;
+  TransportPtr transport_;
+  MessageHandlerPtr message_handler_;
+  KeepAliveFunctor callback_;
+  Endpoint endpoint_;
+};
 
 }  // namespace transport
 
 }  // namespace maidsafe
+
+#endif  // MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_

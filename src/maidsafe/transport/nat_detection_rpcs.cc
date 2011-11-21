@@ -79,6 +79,16 @@ void NatDetectionRpcs::DoNatDetection(const std::vector<Contact> &candidates,
                    transport::kDefaultInitialTimeout);
 }
 
+void NatDetectionRpcs::KeepAlive(const Endpoint endpoint,
+                                 const Timeout &timeout,
+                                 TransportPtr transport,
+                                 MessageHandlerPtr message_handler,
+                                 KeepAliveFunctor callback) {
+  message_handler->on_error()->connect(
+      std::bind(&NatDetectionRpcs::KeepAliveCallback, this, arg::_1, callback));
+  // TODO(Prakash): adjust timeout parameter of RUDP if needed
+  transport->Send("Alive", endpoint, kImmediateTimeout);
+}
 
 void NatDetectionRpcs::NatDetectionCallback(const TransportCondition &result,
                                 const protobuf::NatDetectionResponse &response,
@@ -104,6 +114,11 @@ void NatDetectionRpcs::NatDetectionCallback(const TransportCondition &result,
       callback(kError, transport_details);
     }
   }
+}
+
+void NatDetectionRpcs::KeepAliveCallback(const TransportCondition &result,
+                                         KeepAliveFunctor callback) {
+  callback(result);
 }
 
 }  // namespace transport

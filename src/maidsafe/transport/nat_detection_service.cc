@@ -130,7 +130,7 @@ void NatDetectionService::NatDetection(
     }
     // message_handler_->on_proxy_connect_response()->disconnect();
     // Port restricted check
-    proxy = GetDirectlyConnectedEndpoint()  // new contact
+    proxy = GetDirectlyConnectedEndpoint();  // new contact
     SendProxyConnectRequest(info.endpoint, proxy, true, transport);
   }
 }

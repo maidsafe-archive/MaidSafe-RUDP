@@ -55,7 +55,8 @@ struct TransportDetails;
 class Contact;
 
 class NatDetectionRpcs {
-  typedef boost::function<void(int, TransportDetails)> NatResultFunctor;
+  typedef std::function<void(int, TransportDetails)> NatResultFunctor;
+  typedef std::function<void(const TransportCondition)> KeepAliveFunctor;
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
   void NatDetection(const std::vector<Contact> &candidates,
@@ -66,6 +67,9 @@ class NatDetectionRpcs {
                     MessageHandlerPtr message_handler,
                     const bool &full,
                     NatResultFunctor callback);
+  void KeepAlive(const Endpoint endpoint, const Timeout &timeout,
+                 TransportPtr transport, MessageHandlerPtr message_handler,
+                 KeepAliveFunctor callback);
  private:
   void DoNatDetection(const std::vector<Contact> &candidates,
                       TransportPtr transport,
@@ -83,6 +87,8 @@ class NatDetectionRpcs {
                             const std::string &request,
                             const bool &full,
                             const size_t &index);
+  void KeepAliveCallback(const TransportCondition &result,
+                         KeepAliveFunctor callback);
 };
 
 }  // namespace transport
