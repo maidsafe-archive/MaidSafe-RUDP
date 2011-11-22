@@ -82,7 +82,7 @@ struct Node {
       work(new boost::asio::io_service::work(asio_service)),
       endpoint(IP::from_string("127.0.0.1"), 0),
       transport(new transport::RudpTransport(asio_service)),
-      message_handler() {}
+      message_handler(new RudpMessageHandler()) {}
   AsioService asio_service;
   WorkPtr work;
   Endpoint endpoint;
@@ -147,6 +147,7 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
   std::vector<Endpoint> endpoints;
   bool listens = origin_->StartListening();
   EXPECT_TRUE(listens);
+  origin_->transport->transport_details_.local_endpoints.push_back(origin_->endpoint);
   ConnectToSignals(origin_->transport, origin_->message_handler);
   listens = rendezvous_->StartListening();
   EXPECT_TRUE(listens);
