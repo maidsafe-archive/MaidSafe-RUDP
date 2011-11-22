@@ -63,7 +63,7 @@ class TransportMessageHandlerTest : public testing::Test {
   }
 
   virtual void SetUp() {
-    private_key_.reset(new Asym::PrivateKey(crypto_key_pair_.priv_key));
+    private_key_.reset(new Asym::PrivateKey(crypto_key_pair_.private_key));
     msg_hndlr_.reset(new MessageHandler(private_key_));
   }
   virtual void TearDown() {}
@@ -509,13 +509,10 @@ TEST_F(TransportMessageHandlerTest, BEH_ThreadedMessageHandling) {
 
 TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   std::string payload(RandomString(5 * 1024));
-  ASSERT_EQ("",
-            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
-                0, payload, kAsymmetricEncrypt, crypto_key_pair_.pub_key));
-  ASSERT_EQ("",
-            msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(
-                0, payload, kSignAndAsymEncrypt,
-                crypto_key_pair_.pub_key));
+  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0, payload,
+              kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
+  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0, payload,
+              kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
 
   ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
@@ -526,12 +523,10 @@ TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
                                                          kSignAndAsymEncrypt,
                                                          Asym::PublicKey()));
 
-  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
-                    0, payload, kAsymmetricEncrypt,
-                    crypto_key_pair_.pub_key));
-  ASSERT_NE("", msg_hndlr_->MakeSerialisedWrapperMessage(
-                    0, payload, kSignAndAsymEncrypt,
-                    crypto_key_pair_.pub_key));
+  ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
+               kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
+  ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
+               kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
 }
 
 }  // namespace test
