@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/thread.hpp"
 
+#include "maidsafe/common/test.h"
 #include "maidsafe/transport/nat_detection_service.h"
 
 #include "maidsafe/transport/transport.h"
@@ -51,74 +52,132 @@ namespace maidsafe {
 namespace transport {
 namespace test {
 
-namespace {
-class MockNatDetectionServices : public NatDetectionService {
+typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;  
+class MockNatDetectionServiceTest;
+  
+class MockNatDetectionService : public NatDetectionService {
  public:
-  MockNatDetectionServices(AsioService &asio_service, // NOLINT
+  MockNatDetectionService(AsioService &asio_service, // NOLINT
                            MessageHandlerPtr message_handler,
                            TransportPtr listening_transport,
-                           GetEndpointFunctor get_endpoint_functor);
- // At rendezvous
-  virtual void NatDetection(const Info &info,
-                    const protobuf::NatDetectionRequest &request,
-                    protobuf::NatDetectionResponse *nat_detection_response,
-                    transport::Timeout *timeout);  
+                           GetEndpointFunctor get_endpoint_functor)
+      : NatDetectionService(asio_service, message_handler,
+                            listening_transport, get_endpoint_functor) {}
+    MOCK_METHOD4_T(NatDetection, void(const Info &info,
+                      const protobuf::NatDetectionRequest &request,
+                      protobuf::NatDetectionResponse *nat_detection_response,
+                      transport::Timeout *timeout));
+  void ReplyFullCone(const Info &info,
+                const protobuf::NatDetectionRequest &request,
+                protobuf::NatDetectionResponse *response) {
+    response->set_nat_type(kFullCone);
+    response->mutable_endpoint()->set_ip(info.endpoint.ip.to_string());
+    response->mutable_endpoint()->set_port(info.endpoint.port);
+  }  
 };
 
-} // unnamed namespace
-
-class MockNatDetectionServicesTest : public testing::Test {
-
- protected:
-  AsioService asio_service_;  
-};
-
-TEST_F(MockNatDetectionServicesTest, BEH_FullConeDetection) {
-  NatDetection nat_detection;
-  std::shared_ptr<RudpTransport> origin_transport, rendezvous_transport,
-      proxy_transport;
-  MessageHandlerPtr origin_msg_handler, rendezvous_msg_handler,
-      proxy_msg_handler;
-  std::shared_ptr<MockNatDetectionServices> origin_service, rendezvous_service,
-      proxy_service;
-  std::vector<Contact> contacts;
-  Endpoint origin_endpoint(IP::from_string("127.0.0.1"), 20005),
-           rendezvous_endpoint(IP::from_string("127.0.0.1"), 20006),
-           proxy_endpoint(IP::from_string("127.0.0.1"), 20007);
-  std::vector<Endpoint> endpoints;
+struct Node {
+  Node() : 
+      asio_service(),
+      work(new boost::asio::io_service::work(asio_service)),
+      endpoint(IP::from_string("127.0.0.1"), 0),
+      transport(new transport::RudpTransport(asio_service)),
+      message_handler() {}
+  AsioService asio_service;
+  WorkPtr work;
   Endpoint endpoint;
-  Contact origin_contact(origin_endpoint, endpoints, endpoint, false, false);
-  origin_transport.reset(new transport::RudpTransport(asio_service_));
-  origin_transport->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, origin_msg_handler.get(),
-            _1, _2, _3, _4).track_foreign(origin_msg_handler));
-  origin_transport->on_error()->connect(
-  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
-      origin_msg_handler.get(), _1, _2).track_foreign(origin_msg_handler));
-  rendezvous_transport.reset(new transport::RudpTransport(asio_service_));
-  rendezvous_transport->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, rendezvous_msg_handler.get(),
-            _1, _2, _3, _4).track_foreign(rendezvous_msg_handler));
-  rendezvous_transport->on_error()->connect(
-  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
-      rendezvous_msg_handler.get(), _1, _2).track_foreign(rendezvous_msg_handler));
-  proxy_transport.reset(new transport::RudpTransport(asio_service_));
-  proxy_transport->on_message_received()->connect(
-        transport::OnMessageReceived::element_type::slot_type(
-            &MessageHandler::OnMessageReceived, proxy_msg_handler.get(),
-            _1, _2, _3, _4).track_foreign(proxy_msg_handler));
-  proxy_transport->on_error()->connect(
-  transport::OnError::element_type::slot_type(&MessageHandler::OnError,
-      proxy_msg_handler.get(), _1, _2).track_foreign(proxy_msg_handler));
-//   origin_service.reset(new MockNatDetectionServices(asio_service_,
-//       origin_msg_handler, origin_transport));
-//   rendezvous_service.reset(new MockNatDetectionServices(asio_service_,
-//       rendezvous_msg_handler, rendezvous_transport));
-//   proxy_service.reset(new MockNatDetectionServices(asio_service_, 
-//     proxy_msg_handler, proxy_transport));
-//   nat_detection.Detect();
+  Endpoint live_contact;
+  MessageHandlerPtr message_handler;
+ //   std::shared_ptr<MockNatDetectionService> service;
+  std::shared_ptr<RudpTransport> transport;
+  bool StartListening() {
+    bool listens(false);
+    size_t max(5), attempt(0);
+    while (attempt++ < max && !listens) {
+      uint16_t port = endpoint.port;
+      port = RandomUint32() % 50000 + 1025;
+      endpoint.port = port;
+      listens = transport->StartListening(endpoint);
+    }
+    return listens;
+  }
+  
+  Endpoint GetEndpoint() const {
+    return endpoint;
+  }
+  
+  void SetLiveContact(const Endpoint &endpoint) {
+    live_contact = endpoint;
+  }
+  
+  Endpoint GetLiveContact() const {
+    return live_contact;
+  }
+};
+
+typedef std::shared_ptr<Node> NodePtr;
+
+class MockNatDetectionServiceTest : public testing::Test {
+public:
+  MockNatDetectionServiceTest()
+      :  proxy_(new Node()),
+         rendezvous_(new Node()),
+         origin_(new Node()) {}
+  void ConnectToSignals(TransportPtr transport, MessageHandlerPtr message_handler) {
+    transport->on_message_received()->connect(
+          transport::OnMessageReceived::element_type::slot_type(
+              &MessageHandler::OnMessageReceived, message_handler.get(),
+              _1, _2, _3, _4).track_foreign(message_handler));
+    transport->on_error()->connect(
+        transport::OnError::element_type::slot_type(&MessageHandler::OnError,
+        message_handler.get(), _1, _2).track_foreign(message_handler));
+  }
+                  
+ protected:
+  NodePtr proxy_;
+  NodePtr origin_;
+  NodePtr rendezvous_;
+};
+
+TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
+  NatDetection nat_detection;
+  std::shared_ptr<MockNatDetectionService> origin_service, rendezvous_service,
+       proxy_service;
+  std::vector<Contact> contacts;
+  std::vector<Endpoint> endpoints;
+  bool listens = origin_->StartListening();
+  EXPECT_TRUE(listens);
+  ConnectToSignals(origin_->transport, origin_->message_handler);
+  listens = rendezvous_->StartListening();
+  EXPECT_TRUE(listens);
+  origin_->SetLiveContact(rendezvous_->GetEndpoint());
+  ConnectToSignals(rendezvous_->transport, rendezvous_->message_handler);
+  listens =  proxy_->StartListening();
+  EXPECT_TRUE(listens);  
+  ConnectToSignals(proxy_->transport, proxy_->message_handler);  
+  origin_service.reset(new MockNatDetectionService(origin_->asio_service,
+      origin_->message_handler, origin_->transport,
+      std::bind(&Node::GetLiveContact, origin_)));
+  rendezvous_service.reset(new MockNatDetectionService(rendezvous_->asio_service,
+      rendezvous_->message_handler, rendezvous_->transport,
+      std::bind(&Node::GetLiveContact, rendezvous_)));
+  EXPECT_CALL(*rendezvous_service, NatDetection(
+      testing::_, testing::_, testing::_, testing::_))
+      .WillOnce(testing::WithArgs<0, 1, 2>(testing::Invoke(
+          std::bind(&MockNatDetectionService::ReplyFullCone,
+          rendezvous_service.get(), arg::_1, arg::_2, arg::_3))));  
+  proxy_service.reset(new MockNatDetectionService(proxy_->asio_service, 
+    proxy_->message_handler, proxy_->transport,
+    std::bind(&Node::GetLiveContact, proxy_)));
+  NatType nattype;
+  TransportDetails transport_details;
+  endpoints.push_back(rendezvous_->endpoint);
+  Contact rendezvous_contact(rendezvous_->endpoint, endpoints,
+                             Endpoint(), true, true);  
+  contacts.push_back(rendezvous_contact);
+  nat_detection.Detect(contacts, true, origin_->transport,
+    origin_->message_handler, &nattype, &transport_details);
+  EXPECT_EQ(nattype, kFullCone);
 }
   
 class NatDetectionServicesTest : public testing::Test {
@@ -159,7 +218,6 @@ class NatDetectionServicesTest : public testing::Test {
   }
 
  protected:
-  typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
   AsioService asio_service_;
   WorkPtr work_;
   MessageHandlerPtr message_handler_;

@@ -181,7 +181,7 @@ TARGET_LINK_LIBRARIES(maidsafe_transport_static
                         boost_system
                         boost_thread
                         ${SYS_LIB})
-TARGET_LINK_LIBRARIES(TESTtransport maidsafe_transport_static gtest_static)
+TARGET_LINK_LIBRARIES(TESTtransport maidsafe_transport_static gtest_static gmock_static)
 # TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_transport_static gtest_static)
 # TARGET_LINK_LIBRARIES(TESTupnp maidsafe_transport_static gtest_static)
 
