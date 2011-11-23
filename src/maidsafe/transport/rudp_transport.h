@@ -70,6 +70,9 @@ class RudpTransport : public Transport,
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
+  virtual void Send(const std::string &data,
+                    const Contact &remote_contact,
+                    const Timeout &timeout);
   void Connect(const Endpoint &endpoint, const Timeout &timeout,
                ConnectFunctor callback);
   static DataSize kMaxTransportMessageSize() { return 67108864; }
@@ -101,7 +104,12 @@ class RudpTransport : public Transport,
               const Timeout &timeout);
   void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
                  ConnectFunctor callback);
-
+  
+  void ConnectCallback(const int &result,
+                       const std::string &data,
+                       const Endpoint &endpoint,
+                       const Timeout &timeout);
+  
   friend class RudpConnection;
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);

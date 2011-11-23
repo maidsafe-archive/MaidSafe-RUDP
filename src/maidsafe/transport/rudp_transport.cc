@@ -39,7 +39,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/transport/contact.h"
-#include "nat_detection.h"
+#include "maidsafe/transport/nat_detection.h"
+#include "maidsafe/transport/rudp_message_handler.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -82,14 +83,14 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 
 TransportCondition RudpTransport::Bootstrap(
     const std::vector<Contact> &candidates) {
-  //NatType nat_type;
-  //TransportDetails details;
-  //MessageHandlerPtr message_handler;
-  //std::shared_ptr<RudpConnection> rendezvous_connection;
-  //NatDetection nat_detection;
-  //nat_detection.Detect(candidates, shared_from_this(), message_handler,
+  // NatType nat_type;
+  // TransportDetails details;
+  // MessageHandlerPtr message_handler;
+  // std::shared_ptr<RudpConnection> rendezvous_connection;
+  // NatDetection nat_detection;
+  // nat_detection.Detect(candidates, shared_from_this(), message_handler,
   //                     &nat_type, &details);
-  //if (nat_type != kNotConnected)
+  // if (nat_type != kNotConnected)
   //  return kSuccess;
   return kSuccess;
 }
@@ -154,6 +155,32 @@ void RudpTransport::HandleAccept(AcceptorPtr acceptor,
   }
 
   StartAccept();
+}
+
+void RudpTransport::Send(const std::string &data,
+                         const Contact &remote_contact,
+                         const Timeout &timeout) {
+  if (remote_contact.rendezvous_endpoint().ip != IP()) {
+    RudpMessageHandlerPtr message_handler;
+    std::string message(message_handler->CreateForwardRendezvousRequest(
+        remote_contact.endpoint()));
+    Send(message, remote_contact.rendezvous_endpoint(), timeout);
+    Connect(remote_contact.endpoint(), timeout,
+        std::bind(&RudpTransport::ConnectCallback, this, arg::_1, data,
+                  remote_contact.endpoint(), timeout));
+  } else {
+    Send(data, remote_contact.endpoint(), timeout);
+  }
+}
+
+void RudpTransport::ConnectCallback(const int &result,
+                                    const std::string &data,
+                                    const Endpoint &endpoint,
+                                    const Timeout &timeout) {
+  if (result == kSuccess) {
+    Send(data, endpoint, timeout);
+  }
+  // TODO(Mahmoud): if otherwise!
 }
 
 void RudpTransport::Send(const std::string &data,

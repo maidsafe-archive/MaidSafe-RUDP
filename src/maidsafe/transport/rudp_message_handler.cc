@@ -148,6 +148,14 @@ std::string RudpMessageHandler::WrapMessage(
                                       msg.SerializeAsString(), kNone, "");
 }
 
+std::string RudpMessageHandler::CreateForwardRendezvousRequest(
+    const Endpoint &endpoint) {
+  protobuf::ForwardRendezvousRequest request;
+  request.mutable_receiver_endpoint()->set_ip(endpoint.ip.to_string());
+  request.mutable_receiver_endpoint()->set_port(endpoint.port);
+  return WrapMessage(request);  
+}
+
 void RudpMessageHandler::ProcessSerialisedMessage(
     const int &message_type,
     const std::string &payload,

@@ -118,7 +118,7 @@ class RudpMessageHandler : public MessageHandler {
           new ForwardRendezvousRspSigPtr::element_type),
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type) {
-    MessageHandler::on_message_received_ = 
+    MessageHandler::on_message_received_ =
         std::bind(&RudpMessageHandler::OnMessageReceived, this, arg::_1,
             arg::_2, arg::_3, arg::_4);
   }
@@ -165,6 +165,8 @@ class RudpMessageHandler : public MessageHandler {
     return on_rendezvous_acknowledgement_;
   }
 
+  std::string CreateForwardRendezvousRequest(const Endpoint &endpoint);
+
  protected:
   void ProcessSerialisedMessage(const int &message_type,
                                 const std::string &payload,
@@ -202,6 +204,8 @@ class RudpMessageHandler : public MessageHandler {
   RendezvousReqSigPtr on_rendezvous_request_;
   RendezvousAckSigPtr on_rendezvous_acknowledgement_;
 };
+
+typedef std::shared_ptr<RudpMessageHandler> RudpMessageHandlerPtr;
 
 }  // namespace transport
 

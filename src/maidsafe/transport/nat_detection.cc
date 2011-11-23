@@ -50,8 +50,7 @@ void NatDetection::Detect(
   rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
                      full, std::bind(&NatDetection::DetectCallback, this,
                                      arg::_1, arg::_2, nat_type, details));
-//  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
-  cond_var_.wait(lock);
+  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
 }
 
 void NatDetection::DetectCallback(const int &nat_type,
@@ -59,6 +58,7 @@ void NatDetection::DetectCallback(const int &nat_type,
                                   NatType *out_nat_type,
                                   TransportDetails *out_details) {
   *out_nat_type = static_cast<NatType>(nat_type);
+  *out_details = details;
   cond_var_.notify_one();
 }
 
