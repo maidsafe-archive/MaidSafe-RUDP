@@ -70,6 +70,8 @@ std::string RudpMessageHandler::WrapMessage(
     const protobuf::NatDetectionRequest &msg) {
   if (!msg.IsInitialized())
     return "";
+  std::string payload(msg.SerializeAsString());
+  size_t size(payload.size());
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
                                       msg.SerializeAsString(), kNone, "");
 }

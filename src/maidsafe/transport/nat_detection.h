@@ -56,7 +56,8 @@ class NatDetection {
   boost::condition_variable cond_var_;
 
  private:
-  void DetectCallback(NatType* nat_type, TransportDetails* details);
+  void DetectCallback(const int &nat_type, const TransportDetails &details,
+                      NatType *out_nat_type, TransportDetails *out_details);
 };
 
 }  // namespace transport

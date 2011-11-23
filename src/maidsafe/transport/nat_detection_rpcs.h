@@ -55,7 +55,7 @@ struct TransportDetails;
 class Contact;
 
 class NatDetectionRpcs {
-  typedef std::function<void(int, TransportDetails)> NatResultFunctor;
+  typedef std::function<void(const int&, const TransportDetails&)> NatResultFunctor;
   typedef std::function<void(const TransportCondition)> KeepAliveFunctor;
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:

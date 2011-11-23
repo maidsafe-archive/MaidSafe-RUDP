@@ -55,6 +55,7 @@ void NatDetectionRpcs::NatDetection(const std::vector<Contact> &candidates,
       itr != transport_details.local_endpoints.end(); ++itr)
     request.add_local_ips((*itr).ip.to_string());
   request.set_local_port(transport_details.local_endpoints.begin()->port);
+  request.set_full_detection(full);
   std::string message(message_handler->WrapMessage(request));
   DoNatDetection(candidates, transport, message_handler, message, full,
                  callback, 0);
@@ -76,7 +77,7 @@ void NatDetectionRpcs::DoNatDetection(const std::vector<Contact> &candidates,
                 protobuf::NatDetectionResponse(), candidates, callback,
                 transport, message_handler, request, full, index));
   transport->Send(request, candidates[index].endpoint(),
-                   transport::kDefaultInitialTimeout);
+                   transport::kDefaultInitialTimeout*10);
 }
 
 void NatDetectionRpcs::KeepAlive(const Endpoint endpoint,
