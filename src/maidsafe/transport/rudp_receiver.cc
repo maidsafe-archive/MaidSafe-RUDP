@@ -216,7 +216,7 @@ boost::uint32_t RudpReceiver::AvailableBufferSize() const {
   size_t free_packets = unread_packets_.IsFull() ?
                         0 : unread_packets_.MaximumSize() -
                             unread_packets_.Size();
-  return free_packets * RudpParameters::kMaxDataSize;
+  return free_packets * RudpParameters::max_data_size;
 }
 
 boost::uint32_t RudpReceiver::AckPacketSequenceNumber() const {

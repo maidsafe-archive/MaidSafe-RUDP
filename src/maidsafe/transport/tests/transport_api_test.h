@@ -148,12 +148,12 @@ class RUDPConfigurableTransportAPITest
                                  { 64,  256, 1400, 1400, 1024, 1024 },
                                  { 32,   64, 2800, 4800, 2038, 4076 }};
     int config_selected = GetParam();
-    RudpParameters::kDefaultWindowSize = configurations[config_selected][0];
-    RudpParameters::kMaximumWindowSize = configurations[config_selected][1];
-    RudpParameters::kDefaultSize = configurations[config_selected][2];
-    RudpParameters::kMaxSize = configurations[config_selected][3];
-    RudpParameters::kDefaultDataSize = configurations[config_selected][4];
-    RudpParameters::kMaxDataSize = configurations[config_selected][5];
+    RudpParameters::default_window_size = configurations[config_selected][0];
+    RudpParameters::maximum_window_size = configurations[config_selected][1];
+    RudpParameters::default_size = configurations[config_selected][2];
+    RudpParameters::max_size = configurations[config_selected][3];
+    RudpParameters::default_data_size = configurations[config_selected][4];
+    RudpParameters::max_data_size = configurations[config_selected][5];
   }
 };
 

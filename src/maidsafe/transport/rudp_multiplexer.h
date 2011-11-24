@@ -78,7 +78,7 @@ class RudpMultiplexer {
   TransportCondition SendTo(const Packet &packet,
                             const boost::asio::ip::udp::endpoint &endpoint) {
     std::array<unsigned char, RudpParameters::kUDPPayload> data;
-    auto buffer = boost::asio::buffer(&data[0], RudpParameters::kMaxSize);
+    auto buffer = boost::asio::buffer(&data[0], RudpParameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);

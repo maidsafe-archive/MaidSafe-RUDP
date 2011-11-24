@@ -83,7 +83,7 @@ class RudpDataPacketTest : public testing::Test {
 
   void TestEncodeDecode() {
     std::string data;
-    for (int i = 0; i < RudpParameters::kMaxSize; ++i)
+    for (int i = 0; i < RudpParameters::max_size; ++i)
       data += "a";
     boost::uint32_t packet_sequence_number = 0x7fffffff;
     boost::uint32_t message_number = 0x1fffffff;
@@ -98,7 +98,7 @@ class RudpDataPacketTest : public testing::Test {
 
     char char_array[RudpParameters::kUDPPayload];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(&char_array[0],
-        RudpDataPacket::kHeaderSize + RudpParameters::kMaxSize));
+        RudpDataPacket::kHeaderSize + RudpParameters::max_size));
     EXPECT_EQ(RudpDataPacket::kHeaderSize + data.size(),
               data_packet_.Encode(dbuffer));
     RestoreDefault();

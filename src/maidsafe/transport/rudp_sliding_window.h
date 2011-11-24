@@ -62,7 +62,7 @@ class RudpSlidingWindow {
   // Reset to empty starting with the specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
-    maximum_size_ = RudpParameters::kDefaultWindowSize;
+    maximum_size_ = RudpParameters::default_window_size;
     begin_ = end_ = initial_sequence_number;
     items_.clear();
   }
@@ -86,7 +86,7 @@ class RudpSlidingWindow {
   // end. This is used to filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
-    boost::uint32_t end = (begin + RudpParameters::kMaximumWindowSize)
+    boost::uint32_t end = (begin + RudpParameters::maximum_window_size)
                           % (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
   }
@@ -98,8 +98,8 @@ class RudpSlidingWindow {
 
   // Set the maximum size of the window.
   void SetMaximumSize(size_t size) {
-    maximum_size_ = size < RudpParameters::kMaximumWindowSize
-                    ? size : RudpParameters::kMaximumWindowSize;
+    maximum_size_ = size < RudpParameters::maximum_window_size
+                    ? size : RudpParameters::maximum_window_size;
   }
 
   // Get the current size of the window.

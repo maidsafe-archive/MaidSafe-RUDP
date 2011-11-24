@@ -65,7 +65,7 @@ bool RudpSender::Flushed() const {
 size_t RudpSender::AddData(const asio::const_buffer &data) {
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
-    unacked_packets_.SetMaximumSize(RudpParameters::kDefaultWindowSize);
+    unacked_packets_.SetMaximumSize(RudpParameters::default_window_size);
   } else {
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
   }

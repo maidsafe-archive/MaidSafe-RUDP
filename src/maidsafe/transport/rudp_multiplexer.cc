@@ -27,10 +27,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_multiplexer.h"
 
 #include <cassert>
 
+#include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_packet.h"
 #include "maidsafe/common/log.h"
 
@@ -44,7 +44,7 @@ namespace transport {
 
 RudpMultiplexer::RudpMultiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
-    receive_buffer_(RudpParameters::kMaxSize) {
+    receive_buffer_(RudpParameters::max_size) {
 }
 
 RudpMultiplexer::~RudpMultiplexer() {

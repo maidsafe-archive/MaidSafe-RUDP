@@ -33,55 +33,61 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/cstdint.hpp"
 #include "maidsafe/common/utils.h"
+#include "maidsafe/transport/version.h"
+
+#if MAIDSAFE_TRANSPORT_VERSION != 102
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-transport library.
+#endif
 
 namespace maidsafe {
 
 namespace transport {
 
 // This class provides the configurability to all traffic related parameters.
-class RudpParameters {
+struct RudpParameters {
  public:
   // Window size permitted in RUDP
-  static boost::uint32_t kDefaultWindowSize;
-  static boost::uint32_t kMaximumWindowSize;
+  static boost::uint32_t default_window_size;
+  static boost::uint32_t maximum_window_size;
 
   // Packet size permitted in RUDP
   // Shall not exceed the UDP payload, which is 65507
-  static boost::uint32_t kDefaultSize;
-  static boost::uint32_t kMaxSize;
+  static boost::uint32_t default_size;
+  static boost::uint32_t max_size;
   enum { kUDPPayload = 65500 };
 
   // Data Payload size permitted in RUDP
   // Shall not exceed Packet Size defined
-  static boost::uint32_t kDefaultDataSize;
-  static boost::uint32_t kMaxDataSize;
+  static boost::uint32_t default_data_size;
+  static boost::uint32_t max_data_size;
 
   // Timeout defined for a packet to be resent
-  static boost::posix_time::time_duration kDefaultSendTimeOut;
+  static boost::posix_time::time_duration default_send_timeout;
 
   // Timeout defined for a neg-ack packet to be resent to request resent of an
   // observed missing packet in receiver
-  static boost::posix_time::time_duration kDefaultReceiveTimeOut;
+  static boost::posix_time::time_duration default_receive_timeout;
 
   // Machine dependent parameter of send delay,
   // depending on computation power and I/O speed
-  static boost::posix_time::time_duration kDefaultSendDelay;
+  static boost::posix_time::time_duration default_send_delay;
 
   // Machine dependent parameter of receive delay,
   // depending on computation power and I/O speed
-  static boost::posix_time::time_duration kDefaultReceiveDelay;
+  static boost::posix_time::time_duration default_receive_delay;
 
   // Timeout defined for a Ack packet to be resent
-  static boost::posix_time::time_duration kDefaultAckTimeOut;
+  static boost::posix_time::time_duration default_ack_timeout;
 
   // Timeout defined the fixed interval between Ack packets
-  static boost::posix_time::time_duration kAckInterval;
+  static boost::posix_time::time_duration ack_interval;
 
   // Interval to calculate speed
-  static boost::posix_time::time_duration kSpeedCalculateInverval;
+  static boost::posix_time::time_duration speed_calculate_inverval;
 
   // Slow speed threshold to force the socket closed, in b/s
-  static boost::uint32_t SlowSpeedThreshold;
+  static boost::uint32_t slow_speed_threshold;
 
   // Defined connection types
   enum ConnectionType {
@@ -92,7 +98,7 @@ class RudpParameters {
     k100MEthernet = 0xff1fffff,
     k1GEthernet = 0xff2fffff
   };
-  static RudpParameters::ConnectionType kConnectionType;
+  static ConnectionType connection_type;
 
  private:
   // Disallow copying and assignment.

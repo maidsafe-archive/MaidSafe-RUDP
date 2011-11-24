@@ -41,6 +41,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_parameters.h"
 #include "maidsafe/transport/message_handler.h"
 
+#if MAIDSAFE_TRANSPORT_VERSION != 102
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-transport library.
+#endif
+
 namespace maidsafe {
 
 namespace transport {

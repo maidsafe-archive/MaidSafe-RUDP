@@ -284,6 +284,8 @@ SET(MAIDSAFE_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_transport.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_transport.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_transport.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_parameters.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/utils.h)  # TODO - remove utils.h once NAT detection is implemented and this is not #included by node_container.h
 FOREACH(MAIDSAFE_INSTALL_FILE ${MAIDSAFE_INSTALL_FILES})
   CHECK_INSTALL_HEADER_HAS_VERSION_GUARD(${MAIDSAFE_INSTALL_FILE})
