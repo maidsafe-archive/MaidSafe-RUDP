@@ -69,18 +69,7 @@ class TransportMessageHandlerTest : public testing::Test {
   virtual void TearDown() {}
 
   template<class T>
-  T GetWrapper(std::string encrypted, std::string key) {
-    std::string amended(encrypted, 1, encrypted.size() - 1);
-    std::string decrypted = crypto::AsymDecrypt(amended, key);
-    transport::protobuf::WrapperMessage decrypted_msg;
-    decrypted_msg.ParseFromString(decrypted);
-    T result;
-    result.ParseFromString(decrypted_msg.payload());
-    return result;
-  }
-  template<class T>
-  std::string EncryptMessage(T request,
-                             MessageType request_type) {
+  std::string EncryptMessage(T request, MessageType request_type) {
     protobuf::WrapperMessage message;
     message.set_msg_type(request_type);
     message.set_payload(request.SerializeAsString());
