@@ -30,14 +30,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/nat_detection_rpcs.h"
 
 namespace maidsafe {
 
 namespace transport {
 
 NatTraversal::NatTraversal(boost::asio::io_service &asio_service, // NOLINT
-                           Timeout interval,
-                           Timeout timeout,
+                           const Timeout &interval,
+                           const Timeout &timeout,
                            TransportPtr transport,
                            MessageHandlerPtr message_handler)
     : rpcs_(new NatDetectionRpcs()),

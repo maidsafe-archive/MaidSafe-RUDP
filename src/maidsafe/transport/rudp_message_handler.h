@@ -175,13 +175,13 @@ class RudpMessageHandler : public MessageHandler {
                                 const Info &info,
                                 std::string *message_response,
                                 Timeout *timeout);
-  bool UnwrapWrapperMessage(const std::string& serialised_message,
-                            int* msg_type,
-                            std::string* payload,
-                            std::string* message_signature);
-  std::string WrapWrapperMessage(const int& msg_type,
-                                 const std::string& payload,
-                                 const std::string& message_signature);
+//   bool UnwrapWrapperMessage(const std::string& serialised_message,
+//                             int* msg_type,
+//                             std::string* payload,
+//                             std::string* message_signature);
+//   std::string WrapWrapperMessage(const int& msg_type,
+//                                  const std::string& payload,
+//                                  const std::string& message_signature);
  private:
   friend class test::RudpMessageHandlerTest_BEH_WrapMessageNatDetectionResponse_Test;  // NOLINT
   friend class test::RudpMessageHandlerTest_BEH_WrapMessageProxyConnectResponse_Test;  // NOLINT

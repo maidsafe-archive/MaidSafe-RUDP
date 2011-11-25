@@ -191,13 +191,13 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
     std::bind(&Node::GetLiveContact, proxy_)));
   proxy_service->ConnectToSignals();
   NatType nattype;
-  TransportDetails transport_details;
+  Endpoint rendezvous_endpoint;
   endpoints.push_back(rendezvous_->endpoint);
   Contact rendezvous_contact(rendezvous_->endpoint, endpoints,
                              Endpoint(), true, true);
   contacts.push_back(rendezvous_contact);
   nat_detection.Detect(contacts, true, origin_->transport,
-    origin_->message_handler, &nattype, &transport_details);
+    origin_->message_handler, &nattype, &rendezvous_endpoint);
   EXPECT_EQ(nattype, kFullCone);
 }
 

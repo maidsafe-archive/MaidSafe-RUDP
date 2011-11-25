@@ -67,6 +67,8 @@ typedef bptime::time_duration Timeout;
 class Contact;
 class MessageHandler;
 class Service;
+class NatDetection;
+
 
 enum TransportCondition {
   kSuccess = 0,
@@ -218,6 +220,7 @@ class Transport {
 //  std::shared_ptr<Service> transport_service() { return transport_service_; }
 
   friend class test::MockNatDetectionServiceTest_BEH_FullConeDetection_Test;
+  friend class NatDetection;
 
  protected:
   /**

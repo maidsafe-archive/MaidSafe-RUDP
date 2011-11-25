@@ -1,4 +1,4 @@
-/* Copyright (c) 2011 maidsafe.net limited
+/* Copyright (c) 2010 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,56 +25,39 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_
-#define MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_
+#include "boost/thread.hpp"
+#include "maidsafe/transport/rudp_parameters.h"
 
-#include "boost/asio/deadline_timer.hpp"
-#include "boost/thread/mutex.hpp"
-#include "boost/thread/condition_variable.hpp"
-
-#include "maidsafe/transport/version.h"
-#include "maidsafe/transport/transport.h"
-
-#if MAIDSAFE_TRANSPORT_VERSION != 102
-#  error This API is not compatible with the installed library.\
-    Please update the maidsafe-transport library.
-#endif
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace transport {
-  
-class NatDetectionRpcs;
-class RudpMessageHandler;
 
-typedef std::function<void(const TransportCondition&)> KeepAliveFunctor;
-
-class NatTraversal {
-  typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
- public:
-  NatTraversal(boost::asio::io_service &asio_service, // NOLINT
-               const Timeout &interval,
-               const Timeout &timeout,
-               TransportPtr transport,
-               MessageHandlerPtr message_handler);
- void KeepAlive(const Endpoint &endpoint, KeepAliveFunctor callback);
- void KeepAliveCallback(const TransportCondition &condition);
-
- private:
-  void DoKeepAlive();
-
-  std::shared_ptr<NatDetectionRpcs> rpcs_;
-  boost::asio::io_service &asio_service_;
-  Timeout timeout_, interval_;
-  boost::asio::deadline_timer timer_;
-  TransportPtr transport_;
-  MessageHandlerPtr message_handler_;
-  KeepAliveFunctor callback_;
-  Endpoint endpoint_;
-};
-
+boost::uint32_t RudpParameters::default_window_size(16);
+boost::uint32_t RudpParameters::maximum_window_size(512);
+boost::uint32_t RudpParameters::default_size(1480);
+boost::uint32_t RudpParameters::max_size(25980);
+boost::uint32_t RudpParameters::default_data_size(1450);
+boost::uint32_t RudpParameters::max_data_size(25950);
+boost::posix_time::time_duration RudpParameters::default_send_timeout(
+    bptime::milliseconds(1000));
+boost::posix_time::time_duration RudpParameters::default_receive_timeout(
+    bptime::milliseconds(200));
+boost::posix_time::time_duration RudpParameters::default_send_delay(
+    bptime::milliseconds(1000));
+boost::posix_time::time_duration RudpParameters::default_receive_delay(
+  bptime::milliseconds(100));
+boost::posix_time::time_duration RudpParameters::default_ack_timeout(
+    bptime::milliseconds(1000));
+boost::posix_time::time_duration RudpParameters::ack_interval(
+    bptime::milliseconds(100));
+boost::posix_time::time_duration RudpParameters::speed_calculate_inverval(
+    bptime::milliseconds(1000));
+boost::uint32_t RudpParameters::slow_speed_threshold(1024);
+RudpParameters::ConnectionType RudpParameters::connection_type(
+    RudpParameters::kWireless);
 }  // namespace transport
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_NAT_TRAVERSAL_H_

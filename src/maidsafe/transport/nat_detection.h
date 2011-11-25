@@ -34,30 +34,37 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/thread/mutex.hpp"
 
 #include "maidsafe/transport/contact.h"
-#include "maidsafe/transport/nat_detection_rpcs.h"
 
+#if MAIDSAFE_TRANSPORT_VERSION != 102
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-transport library.
+#endif
 
 namespace maidsafe {
 
 namespace transport {
+  
+class NatDetectionRpcs;
+class RudpMessageHandler;  
 
 class NatDetection {
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
+  NatDetection();
   void Detect(const std::vector<Contact>& contacts,
               const bool &full,
               std::shared_ptr<Transport> transport,
               MessageHandlerPtr message_handler,
               NatType* nat_type,
-              TransportDetails* details);
+              Endpoint *rendezvous_endpoint);
  protected:
-  NatDetectionRpcs rpcs_;
-  boost::mutex mutex_;
-  boost::condition_variable cond_var_;
+  std::shared_ptr<NatDetectionRpcs> rpcs_;
 
  private:
   void DetectCallback(const int &nat_type, const TransportDetails &details,
-                      NatType *out_nat_type, TransportDetails *out_details);
+                      NatType *out_nat_type, TransportPtr,
+                      Endpoint *rendezvous_endpoint,
+                      boost::condition_variable *cond_var);
 };
 
 }  // namespace transport

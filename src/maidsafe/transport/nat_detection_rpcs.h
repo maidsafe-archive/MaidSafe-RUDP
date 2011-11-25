@@ -45,6 +45,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_message_handler.h"
 #include "maidsafe/transport/transport.h"
 
+#if MAIDSAFE_TRANSPORT_VERSION != 102
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe-transport library.
+#endif
+
 namespace maidsafe {
 
 namespace transport {
@@ -56,7 +61,7 @@ class Contact;
 
 class NatDetectionRpcs {
   typedef std::function<void(const int&, const TransportDetails&)> NatResultFunctor;
-  typedef std::function<void(const TransportCondition)> KeepAliveFunctor;
+  typedef std::function<void(const TransportCondition&)> KeepAliveFunctor;
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
  public:
   void NatDetection(const std::vector<Contact> &candidates,

@@ -28,12 +28,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/nat_detection.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/message_handler.h"
+#include "maidsafe/transport/nat_detection_rpcs.h"
 
 namespace arg = std::placeholders;
 
 namespace maidsafe {
 
 namespace transport {
+  
+NatDetection::NatDetection() : rpcs_(new NatDetectionRpcs()) {}
 
 void NatDetection::Detect(
     const std::vector<maidsafe::transport::Contact>& contacts,
@@ -41,25 +44,34 @@ void NatDetection::Detect(
     TransportPtr transport,
     MessageHandlerPtr message_handler,
     NatType* nat_type,
-    TransportDetails* details) {
+    Endpoint *rendezvous_endpoint) {
+  boost::mutex mutex;
+  boost::condition_variable cond_var;  
   std::vector<maidsafe::transport::Contact> directly_connected_contacts;
   for (auto itr = contacts.begin(); itr != contacts.end(); ++itr)
     if ((*itr).IsDirectlyConnected())
       directly_connected_contacts.push_back(*itr);
-  boost::mutex::scoped_lock lock(mutex_);
-  rpcs_.NatDetection(directly_connected_contacts, transport, message_handler,
-                     full, std::bind(&NatDetection::DetectCallback, this,
-                                     arg::_1, arg::_2, nat_type, details));
-  cond_var_.timed_wait(lock, kDefaultInitialTimeout);
+  boost::mutex::scoped_lock lock(mutex);
+  rpcs_->NatDetection(directly_connected_contacts, transport, message_handler,
+                      full, std::bind(&NatDetection::DetectCallback, this,
+                                      arg::_1, arg::_2, nat_type, transport,
+                                      rendezvous_endpoint, &cond_var));
+  cond_var.timed_wait(lock, kDefaultInitialTimeout);
 }
 
 void NatDetection::DetectCallback(const int &nat_type,
                                   const TransportDetails &details,
                                   NatType *out_nat_type,
-                                  TransportDetails *out_details) {
+                                  TransportPtr transport,
+                                  Endpoint *rendezvous_endpoint,
+                                  boost::condition_variable *cond_var) {
   *out_nat_type = static_cast<NatType>(nat_type);
-  *out_details = details;
-  cond_var_.notify_one();
+  transport->transport_details_.endpoint = details.endpoint;
+  *rendezvous_endpoint = details.rendezvous_endpoint;
+  if (nat_type == transport::kPortRestricted)
+    transport->transport_details_.rendezvous_endpoint =
+        details.rendezvous_endpoint;
+  cond_var->notify_one();        
 }
 
 }  // namespace transport
