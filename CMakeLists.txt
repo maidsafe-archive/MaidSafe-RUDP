@@ -239,6 +239,7 @@ TEST_SUMMARY_OUTPUT()
 ADD_COVERAGE_EXCLUDE(libupnp/)
 ADD_COVERAGE_EXCLUDE(nat-pmp/)
 ADD_COVERAGE_EXCLUDE(upnp/)
+ADD_COVERAGE_EXCLUDE(transport.pb.cc)
 
 
 ###################################################################################################
