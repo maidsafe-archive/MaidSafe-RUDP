@@ -1,4 +1,4 @@
-SET(CTEST_PROJECT_NAME "maidsafe_transport")
+SET(CTEST_PROJECT_NAME "MaidSafe-Transport")
 SET(CTEST_NIGHTLY_START_TIME "00:00:00 UTC")
 SET(CTEST_DROP_METHOD "http")
 SET(CTEST_DROP_SITE "dash.maidsafe.net")
