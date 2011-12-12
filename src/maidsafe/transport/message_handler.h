@@ -34,20 +34,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/signals2/signal.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/version.h"
 
-#if MAIDSAFE_TRANSPORT_VERSION != 101
+#if MAIDSAFE_TRANSPORT_VERSION != 102
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-transport library.
 #endif
 
 
 namespace bs2 = boost::signals2;
+namespace Asym = maidsafe::rsa;
+typedef std::shared_ptr<maidsafe::rsa::PrivateKey> PrivateKeyPtr;
+typedef maidsafe::rsa::PublicKey PublicKey;
 
 namespace maidsafe {
-
-class Securifier;
 
 typedef char SecurityType;
 const SecurityType kNone(0x0);
@@ -132,8 +134,8 @@ class MessageHandler {
                                            const Endpoint&)>>
           ErrorSigPtr;
 
-  explicit MessageHandler(std::shared_ptr<Securifier> securifier)
-    : securifier_(securifier),
+  explicit MessageHandler(PrivateKeyPtr private_key)
+    : private_key_(private_key),
       on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
@@ -202,8 +204,8 @@ class MessageHandler {
       const int &message_type,
       const std::string &payload,
       SecurityType security_type,
-      const std::string &recipient_public_key);
-  std::shared_ptr<Securifier> securifier_;
+      const PublicKey &recipient_public_key);
+  PrivateKeyPtr private_key_;
 
  private:
   friend class test::TransportMessageHandlerTest_BEH_WrapMessageNatDetectionResponse_Test;  // NOLINT
