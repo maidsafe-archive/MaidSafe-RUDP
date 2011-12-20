@@ -198,7 +198,7 @@ class RudpSlidingWindow {
   static boost::uint32_t GenerateSequenceNumber() {
     boost::uint32_t seqnum = 0;
     while (seqnum == 0)
-      seqnum = (SRandomUint32() & 0x7fffffff);
+      seqnum = (RandomUint32() & 0x7fffffff);
     return seqnum;
   }
 

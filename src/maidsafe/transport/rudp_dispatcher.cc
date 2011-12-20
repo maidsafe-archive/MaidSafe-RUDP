@@ -62,7 +62,7 @@ boost::uint32_t RudpDispatcher::AddSocket(RudpSocket *socket) {
   // Generate a new unique id for the socket.
   boost::uint32_t id = 0;
   while (id == 0 || sockets_.count(id) != 0)
-    id = SRandomUint32();
+    id = RandomUint32();
 
   sockets_[id] = socket;
   return id;

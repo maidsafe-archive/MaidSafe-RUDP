@@ -53,27 +53,33 @@ NatTraversal::NatTraversal(boost::asio::io_service &asio_service, // NOLINT
 
 void NatTraversal::KeepAlive(const Endpoint &endpoint,
                              KeepAliveFunctor callback) {
+  boost::system::error_code ec;  
   if (IsValid(endpoint) && callback) {
     endpoint_ = endpoint;
     callback_ = callback;
     rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
                      std::bind(&NatTraversal::KeepAliveCallback, this,
-                               arg::_1));
+                               arg::_1, ec));
     timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
   }
 }
 
 
 void NatTraversal::DoKeepAlive() {
+  boost::system::error_code ec;
   rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
-                   std::bind(&NatTraversal::KeepAliveCallback, this, arg::_1));
-  timer_.expires_at(timer_.expires_at() + interval_);
+                   std::bind(&NatTraversal::KeepAliveCallback, this, arg::_1,
+                     ec));
+  timer_.expires_from_now(interval_);
   timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
 }
 
-void NatTraversal::KeepAliveCallback(const TransportCondition &condition) {
-  timer_.cancel();
-  callback_(condition);
+void NatTraversal::KeepAliveCallback(const TransportCondition &condition,
+                                     const boost::system::error_code& ec) {
+  if (ec) {
+    timer_.cancel();
+    callback_(condition);
+  }
 }
 
 }  // namespace transport

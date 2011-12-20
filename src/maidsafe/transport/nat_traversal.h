@@ -58,7 +58,8 @@ class NatTraversal {
                TransportPtr transport,
                MessageHandlerPtr message_handler);
  void KeepAlive(const Endpoint &endpoint, KeepAliveFunctor callback);
- void KeepAliveCallback(const TransportCondition &condition);
+ void KeepAliveCallback(const TransportCondition &condition,
+                        const boost::system::error_code& ec);
 
  private:
   void DoKeepAlive();
