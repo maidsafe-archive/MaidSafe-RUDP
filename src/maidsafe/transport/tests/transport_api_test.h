@@ -74,6 +74,7 @@ class TestMessageHandler {
   IncomingMessages responses_received();
   OutgoingResponses responses_sent();
   Results results();
+
  private:
   TestMessageHandler(const TestMessageHandler&);
   TestMessageHandler& operator=(const TestMessageHandler&);
@@ -90,6 +91,7 @@ class TransportAPITest: public testing::Test {
  public:
   TransportAPITest();
   ~TransportAPITest();
+
  protected:
   // Create a transport and an io_service listening on the given or random port
   // (if zero) if listen == true.  If not, only a transport is created, and the

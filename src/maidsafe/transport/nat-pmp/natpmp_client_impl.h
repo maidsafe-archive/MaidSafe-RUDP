@@ -57,7 +57,6 @@ typedef std::function <void (
 */
 class NatPmpClientImpl {
  public:
-
   /**
   * Constructor
   * @param ios The boost::asio::io_service object to use.
@@ -101,7 +100,6 @@ class NatPmpClientImpl {
                           uint32_t lifetime);
 
  private:
-
   NatPmpClientImpl(const NatPmpClientImpl&);
   NatPmpClientImpl &operator=(const NatPmpClientImpl&);
 
@@ -170,7 +168,6 @@ class NatPmpClientImpl {
   boost::asio::ip::address m_public_ip_address_;
 
  protected:
-
   /**
   * A reference to the boost::asio::io_service.
   */
