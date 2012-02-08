@@ -1,6 +1,10 @@
-v0.01.03 (WIP)
+v0.01.04 (WIP)
 --------------
 
+v0.01.03
+--------------
+* Updated ctest config file in sync with project name change.
+* Style fixes.
 
 v0.01.02
 --------
