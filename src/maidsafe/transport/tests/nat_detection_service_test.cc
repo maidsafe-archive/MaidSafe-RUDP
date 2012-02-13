@@ -62,7 +62,7 @@ class MockNatDetectionService : public NatDetectionService {
                            GetEndpointFunctor get_endpoint_functor)
       : NatDetectionService(asio_service, message_handler,
                             listening_transport, get_endpoint_functor) {}
-    MOCK_METHOD4_T(NatDetection, void(const Info &info,
+    MOCK_METHOD4(NatDetection, void(const Info &info,
                       const protobuf::NatDetectionRequest &request,
                       protobuf::NatDetectionResponse *nat_detection_response,
                       transport::Timeout *timeout));
