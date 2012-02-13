@@ -34,10 +34,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/signals2/signal.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/version.h"
 
-#if MAIDSAFE_TRANSPORT_VERSION != 102
+#if MAIDSAFE_TRANSPORT_VERSION != 104
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-transport library.
 #endif
@@ -45,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace bs2 = boost::signals2;
 namespace arg = std::placeholders;
+
 
 namespace maidsafe {
 
@@ -98,6 +100,7 @@ class MessageHandler {
         std::bind(&MessageHandler::ProcessSerialisedMessage, this, arg::_1,
                   arg::_2, arg::_3, arg::_4, arg::_5, arg::_6, arg::_7);
   }
+
   virtual ~MessageHandler() {}
   virtual void OnMessageReceived(const std::string &request,
                                  const Info &info,
@@ -136,6 +139,7 @@ class MessageHandler {
                       const std::string&, const transport::Info&,
                       std::string*, transport::Timeout*)>
                           process_serialised_message_;
+
  private:
   friend class test::TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
   MessageHandler(const MessageHandler&);

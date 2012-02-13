@@ -53,7 +53,6 @@ namespace natpmp {
   */
 class Protocol {
  public:
-
 /**
   * NAT-PMP port.
   */
@@ -141,14 +140,6 @@ class Protocol {
   * @param opcode
   */
   static const char * StringFromOpcode(unsigned int opcode);
-
- private:
-
-  // ...
-
- protected:
-
-  // ...
 };
 
 }  // namespace natpnp

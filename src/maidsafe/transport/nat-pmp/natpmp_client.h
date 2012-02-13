@@ -45,7 +45,6 @@ namespace natpmp {
   */
 class NatPmpClient {
  public:
-
 /**
   * Constructor
   * @param ios The boost::asio::io_service object to use.
@@ -88,13 +87,11 @@ class NatPmpClient {
                uint32_t lifetime);
 
  private:
-
   // ...
   NatPmpClient(const NatPmpClient&);
   NatPmpClient &operator=(const NatPmpClient&);
 
  protected:
-
 /**
   * Pointer to the boost::asio::io_service object.
   */

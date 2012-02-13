@@ -49,7 +49,6 @@ namespace transport {
 
 class Gateway {
  public:
-
 /**
   * Returns the default gateway address.
   * @param ios
@@ -59,7 +58,6 @@ class Gateway {
                                                boost::system::error_code & ec);
 
  private:
-
 /**
   * Enumerates and returns ip routes.
   */
@@ -67,7 +65,6 @@ class Gateway {
                                               boost::system::error_code & ec);
 
  protected:
-
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
     && !defined(MAIDSAFE_LINUX)
 /**

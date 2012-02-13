@@ -1,7 +1,19 @@
-v0.01.02 (WIP)
+v0.01.04 (WIP)
 --------------
 
-v0.01.01 (2011-11-02)
+v0.01.03
 --------------
+* Updated ctest config file in sync with project name change.
+* Style fixes.
+
+v0.01.02
+--------
+* Changed to match updated CMake modules.
+* Removed a protobuf file from coverage tests
+* Removed broken function from test.
+* Updated to match change in Common.
+* Modified transport to use RSA instead of securifier
+
+v0.01.01
+--------
 * Using Random in place of SRandom.
-
