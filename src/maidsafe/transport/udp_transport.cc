@@ -39,7 +39,7 @@ namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace bptime = boost::posix_time;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -192,7 +192,7 @@ void UdpTransport::DoSend(RequestPtr request) {
     outstanding_requests_[request_id] = request;
     request->WaitForTimeout(strand_.wrap(std::bind(&UdpTransport::HandleTimeout,
                                                    shared_from_this(),
-                                                   request_id, arg::_1)));
+                                                   request_id, args::_1)));
   }
 }
 
@@ -211,7 +211,7 @@ void UdpTransport::StartRead() {
                                                      socket_,
                                                      read_buffer_,
                                                      sender_endpoint_,
-                                                     arg::_1, arg::_2)));
+                                                     args::_1, args::_2)));
 }
 
 void UdpTransport::HandleRead(SocketPtr socket,

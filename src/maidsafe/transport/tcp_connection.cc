@@ -41,7 +41,7 @@ namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace bptime = boost::posix_time;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -125,7 +125,7 @@ void TcpConnection::StartReadSize() {
 
   asio::async_read(socket_, asio::buffer(size_buffer_),
                    strand_.wrap(std::bind(&TcpConnection::HandleReadSize,
-                                          shared_from_this(), arg::_1)));
+                                          shared_from_this(), args::_1)));
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
   response_deadline_ = now + timeout_for_response_;
@@ -164,7 +164,7 @@ void TcpConnection::StartReadData() {
   asio::async_read(socket_, asio::buffer(data_buffer),
                    strand_.wrap(std::bind(&TcpConnection::HandleReadData,
                                           shared_from_this(),
-                                          arg::_1, arg::_2)));
+                                          args::_1, args::_2)));
 
 //   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
 //   timer_.expires_at(std::min(response_deadline_, now + kStallTimeout));
@@ -236,7 +236,7 @@ void TcpConnection::StartConnect() {
 
   socket_.async_connect(remote_endpoint_,
                         strand_.wrap(std::bind(&TcpConnection::HandleConnect,
-                                               shared_from_this(), arg::_1)));
+                                               shared_from_this(), args::_1)));
 
   timer_.expires_from_now(kDefaultInitialTimeout);
 }
@@ -267,7 +267,7 @@ void TcpConnection::StartWrite() {
   asio_buffer[1] = boost::asio::buffer(data_buffer_);
   asio::async_write(socket_, asio_buffer,
                     strand_.wrap(std::bind(&TcpConnection::HandleWrite,
-                                           shared_from_this(), arg::_1)));
+                                           shared_from_this(), args::_1)));
 
   timer_.expires_from_now(tm_out);
 }

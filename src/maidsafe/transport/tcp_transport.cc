@@ -46,7 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -106,7 +106,7 @@ TransportCondition TcpTransport::StartListening(const Endpoint &endpoint) {
   acceptor_->async_accept(new_connection->Socket(),
                           strand_.wrap(std::bind(&TcpTransport::HandleAccept,
                                                  shared_from_this(), acceptor_,
-                                                 new_connection, arg::_1)));
+                                                 new_connection, args::_1)));
   return kSuccess;
 }
 
@@ -149,7 +149,7 @@ void TcpTransport::HandleAccept(AcceptorPtr acceptor,
   acceptor->async_accept(new_connection->Socket(),
                          strand_.wrap(std::bind(&TcpTransport::HandleAccept,
                                                 shared_from_this(), acceptor,
-                                                new_connection, arg::_1)));
+                                                new_connection, args::_1)));
 }
 
 void TcpTransport::Send(const std::string &data,
