@@ -38,17 +38,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 int main(int argc, char **argv) {
   // Initialising logging
-  google::InitGoogleLogging(argv[0]);
+  maidsafe::InitLogging(argv[0]);
 
   // Choose to direct output to stderr instead of logfiles.
   FLAGS_logtostderr = true;
 
   // Choose to direct output to stderr as well as to logfiles.
   FLAGS_alsologtostderr = false;
-
-  // Log messages at or above this level. Severity levels are INFO, WARNING,
-  // ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_minloglevel = google::WARNING;
 
   // Prepend the log prefix to the start of each log line
   FLAGS_log_prefix = true;
@@ -61,7 +57,8 @@ int main(int argc, char **argv) {
   FLAGS_v = 0;
 
   // Log messages from MaidSafe-Common.
-  FLAGS_ms_logging_common = true;
+  FLAGS_ms_logging_common = google::ERROR;
+  FLAGS_ms_logging_transport = google::ERROR;
 
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());

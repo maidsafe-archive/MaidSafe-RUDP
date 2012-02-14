@@ -63,7 +63,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
   void DoStartReceiving();
   void DoStartSending();
 
-  void CheckTimeout();
+  void CheckTimeout(const boost::system::error_code &ec);
 
   void StartConnect();
   void HandleConnect(const boost::system::error_code &ec);

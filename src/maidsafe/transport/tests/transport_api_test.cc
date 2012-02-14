@@ -247,7 +247,17 @@ void TransportAPITest<T>::RunTransportTest(const int &num_messages) {
     }
     ++sending_transports_itr;
   }
-  Sleep(boost::posix_time::seconds(10));
+
+  auto sending_message_handlers_itr = sending_message_handlers_.begin();
+  while (sending_message_handlers_itr != sending_message_handlers_.end()) {
+    uint16_t timeout(10);
+    while ((*sending_message_handlers_itr)->responses_received().size() <
+           (num_messages * listening_transports_.size()) && timeout < 10000) {
+      Sleep(boost::posix_time::milliseconds(10));
+      timeout +=10;
+    }
+    ++sending_message_handlers_itr;
+  }
   work_.reset();
   work_1_.reset();
   work_2_.reset();
