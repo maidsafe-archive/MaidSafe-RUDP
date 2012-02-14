@@ -106,12 +106,11 @@ void TcpConnection::DoStartSending() {
 }
 
 void TcpConnection::CheckTimeout(const bs::error_code &ec) {
-  if (ec) {
-    if (ec != boost::asio::error::operation_aborted) {
-      DLOG(ERROR) << "TcpConnection check timeout error: " << ec.message();
-    } else {
-      return;
-    }
+  if (ec && ec != boost::asio::error::operation_aborted) {
+    DLOG(ERROR) << "TcpConnection check timeout error: " << ec.message();
+    bs::error_code ignored_ec;
+    socket_.close(ignored_ec);
+    return;
   }
 
   // If the socket is closed, it means the connection has been shut down.
