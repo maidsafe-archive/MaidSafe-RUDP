@@ -39,7 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -109,10 +109,10 @@ void NatDetectionService::NatDetection(
     transport::TransportCondition tc;
     message_handler_->on_proxy_connect_response()->connect(
         std::bind(&NatDetectionService::ProxyConnectResponse, this, kSuccess,
-                  proxy, arg::_1, proxy, &condition_variable, &tc, &result));
+                  proxy, args::_1, proxy, &condition_variable, &tc, &result));
     message_handler_->on_error()->connect(
-        std::bind(&NatDetectionService::ProxyConnectResponse, this, arg::_1,
-                  arg::_2, protobuf::ProxyConnectResponse(), proxy,
+        std::bind(&NatDetectionService::ProxyConnectResponse, this, args::_1,
+                  args::_2, protobuf::ProxyConnectResponse(), proxy,
                   &condition_variable, &tc, &result));
     SendProxyConnectRequest(info.endpoint, proxy, false, transport);
     {
@@ -197,11 +197,11 @@ void NatDetectionService::ProxyConnect(
     boost::condition_variable condition_variable;
     boost::mutex mutex;
     ConnectFunctor callback =
-        std::bind(&NatDetectionService::ConnectResult, this, arg::_1, &result,
+        std::bind(&NatDetectionService::ConnectResult, this, args::_1, &result,
                   true, &condition_variable);
     //message_handler_->on_error()->connect(
     //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
-    //              arg::_1, arg::_2, protobuf::ConnectResponse(), endpoint,
+    //              args::_1, args::_2, protobuf::ConnectResponse(), endpoint,
     //              &condition_variable, tc, &result));
 
     transport->Connect(endpoint, transport::kDefaultInitialTimeout, callback);
@@ -285,7 +285,7 @@ void NatDetectionService::Rendezvous(const Info & /*info*/,
   int result(kError);
   boost::condition_variable condition_variable;
   ConnectFunctor callback =
-        std::bind(&NatDetectionService::ConnectResult, this, arg::_1, &result,
+        std::bind(&NatDetectionService::ConnectResult, this, args::_1, &result,
                   false, &condition_variable);
   std::shared_ptr<RudpTransport> rudp_transport =
       std::static_pointer_cast<RudpTransport> (listening_transport_);

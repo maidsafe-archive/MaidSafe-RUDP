@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/message_handler.h"
 #include "maidsafe/transport/nat_detection_rpcs.h"
 
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -54,7 +54,7 @@ void NatDetection::Detect(
   boost::mutex::scoped_lock lock(mutex);
   rpcs_->NatDetection(directly_connected_contacts, transport, message_handler,
                       full, std::bind(&NatDetection::DetectCallback, this,
-                                      arg::_1, arg::_2, nat_type, transport,
+                                      args::_1, args::_2, nat_type, transport,
                                       rendezvous_endpoint, &cond_var));
   cond_var.timed_wait(lock, kDefaultInitialTimeout);
 }

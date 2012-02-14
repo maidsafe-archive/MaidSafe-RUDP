@@ -119,8 +119,8 @@ class RudpMessageHandler : public MessageHandler {
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
       on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type) {
     MessageHandler::on_message_received_ =
-        std::bind(&RudpMessageHandler::OnMessageReceived, this, arg::_1,
-            arg::_2, arg::_3, arg::_4);
+        std::bind(&RudpMessageHandler::OnMessageReceived, this, args::_1,
+            args::_2, args::_3, args::_4);
   }
   virtual ~RudpMessageHandler() {}
   virtual void OnMessageReceived(const std::string &request,

@@ -45,7 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace bs2 = boost::signals2;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 
 namespace maidsafe {
@@ -95,10 +95,10 @@ class MessageHandler {
        process_serialised_message_(),
        on_error_(new ErrorSigPtr::element_type) {
     on_message_received_ = std::bind(&MessageHandler::OnMessageReceived, this,
-                                     arg::_1, arg::_2, arg::_3, arg::_4);
+                                     args::_1, args::_2, args::_3, args::_4);
     process_serialised_message_ =
-        std::bind(&MessageHandler::ProcessSerialisedMessage, this, arg::_1,
-                  arg::_2, arg::_3, arg::_4, arg::_5, arg::_6, arg::_7);
+        std::bind(&MessageHandler::ProcessSerialisedMessage, this, args::_1,
+                  args::_2, args::_3, args::_4, args::_5, args::_6, args::_7);
   }
 
   virtual ~MessageHandler() {}

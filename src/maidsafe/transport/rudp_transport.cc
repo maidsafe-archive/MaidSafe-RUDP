@@ -45,7 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -116,7 +116,7 @@ void RudpTransport::CloseMultiplexer(MultiplexerPtr multiplexer) {
 void RudpTransport::StartDispatch() {
   auto handler = strand_.wrap(std::bind(&RudpTransport::HandleDispatch,
                                         shared_from_this(),
-                                        multiplexer_, arg::_1));
+                                        multiplexer_, args::_1));
   multiplexer_->AsyncDispatch(handler);
 }
 
@@ -138,7 +138,7 @@ void RudpTransport::StartAccept() {
   acceptor_->AsyncAccept(connection->Socket(),
                          strand_.wrap(std::bind(&RudpTransport::HandleAccept,
                                                 shared_from_this(), acceptor_,
-                                                connection, arg::_1)));
+                                                connection, args::_1)));
 }
 
 void RudpTransport::HandleAccept(AcceptorPtr acceptor,
@@ -166,7 +166,7 @@ void RudpTransport::Send(const std::string &data,
         remote_contact.endpoint()));
     Send(message, remote_contact.rendezvous_endpoint(), timeout);
     Connect(remote_contact.endpoint(), timeout,
-        std::bind(&RudpTransport::ConnectCallback, this, arg::_1, data,
+        std::bind(&RudpTransport::ConnectCallback, this, args::_1, data,
                   remote_contact.endpoint(), timeout));
   } else {
     Send(data, remote_contact.endpoint(), timeout);

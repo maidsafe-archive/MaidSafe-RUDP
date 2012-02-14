@@ -44,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  pragma warning(pop)
 #endif
 
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -185,7 +185,7 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
       testing::_, testing::_, testing::_, testing::_))
       .WillOnce(testing::WithArgs<0, 1, 2>(testing::Invoke(
           std::bind(&MockNatDetectionService::ReplyFullCone,
-          rendezvous_service.get(), arg::_1, arg::_2, arg::_3))));
+          rendezvous_service.get(), args::_1, args::_2, args::_3))));
   proxy_service.reset(new MockNatDetectionService(proxy_->asio_service,
     proxy_->message_handler, proxy_->transport,
     std::bind(&Node::GetLiveContact, proxy_)));

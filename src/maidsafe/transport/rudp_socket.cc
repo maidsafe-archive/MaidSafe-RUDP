@@ -40,7 +40,7 @@ namespace asio = boost::asio;
 namespace ip = asio::ip;
 namespace bs = boost::system;
 namespace bptime = boost::posix_time;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 

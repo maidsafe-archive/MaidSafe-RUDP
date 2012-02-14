@@ -33,7 +33,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/message_handler.h"
 
 
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -70,10 +70,10 @@ void NatDetectionRpcs::DoNatDetection(const std::vector<Contact> &candidates,
                                       const size_t &index) {
   message_handler->on_nat_detection_response()->connect(
       std::bind(&NatDetectionRpcs::NatDetectionCallback, this,
-                transport::kSuccess, arg::_1, candidates, callback, transport,
+                transport::kSuccess, args::_1, candidates, callback, transport,
                 message_handler, request, full, index));
   message_handler->on_error()->connect(
-      std::bind(&NatDetectionRpcs::NatDetectionCallback, this, arg::_1,
+      std::bind(&NatDetectionRpcs::NatDetectionCallback, this, args::_1,
                 protobuf::NatDetectionResponse(), candidates, callback,
                 transport, message_handler, request, full, index));
   transport->Send(request, candidates[index].endpoint(),
@@ -86,7 +86,8 @@ void NatDetectionRpcs::KeepAlive(const Endpoint endpoint,
                                  MessageHandlerPtr message_handler,
                                  KeepAliveFunctor callback) {
   message_handler->on_error()->connect(
-      std::bind(&NatDetectionRpcs::KeepAliveCallback, this, arg::_1, callback));
+      std::bind(&NatDetectionRpcs::KeepAliveCallback, this, args::_1,
+      callback));
   // TODO(Prakash): adjust timeout parameter of RUDP if needed
   transport->Send("Alive", endpoint, kImmediateTimeout);
 }

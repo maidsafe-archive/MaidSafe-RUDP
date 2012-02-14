@@ -100,22 +100,6 @@ std::string RudpMessageHandler::WrapMessage(
                                       msg.SerializeAsString(), kNone, "");
 }
 
-//std::string RudpMessageHandler::WrapMessage(
-//    const protobuf::ConnectRequest &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kConnectRequest,
-//                                      msg.SerializeAsString(), kNone, "");
-//}
-
-//std::string RudpMessageHandler::WrapMessage(
-//    const protobuf::ConnectResponse &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kConnectResponse,
-//                                      msg.SerializeAsString(), kNone, "");
-//}
-
 std::string RudpMessageHandler::WrapMessage(
     const protobuf::ForwardRendezvousRequest &msg) {
   if (!msg.IsInitialized())

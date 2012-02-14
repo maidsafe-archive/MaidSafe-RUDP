@@ -698,7 +698,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Connect) {
     boost::mutex::scoped_lock lock(mutex_);
     client->Connect(Endpoint(kIP, port + 1), kDefaultInitialTimeout,
                     std::bind(&TestMessageHandler::ConnectCallback,
-        msgh_client, arg::_1, &result, &condition));
+        msgh_client, args::_1, &result, &condition));
     condition.wait(lock);
     EXPECT_NE(kSuccess, result);
   }
@@ -708,7 +708,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Connect) {
     boost::condition_variable condition;
     client->Connect(Endpoint(kIP, port), kDefaultInitialTimeout,
                     std::bind(&TestMessageHandler::ConnectCallback,
-        msgh_client, arg::_1, &result, &condition));
+        msgh_client, args::_1, &result, &condition));
     condition.wait(lock);
     EXPECT_EQ(kSuccess, result);
   }

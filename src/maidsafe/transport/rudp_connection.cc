@@ -44,7 +44,7 @@ namespace asio = boost::asio;
 namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace bptime = boost::posix_time;
-namespace arg = std::placeholders;
+namespace args = std::placeholders;
 
 namespace maidsafe {
 
@@ -121,7 +121,7 @@ void RudpConnection::DoConnect(ConnectFunctor callback) {
 void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
   auto handler = strand_.wrap(
       std::bind(&RudpConnection::HandleSimpleClientConnect,
-                                        shared_from_this(), arg::_1, callback));
+                                        shared_from_this(), args::_1, callback));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
@@ -207,7 +207,7 @@ void RudpConnection::HandleTick() {
 
 void RudpConnection::StartServerConnect() {
   auto handler = strand_.wrap(std::bind(&RudpConnection::HandleServerConnect,
-                                        shared_from_this(), arg::_1));
+                                        shared_from_this(), args::_1));
   socket_.AsyncConnect(handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
@@ -228,7 +228,7 @@ void RudpConnection::HandleServerConnect(const bs::error_code &ec) {
 
 void RudpConnection::StartClientConnect() {
   auto handler = strand_.wrap(std::bind(&RudpConnection::HandleClientConnect,
-                                        shared_from_this(), arg::_1));
+                                        shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
@@ -253,7 +253,7 @@ void RudpConnection::StartReadSize() {
   buffer_.resize(sizeof(DataSize));
   socket_.AsyncRead(asio::buffer(buffer_), sizeof(DataSize),
                     strand_.wrap(std::bind(&RudpConnection::HandleReadSize,
-                                           shared_from_this(), arg::_1)));
+                                           shared_from_this(), args::_1)));
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
   response_deadline_ = now + timeout_for_response_;
@@ -290,7 +290,7 @@ void RudpConnection::StartReadData() {
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
                     strand_.wrap(std::bind(&RudpConnection::HandleReadData,
                                            shared_from_this(),
-                                           arg::_1, arg::_2)));
+                                           args::_1, args::_2)));
 }
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
@@ -367,7 +367,7 @@ void RudpConnection::StartWrite() {
     return CloseOnError(kNoConnection);
   socket_.AsyncWrite(asio::buffer(buffer_),
                      strand_.wrap(std::bind(&RudpConnection::HandleWrite,
-                                            shared_from_this(), arg::_1)));
+                                            shared_from_this(), args::_1)));
   timer_.expires_from_now(kStallTimeout);
   timeout_state_ = kSending;
 }

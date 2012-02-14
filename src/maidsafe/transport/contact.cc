@@ -143,7 +143,7 @@ bool Contact::SetPreferredEndpoint(const transport::IP &ip) {
 
 bool Contact::MoveLocalEndpointToFirst(const transport::IP &ip) {
   auto it = std::find_if(local_endpoints_.begin(), local_endpoints_.end(),
-            std::bind(&Contact::IpMatchesEndpoint, this, ip, arg::_1));
+            std::bind(&Contact::IpMatchesEndpoint, this, ip, args::_1));
   if (it == local_endpoints_.end()) {
     return false;
   } else {

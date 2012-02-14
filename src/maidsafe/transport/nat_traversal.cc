@@ -59,7 +59,7 @@ void NatTraversal::KeepAlive(const Endpoint &endpoint,
     callback_ = callback;
     rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
                      std::bind(&NatTraversal::KeepAliveCallback, this,
-                               arg::_1, ec));
+                               args::_1, ec));
     timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
   }
 }
@@ -68,7 +68,7 @@ void NatTraversal::KeepAlive(const Endpoint &endpoint,
 void NatTraversal::DoKeepAlive() {
   boost::system::error_code ec;
   rpcs_->KeepAlive(endpoint_, timeout_, transport_, message_handler_,
-                   std::bind(&NatTraversal::KeepAliveCallback, this, arg::_1,
+                   std::bind(&NatTraversal::KeepAliveCallback, this, args::_1,
                      ec));
   timer_.expires_from_now(interval_);
   timer_.async_wait(boost::bind(&NatTraversal::DoKeepAlive, this));
