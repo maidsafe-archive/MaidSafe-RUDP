@@ -54,7 +54,6 @@ namespace transport {
  *  @class Contact */
 class Contact {
  public:
-
   /** Default constructor. */
   Contact();
 
@@ -119,6 +118,7 @@ class Contact {
   /** Assignment operator. */
   Contact& operator=(const Contact &other);
   // @}
+
  protected:
   bool Init();
   void Clear();
@@ -126,6 +126,7 @@ class Contact {
   std::vector<transport::Endpoint> local_endpoints_;
   transport::Endpoint rendezvous_endpoint_;
   bool tcp443_, tcp80_, prefer_local_;
+
  private:
   friend class boost::serialization::access;
   template<class Archive>

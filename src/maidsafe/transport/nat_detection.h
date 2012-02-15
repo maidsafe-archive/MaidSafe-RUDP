@@ -43,9 +43,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 namespace transport {
-  
+
 class NatDetectionRpcs;
-class RudpMessageHandler;  
+class RudpMessageHandler;
 
 class NatDetection {
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;

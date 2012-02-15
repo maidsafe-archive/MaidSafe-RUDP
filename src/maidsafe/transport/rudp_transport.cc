@@ -83,15 +83,6 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 
 TransportCondition RudpTransport::Bootstrap(
     const std::vector<Contact> &candidates) {
-  // NatType nat_type;
-  // TransportDetails details;
-  // MessageHandlerPtr message_handler;
-  // std::shared_ptr<RudpConnection> rendezvous_connection;
-  // NatDetection nat_detection;
-  // nat_detection.Detect(candidates, shared_from_this(), message_handler,
-  //                     &nat_type, &details);
-  // if (nat_type != kNotConnected)
-  //  return kSuccess;
   return kSuccess;
 }
 

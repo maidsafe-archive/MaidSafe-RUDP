@@ -35,7 +35,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace transport {
-  
+
 NatDetection::NatDetection() : rpcs_(new NatDetectionRpcs()) {}
 
 void NatDetection::Detect(
@@ -46,7 +46,7 @@ void NatDetection::Detect(
     NatType* nat_type,
     Endpoint *rendezvous_endpoint) {
   boost::mutex mutex;
-  boost::condition_variable cond_var;  
+  boost::condition_variable cond_var;
   std::vector<maidsafe::transport::Contact> directly_connected_contacts;
   for (auto itr = contacts.begin(); itr != contacts.end(); ++itr)
     if ((*itr).IsDirectlyConnected())
@@ -71,7 +71,7 @@ void NatDetection::DetectCallback(const int &nat_type,
   if (nat_type == transport::kPortRestricted)
     transport->transport_details_.rendezvous_endpoint =
         details.rendezvous_endpoint;
-  cond_var->notify_one();        
+  cond_var->notify_one();
 }
 
 }  // namespace transport

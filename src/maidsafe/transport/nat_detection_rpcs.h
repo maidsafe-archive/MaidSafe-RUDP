@@ -55,9 +55,11 @@ struct TransportDetails;
 class Contact;
 
 class NatDetectionRpcs {
-  typedef std::function<void(const int&, const TransportDetails&)> NatResultFunctor;
+  typedef std::function<void(const int&, const TransportDetails&)>
+      NatResultFunctor;
   typedef std::function<void(const TransportCondition&)> KeepAliveFunctor;
   typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
+
  public:
   void NatDetection(const std::vector<Contact> &candidates,
                     const bool &full,
@@ -70,6 +72,7 @@ class NatDetectionRpcs {
   void KeepAlive(const Endpoint endpoint, const Timeout &timeout,
                  TransportPtr transport, MessageHandlerPtr message_handler,
                  KeepAliveFunctor callback);
+
  private:
   void DoNatDetection(const std::vector<Contact> &candidates,
                       TransportPtr transport,

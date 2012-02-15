@@ -172,7 +172,7 @@ typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
 
 namespace test {
   class MockNatDetectionServiceTest_BEH_FullConeDetection_Test;
-} // namespace test
+}  // namespace test
 
 // Base class for all transport types.
 class Transport {

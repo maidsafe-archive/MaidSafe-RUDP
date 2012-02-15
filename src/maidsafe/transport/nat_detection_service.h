@@ -94,6 +94,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   void ConnectResult(const int &in_result, int *out_result,
                      const bool &notify_result,
                      boost::condition_variable* condition);
+
  protected:
   /** Copy Constructor.
    *  @param NatDetectionService The object to be copied. */
@@ -136,7 +137,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
 };
 
 typedef std::shared_ptr<NatDetectionService> NatDetectionServicePtr;
-  
+
 }  // namespace transport
 
 }  // namespace maidsafe

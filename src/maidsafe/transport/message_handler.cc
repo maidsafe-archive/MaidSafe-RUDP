@@ -27,6 +27,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/message_handler.h"
 #include "boost/lexical_cast.hpp"
+#include "maidsafe/transport/log.h"
 #ifdef __MSVC__
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
@@ -35,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif
-#include "maidsafe/transport/log.h"
 
 namespace maidsafe {
 
@@ -49,37 +49,35 @@ void MessageHandler::OnMessageReceived(const std::string &request,
     return;
   SecurityType security_type = request.at(0);
   std::string serialised_message(request.substr(1));
+
+  if (security_type != kNone) {
+    if (!private_key_)
+      return;
+    if (security_type & kAsymmetricEncrypt) {
+      std::string aes_seed = request.substr(1, 512);
+      if (aes_seed.size() != 512)
+        return;
+
+      std::string encrypt_aes_seed;
+      Asym::Decrypt(aes_seed, *private_key_, &encrypt_aes_seed);
+      if (encrypt_aes_seed.empty()) {
+        DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
+        return;
+      }
+
+      std::string aes_key = encrypt_aes_seed.substr(0, 32);
+      std::string kIV = encrypt_aes_seed.substr(32, 16);
+      serialised_message = crypto::SymmDecrypt(request.substr(513), aes_key,
+                                               kIV);
+    }
+  }
+
   protobuf::WrapperMessage wrapper;
   if (wrapper.ParseFromString(serialised_message) && wrapper.IsInitialized()) {
-    ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
-                             security_type, wrapper.message_signature(),
-                             info, response, timeout);
+    return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
+                                    security_type, wrapper.message_signature(),
+                                    info, response, timeout);
   }
-}
-
-bool MessageHandler::UnwrapWrapperMessage(const std::string& serialised_message,
-                                          int* msg_type,
-                                          std::string* payload,
-                                          std::string* message_signature) {
-  protobuf::WrapperMessage wrapper;
-  if (wrapper.ParseFromString(serialised_message) && wrapper.IsInitialized()) {
-    *msg_type = wrapper.msg_type();
-    *payload = wrapper.payload();
-    *message_signature = wrapper.message_signature();
-    return true;
-  } else {
-    return false;
-  }
-}
-
-std::string MessageHandler::WrapWrapperMessage(const int& msg_type,
-    const std::string& payload, const std::string& message_signature) {
-  protobuf::WrapperMessage wrapper;
-  wrapper.set_msg_type(msg_type);
-  wrapper.set_payload(payload);
-  if (!message_signature.empty())
-    wrapper.set_message_signature(message_signature);
-  return wrapper.SerializeAsString();
 }
 
 void MessageHandler::OnError(const TransportCondition &transport_condition,
@@ -99,10 +97,61 @@ void MessageHandler::ProcessSerialisedMessage(
 std::string MessageHandler::MakeSerialisedWrapperMessage(
     const int &message_type,
     const std::string &payload,
-    SecurityType /*security_type*/,
-    const std::string &/*recipient_public_key*/) {
-  std::string final_message(1, kNone);
-  final_message += WrapWrapperMessage(message_type, payload, "");
+    SecurityType security_type,
+    const PublicKey &recipient_public_key) {
+  protobuf::WrapperMessage wrapper_message;
+  wrapper_message.set_msg_type(message_type);
+  wrapper_message.set_payload(payload);
+  std::string final_message(1, security_type);
+
+  // No security.
+  if (security_type == kNone) {
+    final_message += wrapper_message.SerializeAsString();
+  } else {
+    // If we asked for security but provided no securifier, fail.
+    if (security_type && !private_key_) {
+      DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                  << " - PrivateKey Validation Failed.";
+      return "";
+    }
+
+    // Handle signing
+    if (security_type & kSign) {
+      std::string signature;
+      if (Asym::Sign(boost::lexical_cast<std::string>(message_type) + payload,
+                    *private_key_,
+                    &signature) != kSuccess) {
+       DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                   << " - Sign Failed.";
+       return "";
+      }
+      wrapper_message.set_message_signature(signature);
+    }
+
+    // Handle encryption
+    if (security_type & kAsymmetricEncrypt) {
+      if (!Asym::ValidateKey(recipient_public_key)) {
+        DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                    << " - PublicKey Validation Failed.";
+        return "";
+      }
+      std::string seed = RandomString(48);
+      std::string key = seed.substr(0, 32);
+      std::string kIV = seed.substr(32, 16);
+      std::string encrypt_message =
+          crypto::SymmEncrypt(wrapper_message.SerializeAsString(), key, kIV);
+      std::string encrypt_aes_seed;
+      if (Asym::Encrypt(seed, recipient_public_key, &encrypt_aes_seed) !=
+          kSuccess) {
+        DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
+                    << " - Encryption Failed.";
+        return "";
+      }
+      final_message += encrypt_aes_seed + encrypt_message;
+    } else {
+      final_message += wrapper_message.SerializeAsString();
+    }
+  }
   return final_message;
 }
 

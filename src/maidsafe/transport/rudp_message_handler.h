@@ -34,6 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/signals2/signal.hpp"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/message_handler.h"
 #include "maidsafe/transport/version.h"
@@ -105,8 +106,8 @@ class RudpMessageHandler : public MessageHandler {
       bs2::signal<void(const protobuf::RendezvousAcknowledgement&)>>
           RendezvousAckSigPtr;
 
-  explicit RudpMessageHandler()
-    : transport::MessageHandler(),
+  explicit RudpMessageHandler(PrivateKeyPtr private_key)
+    : transport::MessageHandler(private_key),
       on_managed_endpoint_message_(new ManagedEndpointMsgSigPtr::element_type),
       on_nat_detection_request_(new NatDetectionReqSigPtr::element_type),
       on_nat_detection_response_(new NatDetectionRspSigPtr::element_type),
@@ -117,16 +118,8 @@ class RudpMessageHandler : public MessageHandler {
       on_forward_rendezvous_response_(
           new ForwardRendezvousRspSigPtr::element_type),
       on_rendezvous_request_(new RendezvousReqSigPtr::element_type),
-      on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type) {
-    MessageHandler::on_message_received_ =
-        std::bind(&RudpMessageHandler::OnMessageReceived, this, args::_1,
-            args::_2, args::_3, args::_4);
-  }
+      on_rendezvous_acknowledgement_(new RendezvousAckSigPtr::element_type) {}
   virtual ~RudpMessageHandler() {}
-  virtual void OnMessageReceived(const std::string &request,
-                                 const Info &info,
-                                 std::string *response,
-                                 Timeout *timeout);
 
   std::string WrapMessage(const protobuf::ManagedEndpointMessage &msg);
   std::string WrapMessage(const protobuf::NatDetectionRequest &msg);

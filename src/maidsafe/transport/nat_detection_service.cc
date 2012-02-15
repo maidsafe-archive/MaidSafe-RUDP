@@ -199,7 +199,7 @@ void NatDetectionService::ProxyConnect(
     ConnectFunctor callback =
         std::bind(&NatDetectionService::ConnectResult, this, args::_1, &result,
                   true, &condition_variable);
-    //message_handler_->on_error()->connect(
+    // message_handler_->on_error()->connect(
     //    std::bind(&NatDetectionService::ConnectResponse, this, rendezvous,
     //              args::_1, args::_2, protobuf::ConnectResponse(), endpoint,
     //              &condition_variable, tc, &result));

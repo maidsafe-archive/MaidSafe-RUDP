@@ -61,7 +61,7 @@ void handler1(const bs::error_code &ec, bs::error_code *out_ec) {
   *out_ec = ec;
 }
 
-TEST(RudpSocketTest, BEH_Socket) {
+TEST(RudpSocketTest, DISABLED_BEH_Socket) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;

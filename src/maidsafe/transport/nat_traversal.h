@@ -43,7 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace maidsafe {
 
 namespace transport {
-  
+
 class NatDetectionRpcs;
 class RudpMessageHandler;
 
@@ -57,9 +57,9 @@ class NatTraversal {
                const Timeout &timeout,
                TransportPtr transport,
                MessageHandlerPtr message_handler);
- void KeepAlive(const Endpoint &endpoint, KeepAliveFunctor callback);
- void KeepAliveCallback(const TransportCondition &condition,
-                        const boost::system::error_code& ec);
+  void KeepAlive(const Endpoint &endpoint, KeepAliveFunctor callback);
+  void KeepAliveCallback(const TransportCondition &condition,
+                         const boost::system::error_code& ec);
 
  private:
   void DoKeepAlive();

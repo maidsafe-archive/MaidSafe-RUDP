@@ -45,8 +45,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace bs2 = boost::signals2;
-namespace args = std::placeholders;
-
+namespace Asym = maidsafe::rsa;
+typedef std::shared_ptr<maidsafe::rsa::PrivateKey> PrivateKeyPtr;
+typedef maidsafe::rsa::PublicKey PublicKey;
 
 namespace maidsafe {
 
@@ -74,10 +75,11 @@ enum MessageType {
 namespace protobuf {
 class Endpoint;
 class WrapperMessage;
-}
+}  // namespace protobuf
 
 namespace test {
 class TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
+class RudpMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
 }  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -85,27 +87,19 @@ const int kMaxMessageType(1000);
 
 class MessageHandler {
  public:
-
   typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
                                            const Endpoint&)>>
           ErrorSigPtr;
 
-  explicit MessageHandler()
-    :  on_message_received_(),
-       process_serialised_message_(),
-       on_error_(new ErrorSigPtr::element_type) {
-    on_message_received_ = std::bind(&MessageHandler::OnMessageReceived, this,
-                                     args::_1, args::_2, args::_3, args::_4);
-    process_serialised_message_ =
-        std::bind(&MessageHandler::ProcessSerialisedMessage, this, args::_1,
-                  args::_2, args::_3, args::_4, args::_5, args::_6, args::_7);
-  }
-
+  explicit MessageHandler(PrivateKeyPtr private_key)
+    : private_key_(private_key),
+      on_error_(new ErrorSigPtr::element_type) {}
   virtual ~MessageHandler() {}
-  virtual void OnMessageReceived(const std::string &request,
-                                 const Info &info,
-                                 std::string *response,
-                                 Timeout *timeout);
+
+  void OnMessageReceived(const std::string &request,
+                         const Info &info,
+                         std::string *response,
+                         Timeout *timeout);
   void OnError(const TransportCondition &transport_condition,
                const Endpoint &remote_endpoint);
 
@@ -113,35 +107,23 @@ class MessageHandler {
   ErrorSigPtr on_error() { return on_error_; }
 
  protected:
-  void ProcessSerialisedMessage(const int &message_type,
-                                const std::string &payload,
-                                const SecurityType &security_type,
-                                const std::string &message_signature,
-                                const Info &info,
-                                std::string *message_response,
-                                Timeout *timeout);
-  bool UnwrapWrapperMessage(const std::string& serialised_message,
-                            int* msg_type,
-                            std::string* payload,
-                            std::string* message_signature);
-  std::string WrapWrapperMessage(const int& msg_type,
-                                 const std::string& payload,
-                                 const std::string& message_signature);
+  virtual void ProcessSerialisedMessage(const int &message_type,
+                                        const std::string &payload,
+                                        const SecurityType &security_type,
+                                        const std::string &message_signature,
+                                        const Info &info,
+                                        std::string *message_response,
+                                        Timeout *timeout);
   std::string MakeSerialisedWrapperMessage(
       const int &message_type,
       const std::string &payload,
       SecurityType security_type,
-      const std::string &recipient_public_key);
-  std::function <void(const std::string &, const Info&, std::string*,
-                      Timeout *)>
-                          on_message_received_;
-  std::function <void(const int&, const std::string&, const SecurityType &,
-                      const std::string&, const transport::Info&,
-                      std::string*, transport::Timeout*)>
-                          process_serialised_message_;
+      const PublicKey &recipient_public_key);
+  PrivateKeyPtr private_key_;
 
  private:
   friend class test::TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
+  friend class test::RudpMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 

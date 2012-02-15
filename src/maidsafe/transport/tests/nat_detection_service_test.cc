@@ -80,7 +80,7 @@ struct Node {
            work(new boost::asio::io_service::work(asio_service)),
            endpoint(IP::from_string("127.0.0.1"), 0),
            transport(new transport::RudpTransport(asio_service)),
-           message_handler(new RudpMessageHandler()) {
+           message_handler(new RudpMessageHandler(nullptr)) {
     thread_group.create_thread(
         std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
             &boost::asio::io_service::run), std::ref(asio_service)));
@@ -213,7 +213,7 @@ class NatDetectionServicesTest : public testing::Test {
 
   virtual void SetUp() {
     work_.reset(new boost::asio::io_service::work(asio_service_));
-    message_handler_.reset(new RudpMessageHandler());
+    message_handler_.reset(new RudpMessageHandler(nullptr));
     listening_transport_.reset(new transport::RudpTransport(asio_service_));
     Endpoint endpoint(IP::from_string("127.0.0.1"), 9999);
     listening_transport_->StartListening(endpoint);

@@ -53,7 +53,7 @@ NatTraversal::NatTraversal(boost::asio::io_service &asio_service, // NOLINT
 
 void NatTraversal::KeepAlive(const Endpoint &endpoint,
                              KeepAliveFunctor callback) {
-  boost::system::error_code ec;  
+  boost::system::error_code ec;
   if (IsValid(endpoint) && callback) {
     endpoint_ = endpoint;
     callback_ = callback;
