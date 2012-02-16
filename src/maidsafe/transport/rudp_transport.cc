@@ -74,6 +74,8 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 
   acceptor_.reset(new RudpAcceptor(*multiplexer_));
   listening_port_ = endpoint.port;
+  transport_details_.endpoint.port = listening_port_;
+  transport_details_.endpoint.ip = endpoint.ip;
 
   StartAccept();
   StartDispatch();
