@@ -51,7 +51,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpTransport::RudpTransport(asio::io_service &asio_service)
+RudpTransport::RudpTransport(asio::io_service &asio_service)   // NOLINT
   : Transport(asio_service),
     strand_(asio_service),
     multiplexer_(new RudpMultiplexer(asio_service)),
@@ -74,6 +74,8 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 
   acceptor_.reset(new RudpAcceptor(*multiplexer_));
   listening_port_ = endpoint.port;
+  transport_details_.endpoint.port = listening_port_;
+  transport_details_.endpoint.ip = endpoint.ip;
 
   StartAccept();
   StartDispatch();
@@ -189,7 +191,7 @@ void RudpTransport::DoSend(const std::string &data,
 
   if (!multiplexer_->IsOpen()) {
     TransportCondition condition = multiplexer_->Open(ep.protocol());
-    // TODO error
+    // TODO(Mahmoud): error handling
     StartDispatch();
   }
 
@@ -212,13 +214,13 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
 
   if (!multiplexer_->IsOpen()) {
     TransportCondition condition = multiplexer_->Open(ep.protocol());
-    // TODO error
+    // TODO(Mahmoud): error handling
     StartDispatch();
   }
 
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
-                                                           strand_,
-                                                           multiplexer_, ep));
+                                                            strand_,
+                                                            multiplexer_, ep));
   DoInsertConnection(connection);
   connection->Connect(timeout, callback);
 }

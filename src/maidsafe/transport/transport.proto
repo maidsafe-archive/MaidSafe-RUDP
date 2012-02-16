@@ -43,6 +43,7 @@ message NatDetectionResponse {
 message ProxyConnectRequest {
   required Endpoint endpoint = 1;
   required bool rendezvous_connect = 2;
+  optional Endpoint rendezvous = 3;
 }
 
 message ProxyConnectResponse {

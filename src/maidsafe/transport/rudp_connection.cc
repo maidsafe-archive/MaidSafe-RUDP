@@ -121,7 +121,7 @@ void RudpConnection::DoConnect(ConnectFunctor callback) {
 void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
   auto handler = strand_.wrap(
       std::bind(&RudpConnection::HandleSimpleClientConnect,
-                                        shared_from_this(), args::_1, callback));
+                shared_from_this(), args::_1, callback));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
   timer_.expires_from_now(kDefaultInitialTimeout);
@@ -327,7 +327,8 @@ void RudpConnection::DispatchMessage() {
     std::string response;
     Timeout response_timeout(kImmediateTimeout);
     Info info;
-    // TODO(Fraser#5#): 2011-01-18 - Add info details.
+    info.endpoint.ip = socket_.RemoteEndpoint().address();
+    info.endpoint.port = socket_.RemoteEndpoint().port();
     (*transport->on_message_received_)(std::string(buffer_.begin(),
                                                    buffer_.end()),
                                        info, &response,

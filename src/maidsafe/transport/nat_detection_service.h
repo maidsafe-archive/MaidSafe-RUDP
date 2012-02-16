@@ -91,7 +91,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                   const protobuf::RendezvousRequest& request,
                   protobuf::RendezvousAcknowledgement*);
 
-  void ConnectResult(const int &in_result, int *out_result,
+  virtual void ConnectResult(const int &in_result, int *out_result,
                      const bool &notify_result,
                      boost::condition_variable* condition);
 
@@ -109,7 +109,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   void SetRendezvousRequest(protobuf::RendezvousRequest *rendezvous_request,
                             const Endpoint &proxy);
 
-  bool DirectlyConnected(const protobuf::NatDetectionRequest &request,
+  virtual bool DirectlyConnected(const protobuf::NatDetectionRequest &request,
                          const Endpoint &endpoint);
   // Proxy to Rendezvous
   void SendForwardRendezvousRequest(const Endpoint &rendezvous,
