@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
+#include "maidsafe/transport/transport_pb.h"
 
 namespace maidsafe {
 
@@ -181,6 +182,72 @@ Contact& Contact::operator=(const Contact &other) {
     prefer_local_ = other.prefer_local_;
   }
   return *this;
+}
+
+int Contact::Serialise(std::string *serialised) const {
+  protobuf::Contact pb_contact;
+  boost::system::error_code ec;
+
+  protobuf::Endpoint *mutable_endpoint = pb_contact.mutable_endpoint();
+  mutable_endpoint->set_ip(endpoint().ip.to_string(ec));
+  mutable_endpoint->set_port(endpoint().port);
+
+  if (IsValid(rendezvous_endpoint())) {
+    mutable_endpoint = pb_contact.mutable_rendezvous();
+    mutable_endpoint->set_ip(rendezvous_endpoint().ip.to_string(ec));
+    mutable_endpoint->set_port(rendezvous_endpoint().port);
+  }
+
+  std::vector<transport::Endpoint> local_endpoints(local_endpoints());
+  for (auto it = local_endpoints.begin(); it != local_endpoints.end(); ++it) {
+    pb_contact.add_local_ips((*it).ip.to_string(ec));
+    pb_contact.set_local_port((*it).port);
+  }
+  if (IsValid(tcp443endpoint()))
+    pb_contact.set_tcp443(true);
+  if (IsValid(tcp80endpoint()))
+    pb_contact.set_tcp80(true);
+
+  if (!pb_contact.IsInitialized())
+    return kError;
+
+  if (!pb_contact.SerializeToString(serialised))
+    return kError;
+  return kSuccess;
+}
+
+int Contact::Parse(const std::string &serialised) {
+  protobuf::Contact pb_contact;
+  if (!pb_contact.ParseFromString(serialised) != kSuccess) {
+    Clear();
+    return kError;
+  }
+
+  endpoint_ = Endpoint(pb_contact.endpoint().ip(),
+               static_cast<uint16_t>(pb_contact.endpoint().port()));
+
+  for (int i = 0; i < pb_contact.local_ips_size(); ++i)
+    local_endpoints_.push_back(
+        Endpoint(pb_contact.local_ips(i),
+                static_cast<uint16_t>(pb_contact.local_port())));
+
+  rendezvous_endpoint_ = pb_contact.has_rendezvous() ?
+      Endpoint(pb_contact.rendezvous().ip(),
+               static_cast<uint16_t>(pb_contact.rendezvous().port())) :
+      Endpoint();
+
+  tcp443_ = pb_contact.has_tcp443() ? pb_contact.tcp443() : false,
+
+  tcp80_ = pb_contact.has_tcp80() ? pb_contact.tcp80() : false;
+
+  prefer_local_ =
+      pb_contact.has_prefer_local() ? pb_contact.prefer_local() : false;
+
+  if (!pb_contact.IsInitialized()) {
+    Clear();
+    return kError;
+  }
+  return kSuccess;
 }
 
 bool IsValid(const Endpoint &endpoint) {

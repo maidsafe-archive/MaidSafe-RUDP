@@ -263,7 +263,7 @@ void RudpConnection::StartReadSize() {
 
 void RudpConnection::HandleReadSize(const bs::error_code &ec) {
   if (Stopped())
-    return CloseOnError(kNoConnection);
+    return CloseOnError(kReceiveTimeout);
 
   if (ec)
     return CloseOnError(kReceiveFailure);
@@ -295,7 +295,7 @@ void RudpConnection::StartReadData() {
 
 void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
   if (Stopped())
-    return CloseOnError(kNoConnection);
+    return CloseOnError(kReceiveTimeout);
 
   if (ec)
     return CloseOnError(kReceiveFailure);

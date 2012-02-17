@@ -34,15 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_transport.h"
 #include "maidsafe/transport/rudp_message_handler.h"
 #include "maidsafe/common/log.h"
-#ifdef __MSVC__
-#  pragma warning(push)
-#  pragma warning(disable: 4127 4244 4267)
-#endif
-#include "maidsafe/transport/transport.pb.h"
+#include "maidsafe/transport/transport_pb.h"
 #include "maidsafe/transport/nat_detection.h"
-#ifdef __MSVC__
-#  pragma warning(pop)
-#endif
 
 namespace args = std::placeholders;
 

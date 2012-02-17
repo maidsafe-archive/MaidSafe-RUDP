@@ -5,6 +5,16 @@ message Endpoint {
   required int32 port = 2;
 }
 
+message Contact {
+  optional Endpoint endpoint = 1;
+  repeated bytes local_ips = 2;
+  optional int32 local_port = 3;
+  optional Endpoint rendezvous = 4;
+  optional bool tcp443 = 5;
+  optional bool tcp80 = 6;
+  optional bool prefer_local = 7;
+}
+
 message ConnectRequest {
   required bool rendezvous = 1;
 }

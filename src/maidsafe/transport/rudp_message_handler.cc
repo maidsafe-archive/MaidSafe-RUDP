@@ -27,14 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/rudp_message_handler.h"
 #include "boost/lexical_cast.hpp"
-#ifdef __MSVC__
-#  pragma warning(push)
-#  pragma warning(disable: 4127 4244 4267)
-#endif
-#include "maidsafe/transport/transport.pb.h"
-#ifdef __MSVC__
-#  pragma warning(pop)
-#endif
+
+#include "maidsafe/transport/transport_pb.h"
 #include "maidsafe/transport/log.h"
 
 

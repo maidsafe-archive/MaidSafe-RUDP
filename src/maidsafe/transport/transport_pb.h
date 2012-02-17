@@ -1,4 +1,4 @@
-/* Copyright (c) 2011 maidsafe.net limited
+/* Copyright (c) 2009 maidsafe.net limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,44 +25,16 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MAIDSAFE_TRANSPORT_SERVICE_H_
-#define MAIDSAFE_TRANSPORT_SERVICE_H_
+#ifndef MAIDSAFE_TRANSPORT_TRANSPORT_PB_H_
+#define MAIDSAFE_TRANSPORT_TRANSPORT_PB_H_
 
-#include "boost/date_time/posix_time/posix_time_duration.hpp"
+#ifdef __MSVC__
+#  pragma warning(push)
+#  pragma warning(disable: 4127 4244 4267)
+#endif
+#include "maidsafe/transport/transport.pb.h"
+#ifdef __MSVC__
+#  pragma warning(pop)
+#endif
 
-#include "maidsafe/transport/transport_pb.h"
-
-namespace bptime = boost::posix_time;
-
-namespace maidsafe {
-
-namespace transport {
-
-typedef bptime::time_duration Timeout;
-struct Info;
-
-class Service {
- public:
-  void ManagedEndpoint(const protobuf::ManagedEndpointMessage &request,
-                       protobuf::ManagedEndpointMessage *response,
-                       transport::Timeout *timeout);
-  void NatDetection(const protobuf::NatDetectionRequest &request,
-                    const Info &info,
-                    protobuf::NatDetectionResponse *response,
-                    transport::Timeout *timeout);
-  void ProxyConnect(const protobuf::ProxyConnectRequest &request,
-                    protobuf::ProxyConnectResponse *response,
-                    transport::Timeout *timeout);
-  void ForwardRendezvous(const protobuf::ForwardRendezvousRequest &request,
-                         protobuf::ForwardRendezvousResponse *response,
-                         transport::Timeout *timeout);
-  void Rendezvous(const protobuf::RendezvousRequest &request);
-
- private:
-};
-
-}  // namespace transport
-
-}  // namespace maidsafe
-
-#endif  // MAIDSAFE_TRANSPORT_SERVICE_H_
+#endif  // MAIDSAFE_TRANSPORT_TRANSPORT_PB_H_

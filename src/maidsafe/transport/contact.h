@@ -35,7 +35,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/scoped_ptr.hpp"
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/vector.hpp"
-#include "maidsafe/common/utils.h"
 #include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/version.h"
 
@@ -80,7 +79,7 @@ class Contact {
           bool tcp80);
 
   /** Destructor. */
-  virtual ~Contact();
+  ~Contact();
 
   /** Getter.
    *  @return The contact's external endpoint. */
@@ -119,35 +118,27 @@ class Contact {
   Contact& operator=(const Contact &other);
   // @}
 
- protected:
+  /** Serialise to string. */
+  int Serialise(std::string *serialised) const;
+
+  /** Parse from string. */
+  int Parse(const std::string &serialised);
+
   bool Init();
+
   void Clear();
+
+  bool MoveLocalEndpointToFirst(const transport::IP &ip);
+
+  bool IpMatchesEndpoint(const transport::IP &ip,
+                         const transport::Endpoint &endpoint);
+
+ protected:
   transport::Endpoint endpoint_;
   std::vector<transport::Endpoint> local_endpoints_;
   transport::Endpoint rendezvous_endpoint_;
   bool tcp443_, tcp80_, prefer_local_;
-
- private:
-  friend class boost::serialization::access;
-  template<class Archive>
-  void serialize(Archive &archive,                          // NOLINT (Prakash)
-                 const unsigned int& /*version*/);
-  bool MoveLocalEndpointToFirst(const transport::IP &ip);
-  bool IpMatchesEndpoint(const transport::IP &ip,
-                         const transport::Endpoint &endpoint);
 };
-
-template <typename Archive>
-void Contact::serialize(Archive &archive,                    // NOLINT (Fraser)
-                        const unsigned int& /*version*/) {
-  archive& boost::serialization::make_nvp("endpoint", endpoint_);
-  archive& boost::serialization::make_nvp("local_endpoints", local_endpoints_);
-  archive& boost::serialization::make_nvp("rendezvous_endpoint",
-                                           rendezvous_endpoint_);
-  archive& boost::serialization::make_nvp("tcp443", tcp443_);
-  archive& boost::serialization::make_nvp("tcp80", tcp80_);
-  archive& boost::serialization::make_nvp("prefer_local", prefer_local_);
-}
 
 bool IsValid(const Endpoint &endpoint);
 
