@@ -47,41 +47,23 @@ namespace test {
 typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 class MockNatDetectionServiceTest;
 
-class MockNatDetectionService : public NatDetectionService {
- public:
-  MockNatDetectionService(AsioService &asio_service, // NOLINT
-                           MessageHandlerPtr message_handler,
-                           TransportPtr listening_transport,
-                           GetEndpointFunctor get_endpoint_functor)
-      : NatDetectionService(asio_service, message_handler,
-                            listening_transport, get_endpoint_functor) {}
-    MOCK_METHOD4(NatDetection, void(const Info &info,
-                      const protobuf::NatDetectionRequest &request,
-                      protobuf::NatDetectionResponse *nat_detection_response,
-                      transport::Timeout *timeout));
-  void ReplyFullCone(const Info &info,
-                const protobuf::NatDetectionRequest /*&request*/,
-                protobuf::NatDetectionResponse *response) {
-    response->set_nat_type(kFullCone);
-    response->mutable_endpoint()->set_ip(info.endpoint.ip.to_string());
-    response->mutable_endpoint()->set_port(info.endpoint.port);
-  }
-};
-
 struct Node {
   Node() : asio_service(),
            work(new boost::asio::io_service::work(asio_service)),
            endpoint(IP::from_string("127.0.0.1"), 0),
            transport(new transport::RudpTransport(asio_service)),
            message_handler(new RudpMessageHandler(nullptr)) {
-    thread_group.create_thread(
-        std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
-            &boost::asio::io_service::run), std::ref(asio_service)));
+    for (size_t k = 0; k < 5; ++k) {
+      thread_group.create_thread(
+          std::bind(static_cast<size_t(boost::asio::io_service::*)()>(
+              &boost::asio::io_service::run), std::ref(asio_service)));
+    }
   }
 
   ~Node() {
     transport->StopListening();
     work.reset();
+    asio_service.stop();
     thread_group.join_all();
   }
 
@@ -117,6 +99,33 @@ struct Node {
 };
 
 typedef std::shared_ptr<Node> NodePtr;
+
+class MockNatDetectionService : public NatDetectionService {
+ public:
+  MockNatDetectionService(AsioService &asio_service, // NOLINT
+                           MessageHandlerPtr message_handler,
+                           TransportPtr listening_transport,
+                           GetEndpointFunctor get_endpoint_functor)
+      : NatDetectionService(asio_service, message_handler,
+                            listening_transport, get_endpoint_functor) {}
+  MOCK_METHOD2(DirectlyConnected, bool(
+      const protobuf::NatDetectionRequest &request, const Endpoint &endpoint));
+  MOCK_METHOD4(ConnectResult, void(const int &in_result,
+      int *out_result, const bool &notify_result,
+      boost::condition_variable* condition));
+
+  bool NotDirectlyConnected() {
+    return false;
+  }
+
+  void ConnectResultFail(int *out_result,
+                         const bool &notify_result,
+                         boost::condition_variable* condition) {
+    *out_result = kError;
+    if (notify_result)
+      condition->notify_one();
+  }
+};
 
 class MockNatDetectionServiceTest : public testing::Test {
  public:
@@ -164,6 +173,7 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
   ConnectToSignals(rendezvous_->transport, rendezvous_->message_handler);
   listens =  proxy_->StartListening();
   EXPECT_TRUE(listens);
+  rendezvous_->SetLiveContact(proxy_->GetEndpoint());
   ConnectToSignals(proxy_->transport, proxy_->message_handler);
   origin_service.reset(new MockNatDetectionService(origin_->asio_service,
       origin_->message_handler, origin_->transport,
@@ -174,11 +184,10 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
           rendezvous_->message_handler, rendezvous_->transport,
           std::bind(&Node::GetLiveContact, rendezvous_)));
   rendezvous_service->ConnectToSignals();
-  EXPECT_CALL(*rendezvous_service, NatDetection(
-      testing::_, testing::_, testing::_, testing::_))
-      .WillOnce(testing::WithArgs<0, 1, 2>(testing::Invoke(
-          std::bind(&MockNatDetectionService::ReplyFullCone,
-          rendezvous_service.get(), args::_1, args::_2, args::_3))));
+  EXPECT_CALL(*rendezvous_service, DirectlyConnected(testing::_, testing::_))
+      .WillOnce((testing::Invoke(
+          std::bind(&MockNatDetectionService::NotDirectlyConnected,
+          rendezvous_service.get()))));
   proxy_service.reset(new MockNatDetectionService(proxy_->asio_service,
     proxy_->message_handler, proxy_->transport,
     std::bind(&Node::GetLiveContact, proxy_)));
@@ -192,6 +201,58 @@ TEST_F(MockNatDetectionServiceTest, BEH_FullConeDetection) {
   nat_detection.Detect(contacts, true, origin_->transport,
     origin_->message_handler, &nattype, &rendezvous_endpoint);
   EXPECT_EQ(nattype, kFullCone);
+}
+
+TEST_F(MockNatDetectionServiceTest, BEH_PortRestrictedDetection) {
+  NatDetection nat_detection;
+  std::shared_ptr<MockNatDetectionService> origin_service, rendezvous_service,
+       proxy_service;
+  std::vector<Contact> contacts;
+  std::vector<Endpoint> endpoints;
+  bool listens = origin_->StartListening();
+  EXPECT_TRUE(listens);
+  origin_->transport->transport_details_.local_endpoints.push_back(
+      origin_->endpoint);
+  ConnectToSignals(origin_->transport, origin_->message_handler);
+  listens = rendezvous_->StartListening();
+  EXPECT_TRUE(listens);
+  origin_->SetLiveContact(rendezvous_->GetEndpoint());
+  ConnectToSignals(rendezvous_->transport, rendezvous_->message_handler);
+  listens =  proxy_->StartListening();
+  EXPECT_TRUE(listens);
+  rendezvous_->SetLiveContact(proxy_->GetEndpoint());
+  ConnectToSignals(proxy_->transport, proxy_->message_handler);
+  origin_service.reset(new MockNatDetectionService(origin_->asio_service,
+      origin_->message_handler, origin_->transport,
+      std::bind(&Node::GetLiveContact, origin_)));
+  origin_service->ConnectToSignals();
+  rendezvous_service.reset(
+      new MockNatDetectionService(rendezvous_->asio_service,
+          rendezvous_->message_handler, rendezvous_->transport,
+          std::bind(&Node::GetLiveContact, rendezvous_)));
+  rendezvous_service->ConnectToSignals();
+  EXPECT_CALL(*rendezvous_service, DirectlyConnected(testing::_, testing::_))
+      .WillOnce((testing::Invoke(
+          std::bind(&MockNatDetectionService::NotDirectlyConnected,
+          rendezvous_service.get()))));
+  proxy_service.reset(new MockNatDetectionService(proxy_->asio_service,
+    proxy_->message_handler, proxy_->transport,
+    std::bind(&Node::GetLiveContact, proxy_)));
+  proxy_service->ConnectToSignals();
+  EXPECT_CALL(*proxy_service, ConnectResult(testing::_, testing::_,
+                                            testing::_, testing::_))
+       .WillOnce(testing::WithArgs<1, 2, 3>(testing::Invoke(
+           std::bind(&MockNatDetectionService::ConnectResultFail,
+           proxy_service.get(), args::_1, args::_2, args::_3))));
+  NatType nattype;
+  Endpoint rendezvous_endpoint;
+  endpoints.push_back(rendezvous_->endpoint);
+  Contact rendezvous_contact(rendezvous_->endpoint, endpoints,
+                             Endpoint(), true, true);
+  contacts.push_back(rendezvous_contact);
+  nat_detection.Detect(contacts, true, origin_->transport,
+    origin_->message_handler, &nattype, &rendezvous_endpoint);
+  EXPECT_EQ(nattype, kPortRestricted);
 }
 
 class NatDetectionServicesTest : public testing::Test {

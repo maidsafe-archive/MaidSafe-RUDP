@@ -65,13 +65,15 @@ void NatDetection::DetectCallback(const int &nat_type,
                                   TransportPtr transport,
                                   Endpoint *rendezvous_endpoint,
                                   boost::condition_variable *cond_var) {
-  *out_nat_type = static_cast<NatType>(nat_type);
-  transport->transport_details_.endpoint = details.endpoint;
-  *rendezvous_endpoint = details.rendezvous_endpoint;
-  if (nat_type == transport::kPortRestricted)
-    transport->transport_details_.rendezvous_endpoint =
-        details.rendezvous_endpoint;
-  cond_var->notify_one();
+  if (nat_type >= 0) {
+    *out_nat_type = static_cast<NatType>(nat_type);
+    transport->transport_details_.endpoint = details.endpoint;
+    *rendezvous_endpoint = details.rendezvous_endpoint;
+    if (nat_type == transport::kPortRestricted)
+      transport->transport_details_.rendezvous_endpoint =
+          details.rendezvous_endpoint;
+    cond_var->notify_one();
+  }
 }
 
 }  // namespace transport

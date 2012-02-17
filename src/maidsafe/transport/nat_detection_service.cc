@@ -24,6 +24,9 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#include <string>
+
 #include "maidsafe/common/log.h"
 #include "maidsafe/transport/nat_detection_service.h"
 
@@ -94,25 +97,37 @@ void NatDetectionService::NatDetection(
     }
     // Full cone NAT type check
     Endpoint proxy = GetDirectlyConnectedEndpoint();
+    std::string ipstr(proxy.ip.to_string());
     // Waiting for ProxyConnect Callback to return
     boost::condition_variable condition_variable;
     boost::mutex mutex;
     TransportPtr transport(new transport::RudpTransport(asio_service_));
     bool result(false);
-    transport::TransportCondition tc;
-    message_handler_->on_proxy_connect_response()->connect(
-        std::bind(&NatDetectionService::ProxyConnectResponse, this, kSuccess,
-                  proxy, args::_1, proxy, &condition_variable, &tc, &result));
-    message_handler_->on_error()->connect(
-        std::bind(&NatDetectionService::ProxyConnectResponse, this, args::_1,
-                  args::_2, protobuf::ProxyConnectResponse(), proxy,
-                  &condition_variable, &tc, &result));
+    transport::TransportCondition condition;
+    boost::signals2::connection proxy_connect =
+        message_handler_->on_proxy_connect_response()->connect(
+            std::bind(&NatDetectionService::ProxyConnectResponse, this,
+                      kSuccess, proxy, args::_1, proxy, &condition_variable,
+                      &condition, &result));
+    boost::signals2::connection error =
+        message_handler_->on_error()->connect(
+            std::bind(&NatDetectionService::ProxyConnectResponse, this,
+                      args::_1, args::_2, protobuf::ProxyConnectResponse(),
+                      proxy, &condition_variable, &condition, &result));
+    transport->on_message_received()->connect(
+          transport::OnMessageReceived::element_type::slot_type(
+              &RudpMessageHandler::OnMessageReceived, message_handler_.get(),
+              _1, _2, _3, _4).track_foreign(message_handler_));
+    transport->on_error()->connect(
+        transport::OnError::element_type::slot_type(
+            &RudpMessageHandler::OnError,
+            message_handler_.get(), _1, _2).track_foreign(message_handler_));
     SendProxyConnectRequest(info.endpoint, proxy, false, transport);
     {
       boost::mutex::scoped_lock lock(mutex);
       condition_variable.wait(lock);  // timed wait?
     }
-    if (tc != kSuccess) {
+    if (condition != kSuccess) {
       return;  // retry or return?
     }
     if (result) {
@@ -123,6 +138,8 @@ void NatDetectionService::NatDetection(
     }
     // message_handler_->on_proxy_connect_response()->disconnect();
     // Port restricted check
+    proxy_connect.disconnect();
+    error.disconnect();
     proxy = GetDirectlyConnectedEndpoint();  // new contact
     SendProxyConnectRequest(info.endpoint, proxy, true, transport);
   }
@@ -154,6 +171,10 @@ void NatDetectionService::SendProxyConnectRequest(const Endpoint &originator,
   request.set_rendezvous_connect(rendezvous);
   request.mutable_endpoint()->set_ip(originator.ip.to_string());
   request.mutable_endpoint()->set_port(originator.port);
+  request.mutable_rendezvous()->set_ip(
+    listening_transport_->transport_details().endpoint.ip.to_string());
+  request.mutable_rendezvous()->set_port(
+    listening_transport_->transport_details().endpoint.port);
   std::string message = message_handler_->WrapMessage(request);
   transport->Send(message, proxy, transport::kDefaultInitialTimeout);
 }
@@ -164,18 +185,18 @@ void NatDetectionService::ProxyConnectResponse(
     const protobuf::ProxyConnectResponse &response,
     const Endpoint &peer,
     boost::condition_variable *condition_variable,
-    transport::TransportCondition *tc,
+    transport::TransportCondition *condition,
     bool *result) {
   if (remote_endpoint.ip == peer.ip) {  // port?
     *result = response.result();
-    *tc = transport_condition;
+    *condition = transport_condition;
     condition_variable->notify_one();
   }
 }
 
 // At proxy
 void NatDetectionService::ProxyConnect(
-    const Info & info,
+    const Info& info,
     const protobuf::ProxyConnectRequest &request,
     protobuf::ProxyConnectResponse *response,
     transport::Timeout*) {
@@ -209,9 +230,11 @@ void NatDetectionService::ProxyConnect(
     }
     return;
   } else {  // PortRestrictedNatDetection
-    SendForwardRendezvousRequest(info.endpoint, endpoint, transport);
+    Endpoint rendezvous(request.rendezvous().ip(),
+        static_cast<uint16_t> (request.rendezvous().port()));
+    SendForwardRendezvousRequest(rendezvous, endpoint, transport);
     //  Delay ?
-    SendNatDetectionResponse(endpoint, transport);
+//    SendNatDetectionResponse(endpoint, transport);
   }
 }
 
@@ -254,7 +277,7 @@ void NatDetectionService::SetRendezvousRequest(
 
 // At Rendezvous
 void NatDetectionService::ForwardRendezvous(
-    const Info & info,
+    const Info &info,
     const protobuf::ForwardRendezvousRequest& request,
     protobuf::ForwardRendezvousResponse*) {
   protobuf::RendezvousRequest rendezvous_request;

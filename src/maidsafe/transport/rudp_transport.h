@@ -131,6 +131,8 @@ class RudpTransport : public Transport,
   ConnectionSet connections_;
 };
 
+typedef std::shared_ptr<RudpTransport> RudpTransportPtr;
+
 }  // namespace transport
 
 }  // namespace maidsafe
