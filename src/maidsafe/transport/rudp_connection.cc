@@ -347,7 +347,7 @@ void RudpConnection::DispatchMessage() {
 
 void RudpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
-  DataSize msg_size = data.size();
+  DataSize msg_size = static_cast<DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(RudpTransport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "

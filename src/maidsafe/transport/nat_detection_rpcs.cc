@@ -81,7 +81,7 @@ void NatDetectionRpcs::DoNatDetection(const std::vector<Contact> &candidates,
 }
 
 void NatDetectionRpcs::KeepAlive(const Endpoint endpoint,
-                                 const Timeout &timeout,
+                                 const Timeout &/*timeout*/,
                                  TransportPtr transport,
                                  MessageHandlerPtr message_handler,
                                  KeepAliveFunctor callback) {
@@ -104,7 +104,8 @@ void NatDetectionRpcs::NatDetectionCallback(const TransportCondition &result,
   TransportDetails transport_details;
   if (result == kSuccess) {
     transport_details.endpoint.ip.from_string(response.endpoint().ip().data());
-    transport_details.endpoint.port = response.endpoint().port();
+    transport_details.endpoint.port =
+        static_cast<Port>(response.endpoint().port());
     transport_details.rendezvous_endpoint = candidates[index].endpoint();
     callback(response.nat_type(), transport_details);
   }

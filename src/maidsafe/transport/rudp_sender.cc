@@ -175,7 +175,7 @@ void RudpSender::DoSend() {
       // send another packet at this time, and then once request a packet to be
       // sent, set the ticker to be with a fixed interval or
       // tick_timer_.TickAt(now + congestion_control_.SendDelay());
-      if (peer_.Send(p.packet) == TransportCondition::kSuccess) {
+      if (peer_.Send(p.packet) == kSuccess) {
         p.lost = false;
         p.last_send_time = now;
         congestion_control_.OnDataPacketSent(n);

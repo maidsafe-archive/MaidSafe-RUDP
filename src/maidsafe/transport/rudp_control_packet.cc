@@ -97,7 +97,7 @@ bool RudpControlPacket::DecodeBase(const asio::const_buffer &buffer,
     return false;
 
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
-  size_t length = asio::buffer_size(buffer);
+//  size_t length = asio::buffer_size(buffer);
 
   type_ = (p[0] & 0x7f);
   type_ = ((type_ << 8) | p[1]);

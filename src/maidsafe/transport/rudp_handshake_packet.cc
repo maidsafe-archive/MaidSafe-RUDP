@@ -140,7 +140,7 @@ bool RudpHandshakePacket::Decode(const asio::const_buffer &buffer) {
     return false;
 
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
-  size_t length = asio::buffer_size(buffer) - kHeaderSize;
+//  size_t length = asio::buffer_size(buffer) - kHeaderSize;
   p += kHeaderSize;
 
   DecodeUint32(&rudp_version_, p + 0);

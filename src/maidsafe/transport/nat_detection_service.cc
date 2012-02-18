@@ -196,7 +196,7 @@ void NatDetectionService::ProxyConnectResponse(
 
 // At proxy
 void NatDetectionService::ProxyConnect(
-    const Info& info,
+    const Info& /*info*/,
     const protobuf::ProxyConnectRequest &request,
     protobuf::ProxyConnectResponse *response,
     transport::Timeout*) {

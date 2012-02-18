@@ -84,7 +84,7 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 }
 
 TransportCondition RudpTransport::Bootstrap(
-    const std::vector<Contact> &candidates) {
+    const std::vector<Contact> &/*candidates*/) {
   return kSuccess;
 }
 
@@ -114,7 +114,7 @@ void RudpTransport::StartDispatch() {
 }
 
 void RudpTransport::HandleDispatch(MultiplexerPtr multiplexer,
-                                   const bs::error_code &ec) {
+                                   const bs::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
 
@@ -190,7 +190,7 @@ void RudpTransport::DoSend(const std::string &data,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
     // TODO(Mahmoud): error handling
     StartDispatch();
   }
@@ -213,7 +213,7 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
     // TODO(Mahmoud): error handling
     StartDispatch();
   }
