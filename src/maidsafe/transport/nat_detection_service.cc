@@ -234,7 +234,7 @@ void NatDetectionService::ProxyConnect(
         static_cast<uint16_t> (request.rendezvous().port()));
     SendForwardRendezvousRequest(rendezvous, endpoint, transport);
     //  Delay ?
-//    SendNatDetectionResponse(endpoint, transport);
+    SendNatDetectionResponse(endpoint, transport);
   }
 }
 
@@ -303,10 +303,8 @@ void NatDetectionService::Rendezvous(const Info & /*info*/,
   ConnectFunctor callback =
         std::bind(&NatDetectionService::ConnectResult, this, args::_1, &result,
                   false, &condition_variable);
-  std::shared_ptr<RudpTransport> rudp_transport =
-      std::static_pointer_cast<RudpTransport> (listening_transport_);
-  rudp_transport->Connect(proxy, transport::kDefaultInitialTimeout,
-                          callback);
+  RudpTransportPtr transport(new transport::RudpTransport(asio_service_));
+  transport->Connect(proxy, transport::kDefaultInitialTimeout, callback);
 }
 
 }  // namespace transport
