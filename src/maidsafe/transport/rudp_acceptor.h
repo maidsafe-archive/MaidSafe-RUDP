@@ -57,7 +57,7 @@ class RudpSocket;
 
 class RudpAcceptor {
  public:
-  explicit RudpAcceptor(RudpMultiplexer &multiplexer);
+  explicit RudpAcceptor(RudpMultiplexer &multiplexer);  // NOLINT (Fraser)
   ~RudpAcceptor();
 
   // Returns whether the acceptor is open.
@@ -68,7 +68,7 @@ class RudpAcceptor {
 
   // Initiate an asynchronous operation to accept a new server-side connection.
   template <typename AcceptHandler>
-  void AsyncAccept(RudpSocket &socket, AcceptHandler handler) {
+  void AsyncAccept(RudpSocket &socket, AcceptHandler handler) {  // NOLINT (Fraser)
     RudpAcceptOp<AcceptHandler> op(handler, socket);
     waiting_accept_.async_wait(op);
     StartAccept(socket);
@@ -79,7 +79,7 @@ class RudpAcceptor {
   RudpAcceptor(const RudpAcceptor&);
   RudpAcceptor &operator=(const RudpAcceptor&);
 
-  void StartAccept(RudpSocket &socket);
+  void StartAccept(RudpSocket &socket);  // NOLINT (Fraser)
 
   // Called by the RudpDispatcher when a new packet arrives for the acceptor.
   friend class RudpDispatcher;

@@ -43,6 +43,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace maidsafe {
 
+class AsioService;
+
 namespace transport {
 
 namespace test {
@@ -51,9 +53,6 @@ class TestMessageHandler;
 
 static const IP kIP(boost::asio::ip::address_v4::loopback());
 static const uint16_t kThreadGroupSize = 8;
-typedef boost::asio::io_service AsioService;
-typedef std::shared_ptr<boost::asio::io_service> IoServicePtr;
-typedef std::shared_ptr<boost::asio::io_service::work> WorkPtr;
 typedef std::shared_ptr<Transport> TransportPtr;
 typedef boost::shared_ptr<TestMessageHandler> TestMessageHandlerPtr;
 typedef std::vector<std::string> Messages;
@@ -114,17 +113,13 @@ class TransportAPI {
   void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt,
                int &messages_length);
   void CheckMessages();
+  void StopAsioServices();
 
-  IoServicePtr asio_service_, asio_service_1_, asio_service_2_, asio_service_3_;
-  WorkPtr work_, work_1_, work_2_, work_3_;
+  std::vector<std::shared_ptr<AsioService>> asio_services_;
   std::vector<TransportPtr> listening_transports_;
   std::vector<TestMessageHandlerPtr> listening_message_handlers_;
   std::vector<TransportPtr> sending_transports_;
   std::vector<TestMessageHandlerPtr> sending_message_handlers_;
-  boost::thread_group thread_group_;
-  boost::thread_group thread_group_1_;
-  boost::thread_group thread_group_2_;
-  boost::thread_group thread_group_3_;
   boost::mutex mutex_;
   std::vector<std::string> request_messages_;
   uint16_t count_;

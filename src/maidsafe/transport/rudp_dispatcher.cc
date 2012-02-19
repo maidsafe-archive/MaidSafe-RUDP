@@ -34,7 +34,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_acceptor.h"
 #include "maidsafe/transport/rudp_packet.h"
 #include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/transport/log.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;

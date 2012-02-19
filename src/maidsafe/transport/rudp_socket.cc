@@ -35,8 +35,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "boost/assert.hpp"
 
-#include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
+
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 
 namespace asio = boost::asio;
@@ -49,7 +50,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
+RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   : dispatcher_(multiplexer.dispatcher_),
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),

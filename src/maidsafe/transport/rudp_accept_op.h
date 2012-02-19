@@ -45,10 +45,9 @@ namespace transport {
 template <typename AcceptHandler>
 class RudpAcceptOp {
  public:
-  RudpAcceptOp(AcceptHandler handler, RudpSocket &socket)
+  RudpAcceptOp(AcceptHandler handler, RudpSocket &socket)  // NOLINT (Fraser)
     : handler_(handler),
-      socket_(socket) {
-  }
+      socket_(socket) {}
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;

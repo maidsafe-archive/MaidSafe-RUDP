@@ -47,7 +47,7 @@ namespace transport {
 
 class RudpMultiplexer {
  public:
-  explicit RudpMultiplexer(boost::asio::io_service &asio_service);
+  explicit RudpMultiplexer(boost::asio::io_service &asio_service);  // NOLINT (Fraser)
   ~RudpMultiplexer();
 
   // Open the multiplexer as a client for the specified protocol.

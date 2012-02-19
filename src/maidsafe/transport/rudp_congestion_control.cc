@@ -145,19 +145,19 @@ void RudpCongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
         (median > 0) ? static_cast<boost::uint32_t>(1000000 / median) : 0;
   }
 
-  // TODO (qi.ma@maidsafe.net) : The receive_window_size shall be based on the
+  // TODO(qi.ma@maidsafe.net) : The receive_window_size shall be based on the
   // local processing power, i.e. the reading speed of the data flow
   receive_window_size_ = RudpParameters::maximum_window_size;
 //   receive_window_size_ = (packets_receiving_rate_ *
 //                           round_trip_time_) / 1000000;
 //   // The speed of generating Ack Packets shall be considered
 //   receive_window_size_ *= (1000 /
-//                            RudpParameters::ack_interval.total_milliseconds());
+//                           RudpParameters::ack_interval.total_milliseconds());
 //   receive_window_size_ = std::max(receive_window_size_,
 //                                   RudpParameters::default_window_size);
 //   receive_window_size_ = std::min(receive_window_size_,
 //                                   RudpParameters::maximum_window_size);
-  // TODO calculate SND (send_delay_).
+  // TODO(Team) calculate SND (send_delay_).
 }
 
 void RudpCongestionControl::OnAck(boost::uint32_t /*seqnum*/) {

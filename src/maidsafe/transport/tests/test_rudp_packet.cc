@@ -25,8 +25,9 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gtest/gtest.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/common/test.h"
+
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_packet.h"
 #include "maidsafe/transport/rudp_data_packet.h"
 #include "maidsafe/transport/rudp_control_packet.h"
@@ -113,6 +114,7 @@ class RudpDataPacketTest : public testing::Test {
     EXPECT_EQ(time_stamp, data_packet_.TimeStamp());
     EXPECT_EQ(destination_socket_id, data_packet_.DestinationSocketId());
   }
+
  protected:
   RudpDataPacket data_packet_;
 };
@@ -389,8 +391,9 @@ TEST_F(RudpAckPacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0U, ack_packet_.Encode(boost::asio::buffer(dbuffer)));
   }
   {
-    //TODO There will be an error if passed in buffer has a size less than
-    //     kOptionalPacketSize, but the has_optional_fields_ has been set
+    // TODO(Team) There will be an error if passed in buffer has a size less
+    //            than kOptionalPacketSize, but the has_optional_fields_ has
+    //            been set
   }
   RestoreDefault();
   {

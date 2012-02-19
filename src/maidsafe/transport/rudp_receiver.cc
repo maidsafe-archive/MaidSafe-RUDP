@@ -50,7 +50,8 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpReceiver::RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+RudpReceiver::RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
+                           RudpTickTimer &tick_timer,
                            RudpCongestionControl &congestion_control)
   : peer_(peer),
     tick_timer_(tick_timer),

@@ -36,21 +36,22 @@ namespace maidsafe {
 
 namespace transport {
 
-//void RudpMessageHandler::OnMessageReceived(const std::string &request,
-//                                       const Info &info,
-//                                       std::string *response,
-//                                       Timeout *timeout) {
-//  if (request.empty())
-//    return;
-//  SecurityType security_type = request.at(0);
-//  std::string serialised_message(request.substr(1));
-//  protobuf::WrapperMessage wrapper;
-//  if (wrapper.ParseFromString(serialised_message) && wrapper.IsInitialized()) {
-//    ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
-//                             security_type, wrapper.message_signature(),
-//                             info, response, timeout);
+//  void RudpMessageHandler::OnMessageReceived(const std::string &request,
+//                                         const Info &info,
+//                                         std::string *response,
+//                                         Timeout *timeout) {
+//    if (request.empty())
+//      return;
+//    SecurityType security_type = request.at(0);
+//    std::string serialised_message(request.substr(1));
+//    protobuf::WrapperMessage wrapper;
+//    if (wrapper.ParseFromString(serialised_message) &&
+//        wrapper.IsInitialized()) {
+//      ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
+//                               security_type, wrapper.message_signature(),
+//                               info, response, timeout);
+//    }
 //  }
-//}
 
 std::string RudpMessageHandler::WrapMessage(
     const protobuf::ManagedEndpointMessage &msg) {
@@ -138,7 +139,7 @@ std::string RudpMessageHandler::CreateForwardRendezvousRequest(
   protobuf::ForwardRendezvousRequest request;
   request.mutable_receiver_endpoint()->set_ip(endpoint.ip.to_string());
   request.mutable_receiver_endpoint()->set_port(endpoint.port);
-  return WrapMessage(request);  
+  return WrapMessage(request);
 }
 
 void RudpMessageHandler::ProcessSerialisedMessage(

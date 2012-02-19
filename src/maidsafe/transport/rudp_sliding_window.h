@@ -55,7 +55,7 @@ class RudpSlidingWindow {
   }
 
   // Construct to start with a specified sequence number.
-  RudpSlidingWindow(boost::uint32_t initial_sequence_number) {
+  explicit RudpSlidingWindow(boost::uint32_t initial_sequence_number) {
     Reset(initial_sequence_number);
   }
 

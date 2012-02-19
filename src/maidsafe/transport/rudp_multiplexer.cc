@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_packet.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/transport/log.h"
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;

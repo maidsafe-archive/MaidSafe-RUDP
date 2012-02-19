@@ -32,7 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <string>
 #include <vector>
-#include "boost/scoped_ptr.hpp"
+
 #include "boost/serialization/nvp.hpp"
 #include "boost/serialization/vector.hpp"
 #include "maidsafe/transport/transport.h"

@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_NAT_DETECTION_SERVICE_H_
 
 #include <memory>
+#include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread/condition_variable.hpp"
 #include "maidsafe/transport/transport.h"
@@ -41,52 +42,53 @@ namespace maidsafe {
 namespace transport {
 
 class RudpMessageHandler;
-typedef std::function<transport::Endpoint()> GetEndpointFunctor;
-typedef boost::asio::io_service AsioService;
+typedef std::function<Endpoint()> GetEndpointFunctor;
 typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
-typedef std::shared_ptr<transport::Transport> TransportPtr;
+typedef std::shared_ptr<Transport> TransportPtr;
 
 typedef bptime::time_duration Timeout;
 struct Info;
 
 class NatDetectionService : public std::enable_shared_from_this<NatDetectionService> { // NOLINT
  public:
-  NatDetectionService(AsioService &asio_service, // NOLINT
+  NatDetectionService(boost::asio::io_service &asio_service, // NOLINT
                       MessageHandlerPtr message_handler,
                       TransportPtr listening_transport,
                       GetEndpointFunctor get_endpoint_functor);
+  ~NatDetectionService();
   void ConnectToSignals();
   // At rendezvous
   virtual void NatDetection(const Info &info,
                     const protobuf::NatDetectionRequest &request,
                     protobuf::NatDetectionResponse *nat_detection_response,
-                    transport::Timeout *timeout);
+                    Timeout *timeout);
 
   void ForwardRendezvous(const Info & info,
                          const protobuf::ForwardRendezvousRequest &request,
                          protobuf::ForwardRendezvousResponse *response);
 
   void ProxyConnectResponse(
-      const transport::TransportCondition &transport_condition,
+      const TransportCondition &transport_condition,
       const Endpoint &remote_endpoint,
       const protobuf::ProxyConnectResponse &response,
       const Endpoint &peer,
       boost::condition_variable *condition_variable,
-      transport::TransportCondition *tc,
+      TransportCondition *tc,
       bool *result);
   // At proxy
   void ProxyConnect(const Info &info,
                     const protobuf::ProxyConnectRequest &request,
                     protobuf::ProxyConnectResponse *response,
-                    transport::Timeout *timeout);
+                    Timeout *timeout);
   // At originator
   void Rendezvous(const Info & /*info*/,
-                  const protobuf::RendezvousRequest& request,
+                  const protobuf::RendezvousRequest &request,
                   protobuf::RendezvousAcknowledgement*);
 
-  virtual void ConnectResult(const int &in_result, int *out_result,
-                     const bool &notify_result,
-                     boost::condition_variable* condition);
+  virtual void ConnectResult(const int &in_result,
+                             int *out_result,
+                             boost::mutex *mutex,
+                             boost::condition_variable *condition);
 
  protected:
   /** Copy Constructor.
@@ -123,7 +125,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
       return Endpoint();
   }
 
-  AsioService &asio_service_;
+  boost::asio::io_service &asio_service_;
   std::shared_ptr<RudpMessageHandler> message_handler_;
   TransportPtr listening_transport_;
   GetEndpointFunctor get_directly_connected_endpoint_;

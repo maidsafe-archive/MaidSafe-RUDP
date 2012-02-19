@@ -79,7 +79,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void DoStartSending();
   void DoConnect(ConnectFunctor callback);
 
-  void CheckTimeout();
+  void CheckTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
 
   void StartTick();

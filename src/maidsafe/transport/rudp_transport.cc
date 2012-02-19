@@ -36,8 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_connection.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/common/log.h"
-
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/nat_detection.h"
 #include "maidsafe/transport/rudp_message_handler.h"

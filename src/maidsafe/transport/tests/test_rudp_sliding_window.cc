@@ -27,8 +27,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "gtest/gtest.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/common/test.h"
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_sliding_window.h"
 
 namespace maidsafe {

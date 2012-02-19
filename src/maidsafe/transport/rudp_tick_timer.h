@@ -40,7 +40,7 @@ namespace transport {
 // time if it would move it further away.
 class RudpTickTimer {
  public:
-  RudpTickTimer(boost::asio::io_service &asio_service)
+  explicit RudpTickTimer(boost::asio::io_service &asio_service)  // NOLINT (Fraser)
     : timer_(asio_service) {
     Reset();
   }

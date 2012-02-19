@@ -29,8 +29,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
 #include <vector>
-#include "gtest/gtest.h"
-#include "maidsafe/common/log.h"
+#include "maidsafe/common/test.h"
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_acceptor.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_socket.h"
@@ -92,14 +92,18 @@ TEST(RudpSocketTest, DISABLED_BEH_Socket) {
   client_socket.AsyncConnect(server_endpoint, std::bind(handler1, args::_1,
                                                         &client_ec));
 
-  do io_service.run_one(); while (server_ec == asio::error::would_block);
+  do {
+    io_service.run_one();
+  } while (server_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
 
   server_ec = asio::error::would_block;
   server_socket.AsyncConnect(std::bind(handler1, args::_1, &server_ec));
 
-  do io_service.run_one(); while (server_ec == asio::error::would_block ||
-                                  client_ec == asio::error::would_block);
+  do {
+    io_service.run_one();
+  } while (server_ec == asio::error::would_block ||
+           client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(server_socket.IsOpen());
   ASSERT_TRUE(!client_ec);
@@ -120,8 +124,10 @@ TEST(RudpSocketTest, DISABLED_BEH_Socket) {
     client_socket.AsyncWrite(asio::buffer(client_buffer),
                             std::bind(handler1, args::_1, &client_ec));
 
-    do io_service.run_one(); while (server_ec == asio::error::would_block ||
-                                    client_ec == asio::error::would_block);
+    do {
+      io_service.run_one();
+    } while (server_ec == asio::error::would_block ||
+             client_ec == asio::error::would_block);
     ASSERT_TRUE(!server_ec);
     ASSERT_TRUE(!client_ec);
   }
@@ -132,8 +138,10 @@ TEST(RudpSocketTest, DISABLED_BEH_Socket) {
   client_ec = asio::error::would_block;
   client_socket.AsyncFlush(std::bind(handler1, args::_1, &client_ec));
 
-  do io_service.run_one(); while (server_ec == asio::error::would_block ||
-                                  client_ec == asio::error::would_block);
+  do {
+    io_service.run_one();
+  } while (server_ec == asio::error::would_block ||
+           client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(!client_ec);
 }

@@ -51,7 +51,8 @@ Created by Julian Cain on 11/3/09.
 #include <unistd.h>
 #endif
 
-#include "boost/scoped_ptr.hpp"
+#include <memory>
+
 #include "boost/bind.hpp"
 
 namespace maidsafe {
@@ -213,7 +214,7 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
     return std::vector<NetworkInterface>();
   }
 
-  boost::scoped_ptr<char> buf(new char[needed]);
+  std::unique_ptr<char> buf(new char[needed]);
 
   if (sysctl(mib, 6, buf.get(), &needed, 0, 0) < 0) {
     ec = boost::system::error_code(errno, boost::asio::error::system_category);
