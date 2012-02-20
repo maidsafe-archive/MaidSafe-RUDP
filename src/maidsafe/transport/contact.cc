@@ -207,6 +207,7 @@ int Contact::Serialise(std::string *serialised) const {
     pb_contact.set_tcp443(true);
   if (IsValid(tcp80endpoint()))
     pb_contact.set_tcp80(true);
+  pb_contact.set_prefer_local(prefer_local_);
 
   if (!pb_contact.IsInitialized())
     return kError;
