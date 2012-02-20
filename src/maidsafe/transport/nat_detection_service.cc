@@ -43,8 +43,8 @@ namespace transport {
 
 NatDetectionService::NatDetectionService(
     AsioService &asio_service, // NOLINT
-    MessageHandlerPtr message_handler,
-    TransportPtr listening_transport,
+    RudpMessageHandlerPtr message_handler,
+    RudpTransportPtr listening_transport,
     GetEndpointFunctor get_endpoint_functor)
     : asio_service_(asio_service),
       message_handler_(message_handler),
@@ -207,6 +207,12 @@ void NatDetectionService::ProxyConnect(
   response->set_result(false);
   std::shared_ptr<RudpTransport>
       transport(new transport::RudpTransport(asio_service_));
+  // TODO(Mahmoud): The IP address should be changed.
+  Endpoint listening_endpoint(IP::from_string("127.0.0.1"), 0);
+  if (!StartListening(transport, &listening_endpoint)) {
+    (*listening_transport_->on_error_)(kListenError, endpoint);
+    return;
+  }
   if (!request.rendezvous_connect()) {  // FullConNatDetection
     boost::condition_variable condition_variable;
     boost::mutex mutex;
@@ -218,6 +224,7 @@ void NatDetectionService::ProxyConnect(
     //              args::_1, args::_2, protobuf::ConnectResponse(), endpoint,
     //              &condition_variable, tc, &result));
 
+    // TODO(Mahmoud): The wait to be removed, if possible
     transport->Connect(endpoint, transport::kDefaultInitialTimeout, callback);
     {
       boost::mutex::scoped_lock lock(mutex);
@@ -235,7 +242,20 @@ void NatDetectionService::ProxyConnect(
     SendForwardRendezvousRequest(rendezvous, endpoint, transport);
     //  Delay ?
     SendNatDetectionResponse(endpoint, transport);
+
+    // TODO(Mahmoud): transport should be stored to allow incoming connections.
   }
+}
+
+bool NatDetectionService::StartListening(RudpTransportPtr transport,
+    Endpoint* endpoint) {
+  TransportCondition condition(kError);
+  size_t max_try(10), attempt(0);
+  while (attempt++ < max_try && (condition != kSuccess)) {
+    endpoint->port = RandomUint32() % (64000 - 1025) + 1025;
+    condition = transport->StartListening(*endpoint);
+  }
+  return (condition == kSuccess);
 }
 
 void NatDetectionService::ConnectResult(const int &in_result,
@@ -298,13 +318,19 @@ void NatDetectionService::Rendezvous(const Info & /*info*/,
   // TODO(Prakash): validate info if request is sent from rendezvous node
   Endpoint proxy(request.proxy_endpoint().ip(),
       static_cast<uint16_t> (request.proxy_endpoint().port()));
-  int result(kError);
-  boost::condition_variable condition_variable;
   ConnectFunctor callback =
-        std::bind(&NatDetectionService::ConnectResult, this, args::_1, &result,
-                  false, &condition_variable);
-  RudpTransportPtr transport(new transport::RudpTransport(asio_service_));
-  transport->Connect(proxy, transport::kDefaultInitialTimeout, callback);
+        std::bind(&NatDetectionService::OriginConnectResult, this, args::_1,
+                  proxy);
+  listening_transport_->Connect(proxy, transport::kDefaultInitialTimeout,
+                                callback);
+}
+
+//  At originator
+void NatDetectionService::OriginConnectResult(const TransportCondition &result,
+                                         const Endpoint &endpoint) {
+  if (result != kSuccess) {
+    (*listening_transport_->on_error_)(result, endpoint);
+  }
 }
 
 }  // namespace transport

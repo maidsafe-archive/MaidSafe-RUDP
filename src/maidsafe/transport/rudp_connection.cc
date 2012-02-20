@@ -135,9 +135,10 @@ void RudpConnection::HandleSimpleClientConnect(const bs::error_code &ec,
   }
 
   if (ec) {
-    return CloseOnError(kSendFailure);
+    callback(kConnectError);
+  } else {
+    callback(kSuccess);
   }
-  callback(kSuccess);
 }
 
 void RudpConnection::StartSending(const std::string &data,

@@ -55,7 +55,7 @@ class RudpConnection;
 class RudpMultiplexer;
 class RudpSocket;
 
-typedef std::function<void(const int&)> ConnectFunctor;
+typedef std::function<void(const TransportCondition&)> ConnectFunctor;
 
 class RudpTransport : public Transport,
                       public std::enable_shared_from_this<RudpTransport> {

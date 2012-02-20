@@ -224,6 +224,7 @@ class Transport {
   friend class
       test::MockNatDetectionServiceTest_BEH_PortRestrictedDetection_Test;
   friend class NatDetection;
+  friend class NatDetectionService;
 
  protected:
   /**

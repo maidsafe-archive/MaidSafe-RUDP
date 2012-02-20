@@ -72,7 +72,7 @@ struct Node {
   Endpoint endpoint;
   Endpoint live_contact;
   std::shared_ptr<RudpTransport> transport;
-  MessageHandlerPtr message_handler;
+  RudpMessageHandlerPtr message_handler;
   boost::thread_group thread_group;
   //   std::shared_ptr<MockNatDetectionService> service;
   bool StartListening() {
@@ -103,8 +103,8 @@ typedef std::shared_ptr<Node> NodePtr;
 class MockNatDetectionService : public NatDetectionService {
  public:
   MockNatDetectionService(AsioService &asio_service, // NOLINT
-                           MessageHandlerPtr message_handler,
-                           TransportPtr listening_transport,
+                           RudpMessageHandlerPtr message_handler,
+                           RudpTransportPtr listening_transport,
                            GetEndpointFunctor get_endpoint_functor)
       : NatDetectionService(asio_service, message_handler,
                             listening_transport, get_endpoint_functor) {}
@@ -134,7 +134,7 @@ class MockNatDetectionServiceTest : public testing::Test {
          proxy_(new Node()),
          rendezvous_(new Node()) {}
   void ConnectToSignals(TransportPtr transport,
-                        MessageHandlerPtr message_handler) {
+                        RudpMessageHandlerPtr message_handler) {
     transport->on_message_received()->connect(
           transport::OnMessageReceived::element_type::slot_type(
               &RudpMessageHandler::OnMessageReceived, message_handler.get(),
@@ -295,9 +295,9 @@ class NatDetectionServicesTest : public testing::Test {
  protected:
   AsioService asio_service_;
   WorkPtr work_;
-  MessageHandlerPtr message_handler_;
+  RudpMessageHandlerPtr message_handler_;
   std::shared_ptr<NatDetectionService> service_;
-  TransportPtr listening_transport_;
+  RudpTransportPtr listening_transport_;
 };
 
 TEST_F(NatDetectionServicesTest, BEH_NatDetection) {

@@ -31,7 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread/condition_variable.hpp"
-#include "maidsafe/transport/transport.h"
+#include "maidsafe/transport/rudp_transport.h"
 #include "maidsafe/transport/transport_pb.h"
 
 namespace bptime = boost::posix_time;
@@ -43,7 +43,7 @@ namespace transport {
 class RudpMessageHandler;
 typedef std::function<transport::Endpoint()> GetEndpointFunctor;
 typedef boost::asio::io_service AsioService;
-typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
+typedef std::shared_ptr<RudpMessageHandler> RudpMessageHandlerPtr;
 typedef std::shared_ptr<transport::Transport> TransportPtr;
 
 typedef bptime::time_duration Timeout;
@@ -52,8 +52,8 @@ struct Info;
 class NatDetectionService : public std::enable_shared_from_this<NatDetectionService> { // NOLINT
  public:
   NatDetectionService(AsioService &asio_service, // NOLINT
-                      MessageHandlerPtr message_handler,
-                      TransportPtr listening_transport,
+                      RudpMessageHandlerPtr message_handler,
+                      RudpTransportPtr listening_transport,
                       GetEndpointFunctor get_endpoint_functor);
   void ConnectToSignals();
   // At rendezvous
@@ -87,6 +87,8 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   virtual void ConnectResult(const int &in_result, int *out_result,
                      const bool &notify_result,
                      boost::condition_variable* condition);
+  void OriginConnectResult(const TransportCondition &result,
+                      const Endpoint &endpoint);
 
  protected:
   /** Copy Constructor.
@@ -123,9 +125,11 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
       return Endpoint();
   }
 
+  bool StartListening(RudpTransportPtr transport, Endpoint* endpoint);
+
   AsioService &asio_service_;
   std::shared_ptr<RudpMessageHandler> message_handler_;
-  TransportPtr listening_transport_;
+  RudpTransportPtr listening_transport_;
   GetEndpointFunctor get_directly_connected_endpoint_;
 };
 
