@@ -198,7 +198,7 @@ int Contact::Serialise(std::string *serialised) const {
     mutable_endpoint->set_port(rendezvous_endpoint().port);
   }
 
-  std::vector<transport::Endpoint> local_endpoints; //(local_endpoints());
+  std::vector<transport::Endpoint> local_endpoints(local_endpoints_);
   for (auto it = local_endpoints.begin(); it != local_endpoints.end(); ++it) {
     pb_contact.add_local_ips((*it).ip.to_string(ec));
     pb_contact.set_local_port((*it).port);

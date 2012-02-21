@@ -41,7 +41,7 @@ namespace transport {
 
 namespace test {
 
-//class TransportMessageHandlerTest : public testing::Test {
+// class TransportMessageHandlerTest : public testing::Test {
 // public:
 //  TransportMessageHandlerTest() : private_key_(),
 //                                  msg_hndlr_(),
@@ -166,7 +166,8 @@ namespace test {
 //  }
 //  void InitialiseMap() {
 //    invoked_slots_.reset(new std::map<MessageType, uint16_t>);
-//    for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement; ++n)
+//    for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement;
+//        ++n)
 //      invoked_slots_->insert(std::pair<MessageType, uint16_t>(
 //                                       MessageType(n), 0));
 //  }
@@ -283,11 +284,11 @@ namespace test {
 //  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
 //  boost::mutex slots_mutex_;
 //  int error_count_;
-//};
+// };
 
-//Asym::Keys TransportMessageHandlerTest::crypto_key_pair_;
+// Asym::Keys TransportMessageHandlerTest::crypto_key_pair_;
 //
-//TEST_F(TransportMessageHandlerTest, BEH_OnError) {
+// TEST_F(TransportMessageHandlerTest, BEH_OnError) {
 //  ConnectToHandlerSignals();
 //
 //  int errors(0);
@@ -298,9 +299,9 @@ namespace test {
 //  }
 //
 //  ASSERT_EQ(errors, error_count());
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_OnMessageNullSecurifier) {
+// TEST_F(TransportMessageHandlerTest, BEH_OnMessageNullSecurifier) {
 //  ConnectToHandlerSignals();
 //  InitialiseMap();
 //  std::vector<std::string> messages(CreateMessages());
@@ -332,9 +333,9 @@ namespace test {
 //    msg_hndlr_->OnMessageReceived("", info, &response, &timeout);
 //  for (auto it = slots->begin(); it != slots->end(); ++it)
 //    ASSERT_EQ(uint16_t(0), (*it).second);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
 //  protobuf::ManagedEndpointMessage managed_endpoint_message;
 //  ASSERT_TRUE(managed_endpoint_message.IsInitialized());
 //
@@ -342,9 +343,9 @@ namespace test {
 //  std::string manual(EncryptMessage<protobuf::ManagedEndpointMessage>(
 //                         managed_endpoint_message, kManagedEndpointMessage));
 //  EXPECT_EQ(manual, function);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
 //  protobuf::NatDetectionRequest nat_detection_rqst;
 //  nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
 //  nat_detection_rqst.set_local_port(12345);
@@ -355,9 +356,9 @@ namespace test {
 //      EncryptMessage<protobuf::NatDetectionRequest>(nat_detection_rqst,
 //                                                    kNatDetectionRequest));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
 //  protobuf::ProxyConnectRequest proxy_connect_rqst;
 //  protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
 //  ep->set_ip(std::string("192.168.1.1"));
@@ -370,9 +371,9 @@ namespace test {
 //      EncryptMessage<protobuf::ProxyConnectRequest>(proxy_connect_rqst,
 //                                                    kProxyConnectRequest));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
 //  protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
 //  protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
 //  ep->set_ip(std::string("192.168.1.1"));
@@ -380,12 +381,13 @@ namespace test {
 //  ASSERT_TRUE(forward_rdvz_rqst.IsInitialized());
 //
 //  std::string function_encrypt(msg_hndlr_->WrapMessage(forward_rdvz_rqst));
-//  std::string manual_encrypt(EncryptMessage<protobuf::ForwardRendezvousRequest>(
-//                                 forward_rdvz_rqst, kForwardRendezvousRequest));
+//  std::string manual_encrypt(
+//      EncryptMessage<protobuf::ForwardRendezvousRequest>(
+//          forward_rdvz_rqst, kForwardRendezvousRequest));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
 //  protobuf::RendezvousRequest rdvz_rqst;
 //  protobuf::Endpoint *ep = rdvz_rqst.mutable_originator_endpoint();
 //  ep->set_ip(std::string("192.168.1.1"));
@@ -396,9 +398,9 @@ namespace test {
 //  std::string manual_encrypt(EncryptMessage<protobuf::RendezvousRequest>(
 //                                 rdvz_rqst, kRendezvousRequest));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
 //  protobuf::NatDetectionResponse nat_detection_resp;
 //  nat_detection_resp.set_nat_type(12345);
 //  ASSERT_TRUE(nat_detection_resp.IsInitialized());
@@ -408,9 +410,9 @@ namespace test {
 //      EncryptMessage<protobuf::NatDetectionResponse>(nat_detection_resp,
 //                                                    kNatDetectionResponse));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
 //  protobuf::ProxyConnectResponse proxy_connect_resp;
 //  proxy_connect_resp.set_result(true);
 //  ASSERT_TRUE(proxy_connect_resp.IsInitialized());
@@ -420,9 +422,9 @@ namespace test {
 //      EncryptMessage<protobuf::ProxyConnectResponse>(proxy_connect_resp,
 //                                                     kProxyConnectResponse));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
 //  protobuf::ForwardRendezvousResponse forward_rdvz_resp;
 //  protobuf::Endpoint *ep =
 //      forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
@@ -435,9 +437,9 @@ namespace test {
 //      EncryptMessage<protobuf::ForwardRendezvousResponse>(
 //          forward_rdvz_resp, kForwardRendezvousResponse));
 //  EXPECT_EQ(manual_encrypt, function_encrypt);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
+// TEST_F(TransportMessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
 //  protobuf::RendezvousAcknowledgement rdvz_ack_message;
 //  protobuf::Endpoint *ep =
 //      rdvz_ack_message.mutable_originator_endpoint();
@@ -449,9 +451,9 @@ namespace test {
 //  std::string manual(EncryptMessage<protobuf::RendezvousAcknowledgement>(
 //                         rdvz_ack_message, kRendezvousAcknowledgement));
 //  EXPECT_EQ(manual, function);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_OnMessageReceived) {
+// TEST_F(TransportMessageHandlerTest, BEH_OnMessageReceived) {
 //  ConnectToHandlerSignals();
 //  InitialiseMap();
 //  std::vector<std::string> messages(CreateMessages());
@@ -465,9 +467,9 @@ namespace test {
 //  std::shared_ptr<std::map<MessageType, uint16_t>> slots = invoked_slots();
 //  for (auto it = slots->begin(); it != slots->end(); ++it)
 //    ASSERT_EQ(uint16_t(1), (*it).second);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_ThreadedMessageHandling) {
+// TEST_F(TransportMessageHandlerTest, BEH_ThreadedMessageHandling) {
 //  ConnectToHandlerSignals();
 //  InitialiseMap();
 //  std::vector<std::string> messages(CreateMessages());
@@ -487,14 +489,14 @@ namespace test {
 //                  uint16_t>> slots = invoked_slots();
 //  for (auto it = slots->begin(); it != slots->end(); ++it)
 //    ASSERT_EQ(uint16_t(total_messages), (*it).second);
-//}
+// }
 //
-//TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
+// TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
 //  std::string payload(RandomString(5 * 1024));
-//  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0, payload,
-//              kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
-//  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0, payload,
-//              kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
+//  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0,
+//      payload, kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
+//  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0,
+//      payload, kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
 //
 //  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
 //                                                         payload,
@@ -509,7 +511,7 @@ namespace test {
 //               kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
 //  ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
 //               kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
-//}
+// }
 
 }  // namespace test
 
