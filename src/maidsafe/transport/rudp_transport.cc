@@ -36,8 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_connection.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/common/log.h"
-
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/contact.h"
 #include "maidsafe/transport/nat_detection.h"
 #include "maidsafe/transport/rudp_message_handler.h"
@@ -84,7 +83,7 @@ TransportCondition RudpTransport::StartListening(const Endpoint &endpoint) {
 }
 
 TransportCondition RudpTransport::Bootstrap(
-    const std::vector<Contact> &candidates) {
+    const std::vector<Contact> &/*candidates*/) {
   return kSuccess;
 }
 
@@ -114,7 +113,7 @@ void RudpTransport::StartDispatch() {
 }
 
 void RudpTransport::HandleDispatch(MultiplexerPtr multiplexer,
-                                   const bs::error_code &ec) {
+                                   const bs::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
 
@@ -190,7 +189,7 @@ void RudpTransport::DoSend(const std::string &data,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
     // TODO(Mahmoud): error handling
     StartDispatch();
   }
@@ -213,7 +212,7 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
     // TODO(Mahmoud): error handling
     StartDispatch();
   }

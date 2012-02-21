@@ -104,6 +104,7 @@ enum TransportCondition {
   kSetOptionFailure = -350030,
   kMessageSizeTooLarge = -350031,
   kWrongIpVersion = -350032,
+  kPendingResult = -350033,
   kTransportConditionLimit = -359999
 };
 

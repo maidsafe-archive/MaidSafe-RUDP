@@ -55,7 +55,7 @@ class RudpSlidingWindow {
   }
 
   // Construct to start with a specified sequence number.
-  RudpSlidingWindow(boost::uint32_t initial_sequence_number) {
+  explicit RudpSlidingWindow(boost::uint32_t initial_sequence_number) {
     Reset(initial_sequence_number);
   }
 
@@ -86,8 +86,9 @@ class RudpSlidingWindow {
   // end. This is used to filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
-    boost::uint32_t end = (begin + RudpParameters::maximum_window_size)
-                          % (kMaxSequenceNumber + 1);
+    boost::uint32_t end =
+        (begin + RudpParameters::maximum_window_size) %
+            (static_cast<boost::uint32_t>(kMaxSequenceNumber) + 1);
     return IsInRange(begin, end, n);
   }
 

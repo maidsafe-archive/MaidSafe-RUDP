@@ -73,7 +73,7 @@ class RudpDispatcher;
 
 class RudpSocket {
  public:
-  explicit RudpSocket(RudpMultiplexer &multiplexer);
+  explicit RudpSocket(RudpMultiplexer &multiplexer);  // NOLINT (Fraser)
   ~RudpSocket();
 
   // Get the unique identifier that has been assigned to the socket.

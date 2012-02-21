@@ -34,6 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstring>
 #include <limits>
 
+#include "boost/assert.hpp"
+
 #include "maidsafe/transport/rudp_congestion_control.h"
 #include "maidsafe/transport/rudp_negative_ack_packet.h"
 #include "maidsafe/transport/rudp_peer.h"
@@ -48,7 +50,8 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpReceiver::RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+RudpReceiver::RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
+                           RudpTickTimer &tick_timer,
                            RudpCongestionControl &congestion_control)
   : peer_(peer),
     tick_timer_(tick_timer),
@@ -216,7 +219,10 @@ boost::uint32_t RudpReceiver::AvailableBufferSize() const {
   size_t free_packets = unread_packets_.IsFull() ?
                         0 : unread_packets_.MaximumSize() -
                             unread_packets_.Size();
-  return free_packets * RudpParameters::max_data_size;
+  BOOST_ASSERT(free_packets * RudpParameters::max_data_size <
+               std::numeric_limits<boost::uint32_t>::max());
+  return static_cast<boost::uint32_t>(free_packets *
+                                      RudpParameters::max_data_size);
 }
 
 boost::uint32_t RudpReceiver::AckPacketSequenceNumber() const {

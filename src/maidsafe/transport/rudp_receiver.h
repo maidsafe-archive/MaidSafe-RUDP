@@ -52,7 +52,8 @@ class RudpTickTimer;
 
 class RudpReceiver {
  public:
-  explicit RudpReceiver(RudpPeer &peer, RudpTickTimer &tick_timer,
+  explicit RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
+                        RudpTickTimer &tick_timer,
                         RudpCongestionControl &congestion_control);
 
   // Reset receiver so that it is ready to start receiving data from the

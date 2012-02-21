@@ -31,9 +31,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <algorithm>
 #include <utility>
+#include <limits>
 
-#include "maidsafe/common/log.h"
+#include "boost/assert.hpp"
+
 #include "maidsafe/common/utils.h"
+
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 
 namespace asio = boost::asio;
@@ -46,7 +50,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)
+RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   : dispatcher_(multiplexer.dispatcher_),
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
@@ -81,8 +85,10 @@ boost::uint32_t RudpSocket::Id() const {
 }
 
 boost::uint32_t RudpSocket::SentLength() {
-  boost::uint32_t sent_length;
-  sent_length = waiting_write_bytes_transferred_ - sent_length_;
+  BOOST_ASSERT(waiting_write_bytes_transferred_ - sent_length_ <=
+               std::numeric_limits<boost::uint32_t>::max());
+  boost::uint32_t sent_length = static_cast<boost::uint32_t>(
+      waiting_write_bytes_transferred_ - sent_length_);
   sent_length_ = waiting_write_bytes_transferred_;
   return sent_length;
 }

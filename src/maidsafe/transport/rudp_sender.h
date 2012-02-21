@@ -50,7 +50,8 @@ class RudpTickTimer;
 
 class RudpSender {
  public:
-  explicit RudpSender(RudpPeer &peer, RudpTickTimer &tick_timer,
+  explicit RudpSender(RudpPeer &peer,  // NOLINT (Fraser)
+                      RudpTickTimer &tick_timer,
                       RudpCongestionControl &congestion_control);
 
   // Get the sequence number that will be used for the next packet.

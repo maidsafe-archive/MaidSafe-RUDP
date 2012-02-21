@@ -43,7 +43,7 @@ class RudpTickTimer;
 
 class RudpSession {
  public:
-  explicit RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer);
+  explicit RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer);  // NOLINT (Fraser)
 
   // Open the session as a client or server.
   enum Mode { kClient, kServer };

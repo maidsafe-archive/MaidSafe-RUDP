@@ -34,11 +34,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_connection.h"
 #include "maidsafe/transport/rudp_multiplexer.h"
 #include "maidsafe/transport/rudp_transport.h"
-
-#include "maidsafe/common/log.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -103,7 +102,8 @@ void RudpConnection::StartReceiving() {
 void RudpConnection::DoStartReceiving() {
   StartTick();
   StartServerConnect();
-  CheckTimeout();
+  bs::error_code ignored_ec;
+  CheckTimeout(ignored_ec);
 }
 
 void RudpConnection::Connect(const Timeout &timeout, ConnectFunctor callback) {
@@ -115,7 +115,8 @@ void RudpConnection::Connect(const Timeout &timeout, ConnectFunctor callback) {
 void RudpConnection::DoConnect(ConnectFunctor callback) {
   StartTick();
   SimpleClientConnect(callback);
-  CheckTimeout();
+  bs::error_code ignored_ec;
+  CheckTimeout(ignored_ec);
 }
 
 void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
@@ -152,10 +153,17 @@ void RudpConnection::StartSending(const std::string &data,
 void RudpConnection::DoStartSending() {
   StartTick();
   StartClientConnect();
-  CheckTimeout();
+  bs::error_code ignored_ec;
+  CheckTimeout(ignored_ec);
 }
 
-void RudpConnection::CheckTimeout() {
+void RudpConnection::CheckTimeout(const bs::error_code &ec) {
+  if (ec && ec != boost::asio::error::operation_aborted) {
+    DLOG(ERROR) << "RudpConnection check timeout error: " << ec.message();
+    socket_.Close();
+    return;
+  }
+
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen()) {
     if (timeout_state_ == kSending)
@@ -173,7 +181,7 @@ void RudpConnection::CheckTimeout() {
 
   // Keep processing timeouts until the socket is completely closed.
   timer_.async_wait(strand_.wrap(std::bind(&RudpConnection::CheckTimeout,
-                                           shared_from_this())));
+                                           shared_from_this(), args::_1)));
 }
 
 bool RudpConnection::Stopped() const {
@@ -348,7 +356,7 @@ void RudpConnection::DispatchMessage() {
 
 void RudpConnection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
-  DataSize msg_size = data.size();
+  DataSize msg_size = static_cast<DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(RudpTransport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "

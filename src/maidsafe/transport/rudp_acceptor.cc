@@ -29,8 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 
-#include "maidsafe/common/log.h"
-
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_acceptor.h"
 #include "maidsafe/transport/rudp_socket.h"
 #include "maidsafe/transport/rudp_handshake_packet.h"
@@ -46,7 +45,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpAcceptor::RudpAcceptor(RudpMultiplexer &multiplexer)
+RudpAcceptor::RudpAcceptor(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   : multiplexer_(multiplexer),
     waiting_accept_(multiplexer.socket_.get_io_service()),
     waiting_accept_socket_(0) {
@@ -70,7 +69,7 @@ void RudpAcceptor::Close() {
     multiplexer_.dispatcher_.SetAcceptor(0);
 }
 
-void RudpAcceptor::StartAccept(RudpSocket &socket) {
+void RudpAcceptor::StartAccept(RudpSocket &socket) {  // NOLINT (Fraser)
   assert(waiting_accept_socket_ == 0);  // Only one accept operation at a time.
 
   if (!pending_requests_.empty()) {
@@ -101,7 +100,7 @@ void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
       pending_requests_.push_back(pending_request);
     }
   } else {
-    DLOG(ERROR) << "Acceptor ignoring invalid packet from " << endpoint << std::endl;
+    DLOG(ERROR) << "Acceptor ignoring invalid packet from " << endpoint;
   }
 }
 

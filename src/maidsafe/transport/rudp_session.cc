@@ -44,7 +44,7 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)
+RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)  // NOLINT (Fraser)
   : peer_(peer),
     tick_timer_(tick_timer),
     id_(0),
@@ -162,7 +162,7 @@ void RudpSession::SendCookieChallenge() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(RudpParameters::connection_type);
-  packet.SetSynCookie(1);  // TODO calculate cookie
+  packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
 }
@@ -180,7 +180,7 @@ void RudpSession::SendCookieResponse() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(RudpParameters::connection_type);
-  packet.SetSynCookie(1);  // TODO calculate cookie
+  packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
 
@@ -201,7 +201,7 @@ void RudpSession::SendConnectionAccepted() {
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(0xffffffff);
-  packet.SetSynCookie(0);  // TODO calculate cookie
+  packet.SetSynCookie(0);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
 }

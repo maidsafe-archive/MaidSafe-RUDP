@@ -29,6 +29,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+
+#include "boost/assert.hpp"
 
 #include "maidsafe/transport/rudp_congestion_control.h"
 
@@ -65,8 +68,8 @@ RudpCongestionControl::RudpCongestionControl()
     transmission_speed_(0) {
 }
 
-void RudpCongestionControl::OnOpen(boost::uint32_t send_seqnum,
-                                   boost::uint32_t receive_seqnum) {
+void RudpCongestionControl::OnOpen(boost::uint32_t /*send_seqnum*/,
+                                   boost::uint32_t /*receive_seqnum*/) {
   transmitted_bits_ = 0;
 }
 
@@ -74,7 +77,7 @@ void RudpCongestionControl::OnClose() {
   transmitted_bits_ = 0;
 }
 
-void RudpCongestionControl::OnDataPacketSent(boost::uint32_t seqnum) {
+void RudpCongestionControl::OnDataPacketSent(boost::uint32_t /*seqnum*/) {
 }
 
 void RudpCongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
@@ -92,7 +95,7 @@ void RudpCongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
     arrival_times_.pop_front();
 }
 
-void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
+void RudpCongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
   // Need to have received at least 8 packets to calculate receiving rate.
   if (arrival_times_.size() <= 8)
     return;
@@ -115,10 +118,16 @@ void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
       ++num_valid_intervals, total += *iter;
 
   // Determine packet arrival speed only if we had more than 8 valid values.
-  if ((total > 0) && (num_valid_intervals > 8))
-    packets_receiving_rate_ = 1000000 * num_valid_intervals / total;
-  else
+  if ((total > 0) && (num_valid_intervals > 8)) {
+    BOOST_ASSERT(num_valid_intervals <=
+                 std::numeric_limits<boost::uint64_t>::max() / 1000000);
+    BOOST_ASSERT((1000000 * num_valid_intervals) / total <=
+                 std::numeric_limits<boost::uint32_t>::max());
+    packets_receiving_rate_ =
+        static_cast<boost::uint32_t>(((1000000 * num_valid_intervals) / total));
+  } else {
     packets_receiving_rate_ = 0;
+  }
 
   // Need to have recorded some packet pair intervals to be able to calculate
   // the estimated link capacity.
@@ -132,28 +141,29 @@ void RudpCongestionControl::OnGenerateAck(boost::uint32_t seqnum) {
       intervals.push_back(iter->total_microseconds());
     std::sort(intervals.begin(), intervals.end());
     boost::uint64_t median = intervals[intervals.size() / 2];
-    estimated_link_capacity_ = (median > 0) ? (1000000 / median) : 0;
+    estimated_link_capacity_ =
+        (median > 0) ? static_cast<boost::uint32_t>(1000000 / median) : 0;
   }
 
-  // TODO (qi.ma@maidsafe.net) : The receive_window_size shall be based on the
+  // TODO(qi.ma@maidsafe.net) : The receive_window_size shall be based on the
   // local processing power, i.e. the reading speed of the data flow
   receive_window_size_ = RudpParameters::maximum_window_size;
 //   receive_window_size_ = (packets_receiving_rate_ *
 //                           round_trip_time_) / 1000000;
 //   // The speed of generating Ack Packets shall be considered
 //   receive_window_size_ *= (1000 /
-//                            RudpParameters::ack_interval.total_milliseconds());
+//                           RudpParameters::ack_interval.total_milliseconds());
 //   receive_window_size_ = std::max(receive_window_size_,
 //                                   RudpParameters::default_window_size);
 //   receive_window_size_ = std::min(receive_window_size_,
 //                                   RudpParameters::maximum_window_size);
-  // TODO calculate SND (send_delay_).
+  // TODO(Team) calculate SND (send_delay_).
 }
 
-void RudpCongestionControl::OnAck(boost::uint32_t seqnum) {
+void RudpCongestionControl::OnAck(boost::uint32_t /*seqnum*/) {
 }
 
-void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
+void RudpCongestionControl::OnAck(boost::uint32_t /*seqnum*/,
                                   boost::uint32_t round_trip_time,
                                   boost::uint32_t round_trip_time_variance,
                                   boost::uint32_t available_buffer_size,
@@ -181,12 +191,12 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
   // any packet reported to be lost or corrupted. If none, increase size,
   // otherwise decrease size
   if ((corrupted_packets_ + lost_packets_) > AllowedLost()) {
-    send_data_size_ = 0.9 * send_data_size_;
+    send_data_size_ = static_cast<size_t>(0.9 * send_data_size_);
     send_data_size_ =
         std::max(static_cast<size_t> (RudpParameters::default_data_size),
                  send_data_size_);
   } else {
-    send_data_size_ = 1.5 * send_data_size_;
+    send_data_size_ = static_cast<size_t>(1.5 * send_data_size_);
     send_data_size_ =
         std::min(static_cast<size_t> (RudpParameters::max_data_size),
                                send_data_size_);
@@ -204,17 +214,17 @@ void RudpCongestionControl::OnAck(boost::uint32_t seqnum,
     send_window_size_ = std::min(send_window_size_,
         static_cast<size_t> (RudpParameters::maximum_window_size));
   } else {
-    send_window_size_ = 0.9 * send_window_size_;
+    send_window_size_ = static_cast<size_t>(0.9 * send_window_size_);
     send_window_size_ = std::max(send_window_size_,
         static_cast<size_t>(RudpParameters::default_window_size));
   }
 }
 
-void RudpCongestionControl::OnNegativeAck(boost::uint32_t seqnum) {
+void RudpCongestionControl::OnNegativeAck(boost::uint32_t /*seqnum*/) {
   ++corrupted_packets_;
 }
 
-void RudpCongestionControl::OnSendTimeout(boost::uint32_t seqnum) {
+void RudpCongestionControl::OnSendTimeout(boost::uint32_t /*seqnum*/) {
   ++lost_packets_;
 }
 
@@ -254,16 +264,17 @@ bool RudpCongestionControl::IsSlowTransmission(size_t length) {
   // if length keeps to be zero, socket will have timeout eventually
   // so don't need to worry about all 0 situation here
   if (transmitted_bits_ == 0) {
-    transmitted_bits_ = transmitted_bits_ + length * 8;
+    transmitted_bits_ += static_cast<boost::uint32_t>(length * 8);
     last_record_transmit_time_ = RudpTickTimer::Now();
   } else {
-    transmitted_bits_ = transmitted_bits_ + length * 8;
+    transmitted_bits_ += static_cast<boost::uint32_t>(length * 8);
     // only calculate speed every calculation interval
     boost::posix_time::time_duration duration = RudpTickTimer::Now() -
                                                 last_record_transmit_time_;
     if (duration > RudpParameters::speed_calculate_inverval) {
-      transmission_speed_ = 1000 * transmitted_bits_ /
-                            duration.total_milliseconds();
+      transmission_speed_ =
+          static_cast<boost::uint32_t>(1000 * transmitted_bits_ /
+                                       duration.total_milliseconds());
       // be different to the initial state
       transmitted_bits_ = 1;
       last_record_transmit_time_ = RudpTickTimer::Now();
@@ -311,7 +322,10 @@ size_t RudpCongestionControl::SendDataSize() const {
 }
 
 boost::uint32_t RudpCongestionControl::BestReadBufferSize() {
-  return receive_window_size_ * RudpParameters::max_data_size;
+  BOOST_ASSERT(receive_window_size_ * RudpParameters::max_data_size <
+               std::numeric_limits<boost::uint32_t>::max());
+  return static_cast<boost::uint32_t>(
+      receive_window_size_ * RudpParameters::max_data_size);
 }
 
 boost::posix_time::time_duration RudpCongestionControl::SendDelay() const {
