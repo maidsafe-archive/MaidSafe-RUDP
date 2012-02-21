@@ -221,7 +221,7 @@ void TransportAPI<T>::SetupTransport(bool listen, Port lport) {
 }
 
 template <typename T>
-void TransportAPI<T>::RunTransportTest(const int &num_messages,
+void TransportAPI<T>::RunTransportTest(const uint16_t &num_messages,
     const int &messages_length) {
   Endpoint endpoint;
   endpoint.ip = kIP;

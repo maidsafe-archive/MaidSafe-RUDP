@@ -42,19 +42,19 @@ static const size_t kTestPacketCount = 100000;
 static void TestWindowRange(boost::uint32_t first_sequence_number) {
   RudpSlidingWindow<boost::uint32_t> window(first_sequence_number);
 
-  for (int i = 0; i < window.MaximumSize(); ++i) {
+  for (size_t i = 0; i < window.MaximumSize(); ++i) {
     boost::uint32_t n = window.Append();
     window[n] = n;
   }
 
-  for (int i = 0; i < kTestPacketCount; ++i) {
+  for (size_t i = 0; i < kTestPacketCount; ++i) {
     ASSERT_EQ(window.Begin(), window[window.Begin()]);
     window.Remove();
     boost::uint32_t n = window.Append();
     window[n] = n;
   }
 
-  for (int i = 0; i < window.MaximumSize(); ++i) {
+  for (size_t i = 0; i < window.MaximumSize(); ++i) {
     ASSERT_EQ(window.Begin(), window[window.Begin()]);
     window.Remove();
   }

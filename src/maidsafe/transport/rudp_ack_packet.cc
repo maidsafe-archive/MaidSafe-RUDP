@@ -166,7 +166,8 @@ size_t RudpAckPacket::Encode(const asio::mutable_buffer &buffer) const {
     EncodeUint32(estimated_link_capacity_, p + 20);
   }
 
-  return has_optional_fields_ ? kOptionalPacketSize : kPacketSize;
+  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize)
+      : static_cast<size_t>(kPacketSize);
 }
 
 }  // namespace transport

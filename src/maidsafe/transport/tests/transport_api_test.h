@@ -108,7 +108,7 @@ class TransportAPI {
   // (if zero) if listen == true.  If not, only a transport is created, and the
   // test member asio_service_ is used.
   void SetupTransport(bool listen, Port lport);
-  void RunTransportTest(const int &num_messages,
+  void RunTransportTest(const uint16_t &num_messages,
                         const int &messages_length = 4);
   void SendRPC(TransportPtr sender_pt, TransportPtr listener_pt,
                int &messages_length);

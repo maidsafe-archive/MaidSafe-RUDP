@@ -606,11 +606,11 @@ LIBSPEC void GetUPNPUrls(struct UPNPUrls * urls, struct IGDdatas * data,
 
 #ifdef DEBUG
 	printf("urls->ipcondescURL='%s' %d n1=%d\n", urls->ipcondescURL,
-	       strlen(urls->ipcondescURL), n1);
+	       (int)strlen(urls->ipcondescURL), n1);
 	printf("urls->controlURL='%s' %d n2=%d\n", urls->controlURL,
-	       strlen(urls->controlURL), n2);
+	       (int)strlen(urls->controlURL), n2);
 	printf("urls->controlURL_CIF='%s' %d n3=%d\n", urls->controlURL_CIF,
-	       strlen(urls->controlURL_CIF), n3);
+	       (int)strlen(urls->controlURL_CIF), n3);
 #endif
 }
 
