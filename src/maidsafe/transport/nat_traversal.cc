@@ -44,7 +44,7 @@ NatTraversal::NatTraversal(boost::asio::io_service &asio_service, // NOLINT
     : rpcs_(new NatDetectionRpcs()),
       asio_service_(asio_service),
       timeout_(timeout),
-      interval_(interval),      
+      interval_(interval),
       timer_(asio_service, interval),
       transport_(transport),
       message_handler_(message_handler),
