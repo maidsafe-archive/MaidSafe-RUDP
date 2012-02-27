@@ -44,7 +44,7 @@ class RudpNegativeAckPacket : public RudpControlPacket {
   enum { kPacketType = 3 };
 
   RudpNegativeAckPacket();
-  virtual ~RudpNegativeAckPacket();
+  virtual ~RudpNegativeAckPacket() {}
 
   void AddSequenceNumber(boost::uint32_t n);
   void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);

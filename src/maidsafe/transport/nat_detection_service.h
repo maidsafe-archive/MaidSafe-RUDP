@@ -65,7 +65,7 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
                       RudpMessageHandlerPtr message_handler,
                       RudpTransportPtr listening_transport,
                       GetEndpointFunctor get_endpoint_functor);
-  ~NatDetectionService();
+  virtual ~NatDetectionService();
   void ConnectToSignals();
   // At rendezvous
   virtual void NatDetection(const Info &info,
@@ -140,10 +140,6 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   std::shared_ptr<RudpMessageHandler> message_handler_;
   RudpTransportPtr listening_transport_;
   GetEndpointFunctor get_directly_connected_endpoint_;
-
- private:
-  NatDetectionService(const NatDetectionService&);
-  NatDetectionService& operator=(const NatDetectionService&);
 };
 
 typedef std::shared_ptr<NatDetectionService> NatDetectionServicePtr;
