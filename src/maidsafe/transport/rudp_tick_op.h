@@ -53,6 +53,23 @@ class RudpTickOp {
       tick_timer_(tick_timer) {
   }
 
+  RudpTickOp(const RudpTickOp &L)
+    : handler_(L.handler_),
+      socket_(L.socket_),
+      tick_timer_(L.tick_timer_) {
+  }
+
+  RudpTickOp & operator=(const RudpTickOp &L) {
+    // check for "self assignment" and do nothing in that case
+    if (this != &L) {
+      delete socket_;
+      handler_ = L.handler_;
+      socket_ = L.socket_;
+      tick_timer_ = L.tick_timer_;
+    }
+    return *this;
+  }
+
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
     if (socket_->IsOpen()) {

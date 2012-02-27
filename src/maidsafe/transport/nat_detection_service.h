@@ -29,11 +29,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIDSAFE_TRANSPORT_NAT_DETECTION_SERVICE_H_
 
 #include <memory>
+
 #include "boost/asio/io_service.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread/condition_variable.hpp"
+
 #include "maidsafe/transport/rudp_transport.h"
 #include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/transport/rudp_message_handler.h"
 
 namespace bptime = boost::posix_time;
 
@@ -43,16 +46,23 @@ namespace transport {
 
 class RudpMessageHandler;
 typedef std::function<Endpoint()> GetEndpointFunctor;
-typedef std::shared_ptr<RudpMessageHandler> MessageHandlerPtr;
 typedef std::shared_ptr<Transport> TransportPtr;
 
 typedef bptime::time_duration Timeout;
 struct Info;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
 class NatDetectionService : public std::enable_shared_from_this<NatDetectionService> { // NOLINT
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
  public:
   NatDetectionService(boost::asio::io_service &asio_service, // NOLINT
-                      MessageHandlerPtr message_handler,
+                      RudpMessageHandlerPtr message_handler,
                       RudpTransportPtr listening_transport,
                       GetEndpointFunctor get_endpoint_functor);
   ~NatDetectionService();
@@ -130,6 +140,10 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
   std::shared_ptr<RudpMessageHandler> message_handler_;
   RudpTransportPtr listening_transport_;
   GetEndpointFunctor get_directly_connected_endpoint_;
+
+ private:
+  NatDetectionService(const NatDetectionService&);
+  NatDetectionService& operator=(const NatDetectionService&);
 };
 
 typedef std::shared_ptr<NatDetectionService> NatDetectionServicePtr;

@@ -46,7 +46,8 @@ namespace maidsafe {
 namespace transport {
 
 RudpDispatcher::RudpDispatcher()
-  : acceptor_(0) {
+  : acceptor_(0),
+    sockets_() {
 }
 
 RudpAcceptor *RudpDispatcher::GetAcceptor() const {

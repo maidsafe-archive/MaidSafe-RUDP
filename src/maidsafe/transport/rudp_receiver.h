@@ -97,7 +97,9 @@ class RudpReceiver {
 
   struct UnreadPacket {
     UnreadPacket()
-        : lost(true), bytes_read(0),
+        : packet(),
+          lost(true),
+          bytes_read(0),
           reserve_time(boost::asio::deadline_timer::traits_type::now()) {}
     RudpDataPacket packet;
     bool lost;
@@ -117,6 +119,8 @@ class RudpReceiver {
   UnreadPacketWindow unread_packets_;
 
   struct Ack {
+    Ack() : packet(),
+            send_time(boost::asio::deadline_timer::traits_type::now()) {}
     RudpAckPacket packet;
     boost::posix_time::ptime send_time;
   };

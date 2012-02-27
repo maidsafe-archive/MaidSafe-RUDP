@@ -101,7 +101,7 @@ template <typename T>
 class TransportAPI {
  public:
   TransportAPI();
-  ~TransportAPI();
+  virtual ~TransportAPI();
 
  protected:
   // Create a transport and an io_service listening on the given or random port
@@ -129,6 +129,7 @@ template <typename T>
 class TransportAPITest : public TransportAPI<T>, public ::testing::Test {
  public:
   TransportAPITest() : TransportAPI<T>() {}
+  virtual ~TransportAPITest() {}
 };
 
 class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {

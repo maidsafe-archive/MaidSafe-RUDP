@@ -77,7 +77,7 @@ class Node {
   Endpoint endpoint() const { return endpoint_; }
   Endpoint live_contact() const { return live_contact_; }
   std::shared_ptr<RudpTransport> transport() const { return transport_; }
-  MessageHandlerPtr message_handler() const { return message_handler_; }
+  RudpMessageHandlerPtr message_handler() const { return message_handler_; }
   boost::asio::io_service& io_service() { return asio_service_.service(); }
 
   void set_live_contact(Endpoint live_contact) { live_contact_ = live_contact; }
@@ -86,19 +86,26 @@ class Node {
   AsioService asio_service_;
   Endpoint endpoint_, live_contact_;
   std::shared_ptr<RudpTransport> transport_;
-  MessageHandlerPtr message_handler_;
+  RudpMessageHandlerPtr message_handler_;
 };
 
 typedef std::shared_ptr<Node> NodePtr;
 
 class MockNatDetectionService : public NatDetectionService {
  public:
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
   MockNatDetectionService(boost::asio::io_service &io_service,  // NOLINT
                           RudpMessageHandlerPtr message_handler,
                           RudpTransportPtr listening_transport,
                           GetEndpointFunctor get_endpoint_functor)
       : NatDetectionService(io_service, message_handler,
                             listening_transport, get_endpoint_functor) {}
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
   MOCK_METHOD2(DirectlyConnected,
                bool(const protobuf::NatDetectionRequest &request,  // NOLINT (Fraser)
                     const Endpoint &endpoint));
@@ -106,7 +113,6 @@ class MockNatDetectionService : public NatDetectionService {
                                    int *out_result,
                                    boost::mutex *mutex,
                                    boost::condition_variable* condition));
-
   bool NotDirectlyConnected() {
     return false;
   }

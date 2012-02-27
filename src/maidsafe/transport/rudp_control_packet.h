@@ -72,7 +72,7 @@ class RudpControlPacket : public RudpPacket {
   size_t EncodeBase(const boost::asio::mutable_buffer &buffer) const;
 
   // Prevent deletion through this type.
-  ~RudpControlPacket();
+  virtual ~RudpControlPacket();
 
  private:
   boost::uint16_t type_;

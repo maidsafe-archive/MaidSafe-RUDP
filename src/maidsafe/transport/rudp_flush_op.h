@@ -49,6 +49,21 @@ class RudpFlushOp {
       ec_(ec) {
   }
 
+  RudpFlushOp(const RudpFlushOp &L)
+    : handler_(L.handler_),
+      ec_(L.ec_) {
+  }
+
+  RudpFlushOp & operator=(const RudpFlushOp &L) {
+    // check for "self assignment" and do nothing in that case
+    if (this != &L) {
+      delete ec_;
+      handler_ = L.handler_;
+      ec_ = L.ec_;
+    }
+    return *this;
+  }
+
   void operator()(boost::system::error_code) {
     handler_(*ec_);
   }

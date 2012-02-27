@@ -51,11 +51,18 @@ namespace transport {
 class TcpConnection;
 class MessageHandler;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
 class TcpTransport : public Transport,
                      public std::enable_shared_from_this<TcpTransport> {
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
  public:
   explicit TcpTransport(boost::asio::io_service &asio_service);  // NOLINT
-  ~TcpTransport();
+  virtual ~TcpTransport();
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
   virtual void StopListening();

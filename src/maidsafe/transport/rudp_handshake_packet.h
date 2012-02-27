@@ -49,6 +49,7 @@ class RudpHandshakePacket : public RudpControlPacket {
   enum { kPacketType = 0 };
 
   RudpHandshakePacket();
+  virtual ~RudpHandshakePacket();
 
   boost::uint32_t RudpVersion() const;
   void SetRudpVersion(boost::uint32_t n);

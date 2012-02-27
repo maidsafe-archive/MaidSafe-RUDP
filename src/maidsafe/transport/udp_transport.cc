@@ -51,6 +51,7 @@ UdpTransport::UdpTransport(asio::io_service &asio_service)  // NOLINT
     socket_(),
     read_buffer_(),
     sender_endpoint_(),
+    next_request_id_(0),
     outstanding_requests_() {
   // If a UdpTransport is restarted and listens on the same port number as
   // before, it may receive late replies intended for the previous incarnation.

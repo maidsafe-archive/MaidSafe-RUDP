@@ -55,7 +55,15 @@ namespace transport {
 class RudpMultiplexer;
 class RudpSocket;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
 class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
  public:
   RudpConnection(const std::shared_ptr<RudpTransport> &transport,
                  const boost::asio::io_service::strand &strand,

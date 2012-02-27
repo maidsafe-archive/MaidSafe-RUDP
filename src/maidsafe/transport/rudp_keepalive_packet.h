@@ -43,6 +43,7 @@ class RudpKeepalivePacket : public RudpControlPacket {
   enum { kPacketType = 1 };
 
   RudpKeepalivePacket();
+  virtual ~RudpKeepalivePacket();
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);

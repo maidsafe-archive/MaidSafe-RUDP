@@ -57,6 +57,29 @@ class RudpDispatchOp {
       dispatcher_(dispatcher) {
   }
 
+  RudpDispatchOp(const RudpDispatchOp &L)
+    : handler_(L.handler_),
+      socket_(L.socket_),
+      buffer_(L.buffer_),
+      sender_endpoint_(L.sender_endpoint_),
+      dispatcher_(L.dispatcher_) {
+  }
+
+  RudpDispatchOp & operator=(const RudpDispatchOp &L) {
+    // check for "self assignment" and do nothing in that case
+    if (this != &L) {
+      delete socket_;
+      delete sender_endpoint_;
+      delete dispatcher_;
+      handler_ = L.handler_;
+      socket_ = L.socket_;
+      buffer_ = L.buffer_;
+      sender_endpoint_ = L.sender_endpoint_;
+      dispatcher_ = L.dispatcher_;
+    }
+    return *this;
+  }
+
   void operator()(const boost::system::error_code &ec,
                   size_t bytes_transferred) {
     boost::system::error_code local_ec = ec;

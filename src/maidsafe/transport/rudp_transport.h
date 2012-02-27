@@ -57,11 +57,18 @@ class RudpSocket;
 
 typedef std::function<void(const TransportCondition&)> ConnectFunctor;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
 class RudpTransport : public Transport,
                       public std::enable_shared_from_this<RudpTransport> {
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
  public:
   explicit RudpTransport(boost::asio::io_service &asio_service);  // NOLINT
-  ~RudpTransport();
+  virtual ~RudpTransport();
 
   virtual TransportCondition StartListening(const Endpoint &endpoint);
   virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);

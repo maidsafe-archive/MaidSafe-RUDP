@@ -41,7 +41,7 @@ namespace transport {
 class RudpPeer {
  public:
   explicit RudpPeer(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
-    : multiplexer_(multiplexer), id_(0) {}
+    : multiplexer_(multiplexer), endpoint_(), id_(0) {}
 
   const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
   void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }

@@ -46,7 +46,7 @@ class RudpPacket {
 
  protected:
   // Prevent deletion through this type.
-  ~RudpPacket();
+  virtual ~RudpPacket();
 
   // Helper functions for encoding and decoding integers.
   static void DecodeUint32(boost::uint32_t *n, const unsigned char *p);

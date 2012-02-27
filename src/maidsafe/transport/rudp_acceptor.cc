@@ -48,7 +48,8 @@ namespace transport {
 RudpAcceptor::RudpAcceptor(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   : multiplexer_(multiplexer),
     waiting_accept_(multiplexer.socket_.get_io_service()),
-    waiting_accept_socket_(0) {
+    waiting_accept_socket_(0),
+    pending_requests_() {
   waiting_accept_.expires_at(boost::posix_time::pos_infin);
   multiplexer_.dispatcher_.SetAcceptor(this);
 }

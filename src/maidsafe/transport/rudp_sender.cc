@@ -52,7 +52,8 @@ RudpSender::RudpSender(RudpPeer &peer,  // NOLINT (Fraser)
   : peer_(peer),
     tick_timer_(tick_timer),
     congestion_control_(congestion_control),
-    unacked_packets_() {
+    unacked_packets_(),
+    send_timeout_() {
 }
 
 boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {

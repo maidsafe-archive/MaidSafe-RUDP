@@ -44,7 +44,10 @@ RudpHandshakePacket::RudpHandshakePacket()
     initial_packet_sequence_number_(0),
     maximum_packet_size_(0),
     maximum_flow_window_size_(0),
-    connection_type_(0) {
+    connection_type_(0),
+    socket_id_(0),
+    syn_cookie_(0),
+    ip_address_() {
   SetType(kPacketType);
 }
 

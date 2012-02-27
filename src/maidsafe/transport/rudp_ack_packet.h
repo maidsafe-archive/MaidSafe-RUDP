@@ -50,6 +50,7 @@ class RudpAckPacket : public RudpControlPacket {
   enum { kPacketType = 2 };
 
   RudpAckPacket();
+  virtual ~RudpAckPacket();
 
   boost::uint32_t AckSequenceNumber() const;
   void SetAckSequenceNumber(boost::uint32_t n);

@@ -51,6 +51,24 @@ class RudpReadOp {
       bytes_transferred_(bytes_transferred) {
   }
 
+  RudpReadOp(const RudpReadOp &L)
+    : handler_(L.handler_),
+      ec_(L.ec_),
+      bytes_transferred_(L.bytes_transferred_) {
+  }
+
+  RudpReadOp & operator=(const RudpReadOp &L) {
+    // check for "self assignment" and do nothing in that case
+    if (this != &L) {
+      delete ec_;
+      delete bytes_transferred_;
+      handler_ = L.handler_;
+      ec_ = L.ec_;
+      bytes_transferred_ = L.bytes_transferred_;
+    }
+    return *this;
+  }
+
   void operator()(boost::system::error_code) {
     handler_(*ec_, *bytes_transferred_);
   }

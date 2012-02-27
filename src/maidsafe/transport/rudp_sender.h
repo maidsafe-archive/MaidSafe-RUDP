@@ -93,7 +93,9 @@ class RudpSender {
   RudpCongestionControl &congestion_control_;
 
   struct UnackedPacket {
-    UnackedPacket() : lost(false) {}
+    UnackedPacket() : packet(),
+                      lost(false),
+                      last_send_time() {}
     RudpDataPacket packet;
     bool lost;
     boost::posix_time::ptime last_send_time;

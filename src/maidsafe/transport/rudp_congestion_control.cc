@@ -62,6 +62,8 @@ RudpCongestionControl::RudpCongestionControl()
     ack_interval_(16),
     lost_packets_(0),
     corrupted_packets_(0),
+    arrival_times_(),
+    packet_pair_intervals_(),
     peer_connection_type_(0),
     allowed_lost_(0),
     transmitted_bits_(0),

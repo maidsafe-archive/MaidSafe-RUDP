@@ -43,7 +43,15 @@ namespace transport {
 
 class TcpTransport;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
  public:
   TcpConnection(const std::shared_ptr<TcpTransport> &tcp_transport,
                 const boost::asio::ip::tcp::endpoint &remote);

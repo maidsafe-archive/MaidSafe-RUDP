@@ -43,6 +43,7 @@ class RudpShutdownPacket : public RudpControlPacket {
   enum { kPacketType = 5 };
 
   RudpShutdownPacket();
+  virtual ~RudpShutdownPacket();
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);
