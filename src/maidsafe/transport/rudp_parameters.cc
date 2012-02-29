@@ -55,6 +55,8 @@ boost::posix_time::time_duration RudpParameters::ack_interval(
 boost::posix_time::time_duration RudpParameters::speed_calculate_inverval(
     bptime::milliseconds(1000));
 boost::uint32_t RudpParameters::slow_speed_threshold(1024);
+boost::posix_time::time_duration RudpParameters::client_connect_timeout(
+    bptime::milliseconds(1000));
 RudpParameters::ConnectionType RudpParameters::connection_type(
     RudpParameters::kWireless);
 }  // namespace transport

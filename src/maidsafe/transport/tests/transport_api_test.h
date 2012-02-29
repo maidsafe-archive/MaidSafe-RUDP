@@ -32,6 +32,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include <utility>
+
 #include "boost/thread/condition_variable.hpp"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
@@ -64,6 +65,9 @@ typedef std::vector<TransportCondition> Results;
 class TestMessageHandler {
  public:
   explicit TestMessageHandler(const std::string &id);
+
+  virtual ~TestMessageHandler() {}
+
   void DoOnRequestReceived(const std::string &request,
                            const Info &info,
                            std::string *response,
@@ -135,6 +139,7 @@ class TransportAPITest : public TransportAPI<T>, public ::testing::Test {
 class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {
  public:
   RUDPSingleTransportAPITest() {}
+  void RestoreRUDPGlobalSettings();
 };
 
 class RUDPConfigurableTransportAPITest

@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
 #include <vector>
+
 #include "maidsafe/common/test.h"
 #include "maidsafe/transport/log.h"
 #include "maidsafe/transport/rudp_acceptor.h"
@@ -61,7 +62,7 @@ void handler1(const bs::error_code &ec, bs::error_code *out_ec) {
   *out_ec = ec;
 }
 
-TEST(RudpSocketTest, DISABLED_BEH_Socket) {
+TEST(RudpSocketTest, BEH_Socket) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;
