@@ -94,7 +94,7 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       } else {
         const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
         DLOG(ERROR) << "Received a packet \"0x" << std::hex
-                    << static_cast<int>(*p)
+                    << static_cast<int>(*p) << std::dec
                     << "\" for unknown connection "
                     << id << " from " << endpoint << std::endl;
       }
