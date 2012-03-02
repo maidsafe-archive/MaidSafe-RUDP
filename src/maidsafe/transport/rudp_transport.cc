@@ -189,8 +189,11 @@ void RudpTransport::DoSend(const std::string &data,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
-    // TODO(Mahmoud): error handling
+    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    if (kSuccess != condition) {
+      (*on_error_)(condition, endpoint);
+      return;
+    }
     StartDispatch();
   }
 
@@ -212,8 +215,11 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
 
   if (!multiplexer_->IsOpen()) {
-    /*TransportCondition condition = */multiplexer_->Open(ep.protocol());
-    // TODO(Mahmoud): error handling
+    TransportCondition condition = multiplexer_->Open(ep.protocol());
+    if (kSuccess != condition) {
+      (*on_error_)(condition, endpoint);
+      return;
+    }
     StartDispatch();
   }
 

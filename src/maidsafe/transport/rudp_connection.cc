@@ -199,6 +199,9 @@ void RudpConnection::StartTick() {
 // During receiving : averagle one tick every 140ms
 // 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
 void RudpConnection::HandleTick() {
+  if (!socket_.IsOpen())
+    return;
+
   if (timeout_state_ == kSending) {
     boost::uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
