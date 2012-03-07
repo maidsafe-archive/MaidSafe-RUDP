@@ -187,6 +187,7 @@ void RudpTransport::DoSend(const std::string &data,
                            const Endpoint &endpoint,
                            const Timeout &timeout) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  bool multiplexer_opened_now(false);
 
   if (!multiplexer_->IsOpen()) {
     TransportCondition condition = multiplexer_->Open(ep.protocol());
@@ -194,7 +195,8 @@ void RudpTransport::DoSend(const std::string &data,
       (*on_error_)(condition, endpoint);
       return;
     }
-    StartDispatch();
+    multiplexer_opened_now = true;
+    // StartDispatch();
   }
 
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
@@ -203,6 +205,13 @@ void RudpTransport::DoSend(const std::string &data,
 
   DoInsertConnection(connection);
   connection->StartSending(data, timeout);
+// Moving StartDispatch() after StartSending(), as on Windows - client-socket's
+// attempt to call async_receive_from() will result in EINVAL error until it is
+// either bound to any port or a sendto() operation is performed by the socket.
+// Also, this makes it in sync with tcp transport's implementation.
+
+  if (multiplexer_opened_now)
+    StartDispatch();
 }
 
 void RudpTransport::Connect(const Endpoint &endpoint, const Timeout &timeout,
@@ -213,6 +222,7 @@ void RudpTransport::Connect(const Endpoint &endpoint, const Timeout &timeout,
 void RudpTransport::DoConnect(const Endpoint &endpoint,
                             const Timeout &timeout, ConnectFunctor callback) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  bool multiplexer_opened_now(false);
 
   if (!multiplexer_->IsOpen()) {
     TransportCondition condition = multiplexer_->Open(ep.protocol());
@@ -220,7 +230,8 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
       (*on_error_)(condition, endpoint);
       return;
     }
-    StartDispatch();
+    multiplexer_opened_now = true;
+    // StartDispatch();
   }
 
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
@@ -228,6 +239,9 @@ void RudpTransport::DoConnect(const Endpoint &endpoint,
                                                             multiplexer_, ep));
   DoInsertConnection(connection);
   connection->Connect(timeout, callback);
+
+  if (multiplexer_opened_now)
+    StartDispatch();
 }
 
 void RudpTransport::InsertConnection(ConnectionPtr connection) {
