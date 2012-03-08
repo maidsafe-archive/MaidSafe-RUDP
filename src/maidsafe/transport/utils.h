@@ -44,7 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/transport/version.h"
 
-#if MAIDSAFE_TRANSPORT_VERSION != 104
+#if MAIDSAFE_TRANSPORT_VERSION != 200
 #  error This API is not compatible with the installed library.\
     Please update the maidsafe-transport library.
 #endif

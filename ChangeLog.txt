@@ -1,5 +1,16 @@
-v0.01.04 (WIP)
+v0.03.00 (WIP)
 --------------
+
+v0.02.00
+--------
+* Removed unneeded files causing linker warnings on OSX.  Updated gitignore.
+* Fixes RUDP BEH_Socket test failure.
+* Fixes RudpSocket::SentLength(): Assertion  and added error handling in Rudptransport.
+* Warning free transport on linux.
+* Enabled effc++ for all files.
+* Merge branch 'nat_detection' into next.
+* Fixed bug in TcpConnection::CheckTimeout.
+*
 
 v0.01.03
 --------------
