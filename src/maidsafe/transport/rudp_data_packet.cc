@@ -46,8 +46,7 @@ RudpDataPacket::RudpDataPacket()
     message_number_(0),
     time_stamp_(0),
     destination_socket_id_(0),
-    data_() {
-}
+    data_() {}
 
 boost::uint32_t RudpDataPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;

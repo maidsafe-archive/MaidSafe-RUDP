@@ -113,6 +113,10 @@ class RudpDispatchOp {
   }
 
  private:
+  // Disallow copying and assignment.
+//  RudpDispatchOp(const RudpDispatchOp&);
+//  RudpDispatchOp &operator=(const RudpDispatchOp&);
+
   DispatchHandler handler_;
   boost::asio::ip::udp::socket *socket_;
   boost::asio::mutable_buffer buffer_;

@@ -140,6 +140,7 @@ class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {
  public:
   RUDPSingleTransportAPITest() {}
   void RestoreRUDPGlobalSettings();
+  virtual ~RUDPSingleTransportAPITest() {}
 };
 
 class RUDPConfigurableTransportAPITest

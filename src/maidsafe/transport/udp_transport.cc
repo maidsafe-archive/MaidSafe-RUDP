@@ -56,7 +56,6 @@ UdpTransport::UdpTransport(asio::io_service &asio_service)  // NOLINT
   // If a UdpTransport is restarted and listens on the same port number as
   // before, it may receive late replies intended for the previous incarnation.
   // To avoid this, we use a random number as the first request id.
-  next_request_id_ = maidsafe::RandomUint32();
   next_request_id_ <<= 32;
   bptime::time_duration time = maidsafe::GetDurationSinceEpoch();
   next_request_id_ |= time.total_microseconds() & 0xffffffff;

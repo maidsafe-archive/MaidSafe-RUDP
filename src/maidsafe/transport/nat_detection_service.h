@@ -112,13 +112,14 @@ class NatDetectionService : public std::enable_shared_from_this<NatDetectionServ
 
   void SetNatDetectionResponse(
       protobuf::NatDetectionResponse *nat_detection_response,
-     const Endpoint &endpoint, const NatType &nat_type);
+     const Endpoint &endpoint,
+     const NatType &nat_type);
 
   void SetRendezvousRequest(protobuf::RendezvousRequest *rendezvous_request,
                             const Endpoint &proxy);
 
   virtual bool DirectlyConnected(const protobuf::NatDetectionRequest &request,
-                         const Endpoint &endpoint);
+                                 const Endpoint &endpoint);
   // Proxy to Rendezvous
   void SendForwardRendezvousRequest(const Endpoint &rendezvous,
                                     const Endpoint &originator,

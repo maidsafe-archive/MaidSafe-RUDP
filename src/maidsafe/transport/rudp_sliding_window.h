@@ -57,9 +57,10 @@ class RudpSlidingWindow {
 
   // Construct to start with a specified sequence number.
   explicit RudpSlidingWindow(boost::uint32_t initial_sequence_number)
-      : items_(), maximum_size_(0), begin_(0), end_(0) {
-    Reset(initial_sequence_number);
-  }
+      : items_(),
+        maximum_size_(RudpParameters::default_window_size),
+        begin_(initial_sequence_number),
+        end_(initial_sequence_number) {}
 
   // Reset to empty starting with the specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number) {

@@ -85,6 +85,10 @@ class RudpFlushOp {
   }
 
  private:
+  // Disallow copying and assignment.
+//  RudpFlushOp(const RudpFlushOp&);
+//  RudpFlushOp &operator=(const RudpFlushOp&);
+
   FlushHandler handler_;
   const boost::system::error_code *ec_;
 };

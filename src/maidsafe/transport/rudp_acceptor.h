@@ -97,7 +97,9 @@ class RudpAcceptor {
 
   // A connection request that is yet to be processed by the acceptor.
   struct PendingRequest {
-    PendingRequest() : remote_id(0), remote_endpoint() {}
+    PendingRequest()
+        : remote_id(0),
+          remote_endpoint() {}
     boost::uint32_t remote_id;
     boost::asio::ip::udp::endpoint remote_endpoint;
   };
