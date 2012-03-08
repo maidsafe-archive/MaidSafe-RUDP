@@ -7,3 +7,5 @@ desktop.ini
 *.kdev4
 *.pb.h
 *.pb.cc
+.DS_Store
+
