@@ -413,6 +413,10 @@ void RUDPSingleTransportAPITest::RestoreRUDPGlobalSettings() {
 }
 
 TYPED_TEST_P(TransportAPITest, BEH_StartStopListening) {
+  int port1(RandomUint32() % 64511 + 1025);
+  int port2(RandomUint32() % 64511 + 1025);
+  while (port1 == port2)
+    port2 = RandomUint32() % 64511 + 1025;
   TransportPtr transport(new TypeParam(this->asio_services_[0]->service()));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
