@@ -631,6 +631,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionCommunicate) {
 TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionDuplexCommunicate) {
   // 8MB data to be sent both from client to server and server to client
   // simultaneously
+  // TODO(Prakash) : FIXME - Test failing for 8Mb data on Windows,
+  // passes for 4 Mb on Windows.
   std::string send_request(RandomString(1));
   std::string listen_request(RandomString(1));
   for (int i = 0; i < 23; ++i) {
@@ -677,8 +679,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionDuplexCommunicate) {
   //    listener.send -> sender.DoOnResponseReceived -> no response given
   // *** took 7.5s to finish the two requests transmission (arrived at the same)
   // *** then took another 3s to finish the single response transmission
-  EXPECT_EQ(1, msgh_listener->requests_received().size());
-  EXPECT_EQ(2, msgh_sender->responses_received().size());
+  ASSERT_EQ(1, msgh_listener->requests_received().size());
+  ASSERT_EQ(2, msgh_sender->responses_received().size());
   EXPECT_EQ(send_request, msgh_listener->requests_received()[0].first);
   EXPECT_EQ(listen_request, msgh_sender->responses_received()[0].first);
 }
@@ -755,13 +757,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
 
   std::string request(RandomString(1));
   // TODO(Prakash) : FIXME - Test failing for 64Mb data on Windows,
-  // Testing for 8 Mb on Windows.
-#ifdef WIN32
-  const int kDataSize(23);
-#else
-  const int kDataSize(26);
-#endif
-  for (int i = 0; i < kDataSize; ++i)
+  // passes for 8 Mb on Windows.
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while sending (receiver dropped)
@@ -794,13 +791,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
 
   std::string request(RandomString(1));
   // TODO(Prakash) : FIXME - Test failing for 64Mb data on Windows,
-  // Testing for 8 Mb on Windows.
-#ifdef WIN32
-  const int kDataSize(23);
-#else
-  const int kDataSize(26);
-#endif
-  for (int i = 0; i < kDataSize; ++i)
+  // passes for 8 Mb on Windows.
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while receiving (sender dropped)
@@ -885,14 +877,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowSendSpeed) {
 
   std::string request(RandomString(1));
   // TODO(Prakash) : FIXME - Test failing for 64Mb data on Windows,
-  // Testing for 8 Mb on Windows.
-#ifdef WIN32
-  const int kDataSize(23);
-#else
-  const int kDataSize(26);
-#endif
-
-  for (int i = 0; i < kDataSize; ++i)
+  // passes for 8 Mb on Windows.
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while sending (receiver dropped)
@@ -939,13 +925,8 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowReceiveSpeed) {
   std::string request(RandomString(1));
 
 // TODO(Prakash) : FIXME - Test failing for 64Mb data on Windows,
-// Testing for 8 Mb on Windows.
-#ifdef WIN32
-  const int kDataSize(23);
-#else
-  const int kDataSize(26);
-#endif
-  for (int i = 0; i < kDataSize; ++i)
+// passes for 8 Mb on Windows.
+  for (int i = 0; i < 26; ++i)
     request = request + request;
   {
     // Detect a dropped connection while sending (receiver dropped)
