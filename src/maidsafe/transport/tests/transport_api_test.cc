@@ -416,15 +416,33 @@ TYPED_TEST_P(TransportAPITest, BEH_StartStopListening) {
   TransportPtr transport(new TypeParam(this->asio_services_[0]->service()));
   EXPECT_EQ(Port(0), transport->listening_port());
   EXPECT_EQ(kInvalidPort, transport->StartListening(Endpoint(kIP, 0)));
-  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 2277)));
-  EXPECT_EQ(Port(2277), transport->listening_port());
-  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 2277)));
-  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, 55123)));
-  EXPECT_EQ(Port(2277), transport->listening_port());
+  int result(999);
+  int count(0);
+  for (result = transport->StartListening(Endpoint(kIP, port1));
+      result != kSuccess && count != 5; ++count) {
+    do {
+      port1 = RandomUint32() % 64511 + 1025;
+    } while (port1 == port2);
+    result = transport->StartListening(Endpoint(kIP, port1));
+  }
+  EXPECT_EQ(kSuccess, result);
+  EXPECT_EQ(Port(port1), transport->listening_port());
+  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, port1)));
+  EXPECT_EQ(kAlreadyStarted, transport->StartListening(Endpoint(kIP, port2)));
+  EXPECT_EQ(Port(port1), transport->listening_port());
   transport->StopListening();
   EXPECT_EQ(Port(0), transport->listening_port());
-  EXPECT_EQ(kSuccess, transport->StartListening(Endpoint(kIP, 55123)));
-  EXPECT_EQ(Port(55123), transport->listening_port());
+  result = 999;
+  count = 0;
+  for (result = transport->StartListening(Endpoint(kIP, port2));
+      result != kSuccess && count != 5; ++count) {
+    do {
+      port2 = RandomUint32() % 64511 + 1025;
+    } while (port1 == port2);
+    result = transport->StartListening(Endpoint(kIP, port2));
+  }
+  EXPECT_EQ(kSuccess, result);
+  EXPECT_EQ(Port(port2), transport->listening_port());
   transport->StopListening();
 }
 
