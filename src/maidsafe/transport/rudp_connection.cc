@@ -60,11 +60,15 @@ RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
     timer_(strand_.get_io_service()),
     response_deadline_(),
     remote_endpoint_(remote),
+    write_complete_functor_(),
+    read_complete_functor_(),
+    response_functor_(),
     buffer_(),
     data_size_(0),
     data_received_(0),
     timeout_for_response_(kDefaultInitialTimeout),
-    timeout_state_(kNoTimeout) {
+    timeout_state_(kNoTimeout),
+    managed_(false) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
@@ -92,6 +96,27 @@ void RudpConnection::DoClose() {
     socket_.Close();
     timer_.cancel();
   }
+}
+
+TransportCondition RudpConnection::SetManaged(bool managed) {
+  if (Stopped())
+    return kError;
+  managed_ = managed;
+  return kSuccess;
+}
+
+void RudpConnection::set_response_functor(ResponseFunctor response_functor) {
+  response_functor_ = response_functor;
+}
+
+void RudpConnection::set_write_complete_functor(
+    WriteCompleteFunctor write_complete_functor) {
+  write_complete_functor_ = write_complete_functor;
+}
+
+void RudpConnection::set_read_complete_functor(
+    ReadCompleteFunctor read_complete_functor) {
+  read_complete_functor_ = read_complete_functor;
 }
 
 void RudpConnection::StartReceiving() {
@@ -155,6 +180,24 @@ void RudpConnection::DoStartSending() {
   StartClientConnect();
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
+}
+
+void RudpConnection::WriteOnManagedConnection(const std::string &data,
+    const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
+  assert(managed_);
+  set_write_complete_functor(write_complete_functor);
+  EncodeData(data);
+  timeout_for_response_ = timeout;
+  StartWrite();
+}
+
+void RudpConnection::ReadOnManagedConnection(
+    ReadCompleteFunctor read_complete_functor) {
+  assert(managed_);
+  set_read_complete_functor(read_complete_functor);
+  if (Stopped())
+    return CloseOnError(kNoConnection);
+  StartReadSize();
 }
 
 void RudpConnection::CheckTimeout(const bs::error_code &ec) {
@@ -341,19 +384,33 @@ void RudpConnection::DispatchMessage() {
     Info info;
     info.endpoint.ip = socket_.RemoteEndpoint().address();
     info.endpoint.port = socket_.RemoteEndpoint().port();
-    (*transport->on_message_received_)(std::string(buffer_.begin(),
-                                                   buffer_.end()),
-                                       info, &response,
-                                       &response_timeout);
-    if (response.empty()) {
+
+    // Changes for managed connection
+    if (managed_ && read_complete_functor_) {
+      // managed connection - need to keep connection alive.
+      timeout_for_response_ = bptime::seconds(bptime::pos_infin);
+      timeout_state_ = kNoTimeout;
+      read_complete_functor_(kSuccess,
+                             std::string(buffer_.begin(), buffer_.end()));
+      return;
+    } else if (response_functor_) {
+      response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
       Close();
       return;
+    } else {
+      (*transport->on_message_received_)(std::string(buffer_.begin(),
+                                                     buffer_.end()),
+                                         info, &response,
+                                         &response_timeout);
+      if (response.empty()) {
+        Close();
+        return;
+      }
+      EncodeData(response);
+      timeout_for_response_ = response_timeout;
+      strand_.dispatch(std::bind(&RudpConnection::StartWrite,
+                                 shared_from_this()));
     }
-
-    EncodeData(response);
-    timeout_for_response_ = response_timeout;
-    strand_.dispatch(std::bind(&RudpConnection::StartWrite,
-                               shared_from_this()));
   }
 }
 
@@ -394,6 +451,12 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kNoTimeout;
+  // For managed connection, write op doesn't continue to read response if
+  // it is a WriteOnManagedConnection op
+  if (managed_ && write_complete_functor_) {
+    write_complete_functor_(kSuccess);
+    return;
+  }
   // Start receiving response
   if (timeout_for_response_ != kImmediateTimeout) {
     StartReadSize();
@@ -405,9 +468,15 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
 void RudpConnection::CloseOnError(const TransportCondition &error) {
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-    (*transport->on_error_)(error, ep);
+    if(managed_ && write_complete_functor_ && (kSending == timeout_state_)) {
+      write_complete_functor_(error);
+    } else if (response_functor_) {
+      response_functor_(error, "");
+    } else {
+      (*transport->on_error_)(error, ep);
+    }
+    DoClose();
   }
-  DoClose();
 }
 
 }  // namespace transport

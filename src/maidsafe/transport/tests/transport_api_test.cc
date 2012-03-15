@@ -135,6 +135,13 @@ void TestMessageHandler::DoOnError(const TransportCondition &tc) {
   finished_ = true;
 }
 
+
+void TestMessageHandler::DoOnResponseCallback(const TransportCondition& result,
+                                              std::string response) {
+  DLOG(INFO) << this_id_ << " - Received call back response: \"" << response << "\"";
+  DLOG(INFO) << this_id_ << " - TransportCondition: \"" << result << "\"";
+}
+
 void TestMessageHandler::ClearContainers() {
   boost::mutex::scoped_lock lock(mutex_);
   requests_received_.clear();
@@ -954,6 +961,141 @@ TEST_P(RUDPConfigurableTransportAPITest, BEH_TRANS_ConfigurableTraffic) {
   this->SetupTransport(true, 0);
   // To save the test time, send out a message with 4MB = 2^22
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 22));
+}
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Send) {
+  std::shared_ptr<RudpTransport>
+      sender(new RudpTransport(this->asio_services_[0]->service()));
+  std::shared_ptr<RudpTransport>
+      listener(new RudpTransport(this->asio_services_[0]->service()));
+  EXPECT_EQ(kSuccess, sender->StartListening(Endpoint(kIP, 2000)));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2001)));
+  TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
+  TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
+  sender->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
+  listener->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+  {
+    // Send from sender to listener
+    auto sender_conn =
+        sender->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender,
+                        _1, _2, _3, _4));
+    auto listener_conn =
+        listener->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener,
+                        _1, _2, _3, _4));
+    ResponseFunctor response_functor(
+      std::bind(&TestMessageHandler::DoOnResponseCallback, msgh_sender, args::_1,
+                args::_2));
+    std::string from_sender(1024,'S');
+    sender->Send("from sender" + from_sender , Endpoint(kIP, listener->listening_port()),
+                 bptime::seconds(26), false, response_functor);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    // Connections need to be disconnected to ensure in the later part of the
+    // test, the signal will not notify multiple handlers
+    sender_conn.disconnect();
+    listener_conn.disconnect();
+  }
+  {
+    // Send from listener to sender
+    auto sender_conn =
+        sender->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_sender,
+                        _1, _2, _3, _4));
+    auto listener_conn =
+        listener->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnResponseReceived,
+                        msgh_listener, _1, _2, _3, _4));
+    ResponseFunctor response_functor(
+      std::bind(&TestMessageHandler::DoOnResponseCallback, msgh_listener, args::_1,
+                args::_2));
+    std::string from_listener(1024,'L');
+    listener->Send("from listener" + from_listener, Endpoint(kIP, sender->listening_port()),
+                   bptime::seconds(26), false, response_functor);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
+  int waited_seconds(0);
+  while (((msgh_listener->requests_received().size() == 0) ||
+          (msgh_sender->requests_received().size() == 0)) &&
+          (waited_seconds < 3)) {
+    Sleep(boost::posix_time::milliseconds(1000));
+    ++waited_seconds;
+  }
+  EXPECT_EQ(1, msgh_listener->requests_received().size());
+  EXPECT_EQ(0, msgh_listener->responses_received().size());
+  EXPECT_EQ(1, msgh_sender->requests_received().size());
+  EXPECT_EQ(0, msgh_sender->responses_received().size());
+  StopAsioServices();
+}
+
+
+TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SendManagedConnection) {
+  std::shared_ptr<RudpTransport>
+      sender(new RudpTransport(this->asio_services_[0]->service()));
+  std::shared_ptr<RudpTransport>
+      listener(new RudpTransport(this->asio_services_[0]->service()));
+  EXPECT_EQ(kSuccess, sender->StartListening(Endpoint(kIP, 2000)));
+  EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2001)));
+  TestMessageHandlerPtr msgh_sender(new TestMessageHandler("Sender"));
+  TestMessageHandlerPtr msgh_listener(new TestMessageHandler("listener"));
+  sender->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_sender, _1));
+  listener->on_error()->connect(
+      boost::bind(&TestMessageHandler::DoOnError, msgh_listener, _1));
+  {
+    // Send from sender to listener
+    auto sender_conn =
+        sender->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnResponseReceived, msgh_sender,
+                        _1, _2, _3, _4));
+    auto listener_conn =
+        listener->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_listener,
+                        _1, _2, _3, _4));
+    ResponseFunctor response_functor(
+      std::bind(&TestMessageHandler::DoOnResponseCallback, msgh_sender, args::_1,
+                args::_2));
+    std::string from_sender(1024,'S');
+    sender->Send("from sender" + from_sender , Endpoint(kIP, listener->listening_port()),
+                 bptime::seconds(26), true, response_functor);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    // Connections need to be disconnected to ensure in the later part of the
+    // test, the signal will not notify multiple handlers
+    sender_conn.disconnect();
+    listener_conn.disconnect();
+  }
+  {
+    // Send from listener to sender
+    auto sender_conn =
+        sender->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnRequestReceived, msgh_sender,
+                        _1, _2, _3, _4));
+    auto listener_conn =
+        listener->on_message_received()->connect(
+            boost::bind(&TestMessageHandler::DoOnResponseReceived,
+                        msgh_listener, _1, _2, _3, _4));
+    ResponseFunctor response_functor(
+      std::bind(&TestMessageHandler::DoOnResponseCallback, msgh_listener, args::_1,
+                args::_2));
+    std::string from_listener(1024,'L');
+    listener->Send("from listener" + from_listener, Endpoint(kIP, sender->listening_port()),
+                   bptime::seconds(26), true, response_functor);
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+  }
+  int waited_seconds(0);
+  while (((msgh_listener->requests_received().size() == 0) ||
+          (msgh_sender->requests_received().size() == 0)) &&
+          (waited_seconds < 3)) {
+    Sleep(boost::posix_time::milliseconds(1000));
+    ++waited_seconds;
+  }
+  EXPECT_EQ(1, msgh_listener->requests_received().size());
+  EXPECT_EQ(0, msgh_listener->responses_received().size());
+  EXPECT_EQ(1, msgh_sender->requests_received().size());
+  EXPECT_EQ(0, msgh_sender->responses_received().size());
+  StopAsioServices();
 }
 
 }  // namespace test

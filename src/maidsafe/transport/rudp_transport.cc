@@ -200,8 +200,8 @@ void RudpTransport::DoSend(const std::string &data,
   }
 
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
-                                                           strand_,
-                                                           multiplexer_, ep));
+                                                            strand_,
+                                                            multiplexer_, ep));
 
   DoInsertConnection(connection);
   connection->StartSending(data, timeout);
@@ -219,8 +219,9 @@ void RudpTransport::Connect(const Endpoint &endpoint, const Timeout &timeout,
   strand_.dispatch(std::bind(&RudpTransport::DoConnect,
                              shared_from_this(), endpoint, timeout, callback));
 }
+
 void RudpTransport::DoConnect(const Endpoint &endpoint,
-                            const Timeout &timeout, ConnectFunctor callback) {
+                              const Timeout &timeout, ConnectFunctor callback) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
   bool multiplexer_opened_now(false);
 
@@ -260,6 +261,88 @@ void RudpTransport::RemoveConnection(ConnectionPtr connection) {
 
 void RudpTransport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
+}
+
+TransportCondition RudpTransport::SetConnectionAsManaged(
+    const Endpoint &peer_endpoint) {
+  ip::udp::endpoint ep(peer_endpoint.ip, peer_endpoint.port);
+  if (!multiplexer_->IsOpen()) {
+    return kError;
+  }
+  // find existing managed connection (need to replace with effective algorithm)
+  ConnectionPtr connection(nullptr);
+  for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
+    if ((*itr)->managed() && ((*itr)->remote_endpoint() == ep)) {
+      connection = *itr;
+    }
+  }
+
+  if (!connection) {
+    return kError;  // No managed connection exist for ep
+  }
+  return connection->SetManaged(true);
+}
+
+  // For managed connection implementation
+void RudpTransport::Send(const std::string &data, const Endpoint &endpoint,
+                         const Timeout &timeout, const bool &managed,
+                         ResponseFunctor response_functor) {
+  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  if (!multiplexer_->IsOpen()) {
+    response_functor(kError, "");
+    return;
+  }
+  ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
+                                                            strand_,
+                                                            multiplexer_, ep));
+  connection->SetManaged(managed);
+  connection->set_response_functor(response_functor);
+  DoInsertConnection(connection);
+  connection->StartSending(data, timeout);
+}
+
+  // For managed connection implementation
+void RudpTransport::WriteOnManagedConnection(const std::string &data,
+                                             const Endpoint &endpoint,
+                                             const Timeout &timeout,
+                                             WriteCompleteFunctor write_complete_functor) { // NOLINT
+  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  if (!multiplexer_->IsOpen()) {
+    write_complete_functor(kError);
+    return;
+  }
+  // find existing managed connection (need to replace with effective algorithm)
+  ConnectionPtr connection(nullptr);
+  for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
+    if ((*itr)->managed() && ((*itr)->remote_endpoint() == ep)) {
+      connection = *itr;
+    }
+  }
+
+  if (!connection) {
+    write_complete_functor(kError);  // No managed connection exist for ep
+  }
+  connection->WriteOnManagedConnection(data, timeout, write_complete_functor);
+}
+
+void RudpTransport::ReadOnManagedConnection(const Endpoint &endpoint,
+    ReadCompleteFunctor read_complete_functor) {
+  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  if (!multiplexer_->IsOpen()) {
+    read_complete_functor(kError, "");
+    return;
+  }
+  // find existing managed connection (need to replace with effective algorithm)
+  ConnectionPtr connection(nullptr);
+  for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
+    if ((*itr)->managed() && ((*itr)->remote_endpoint() == ep)) {
+      connection = *itr;
+    }
+  }
+
+  if (!connection) {
+    read_complete_functor(kError, "");  // No managed connection exist for ep
+  }
 }
 
 }  // namespace transport

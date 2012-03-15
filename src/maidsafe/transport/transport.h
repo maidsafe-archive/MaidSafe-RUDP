@@ -130,6 +130,14 @@ struct Endpoint {
     if (ec)
       port = 0;
   }
+
+  bool Endpoint::operator==(const Endpoint &other) const {
+    if (ip == other.ip && port == other.port)
+      return true;
+    else
+      return false;
+  }
+
   IP ip;
   Port port;
 };
