@@ -184,16 +184,18 @@ void RudpConnection::DoStartSending() {
 
 void RudpConnection::WriteOnManagedConnection(const std::string &data,
     const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
-  assert(managed_);
+  BOOST_ASSERT(managed_);
   set_write_complete_functor(write_complete_functor);
   EncodeData(data);
   timeout_for_response_ = timeout;
+  DLOG(INFO) << "WriteOnManagedConnection() -- before StartWrite !!";
   StartWrite();
+  DLOG(INFO) << "WriteOnManagedConnection() -- after StartWrite !!";
 }
 
 void RudpConnection::ReadOnManagedConnection(
     ReadCompleteFunctor read_complete_functor) {
-  assert(managed_);
+  BOOST_ASSERT(managed_);
   set_read_complete_functor(read_complete_functor);
   if (Stopped())
     return CloseOnError(kNoConnection);
@@ -377,6 +379,7 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
 }
 
 void RudpConnection::DispatchMessage() {
+  DLOG(INFO) << "In DispatchMessage() ID "  << socket_.Id();
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     // Signal message received and send response if applicable
     std::string response;
@@ -386,12 +389,18 @@ void RudpConnection::DispatchMessage() {
     info.endpoint.port = socket_.RemoteEndpoint().port();
 
     // Changes for managed connection
-    if (managed_ && read_complete_functor_) {
+    if (managed_) {
+      DLOG(INFO) << "DispatchMessage() - managed_";
       // managed connection - need to keep connection alive.
       timeout_for_response_ = bptime::seconds(bptime::pos_infin);
       timeout_state_ = kNoTimeout;
-      read_complete_functor_(kSuccess,
-                             std::string(buffer_.begin(), buffer_.end()));
+      if (read_complete_functor_) {
+        DLOG(INFO) << "Has read_complete_functor_ && managed_)";
+        read_complete_functor_(kSuccess,
+                               std::string(buffer_.begin(), buffer_.end()));
+      } else if (response_functor_) {
+        response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
+      }
       return;
     } else if (response_functor_) {
       response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));

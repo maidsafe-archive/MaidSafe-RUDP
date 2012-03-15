@@ -307,12 +307,15 @@ void RudpTransport::WriteOnManagedConnection(const std::string &data,
                                              const Timeout &timeout,
                                              WriteCompleteFunctor write_complete_functor) { // NOLINT
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
+  DLOG(INFO) << "RudpTransport::WriteOnManagedConnection()";
   if (!multiplexer_->IsOpen()) {
     write_complete_functor(kError);
     return;
   }
+  DLOG(INFO) << "RudpTransport::WriteOnManagedConnection() - multiplexer_ open  !!";
   // find existing managed connection (need to replace with effective algorithm)
   ConnectionPtr connection(nullptr);
+  DLOG(INFO) << "connections_ set size -- "  << connections_.size();
   for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
     if ((*itr)->managed() && ((*itr)->remote_endpoint() == ep)) {
       connection = *itr;
@@ -321,6 +324,8 @@ void RudpTransport::WriteOnManagedConnection(const std::string &data,
 
   if (!connection) {
     write_complete_functor(kError);  // No managed connection exist for ep
+    DLOG(ERROR) << "No managed connection exist for endpoint- " << ep.port();
+    return;
   }
   connection->WriteOnManagedConnection(data, timeout, write_complete_functor);
 }

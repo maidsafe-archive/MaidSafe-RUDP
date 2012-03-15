@@ -29,11 +29,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
 
+#include "maidsafe/transport/log.h"
 #include "maidsafe/transport/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
 namespace args = std::placeholders;
+namespace asio = boost::asio;
+namespace bptime = boost::posix_time;
+namespace ip = asio::ip;
 
 namespace maidsafe {
 
@@ -52,16 +54,17 @@ void ManagedConnection::ConnectionLost(LostFunctor lost_functor) {
 }
 
 OnMessageReceived ManagedConnection::on_message_received() {
-  assert(transport_);
+  BOOST_ASSERT(transport_);
   return transport_->on_message_received();
 }
 
-TransportCondition ManagedConnection::Init(uint8_t thread_count,
-    std::pair<uint16_t, uint16_t> port_range) {
+TransportCondition ManagedConnection::Init(uint8_t thread_count) {
+  // TODO use random port to start
+  std::pair<uint16_t, uint16_t> port_range(8000, 9000);
   asio_services_->Start(thread_count);
   keep_alive_timer_.reset(
-      new asio::deadline_timer(asio_services_->service()));
-                               //boost::posix_time::seconds(10));
+      new asio::deadline_timer(asio_services_->service(),
+                               bptime::seconds(10)));
   TransportCondition result(kError);
   transport_.reset(new RudpTransport(asio_services_->service()));
   // Workaround until NAT detection is integrated.
@@ -69,7 +72,7 @@ TransportCondition ManagedConnection::Init(uint8_t thread_count,
   transport::Endpoint endpoint(
       ips.empty() ? IP::from_string("127.0.0.1") : ips.front(), 0);
   for (uint16_t port(std::min(port_range.first, port_range.second));
-         port != std::min(port_range.first, port_range.second); ++port) {
+         port != std::max(port_range.first, port_range.second); ++port) {
     endpoint.port = port;
     result = transport_->StartListening(endpoint);
     if (transport::kSuccess == result) {
@@ -80,30 +83,37 @@ TransportCondition ManagedConnection::Init(uint8_t thread_count,
   }
   if (kSuccess != result)
     return result;
-
   keep_alive_timer_->async_wait(
-    std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
+      std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
   return result;
 }
 
 void ManagedConnection::SendKeepAlive(const boost::system::error_code& ec) {
+  DLOG(INFO) << "SendKeepAlive :" << ec.message();
   if (ec == boost::asio::error::operation_aborted) {
     return;
   }
   // lock
-  for (auto itr(connected_endpoints_.begin());
-      itr !=connected_endpoints_.end(); ++itr) {
-    WriteCompleteFunctor cb(std::bind(&ManagedConnection::KeepAliveCallback,
-                                      this, *itr, args::_1));
-    transport_->WriteOnManagedConnection("KeepAlive", *itr,
-                                         kDefaultInitialTimeout, cb);
-  }
+  //for (auto itr(connected_endpoints_.begin());
+  //    itr !=connected_endpoints_.end(); ++itr) {
+  //  WriteCompleteFunctor cb(std::bind(&ManagedConnection::KeepAliveCallback,
+  //                                    this, *itr, args::_1));
+  //  DLOG(INFO) << "Sending KeepAlive to :" << (*itr).port;
+  //  transport_->WriteOnManagedConnection("KeepAlive", *itr,
+  //                                       kDefaultInitialTimeout, cb);
+  //  DLOG(INFO) << "Sent KeepAlive to :" << (*itr).port;
+  //}
+  keep_alive_timer_->expires_at(
+      keep_alive_timer_->expires_at() + bptime::seconds(10));
   keep_alive_timer_->async_wait(
-    std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
+      std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
+  DLOG(INFO) << "SendKeepAlive - rescheduled timer ... ";
 }
 
 void ManagedConnection::KeepAliveCallback(const Endpoint &endpoint,
                                           const TransportCondition& result) {
+  DLOG(INFO) << "KeepAliveCallback - called for endpoint"
+             << endpoint.port  << "result = " << result;
   if (kSuccess != result) {
     if (lost_functor_)
       lost_functor_(endpoint);
@@ -113,7 +123,9 @@ void ManagedConnection::KeepAliveCallback(const Endpoint &endpoint,
 }
 
 Endpoint ManagedConnection::GetOurEndpoint() {
-  return transport_->transport_details().endpoint;
+  if (transport_)
+    return transport_->transport_details().endpoint;
+  return Endpoint();
 }
 
 void ManagedConnection::AddConnection(const Endpoint &peer_endpoint,
@@ -163,6 +175,7 @@ void ManagedConnection::Send(const Endpoint &peer_endpoint,
 }
 
 ManagedConnection::~ManagedConnection() {
+  keep_alive_timer_->cancel();
   transport_->StopListening();
 }
 

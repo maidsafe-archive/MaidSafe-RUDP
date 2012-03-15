@@ -43,7 +43,7 @@ namespace transport {
 
 typedef std::function<void (const TransportCondition&)> AddFunctor;
 typedef std::function<void (Endpoint)> LostFunctor;
-typedef std::function<void (const TransportCondition&, std::string)>
+typedef std::function<void (const TransportCondition&, const std::string&)>
     ResponseFunctor;
 
 class ManagedConnection {
@@ -52,8 +52,7 @@ class ManagedConnection {
 
   ~ManagedConnection();
 
-  TransportCondition ManagedConnection::Init(uint8_t thread_count,
-      std::pair<uint16_t, uint16_t> port_range);
+  TransportCondition ManagedConnection::Init(uint8_t thread_count);
 
   Endpoint GetOurEndpoint();
 

@@ -63,7 +63,7 @@ typedef std::function<void (const TransportCondition&)> WriteCompleteFunctor;
 typedef std::function<void (const TransportCondition&, const std::string&)>
     ReadCompleteFunctor;
 
-typedef std::function<void (const TransportCondition&, std::string)>
+typedef std::function<void (const TransportCondition&, const std::string&)>
     ResponseFunctor;
 
 #ifdef __GNUC__
