@@ -78,7 +78,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void StartSending(const std::string &data, const Timeout &timeout);
   void Connect(const Timeout &timeout, ConnectFunctor callback);
   // For managed connection implementation.
-  TransportCondition SetManaged(bool managed);
+  void set_managed(bool managed);
   // This method does't do connection establishment.
   void WriteOnManagedConnection(const std::string &data,
                                 const Timeout &timeout,

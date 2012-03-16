@@ -95,6 +95,7 @@ class RudpTransport : public Transport,
   void Send(const std::string &data, const Endpoint &endpoint,
             const Timeout &timeout, const bool &managed,
             ResponseFunctor response_functor);
+  TransportCondition RemoveManagedConnection(const Endpoint &peer_endpoint);
   TransportCondition SetConnectionAsManaged(const Endpoint &peer_endpoint);
   // For managed connection implementation
   void WriteOnManagedConnection(const std::string &data,

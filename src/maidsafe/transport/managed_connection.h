@@ -42,7 +42,7 @@ namespace maidsafe {
 namespace transport {
 
 typedef std::function<void (const TransportCondition&)> AddFunctor;
-typedef std::function<void (Endpoint)> LostFunctor;
+typedef std::function<void (const Endpoint&)> LostFunctor;
 typedef std::function<void (const TransportCondition&, const std::string&)>
     ResponseFunctor;
 
@@ -89,6 +89,7 @@ private:
   std::shared_ptr<RudpTransport> transport_;
   std::list<Endpoint> connected_endpoints_;
   LostFunctor lost_functor_;
+  boost::mutex mutex_;
 };
 
 }  // namespace transport

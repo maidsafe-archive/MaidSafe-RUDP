@@ -51,10 +51,18 @@ void AddCallback(const TransportCondition &expected,
   DLOG(INFO) << "AddCallback called - result : " << actual;
 }
 
-void DoOnResponseReceived(const TransportCondition& result,
+void LostCallback(const Endpoint& expected, const Endpoint& actual) {
+  EXPECT_EQ(expected, actual);
+  DLOG(INFO) << "LostCallback called for peer endpoint : " << actual.port;
+}
+
+
+void DoOnResponseReceived(const std::string &sent_request,
+                          const TransportCondition& result,
                           std::string response) {
   DLOG(INFO) << " - Received response callback returned: (" << result
-             << ") response: \"" << response << "\"";
+             << ") response: \"" << response << "\""
+             <<  "sent_request = " << sent_request;
 }
 
 void DoOnRequestReceived(const std::string &request,
@@ -74,9 +82,10 @@ void DoOnManagedConnectionRequest(const std::string &request,
                                   Timeout *timeout,
                                   std::shared_ptr<ManagedConnection> mngd_conn) {
   Sleep(boost::posix_time::milliseconds(10));
-  *response = "Accepted";
   *timeout = kDefaultInitialTimeout;
-  DLOG(INFO) << " - Received managed connection requestrequest: \"" << request
+  *timeout= boost::posix_time::pos_infin;
+  *response = "Accepted";
+  DLOG(INFO) << " - Received managed connection request: \"" << request
              << "\".  Responding with \"" << *response << "\"";
   mngd_conn->AcceptConnection(info.endpoint, true);
   DLOG(INFO) << " - Done AcceptConnection";
@@ -111,19 +120,29 @@ TEST(ManagedConnectionTest, BEH_AddConnection) {
 
   Sleep(bptime::milliseconds(20000));
   managed_connection_request2.disconnect();
-
-
-  DLOG(INFO) << "Testing Send() now ...";
+  DLOG(INFO) << "Testing Send() now ..........................................";
 
   auto on_message_received_2 = mngd_conn_2->on_message_received()->connect(
         std::bind(&DoOnRequestReceived, args::_1,  args::_2, args::_3,
                   args::_4));
   // Send on managed connection
-  ResponseFunctor response_functor = std::bind(&DoOnResponseReceived,  args::_1,
-                                               args::_2);
-  mngd_conn_1->Send(endpoint_2, "send_data from 1", response_functor);
+  std::string sent_request("send_data from 1");
+
+  ResponseFunctor response_functor = std::bind(&DoOnResponseReceived,
+                                               sent_request, args::_1, args::_2);
+  mngd_conn_1->Send(endpoint_2, sent_request, response_functor);
 
   Sleep(bptime::milliseconds(2000));
+
+#if 0
+  DLOG(INFO) << "Testing ConnectionLost ......................................";
+
+  LostFunctor lost_functor(std::bind(&LostCallback, endpoint_2, args::_1));
+  mngd_conn_1->ConnectionLost(lost_functor);
+  mngd_conn_2->RemoveConnection(endpoint_1);
+  Sleep(bptime::milliseconds(30000));
+
+#endif
 }
 
 }  // namespace test

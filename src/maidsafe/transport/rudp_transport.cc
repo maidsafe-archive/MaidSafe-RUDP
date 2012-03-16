@@ -263,24 +263,44 @@ void RudpTransport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
 }
 
+TransportCondition RudpTransport::RemoveManagedConnection(
+    const Endpoint &peer_endpoint) {
+  ip::udp::endpoint ep(peer_endpoint.ip, peer_endpoint.port);
+  if (!multiplexer_->IsOpen()) {
+    return kError;
+  }
+ // find existing managed connection (need to replace with effective algorithm)
+  for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
+    if ((*itr)->managed() &&((*itr)->remote_endpoint() == ep)) {
+      DLOG(INFO) << "RudpTransport::RemoveManagedConnection-- found connection" << ep.port();
+      (*itr)->Close();
+    }
+  }
+  return kSuccess;
+}
+
 TransportCondition RudpTransport::SetConnectionAsManaged(
     const Endpoint &peer_endpoint) {
   ip::udp::endpoint ep(peer_endpoint.ip, peer_endpoint.port);
   if (!multiplexer_->IsOpen()) {
     return kError;
   }
+
   // find existing managed connection (need to replace with effective algorithm)
   ConnectionPtr connection(nullptr);
   for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
-    if ((*itr)->managed() && ((*itr)->remote_endpoint() == ep)) {
+    if (((*itr)->remote_endpoint() == ep)) {
+      DLOG(INFO) << "RudpTransport::SetConnectionAsManaged-- found connection" << ep.port();
       connection = *itr;
     }
   }
 
   if (!connection) {
+    DLOG(INFO) << "RudpTransport::SetConnectionAsManaged-- failed to find connection";
     return kError;  // No managed connection exist for ep
   }
-  return connection->SetManaged(true);
+  connection->set_managed(true);
+  return kSuccess;
 }
 
   // For managed connection implementation
@@ -295,7 +315,7 @@ void RudpTransport::Send(const std::string &data, const Endpoint &endpoint,
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
                                                             strand_,
                                                             multiplexer_, ep));
-  connection->SetManaged(managed);
+  connection->set_managed(managed);
   connection->set_response_functor(response_functor);
   DoInsertConnection(connection);
   connection->StartSending(data, timeout);
@@ -307,12 +327,10 @@ void RudpTransport::WriteOnManagedConnection(const std::string &data,
                                              const Timeout &timeout,
                                              WriteCompleteFunctor write_complete_functor) { // NOLINT
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
-  DLOG(INFO) << "RudpTransport::WriteOnManagedConnection()";
   if (!multiplexer_->IsOpen()) {
     write_complete_functor(kError);
     return;
   }
-  DLOG(INFO) << "RudpTransport::WriteOnManagedConnection() - multiplexer_ open  !!";
   // find existing managed connection (need to replace with effective algorithm)
   ConnectionPtr connection(nullptr);
   DLOG(INFO) << "connections_ set size -- "  << connections_.size();

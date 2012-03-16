@@ -98,11 +98,8 @@ void RudpConnection::DoClose() {
   }
 }
 
-TransportCondition RudpConnection::SetManaged(bool managed) {
-  if (Stopped())
-    return kError;
+void RudpConnection::set_managed(bool managed) {
   managed_ = managed;
-  return kSuccess;
 }
 
 void RudpConnection::set_response_functor(ResponseFunctor response_functor) {
@@ -208,7 +205,7 @@ void RudpConnection::CheckTimeout(const bs::error_code &ec) {
     socket_.Close();
     return;
   }
-
+  DLOG(ERROR) << "RudpConnection::CheckTimeout - timeout_state_" << timeout_state_;
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen()) {
     if (timeout_state_ == kSending)
@@ -246,14 +243,16 @@ void RudpConnection::StartTick() {
 void RudpConnection::HandleTick() {
   if (!socket_.IsOpen())
     return;
-
   if (timeout_state_ == kSending) {
     boost::uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
       timer_.expires_from_now(kStallTimeout);
-    // If transmission speed is too slow, the socket shall be forced closed
-    if (socket_.IsSlowTransmission(sent_length)) {
-      CloseOnError(kSendTimeout);
+    // Completely hacking congestion control for managed connection FIXME (Prakash)
+    if (!managed_) {
+      // If transmission speed is too slow, the socket shall be forced closed
+      if (socket_.IsSlowTransmission(sent_length)) {
+        CloseOnError(kSendTimeout);
+      }
     }
   }
   // We need to keep ticking during a graceful shutdown.
@@ -280,6 +279,7 @@ void RudpConnection::HandleServerConnect(const bs::error_code &ec) {
     return CloseOnError(kReceiveFailure);
   }
 
+  remote_endpoint_ = socket_.RemoteEndpoint();
   StartReadSize();
 }
 
@@ -379,7 +379,9 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
 }
 
 void RudpConnection::DispatchMessage() {
-  DLOG(INFO) << "In DispatchMessage() ID "  << socket_.Id();
+  DLOG(INFO) << "In DispatchMessage() ID "  << socket_.Id()
+             << "managed()" << managed() << "data -- >"
+             <<  std::string(buffer_.begin(), buffer_.end());
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     // Signal message received and send response if applicable
     std::string response;
@@ -390,7 +392,16 @@ void RudpConnection::DispatchMessage() {
 
     // Changes for managed connection
     if (managed_) {
-      DLOG(INFO) << "DispatchMessage() - managed_";
+      //  Keep Alive case
+       if (data_size_ == 9) {
+        std::string data(buffer_.begin(), buffer_.end());
+        if (data == "KeepAlive") {
+          DLOG(INFO) << "DispatchMessage -- received >>KeepAlive<<";
+          // if a keep alive message received, do nothing.
+          return;
+        }
+      }
+      DLOG(INFO) << "DispatchMessage() - managed_" << socket_.Id();
       // managed connection - need to keep connection alive.
       timeout_for_response_ = bptime::seconds(bptime::pos_infin);
       timeout_state_ = kNoTimeout;
@@ -475,9 +486,10 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void RudpConnection::CloseOnError(const TransportCondition &error) {
+  DLOG(ERROR) << "RudpConnection::CloseOnError -" << error << "ID-" << socket_.Id();
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-    if(managed_ && write_complete_functor_ && (kSending == timeout_state_)) {
+    if(managed_ && write_complete_functor_ /* && (kSending == timeout_state_)*/) {
       write_complete_functor_(error);
     } else if (response_functor_) {
       response_functor_(error, "");
