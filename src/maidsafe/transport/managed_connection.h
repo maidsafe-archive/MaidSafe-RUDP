@@ -27,6 +27,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_API_H_
 #define MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_API_H_
 
+#include "maidsafe/transport/version.h"
+#if MAIDSAFE_TRANSPORT_VERSION != 300
+# error This API is not compatible with the installed library.\
+  Please update the maidsafe_transport library.
+#endif
+
 #include <map>
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/deadline_timer.hpp"

@@ -224,6 +224,7 @@ SET(MAIDSAFE_TRANSPORT_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_message_handler.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_detection.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_traversal.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/managed_connection.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/utils.h)  # TODO - remove utils.h once NAT detection is implemented and this is not #included by node_container.h
 
 MS_INSTALL_LIBS(maidsafe_transport_static)
