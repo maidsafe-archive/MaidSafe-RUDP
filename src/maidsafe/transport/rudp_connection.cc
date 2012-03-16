@@ -63,7 +63,7 @@ RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
     buffer_(),
     data_size_(0),
     data_received_(0),
-    timeout_for_response_(kDefaultInitialTimeout),
+    timeout_for_response_(kMinTimeout),
     timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
@@ -125,7 +125,7 @@ void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
                 shared_from_this(), args::_1, callback));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
-  timer_.expires_from_now(kDefaultInitialTimeout);
+  timer_.expires_from_now(kMinTimeout);
   timeout_state_ = kSending;
 }
 
@@ -243,7 +243,7 @@ void RudpConnection::StartClientConnect() {
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
-  timer_.expires_from_now(kDefaultInitialTimeout);
+  timer_.expires_from_now(kMinTimeout);
   timeout_state_ = kSending;
 }
 
