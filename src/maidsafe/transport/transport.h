@@ -131,7 +131,7 @@ struct Endpoint {
       port = 0;
   }
 
-  bool Endpoint::operator==(const Endpoint &other) const {
+  bool operator==(const Endpoint &other) const {
     if (ip == other.ip && port == other.port)
       return true;
     else

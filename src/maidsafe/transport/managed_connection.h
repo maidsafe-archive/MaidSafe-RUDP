@@ -52,7 +52,7 @@ class ManagedConnection {
 
   ~ManagedConnection();
 
-  TransportCondition ManagedConnection::Init(uint8_t thread_count);
+  TransportCondition Init(uint8_t thread_count);
 
   Endpoint GetOurEndpoint();
 
