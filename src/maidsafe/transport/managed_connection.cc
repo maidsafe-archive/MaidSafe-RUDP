@@ -43,6 +43,7 @@ namespace transport {
 
 ManagedConnection::ManagedConnection()
     : asio_services_(new AsioService),
+      keep_alive_interval_(bptime::seconds(20)),
       keep_alive_timer_(),
       transport_(),
       connected_endpoints_(),
@@ -65,7 +66,7 @@ TransportCondition ManagedConnection::Init(uint8_t thread_count) {
   asio_services_->Start(thread_count);
   keep_alive_timer_.reset(
       new asio::deadline_timer(asio_services_->service(),
-                               bptime::seconds(10)));
+                               keep_alive_interval_));
   TransportCondition result(kError);
   transport_.reset(new RudpTransport(asio_services_->service()));
   // Workaround until NAT detection is integrated.
@@ -93,21 +94,22 @@ void ManagedConnection::SendKeepAlive(const boost::system::error_code& ec) {
   if (ec == boost::asio::error::operation_aborted) {
     return;
   }
-  // lock
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    for (auto itr(connected_endpoints_.begin());
-        itr !=connected_endpoints_.end(); ++itr) {
-      WriteCompleteFunctor cb(std::bind(&ManagedConnection::KeepAliveCallback,
-                                        this, *itr, args::_1));
-      DLOG(INFO) << "Sending KeepAlive to :" << (*itr).port;
-      transport_->WriteOnManagedConnection("KeepAlive", *itr,
-                                           kDefaultInitialTimeout, cb);
-      DLOG(INFO) << "Sent KeepAlive to :" << (*itr).port;
-    }
+  // Copying entire list
+  std::list<Endpoint> connected_endpoints = GetEndpoints();
+  // TODO For debugging purpose. Remove later
+  if (!connected_endpoints.size())
+    DLOG(INFO) << "SendKeepAlive list EMPTY !!!!!!!!!!";
+
+  for (auto itr(connected_endpoints.begin());
+      itr !=connected_endpoints.end(); ++itr) {
+    WriteCompleteFunctor cb(std::bind(&ManagedConnection::KeepAliveCallback,
+                                      this, *itr, args::_1));
+    DLOG(INFO) << "Sending KeepAlive to :" << (*itr).port;
+    transport_->WriteOnManagedConnection("KeepAlive", *itr,
+                                         kDefaultInitialTimeout, cb);
   }
   keep_alive_timer_->expires_at(
-      keep_alive_timer_->expires_at() + bptime::seconds(10));
+      keep_alive_timer_->expires_at() + keep_alive_interval_);
   keep_alive_timer_->async_wait(
       std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
 }
@@ -117,13 +119,7 @@ void ManagedConnection::KeepAliveCallback(const Endpoint &endpoint,
   DLOG(INFO) << "KeepAliveCallback - called for endpoint : "
              << endpoint.port  << "result = " << result;
   if (kSuccess != result) {
-    //  lock
-    {
-      boost::mutex::scoped_lock lock(mutex_);
-      connected_endpoints_.remove(endpoint);
-    }
-    // remove actual connection ?
-    DLOG(INFO) << "Called  RemoveConnection";
+    DLOG(INFO) << "Connection with endpoint " << endpoint.port << "Lost";
     RemoveConnection(endpoint);
     if (lost_functor_)
       lost_functor_(endpoint);
@@ -139,27 +135,27 @@ Endpoint ManagedConnection::GetOurEndpoint() {
 void ManagedConnection::AddConnection(const Endpoint &peer_endpoint,
                                       const std::string &validation_data,
                                       AddFunctor add_functor) {
+  if (peer_endpoint == GetOurEndpoint()) {
+    if (add_functor)
+      add_functor(kError);  //  Cannot connect to own
+  }
   ResponseFunctor response_functor(
-    std::bind(&ManagedConnection::AddConnectionCallback, this, args::_1,
-              args::_2, peer_endpoint, add_functor));
+      std::bind(&ManagedConnection::AddConnectionCallback, this, args::_1,
+                args::_2, peer_endpoint, add_functor));
   transport_->Send(validation_data, peer_endpoint, kDefaultInitialTimeout,
                    true, response_functor);
 }
 
 TransportCondition ManagedConnection::AcceptConnection(
+  // Do nothing if already connected
   const Endpoint &peer_endpoint, bool accept) {
-  TransportCondition result(kError);
+//  TransportCondition result(kError);
   if (accept) {
-    result = transport_->SetConnectionAsManaged(peer_endpoint);
-    if (kSuccess == result) {
-      //  lock
-      {
-        boost::mutex::scoped_lock lock(mutex_);
-        connected_endpoints_.push_back(peer_endpoint);
-      }
-    }
+    transport_->SetConnectionAsManaged(peer_endpoint);
+    InsertEndpoint(peer_endpoint);
   }
-  return result;
+  // TODO Need call back from rudp
+  return kSuccess;
 }
 
 void ManagedConnection::AddConnectionCallback(TransportCondition result,
@@ -167,28 +163,42 @@ void ManagedConnection::AddConnectionCallback(TransportCondition result,
                                               const Endpoint &peer_endpoint,
                                               AddFunctor add_functor) {
   if (kSuccess != result)
+  if (add_functor)
     add_functor(result);
+
   if ("Accepted" != response) {
     DLOG(INFO) << "AddConnectionCallback failed - received : " << response;
-    add_functor(kError); //  Rejected error code
+    if (add_functor)
+      add_functor(kError); //  Rejected error code
+    RemoveEndpoint(peer_endpoint);
     return;
   } else {
     DLOG(INFO) << "AddConnectionCallback success - received : " << response;
-    {
-      boost::mutex::scoped_lock lock(mutex_);
-      connected_endpoints_.push_back(peer_endpoint);
-    }
-    add_functor(result);
+    InsertEndpoint(peer_endpoint);
+    if (add_functor)
+      add_functor(result);
   }
 }
 
 void ManagedConnection::RemoveConnection(const Endpoint &peer_endpoint) {
-  TransportCondition result =
   transport_->RemoveManagedConnection(peer_endpoint);
-  if (kSuccess == result) {
-    boost::mutex::scoped_lock lock(mutex_);
-    connected_endpoints_.push_back(peer_endpoint);
-  }
+  RemoveEndpoint(peer_endpoint);
+}
+
+
+std::list<Endpoint> ManagedConnection::GetEndpoints() {
+  boost::mutex::scoped_lock lock(mutex_);
+  return connected_endpoints_;
+}
+
+void ManagedConnection::InsertEndpoint(const Endpoint &peer_endpoint) {
+  boost::mutex::scoped_lock lock(mutex_);
+  connected_endpoints_.push_back(peer_endpoint);
+ }
+
+void ManagedConnection::RemoveEndpoint(const Endpoint &peer_endpoint) {
+  boost::mutex::scoped_lock lock(mutex_);
+  connected_endpoints_.remove(peer_endpoint);
 }
 
 void ManagedConnection::Send(const Endpoint &peer_endpoint,

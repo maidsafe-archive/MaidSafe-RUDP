@@ -89,8 +89,15 @@ private:
   void SendKeepAlive(const boost::system::error_code& ec);
   void KeepAliveCallback(const Endpoint &endpoint,
                          const TransportCondition& result);
+
+  std::list<Endpoint> GetEndpoints();
+  void InsertEndpoint(const Endpoint &peer_endpoint);
+  void RemoveEndpoint(const Endpoint &peer_endpoint);
+
+
   std::shared_ptr<AsioService> asio_services_;
   //  temp work around to escape construction
+  bptime::time_duration keep_alive_interval_;
   std::shared_ptr<boost::asio::deadline_timer> keep_alive_timer_;
   std::shared_ptr<RudpTransport> transport_;
   std::list<Endpoint> connected_endpoints_;

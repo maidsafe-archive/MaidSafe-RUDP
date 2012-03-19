@@ -83,8 +83,6 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void WriteOnManagedConnection(const std::string &data,
                                 const Timeout &timeout,
                                 WriteCompleteFunctor write_complete_functor);
-  // This method does't do connection establishment.
-  void ReadOnManagedConnection(ReadCompleteFunctor read_complete_functor);
 
   void set_response_functor(ResponseFunctor response_functor);
   bool managed() {return managed_; }
@@ -95,7 +93,6 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   RudpConnection &operator=(const RudpConnection&);
 
   void set_write_complete_functor(WriteCompleteFunctor write_complete_functor);
-  void set_read_complete_functor(ReadCompleteFunctor read_complete_functor);
 
   void DoClose();
   void DoStartReceiving();
@@ -139,7 +136,6 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
   WriteCompleteFunctor write_complete_functor_;
-  ReadCompleteFunctor read_complete_functor_;
   ResponseFunctor response_functor_;
   std::vector<unsigned char> buffer_;
   size_t data_size_, data_received_;

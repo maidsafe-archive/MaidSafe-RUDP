@@ -61,7 +61,6 @@ RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
     response_deadline_(),
     remote_endpoint_(remote),
     write_complete_functor_(),
-    read_complete_functor_(),
     response_functor_(),
     buffer_(),
     data_size_(0),
@@ -109,11 +108,6 @@ void RudpConnection::set_response_functor(ResponseFunctor response_functor) {
 void RudpConnection::set_write_complete_functor(
     WriteCompleteFunctor write_complete_functor) {
   write_complete_functor_ = write_complete_functor;
-}
-
-void RudpConnection::set_read_complete_functor(
-    ReadCompleteFunctor read_complete_functor) {
-  read_complete_functor_ = read_complete_functor;
 }
 
 void RudpConnection::StartReceiving() {
@@ -185,27 +179,17 @@ void RudpConnection::WriteOnManagedConnection(const std::string &data,
   set_write_complete_functor(write_complete_functor);
   EncodeData(data);
   timeout_for_response_ = timeout;
-  DLOG(INFO) << "WriteOnManagedConnection() -- before StartWrite !!";
+//  DLOG(INFO) << "WriteOnManagedConnection() -- before StartWrite !!";
   StartWrite();
-  DLOG(INFO) << "WriteOnManagedConnection() -- after StartWrite !!";
-}
-
-void RudpConnection::ReadOnManagedConnection(
-    ReadCompleteFunctor read_complete_functor) {
-  BOOST_ASSERT(managed_);
-  set_read_complete_functor(read_complete_functor);
-  if (Stopped())
-    return CloseOnError(kNoConnection);
-  StartReadSize();
+//  DLOG(INFO) << "WriteOnManagedConnection() -- after StartWrite !!";
 }
 
 void RudpConnection::CheckTimeout(const bs::error_code &ec) {
   if (ec && ec != boost::asio::error::operation_aborted) {
-    DLOG(ERROR) << "RudpConnection check timeout error: " << ec.message();
     socket_.Close();
     return;
   }
-  DLOG(ERROR) << "RudpConnection::CheckTimeout - timeout_state_" << timeout_state_;
+//  DLOG(ERROR) << "RudpConnection::CheckTimeout - timeout_state_" << timeout_state_ << "ID-" << socket_.Id();
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen()) {
     if (timeout_state_ == kSending)
@@ -405,16 +389,14 @@ void RudpConnection::DispatchMessage() {
       // managed connection - need to keep connection alive.
       timeout_for_response_ = bptime::seconds(bptime::pos_infin);
       timeout_state_ = kNoTimeout;
-      if (read_complete_functor_) {
-        DLOG(INFO) << "Has read_complete_functor_ && managed_)";
-        read_complete_functor_(kSuccess,
-                               std::string(buffer_.begin(), buffer_.end()));
-      } else if (response_functor_) {
+      if (response_functor_) {
         response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
+        response_functor_ = ResponseFunctor();  // clearing response_functor_
       }
       return;
     } else if (response_functor_) {
       response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
+      response_functor_ = ResponseFunctor();  // clearing response_functor_
       Close();
       return;
     } else {
@@ -486,17 +468,27 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void RudpConnection::CloseOnError(const TransportCondition &error) {
-  DLOG(ERROR) << "RudpConnection::CloseOnError -" << error << "ID-" << socket_.Id();
+  DLOG(ERROR) << "RudpConnection::CloseOnError -" << error << "ID-" << socket_.Id() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-    if(managed_ && write_complete_functor_ /* && (kSending == timeout_state_)*/) {
-      write_complete_functor_(error);
-    } else if (response_functor_) {
-      response_functor_(error, "");
+    if(managed_) {
+      if (write_complete_functor_) {
+        write_complete_functor_(error);
+        write_complete_functor_ = WriteCompleteFunctor();
+      } else if (response_functor_) {
+        response_functor_(error, "");
+        response_functor_ = ResponseFunctor();
+      }
+      DoClose();  // Need not to call transport->on_error_ signal for mngd conn.
     } else {
-      (*transport->on_error_)(error, ep);
+      if (response_functor_) {
+        response_functor_(error, "");
+        response_functor_ = ResponseFunctor();
+      } else {
+        (*transport->on_error_)(error, ep);
+      }
+      DoClose();
     }
-    DoClose();
   }
 }
 

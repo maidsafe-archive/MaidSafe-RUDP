@@ -57,12 +57,8 @@ class RudpSocket;
 
 typedef std::function<void(const TransportCondition&)> ConnectFunctor;
 
-// WriteCompleteFunctor & ReadCompleteFunctor will only be used for operations
-// on managed connection
+// WriteCompleteFunctor will only be used for operations on managed connection
 typedef std::function<void (const TransportCondition&)> WriteCompleteFunctor;
-typedef std::function<void (const TransportCondition&, const std::string&)>
-    ReadCompleteFunctor;
-
 typedef std::function<void (const TransportCondition&, const std::string&)>
     ResponseFunctor;
 
@@ -95,16 +91,13 @@ class RudpTransport : public Transport,
   void Send(const std::string &data, const Endpoint &endpoint,
             const Timeout &timeout, const bool &managed,
             ResponseFunctor response_functor);
-  TransportCondition RemoveManagedConnection(const Endpoint &peer_endpoint);
-  TransportCondition SetConnectionAsManaged(const Endpoint &peer_endpoint);
+  void RemoveManagedConnection(const Endpoint &peer_endpoint);
+  void SetConnectionAsManaged(const Endpoint &peer_endpoint);
   // For managed connection implementation
   void WriteOnManagedConnection(const std::string &data,
                                 const Endpoint &endpoint,
                                 const Timeout &timeout,
                                 WriteCompleteFunctor write_complete_functor);
-
-  void ReadOnManagedConnection(const Endpoint &endpoint,
-                               ReadCompleteFunctor read_complete_functor);
 
   virtual void Send(const std::string &data,
                     const Contact &remote_contact,
@@ -138,6 +131,9 @@ class RudpTransport : public Transport,
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
+  void DoSend(const std::string &data, const Endpoint &endpoint,
+              const Timeout &timeout, const bool &managed,
+              ResponseFunctor response_functor);
   void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
                  ConnectFunctor callback);
 
@@ -145,6 +141,12 @@ class RudpTransport : public Transport,
                        const std::string &data,
                        const Endpoint &endpoint,
                        const Timeout &timeout);
+  void DoWriteOnManagedConnection(const std::string &data,
+                                  const Endpoint &endpoint,
+                                  const Timeout &timeout,
+                                  WriteCompleteFunctor write_complete_functor);
+  void DoRemoveManagedConnection(const Endpoint &peer_endpoint);
+  void DoSetConnectionAsManaged(const Endpoint &peer_endpoint);
 
   friend class RudpConnection;
   void InsertConnection(ConnectionPtr connection);
