@@ -131,8 +131,8 @@ class RudpTransport : public Transport,
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
-  void DoSend(const std::string &data, const Endpoint &endpoint,
-              const Timeout &timeout, const bool &managed,
+  void DoSendCB(const std::string &data, const Endpoint &endpoint,
+                const Timeout &timeout, const bool &managed,
               ResponseFunctor response_functor);
   void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
                  ConnectFunctor callback);

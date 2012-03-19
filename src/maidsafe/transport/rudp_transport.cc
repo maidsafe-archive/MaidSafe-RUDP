@@ -325,14 +325,14 @@ void RudpTransport::DoSetConnectionAsManaged(
 void RudpTransport::Send(const std::string &data, const Endpoint &endpoint,
                          const Timeout &timeout, const bool &managed,
                          ResponseFunctor response_functor) {
-  strand_.dispatch(std::bind(&RudpTransport::DoSend, shared_from_this(),
+  strand_.dispatch(std::bind(&RudpTransport::DoSendCB, shared_from_this(),
                              data, endpoint, timeout, managed,
                              response_functor));
 }
 
-void RudpTransport::DoSend(const std::string &data, const Endpoint &endpoint,
-                           const Timeout &timeout, const bool &managed,
-                           ResponseFunctor response_functor) {
+void RudpTransport::DoSendCB(const std::string &data, const Endpoint &endpoint,
+                             const Timeout &timeout, const bool &managed,
+                             ResponseFunctor response_functor) {
   ip::udp::endpoint ep(endpoint.ip, endpoint.port);
   if (!multiplexer_->IsOpen()) {
     response_functor(kError, "");
