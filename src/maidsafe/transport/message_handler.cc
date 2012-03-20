@@ -41,7 +41,8 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   if (request.empty())
     return;
   SecurityType security_type = request.at(0);
-  std::string serialised_message(request.substr(1));
+  std::string encrypted_message(request.substr(1));
+  std::string decrypted_message;
 
   if (security_type != kNone) {
     if (!private_key_)
@@ -51,22 +52,18 @@ void MessageHandler::OnMessageReceived(const std::string &request,
       if (aes_seed.size() != 512)
         return;
 
-      std::string encrypt_aes_seed;
-      Asym::Decrypt(aes_seed, *private_key_, &encrypt_aes_seed);
-      if (encrypt_aes_seed.empty()) {
+      asymm::Decrypt(encrypted_message, *private_key_, &decrypted_message);
+      if (decrypted_message.empty()) {
         DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
         return;
       }
-
-      std::string aes_key = encrypt_aes_seed.substr(0, 32);
-      std::string kIV = encrypt_aes_seed.substr(32, 16);
-      serialised_message = crypto::SymmDecrypt(request.substr(513), aes_key,
-                                               kIV);
     }
+  } else {
+    decrypted_message = encrypted_message;
   }
 
   protobuf::WrapperMessage wrapper;
-  if (wrapper.ParseFromString(serialised_message) && wrapper.IsInitialized()) {
+  if (wrapper.ParseFromString(decrypted_message) && wrapper.IsInitialized()) {
     return ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
                                     security_type, wrapper.message_signature(),
                                     info, response, timeout);
@@ -111,9 +108,9 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
     // Handle signing
     if (security_type & kSign) {
       std::string signature;
-      if (Asym::Sign(boost::lexical_cast<std::string>(message_type) + payload,
-                    *private_key_,
-                    &signature) != kSuccess) {
+      if (asymm::Sign(boost::lexical_cast<std::string>(message_type) + payload,
+                     *private_key_,
+                     &signature) != kSuccess) {
        DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
                    << " - Sign Failed.";
        return "";
@@ -123,24 +120,21 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
 
     // Handle encryption
     if (security_type & kAsymmetricEncrypt) {
-      if (!Asym::ValidateKey(recipient_public_key)) {
+      if (!asymm::ValidateKey(recipient_public_key)) {
         DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
                     << " - PublicKey Validation Failed.";
         return "";
       }
-      std::string seed = RandomString(48);
-      std::string key = seed.substr(0, 32);
-      std::string kIV = seed.substr(32, 16);
-      std::string encrypt_message =
-          crypto::SymmEncrypt(wrapper_message.SerializeAsString(), key, kIV);
-      std::string encrypt_aes_seed;
-      if (Asym::Encrypt(seed, recipient_public_key, &encrypt_aes_seed) !=
-          kSuccess) {
+
+      std::string encrypted_message;
+      if (asymm::Encrypt(wrapper_message.SerializeAsString(),
+                         recipient_public_key,
+                         &encrypted_message) != kSuccess) {
         DLOG(ERROR) << "MakeSerialisedWrapperMessage - type " << message_type
                     << " - Encryption Failed.";
         return "";
       }
-      final_message += encrypt_aes_seed + encrypt_message;
+      final_message += encrypted_message;
     } else {
       final_message += wrapper_message.SerializeAsString();
     }

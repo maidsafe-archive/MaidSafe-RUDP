@@ -59,7 +59,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -68,7 +68,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kNatDetectionRequest,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -77,7 +77,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kNatDetectionResponse,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -86,7 +86,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kProxyConnectRequest,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -95,7 +95,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kProxyConnectResponse,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -104,7 +104,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -113,7 +113,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -122,7 +122,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kRendezvousRequest,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::WrapMessage(
@@ -131,7 +131,7 @@ std::string RudpMessageHandler::WrapMessage(
     return "";
   return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
                                       msg.SerializeAsString(), kNone,
-                                      Asym::PublicKey());
+                                      asymm::PublicKey());
 }
 
 std::string RudpMessageHandler::CreateForwardRendezvousRequest(

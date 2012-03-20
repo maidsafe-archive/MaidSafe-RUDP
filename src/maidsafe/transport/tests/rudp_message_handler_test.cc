@@ -53,11 +53,11 @@ class RudpMessageHandlerTest : public testing::Test {
                              slots_mutex_(),
                              error_count_(0) {}
   static void SetUpTestCase() {
-    Asym::GenerateKeyPair(&crypto_key_pair_);
+    asymm::GenerateKeyPair(&crypto_key_pair_);
   }
 
   virtual void SetUp() {
-    private_key_.reset(new Asym::PrivateKey(crypto_key_pair_.private_key));
+    private_key_.reset(new asymm::PrivateKey(crypto_key_pair_.private_key));
     msg_hndlr_.reset(new RudpMessageHandler(private_key_));
   }
   virtual void TearDown() {}
@@ -286,17 +286,17 @@ class RudpMessageHandlerTest : public testing::Test {
   int error_count() { return error_count_; }
 
  protected:
-  static Asym::Keys crypto_key_pair_;
-  std::shared_ptr<Asym::PrivateKey> private_key_;
+  static asymm::Keys crypto_key_pair_;
+  std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<RudpMessageHandler> msg_hndlr_;
-  std::shared_ptr<Asym::PrivateKey> asym_null_private_key_;
+  std::shared_ptr<asymm::PrivateKey> asym_null_private_key_;
   MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
   boost::mutex slots_mutex_;
   int error_count_;
 };
 
-Asym::Keys RudpMessageHandlerTest::crypto_key_pair_;
+asymm::Keys RudpMessageHandlerTest::crypto_key_pair_;
 
 TEST_F(RudpMessageHandlerTest, BEH_OnError) {
   ConnectToHandlerSignals();
@@ -481,7 +481,7 @@ TEST_F(RudpMessageHandlerTest, BEH_OnMessageReceived) {
 
   std::shared_ptr<std::map<MessageType, uint16_t>> slots = invoked_slots();
   for (auto it = slots->begin(); it != slots->end(); ++it)
-    ASSERT_EQ(uint16_t(1), (*it).second);
+    EXPECT_EQ(uint16_t(1), (*it).second) << "Type: " << (*it).first;
 }
 
 TEST_F(RudpMessageHandlerTest, BEH_ThreadedMessageHandling) {
@@ -516,11 +516,11 @@ TEST_F(RudpMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kAsymmetricEncrypt,
-                                                         Asym::PublicKey()));
+                                                         asymm::PublicKey()));
   ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
                                                          payload,
                                                          kSignAndAsymEncrypt,
-                                                         Asym::PublicKey()));
+                                                         asymm::PublicKey()));
 
   ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
                kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
