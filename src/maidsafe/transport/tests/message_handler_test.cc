@@ -52,11 +52,11 @@ namespace test {
 //                                  slots_mutex_(),
 //                                  error_count_(0) {}
 //  static void SetUpTestCase() {
-//    Asym::GenerateKeyPair(&crypto_key_pair_);
+//    asymm::GenerateKeyPair(&crypto_key_pair_);
 //  }
 //
 //  virtual void SetUp() {
-//    private_key_.reset(new Asym::PrivateKey(crypto_key_pair_.private_key));
+//    private_key_.reset(new asymm::PrivateKey(crypto_key_pair_.private_key));
 //    msg_hndlr_.reset(new MessageHandler(private_key_));
 //  }
 //  virtual void TearDown() {}
@@ -276,17 +276,17 @@ namespace test {
 //  int error_count() { return error_count_; }
 //
 // protected:
-//  static Asym::Keys crypto_key_pair_;
-//  std::shared_ptr<Asym::PrivateKey> private_key_;
+//  static asymm::Keys crypto_key_pair_;
+//  std::shared_ptr<asymm::PrivateKey> private_key_;
 //  std::shared_ptr<MessageHandler> msg_hndlr_;
-//  std::shared_ptr<Asym::PrivateKey> asym_null_private_key_;
+//  std::shared_ptr<asymm::PrivateKey> asym_null_private_key_;
 //  MessageHandler msg_hndlr_no_securifier_;
 //  std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
 //  boost::mutex slots_mutex_;
 //  int error_count_;
 // };
 
-// Asym::Keys TransportMessageHandlerTest::crypto_key_pair_;
+// asymm::Keys TransportMessageHandlerTest::crypto_key_pair_;
 //
 // TEST_F(TransportMessageHandlerTest, BEH_OnError) {
 //  ConnectToHandlerSignals();
@@ -311,7 +311,7 @@ namespace test {
 //  Timeout timeout;
 //  for (size_t n = 0; n < messages.size(); ++n)
 //    msg_hndlr_no_securifier_.OnMessageReceived(
-//        std::string(1, kAsymmetricEncrypt) + messages[n],
+//        std::string(1, kasymmmetricEncrypt) + messages[n],
 //        info, &response, &timeout);
 //  std::shared_ptr<std::map<MessageType,
 //                  uint16_t>> slots = invoked_slots();
@@ -322,7 +322,7 @@ namespace test {
 //  InitialiseMap();
 //  for (size_t n = 0; n < messages.size(); ++n)
 //    msg_hndlr_->OnMessageReceived(
-//        std::string(1, kAsymmetricEncrypt) + messages[n],
+//        std::string(1, kasymmmetricEncrypt) + messages[n],
 //        info, &response, &timeout);
 //  for (auto it = slots->begin(); it != slots->end(); ++it)
 //    ASSERT_EQ(uint16_t(0), (*it).second);
@@ -494,21 +494,21 @@ namespace test {
 // TEST_F(TransportMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
 //  std::string payload(RandomString(5 * 1024));
 //  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0,
-//      payload, kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
+//      payload, kasymmmetricEncrypt, crypto_key_pair_.public_key).empty());
 //  ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0,
 //      payload, kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
 //
 //  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
 //                                                         payload,
-//                                                         kAsymmetricEncrypt,
-//                                                         Asym::PublicKey()));
+//                                                         kasymmmetricEncrypt,
+//                                                         asymm::PublicKey()));
 //  ASSERT_EQ("", msg_hndlr_->MakeSerialisedWrapperMessage(0,
 //                                                         payload,
 //                                                         kSignAndAsymEncrypt,
-//                                                         Asym::PublicKey()));
+//                                                         asymm::PublicKey()));
 //
 //  ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
-//               kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
+//               kasymmmetricEncrypt, crypto_key_pair_.public_key).empty());
 //  ASSERT_FALSE(msg_hndlr_->MakeSerialisedWrapperMessage(0, payload,
 //               kSignAndAsymEncrypt, crypto_key_pair_.public_key).empty());
 // }

@@ -45,7 +45,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace bs2 = boost::signals2;
-namespace Asym = maidsafe::rsa;
 typedef std::shared_ptr<maidsafe::rsa::PrivateKey> PrivateKeyPtr;
 typedef maidsafe::rsa::PublicKey PublicKey;
 
