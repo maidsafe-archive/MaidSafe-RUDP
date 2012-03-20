@@ -133,7 +133,7 @@ class RudpTransport : public Transport,
               const Timeout &timeout);
   void DoSendCB(const std::string &data, const Endpoint &endpoint,
                 const Timeout &timeout, const bool &managed,
-              ResponseFunctor response_functor);
+                ResponseFunctor response_functor);
   void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
                  ConnectFunctor callback);
 

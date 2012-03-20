@@ -273,22 +273,22 @@ void RudpTransport::DoRemoveManagedConnection(
     const Endpoint &peer_endpoint) {
   ip::udp::endpoint ep(peer_endpoint.ip, peer_endpoint.port);
   if (!multiplexer_->IsOpen()) {
-    DLOG(ERROR) <<" multiplexer not open";
+    DLOG(ERROR) <<" Multiplexer not open";
     return;
   }
- // find existing managed connection (need to replace with effective algorithm)
+  // Find existing managed connection (need to replace with effective algorithm)
   ConnectionPtr connection(nullptr);
   for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
     if ((*itr)->managed() &&((*itr)->remote_endpoint() == ep)) {
-      DLOG(INFO) << "RudpTransport::RemoveManagedConnection-- found connection" << ep.port();
       connection = *itr;
     }
   }
   if (connection) {
     connection->Close();
+    DLOG(INFO) << "Removed managed connection with " << ep.port();
     return;
   } else {
-    DLOG(ERROR) <<" connection not found";
+    DLOG(INFO) <<"DoRemoveManagedConnection::  connection not found";
     return;
   }
 }
@@ -303,25 +303,26 @@ void RudpTransport::DoSetConnectionAsManaged(
     const Endpoint &peer_endpoint) {
   ip::udp::endpoint ep(peer_endpoint.ip, peer_endpoint.port);
   if (!multiplexer_->IsOpen()) {
-    DLOG(ERROR) <<" multiplexer not open";
+    DLOG(ERROR) <<" Multiplexer not open";
   }
 
   // find existing managed connection (need to replace with effective algorithm)
   ConnectionPtr connection(nullptr);
   for (auto itr(connections_.begin()); itr != connections_.end(); ++itr) {
     if (((*itr)->remote_endpoint() == ep)) {
-      DLOG(INFO) << "RudpTransport::SetConnectionAsManaged-- found connection" << ep.port();
       connection = *itr;
     }
   }
 
   if (!connection) {
-    DLOG (ERROR) << "RudpTransport::SetConnectionAsManaged-- failed to find connection";
+    DLOG(ERROR) << "SetConnectionAsManaged- failed to find connection";
+    return;
   }
   connection->set_managed(true);
+  DLOG(INFO) << "Set connction as managed with " << ep.port();
 }
 
- // For managed connection implementation
+// For managed connection implementation
 void RudpTransport::Send(const std::string &data, const Endpoint &endpoint,
                          const Timeout &timeout, const bool &managed,
                          ResponseFunctor response_functor) {
@@ -341,10 +342,8 @@ void RudpTransport::DoSendCB(const std::string &data, const Endpoint &endpoint,
   ConnectionPtr connection(std::make_shared<RudpConnection>(shared_from_this(),
                                                             strand_,
                                                             multiplexer_, ep));
-  connection->set_managed(managed);
-  connection->set_response_functor(response_functor);
   DoInsertConnection(connection);
-  connection->StartSending(data, timeout);
+  connection->StartSending(data, timeout, managed, response_functor);
 }
 
   // For managed connection implementation

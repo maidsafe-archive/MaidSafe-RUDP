@@ -98,16 +98,12 @@ void RudpConnection::DoClose() {
 }
 
 void RudpConnection::set_managed(bool managed) {
+  strand_.dispatch(std::bind(&RudpConnection::do_set_managed,
+                             shared_from_this(), managed));
+}
+
+void RudpConnection::do_set_managed(bool managed) {
   managed_ = managed;
-}
-
-void RudpConnection::set_response_functor(ResponseFunctor response_functor) {
-  response_functor_ = response_functor;
-}
-
-void RudpConnection::set_write_complete_functor(
-    WriteCompleteFunctor write_complete_functor) {
-  write_complete_functor_ = write_complete_functor;
 }
 
 void RudpConnection::StartReceiving() {
@@ -173,23 +169,50 @@ void RudpConnection::DoStartSending() {
   CheckTimeout(ignored_ec);
 }
 
+void RudpConnection::StartSending(const std::string &data,
+                                  const Timeout &timeout,
+                                  const bool &managed,
+                                  ResponseFunctor response_functor) {
+  EncodeData(data);
+  timeout_for_response_ = timeout;
+  strand_.dispatch(std::bind(&RudpConnection::DoStartSendingCB,
+                             shared_from_this(), managed, response_functor));
+}
+
+void RudpConnection::DoStartSendingCB(const bool &managed,
+                                      ResponseFunctor response_functor) {
+  managed_ = managed;
+  response_functor_ = response_functor;
+  StartTick();
+  StartClientConnect();
+  bs::error_code ignored_ec;
+  CheckTimeout(ignored_ec);
+}
+
 void RudpConnection::WriteOnManagedConnection(const std::string &data,
     const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
   BOOST_ASSERT(managed_);
-  set_write_complete_functor(write_complete_functor);
+  strand_.dispatch(std::bind(&RudpConnection::DoWriteOnManagedConnection,
+                             shared_from_this(), data, timeout,
+                             write_complete_functor));
+}
+
+void RudpConnection::DoWriteOnManagedConnection(const std::string &data,
+    const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
+  BOOST_ASSERT(managed_);
+  write_complete_functor_ = write_complete_functor;
   EncodeData(data);
   timeout_for_response_ = timeout;
-//  DLOG(INFO) << "WriteOnManagedConnection() -- before StartWrite !!";
   StartWrite();
-//  DLOG(INFO) << "WriteOnManagedConnection() -- after StartWrite !!";
 }
 
 void RudpConnection::CheckTimeout(const bs::error_code &ec) {
   if (ec && ec != boost::asio::error::operation_aborted) {
+    DLOG(ERROR) << "RudpConnection check timeout error: " << ec.message();
     socket_.Close();
     return;
   }
-//  DLOG(ERROR) << "RudpConnection::CheckTimeout - timeout_state_" << timeout_state_ << "ID-" << socket_.Id();
+
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen()) {
     if (timeout_state_ == kSending)
@@ -231,7 +254,7 @@ void RudpConnection::HandleTick() {
     boost::uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
       timer_.expires_from_now(kStallTimeout);
-    // Completely hacking congestion control for managed connection FIXME (Prakash)
+    // FIXME Skipping congestion control for managed connection (Prakash)
     if (!managed_) {
       // If transmission speed is too slow, the socket shall be forced closed
       if (socket_.IsSlowTransmission(sent_length)) {
@@ -363,9 +386,6 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
 }
 
 void RudpConnection::DispatchMessage() {
-  DLOG(INFO) << "In DispatchMessage() ID "  << socket_.Id()
-             << "managed()" << managed() << "data -- >"
-             <<  std::string(buffer_.begin(), buffer_.end());
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     // Signal message received and send response if applicable
     std::string response;
@@ -378,25 +398,25 @@ void RudpConnection::DispatchMessage() {
     if (managed_) {
       //  Keep Alive case
        if (data_size_ == 9) {
-        std::string data(buffer_.begin(), buffer_.end());
-        if (data == "KeepAlive") {
-          DLOG(INFO) << "DispatchMessage -- received >>KeepAlive<<";
-          // if a keep alive message received, do nothing.
-          return;
-        }
+         std::string data(buffer_.begin(), buffer_.end());
+         if (data == "KeepAlive") {
+           DLOG(INFO) << "DispatchMessage -- received >>KeepAlive<<";
+           // if a keep alive message received, do nothing.
+           return;
+         }
       }
-      DLOG(INFO) << "DispatchMessage() - managed_" << socket_.Id();
       // managed connection - need to keep connection alive.
       timeout_for_response_ = bptime::seconds(bptime::pos_infin);
       timeout_state_ = kNoTimeout;
       if (response_functor_) {
-        response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
-        response_functor_ = ResponseFunctor();  // clearing response_functor_
+        response_functor_(kSuccess, std::string(buffer_.begin(),
+                                                buffer_.end()));
+        response_functor_ = ResponseFunctor();
       }
       return;
     } else if (response_functor_) {
       response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
-      response_functor_ = ResponseFunctor();  // clearing response_functor_
+      response_functor_ = ResponseFunctor();
       Close();
       return;
     } else {
@@ -453,8 +473,7 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kNoTimeout;
-  // For managed connection, write op doesn't continue to read response if
-  // it is a WriteOnManagedConnection op
+  // For managed connection, write op doesn't continue to read response.
   if (managed_ && write_complete_functor_) {
     write_complete_functor_(kSuccess);
     return;
@@ -468,10 +487,9 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
 }
 
 void RudpConnection::CloseOnError(const TransportCondition &error) {
-  DLOG(ERROR) << "RudpConnection::CloseOnError -" << error << "ID-" << socket_.Id() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
     Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-    if(managed_) {
+    if (managed_) {
       if (write_complete_functor_) {
         write_complete_functor_(error);
         write_complete_functor_ = WriteCompleteFunctor();

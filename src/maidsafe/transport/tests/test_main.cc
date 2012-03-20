@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
   // Log messages at or above this level. Severity levels are INFO, WARNING,
   // ERROR, and FATAL (0 to 3 respectively).
   FLAGS_ms_logging_common = google::FATAL;
-  FLAGS_ms_logging_transport = google::INFO;
+  FLAGS_ms_logging_transport = google::WARNING;
 
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());

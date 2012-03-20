@@ -24,16 +24,12 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_API_H_
-#define MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_API_H_
+#ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
+#define MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
 
-#include "maidsafe/transport/version.h"
-#if MAIDSAFE_TRANSPORT_VERSION != 300
-# error This API is not compatible with the installed library.\
-  Please update the maidsafe_transport library.
-#endif
+#include <set>
+#include <string>
 
-#include <map>
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/signals2.hpp"
@@ -43,6 +39,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "maidsafe/transport/rudp_transport.h"
 #include "maidsafe/transport/transport.h"
 
+#include "maidsafe/transport/version.h"
+
+#if MAIDSAFE_TRANSPORT_VERSION != 300
+# error This API is not compatible with the installed library.\
+  Please update the maidsafe_transport library.
+#endif
+
 namespace maidsafe {
 
 namespace transport {
@@ -51,6 +54,7 @@ typedef std::function<void (const TransportCondition&)> AddFunctor;
 typedef std::function<void (const Endpoint&)> LostFunctor;
 typedef std::function<void (const TransportCondition&, const std::string&)>
     ResponseFunctor;
+
 
 class ManagedConnection {
  public:
@@ -81,7 +85,7 @@ class ManagedConnection {
   // Only fires Signal on request from other side. (not on response)
   OnMessageReceived on_message_received();
 
-private:
+ private:
   void AddConnectionCallback(TransportCondition result,
                              const std::string &response,
                              const Endpoint &peer_endpoint,
@@ -90,17 +94,16 @@ private:
   void KeepAliveCallback(const Endpoint &endpoint,
                          const TransportCondition& result);
 
-  std::list<Endpoint> GetEndpoints();
-  void InsertEndpoint(const Endpoint &peer_endpoint);
+  std::set<Endpoint> GetEndpoints();
+  bool InsertEndpoint(const Endpoint &peer_endpoint);
   void RemoveEndpoint(const Endpoint &peer_endpoint);
 
 
   std::shared_ptr<AsioService> asio_services_;
-  //  temp work around to escape construction
   bptime::time_duration keep_alive_interval_;
-  std::shared_ptr<boost::asio::deadline_timer> keep_alive_timer_;
+  boost::asio::deadline_timer keep_alive_timer_;
   std::shared_ptr<RudpTransport> transport_;
-  std::list<Endpoint> connected_endpoints_;
+  std::set<Endpoint> connected_endpoints_;
   LostFunctor lost_functor_;
   boost::mutex mutex_;
 };
@@ -109,4 +112,4 @@ private:
 
 }  // namespace maidsafe
 
-#endif // MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_API_H_
+#endif  // MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
