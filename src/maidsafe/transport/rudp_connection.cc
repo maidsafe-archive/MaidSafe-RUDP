@@ -274,11 +274,11 @@ void RudpConnection::StartReadSize() {
 }
 
 void RudpConnection::HandleReadSize(const bs::error_code &ec) {
-  if (Stopped())
-    return CloseOnError(kReceiveTimeout);
-
   if (ec)
     return CloseOnError(kReceiveFailure);
+
+  if (Stopped())
+    return CloseOnError(kReceiveTimeout);
 
   DataSize size = (((((buffer_.at(0) << 8) | buffer_.at(1)) << 8) |
                     buffer_.at(2)) << 8) | buffer_.at(3);
