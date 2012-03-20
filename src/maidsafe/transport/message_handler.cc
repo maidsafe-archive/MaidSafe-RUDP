@@ -45,13 +45,12 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   std::string decrypted_message;
 
   if (security_type != kNone) {
-    if (!private_key_)
+    if (!private_key_) {
+      DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
       return;
+    }
+    
     if (security_type & kAsymmetricEncrypt) {
-      std::string aes_seed = request.substr(1, 512);
-      if (aes_seed.size() != 512)
-        return;
-
       asymm::Decrypt(encrypted_message, *private_key_, &decrypted_message);
       if (decrypted_message.empty()) {
         DLOG(WARNING) << "Failed to decrypt: encrypt_aes_seed is empty.";
