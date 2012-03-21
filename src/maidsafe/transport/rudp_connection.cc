@@ -49,25 +49,26 @@ namespace maidsafe {
 
 namespace transport {
 
-RudpConnection::RudpConnection(const std::shared_ptr<RudpTransport> &transport,
-                               const asio::io_service::strand &strand,
-                               const std::shared_ptr<RudpMultiplexer> &multiplexer, //NOLINT
-                               const ip::udp::endpoint &remote)
-  : transport_(transport),
-    strand_(strand),
-    multiplexer_(multiplexer),
-    socket_(*multiplexer_),
-    timer_(strand_.get_io_service()),
-    response_deadline_(),
-    remote_endpoint_(remote),
-    write_complete_functor_(),
-    response_functor_(),
-    buffer_(),
-    data_size_(0),
-    data_received_(0),
-    timeout_for_response_(kMinTimeout),
-    timeout_state_(kNoTimeout),
-    managed_(false) {
+RudpConnection::RudpConnection(
+    const std::shared_ptr<RudpTransport> &transport,
+    const asio::io_service::strand &strand,
+    const std::shared_ptr<RudpMultiplexer> &multiplexer,
+    const ip::udp::endpoint &remote)
+        : transport_(transport),
+          strand_(strand),
+          multiplexer_(multiplexer),
+          socket_(*multiplexer_),
+          timer_(strand_.get_io_service()),
+          response_deadline_(),
+          remote_endpoint_(remote),
+          write_complete_functor_(),
+          response_functor_(),
+          buffer_(),
+          data_size_(0),
+          data_received_(0),
+          timeout_for_response_(kMinTimeout),
+          timeout_state_(kNoTimeout),
+          managed_(false) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
@@ -189,16 +190,20 @@ void RudpConnection::DoStartSendingCB(const bool &managed,
   CheckTimeout(ignored_ec);
 }
 
-void RudpConnection::WriteOnManagedConnection(const std::string &data,
-    const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
+void RudpConnection::WriteOnManagedConnection(
+    const std::string &data,
+    const Timeout &timeout,
+    WriteCompleteFunctor write_complete_functor) {
   BOOST_ASSERT(managed_);
   strand_.dispatch(std::bind(&RudpConnection::DoWriteOnManagedConnection,
                              shared_from_this(), data, timeout,
                              write_complete_functor));
 }
 
-void RudpConnection::DoWriteOnManagedConnection(const std::string &data,
-    const Timeout &timeout, WriteCompleteFunctor write_complete_functor) {
+void RudpConnection::DoWriteOnManagedConnection(
+    const std::string &data,
+    const Timeout &timeout,
+    WriteCompleteFunctor write_complete_functor) {
   BOOST_ASSERT(managed_);
   write_complete_functor_ = write_complete_functor;
   EncodeData(data);

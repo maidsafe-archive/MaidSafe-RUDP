@@ -132,10 +132,7 @@ struct Endpoint {
   }
 
   bool operator==(const Endpoint &other) const {
-    if (ip == other.ip && port == other.port)
-      return true;
-    else
-      return false;
+    return (ip == other.ip && port == other.port);
   }
   bool operator!=(const Endpoint &other) const {
     return !(*this == other);
@@ -150,7 +147,7 @@ struct Endpoint {
     if (ip != other.ip)
       return (ip > other.ip);
     else
-      return port < other.port;
+      return port > other.port;
   }
 
   IP ip;
@@ -194,10 +191,6 @@ typedef std::shared_ptr<bs2::signal<void(const std::string&,
 typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
                                          const Endpoint&)>> OnError;
 
-namespace test {
-  class MockNatDetectionServiceTest_BEH_FullConeDetection_Test;
-  class MockNatDetectionServiceTest_BEH_PortRestrictedDetection_Test;
-}  // namespace test
 
 // Base class for all transport types.
 class Transport {
@@ -244,9 +237,6 @@ class Transport {
   int bootstrap_status() { return bootstrap_status_; }
 //  std::shared_ptr<Service> transport_service() { return transport_service_; }
 
-  friend class test::MockNatDetectionServiceTest_BEH_FullConeDetection_Test;
-  friend class
-      test::MockNatDetectionServiceTest_BEH_PortRestrictedDetection_Test;
   friend class NatDetection;
   friend class NatDetectionService;
 
@@ -292,9 +282,6 @@ namespace boost {
 
 namespace serialization {
 
-#ifdef __MSVC__
-#  pragma warning(disable: 4127)
-#endif
 template <typename Archive>
 void serialize(Archive &archive,                              // NOLINT (Fraser)
                mt::Endpoint &endpoint,
@@ -314,9 +301,6 @@ void serialize(Archive &archive,                              // NOLINT (Fraser)
       port = 0;
     endpoint.port = port;
   }
-#ifdef __MSVC__
-#  pragma warning(default: 4127)
-#endif
 }
 
 }  // namespace serialization

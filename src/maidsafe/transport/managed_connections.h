@@ -24,9 +24,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
-#define MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
 
+#ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
+#define MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
+
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -79,7 +83,8 @@ class ManagedConnection {
 
   void ConnectionLost(LostFunctor lost_functor);
 
-  void Send(const Endpoint &peer_endpoint, const std::string &message,
+  void Send(const Endpoint &peer_endpoint,
+            const std::string &message,
             ResponseFunctor response_functor);
 
   // Only fires Signal on request from other side. (not on response)
@@ -92,7 +97,7 @@ class ManagedConnection {
                              AddFunctor add_functor);
   void SendKeepAlive(const boost::system::error_code& ec);
   void KeepAliveCallback(const Endpoint &endpoint,
-                         const TransportCondition& result);
+                         const TransportCondition &result);
 
   std::set<Endpoint> GetEndpoints();
   bool InsertEndpoint(const Endpoint &peer_endpoint);
@@ -112,4 +117,4 @@ class ManagedConnection {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_MANAGED_CONNECTION_H_
+#endif  // MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_

@@ -30,14 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_RUDP_ACCEPTOR_H_
 #define MAIDSAFE_TRANSPORT_RUDP_ACCEPTOR_H_
 
-#ifdef __MSVC__
-#pragma warning(disable:4996)
-#endif
 #include <memory>
-#ifdef __MSVC__
-#pragma warning(default:4996)
-#endif
-
 #include <deque>
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"

@@ -30,7 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maidsafe/common/test.h"
 
-#include "maidsafe/transport/managed_connection.h"
+#include "maidsafe/transport/managed_connections.h"
 #include "maidsafe/transport/log.h"
 
 
@@ -72,7 +72,7 @@ void DoOnRequestReceived(const std::string &request,
                          std::string *response,
                          Timeout *timeout) {
   Sleep(boost::posix_time::milliseconds(10));
-  *response = " Response to request -" + request ;
+  *response = " Response to request -" + request;
   *timeout = kDefaultInitialTimeout;
   DLOG(INFO) << " - Received request: \"" << request
              << "\".  Responding with \"" << *response << "\"";
@@ -131,8 +131,8 @@ TEST(ManagedConnectionTest, BEH_AddConnection) {
   // Send on managed connection
   std::string sent_request("send_data from 1");
 
-  ResponseFunctor response_functor = std::bind(&DoOnResponseReceived,
-                                               sent_request, args::_1, args::_2);
+  ResponseFunctor response_functor =
+      std::bind(&DoOnResponseReceived, sent_request, args::_1, args::_2);
   mngd_conn_1->Send(endpoint_2, sent_request, response_functor);
 
   Sleep(bptime::milliseconds(10000));

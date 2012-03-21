@@ -30,14 +30,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_RUDP_CONNECTION_H_
 #define MAIDSAFE_TRANSPORT_RUDP_CONNECTION_H_
 
-#ifdef __MSVC__
-#pragma warning(disable:4996)
-#endif
 #include <memory>
-#ifdef __MSVC__
-#pragma warning(default:4996)
-#endif
-
 #include <string>
 #include <vector>
 #include "boost/asio/deadline_timer.hpp"
@@ -76,17 +69,25 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data, const Timeout &timeout);
-  void StartSending(const std::string &data, const Timeout &timeout,
-                    const bool &managed, ResponseFunctor response_functor);
+  // For managed connections.
+  void StartSending(const std::string &data,
+                    const Timeout &timeout,
+                    const bool &managed,
+                    ResponseFunctor response_functor);
   void Connect(const Timeout &timeout, ConnectFunctor callback);
-  // For managed connection.
+
+  // For managed connections.
   void set_managed(bool managed);
+  // For managed connections.
   void WriteOnManagedConnection(const std::string &data,
                                 const Timeout &timeout,
                                 WriteCompleteFunctor write_complete_functor);
-
-  bool managed() {return managed_; }
-  boost::asio::ip::udp::endpoint remote_endpoint() { return remote_endpoint_; }
+  // For managed connections.
+  bool managed() const { return managed_; }
+  // For managed connections.
+  boost::asio::ip::udp::endpoint remote_endpoint() const {
+    return remote_endpoint_;
+  }
 
  private:
   RudpConnection(const RudpConnection&);

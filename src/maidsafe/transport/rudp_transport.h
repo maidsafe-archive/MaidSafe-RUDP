@@ -79,21 +79,24 @@ class RudpTransport : public Transport,
   virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
 
   virtual void StopListening();
-  // This timeout define the max allowed duration for the receiver to respond
-  // a received request. If the receiver is to be expected respond slow
-  // (say because of the large request msg to be processed), a long duration
-  // shall be given for this timeout.
-  // If no response to be expected, kImmediateTimeout shall be given.
+  // This timeout defines the max allowed duration for the receiver to respond
+  // to a request. If the receiver is expected to respond slowly (e.g. because
+  // of a large request msg to be processed), a long duration shall be given for
+  // this timeout. If no response is expected, kImmediateTimeout shall be given.
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
-  // For managed connection implementation
-  void Send(const std::string &data, const Endpoint &endpoint,
-            const Timeout &timeout, const bool &managed,
+  // For managed connections.
+  void Send(const std::string &data,
+            const Endpoint &endpoint,
+            const Timeout &timeout,
+            const bool &managed,
             ResponseFunctor response_functor);
+  // For managed connections.
   void RemoveManagedConnection(const Endpoint &peer_endpoint);
+  // For managed connections.
   void SetConnectionAsManaged(const Endpoint &peer_endpoint);
-  // For managed connection implementation
+  // For managed connections.
   void WriteOnManagedConnection(const std::string &data,
                                 const Endpoint &endpoint,
                                 const Timeout &timeout,
@@ -102,12 +105,12 @@ class RudpTransport : public Transport,
   virtual void Send(const std::string &data,
                     const Contact &remote_contact,
                     const Timeout &timeout);
-  void Connect(const Endpoint &endpoint, const Timeout &timeout,
+  void Connect(const Endpoint &endpoint,
+               const Timeout &timeout,
                ConnectFunctor callback);
   static DataSize kMaxTransportMessageSize() { return 67108864; }
 
  private:
-  // Disallow copying and assignment.
   RudpTransport(const RudpTransport&);
   RudpTransport &operator=(const RudpTransport&);
 
@@ -131,10 +134,13 @@ class RudpTransport : public Transport,
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
-  void DoSendCB(const std::string &data, const Endpoint &endpoint,
-                const Timeout &timeout, const bool &managed,
-                ResponseFunctor response_functor);
-  void DoConnect(const Endpoint &endpoint, const Timeout &timeout,
+  void DoSendCallback(const std::string &data,
+                      const Endpoint &endpoint,
+                      const Timeout &timeout,
+                      const bool &managed,
+                      ResponseFunctor response_functor);
+  void DoConnect(const Endpoint &endpoint,
+                 const Timeout &timeout,
                  ConnectFunctor callback);
 
   void ConnectCallback(const int &result,
