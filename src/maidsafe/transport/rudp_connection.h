@@ -76,7 +76,17 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data, const Timeout &timeout);
+  void StartSending(const std::string &data, const Timeout &timeout,
+                    const bool &managed, ResponseFunctor response_functor);
   void Connect(const Timeout &timeout, ConnectFunctor callback);
+  // For managed connection.
+  void set_managed(bool managed);
+  void WriteOnManagedConnection(const std::string &data,
+                                const Timeout &timeout,
+                                WriteCompleteFunctor write_complete_functor);
+
+  bool managed() {return managed_; }
+  boost::asio::ip::udp::endpoint remote_endpoint() { return remote_endpoint_; }
 
  private:
   RudpConnection(const RudpConnection&);
@@ -85,6 +95,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void DoClose();
   void DoStartReceiving();
   void DoStartSending();
+  void DoStartSendingCB(const bool &managed, ResponseFunctor response_functor);
   void DoConnect(ConnectFunctor callback);
 
   void CheckTimeout(const boost::system::error_code &ec);
@@ -116,6 +127,11 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void EncodeData(const std::string &data);
   void CloseOnError(const TransportCondition &error);
 
+  void do_set_managed(bool managed);
+  void DoWriteOnManagedConnection(const std::string &data,
+                                  const Timeout &timeout,
+                                  WriteCompleteFunctor write_complete_functor);
+
   std::weak_ptr<RudpTransport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<RudpMultiplexer> multiplexer_;
@@ -123,10 +139,13 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   boost::asio::deadline_timer timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
+  WriteCompleteFunctor write_complete_functor_;
+  ResponseFunctor response_functor_;
   std::vector<unsigned char> buffer_;
   size_t data_size_, data_received_;
   Timeout timeout_for_response_;
   enum TimeoutState { kNoTimeout, kSending, kReceiving } timeout_state_;
+  bool managed_;
 };
 
 }  // namespace transport

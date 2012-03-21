@@ -130,6 +130,29 @@ struct Endpoint {
     if (ec)
       port = 0;
   }
+
+  bool operator==(const Endpoint &other) const {
+    if (ip == other.ip && port == other.port)
+      return true;
+    else
+      return false;
+  }
+  bool operator!=(const Endpoint &other) const {
+    return !(*this == other);
+  }
+  bool operator<(const Endpoint &other) const {
+    if (ip != other.ip)
+      return (ip < other.ip);
+    else
+      return port < other.port;
+  }
+  bool operator>(const Endpoint &other) const {
+    if (ip != other.ip)
+      return (ip > other.ip);
+    else
+      return port < other.port;
+  }
+
   IP ip;
   Port port;
 };
