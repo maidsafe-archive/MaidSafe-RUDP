@@ -393,7 +393,7 @@ void TransportAPI<T>::StopAsioServices() {
   });
 }
 
-void RUDPSingleTransportAPITest::RestoreRUDPGlobalSettings() {
+void RudpSingleTransportAPITest::RestoreRudpGlobalSettings() {
   RudpParameters::default_window_size = 16;
   RudpParameters::maximum_window_size = 512;
   RudpParameters::default_size = 1480;
@@ -576,7 +576,7 @@ INSTANTIATE_TYPED_TEST_CASE_P(UDP, TransportAPITest, UdpTransport);
 
 /** listener->StartListen(), then sender->Send(), then sender->StartListen()
  *  the sender->startListen will gnerate a socket binding error */
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionCommunicate) {
+TEST_F(RudpSingleTransportAPITest, BEH_BiDirectionCommunicate) {
   TransportPtr sender(new RudpTransport(this->asio_services_[0]->service()));
   TransportPtr listener(new RudpTransport(this->asio_services_[0]->service()));
   EXPECT_EQ(kSuccess, sender->StartListening(Endpoint(kIP, 2000)));
@@ -632,7 +632,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionCommunicate) {
   EXPECT_EQ(1, msgh_sender->responses_received().size());
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionDuplexCommunicate) {
+TEST_F(RudpSingleTransportAPITest, BEH_BiDirectionDuplexCommunicate) {
   // 8MB data to be sent both from client to server and server to client
   // simultaneously
   // TODO(Prakash) : FIXME - Test failing for 8Mb data on Windows,
@@ -689,14 +689,14 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_BiDirectionDuplexCommunicate) {
   EXPECT_EQ(listen_request, msgh_sender->responses_received()[0].first);
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSingleLargeMessage) {
+TEST_F(RudpSingleTransportAPITest, BEH_OneToOneSingleLargeMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   // Send out a message with upto 64MB = 2^26
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(1, 26));
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
+TEST_F(RudpSingleTransportAPITest, BEH_OneToOneSeqMultipleLargeMessage) {
   TransportPtr sender(new RudpTransport(this->asio_services_[0]->service()));
   TransportPtr listener(new RudpTransport(this->asio_services_[0]->service()));
   EXPECT_EQ(kSuccess, listener->StartListening(Endpoint(kIP, 2001)));
@@ -733,7 +733,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSeqMultipleLargeMessage) {
             msgh_sender->responses_received().at(0).first);
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSimMultipleLargeMessage) {
+TEST_F(RudpSingleTransportAPITest, BEH_OneToOneSimMultipleLargeMessage) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   // Send out a bunch of messages simultaneously, each one is 4MB = 2^22
@@ -744,7 +744,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_OneToOneSimMultipleLargeMessage) {
   ASSERT_NO_FATAL_FAILURE(this->RunTransportTest(4, 22));
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
+TEST_F(RudpSingleTransportAPITest, BEH_DetectDroppedReceiver) {
   // Prevent the low speed detection will terminate the test earlier
   RudpParameters::speed_calculate_inverval = bptime::seconds(100);
 
@@ -779,7 +779,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedReceiver) {
   }
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
+TEST_F(RudpSingleTransportAPITest, BEH_DetectDroppedSender) {
   // Prevent the low speed detection will terminate the test earlier
   RudpParameters::speed_calculate_inverval = bptime::seconds(100);
 
@@ -813,7 +813,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
   }
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Connect) {
+TEST_F(RudpSingleTransportAPITest, BEH_Connect) {
   std::shared_ptr<RudpTransport> client(
       new RudpTransport(this->asio_services_[0]->service()));
   std::shared_ptr<RudpTransport> server(
@@ -849,7 +849,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Connect) {
   }
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowSendSpeed) {
+TEST_F(RudpSingleTransportAPITest, BEH_SlowSendSpeed) {
   // Global Static Parameter set in the previous test will still valid
   // need to reset here
   RudpParameters::speed_calculate_inverval = bptime::seconds(1);
@@ -897,7 +897,7 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowSendSpeed) {
   }
 }
 
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowReceiveSpeed) {
+TEST_F(RudpSingleTransportAPITest, BEH_SlowReceiveSpeed) {
   // Global Static Parameter set in the previous test will still valid
   // need to reset here
   RudpParameters::speed_calculate_inverval = bptime::seconds(1);
@@ -943,13 +943,13 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_SlowReceiveSpeed) {
     }
     EXPECT_GT(3, waited_seconds);
   }
-  RestoreRUDPGlobalSettings();
+  RestoreRudpGlobalSettings();
 }
 
-INSTANTIATE_TEST_CASE_P(ConfigurableTraffic, RUDPConfigurableTransportAPITest,
+INSTANTIATE_TEST_CASE_P(ConfigurableTraffic, RudpConfigurableTransportAPITest,
                         testing::Range(0, 3));
 
-TEST_P(RUDPConfigurableTransportAPITest, BEH_TRANS_ConfigurableTraffic) {
+TEST_P(RudpConfigurableTransportAPITest, BEH_ConfigurableTraffic) {
   this->SetupTransport(false, 0);
   this->SetupTransport(true, 0);
   // To save the test time, send out a message with 4MB = 2^22

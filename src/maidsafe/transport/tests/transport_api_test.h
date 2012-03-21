@@ -136,18 +136,18 @@ class TransportAPITest : public TransportAPI<T>, public ::testing::Test {
   virtual ~TransportAPITest() {}
 };
 
-class RUDPSingleTransportAPITest : public TransportAPITest<RudpTransport> {
+class RudpSingleTransportAPITest : public TransportAPITest<RudpTransport> {
  public:
-  RUDPSingleTransportAPITest() {}
-  void RestoreRUDPGlobalSettings();
-  virtual ~RUDPSingleTransportAPITest() {}
+  RudpSingleTransportAPITest() {}
+  void RestoreRudpGlobalSettings();
+  virtual ~RudpSingleTransportAPITest() {}
 };
 
-class RUDPConfigurableTransportAPITest
+class RudpConfigurableTransportAPITest
     : public TransportAPI<RudpTransport>,
       public ::testing::TestWithParam<int> {
  public:
-  RUDPConfigurableTransportAPITest() : TransportAPI<RudpTransport>() {
+  RudpConfigurableTransportAPITest() : TransportAPI<RudpTransport>() {
     int configurations[3][6] = { { 16,  128, 1400, 6400, 1024, 6000 },
                                  { 64,  256, 1400, 1400, 1024, 1024 },
                                  { 32,   64, 2800, 4800, 2038, 4076 }};
