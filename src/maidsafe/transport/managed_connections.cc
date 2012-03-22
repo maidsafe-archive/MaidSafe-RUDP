@@ -41,7 +41,7 @@ namespace maidsafe {
 
 namespace transport {
 
-ManagedConnection::ManagedConnection()
+ManagedConnections::ManagedConnections()
     : asio_services_(new AsioService),
       keep_alive_interval_(bptime::seconds(20)),
       keep_alive_timer_(asio_services_->service(), keep_alive_interval_),
@@ -51,16 +51,16 @@ ManagedConnection::ManagedConnection()
       mutex_() {
 }
 
-void ManagedConnection::ConnectionLost(LostFunctor lost_functor) {
+void ManagedConnections::ConnectionLost(LostFunctor lost_functor) {
   lost_functor_ = lost_functor;
 }
 
-OnMessageReceived ManagedConnection::on_message_received() {
+OnMessageReceived ManagedConnections::on_message_received() {
   BOOST_ASSERT(transport_);
   return transport_->on_message_received();
 }
 
-TransportCondition ManagedConnection::Init(uint8_t thread_count) {
+TransportCondition ManagedConnections::Init(uint8_t thread_count) {
   // TODO(Prakash) Use random port to start
   std::pair<uint16_t, uint16_t> port_range(8000, 9000);
   asio_services_->Start(thread_count);
@@ -83,11 +83,11 @@ TransportCondition ManagedConnection::Init(uint8_t thread_count) {
   if (kSuccess != result)
     return result;
   keep_alive_timer_.async_wait(
-      std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
+      std::bind(&ManagedConnections::SendKeepAlive, this, args::_1));
   return result;
 }
 
-void ManagedConnection::SendKeepAlive(const boost::system::error_code& ec) {
+void ManagedConnections::SendKeepAlive(const boost::system::error_code& ec) {
   if (ec == boost::asio::error::operation_aborted) {
     return;
   }
@@ -95,21 +95,21 @@ void ManagedConnection::SendKeepAlive(const boost::system::error_code& ec) {
   std::set<Endpoint> connected_endpoints = GetEndpoints();
   if (!connected_endpoints.size())
     DLOG(INFO) << "SendKeepAlive list EMPTY !!!!!!!!!!";
-  for (auto itr(connected_endpoints.begin());
-      itr !=connected_endpoints.end(); ++itr) {
-    WriteCompleteFunctor cb(std::bind(&ManagedConnection::KeepAliveCallback,
-                                      this, *itr, args::_1));
-    DLOG(INFO) << "Sending KeepAlive to :" << (*itr).port;
-    transport_->WriteOnManagedConnection("KeepAlive", *itr,
-                                         kDefaultInitialTimeout, cb);
-  }
+//  for (auto itr(connected_endpoints.begin());
+//      itr !=connected_endpoints.end(); ++itr) {
+//    WriteCompleteFunctor cb(std::bind(&ManagedConnections::KeepAliveCallback,
+//                                      this, *itr, args::_1));
+//    DLOG(INFO) << "Sending KeepAlive to :" << (*itr).port;
+//    transport_->WriteOnManagedConnection("KeepAlive", *itr,
+//                                         kDefaultInitialTimeout, cb);
+//  }
   keep_alive_timer_.expires_at(
       keep_alive_timer_.expires_at() + keep_alive_interval_);
   keep_alive_timer_.async_wait(
-      std::bind(&ManagedConnection::SendKeepAlive, this, args::_1));
+      std::bind(&ManagedConnections::SendKeepAlive, this, args::_1));
 }
 
-void ManagedConnection::KeepAliveCallback(const Endpoint &endpoint,
+void ManagedConnections::KeepAliveCallback(const Endpoint &endpoint,
                                           const TransportCondition& result) {
   DLOG(INFO) << "KeepAliveCallback - called for endpoint : "
              << endpoint.port  << "result = " << result;
@@ -121,28 +121,28 @@ void ManagedConnection::KeepAliveCallback(const Endpoint &endpoint,
   }
 }
 
-Endpoint ManagedConnection::GetOurEndpoint() {
+Endpoint ManagedConnections::GetOurEndpoint() {
   if (transport_)
     return transport_->transport_details().endpoint;
   return Endpoint();
 }
 
-void ManagedConnection::AddConnection(const Endpoint &peer_endpoint,
-                                      const std::string &validation_data,
+void ManagedConnections::AddConnection(const Endpoint &peer_endpoint,
+                                      const std::string &/*validation_data*/,
                                       AddFunctor add_functor) {
   if (peer_endpoint == GetOurEndpoint()) {
     if (add_functor)
-      add_functor(kError);  //  Cannot connect to own
+      add_functor(kError, "");  //  Cannot connect to own
     DLOG(ERROR) << "Trying to add to ourself.";
   }
   ResponseFunctor response_functor(
-      std::bind(&ManagedConnection::AddConnectionCallback, this, args::_1,
+      std::bind(&ManagedConnections::AddConnectionCallback, this, args::_1,
                 args::_2, peer_endpoint, add_functor));
-  transport_->Send(validation_data, peer_endpoint, kDefaultInitialTimeout,
-                   true, response_functor);
+//  transport_->Send(validation_data, peer_endpoint, kDefaultInitialTimeout,
+//                   true, response_functor);
 }
 
-TransportCondition ManagedConnection::AcceptConnection(
+TransportCondition ManagedConnections::AcceptConnection(
   // Do nothing if already connected
   const Endpoint &peer_endpoint, bool accept) {
   if (peer_endpoint == GetOurEndpoint()) {
@@ -151,68 +151,69 @@ TransportCondition ManagedConnection::AcceptConnection(
   }
   if (accept) {
     // TODO(Prakash) Need call back from rudp
-    transport_->SetConnectionAsManaged(peer_endpoint);
+//    transport_->SetConnectionAsManaged(peer_endpoint);
     if (InsertEndpoint(peer_endpoint))
       return kSuccess;
   }
   return kError;
 }
 
-void ManagedConnection::AddConnectionCallback(TransportCondition result,
+void ManagedConnections::AddConnectionCallback(TransportCondition result,
                                               const std::string &response,
                                               const Endpoint &peer_endpoint,
                                               AddFunctor add_functor) {
-  if (kSuccess != result)
-  if (add_functor)
-    add_functor(result);
+  if (kSuccess != result) {
+    if (add_functor)
+      add_functor(result, "");
+  }
 
   if ("Accepted" != response) {
-    DLOG(INFO) << "AddConnectionCallback failed - received : " << response;
+    DLOG(WARNING) << "AddConnectionCallback failed - received : " << response;
     if (add_functor)
-      add_functor(kError);  // Rejected error code
+      add_functor(kError, "");  // Rejected error code
     RemoveEndpoint(peer_endpoint);
-    return;
   } else {
     DLOG(INFO) << "AddConnectionCallback success - received : " << response;
     if (InsertEndpoint(peer_endpoint)) {
       if (add_functor)
-        add_functor(result);
+        add_functor(kSuccess, response);
     } else {
-      add_functor(kError);
+      if (add_functor)
+        add_functor(kError, "");
     }
   }
 }
 
-void ManagedConnection::RemoveConnection(const Endpoint &peer_endpoint) {
-  transport_->RemoveManagedConnection(peer_endpoint);
+void ManagedConnections::RemoveConnection(const Endpoint &peer_endpoint) {
+//  transport_->RemoveManagedConnection(peer_endpoint);
   RemoveEndpoint(peer_endpoint);
 }
 
 
-std::set<Endpoint> ManagedConnection::GetEndpoints() {
+std::set<Endpoint> ManagedConnections::GetEndpoints() {
   boost::mutex::scoped_lock lock(mutex_);
   return connected_endpoints_;
 }
 
-bool ManagedConnection::InsertEndpoint(const Endpoint &peer_endpoint) {
+bool ManagedConnections::InsertEndpoint(const Endpoint &peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto ret_val = connected_endpoints_.insert(peer_endpoint);
   return ret_val.second;
 }
 
-void ManagedConnection::RemoveEndpoint(const Endpoint &peer_endpoint) {
+void ManagedConnections::RemoveEndpoint(const Endpoint &peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   connected_endpoints_.erase(peer_endpoint);
 }
 
-void ManagedConnection::Send(const Endpoint &peer_endpoint,
-                             const std::string &message,
-                             ResponseFunctor response_functor) {
-  transport_->Send(message, peer_endpoint, kDefaultInitialTimeout,
-                   false, response_functor);
+void ManagedConnections::Send(const Endpoint &/*peer_endpoint*/,
+                             const std::string &/*message*/,
+                             ResponseFunctor /*response_functor*/) {
+//  transport_->Send(message, peer_endpoint, kDefaultInitialTimeout,
+//                   false, response_functor);
 }
 
-ManagedConnection::~ManagedConnection() {
+ManagedConnections::~ManagedConnections() {
   keep_alive_timer_.cancel();
   transport_->StopListening();
 }

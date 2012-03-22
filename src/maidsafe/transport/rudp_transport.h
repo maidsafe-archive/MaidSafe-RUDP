@@ -57,11 +57,6 @@ class RudpSocket;
 
 typedef std::function<void(const TransportCondition&)> ConnectFunctor;
 
-// WriteCompleteFunctor will only be used for operations on managed connection
-typedef std::function<void (const TransportCondition&)> WriteCompleteFunctor;
-typedef std::function<void (const TransportCondition&, const std::string&)>
-    ResponseFunctor;
-
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
@@ -85,25 +80,6 @@ class RudpTransport : public Transport,
   // this timeout. If no response is expected, kImmediateTimeout shall be given.
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
-                    const Timeout &timeout);
-  // For managed connections.
-  void Send(const std::string &data,
-            const Endpoint &endpoint,
-            const Timeout &timeout,
-            const bool &managed,
-            ResponseFunctor response_functor);
-  // For managed connections.
-  void RemoveManagedConnection(const Endpoint &peer_endpoint);
-  // For managed connections.
-  void SetConnectionAsManaged(const Endpoint &peer_endpoint);
-  // For managed connections.
-  void WriteOnManagedConnection(const std::string &data,
-                                const Endpoint &endpoint,
-                                const Timeout &timeout,
-                                WriteCompleteFunctor write_complete_functor);
-
-  virtual void Send(const std::string &data,
-                    const Contact &remote_contact,
                     const Timeout &timeout);
   void Connect(const Endpoint &endpoint,
                const Timeout &timeout,
@@ -134,26 +110,9 @@ class RudpTransport : public Transport,
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
-  void DoSendCallback(const std::string &data,
-                      const Endpoint &endpoint,
-                      const Timeout &timeout,
-                      const bool &managed,
-                      ResponseFunctor response_functor);
   void DoConnect(const Endpoint &endpoint,
                  const Timeout &timeout,
                  ConnectFunctor callback);
-
-  void ConnectCallback(const int &result,
-                       const std::string &data,
-                       const Endpoint &endpoint,
-                       const Timeout &timeout);
-  void DoWriteOnManagedConnection(const std::string &data,
-                                  const Endpoint &endpoint,
-                                  const Timeout &timeout,
-                                  WriteCompleteFunctor write_complete_functor);
-  void DoRemoveManagedConnection(const Endpoint &peer_endpoint);
-  void DoSetConnectionAsManaged(const Endpoint &peer_endpoint);
-
   friend class RudpConnection;
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);

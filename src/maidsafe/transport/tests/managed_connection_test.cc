@@ -82,7 +82,7 @@ void DoOnManagedConnectionRequest(const std::string &request,
                                   const Info &info,
                                   std::string *response,
                                   Timeout *timeout,
-                                  std::shared_ptr<ManagedConnection> mngd_conn,
+                                  std::shared_ptr<ManagedConnections> mngd_conn,
                                   const uint32_t node) {
   Sleep(boost::posix_time::milliseconds(10));
   *timeout = kDefaultInitialTimeout;
@@ -96,11 +96,11 @@ void DoOnManagedConnectionRequest(const std::string &request,
 }
 
 TEST(ManagedConnectionTest, BEH_AddConnection) {
-  std::shared_ptr<ManagedConnection> mngd_conn_1, mngd_conn_2;
+  std::shared_ptr<ManagedConnections> mngd_conn_1, mngd_conn_2;
   Endpoint endpoint_1, endpoint_2;
 
-  mngd_conn_1.reset(new ManagedConnection);
-  mngd_conn_2.reset(new ManagedConnection);
+  mngd_conn_1.reset(new ManagedConnections);
+  mngd_conn_2.reset(new ManagedConnections);
 
   EXPECT_EQ(kSuccess, mngd_conn_1->Init(20));
   EXPECT_EQ(kSuccess, mngd_conn_2->Init(20));
@@ -149,11 +149,11 @@ TEST(ManagedConnectionTest, BEH_AddConnection) {
 TEST(ManagedConnectionTest, BEH_OneToManyAddConnection) {
   const uint32_t kNetworkSize(10);
   Endpoint endpoints[kNetworkSize];
-  std::shared_ptr<ManagedConnection> mngd_conns[kNetworkSize];
+  std::shared_ptr<ManagedConnections> mngd_conns[kNetworkSize];
   boost::signals2::connection  managed_connection_request[kNetworkSize];
 
   for (uint32_t i(0); i != kNetworkSize; ++i) {  // Init
-    mngd_conns[i].reset(new ManagedConnection);
+    mngd_conns[i].reset(new ManagedConnections);
     EXPECT_EQ(kSuccess, mngd_conns[i]->Init(10));
     endpoints[i] = mngd_conns[i]->GetOurEndpoint();
     EXPECT_NE(0U, endpoints[i].port);

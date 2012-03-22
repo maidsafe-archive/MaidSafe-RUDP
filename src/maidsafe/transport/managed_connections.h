@@ -54,17 +54,16 @@ namespace maidsafe {
 
 namespace transport {
 
-typedef std::function<void (const TransportCondition&)> AddFunctor;
-typedef std::function<void (const Endpoint&)> LostFunctor;
-typedef std::function<void (const TransportCondition&, const std::string&)>
-    ResponseFunctor;
+typedef std::function<void(const TransportCondition&,
+                           const std::string&)> AddFunctor, ResponseFunctor;
+typedef std::function<void(const Endpoint&)> LostFunctor;
 
 
-class ManagedConnection {
+class ManagedConnections {
  public:
-  ManagedConnection();
+  ManagedConnections();
 
-  ~ManagedConnection();
+  ~ManagedConnections();
 
   TransportCondition Init(uint8_t thread_count);
 
