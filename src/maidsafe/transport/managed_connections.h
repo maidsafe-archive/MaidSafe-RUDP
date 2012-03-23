@@ -28,15 +28,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
 #define MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
 
-#include <cstdint>
 #include <functional>
 #include <memory>
-#include <set>
 #include <string>
+#include <vector>
 
-#include "boost/asio/io_service.hpp"
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/asio/deadline_timer.hpp"
-#include "boost/signals2.hpp"
 
 #include "maidsafe/common/asio_service.h"
 
@@ -54,61 +52,41 @@ namespace maidsafe {
 
 namespace transport {
 
-typedef std::function<void(const TransportCondition&,
-                           const std::string&)> AddFunctor, ResponseFunctor;
-typedef std::function<void(const Endpoint&)> LostFunctor;
+typedef std::function<void(const std::string&)> MessageReceivedFunctor;
+typedef std::function<void(const Endpoint&)> ConnectionLostFunctor;
 
 
 class ManagedConnections {
  public:
   ManagedConnections();
-
   ~ManagedConnections();
 
-  TransportCondition Init(uint8_t thread_count);
+  // Creates new transport objects and bootstraps each to one of the provided
+  // bootstrap_endpoints.  All the endpoints to which successful bootstrap
+  // connections are made are returned.
+  std::vector<Endpoint> Bootstrap(
+      const std::vector<Endpoint> &bootstrap_endpoints,
+      MessageReceivedFunctor message_received_functor,
+      ConnectionLostFunctor connection_lost_functor);
 
-  Endpoint GetOurEndpoint();
+  // Returns one of the transport's external endpoints.
+  Endpoint GetAvailableEndpoint() const;
 
-  // Try to open a connection with peer_endpoint.
-  void AddConnection(const Endpoint &peer_endpoint,
-                     const std::string &validation_data,
-                     AddFunctor add_functor);
+  void Add(const Endpoint &peer_endpoint, const std::string &this_node_id);
+  void Remove(const Endpoint &peer_endpoint);
 
-  // Should be called after validating new connection request
-  TransportCondition AcceptConnection(const Endpoint &peer_endpoint,
-                                      bool accept);
-
-  void RemoveConnection(const Endpoint &peer_endpoint);
-
-  void ConnectionLost(LostFunctor lost_functor);
-
-  void Send(const Endpoint &peer_endpoint,
-            const std::string &message,
-            ResponseFunctor response_functor);
-
-  // Only fires Signal on request from other side. (not on response)
-  OnMessageReceived on_message_received();
+  void Send(const Endpoint &this_endpoint,
+            const Endpoint &peer_endpoint,
+            const std::string &message) const;
+  void Ping(const Endpoint &peer_endpoint) const;
 
  private:
-  void AddConnectionCallback(TransportCondition result,
-                             const std::string &response,
-                             const Endpoint &peer_endpoint,
-                             AddFunctor add_functor);
-  void SendKeepAlive(const boost::system::error_code& ec);
-  void KeepAliveCallback(const Endpoint &endpoint,
-                         const TransportCondition &result);
-
-  std::set<Endpoint> GetEndpoints();
-  bool InsertEndpoint(const Endpoint &peer_endpoint);
-  void RemoveEndpoint(const Endpoint &peer_endpoint);
-
-
-  std::shared_ptr<AsioService> asio_services_;
-  bptime::time_duration keep_alive_interval_;
+  MessageReceivedFunctor message_received_functor_;
+  ConnectionLostFunctor connection_lost_functor_;
+  std::unique_ptr<AsioService> asio_service_;
+  boost::posix_time::time_duration keep_alive_interval_;
   boost::asio::deadline_timer keep_alive_timer_;
-  std::shared_ptr<RudpTransport> transport_;
-  std::set<Endpoint> connected_endpoints_;
-  LostFunctor lost_functor_;
+  std::vector<std::unique_ptr<RudpTransport>> rudp_transports_;
   boost::mutex mutex_;
 };
 
