@@ -53,6 +53,8 @@ namespace maidsafe {
 
 namespace transport {
 
+struct Endpoint;
+
 // Convert an IP in ASCII format to IPv4 or IPv6 bytes
 std::string IpAsciiToBytes(const std::string &decimal_ip);
 
@@ -67,6 +69,9 @@ uint32_t IpAsciiToNet(const char *buffer);
 
 // Return all local addresses
 std::vector<IP> GetLocalAddresses();
+
+// Returns true if the IP is not default constructed, and the Port is not 0.
+bool IsValid(const Endpoint &endpoint);
 
 }  // namespace transport
 

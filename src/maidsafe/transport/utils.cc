@@ -26,6 +26,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "maidsafe/transport/utils.h"
+#include "maidsafe/transport/transport.h"
 #include "maidsafe/transport/log.h"
 #include "maidsafe/transport/network_interface.h"
 
@@ -121,6 +122,10 @@ std::vector<IP> GetLocalAddresses() {
     }
   }
   return ips;
+}
+
+bool IsValid(const Endpoint &endpoint) {
+  return (endpoint.ip != IP()) && (endpoint.port != 0);
 }
 
 }  // namespace transport

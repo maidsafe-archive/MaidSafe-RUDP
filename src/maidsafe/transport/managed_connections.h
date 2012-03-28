@@ -34,12 +34,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
-#include "boost/asio/deadline_timer.hpp"
+#include "boost/thread/shared_mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
-
-#include "maidsafe/transport/rudp_transport.h"
-#include "maidsafe/transport/transport.h"
 
 #include "maidsafe/transport/version.h"
 
@@ -52,6 +49,9 @@ namespace maidsafe {
 
 namespace transport {
 
+struct Endpoint;
+class McTransport;
+
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const Endpoint&)> ConnectionLostFunctor;
 
@@ -59,7 +59,6 @@ typedef std::function<void(const Endpoint&)> ConnectionLostFunctor;
 class ManagedConnections {
  public:
   ManagedConnections();
-  ~ManagedConnections();
 
   // Creates new transport objects and bootstraps each to one of the provided
   // bootstrap_endpoints.  All the endpoints to which successful bootstrap
@@ -69,25 +68,36 @@ class ManagedConnections {
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor);
 
-  // Returns one of the transport's external endpoints.
-  Endpoint GetAvailableEndpoint() const;
+  // Returns one of the transport's external endpoints.  Returns kNoneAvailable
+  // if there are no running Managed Connections.  In this case, Bootstrap must
+  // be called to start new Managed Connections.  Returns kFull if all
+  // Managed Connections already have the maximum number of running sockets.  If
+  // there are less than kMaxTransports transports running, a new one will be
+  // started and if successful, this will be the returned Endpoint.
+  int GetAvailableEndpoint(Endpoint *endpoint);
 
-  void Add(const Endpoint &peer_endpoint, const std::string &this_node_id);
+  int Add(const Endpoint &this_endpoint,
+          const Endpoint &peer_endpoint,
+          const std::string &this_node_id);
   void Remove(const Endpoint &peer_endpoint);
 
-  void Send(const Endpoint &this_endpoint,
-            const Endpoint &peer_endpoint,
-            const std::string &message) const;
+  int Send(const Endpoint &peer_endpoint, const std::string &message) const;
   void Ping(const Endpoint &peer_endpoint) const;
 
+  friend class McTransport;
+
  private:
+  ManagedConnections(const ManagedConnections&);
+  ManagedConnections& operator=(const ManagedConnections&);
+  Endpoint StartNewTransport(const std::vector<Endpoint> &bootstrap_endpoints);
+  void RemoveTransport();
+
+  std::unique_ptr<AsioService> asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
-  std::unique_ptr<AsioService> asio_service_;
   boost::posix_time::time_duration keep_alive_interval_;
-  boost::asio::deadline_timer keep_alive_timer_;
-  std::vector<std::unique_ptr<RudpTransport>> rudp_transports_;
-  boost::mutex mutex_;
+  std::vector<std::unique_ptr<McTransport>> mc_transports_;
+  mutable boost::shared_mutex shared_mutex_;
 };
 
 }  // namespace transport

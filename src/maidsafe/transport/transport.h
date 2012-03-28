@@ -43,6 +43,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/serialization/nvp.hpp"
 #include "boost/signals2/signal.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
 
 #include "maidsafe/transport/version.h"
 
@@ -63,6 +65,10 @@ typedef boost::asio::ip::address IP;
 typedef uint16_t Port;
 typedef int32_t DataSize;
 typedef bptime::time_duration Timeout;
+typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+typedef boost::upgrade_to_unique_lock<boost::shared_mutex> UpgradeToUniqueLock;
 
 class Contact;
 class MessageHandler;
@@ -105,6 +111,15 @@ enum TransportCondition {
   kMessageSizeTooLarge = -350031,
   kWrongIpVersion = -350032,
   kPendingResult = -350033,
+
+  // Managed Connections
+  kNoneAvailable = -350100,
+  kFull = -350101,
+  kNullParameter = -350102,
+  kInvalidMcTransport = -350103,
+  kInvalidMcConnection = -350104,
+
+  // Upper limit of values for this enum.
   kTransportConditionLimit = -359999
 };
 
