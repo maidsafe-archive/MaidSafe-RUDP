@@ -7,6 +7,4 @@ OSX Build Instructions
 
     *  Run make Experimental to configure, build, test and upload to our dashboard.
     *  Run make package to create auto rpm or deb.
-    *  Run make install to install MaidSafe-Transport (by default to MaidSafe-Common/installed/)
-
-For full build instructions, see https://github.com/maidsafe/MaidSafe-Transport/wiki/Developer-Build-Instructions
+    *  Run make install to install MaidSafe-RUDP (by default to MaidSafe-Common/installed/)

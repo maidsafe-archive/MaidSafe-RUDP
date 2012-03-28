@@ -1,4 +1,4 @@
-package maidsafe.transport.protobuf;
+package maidsafe.rudp.protobuf;
 
 message Endpoint {
   required bytes ip = 1;

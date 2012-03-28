@@ -1,40 +1,17 @@
 #==============================================================================#
+#  Copyright 2012 MaidSafe.net limited                                         #
 #                                                                              #
-#  Copyright (c) 2011 MaidSafe.net limited                                     #
-#  All rights reserved.                                                        #
+#   The following source code is property of MaidSafe.net limited and is not   #
+#   meant for external use.  The use of this code is governed by the licence   #
+#   file licence.txt found in the root of this directory and also on           #
+#   www.maidsafe.net.                                                          #
 #                                                                              #
-#  Redistribution and use in source and binary forms, with or without          #
-#  modification, are permitted provided that the following conditions are met: #
-#                                                                              #
-#      * Redistributions of source code must retain the above copyright        #
-#        notice, this list of conditions and the following disclaimer.         #
-#      * Redistributions in binary form must reproduce the above copyright     #
-#        notice, this list of conditions and the following disclaimer in the   #
-#        documentation and/or other materials provided with the distribution.  #
-#      * Neither the name of the maidsafe.net limited nor the names of its     #
-#        contributors may be used to endorse or promote products derived from  #
-#        this software without specific prior written permission.              #
-#                                                                              #
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" #
-#  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE   #
-#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE  #
-#  ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE  #
-#  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR         #
-#  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF        #
-#  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS    #
-#  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     #
-#  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)     #
-#  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE  #
-#  POSSIBILITY OF SUCH DAMAGE.                                                 #
-#                                                                              #
-#==============================================================================#
-#                                                                              #
-#  Written by maidsafe.net team                                                #
-#                                                                              #
+#   You are not free to copy, amend or otherwise use this source code without  #
+#   the explicit written permission of the board of directors of maidsafe.net. #
 #==============================================================================#
 
 
-SET(MS_PROJECT_NAME maidsafe_transport)
+SET(MS_PROJECT_NAME maidsafe_rudp)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.4 FATAL_ERROR)
 MESSAGE("================================================================================\n")
@@ -75,140 +52,132 @@ INCLUDE(maidsafe_find_common)
 # Standard setup                                                                                  #
 ###################################################################################################
 SET(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
-SET(PROTO_FILES "maidsafe/transport/transport.proto")
+SET(PROTO_FILES "maidsafe/rudp/messages.proto")
 INCLUDE(maidsafe_standard_setup)
-HANDLE_VERSIONS(${PROJECT_SOURCE_DIR}/src/maidsafe/transport/version.h)
+HANDLE_VERSIONS(${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/version.h)
 
 
 ###################################################################################################
 # Set up all files as GLOBs                                                                       #
 ###################################################################################################
 ####    CODE    ####
-LIST(APPEND ALL_FILES_LIBUPNP_DIR
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/igd_desc_parse.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/minixml.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/minisoap.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/miniwget.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/upnpcommands.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/upnpreplyparse.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/upnperrors.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/miniupnpc.c
-       ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/libupnp/minissdpc.c)
-SOURCE_GROUP("libupnp Source Files" FILES ${ALL_FILES_LIBUPNP_DIR})
+FILE(GLOB SOURCE_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.h")
+FILE(GLOB PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.proto")
+FILE(GLOB SOURCE_PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.pb.cc")
+FILE(GLOB HEADER_PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*pb.h")
+SET(ALL_FILES_RUDP_DIR ${SOURCE_FILES_RUDP_DIR} ${HEADER_FILES_RUDP_DIR} ${PROTO_FILES_RUDP_DIR})
+LIST(REMOVE_ITEM SOURCE_FILES_RUDP_DIR ${SOURCE_PROTO_FILES_RUDP_DIR})
+LIST(REMOVE_ITEM HEADER_FILES_RUDP_DIR ${HEADER_PROTO_FILES_RUDP_DIR})
+SOURCE_GROUP("Main Source Files" FILES ${SOURCE_FILES_RUDP_DIR})
+SOURCE_GROUP("Main Header Files" FILES ${HEADER_FILES_RUDP_DIR})
+SOURCE_GROUP("Main Proto Files" FILES ${PROTO_FILES_RUDP_DIR} ${SOURCE_PROTO_FILES_RUDP_DIR} ${HEADER_PROTO_FILES_RUDP_DIR})
 
-FILE(GLOB SOURCE_FILES_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat-pmp/*.cc")
-FILE(GLOB HEADER_FILES_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat-pmp/*.h")
-SET(ALL_FILES_NATPMP_DIR ${SOURCE_FILES_NATPMP_DIR} ${HEADER_FILES_NATPMP_DIR})
-SOURCE_GROUP("NAT-PMP Source Files" FILES ${SOURCE_FILES_NATPMP_DIR})
-SOURCE_GROUP("NAT-PMP Header Files" FILES ${HEADER_FILES_NATPMP_DIR})
+FILE(GLOB SOURCE_FILES_RUDP_CORE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_CORE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/*.h")
+SET(ALL_FILES_RUDP_CORE_DIR ${SOURCE_FILES_RUDP_CORE_DIR} ${HEADER_FILES_RUDP_CORE_DIR})
+SOURCE_GROUP("Core Source Files" FILES ${SOURCE_FILES_RUDP_CORE_DIR})
+SOURCE_GROUP("Core Header Files" FILES ${HEADER_FILES_RUDP_CORE_DIR})
 
-FILE(GLOB SOURCE_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.cc")
-FILE(GLOB HEADER_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.h")
-FILE(GLOB PROTO_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.proto")
-FILE(GLOB SOURCE_PROTO_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.pb.cc")
-FILE(GLOB HEADER_PROTO_FILES_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*pb.h")
-SET(ALL_FILES_TRANSPORT_DIR ${SOURCE_FILES_TRANSPORT_DIR} ${HEADER_FILES_TRANSPORT_DIR} ${PROTO_FILES_TRANSPORT_DIR})
-SET(STYLE_TRANSPORT ${ALL_FILES_TRANSPORT_DIR})
-LIST(REMOVE_ITEM STYLE_TRANSPORT ${SOURCE_PROTO_FILES_TRANSPORT_DIR} ${HEADER_PROTO_FILES_TRANSPORT_DIR} ${PROTO_FILES_TRANSPORT_DIR})
-LIST(REMOVE_ITEM SOURCE_FILES_TRANSPORT_DIR ${SOURCE_PROTO_FILES_TRANSPORT_DIR})
-LIST(REMOVE_ITEM HEADER_FILES_TRANSPORT_DIR ${HEADER_PROTO_FILES_TRANSPORT_DIR})
-SOURCE_GROUP("Transport Source Files" FILES ${SOURCE_FILES_TRANSPORT_DIR})
-SOURCE_GROUP("Transport Header Files" FILES ${HEADER_FILES_TRANSPORT_DIR})
-SOURCE_GROUP("Transport Proto Files" FILES ${PROTO_FILES_TRANSPORT_DIR} ${SOURCE_PROTO_FILES_TRANSPORT_DIR} ${HEADER_PROTO_FILES_TRANSPORT_DIR})
+FILE(GLOB SOURCE_FILES_RUDP_NAT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nat/core/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_NAT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nat/core/*.h")
+SET(ALL_FILES_RUDP_NAT_DIR ${SOURCE_FILES_RUDP_NAT_DIR} ${HEADER_FILES_RUDP_NAT_DIR})
+SOURCE_GROUP("NAT Source Files" FILES ${SOURCE_FILES_RUDP_NAT_DIR})
+SOURCE_GROUP("NAT Header Files" FILES ${HEADER_FILES_RUDP_NAT_DIR})
 
-FILE(GLOB SOURCE_FILES_TCP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_*.cc")
-FILE(GLOB HEADER_FILES_TCP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_*.h")
-SOURCE_GROUP("TCP Source Files" FILES ${SOURCE_FILES_TCP})
-SOURCE_GROUP("TCP Header Files" FILES ${HEADER_FILES_TCP})
+FILE(GLOB SOURCE_FILES_RUDP_OPERATIONS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/operations/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_OPERATIONS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/operations/*.h")
+SET(ALL_FILES_RUDP_OPERATIONS_DIR ${SOURCE_FILES_RUDP_OPERATIONS_DIR} ${HEADER_FILES_RUDP_OPERATIONS_DIR})
+SOURCE_GROUP("Operations Source Files" FILES ${SOURCE_FILES_RUDP_OPERATIONS_DIR})
+SOURCE_GROUP("Operations Header Files" FILES ${HEADER_FILES_RUDP_OPERATIONS_DIR})
 
-FILE(GLOB SOURCE_FILES_UDP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_*.cc")
-FILE(GLOB HEADER_FILES_UDP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_*.h")
-SOURCE_GROUP("UDP Source Files" FILES ${SOURCE_FILES_UDP})
-SOURCE_GROUP("UDP Header Files" FILES ${HEADER_FILES_UDP})
+FILE(GLOB SOURCE_FILES_RUDP_PACKETS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/packets/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_PACKETS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/packets/*.h")
+SET(ALL_FILES_RUDP_PACKETS_DIR ${SOURCE_FILES_RUDP_PACKETS_DIR} ${HEADER_FILES_RUDP_PACKETS_DIR})
+SOURCE_GROUP("Packets Source Files" FILES ${SOURCE_FILES_RUDP_PACKETS_DIR})
+SOURCE_GROUP("Packets Header Files" FILES ${HEADER_FILES_RUDP_PACKETS_DIR})
 
-FILE(GLOB SOURCE_FILES_RUDP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_*.cc")
-FILE(GLOB HEADER_FILES_RUDP "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_*.h")
-SOURCE_GROUP("RUDP Source Files" FILES ${SOURCE_FILES_RUDP})
-SOURCE_GROUP("RUDP Header Files" FILES ${HEADER_FILES_RUDP})
-
-FILE(GLOB SOURCE_FILES_NAT_DETECTION "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_detection*.cc")
-FILE(GLOB HEADER_FILES_NAT_DETECTION "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_detection*.h")
-SOURCE_GROUP("NAT Detection Source Files" FILES ${SOURCE_FILES_NAT_DETECTION})
-SOURCE_GROUP("NAT Detection Header Files" FILES ${HEADER_FILES_NAT_DETECTION})
-
-FILE(GLOB SOURCE_FILES_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/*.cc")
-FILE(GLOB HEADER_FILES_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/*.h")
-LIST(REMOVE_ITEM SOURCE_FILES_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/upnp_client_impl.cc")
-LIST(REMOVE_ITEM HEADER_FILES_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/upnp_client_impl.h")
-SET(ALL_FILES_UPNP_DIR ${SOURCE_FILES_UPNP_DIR} ${HEADER_FILES_UPNP_DIR})
-SOURCE_GROUP("UPnP Source Files" FILES ${SOURCE_FILES_UPNP_DIR})
-SOURCE_GROUP("UPnP Header Files" FILES ${HEADER_FILES_UPNP_DIR})
-
-SET(ALL_FILES ${ALL_FILES_TRANSPORT_DIR} ${ALL_FILES_LIBUPNP_DIR} ${ALL_FILES_UPNP_DIR} ${ALL_FILES_NATPMP_DIR})
+SET(ALL_FILES
+    ${ALL_FILES_RUDP_DIR}
+    ${ALL_FILES_RUDP_CORE_DIR}
+    ${ALL_FILES_RUDP_NAT_DIR}
+    ${ALL_FILES_RUDP_OPERATIONS_DIR}
+    ${ALL_FILES_RUDP_PACKETS_DIR})
+SET(STYLE_RUDP ${ALL_FILES})
+LIST(REMOVE_ITEM STYLE_RUDP ${SOURCE_PROTO_FILES_RUDP_DIR} ${HEADER_PROTO_FILES_RUDP_DIR} ${PROTO_FILES_RUDP_DIR})
 
 ####    TESTS    ####
-FILE(GLOB SOURCE_FILES_TEST_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tests/*.cc")
-FILE(GLOB HEADER_FILES_TEST_TRANSPORT_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tests/*.h")
-SET(ALL_FILES_TEST_TRANSPORT_DIR ${SOURCE_FILES_TEST_TRANSPORT_DIR} ${HEADER_FILES_TEST_TRANSPORT_DIR})
-SOURCE_GROUP("Test Source Files" FILES ${SOURCE_FILES_TEST_TRANSPORT_DIR})
-SOURCE_GROUP("Test Header Files" FILES ${HEADER_FILES_TEST_TRANSPORT_DIR})
+FILE(GLOB SOURCE_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/*.h")
+SET(ALL_FILES_RUDP_TESTS_DIR ${SOURCE_FILES_RUDP_TESTS_DIR} ${HEADER_FILES_RUDP_TESTS_DIR})
+SOURCE_GROUP("Main Test Source Files" FILES ${SOURCE_FILES_RUDP_TESTS_DIR})
+SOURCE_GROUP("Main Test Header Files" FILES ${HEADER_FILES_RUDP_TESTS_DIR})
 
-# FILE(GLOB ALL_FILES_TEST_NATPMP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat-pmp/tests*.cc"
-#                                     "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat-pmp/tests/*.h")
-# FILE(GLOB ALL_FILES_TEST_UPNP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/tests/*.cc"
-#                                   "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/upnp/tests/*.h")
+FILE(GLOB SOURCE_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.h")
+SET(ALL_FILES_RUDP_CORE_TESTS_DIR ${SOURCE_FILES_RUDP_CORE_TESTS_DIR} ${HEADER_FILES_RUDP_CORE_TESTS_DIR})
+SOURCE_GROUP("Core Test Source Files" FILES ${SOURCE_FILES_RUDP_CORE_TESTS_DIR})
+SOURCE_GROUP("Core Test Header Files" FILES ${HEADER_FILES_RUDP_CORE_TESTS_DIR})
+
+FILE(GLOB SOURCE_FILES_RUDP_NAT_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/nat/tests/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_NAT_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/nat/tests/*.h")
+SET(ALL_FILES_RUDP_NAT_TESTS_DIR ${SOURCE_FILES_RUDP_NAT_TESTS_DIR} ${HEADER_FILES_RUDP_NAT_TESTS_DIR})
+SOURCE_GROUP("NAT Test Source Files" FILES ${SOURCE_FILES_RUDP_NAT_TESTS_DIR})
+SOURCE_GROUP("NAT Test Header Files" FILES ${HEADER_FILES_RUDP_NAT_TESTS_DIR})
+
+FILE(GLOB SOURCE_FILES_RUDP_OPERATIONS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/operations/tests/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_OPERATIONS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/operations/tests/*.h")
+SET(ALL_FILES_RUDP_OPERATIONS_TESTS_DIR ${SOURCE_FILES_RUDP_OPERATIONS_TESTS_DIR} ${HEADER_FILES_RUDP_OPERATIONS_TESTS_DIR})
+SOURCE_GROUP("Operations Test Source Files" FILES ${SOURCE_FILES_RUDP_OPERATIONS_TESTS_DIR})
+SOURCE_GROUP("Operations Test Header Files" FILES ${HEADER_FILES_RUDP_OPERATIONS_TESTS_DIR})
+
+FILE(GLOB SOURCE_FILES_RUDP_PACKETS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/packets/tests/*.cc")
+FILE(GLOB HEADER_FILES_RUDP_PACKETS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/packets/tests/*.h")
+SET(ALL_FILES_RUDP_PACKETS_TESTS_DIR ${SOURCE_FILES_RUDP_PACKETS_TESTS_DIR} ${HEADER_FILES_RUDP_PACKETS_TESTS_DIR})
+SOURCE_GROUP("Packets Test Source Files" FILES ${SOURCE_FILES_RUDP_PACKETS_TESTS_DIR})
+SOURCE_GROUP("Packets Test Header Files" FILES ${HEADER_FILES_RUDP_PACKETS_TESTS_DIR})
+
+SET(ALL_TEST_FILES
+    ${ALL_FILES_RUDP_TESTS_DIR}
+    ${ALL_FILES_RUDP_CORE_TESTS_DIR}
+    ${ALL_FILES_RUDP_NAT_TESTS_DIR}
+#     ${ALL_FILES_RUDP_OPERATIONS_TESTS_DIR}
+    ${ALL_FILES_RUDP_PACKETS_TESTS_DIR})
+SET(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 
 
 ###################################################################################################
 # Define MaidSafe libraries and executables                                                       #
 ###################################################################################################
 MS_ADD_STATIC_LIBRARY(${MS_PROJECT_NAME} ${ALL_FILES})
-MS_ADD_EXECUTABLE(TESTtransport Tests ${ALL_FILES_TEST_TRANSPORT_DIR})
+MS_ADD_EXECUTABLE(TESTrudp Tests ${ALL_TEST_FILES})
 # MS_ADD_EXECUTABLE(TESTnatpmp Tests ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_NATPMP_DIR})
 # MS_ADD_EXECUTABLE(TESTupnp Tests ${ALL_FILES_TEST_MAIN} ${ALL_FILES_TEST_UPNP_DIR})
 
-TARGET_LINK_LIBRARIES(maidsafe_transport_static
-                        maidsafe_common_static
-                        protobuf_static)
-TARGET_LINK_LIBRARIES(TESTtransport maidsafe_transport_static gtest_static gmock_static)
-# TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_transport_static gtest_static)
-# TARGET_LINK_LIBRARIES(TESTupnp maidsafe_transport_static gtest_static)
+TARGET_LINK_LIBRARIES(maidsafe_rudp_static maidsafe_common_static protobuf_static)
+TARGET_LINK_LIBRARIES(TESTrudp maidsafe_rudp_static gtest_static gmock_static)
+# TARGET_LINK_LIBRARIES(TESTnatpmp maidsafe_rudp_static gtest_static)
+# TARGET_LINK_LIBRARIES(TESTupnp maidsafe_rudp_static gtest_static)
 
 
 ###################################################################################################
 # Set compiler and linker flags                                                                   #
 ###################################################################################################
 INCLUDE(maidsafe_standard_flags)
-
-IF(MSVC)
-  # Warnings switched off for protocol buffer generated files and libupnp files
-  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/transport/transport.pb.cc
-                              ${ALL_FILES_LIBUPNP_DIR}
-                                PROPERTIES COMPILE_FLAGS "/W0")
-ELSEIF(UNIX)
-  FILE(GLOB PROTO_SOURCE_FILES "${PROJECT_SOURCE_DIR}/src/maidsafe/transport/*.pb.cc")
-#  SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_connection.cc
-#                                PROPERTIES COMPILE_FLAGS "-Wno-effc++")
-  SET_SOURCE_FILES_PROPERTIES(${PROTO_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
-ENDIF()
-
-
+MS_DISABLE_WARNINGS(${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/messages.pb.cc)
 
 
 ###################################################################################################
 # Tests                                                                                           #
 ###################################################################################################
-ADD_STYLE_TEST(${STYLE_TRANSPORT} ${ALL_FILES_TEST_TRANSPORT_DIR})
-ADD_GTESTS(TESTtransport)
+ADD_STYLE_TEST(${STYLE_RUDP})
+ADD_GTESTS(TESTrudp)
 # ADD_GTESTS(TESTnatpmp)
 # ADD_GTESTS(TESTupnp)
 TEST_SUMMARY_OUTPUT()
 
 # Remove files from coverage stats
-ADD_COVERAGE_EXCLUDE(libupnp/)
-ADD_COVERAGE_EXCLUDE(nat-pmp/)
-ADD_COVERAGE_EXCLUDE(upnp/)
-ADD_COVERAGE_EXCLUDE(transport.pb.cc)
+ADD_COVERAGE_EXCLUDE(messages.pb.cc)
 
 
 ###################################################################################################
@@ -217,21 +186,11 @@ ADD_COVERAGE_EXCLUDE(transport.pb.cc)
 FINAL_MESSAGE()
 RENAME_OUTDATED_BUILT_EXES()
 
-SET(MAIDSAFE_TRANSPORT_INSTALL_FILES
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/transport.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/version.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/message_handler.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/contact.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/tcp_transport.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/udp_transport.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_transport.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_parameters.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/rudp_message_handler.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_detection.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/nat_traversal.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/managed_connections.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/transport/utils.h)  # TODO - remove utils.h once NAT detection is implemented and this is not #included by node_container.h
+SET(MAIDSAFE_RUDP_INSTALL_FILES
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/version.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/parameters.h
+      ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/managed_connections.h)
 
-MS_INSTALL_LIBS(maidsafe_transport_static)
-MS_INSTALL_HEADERS(transport ${MAIDSAFE_TRANSPORT_INSTALL_FILES})
+MS_INSTALL_LIBS(maidsafe_rudp_static)
+MS_INSTALL_HEADERS(rudp ${MAIDSAFE_RUDP_INSTALL_FILES})
 MS_INSTALL_EXPORT()
