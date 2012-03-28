@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Created by Julian Cain on 11/3/09.
 
-#ifndef MAIDSAFE_TRANSPORT_GATEWAY_H_
-#define MAIDSAFE_TRANSPORT_GATEWAY_H_
+#ifndef MAIDSAFE_RUDP_GATEWAY_H_
+#define MAIDSAFE_RUDP_GATEWAY_H_
 
 #include <vector>
 #include "boost/asio.hpp"
@@ -81,4 +81,4 @@ class Gateway {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_GATEWAY_H_
+#endif  // MAIDSAFE_RUDP_GATEWAY_H_

@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_
-#define MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_
+#ifndef MAIDSAFE_RUDP_CORE_SOCKET_H_
+#define MAIDSAFE_RUDP_CORE_SOCKET_H_
 
 #include <memory>
 #include <deque>
@@ -240,4 +240,4 @@ class RudpSocket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_SOCKET_H_
+#endif  // MAIDSAFE_RUDP_CORE_SOCKET_H_

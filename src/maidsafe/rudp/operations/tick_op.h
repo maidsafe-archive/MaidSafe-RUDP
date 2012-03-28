@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_TICK_OP_H_
-#define MAIDSAFE_TRANSPORT_RUDP_TICK_OP_H_
+#ifndef MAIDSAFE_RUDP_OPERATIONS_TICK_OP_H_
+#define MAIDSAFE_RUDP_OPERATIONS_TICK_OP_H_
 
 #include "boost/asio/error.hpp"
 #include "boost/asio/handler_alloc_hook.hpp"
@@ -93,4 +93,4 @@ class RudpTickOp {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_TICK_OP_H_
+#endif  // MAIDSAFE_RUDP_OPERATIONS_TICK_OP_H_

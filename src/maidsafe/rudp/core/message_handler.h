@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_MESSAGE_HANDLER_H_
-#define MAIDSAFE_TRANSPORT_RUDP_MESSAGE_HANDLER_H_
+#ifndef MAIDSAFE_RUDP_CORE_MESSAGE_HANDLER_H_
+#define MAIDSAFE_RUDP_CORE_MESSAGE_HANDLER_H_
 
 #include <memory>
 #include <string>
@@ -183,4 +183,4 @@ typedef std::shared_ptr<RudpMessageHandler> RudpMessageHandlerPtr;
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_MESSAGE_HANDLER_H_
+#endif  // MAIDSAFE_RUDP_CORE_MESSAGE_HANDLER_H_

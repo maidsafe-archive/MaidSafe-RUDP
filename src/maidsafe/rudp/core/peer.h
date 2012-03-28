@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_PEER_H_
-#define MAIDSAFE_TRANSPORT_RUDP_PEER_H_
+#ifndef MAIDSAFE_RUDP_CORE_PEER_H_
+#define MAIDSAFE_RUDP_CORE_PEER_H_
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
@@ -55,4 +55,4 @@ class RudpPeer {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_PEER_H_
+#endif  // MAIDSAFE_RUDP_CORE_PEER_H_

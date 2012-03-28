@@ -10,13 +10,13 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_LOG_H_
-#define MAIDSAFE_TRANSPORT_LOG_H_
+#ifndef MAIDSAFE_RUDP_LOG_H_
+#define MAIDSAFE_RUDP_LOG_H_
 
 #include "maidsafe/common/log.h"
 
 #undef LOG
-#define LOG(severity) MAIDSAFE_LOG(transport, severity)
+#define LOG(severity) MAIDSAFE_LOG(rudp, severity)
 
-#endif  // MAIDSAFE_TRANSPORT_LOG_H_
+#endif  // MAIDSAFE_RUDP_LOG_H_
 

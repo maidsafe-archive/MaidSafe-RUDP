@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_CONTROL_PACKET_H_
-#define MAIDSAFE_TRANSPORT_RUDP_CONTROL_PACKET_H_
+#ifndef MAIDSAFE_RUDP_PACKETS_CONTROL_PACKET_H_
+#define MAIDSAFE_RUDP_PACKETS_CONTROL_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
 #include "boost/cstdint.hpp"
@@ -69,4 +69,4 @@ class RudpControlPacket : public RudpPacket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_CONTROL_PACKET_H_
+#endif  // MAIDSAFE_RUDP_PACKETS_CONTROL_PACKET_H_

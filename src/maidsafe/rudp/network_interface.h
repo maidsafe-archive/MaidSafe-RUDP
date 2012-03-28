@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Created by Julian Cain on 11/3/09.
 
-#ifndef MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
-#define MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
+#ifndef MAIDSAFE_RUDP_NETWORK_INTERFACE_H_
+#define MAIDSAFE_RUDP_NETWORK_INTERFACE_H_
 
 #include <string>
 #include <vector>
@@ -113,4 +113,4 @@ struct NetworkInterface {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_NETWORK_INTERFACE_H_
+#endif  // MAIDSAFE_RUDP_NETWORK_INTERFACE_H_

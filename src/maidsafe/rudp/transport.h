@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_MC_TRANSPORT_H_
-#define MAIDSAFE_TRANSPORT_MC_TRANSPORT_H_
+#ifndef MAIDSAFE_RUDP_TRANSPORT_H_
+#define MAIDSAFE_RUDP_TRANSPORT_H_
 
 #include <cstdint>
 #include <memory>
@@ -46,6 +46,7 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+
  public:
   explicit McTransport(boost::asio::io_service &asio_service);  // NOLINT
   virtual ~McTransport();
@@ -131,4 +132,4 @@ typedef std::shared_ptr<RudpTransport> RudpTransportPtr;
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_MC_TRANSPORT_H_
+#endif  // MAIDSAFE_RUDP_TRANSPORT_H_

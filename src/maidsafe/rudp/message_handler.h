@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_MESSAGE_HANDLER_H_
-#define MAIDSAFE_TRANSPORT_MESSAGE_HANDLER_H_
+#ifndef MAIDSAFE_RUDP_MESSAGE_HANDLER_H_
+#define MAIDSAFE_RUDP_MESSAGE_HANDLER_H_
 
 #include <memory>
 #include <string>
@@ -112,4 +112,4 @@ class MessageHandler {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_MESSAGE_HANDLER_H_
+#endif  // MAIDSAFE_RUDP_MESSAGE_HANDLER_H_

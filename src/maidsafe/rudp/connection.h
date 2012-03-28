@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_MC_CONNECTION_H_
-#define MAIDSAFE_TRANSPORT_MC_CONNECTION_H_
+#ifndef MAIDSAFE_RUDP_CONNECTION_H_
+#define MAIDSAFE_RUDP_CONNECTION_H_
 
 #include <memory>
 #include <string>
@@ -110,4 +110,4 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_MC_CONNECTION_H_
+#endif  // MAIDSAFE_RUDP_CONNECTION_H_

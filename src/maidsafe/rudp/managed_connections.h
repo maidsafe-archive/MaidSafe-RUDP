@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
-#define MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
+#ifndef MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
+#define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 
 #include <functional>
 #include <memory>
@@ -89,4 +89,4 @@ class ManagedConnections {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_MANAGED_CONNECTIONS_H_
+#endif  // MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_

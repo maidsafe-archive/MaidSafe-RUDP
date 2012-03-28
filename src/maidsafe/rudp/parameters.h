@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_
-#define MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_
+#ifndef MAIDSAFE_RUDP_PARAMETERS_H_
+#define MAIDSAFE_RUDP_PARAMETERS_H_
 
 #include <cassert>
 #include <deque>
@@ -98,4 +98,4 @@ struct RudpParameters {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_PARAMETERS_H_
+#endif  // MAIDSAFE_RUDP_PARAMETERS_H_

@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_DISPATCH_OP_H_
-#define MAIDSAFE_TRANSPORT_RUDP_DISPATCH_OP_H_
+#ifndef MAIDSAFE_RUDP_OPERATIONS_DISPATCH_OP_H_
+#define MAIDSAFE_RUDP_OPERATIONS_DISPATCH_OP_H_
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/handler_alloc_hook.hpp"
@@ -112,4 +112,4 @@ class RudpDispatchOp {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_DISPATCH_OP_H_
+#endif  // MAIDSAFE_RUDP_OPERATIONS_DISPATCH_OP_H_

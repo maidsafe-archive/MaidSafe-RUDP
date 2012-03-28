@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_RECEIVER_H_
-#define MAIDSAFE_TRANSPORT_RUDP_RECEIVER_H_
+#ifndef MAIDSAFE_RUDP_CORE_RECEIVER_H_
+#define MAIDSAFE_RUDP_CORE_RECEIVER_H_
 
 #include <deque>
 
@@ -125,4 +125,4 @@ class RudpReceiver {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_RECEIVER_H_
+#endif  // MAIDSAFE_RUDP_CORE_RECEIVER_H_

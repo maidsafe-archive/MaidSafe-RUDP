@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_ACCEPTOR_H_
-#define MAIDSAFE_TRANSPORT_RUDP_ACCEPTOR_H_
+#ifndef MAIDSAFE_RUDP_CORE_ACCEPTOR_H_
+#define MAIDSAFE_RUDP_CORE_ACCEPTOR_H_
 
 #include <memory>
 #include <deque>
@@ -90,4 +90,4 @@ class RudpAcceptor {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_ACCEPTOR_H_
+#endif  // MAIDSAFE_RUDP_CORE_ACCEPTOR_H_

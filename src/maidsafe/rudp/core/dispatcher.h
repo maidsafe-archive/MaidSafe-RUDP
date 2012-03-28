@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_
-#define MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_
+#ifndef MAIDSAFE_RUDP_CORE_DISPATCHER_H_
+#define MAIDSAFE_RUDP_CORE_DISPATCHER_H_
 
 #include <unordered_map>
 #include "boost/asio/buffer.hpp"
@@ -64,4 +64,4 @@ class RudpDispatcher {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_DISPATCHER_H_
+#endif  // MAIDSAFE_RUDP_CORE_DISPATCHER_H_

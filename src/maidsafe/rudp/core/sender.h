@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_SENDER_H_
-#define MAIDSAFE_TRANSPORT_RUDP_SENDER_H_
+#ifndef MAIDSAFE_RUDP_CORE_SENDER_H_
+#define MAIDSAFE_RUDP_CORE_SENDER_H_
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -97,4 +97,4 @@ class RudpSender {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_SENDER_H_
+#endif  // MAIDSAFE_RUDP_CORE_SENDER_H_

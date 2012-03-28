@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_TRANSPORT_UTILS_H_
-#define MAIDSAFE_TRANSPORT_UTILS_H_
+#ifndef MAIDSAFE_RUDP_UTILS_H_
+#define MAIDSAFE_RUDP_UTILS_H_
 
 #include <string>
 #include <vector>
@@ -46,4 +46,4 @@ bool IsValid(const Endpoint &endpoint);
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_UTILS_H_
+#endif  // MAIDSAFE_RUDP_UTILS_H_

@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_ACK_PACKET_H_
-#define MAIDSAFE_TRANSPORT_RUDP_ACK_PACKET_H_
+#ifndef MAIDSAFE_RUDP_PACKETS_ACK_PACKET_H_
+#define MAIDSAFE_RUDP_PACKETS_ACK_PACKET_H_
 
 #include <string>
 
@@ -82,4 +82,4 @@ class RudpAckPacket : public RudpControlPacket {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_ACK_PACKET_H_
+#endif  // MAIDSAFE_RUDP_PACKETS_ACK_PACKET_H_

@@ -11,8 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#ifndef MAIDSAFE_TRANSPORT_RUDP_SESSION_H_
-#define MAIDSAFE_TRANSPORT_RUDP_SESSION_H_
+#ifndef MAIDSAFE_RUDP_CORE_SESSION_H_
+#define MAIDSAFE_RUDP_CORE_SESSION_H_
 
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
@@ -98,4 +98,4 @@ class RudpSession {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_TRANSPORT_RUDP_SESSION_H_
+#endif  // MAIDSAFE_RUDP_CORE_SESSION_H_
