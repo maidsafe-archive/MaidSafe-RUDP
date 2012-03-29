@@ -14,10 +14,12 @@
 #define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "boost/asio/ip/address.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread/shared_mutex.hpp"
 
@@ -35,8 +37,10 @@ namespace maidsafe {
 namespace rudp {
 
 struct Endpoint;
-class McTransport;
+class Transport;
 
+typedef boost::asio::ip::address IP;
+typedef uint16_t Port;
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const Endpoint&)> ConnectionLostFunctor;
 
@@ -45,13 +49,12 @@ class ManagedConnections {
  public:
   ManagedConnections();
 
-  // Creates new transport objects and bootstraps each to one of the provided
-  // bootstrap_endpoints.  All the endpoints to which successful bootstrap
-  // connections are made are returned.
-  std::vector<Endpoint> Bootstrap(
-      const std::vector<Endpoint> &bootstrap_endpoints,
-      MessageReceivedFunctor message_received_functor,
-      ConnectionLostFunctor connection_lost_functor);
+  // Creates a new transport object and bootstraps it to one of the provided
+  // bootstrap_endpoints.  The successfully connected endpoint is returned, or
+  // a default endpoint is returned if bootstrapping is unsuccessful.
+  Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                     MessageReceivedFunctor message_received_functor,
+                     ConnectionLostFunctor connection_lost_functor);
 
   // Returns one of the transport's external endpoints.  Returns kNoneAvailable
   // if there are no running Managed Connections.  In this case, Bootstrap must
@@ -59,29 +62,33 @@ class ManagedConnections {
   // Managed Connections already have the maximum number of running sockets.  If
   // there are less than kMaxTransports transports running, a new one will be
   // started and if successful, this will be the returned Endpoint.
-  int GetAvailableEndpoint(Endpoint *endpoint);
+  int GetAvailableEndpoint(Endpoint *endpoint) const;
 
+  // Makes a new connection and sends the validation data to the peer which
+  // runs its message_received_functor_ with the data.
   int Add(const Endpoint &this_endpoint,
           const Endpoint &peer_endpoint,
-          const std::string &this_node_id);
+          const std::string &validation_data);
+
+  // Drops the connection with peer.
   void Remove(const Endpoint &peer_endpoint);
 
   int Send(const Endpoint &peer_endpoint, const std::string &message) const;
   void Ping(const Endpoint &peer_endpoint) const;
 
-  friend class McTransport;
+  friend class Transport;
 
  private:
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
   Endpoint StartNewTransport(const std::vector<Endpoint> &bootstrap_endpoints);
-  void RemoveTransport();
+  void RemoveEndpoint(const Endpoint &peer_endpoint);
 
   std::unique_ptr<AsioService> asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   boost::posix_time::time_duration keep_alive_interval_;
-  std::vector<std::unique_ptr<McTransport>> mc_transports_;
+  std::map<Endpoint, std::shared_ptr<Transport>> transports_;
   mutable boost::shared_mutex shared_mutex_;
 };
 

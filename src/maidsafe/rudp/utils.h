@@ -21,6 +21,11 @@ namespace maidsafe {
 
 namespace rudp {
 
+typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+typedef boost::upgrade_to_unique_lock<boost::shared_mutex> UpgradeToUniqueLock;
+
 struct Endpoint;
 
 // Convert an IP in ASCII format to IPv4 or IPv6 bytes

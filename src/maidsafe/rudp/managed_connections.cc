@@ -17,7 +17,7 @@
 
 #include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/utils.h"
-#include "maidsafe/rudp/mc_transport.h"
+#include "maidsafe/rudp/transport.h"
 
 namespace args = std::placeholders;
 namespace asio = boost::asio;
@@ -37,16 +37,16 @@ ManagedConnections::ManagedConnections()
       message_received_functor_(),
       connection_lost_functor_(),
       keep_alive_interval_(bptime::seconds(20)),
-      mc_transports_(),
+      transports_(),
       shared_mutex_() {}
 
-std::vector<Endpoint> ManagedConnections::Bootstrap(
+Endpoint ManagedConnections::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     MessageReceivedFunctor message_received_functor,
     ConnectionLostFunctor connection_lost_functor) {
   {
     SharedLock shared_lock(shared_mutex_);
-    if (!mc_transports_.empty()) {
+    if (!transports_.empty()) {
       DLOG(ERROR) << "Already bootstrapped.";
       return std::vector<Endpoint>();
     }
@@ -55,7 +55,7 @@ std::vector<Endpoint> ManagedConnections::Bootstrap(
   auto itr(bootstrap_endpoints.begin());
   std::vector<Endpoint> successful_endpoints;
   while (itr != bootstrap_endpoints.end() &&
-         mc_transports_.size() < kMaxTransports) {
+         transports_.size() < kMaxTransports) {
     ...
   }
   message_received_functor_ = message_received_functor;
@@ -65,21 +65,20 @@ std::vector<Endpoint> ManagedConnections::Bootstrap(
 
 Endpoint ManagedConnections::StartNewTransport(
     const std::vector<Endpoint> &bootstrap_endpoints) {
-  std::unique_ptr<McTransport> mc_transport(
-      new McTransport(asio_service_->service()));
+  TransportPtr transport(new Transport(asio_service_->service()));
   std::vector<Endpoint> all_endpoints;
-  all_endpoints.reserve((kMaxTransports * McTransport::kMaxConnections()) +
+  all_endpoints.reserve((kMaxTransports * Transport::kMaxConnections()) +
                         bootstrap_endpoints.size());
 
   // Collect all current connections first, then append bootstrap list
   {
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
-        mc_transports_.begin(),
-        mc_transports_.end(),
-        [&all_endpoints](const std::unique_ptr<McTransport> &mc_transport) {
+        transports_.begin(),
+        transports_.end(),
+        [&all_endpoints](const std::unique_ptr<Transport> &transport) {
       std::vector<Endpoint> connected_endpoints(
-          mc_transport->connected_endpoints());
+          transport->connected_endpoints());
       std::copy(connected_endpoints.begin(),
                 connected_endpoints.end(),
                 std::back_inserter(all_endpoints));
@@ -90,15 +89,15 @@ Endpoint ManagedConnections::StartNewTransport(
             std::back_inserter(all_endpoints));
 
   // Bootstrap new transport and if successful, add it to the vector.
-  Endpoint chosen_endpoint(mc_transport->Bootstrap(all_endpoints));
+  Endpoint chosen_endpoint(transport->Bootstrap(all_endpoints));
   if (!IsValid(chosen_endpoint)) {
-    DLOG(WARNING) << "Failed to start a new McTransport.  "
-                  << mc_transports_.size() << " currently running.";
+    DLOG(WARNING) << "Failed to start a new Transport.  "
+                  << transports_.size() << " currently running.";
     return Endpoint();
   }
 
   UniqueLock unique_lock(shared_mutex_);
-  mc_transports_.push_back(std::move(mc_transport));
+  transports_.push_back(std::move(transport));
   return chosen_endpoint;
 }
 
@@ -108,15 +107,15 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
     return kNullParameter;
   }
 
-  size_t mc_transports_size(0);
+  size_t transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
-    mc_transports_size = mc_transports_.size();
+    transports_size = transports_.size();
   }
 
-  if (mc_transports_size < kMaxTransports) {
-    if (mc_transports_size == 0) {
-      DLOG(ERROR) << "No running McTransports.";
+  if (transports_size < kMaxTransports) {
+    if (transports_size == 0) {
+      DLOG(ERROR) << "No running Transports.";
       return kNoneAvailable;
     }
 
@@ -129,22 +128,22 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
 
   // Get transport with least connections.
   {
-    uint32_t least_connections(McTransport::kMaxConnections());
+    uint32_t least_connections(Transport::kMaxConnections());
     Endpoint chosen_endpoint;
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
-        mc_transports_.begin(),
-        mc_transports_.end(),
+        transports_.begin(),
+        transports_.end(),
         [&least_connections, &chosen_endpoint]
-            (const std::unique_ptr<McTransport> &mc_transport) {
-      if (mc_transport->connected_endpoints_size() < least_connections) {
-        least_connections = mc_transport->connected_endpoints_size();
-        chosen_endpoint = mc_transport->this_endpoint();
+            (const std::unique_ptr<Transport> &transport) {
+      if (transport->connected_endpoints_size() < least_connections) {
+        least_connections = transport->connected_endpoints_size();
+        chosen_endpoint = transport->this_endpoint();
       }
     });
 
     if (!IsValid(chosen_endpoint)) {
-      DLOG(ERROR) << "All McTransports are full.";
+      DLOG(ERROR) << "All Transports are full.";
       return kFull;
     }
 
@@ -157,18 +156,18 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
                             const Endpoint &peer_endpoint,
                             const std::string &this_node_id) {
   // TODO(Fraser#5#): 2012-03-28 - Disallow duplicate peer endpoints, even
-  //                               across different McTransports?
+  //                               across different Transports?
   SharedLock shared_lock(shared_mutex_);
   auto itr(std::find_if(
-      mc_transports_.begin(),
-      mc_transports_.end(),
-      [&this_endpoint] (const std::unique_ptr<McTransport> &mc_transport) {
-    return mc_transport->this_endpoint() == this_endpoint;
+      transports_.begin(),
+      transports_.end(),
+      [&this_endpoint] (const std::unique_ptr<Transport> &transport) {
+    return transport->this_endpoint() == this_endpoint;
   }));
-  if (itr == mc_transports_.end()) {
-    DLOG(ERROR) << "No McTransports have endpoint "
+  if (itr == transports_.end()) {
+    DLOG(ERROR) << "No Transports have endpoint "
                 << this_endpoint.ip.to_string() << ":" << this_endpoint.port;
-    return kInvalidMcTransport;
+    return kInvalidTransport;
   }
 
   (*itr)->RendezvousConnect(peer_endpoint, this_node_id);
@@ -177,11 +176,11 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
 
 void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
   SharedLock shared_lock(shared_mutex_);
-  for (auto itr(mc_transports_.begin()); itr != mc_transports_.end(); ++itr) {
+  for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
     int result((*itr)->CloseConnection(peer_endpoint));
     if (result == kSuccess) {
       return;
-    } else if (result != kInvalidMcConnection) {
+    } else if (result != kInvalidConnection) {
       DLOG(ERROR) << "Failed to close connection to "
                   << peer_endpoint.ip.to_string() << ":" << peer_endpoint.port;
     }
@@ -191,11 +190,11 @@ void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
 int ManagedConnections::Send(const Endpoint &peer_endpoint,
                              const std::string &message) const {
   SharedLock shared_lock(shared_mutex_);
-  for (auto itr(mc_transports_.begin()); itr != mc_transports_.end(); ++itr) {
+  for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
     int result((*itr)->Send(peer_endpoint, message));
     if (result == kSuccess) {
       return;
-    } else if (result != kInvalidMcConnection) {
+    } else if (result != kInvalidConnection) {
       DLOG(ERROR) << "Failed to send message to "
                   << peer_endpoint.ip.to_string() << ":" << peer_endpoint.port;
     }

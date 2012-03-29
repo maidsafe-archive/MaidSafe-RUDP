@@ -40,14 +40,14 @@ typedef std::function<void(const ReturnCode&)> ConnectFunctor;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
 #endif
-class McTransport : public std::enable_shared_from_this<McTransport> {
+class Transport : public std::enable_shared_from_this<Transport> {
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
  public:
-  explicit McTransport(boost::asio::io_service &asio_service);  // NOLINT
-  virtual ~McTransport();
+  explicit Transport(boost::asio::io_service &asio_service);  // NOLINT
+  virtual ~Transport();
 
   virtual ReturnCode StartListening(const Endpoint &endpoint);
   virtual ReturnCode Bootstrap(const std::vector<Contact> &candidates);
@@ -70,7 +70,7 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   void RendezvousConnect(const Endpoint &peer_endpoint,
                          const std::string &this_node_id);
   // Returns kSuccess if the connection existed and was closed.  Returns
-  // kInvalidMcConnection if the connection didn't exist.  If this causes the
+  // kInvalidConnection if the connection didn't exist.  If this causes the
   // size of connected_endpoints_ to dop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
@@ -82,8 +82,8 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   static uint32_t kMaxConnections() { return 50; }
 
  private:
-  McTransport(const McTransport&);
-  McTransport &operator=(const McTransport&);
+  Transport(const Transport&);
+  Transport &operator=(const Transport&);
 
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Acceptor> AcceptorPtr;
