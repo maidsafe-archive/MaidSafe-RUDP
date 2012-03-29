@@ -18,25 +18,27 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "maidsafe/transport/rudp_ack_packet.h"
-#include "maidsafe/transport/rudp_data_packet.h"
-#include "maidsafe/transport/rudp_negative_ack_packet.h"
-#include "maidsafe/transport/rudp_shutdown_packet.h"
-#include "maidsafe/transport/rudp_sliding_window.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
+#include "maidsafe/rudp/core/sliding_window.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpCongestionControl;
-class RudpPeer;
-class RudpTickTimer;
+namespace detail {
 
-class RudpSender {
+class CongestionControl;
+class Peer;
+class TickTimer;
+
+class Sender {
  public:
-  explicit RudpSender(RudpPeer &peer,  // NOLINT (Fraser)
-                      RudpTickTimer &tick_timer,
-                      RudpCongestionControl &congestion_control);
+  explicit Sender(Peer &peer,
+                  TickTimer &tick_timer,
+                  CongestionControl &congestion_control);
 
   // Get the sequence number that will be used for the next packet.
   boost::uint32_t GetNextPacketSequenceNumber() const;
@@ -51,49 +53,51 @@ class RudpSender {
   void NotifyClose();
 
   // Handle an acknowlegement packet.
-  void HandleAck(const RudpAckPacket &packet);
+  void HandleAck(const AckPacket &packet);
 
   // Handle an negative acknowlegement packet.
-  void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+  void HandleNegativeAck(const NegativeAckPacket &packet);
 
   // Handle a tick in the system time.
   void HandleTick();
 
  private:
   // Disallow copying and assignment.
-  RudpSender(const RudpSender&);
-  RudpSender &operator=(const RudpSender&);
+  Sender(const Sender&);
+  Sender &operator=(const Sender&);
 
   // Send waiting packets.
   void DoSend();
 
   // The peer with which we are communicating.
-  RudpPeer &peer_;
+  Peer &peer_;
 
   // The timer used to generate tick events.
-  RudpTickTimer &tick_timer_;
+  TickTimer &tick_timer_;
 
   // The congestion control information associated with the connection.
-  RudpCongestionControl &congestion_control_;
+  CongestionControl &congestion_control_;
 
   struct UnackedPacket {
     UnackedPacket() : packet(),
                       lost(false),
                       last_send_time() {}
-    RudpDataPacket packet;
+    DataPacket packet;
     bool lost;
     boost::posix_time::ptime last_send_time;
   };
 
   // The sender's window of unacknowledged packets.
-  typedef RudpSlidingWindow<UnackedPacket> UnackedPacketWindow;
+  typedef SlidingWindow<UnackedPacket> UnackedPacketWindow;
   UnackedPacketWindow unacked_packets_;
 
   // The next time at which all unacked packets will be considered lost.
   boost::posix_time::ptime send_timeout_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

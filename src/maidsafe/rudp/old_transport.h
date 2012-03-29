@@ -32,7 +32,7 @@ namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 typedef boost::asio::ip::address IP;
 typedef uint16_t Port;
@@ -49,7 +49,7 @@ class Service;
 class NatDetection;
 
 
-enum TransportCondition {
+enum ReturnCode {
   kSuccess = 0,
   kError = -350001,
   kRemoteUnreachable = -350002,
@@ -93,7 +93,7 @@ enum TransportCondition {
   kInvalidMcConnection = -350104,
 
   // Upper limit of values for this enum.
-  kTransportConditionLimit = -359999
+  kReturnCodeLimit = -359999
 };
 
 enum NatType { kManualPortMapped,  // behind manually port-mapped router.
@@ -176,7 +176,7 @@ typedef std::shared_ptr<bs2::signal<void(const std::string&,
                                          const Info&,
                                          std::string*,
                                          Timeout*)>> OnMessageReceived;
-typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
+typedef std::shared_ptr<bs2::signal<void(const ReturnCode&,
                                          const Endpoint&)>> OnError;
 
 
@@ -189,14 +189,14 @@ class Transport {
    * @param endpoint The endpoint to listen for messages on.
    * @return Success or an appropriate error code.
    */
-  virtual TransportCondition StartListening(const Endpoint &endpoint) = 0;
+  virtual ReturnCode StartListening(const Endpoint &endpoint) = 0;
   /**
    * Enables the transport to accept incoming communication. Fails if already
    * listening or the requested endpoint is unavailable.
    * @param candidates The vector of candidate Endpoints for bootstrapping.
    * @return Success or an appropriate error code.
    */
-  virtual TransportCondition Bootstrap(
+  virtual ReturnCode Bootstrap(
       const std::vector<Contact> &candidates) = 0;
   /**
    * Stops the transport from accepting incoming communication.
@@ -258,7 +258,7 @@ class Transport {
 
 typedef std::shared_ptr<Transport> TransportPtr;
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

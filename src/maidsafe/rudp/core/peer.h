@@ -16,15 +16,17 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
-#include "maidsafe/transport/rudp_multiplexer.h"
+#include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpPeer {
+namespace detail {
+
+class Peer {
  public:
-  explicit RudpPeer(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
+  explicit Peer(Multiplexer &multiplexer)  // NOLINT (Fraser)
     : multiplexer_(multiplexer), endpoint_(), id_(0) {}
 
   const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
@@ -34,24 +36,26 @@ class RudpPeer {
   void SetId(boost::uint32_t id) { id_ = id; }
 
   template <typename Packet>
-  TransportCondition Send(const Packet &packet) {
+  ReturnCode Send(const Packet &packet) {
     return multiplexer_.SendTo(packet, endpoint_);
   }
 
  private:
   // Disallow copying and assignment.
-  RudpPeer(const RudpPeer&);
-  RudpPeer &operator=(const RudpPeer&);
+  Peer(const Peer&);
+  Peer &operator=(const Peer&);
 
   // The multiplexer used to send and receive UDP packets.
-  RudpMultiplexer &multiplexer_;
+  Multiplexer &multiplexer_;
 
   // The remote socket's endpoint and identifier.
   boost::asio::ip::udp::endpoint endpoint_;
   boost::uint32_t id_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -15,19 +15,21 @@
 #define MAIDSAFE_RUDP_PACKETS_ACK_OF_ACK_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpAckOfAckPacket : public RudpControlPacket {
+namespace detail {
+
+class AckOfAckPacket : public ControlPacket {
  public:
-  enum { kPacketSize = RudpControlPacket::kHeaderSize };
+  enum { kPacketSize = ControlPacket::kHeaderSize };
   enum { kPacketType = 6 };
 
-  RudpAckOfAckPacket();
-  virtual ~RudpAckOfAckPacket() {}
+  AckOfAckPacket();
+  virtual ~AckOfAckPacket() {}
 
   boost::uint32_t AckSequenceNumber() const;
   void SetAckSequenceNumber(boost::uint32_t n);
@@ -37,7 +39,9 @@ class RudpAckOfAckPacket : public RudpControlPacket {
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -17,28 +17,24 @@
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 // Helper class to adapt a connect handler into a waiting operation.
 template <typename ConnectHandler>
-class RudpConnectOp {
+class ConnectOp {
  public:
-  RudpConnectOp(ConnectHandler handler,
-                const boost::system::error_code *ec)
+  ConnectOp(ConnectHandler handler, const boost::system::error_code *ec)
     : handler_(handler),
-      ec_(ec) {
-  }
+      ec_(ec) {}
 
-  RudpConnectOp(const RudpConnectOp &L)
-    : handler_(L.handler_),
-      ec_(L.ec_) {
-  }
+  ConnectOp(const ConnectOp &L) : handler_(L.handler_), ec_(L.ec_) {}
 
-  RudpConnectOp & operator=(const RudpConnectOp &L) {
+  ConnectOp & operator=(const ConnectOp &L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete ec_;
@@ -52,18 +48,18 @@ class RudpConnectOp {
     handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpConnectOp *op) {
+  friend void *asio_handler_allocate(size_t n, ConnectOp *op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpConnectOp *op) {
+  friend void asio_handler_deallocate(void *p, size_t n, ConnectOp *op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpConnectOp *op) {
+  friend void asio_handler_invoke(const Function &f, ConnectOp *op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
@@ -73,7 +69,9 @@ class RudpConnectOp {
   const boost::system::error_code *ec_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

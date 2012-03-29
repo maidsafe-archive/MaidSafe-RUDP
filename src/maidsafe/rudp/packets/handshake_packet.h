@@ -20,20 +20,21 @@
 #include "boost/asio/ip/address.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpHandshakePacket : public RudpControlPacket {
+namespace detail {
+
+class HandshakePacket : public ControlPacket {
  public:
-  enum { kPacketSize = RudpControlPacket::kHeaderSize + 48 };
+  enum { kPacketSize = ControlPacket::kHeaderSize + 48 };
   enum { kPacketType = 0 };
 
-  RudpHandshakePacket();
-  virtual ~RudpHandshakePacket() {}
+  HandshakePacket();
+  virtual ~HandshakePacket() {}
 
   boost::uint32_t RudpVersion() const;
   void SetRudpVersion(boost::uint32_t n);
@@ -80,7 +81,9 @@ class RudpHandshakePacket : public RudpControlPacket {
   boost::asio::ip::address_v6 ip_address_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

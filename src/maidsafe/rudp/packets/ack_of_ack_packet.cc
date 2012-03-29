@@ -11,40 +11,43 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 
 namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpAckOfAckPacket::RudpAckOfAckPacket() {
+namespace detail {
+
+AckOfAckPacket::AckOfAckPacket() {
   SetType(kPacketType);
 }
 
-boost::uint32_t RudpAckOfAckPacket::AckSequenceNumber() const {
+boost::uint32_t AckOfAckPacket::AckSequenceNumber() const {
   return AdditionalInfo();
 }
 
-void RudpAckOfAckPacket::SetAckSequenceNumber(boost::uint32_t n) {
+void AckOfAckPacket::SetAckSequenceNumber(boost::uint32_t n) {
   SetAdditionalInfo(n);
 }
 
-bool RudpAckOfAckPacket::IsValid(const asio::const_buffer &buffer) {
+bool AckOfAckPacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool RudpAckOfAckPacket::Decode(const asio::const_buffer &buffer) {
+bool AckOfAckPacket::Decode(const asio::const_buffer &buffer) {
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t RudpAckOfAckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t AckOfAckPacket::Encode(const asio::mutable_buffer &buffer) const {
   return EncodeBase(buffer);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

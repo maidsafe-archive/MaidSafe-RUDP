@@ -17,7 +17,7 @@
 #include <vector>
 #include "boost/asio.hpp"
 #include "maidsafe/common/platform_config.h"
-#include "maidsafe/transport/network_interface.h"
+#include "maidsafe/rudp/network_interface.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
     && !defined(MAIDSAFE_LINUX)
@@ -28,7 +28,7 @@ struct nlmsghdr;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 class Gateway {
  public:
@@ -77,7 +77,7 @@ class Gateway {
 #endif
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

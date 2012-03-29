@@ -18,27 +18,28 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
-#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpAcceptor;
-class RudpSocket;
+namespace detail {
 
-class RudpDispatcher {
+class Acceptor;
+class Socket;
+
+class Dispatcher {
  public:
-  RudpDispatcher();
+  Dispatcher();
 
   // Get the one-and-only acceptor.
-  RudpAcceptor *GetAcceptor() const;
+  Acceptor *GetAcceptor() const;
 
   // Set the one-and-only acceptor.
-  void SetAcceptor(RudpAcceptor *acceptor);
+  void SetAcceptor(Acceptor *acceptor);
 
   // Add a socket. Returns a new unique id for the socket.
-  boost::uint32_t AddSocket(RudpSocket *socket);
+  boost::uint32_t AddSocket(Socket *socket);
 
   // Remove the socket corresponding to the given id.
   void RemoveSocket(boost::uint32_t id);
@@ -49,18 +50,20 @@ class RudpDispatcher {
 
  private:
   // Disallow copying and assignment.
-  RudpDispatcher(const RudpDispatcher&);
-  RudpDispatcher &operator=(const RudpDispatcher&);
+  Dispatcher(const Dispatcher&);
+  Dispatcher &operator=(const Dispatcher&);
 
   // The one-and-only acceptor.
-  RudpAcceptor* acceptor_;
+  Acceptor* acceptor_;
 
   // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t, RudpSocket*> SocketMap;
+  typedef std::unordered_map<boost::uint32_t, Socket*> SocketMap;
   SocketMap sockets_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

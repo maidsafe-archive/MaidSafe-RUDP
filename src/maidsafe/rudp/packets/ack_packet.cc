@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_ack_packet.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
 
 #include <cassert>
 #include <cstring>
@@ -20,9 +20,11 @@ namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpAckPacket::RudpAckPacket()
+namespace detail {
+
+AckPacket::AckPacket()
   : packet_sequence_number_(0),
     has_optional_fields_(false),
     round_trip_time_(0),
@@ -33,77 +35,77 @@ RudpAckPacket::RudpAckPacket()
   SetType(kPacketType);
 }
 
-boost::uint32_t RudpAckPacket::AckSequenceNumber() const {
+boost::uint32_t AckPacket::AckSequenceNumber() const {
   return AdditionalInfo();
 }
 
-void RudpAckPacket::SetAckSequenceNumber(boost::uint32_t n) {
+void AckPacket::SetAckSequenceNumber(boost::uint32_t n) {
   SetAdditionalInfo(n);
 }
 
-boost::uint32_t RudpAckPacket::PacketSequenceNumber() const {
+boost::uint32_t AckPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;
 }
 
-void RudpAckPacket::SetPacketSequenceNumber(boost::uint32_t n) {
+void AckPacket::SetPacketSequenceNumber(boost::uint32_t n) {
   packet_sequence_number_ = n;
 }
 
-bool RudpAckPacket::HasOptionalFields() const {
+bool AckPacket::HasOptionalFields() const {
   return has_optional_fields_;
 }
 
-void RudpAckPacket::SetHasOptionalFields(bool b) {
+void AckPacket::SetHasOptionalFields(bool b) {
   has_optional_fields_ = b;
 }
 
-boost::uint32_t RudpAckPacket::RoundTripTime() const {
+boost::uint32_t AckPacket::RoundTripTime() const {
   return round_trip_time_;
 }
 
-void RudpAckPacket::SetRoundTripTime(boost::uint32_t n) {
+void AckPacket::SetRoundTripTime(boost::uint32_t n) {
   round_trip_time_ = n;
 }
 
-boost::uint32_t RudpAckPacket::RoundTripTimeVariance() const {
+boost::uint32_t AckPacket::RoundTripTimeVariance() const {
   return round_trip_time_variance_;
 }
 
-void RudpAckPacket::SetRoundTripTimeVariance(boost::uint32_t n) {
+void AckPacket::SetRoundTripTimeVariance(boost::uint32_t n) {
   round_trip_time_variance_ = n;
 }
 
-boost::uint32_t RudpAckPacket::AvailableBufferSize() const {
+boost::uint32_t AckPacket::AvailableBufferSize() const {
   return available_buffer_size_;
 }
 
-void RudpAckPacket::SetAvailableBufferSize(boost::uint32_t n) {
+void AckPacket::SetAvailableBufferSize(boost::uint32_t n) {
   available_buffer_size_ = n;
 }
 
-boost::uint32_t RudpAckPacket::PacketsReceivingRate() const {
+boost::uint32_t AckPacket::PacketsReceivingRate() const {
   return packets_receiving_rate_;
 }
 
-void RudpAckPacket::SetPacketsReceivingRate(boost::uint32_t n) {
+void AckPacket::SetPacketsReceivingRate(boost::uint32_t n) {
   packets_receiving_rate_ = n;
 }
 
-boost::uint32_t RudpAckPacket::EstimatedLinkCapacity() const {
+boost::uint32_t AckPacket::EstimatedLinkCapacity() const {
   return estimated_link_capacity_;
 }
 
-void RudpAckPacket::SetEstimatedLinkCapacity(boost::uint32_t n) {
+void AckPacket::SetEstimatedLinkCapacity(boost::uint32_t n) {
   estimated_link_capacity_ = n;
 }
 
-bool RudpAckPacket::IsValid(const asio::const_buffer &buffer) {
+bool AckPacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           ((asio::buffer_size(buffer) == kPacketSize) ||
            (asio::buffer_size(buffer) == kOptionalPacketSize)));
 }
 
-bool RudpAckPacket::Decode(const asio::const_buffer &buffer) {
+bool AckPacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -129,7 +131,7 @@ bool RudpAckPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t RudpAckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t AckPacket::Encode(const asio::mutable_buffer &buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kPacketSize)
     return 0;
@@ -154,7 +156,8 @@ size_t RudpAckPacket::Encode(const asio::mutable_buffer &buffer) const {
       : static_cast<size_t>(kPacketSize);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

@@ -18,32 +18,34 @@
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe/transport/rudp_message_handler.h"
-#include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/rudp/core/message_handler.h"
+#include "maidsafe/rudp/transport_pb.h"
+#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 namespace test {
 
-class RudpMessageHandlerTest : public testing::Test {
+class MessageHandlerTest : public testing::Test {
  public:
-  RudpMessageHandlerTest() : private_key_(),
-                             msg_hndlr_(),
-                             asym_null_private_key_(),
-                             msg_hndlr_no_securifier_(
-                                 asym_null_private_key_),
-                             invoked_slots_(),
-                             slots_mutex_(),
-                             error_count_(0) {}
+  MessageHandlerTest() : private_key_(),
+                         msg_hndlr_(),
+                         asym_null_private_key_(),
+                         msg_hndlr_no_securifier_(asym_null_private_key_),
+                         invoked_slots_(),
+                         slots_mutex_(),
+                         error_count_(0) {}
   static void SetUpTestCase() {
     asymm::GenerateKeyPair(&crypto_key_pair_);
   }
 
   virtual void SetUp() {
     private_key_.reset(new asymm::PrivateKey(crypto_key_pair_.private_key));
-    msg_hndlr_.reset(new RudpMessageHandler(private_key_));
+    msg_hndlr_.reset(new MessageHandler(private_key_));
   }
   virtual void TearDown() {}
 
@@ -130,32 +132,29 @@ class RudpMessageHandlerTest : public testing::Test {
     if (it != invoked_slots_->end())
       ++((*it).second);
   }
-  void ErrorSlot(const TransportCondition &tc) { error_count_ += tc; }
+  void ErrorSlot(const ReturnCode &tc) { error_count_ += tc; }
 
   void ConnectToHandlerSignals() {
     msg_hndlr_->on_managed_endpoint_message()->connect(boost::bind(
-        &RudpMessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
+        &MessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
     msg_hndlr_->on_nat_detection_request()->connect(boost::bind(
-        &RudpMessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3,
-            _4));
+        &MessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3, _4));
     msg_hndlr_->on_nat_detection_response()->connect(boost::bind(
-        &RudpMessageHandlerTest::NatDetectionRspSlot, this, _1));
+        &MessageHandlerTest::NatDetectionRspSlot, this, _1));
     msg_hndlr_->on_proxy_connect_request()->connect(boost::bind(
-        &RudpMessageHandlerTest::ProxyConnectReqSlot, this, _1, _2, _3,
-            _4));
+        &MessageHandlerTest::ProxyConnectReqSlot, this, _1, _2, _3, _4));
     msg_hndlr_->on_proxy_connect_response()->connect(boost::bind(
-        &RudpMessageHandlerTest::ProxyConnectRspSlot, this, _1));
+        &MessageHandlerTest::ProxyConnectRspSlot, this, _1));
     msg_hndlr_->on_forward_rendezvous_request()->connect(boost::bind(
-        &RudpMessageHandlerTest::ForwardRendezvousReqSlot,
-        this, _1, _2, _3));
+        &MessageHandlerTest::ForwardRendezvousReqSlot, this, _1, _2, _3));
     msg_hndlr_->on_forward_rendezvous_response()->connect(boost::bind(
-        &RudpMessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
+        &MessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
     msg_hndlr_->on_rendezvous_request()->connect(boost::bind(
-        &RudpMessageHandlerTest::RendezvousReqSlot, this, _1, _2, _3));
+        &MessageHandlerTest::RendezvousReqSlot, this, _1, _2, _3));
     msg_hndlr_->on_rendezvous_acknowledgement()->connect(boost::bind(
-        &RudpMessageHandlerTest::RendezvousAckSlot, this, _1));
+        &MessageHandlerTest::RendezvousAckSlot, this, _1));
     msg_hndlr_->on_error()->connect(boost::bind(
-        &RudpMessageHandlerTest::ErrorSlot, this, _1));
+        &MessageHandlerTest::ErrorSlot, this, _1));
   }
   void InitialiseMap() {
     invoked_slots_.reset(new std::map<MessageType, uint16_t>);
@@ -273,7 +272,7 @@ class RudpMessageHandlerTest : public testing::Test {
  protected:
   static asymm::Keys crypto_key_pair_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
-  std::shared_ptr<RudpMessageHandler> msg_hndlr_;
+  std::shared_ptr<MessageHandler> msg_hndlr_;
   std::shared_ptr<asymm::PrivateKey> asym_null_private_key_;
   MessageHandler msg_hndlr_no_securifier_;
   std::shared_ptr<std::map<MessageType, uint16_t>> invoked_slots_;
@@ -281,22 +280,22 @@ class RudpMessageHandlerTest : public testing::Test {
   int error_count_;
 };
 
-asymm::Keys RudpMessageHandlerTest::crypto_key_pair_;
+asymm::Keys MessageHandlerTest::crypto_key_pair_;
 
-TEST_F(RudpMessageHandlerTest, BEH_OnError) {
+TEST_F(MessageHandlerTest, BEH_OnError) {
   ConnectToHandlerSignals();
 
   int errors(0);
   for (int tc = transport::kError;
       tc != transport::kMessageSizeTooLarge; --tc) {
     errors += tc;
-    msg_hndlr_->OnError(transport::TransportCondition(tc), Endpoint());
+    msg_hndlr_->OnError(transport::ReturnCode(tc), Endpoint());
   }
 
   ASSERT_EQ(errors, error_count());
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_OnMessageNullSecurifier) {
+TEST_F(MessageHandlerTest, BEH_OnMessageNullSecurifier) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -330,7 +329,7 @@ TEST_F(RudpMessageHandlerTest, BEH_OnMessageNullSecurifier) {
     ASSERT_EQ(uint16_t(0), (*it).second);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
+TEST_F(MessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
   protobuf::ManagedEndpointMessage managed_endpoint_message;
   ASSERT_TRUE(managed_endpoint_message.IsInitialized());
 
@@ -340,7 +339,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLI
   EXPECT_EQ(manual, function);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
+TEST_F(MessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
   protobuf::NatDetectionRequest nat_detection_rqst;
   nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
   nat_detection_rqst.set_local_port(12345);
@@ -354,7 +353,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
+TEST_F(MessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
   protobuf::ProxyConnectRequest proxy_connect_rqst;
   protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -369,7 +368,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
+TEST_F(MessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
   protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
   protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
   ep->set_ip(std::string("192.168.1.1"));
@@ -382,7 +381,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NO
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
+TEST_F(MessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
   protobuf::RendezvousRequest rdvz_rqst;
 
   protobuf::Endpoint *proxy_endpoint = rdvz_rqst.mutable_proxy_endpoint();
@@ -397,7 +396,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
+TEST_F(MessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
   protobuf::NatDetectionResponse nat_detection_resp;
   protobuf::Endpoint *endpoint = nat_detection_resp.mutable_endpoint();
   endpoint->set_ip(std::string("192.168.0.9"));
@@ -412,7 +411,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
+TEST_F(MessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
   protobuf::ProxyConnectResponse proxy_connect_resp;
   proxy_connect_resp.set_result(true);
   ASSERT_TRUE(proxy_connect_resp.IsInitialized());
@@ -424,7 +423,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
+TEST_F(MessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
   protobuf::ForwardRendezvousResponse forward_rdvz_resp;
   protobuf::Endpoint *ep =
       forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
@@ -439,7 +438,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // N
   EXPECT_EQ(manual_encrypt, function_encrypt);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
+TEST_F(MessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
   protobuf::RendezvousAcknowledgement rdvz_ack_message;
   protobuf::Endpoint *ep =
       rdvz_ack_message.mutable_originator_endpoint();
@@ -453,7 +452,7 @@ TEST_F(RudpMessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // N
   EXPECT_EQ(manual, function);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_OnMessageReceived) {
+TEST_F(MessageHandlerTest, BEH_OnMessageReceived) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -469,7 +468,7 @@ TEST_F(RudpMessageHandlerTest, BEH_OnMessageReceived) {
     EXPECT_EQ(uint16_t(1), (*it).second) << "Type: " << (*it).first;
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_ThreadedMessageHandling) {
+TEST_F(MessageHandlerTest, BEH_ThreadedMessageHandling) {
   ConnectToHandlerSignals();
   InitialiseMap();
   std::vector<std::string> messages(CreateMessages());
@@ -479,7 +478,7 @@ TEST_F(RudpMessageHandlerTest, BEH_ThreadedMessageHandling) {
   boost::thread_group thg;
   for (uint8_t n = 0; n < thread_count; ++n) {
     uint16_t rounds((RandomUint32() % 5) + 4);
-    thg.create_thread(std::bind(&RudpMessageHandlerTest::ExecuteThread,
+    thg.create_thread(std::bind(&MessageHandlerTest::ExecuteThread,
                                 this, messages, rounds));
     total_messages += rounds;
   }
@@ -491,7 +490,7 @@ TEST_F(RudpMessageHandlerTest, BEH_ThreadedMessageHandling) {
     ASSERT_EQ(uint16_t(total_messages), (*it).second);
 }
 
-TEST_F(RudpMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
+TEST_F(MessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
   std::string payload(RandomString(5 * 1024));
   ASSERT_TRUE(msg_hndlr_no_securifier_.MakeSerialisedWrapperMessage(0, payload,
               kAsymmetricEncrypt, crypto_key_pair_.public_key).empty());
@@ -515,6 +514,8 @@ TEST_F(RudpMessageHandlerTest, BEH_MakeSerialisedWrapperMessage) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

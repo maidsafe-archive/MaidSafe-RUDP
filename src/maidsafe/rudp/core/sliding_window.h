@@ -20,36 +20,37 @@
 #include "boost/cstdint.hpp"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/transport/rudp_parameters.h"
+#include "maidsafe/rudp/parameters.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 template <typename T>
-class RudpSlidingWindow {
+class SlidingWindow {
  public:
   // The maximum possible sequence number. When reached, sequence numbers are
   // wrapped around to start from 0.
   enum { kMaxSequenceNumber = 0x7fffffff };
 
   // Construct to start with a random sequence number.
-  RudpSlidingWindow()
-      : items_(), maximum_size_(0), begin_(0), end_(0) {
+  SlidingWindow() : items_(), maximum_size_(0), begin_(0), end_(0) {
     Reset(GenerateSequenceNumber());
   }
 
   // Construct to start with a specified sequence number.
-  explicit RudpSlidingWindow(boost::uint32_t initial_sequence_number)
+  explicit SlidingWindow(boost::uint32_t initial_sequence_number)
       : items_(),
-        maximum_size_(RudpParameters::default_window_size),
+        maximum_size_(Parameters::default_window_size),
         begin_(initial_sequence_number),
         end_(initial_sequence_number) {}
 
   // Reset to empty starting with the specified sequence number.
   void Reset(boost::uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
-    maximum_size_ = RudpParameters::default_window_size;
+    maximum_size_ = Parameters::default_window_size;
     begin_ = end_ = initial_sequence_number;
     items_.clear();
   }
@@ -74,7 +75,7 @@ class RudpSlidingWindow {
   bool IsComingSoon(boost::uint32_t n) const {
     boost::uint32_t begin = end_;
     boost::uint32_t end =
-        (begin + RudpParameters::maximum_window_size) %
+        (begin + Parameters::maximum_window_size) %
             (static_cast<boost::uint32_t>(kMaxSequenceNumber) + 1);
     return IsInRange(begin, end, n);
   }
@@ -86,8 +87,8 @@ class RudpSlidingWindow {
 
   // Set the maximum size of the window.
   void SetMaximumSize(size_t size) {
-    maximum_size_ = size < RudpParameters::maximum_window_size
-                    ? size : RudpParameters::maximum_window_size;
+    maximum_size_ = size < Parameters::maximum_window_size
+                    ? size : Parameters::maximum_window_size;
   }
 
   // Get the current size of the window.
@@ -168,8 +169,8 @@ class RudpSlidingWindow {
 
  private:
   // Disallow copying and assignment.
-  RudpSlidingWindow(const RudpSlidingWindow&);
-  RudpSlidingWindow &operator=(const RudpSlidingWindow&);
+  SlidingWindow(const SlidingWindow&);
+  SlidingWindow &operator=(const SlidingWindow&);
 
   // Helper function to convert a sequence number into an index in the window.
   size_t SequenceNumberToIndex(boost::uint32_t n) const {
@@ -214,7 +215,9 @@ class RudpSlidingWindow {
   boost::uint32_t end_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

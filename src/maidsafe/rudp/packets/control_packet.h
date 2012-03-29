@@ -17,22 +17,23 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_packet.h"
+#include "maidsafe/rudp/packets/packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 namespace test {
-class RudpControlPacketTest;
+class ControlPacketTest;
 }  // namespace test
 
-class RudpControlPacket : public RudpPacket {
+class ControlPacket : public Packet {
  public:
   enum { kHeaderSize = 16 };
 
-  RudpControlPacket();
+  ControlPacket();
 
   boost::uint16_t Type() const;
 
@@ -42,7 +43,7 @@ class RudpControlPacket : public RudpPacket {
   boost::uint32_t DestinationSocketId() const;
   void SetDestinationSocketId(boost::uint32_t n);
 
-  friend class test::RudpControlPacketTest;
+  friend class test::ControlPacketTest;
  protected:
   void SetType(boost::uint16_t n);
 
@@ -56,7 +57,7 @@ class RudpControlPacket : public RudpPacket {
   size_t EncodeBase(const boost::asio::mutable_buffer &buffer) const;
 
   // Prevent deletion through this type.
-  virtual ~RudpControlPacket();
+  virtual ~ControlPacket();
 
  private:
   boost::uint16_t type_;
@@ -65,7 +66,9 @@ class RudpControlPacket : public RudpPacket {
   boost::uint32_t destination_socket_id_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

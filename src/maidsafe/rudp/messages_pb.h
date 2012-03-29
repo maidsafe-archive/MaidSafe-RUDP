@@ -17,7 +17,7 @@
 #  pragma warning(push)
 #  pragma warning(disable: 4127 4244 4267)
 #endif
-#include "maidsafe/transport/transport.pb.h"
+#include "maidsafe/rudp/messages.pb.h"
 #ifdef __MSVC__
 #  pragma warning(pop)
 #endif

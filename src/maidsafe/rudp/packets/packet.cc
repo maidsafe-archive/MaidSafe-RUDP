@@ -11,19 +11,21 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_packet.h"
+#include "maidsafe/rudp/packets/packet.h"
 
 namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpPacket::~RudpPacket() {
+namespace detail {
+
+Packet::~Packet() {
 }
 
-bool RudpPacket::DecodeDestinationSocketId(boost::uint32_t *id,
-                                           const asio::const_buffer &data) {
+bool Packet::DecodeDestinationSocketId(boost::uint32_t *id,
+                                       const asio::const_buffer &data) {
   // Refuse to decode anything that's too short.
   if (asio::buffer_size(data) < 16)
     return false;
@@ -32,20 +34,22 @@ bool RudpPacket::DecodeDestinationSocketId(boost::uint32_t *id,
   return true;
 }
 
-void RudpPacket::DecodeUint32(boost::uint32_t *n, const unsigned char *p) {
+void Packet::DecodeUint32(boost::uint32_t *n, const unsigned char *p) {
   *n = p[0];
   *n = ((*n << 8) | p[1]);
   *n = ((*n << 8) | p[2]);
   *n = ((*n << 8) | p[3]);
 }
 
-void RudpPacket::EncodeUint32(boost::uint32_t n, unsigned char *p) {
+void Packet::EncodeUint32(boost::uint32_t n, unsigned char *p) {
   p[0] = ((n >> 24) & 0xff);
   p[1] = ((n >> 16) & 0xff);
   p[2] = ((n >> 8) & 0xff);
   p[3] = (n & 0xff);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

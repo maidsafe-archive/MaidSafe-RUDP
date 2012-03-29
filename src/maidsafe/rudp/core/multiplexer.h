@@ -19,26 +19,28 @@
 
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_dispatch_op.h"
-#include "maidsafe/transport/rudp_dispatcher.h"
-#include "maidsafe/transport/rudp_packet.h"
-#include "maidsafe/transport/rudp_parameters.h"
+#include "maidsafe/rudp/operations/dispatch_op.h"
+#include "maidsafe/rudp/core/dispatcher.h"
+#include "maidsafe/rudp/packets/packet.h"
+#include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpMultiplexer {
+namespace detail {
+
+class Multiplexer {
  public:
-  explicit RudpMultiplexer(boost::asio::io_service &asio_service);  // NOLINT (Fraser)
-  ~RudpMultiplexer();
+  explicit Multiplexer(boost::asio::io_service &asio_service);  // NOLINT (Fraser)
+  ~Multiplexer();
 
   // Open the multiplexer as a client for the specified protocol.
-  TransportCondition Open(const boost::asio::ip::udp &protocol);
+  ReturnCode Open(const boost::asio::ip::udp &protocol);
 
   // Open the multiplexer as a server on the specified endpoint.
-  TransportCondition Open(const boost::asio::ip::udp::endpoint &endpoint);
+  ReturnCode Open(const boost::asio::ip::udp::endpoint &endpoint);
 
   // Whether the multiplexer is open.
   bool IsOpen() const;
@@ -49,9 +51,9 @@ class RudpMultiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
-    RudpDispatchOp<DispatchHandler> op(handler, &socket_,
-                                       boost::asio::buffer(receive_buffer_),
-                                       &sender_endpoint_, &dispatcher_);
+    DispatchOp<DispatchHandler> op(handler, &socket_,
+                                   boost::asio::buffer(receive_buffer_),
+                                   &sender_endpoint_, &dispatcher_);
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_),
                                sender_endpoint_, 0, op);
   }
@@ -59,10 +61,10 @@ class RudpMultiplexer {
   // Called by the acceptor or socket objects to send a packet. Returns true if
   // the data was sent successfully, false otherwise.
   template <typename Packet>
-  TransportCondition SendTo(const Packet &packet,
+  ReturnCode SendTo(const Packet &packet,
                             const boost::asio::ip::udp::endpoint &endpoint) {
-    std::array<unsigned char, RudpParameters::kUDPPayload> data;
-    auto buffer = boost::asio::buffer(&data[0], RudpParameters::max_size);
+    std::array<unsigned char, Parameters::kUDPPayload> data;
+    auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
@@ -72,12 +74,12 @@ class RudpMultiplexer {
   }
 
  private:
-  friend class RudpAcceptor;
-  friend class RudpSocket;
+  friend class Acceptor;
+  friend class Socket;
 
   // Disallow copying and assignment.
-  RudpMultiplexer(const RudpMultiplexer&);
-  RudpMultiplexer &operator=(const RudpMultiplexer&);
+  Multiplexer(const Multiplexer&);
+  Multiplexer &operator=(const Multiplexer&);
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;
@@ -87,10 +89,12 @@ class RudpMultiplexer {
   boost::asio::ip::udp::endpoint sender_endpoint_;
 
   // Dispatcher keeps track of the active sockets and the acceptor.
-  RudpDispatcher dispatcher_;
+  Dispatcher dispatcher_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

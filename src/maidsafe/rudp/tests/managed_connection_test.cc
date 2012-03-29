@@ -15,8 +15,8 @@
 
 #include "maidsafe/common/test.h"
 
-#include "maidsafe/transport/managed_connections.h"
-#include "maidsafe/transport/log.h"
+#include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/log.h"
 
 
 namespace args = std::placeholders;
@@ -26,12 +26,12 @@ namespace ip = asio::ip;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
-void AddCallback(const TransportCondition &expected,
-                 const TransportCondition &actual,
+void AddCallback(const ReturnCode &expected,
+                 const ReturnCode &actual,
                  const uint32_t node) {
   EXPECT_EQ(expected, actual);
   DLOG(INFO) << "AddCallback called for Node-" << node
@@ -45,7 +45,7 @@ void LostCallback(const Endpoint& expected, const Endpoint& actual) {
 
 
 void DoOnResponseReceived(const std::string &sent_request,
-                          const TransportCondition& result,
+                          const ReturnCode& result,
                           std::string response) {
   DLOG(INFO) << " - Received response callback returned: (" << result
              << ") response: \"" << response << "\""
@@ -201,6 +201,6 @@ TEST(ManagedConnectionTest, BEH_OneToManyAddConnection) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

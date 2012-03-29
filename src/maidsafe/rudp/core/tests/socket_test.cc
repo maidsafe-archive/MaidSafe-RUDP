@@ -15,10 +15,10 @@
 #include <vector>
 
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/rudp_acceptor.h"
-#include "maidsafe/transport/rudp_multiplexer.h"
-#include "maidsafe/transport/rudp_socket.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/core/acceptor.h"
+#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/core/socket.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -27,18 +27,20 @@ namespace args = std::placeholders;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 namespace test {
 
 const size_t kBufferSize = 1024 * 1024;
 const size_t kIterations = 100;
 
-void dispatch_handler(const bs::error_code &ec, RudpMultiplexer *muxer) {
+void dispatch_handler(const bs::error_code &ec, Multiplexer *muxer) {
   if (!ec) muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
 }
 
-void tick_handler(const bs::error_code &ec, RudpSocket *sock) {
+void tick_handler(const bs::error_code &ec, Socket *sock) {
   if (!ec) sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
 }
 
@@ -46,17 +48,17 @@ void handler1(const bs::error_code &ec, bs::error_code *out_ec) {
   *out_ec = ec;
 }
 
-TEST(RudpSocketTest, BEH_Socket) {
+TEST(SocketTest, BEH_Socket) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;
 
-  RudpMultiplexer server_multiplexer(io_service);
+  Multiplexer server_multiplexer(io_service);
   ip::udp::endpoint server_endpoint(ip::address_v4::loopback(), 2000);
-  TransportCondition condition = server_multiplexer.Open(server_endpoint);
+  ReturnCode condition = server_multiplexer.Open(server_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
-  RudpMultiplexer client_multiplexer(io_service);
+  Multiplexer client_multiplexer(io_service);
   condition = client_multiplexer.Open(ip::udp::v4());
   ASSERT_EQ(kSuccess, condition);
 
@@ -64,13 +66,13 @@ TEST(RudpSocketTest, BEH_Socket) {
                                              &server_multiplexer));
 
 
-  RudpAcceptor server_acceptor(server_multiplexer);
-  RudpSocket server_socket(server_multiplexer);
+  Acceptor server_acceptor(server_multiplexer);
+  Socket server_socket(server_multiplexer);
   server_ec = asio::error::would_block;
   server_acceptor.AsyncAccept(server_socket, std::bind(&handler1, args::_1,
                                                        &server_ec));
 
-  RudpSocket client_socket(client_multiplexer);
+  Socket client_socket(client_multiplexer);
   client_ec = asio::error::would_block;
   client_socket.AsyncConnect(server_endpoint, std::bind(&handler1, args::_1,
                                                         &client_ec));
@@ -134,6 +136,8 @@ TEST(RudpSocketTest, BEH_Socket) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

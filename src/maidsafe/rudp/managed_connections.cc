@@ -10,15 +10,14 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/managed_connections.h"
+#include "maidsafe/rudp/managed_connections.h"
 
 #include <functional>
 #include <iterator>
 
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/utils.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/mc_transport.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/mc_transport.h"
 
 namespace args = std::placeholders;
 namespace asio = boost::asio;
@@ -27,7 +26,7 @@ namespace ip = asio::ip;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace {
 const int kMaxTransports(10);
@@ -206,12 +205,12 @@ int ManagedConnections::Send(const Endpoint &peer_endpoint,
 void ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
 }
 
-//TransportCondition ManagedConnections::Init(uint8_t thread_count) {
+//ReturnCode ManagedConnections::Init(uint8_t thread_count) {
 //  // TODO(Prakash) Use random port to start
 //  std::pair<uint16_t, uint16_t> port_range(8000, 9000);
 //  asio_services_->Start(thread_count);
-//  TransportCondition result(kError);
-//  transport_.reset(new RudpTransport(asio_services_->service()));
+//  ReturnCode result(kError);
+//  transport_.reset(new Transport(asio_services_->service()));
 //  // Workaround until NAT detection is integrated.
 //  std::vector<transport::IP> ips = transport::GetLocalAddresses();
 //  transport::Endpoint endpoint(
@@ -256,7 +255,7 @@ void ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
 //}
 //
 //void ManagedConnections::KeepAliveCallback(const Endpoint &endpoint,
-//                                          const TransportCondition& result) {
+//                                          const ReturnCode& result) {
 //  DLOG(INFO) << "KeepAliveCallback - called for endpoint : "
 //             << endpoint.port  << "result = " << result;
 //  if (kSuccess != result) {
@@ -288,7 +287,7 @@ void ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
 ////                   true, response_functor);
 //}
 //
-//TransportCondition ManagedConnections::AcceptConnection(
+//ReturnCode ManagedConnections::AcceptConnection(
 //  // Do nothing if already connected
 //  const Endpoint &peer_endpoint, bool accept) {
 //  if (peer_endpoint == GetOurEndpoint()) {
@@ -304,7 +303,7 @@ void ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
 //  return kError;
 //}
 //
-//void ManagedConnections::AddConnectionCallback(TransportCondition result,
+//void ManagedConnections::AddConnectionCallback(ReturnCode result,
 //                                              const std::string &response,
 //                                              const Endpoint &peer_endpoint,
 //                                              AddFunctor add_functor) {
@@ -364,6 +363,6 @@ void ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
 //  transport_->StopListening();
 //}
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

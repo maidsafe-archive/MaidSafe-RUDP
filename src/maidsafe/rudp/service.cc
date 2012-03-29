@@ -10,14 +10,13 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/service.h"
+#include "maidsafe/rudp/service.h"
 
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/rudp/transport_pb.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 void Service::ManagedEndpoint(const protobuf::ManagedEndpointMessage&,
                               protobuf::ManagedEndpointMessage*,
@@ -54,6 +53,6 @@ void Service::ForwardRendezvous(
 
 void Service::Rendezvous(const protobuf::RendezvousRequest &) {}
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

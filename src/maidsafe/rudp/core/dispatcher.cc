@@ -11,15 +11,16 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_dispatcher.h"
+#include "maidsafe/rudp/core/dispatcher.h"
 
 #include <cassert>
 
-#include "maidsafe/transport/rudp_acceptor.h"
-#include "maidsafe/transport/rudp_packet.h"
-#include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/transport/log.h"
 #include "maidsafe/common/utils.h"
+
+#include "maidsafe/rudp/core/acceptor.h"
+#include "maidsafe/rudp/packets/packet.h"
+#include "maidsafe/rudp/core/socket.h"
+#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -27,23 +28,25 @@ namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpDispatcher::RudpDispatcher()
+namespace detail {
+
+Dispatcher::Dispatcher()
     : acceptor_(0),
       sockets_() {
 }
 
-RudpAcceptor *RudpDispatcher::GetAcceptor() const {
+Acceptor *Dispatcher::GetAcceptor() const {
   return acceptor_;
 }
 
-void RudpDispatcher::SetAcceptor(RudpAcceptor *acceptor) {
+void Dispatcher::SetAcceptor(Acceptor *acceptor) {
   assert(acceptor == 0 || acceptor_ == 0);
   acceptor_ = acceptor;
 }
 
-boost::uint32_t RudpDispatcher::AddSocket(RudpSocket *socket) {
+boost::uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
   boost::uint32_t id = 0;
   while (id == 0 || sockets_.count(id) != 0)
@@ -53,15 +56,15 @@ boost::uint32_t RudpDispatcher::AddSocket(RudpSocket *socket) {
   return id;
 }
 
-void RudpDispatcher::RemoveSocket(boost::uint32_t id) {
+void Dispatcher::RemoveSocket(boost::uint32_t id) {
   if (id)
     sockets_.erase(id);
 }
 
-void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
-                                       const ip::udp::endpoint &endpoint) {
+void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
+                                   const ip::udp::endpoint &endpoint) {
   boost::uint32_t id = 0;
-  if (RudpPacket::DecodeDestinationSocketId(&id, data)) {
+  if (Packet::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
       // This packet is intended for the acceptor.
       if (acceptor_) {
@@ -86,6 +89,8 @@ void RudpDispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

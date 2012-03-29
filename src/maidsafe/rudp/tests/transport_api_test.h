@@ -22,16 +22,15 @@
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/tcp_transport.h"
-#include "maidsafe/transport/rudp_transport.h"
-#include "maidsafe/transport/udp_transport.h"
+#include "maidsafe/rudp/tcp_transport.h"
+#include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/udp_transport.h"
 
 namespace maidsafe {
 
 class AsioService;
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
@@ -45,7 +44,7 @@ typedef std::vector<std::string> Messages;
 
 typedef std::vector<std::pair<std::string, Info>> IncomingMessages;
 typedef std::vector<std::string> OutgoingResponses;
-typedef std::vector<TransportCondition> Results;
+typedef std::vector<ReturnCode> Results;
 
 class TestMessageHandler {
  public:
@@ -65,7 +64,7 @@ class TestMessageHandler {
                             const Info &info,
                             std::string *response,
                             Timeout *timeout);
-  void DoOnError(const TransportCondition &tc);
+  void DoOnError(const ReturnCode &tc);
   void ClearContainers();
   void ConnectCallback(const int &in_result, int *out_result,
                        boost::condition_variable* condition);
@@ -150,7 +149,7 @@ TYPED_TEST_CASE_P(TransportAPITest);
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

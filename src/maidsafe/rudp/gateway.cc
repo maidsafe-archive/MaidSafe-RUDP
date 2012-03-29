@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Created by Julian Cain on 11/3/09.
 
-#include "maidsafe/transport/gateway.h"
+#include "maidsafe/rudp/gateway.h"
 
 #if (defined(MAIDSAFE_APPLE) || defined(MAIDSAFE_POSIX) || defined(__MACH__)) \
     && !defined(MAIDSAFE_LINUX)
@@ -40,7 +40,7 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 boost::asio::ip::address Gateway::DefaultRoute(
     boost::asio::io_service & ios,
@@ -345,6 +345,6 @@ std::vector<NetworkInterface> Gateway::Routes(boost::asio::io_service&,
   return ret;
 }
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

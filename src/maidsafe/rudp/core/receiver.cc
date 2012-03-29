@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_receiver.h"
+#include "maidsafe/rudp/core/receiver.h"
 
 #include <algorithm>
 #include <cassert>
@@ -20,10 +20,10 @@
 
 #include "boost/assert.hpp"
 
-#include "maidsafe/transport/rudp_congestion_control.h"
-#include "maidsafe/transport/rudp_negative_ack_packet.h"
-#include "maidsafe/transport/rudp_peer.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
+#include "maidsafe/rudp/core/congestion_control.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
+#include "maidsafe/rudp/core/peer.h"
+#include "maidsafe/rudp/core/tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
@@ -32,11 +32,13 @@ namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpReceiver::RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
-                           RudpTickTimer &tick_timer,
-                           RudpCongestionControl &congestion_control)
+namespace detail {
+
+Receiver::Receiver(Peer &peer,
+                   TickTimer &tick_timer,
+                   CongestionControl &congestion_control)
   : peer_(peer),
     tick_timer_(tick_timer),
     congestion_control_(congestion_control),
@@ -46,18 +48,18 @@ RudpReceiver::RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
     ack_sent_time_(tick_timer_.Now()) {
 }
 
-void RudpReceiver::Reset(boost::uint32_t initial_sequence_number) {
+void Receiver::Reset(boost::uint32_t initial_sequence_number) {
   unread_packets_.Reset(initial_sequence_number);
   last_ack_packet_sequence_number_ = initial_sequence_number;
 }
 
-bool RudpReceiver::Flushed() const {
+bool Receiver::Flushed() const {
   boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   return acks_.IsEmpty() &&
          (ack_packet_seqnum == last_ack_packet_sequence_number_);
 }
 
-size_t RudpReceiver::ReadData(const boost::asio::mutable_buffer &data) {
+size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
   unsigned char *begin = asio::buffer_cast<unsigned char*>(data);
   unsigned char *ptr = begin;
   unsigned char *end = begin + asio::buffer_size(data);
@@ -84,7 +86,7 @@ size_t RudpReceiver::ReadData(const boost::asio::mutable_buffer &data) {
   return ptr - begin;
 }
 
-void RudpReceiver::HandleData(const RudpDataPacket &packet) {
+void Receiver::HandleData(const DataPacket &packet) {
   unread_packets_.SetMaximumSize(congestion_control_.ReceiveWindowSize());
 
   boost::uint32_t seqnum = packet.PacketSequenceNumber();
@@ -116,7 +118,7 @@ void RudpReceiver::HandleData(const RudpDataPacket &packet) {
   }
 }
 
-void RudpReceiver::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
+void Receiver::HandleAckOfAck(const AckOfAckPacket &packet) {
   boost::uint32_t ack_seqnum = packet.AckSequenceNumber();
 
   if (acks_.Contains(ack_seqnum)) {
@@ -133,7 +135,7 @@ void RudpReceiver::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
   }
 }
 
-void RudpReceiver::HandleTick() {
+void Receiver::HandleTick() {
   bptime::ptime now = tick_timer_.Now();
   if (ack_sent_time_ < now) {
     ack_sent_time_ = now + congestion_control_.AckInterval();
@@ -168,7 +170,7 @@ void RudpReceiver::HandleTick() {
   }
 
   // Generate a negative acknowledgement packet to request corruptted packets.
-  RudpNegativeAckPacket negative_ack;
+  NegativeAckPacket negative_ack;
   negative_ack.SetDestinationSocketId(peer_.Id());
   boost::uint32_t n = unread_packets_.Begin();
   while (n != unread_packets_.End()) {
@@ -199,17 +201,17 @@ void RudpReceiver::HandleTick() {
     tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
 }
 
-boost::uint32_t RudpReceiver::AvailableBufferSize() const {
+boost::uint32_t Receiver::AvailableBufferSize() const {
   size_t free_packets = unread_packets_.IsFull() ?
                         0 : unread_packets_.MaximumSize() -
                             unread_packets_.Size();
-  BOOST_ASSERT(free_packets * RudpParameters::max_data_size <
+  BOOST_ASSERT(free_packets * Parameters::max_data_size <
                std::numeric_limits<boost::uint32_t>::max());
   return static_cast<boost::uint32_t>(free_packets *
-                                      RudpParameters::max_data_size);
+                                      Parameters::max_data_size);
 }
 
-boost::uint32_t RudpReceiver::AckPacketSequenceNumber() const {
+boost::uint32_t Receiver::AckPacketSequenceNumber() const {
   // Work out what sequence number we need to acknowledge up to.
   boost::uint32_t ack_packet_seqnum = unread_packets_.Begin();
   while (ack_packet_seqnum != unread_packets_.End() &&
@@ -218,6 +220,8 @@ boost::uint32_t RudpReceiver::AckPacketSequenceNumber() const {
   return ack_packet_seqnum;
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

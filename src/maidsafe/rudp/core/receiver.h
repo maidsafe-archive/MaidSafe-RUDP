@@ -21,24 +21,29 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "maidsafe/transport/rudp_ack_packet.h"
-#include "maidsafe/transport/rudp_ack_of_ack_packet.h"
-#include "maidsafe/transport/rudp_data_packet.h"
-#include "maidsafe/transport/rudp_sliding_window.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/core/sliding_window.h"
+
+
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpCongestionControl;
-class RudpPeer;
-class RudpTickTimer;
+namespace detail {
 
-class RudpReceiver {
+class CongestionControl;
+class Peer;
+class TickTimer;
+
+class Receiver {
  public:
-  explicit RudpReceiver(RudpPeer &peer,  // NOLINT (Fraser)
-                        RudpTickTimer &tick_timer,
-                        RudpCongestionControl &congestion_control);
+  explicit Receiver(Peer &peer,
+                    TickTimer &tick_timer,
+                    CongestionControl &congestion_control);
 
   // Reset receiver so that it is ready to start receiving data from the
   // specified sequence number.
@@ -51,18 +56,18 @@ class RudpReceiver {
   size_t ReadData(const boost::asio::mutable_buffer &data);
 
   // Handle a data packet.
-  void HandleData(const RudpDataPacket &packet);
+  void HandleData(const DataPacket &packet);
 
   // Handle an acknowledgement of an acknowledgement packet.
-  void HandleAckOfAck(const RudpAckOfAckPacket &packet);
+  void HandleAckOfAck(const AckOfAckPacket &packet);
 
   // Handle a tick in the system time.
   void HandleTick();
 
  private:
   // Disallow copying and assignment.
-  RudpReceiver(const RudpReceiver&);
-  RudpReceiver &operator=(const RudpReceiver&);
+  Receiver(const Receiver&);
+  Receiver &operator=(const Receiver&);
 
   // Helper function to calculate the available buffer size.
   boost::uint32_t AvailableBufferSize() const;
@@ -71,13 +76,13 @@ class RudpReceiver {
   boost::uint32_t AckPacketSequenceNumber() const;
 
   // The peer with which we are communicating.
-  RudpPeer &peer_;
+  Peer &peer_;
 
   // The timer used to generate tick events.
-  RudpTickTimer &tick_timer_;
+  TickTimer &tick_timer_;
 
   // The congestion control information associated with the connection.
-  RudpCongestionControl &congestion_control_;
+  CongestionControl &congestion_control_;
 
   struct UnreadPacket {
     UnreadPacket()
@@ -85,7 +90,7 @@ class RudpReceiver {
           lost(true),
           bytes_read(0),
           reserve_time(boost::asio::deadline_timer::traits_type::now()) {}
-    RudpDataPacket packet;
+    DataPacket packet;
     bool lost;
     size_t bytes_read;
     bptime::ptime reserve_time;
@@ -99,19 +104,19 @@ class RudpReceiver {
   // The receiver's window of unread packets. If this window fills up, any new
   // data packets are dropped. The application needs to read data regularly to
   // ensure that more data can be received.
-  typedef RudpSlidingWindow<UnreadPacket> UnreadPacketWindow;
+  typedef SlidingWindow<UnreadPacket> UnreadPacketWindow;
   UnreadPacketWindow unread_packets_;
 
   struct Ack {
     Ack() : packet(),
             send_time(boost::asio::deadline_timer::traits_type::now()) {}
-    RudpAckPacket packet;
+    AckPacket packet;
     boost::posix_time::ptime send_time;
   };
 
   // The receiver's window of acknowledgements. New acks are generated on a
   // regular basis, so if this window fills up the oldest entries are removed.
-  typedef RudpSlidingWindow<Ack> AckWindow;
+  typedef SlidingWindow<Ack> AckWindow;
   AckWindow acks_;
 
   // The last packet sequence number to have been acknowledged.
@@ -121,7 +126,9 @@ class RudpReceiver {
   boost::posix_time::ptime ack_sent_time_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

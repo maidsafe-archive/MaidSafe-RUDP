@@ -16,13 +16,14 @@
 
 #include "boost/asio/buffer.hpp"
 #include "boost/cstdint.hpp"
-#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpPacket {
+namespace detail {
+
+class Packet {
  public:
   // Get the destination socket id from an encoded packet.
   static bool DecodeDestinationSocketId(boost::uint32_t *id,
@@ -30,14 +31,16 @@ class RudpPacket {
 
  protected:
   // Prevent deletion through this type.
-  virtual ~RudpPacket();
+  virtual ~Packet();
 
   // Helper functions for encoding and decoding integers.
   static void DecodeUint32(boost::uint32_t *n, const unsigned char *p);
   static void EncodeUint32(boost::uint32_t n, unsigned char *p);
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

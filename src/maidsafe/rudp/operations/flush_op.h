@@ -17,28 +17,24 @@
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 // Helper class to adapt a flush handler into a waiting operation.
 template <typename FlushHandler>
-class RudpFlushOp {
+class FlushOp {
  public:
-  RudpFlushOp(FlushHandler handler,
-              const boost::system::error_code *ec)
+  FlushOp(FlushHandler handler, const boost::system::error_code *ec)
     : handler_(handler),
-      ec_(ec) {
-  }
+      ec_(ec) {}
 
-  RudpFlushOp(const RudpFlushOp &L)
-    : handler_(L.handler_),
-      ec_(L.ec_) {
-  }
+  FlushOp(const FlushOp &L) : handler_(L.handler_), ec_(L.ec_) {}
 
-  RudpFlushOp & operator=(const RudpFlushOp &L) {
+  FlushOp & operator=(const FlushOp &L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete ec_;
@@ -52,32 +48,34 @@ class RudpFlushOp {
     handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpFlushOp *op) {
+  friend void *asio_handler_allocate(size_t n, FlushOp *op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpFlushOp *op) {
+  friend void asio_handler_deallocate(void *p, size_t n, FlushOp *op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpFlushOp *op) {
+  friend void asio_handler_invoke(const Function &f, FlushOp *op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
   // Disallow copying and assignment.
-//  RudpFlushOp(const RudpFlushOp&);
-//  RudpFlushOp &operator=(const RudpFlushOp&);
+//  FlushOp(const FlushOp&);
+//  FlushOp &operator=(const FlushOp&);
 
   FlushHandler handler_;
   const boost::system::error_code *ec_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -17,18 +17,20 @@
 #include <vector>
 
 #include "boost/asio/buffer.hpp"
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpNegativeAckPacket : public RudpControlPacket {
+namespace detail {
+
+class NegativeAckPacket : public ControlPacket {
  public:
   enum { kPacketType = 3 };
 
-  RudpNegativeAckPacket();
-  virtual ~RudpNegativeAckPacket() {}
+  NegativeAckPacket();
+  virtual ~NegativeAckPacket() {}
 
   void AddSequenceNumber(boost::uint32_t n);
   void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
@@ -43,7 +45,9 @@ class RudpNegativeAckPacket : public RudpControlPacket {
   std::vector<boost::uint32_t> sequence_numbers_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

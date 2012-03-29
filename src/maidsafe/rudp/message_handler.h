@@ -20,7 +20,6 @@
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/rsa.h"
-#include "maidsafe/transport/transport.h"
 
 
 namespace bs2 = boost::signals2;
@@ -36,7 +35,7 @@ const SecurityType kSignWithParameters(0x2);
 const SecurityType kAsymmetricEncrypt(0x4);
 const SecurityType kSignAndAsymEncrypt(0x5);
 
-namespace transport {
+namespace rudp {
 
 enum MessageType {
   kManagedEndpointMessage = 1,
@@ -57,7 +56,7 @@ class WrapperMessage;
 
 namespace test {
 class TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
-class RudpMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
+class MessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;
 }  // namespace test
 
 // Highest possible message type ID, use as offset for type extensions.
@@ -65,7 +64,7 @@ const int kMaxMessageType(1000);
 
 class MessageHandler {
  public:
-  typedef std::shared_ptr<bs2::signal<void(const TransportCondition&,
+  typedef std::shared_ptr<bs2::signal<void(const ReturnCode&,
                                            const Endpoint&)>>
           ErrorSigPtr;
 
@@ -78,7 +77,7 @@ class MessageHandler {
                          const Info &info,
                          std::string *response,
                          Timeout *timeout);
-  void OnError(const TransportCondition &transport_condition,
+  void OnError(const ReturnCode &transport_condition,
                const Endpoint &remote_endpoint);
 
 
@@ -101,14 +100,14 @@ class MessageHandler {
 
  private:
   friend class test::TransportMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
-  friend class test::RudpMessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
+  friend class test::MessageHandlerTest_BEH_MakeSerialisedWrapperMessage_Test;  // NOLINT
   MessageHandler(const MessageHandler&);
   MessageHandler& operator=(const MessageHandler&);
 
   ErrorSigPtr on_error_;
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

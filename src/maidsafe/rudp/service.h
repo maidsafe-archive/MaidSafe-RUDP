@@ -15,13 +15,13 @@
 
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 
-#include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/rudp/messages_pb.h"
 
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 typedef bptime::time_duration Timeout;
 struct Info;
@@ -46,7 +46,7 @@ class Service {
  private:
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

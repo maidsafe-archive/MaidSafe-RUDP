@@ -11,14 +11,14 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_session.h"
+#include "maidsafe/rudp/core/session.h"
 
 #include <cassert>
 
-#include "maidsafe/transport/rudp_data_packet.h"
-#include "maidsafe/transport/rudp_peer.h"
-#include "maidsafe/transport/rudp_sliding_window.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/core/peer.h"
+#include "maidsafe/rudp/core/sliding_window.h"
+#include "maidsafe/rudp/core/tick_timer.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -26,9 +26,11 @@ namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)  // NOLINT (Fraser)
+namespace detail {
+
+Session::Session(Peer &peer, TickTimer &tick_timer)  // NOLINT (Fraser)
   : peer_(peer),
     tick_timer_(tick_timer),
     id_(0),
@@ -39,9 +41,9 @@ RudpSession::RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer)  // NOLINT (
     state_(kClosed) {
 }
 
-void RudpSession::Open(boost::uint32_t id,
-                       boost::uint32_t sequence_number,
-                       Mode mode) {
+void Session::Open(boost::uint32_t id,
+                   boost::uint32_t sequence_number,
+                   Mode mode) {
   assert(id != 0);
   id_ = id;
   sending_sequence_number_ = sequence_number;
@@ -55,31 +57,31 @@ void RudpSession::Open(boost::uint32_t id,
   }
 }
 
-bool RudpSession::IsOpen() const {
+bool Session::IsOpen() const {
   return state_ != kClosed;
 }
 
-bool RudpSession::IsConnected() const {
+bool Session::IsConnected() const {
   return state_ == kConnected;
 }
 
-boost::uint32_t RudpSession::Id() const {
+boost::uint32_t Session::Id() const {
   return id_;
 }
 
-boost::uint32_t RudpSession::ReceivingSequenceNumber() const {
+boost::uint32_t Session::ReceivingSequenceNumber() const {
   return receiving_sequence_number_;
 }
 
-boost::uint32_t RudpSession::PeerConnectionType() const {
+boost::uint32_t Session::PeerConnectionType() const {
   return peer_connection_type_;
 }
 
-void RudpSession::Close() {
+void Session::Close() {
   state_ = kClosed;
 }
 
-void RudpSession::HandleHandshake(const RudpHandshakePacket &packet) {
+void Session::HandleHandshake(const HandshakePacket &packet) {
   if (peer_.Id() == 0) {
     peer_.SetId(packet.SocketId());
   }
@@ -109,7 +111,7 @@ void RudpSession::HandleHandshake(const RudpHandshakePacket &packet) {
   }
 }
 
-void RudpSession::HandleTick() {
+void Session::HandleTick() {
   if (mode_ == kClient) {
     if (state_ == kProbing) {
       SendConnectionRequest();
@@ -119,12 +121,12 @@ void RudpSession::HandleTick() {
   }
 }
 
-void RudpSession::SendConnectionRequest() {
+void Session::SendConnectionRequest() {
   assert(mode_ == kClient);
 
-  RudpHandshakePacket packet;
+  HandshakePacket packet;
   packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(0);
@@ -136,34 +138,34 @@ void RudpSession::SendConnectionRequest() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void RudpSession::SendCookieChallenge() {
+void Session::SendCookieChallenge() {
   assert(mode_ == kServer);
 
-  RudpHandshakePacket packet;
+  HandshakePacket packet;
   packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(RudpParameters::connection_type);
+  packet.SetConnectionType(Parameters::connection_type);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
 }
 
-void RudpSession::SendCookieResponse() {
+void Session::SendCookieResponse() {
   assert(mode_ == kClient);
 
-  RudpHandshakePacket packet;
+  HandshakePacket packet;
   packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(RudpParameters::max_size);
-  packet.SetMaximumFlowWindowSize(RudpParameters::maximum_window_size);
+  packet.SetMaximumPacketSize(Parameters::max_size);
+  packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(RudpParameters::connection_type);
+  packet.SetConnectionType(Parameters::connection_type);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
@@ -172,15 +174,15 @@ void RudpSession::SendCookieResponse() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void RudpSession::SendConnectionAccepted() {
+void Session::SendConnectionAccepted() {
   assert(mode_ == kServer);
 
-  RudpHandshakePacket packet;
+  HandshakePacket packet;
   packet.SetRudpVersion(4);
-  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(RudpParameters::max_size);
-  packet.SetMaximumFlowWindowSize(RudpParameters::maximum_window_size);
+  packet.SetMaximumPacketSize(Parameters::max_size);
+  packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
   packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
@@ -190,6 +192,8 @@ void RudpSession::SendConnectionAccepted() {
   peer_.Send(packet);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

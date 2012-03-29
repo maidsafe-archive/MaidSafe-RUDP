@@ -18,32 +18,34 @@
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/rudp_receiver.h"
-#include "maidsafe/transport/rudp_sender.h"
-#include "maidsafe/transport/rudp_session.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
+#include "maidsafe/rudp/core/receiver.h"
+#include "maidsafe/rudp/core/sender.h"
+#include "maidsafe/rudp/core/session.h"
+#include "maidsafe/rudp/core/tick_timer.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 // Helper class to perform an asynchronous tick operation.
 template <typename TickHandler, typename Socket>
-class RudpTickOp {
+class TickOp {
  public:
-  RudpTickOp(TickHandler handler, Socket *socket, RudpTickTimer *tick_timer)
+  TickOp(TickHandler handler, Socket *socket, TickTimer *tick_timer)
     : handler_(handler),
       socket_(socket),
       tick_timer_(tick_timer) {
   }
 
-  RudpTickOp(const RudpTickOp &L)
+  TickOp(const TickOp &L)
     : handler_(L.handler_),
       socket_(L.socket_),
       tick_timer_(L.tick_timer_) {
   }
 
-  RudpTickOp & operator=(const RudpTickOp &L) {
+  TickOp & operator=(const TickOp &L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete socket_;
@@ -67,18 +69,18 @@ class RudpTickOp {
     handler_(ec);
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpTickOp *op) {
+  friend void *asio_handler_allocate(size_t n, TickOp *op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpTickOp *op) {
+  friend void asio_handler_deallocate(void *p, size_t n, TickOp *op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpTickOp *op) {
+  friend void asio_handler_invoke(const Function &f, TickOp *op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
@@ -86,10 +88,12 @@ class RudpTickOp {
  private:
   TickHandler handler_;
   Socket *socket_;
-  RudpTickTimer *tick_timer_;
+  TickTimer *tick_timer_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

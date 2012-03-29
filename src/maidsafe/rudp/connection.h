@@ -21,34 +21,33 @@
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/asio/strand.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/transport/rudp_transport.h"
+#include "maidsafe/rudp/core/socket.h"
+#include "maidsafe/rudp/transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpMultiplexer;
-class RudpSocket;
+class Multiplexer;
+class Socket;
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
 #endif
-class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
+class Connection : public std::enable_shared_from_this<Connection> {
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
  public:
-  RudpConnection(const std::shared_ptr<RudpTransport> &transport,
-                 const boost::asio::io_service::strand &strand,
-                 const std::shared_ptr<RudpMultiplexer> &multiplexer,
-                 const boost::asio::ip::udp::endpoint &remote);
-  ~RudpConnection();
+  Connection(const std::shared_ptr<Transport> &transport,
+             const boost::asio::io_service::strand &strand,
+             const std::shared_ptr<Multiplexer> &multiplexer,
+             const boost::asio::ip::udp::endpoint &remote);
+  ~Connection();
 
-  RudpSocket &Socket();
+  Socket &Socket();
 
   void Close();
   void StartReceiving();
@@ -56,8 +55,8 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   void Connect(const Timeout &timeout, ConnectFunctor callback);
 
  private:
-  RudpConnection(const RudpConnection&);
-  RudpConnection &operator=(const RudpConnection&);
+  Connection(const Connection&);
+  Connection &operator=(const Connection&);
 
   void DoClose();
   void DoStartReceiving();
@@ -91,12 +90,12 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
 
   void DispatchMessage();
   void EncodeData(const std::string &data);
-  void CloseOnError(const TransportCondition &error);
+  void CloseOnError(const ReturnCode &error);
 
-  std::weak_ptr<RudpTransport> transport_;
+  std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
-  std::shared_ptr<RudpMultiplexer> multiplexer_;
-  RudpSocket socket_;
+  std::shared_ptr<Multiplexer> multiplexer_;
+  Socket socket_;
   boost::asio::deadline_timer timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
@@ -106,7 +105,7 @@ class RudpConnection : public std::enable_shared_from_this<RudpConnection> {
   enum TimeoutState { kNoTimeout, kSending, kReceiving } timeout_state_;
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

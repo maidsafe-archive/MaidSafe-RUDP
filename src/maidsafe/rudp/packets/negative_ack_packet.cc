@@ -11,25 +11,27 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_negative_ack_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
 
 namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpNegativeAckPacket::RudpNegativeAckPacket()
+namespace detail {
+
+NegativeAckPacket::NegativeAckPacket()
     : sequence_numbers_() {
   SetType(kPacketType);
 }
 
-void RudpNegativeAckPacket::AddSequenceNumber(boost::uint32_t n) {
+void NegativeAckPacket::AddSequenceNumber(boost::uint32_t n) {
   assert(n <= 0x7fffffff);
   sequence_numbers_.push_back(n);
 }
 
-void RudpNegativeAckPacket::AddSequenceNumbers(boost::uint32_t first,
+void NegativeAckPacket::AddSequenceNumbers(boost::uint32_t first,
                                                boost::uint32_t last) {
   assert(first <= 0x7fffffff);
   assert(last <= 0x7fffffff);
@@ -37,13 +39,13 @@ void RudpNegativeAckPacket::AddSequenceNumbers(boost::uint32_t first,
   sequence_numbers_.push_back(last);
 }
 
-bool RudpNegativeAckPacket::IsValid(const asio::const_buffer &buffer) {
+bool NegativeAckPacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) > kHeaderSize) &&
           ((asio::buffer_size(buffer) - kHeaderSize) % 4 == 0));
 }
 
-bool RudpNegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
+bool NegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
   assert(n <= 0x7fffffff);
   for (size_t i = 0; i < sequence_numbers_.size(); ++i) {
     if (((sequence_numbers_[i] & 0x80000000) != 0) &&
@@ -68,11 +70,11 @@ bool RudpNegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
   return false;
 }
 
-bool RudpNegativeAckPacket::HasSequenceNumbers() const {
+bool NegativeAckPacket::HasSequenceNumbers() const {
   return !sequence_numbers_.empty();
 }
 
-bool RudpNegativeAckPacket::Decode(const asio::const_buffer &buffer) {
+bool NegativeAckPacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -95,7 +97,7 @@ bool RudpNegativeAckPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t RudpNegativeAckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t NegativeAckPacket::Encode(const asio::mutable_buffer &buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kHeaderSize + sequence_numbers_.size() * 4)
     return 0;
@@ -113,7 +115,8 @@ size_t RudpNegativeAckPacket::Encode(const asio::mutable_buffer &buffer) const {
   return kHeaderSize + sequence_numbers_.size() * 4;
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

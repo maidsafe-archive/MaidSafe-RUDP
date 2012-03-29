@@ -11,34 +11,37 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_shutdown_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
 
 namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpShutdownPacket::RudpShutdownPacket() {
+namespace detail {
+
+ShutdownPacket::ShutdownPacket() {
   SetType(kPacketType);
 }
 
-bool RudpShutdownPacket::IsValid(const asio::const_buffer &buffer) {
+bool ShutdownPacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool RudpShutdownPacket::Decode(const asio::const_buffer &buffer) {
+bool ShutdownPacket::Decode(const asio::const_buffer &buffer) {
   if (!IsValid(buffer))
     return false;
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t RudpShutdownPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t ShutdownPacket::Encode(const asio::mutable_buffer &buffer) const {
   return EncodeBase(buffer);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

@@ -11,34 +11,37 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_keepalive_packet.h"
+#include "maidsafe/rudp/packets/keepalive_packet.h"
 
 namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpKeepalivePacket::RudpKeepalivePacket() {
+namespace detail {
+
+KeepalivePacket::KeepalivePacket() {
   SetType(kPacketType);
 }
 
-bool RudpKeepalivePacket::IsValid(const asio::const_buffer &buffer) {
+bool KeepalivePacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool RudpKeepalivePacket::Decode(const asio::const_buffer &buffer) {
+bool KeepalivePacket::Decode(const asio::const_buffer &buffer) {
   if (!IsValid(buffer))
     return false;
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t RudpKeepalivePacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t KeepalivePacket::Encode(const asio::mutable_buffer &buffer) const {
   return EncodeBase(buffer);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

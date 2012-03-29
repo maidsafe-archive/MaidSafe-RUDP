@@ -20,7 +20,7 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 /**
   * Network interface utilities.
@@ -109,7 +109,7 @@ struct NetworkInterface {
   char name[64];
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

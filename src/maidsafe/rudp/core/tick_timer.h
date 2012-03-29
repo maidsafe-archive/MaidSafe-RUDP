@@ -18,13 +18,15 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 // Lightweight wrapper around a deadline_timer that avoids modifying the expiry
 // time if it would move it further away.
-class RudpTickTimer {
+class TickTimer {
  public:
-  explicit RudpTickTimer(boost::asio::io_service &asio_service)  // NOLINT (Fraser)
+  explicit TickTimer(boost::asio::io_service &asio_service)  // NOLINT (Fraser)
     : timer_(asio_service) {
     Reset();
   }
@@ -66,7 +68,9 @@ class RudpTickTimer {
   boost::asio::deadline_timer timer_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

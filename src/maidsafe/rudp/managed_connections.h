@@ -32,7 +32,7 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 struct Endpoint;
 class McTransport;
@@ -85,7 +85,7 @@ class ManagedConnections {
   mutable boost::shared_mutex shared_mutex_;
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -23,36 +23,37 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/cstdint.hpp"
 
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_ack_packet.h"
-#include "maidsafe/transport/rudp_ack_of_ack_packet.h"
-#include "maidsafe/transport/rudp_congestion_control.h"
-#include "maidsafe/transport/rudp_connect_op.h"
-#include "maidsafe/transport/rudp_data_packet.h"
-#include "maidsafe/transport/rudp_flush_op.h"
-#include "maidsafe/transport/rudp_handshake_packet.h"
-#include "maidsafe/transport/rudp_negative_ack_packet.h"
-#include "maidsafe/transport/rudp_shutdown_packet.h"
-#include "maidsafe/transport/rudp_peer.h"
-#include "maidsafe/transport/rudp_read_op.h"
-#include "maidsafe/transport/rudp_receiver.h"
-#include "maidsafe/transport/rudp_sender.h"
-#include "maidsafe/transport/rudp_session.h"
-#include "maidsafe/transport/rudp_tick_op.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
-#include "maidsafe/transport/rudp_write_op.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/core/congestion_control.h"
+#include "maidsafe/rudp/operations/connect_op.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/operations/flush_op.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
+#include "maidsafe/rudp/core/peer.h"
+#include "maidsafe/rudp/operations/read_op.h"
+#include "maidsafe/rudp/core/receiver.h"
+#include "maidsafe/rudp/core/sender.h"
+#include "maidsafe/rudp/core/session.h"
+#include "maidsafe/rudp/operations/tick_op.h"
+#include "maidsafe/rudp/core/tick_timer.h"
+#include "maidsafe/rudp/operations/write_op.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpAcceptor;
-class RudpDispatcher;
+namespace detail {
 
-class RudpSocket {
+class Acceptor;
+class Dispatcher;
+
+class Socket {
  public:
-  explicit RudpSocket(RudpMultiplexer &multiplexer);  // NOLINT (Fraser)
-  ~RudpSocket();
+  explicit Socket(Multiplexer &multiplexer);  // NOLINT (Fraser)
+  ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
   boost::uint32_t Id() const;
@@ -84,7 +85,7 @@ class RudpSocket {
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
   void AsyncTick(TickHandler handler) {
-    RudpTickOp<TickHandler, RudpSocket> op(handler, this, &tick_timer_);
+    TickOp<TickHandler, Socket> op(handler, this, &tick_timer_);
     tick_timer_.AsyncWait(op);
   }
 
@@ -95,7 +96,7 @@ class RudpSocket {
   template <typename ConnectHandler>
   void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
                     ConnectHandler handler) {
-    RudpConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
+    ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
     StartConnect(remote);
   }
@@ -105,7 +106,7 @@ class RudpSocket {
   // complete the connection establishment.
   template <typename ConnectHandler>
   void AsyncConnect(ConnectHandler handler) {
-    RudpConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
+    ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
     StartConnect();
   }
@@ -116,7 +117,7 @@ class RudpSocket {
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer &data,
                   WriteHandler handler) {
-    RudpWriteOp<WriteHandler> op(handler, &waiting_write_ec_,
+    WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
                                 &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data);
@@ -126,7 +127,7 @@ class RudpSocket {
   template <typename ReadHandler>
   void AsyncRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least, ReadHandler handler) {
-    RudpReadOp<ReadHandler> op(handler, &waiting_read_ec_,
+    ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
                               &waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
     StartRead(data, transfer_at_least);
@@ -135,18 +136,18 @@ class RudpSocket {
   // Initiate an asynchronous operation to flush all outbound data.
   template <typename FlushHandler>
   void AsyncFlush(FlushHandler handler) {
-    RudpFlushOp<FlushHandler> op(handler, &waiting_flush_ec_);
+    FlushOp<FlushHandler> op(handler, &waiting_flush_ec_);
     waiting_flush_.async_wait(op);
     StartFlush();
   }
 
  private:
-  friend class RudpAcceptor;
-  friend class RudpDispatcher;
+  friend class Acceptor;
+  friend class Dispatcher;
 
   // Disallow copying and assignment.
-  RudpSocket(const RudpSocket&);
-  RudpSocket &operator=(const RudpSocket&);
+  Socket(const Socket&);
+  Socket &operator=(const Socket&);
 
   void StartConnect(const boost::asio::ip::udp::endpoint &remote);
   void StartConnect();
@@ -158,51 +159,51 @@ class RudpSocket {
   void StartFlush();
   void ProcessFlush();
 
-  // Called by the RudpDispatcher when a new packet arrives for the socket.
+  // Called by the Dispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
   // Called to process a newly received handshake packet.
-  void HandleHandshake(const RudpHandshakePacket &packet);
+  void HandleHandshake(const HandshakePacket &packet);
 
   // Called to process a newly received data packet.
-  void HandleData(const RudpDataPacket &packet);
+  void HandleData(const DataPacket &packet);
 
   // Called to process a newly received acknowledgement packet.
-  void HandleAck(const RudpAckPacket &packet);
+  void HandleAck(const AckPacket &packet);
 
   // Called to process a newly received acknowledgement of an acknowledgement.
-  void HandleAckOfAck(const RudpAckOfAckPacket &packet);
+  void HandleAckOfAck(const AckOfAckPacket &packet);
 
   // Called to process a newly received negative acknowledgement packet.
-  void HandleNegativeAck(const RudpNegativeAckPacket &packet);
+  void HandleNegativeAck(const NegativeAckPacket &packet);
 
   // Called to handle a tick event.
   void HandleTick();
-  friend void DispatchTick(RudpSocket *socket) { socket->HandleTick(); }
+  friend void DispatchTick(Socket *socket) { socket->HandleTick(); }
 
   // The dispatcher that holds this sockets registration.
-  RudpDispatcher &dispatcher_;
+  Dispatcher &dispatcher_;
 
   // The remote peer with which we are communicating.
-  RudpPeer peer_;
+  Peer peer_;
 
   // This class requires a single outstanding tick operation at all times. The
   // following timer stores the pending tick operation, with the timer set to
   // expire at the time of the next interesting time-based event.
-  RudpTickTimer tick_timer_;
+  TickTimer tick_timer_;
 
   // The session state associated with the connection.
-  RudpSession session_;
+  Session session_;
 
   // The congestion control information associated with the connection.
-  RudpCongestionControl congestion_control_;
+  CongestionControl congestion_control_;
 
   // The send side of the connection.
-  RudpSender sender_;
+  Sender sender_;
 
   // The receive side of the connection.
-  RudpReceiver receiver_;
+  Receiver receiver_;
 
   // This class allows for a single asynchronous connect operation. The
   // following data members store the pending connect, and the result that is
@@ -236,7 +237,9 @@ class RudpSocket {
   size_t sent_length_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

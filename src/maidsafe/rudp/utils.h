@@ -15,12 +15,11 @@
 
 #include <string>
 #include <vector>
-#include "maidsafe/transport/transport.h"
 
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 struct Endpoint;
 
@@ -42,7 +41,7 @@ std::vector<IP> GetLocalAddresses();
 // Returns true if the IP is not default constructed, and the Port is not 0.
 bool IsValid(const Endpoint &endpoint);
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

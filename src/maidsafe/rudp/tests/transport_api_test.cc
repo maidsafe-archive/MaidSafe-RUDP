@@ -10,22 +10,22 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/tests/transport_api_test.h"
+#include "maidsafe/rudp/tests/transport_api_test.h"
 #include <functional>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "boost/thread.hpp"
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/transport/tcp_transport.h"
-#include "maidsafe/transport/udp_transport.h"
-#include "maidsafe/transport/log.h"
+#include "maidsafe/rudp/tcp_transport.h"
+#include "maidsafe/rudp/udp_transport.h"
+#include "maidsafe/rudp/log.h"
 
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 boost::uint32_t RudpParameters::default_window_size = 16;
 boost::uint32_t RudpParameters::maximum_window_size = 512;
@@ -106,7 +106,7 @@ void TestMessageHandler::DoOnResponseReceived(const std::string &request,
   finished_ = true;
 }
 
-void TestMessageHandler::DoOnError(const TransportCondition &tc) {
+void TestMessageHandler::DoOnError(const ReturnCode &tc) {
   boost::mutex::scoped_lock lock(mutex_);
   results_.push_back(tc);
   DLOG(INFO) << this_id_ << " - Error: " << tc;
@@ -936,6 +936,6 @@ TEST_P(RUDPConfigurableTransportAPITest, BEH_TRANS_ConfigurableTraffic) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

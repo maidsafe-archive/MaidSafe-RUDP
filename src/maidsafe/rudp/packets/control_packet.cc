@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 #include <cassert>
 #include <cstring>
@@ -20,53 +20,55 @@ namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpControlPacket::RudpControlPacket()
+namespace detail {
+
+ControlPacket::ControlPacket()
   : type_(0),
     additional_info_(0),
     time_stamp_(0),
     destination_socket_id_(0) {
 }
 
-RudpControlPacket::~RudpControlPacket() {
+ControlPacket::~ControlPacket() {
 }
 
-boost::uint16_t RudpControlPacket::Type() const {
+boost::uint16_t ControlPacket::Type() const {
   return type_;
 }
 
-void RudpControlPacket::SetType(boost::uint16_t n) {
+void ControlPacket::SetType(boost::uint16_t n) {
   assert(n <= 0x7fff);
   type_ = n;
 }
 
-boost::uint32_t RudpControlPacket::AdditionalInfo() const {
+boost::uint32_t ControlPacket::AdditionalInfo() const {
   return additional_info_;
 }
 
-void RudpControlPacket::SetAdditionalInfo(boost::uint32_t n) {
+void ControlPacket::SetAdditionalInfo(boost::uint32_t n) {
   additional_info_ = n;
 }
 
-boost::uint32_t RudpControlPacket::TimeStamp() const {
+boost::uint32_t ControlPacket::TimeStamp() const {
   return time_stamp_;
 }
 
-void RudpControlPacket::SetTimeStamp(boost::uint32_t n) {
+void ControlPacket::SetTimeStamp(boost::uint32_t n) {
   time_stamp_ = n;
 }
 
-boost::uint32_t RudpControlPacket::DestinationSocketId() const {
+boost::uint32_t ControlPacket::DestinationSocketId() const {
   return destination_socket_id_;
 }
 
-void RudpControlPacket::SetDestinationSocketId(boost::uint32_t n) {
+void ControlPacket::SetDestinationSocketId(boost::uint32_t n) {
   destination_socket_id_ = n;
 }
 
-bool RudpControlPacket::IsValidBase(const asio::const_buffer &buffer,
-                                    boost::uint16_t expected_packet_type) {
+bool ControlPacket::IsValidBase(const asio::const_buffer &buffer,
+                                boost::uint16_t expected_packet_type) {
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
   return ((asio::buffer_size(buffer) >= kHeaderSize) &&
           ((p[0] & 0x80) != 0) &&
@@ -74,7 +76,7 @@ bool RudpControlPacket::IsValidBase(const asio::const_buffer &buffer,
           (p[1] == (expected_packet_type & 0xff)));
 }
 
-bool RudpControlPacket::DecodeBase(const asio::const_buffer &buffer,
+bool ControlPacket::DecodeBase(const asio::const_buffer &buffer,
                                    boost::uint16_t expected_packet_type) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValidBase(buffer, expected_packet_type))
@@ -92,7 +94,7 @@ bool RudpControlPacket::DecodeBase(const asio::const_buffer &buffer,
   return true;
 }
 
-size_t RudpControlPacket::EncodeBase(const asio::mutable_buffer &buffer) const {
+size_t ControlPacket::EncodeBase(const asio::mutable_buffer &buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kHeaderSize)
     return 0;
@@ -110,6 +112,8 @@ size_t RudpControlPacket::EncodeBase(const asio::mutable_buffer &buffer) const {
   return kHeaderSize;
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

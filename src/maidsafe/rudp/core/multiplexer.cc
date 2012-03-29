@@ -14,9 +14,9 @@
 
 #include <cassert>
 
-#include "maidsafe/transport/rudp_multiplexer.h"
-#include "maidsafe/transport/rudp_packet.h"
-#include "maidsafe/transport/log.h"
+#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/packets/packet.h"
+#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -24,18 +24,20 @@ namespace bs = boost::system;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpMultiplexer::RudpMultiplexer(asio::io_service &asio_service) //NOLINT
+namespace detail {
+
+Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
-    receive_buffer_(RudpParameters::max_size),
+    receive_buffer_(Parameters::max_size),
     sender_endpoint_(),
     dispatcher_() {}
 
-RudpMultiplexer::~RudpMultiplexer() {
+Multiplexer::~Multiplexer() {
 }
 
-TransportCondition RudpMultiplexer::Open(const ip::udp &protocol) {
+ReturnCode Multiplexer::Open(const ip::udp &protocol) {
   if (socket_.is_open())
     return kAlreadyStarted;
 
@@ -54,7 +56,7 @@ TransportCondition RudpMultiplexer::Open(const ip::udp &protocol) {
   return kSuccess;
 }
 
-TransportCondition RudpMultiplexer::Open(const ip::udp::endpoint &endpoint) {
+ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open())
     return kAlreadyStarted;
 
@@ -81,16 +83,18 @@ TransportCondition RudpMultiplexer::Open(const ip::udp::endpoint &endpoint) {
   return kSuccess;
 }
 
-bool RudpMultiplexer::IsOpen() const {
+bool Multiplexer::IsOpen() const {
   return socket_.is_open();
 }
 
-void RudpMultiplexer::Close() {
+void Multiplexer::Close() {
   bs::error_code ec;
   socket_.close(ec);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

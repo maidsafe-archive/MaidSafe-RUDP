@@ -11,15 +11,15 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_sender.h"
+#include "maidsafe/rudp/core/sender.h"
 
 #include <algorithm>
 #include <cassert>
 
-#include "maidsafe/transport/rudp_ack_of_ack_packet.h"
-#include "maidsafe/transport/rudp_congestion_control.h"
-#include "maidsafe/transport/rudp_peer.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/core/congestion_control.h"
+#include "maidsafe/rudp/core/peer.h"
+#include "maidsafe/rudp/core/tick_timer.h"
 #include "maidsafe/common/utils.h"
 
 namespace asio = boost::asio;
@@ -28,29 +28,31 @@ namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpSender::RudpSender(RudpPeer &peer,  // NOLINT (Fraser)
-                       RudpTickTimer &tick_timer,
-                       RudpCongestionControl &congestion_control)
+namespace detail {
+
+Sender::Sender(Peer &peer,
+               TickTimer &tick_timer,
+               CongestionControl &congestion_control)
   : peer_(peer),
     tick_timer_(tick_timer),
     congestion_control_(congestion_control),
     unacked_packets_(),
     send_timeout_() {}
 
-boost::uint32_t RudpSender::GetNextPacketSequenceNumber() const {
+boost::uint32_t Sender::GetNextPacketSequenceNumber() const {
   return unacked_packets_.End();
 }
 
-bool RudpSender::Flushed() const {
+bool Sender::Flushed() const {
   return unacked_packets_.IsEmpty();
 }
 
-size_t RudpSender::AddData(const asio::const_buffer &data) {
+size_t Sender::AddData(const asio::const_buffer &data) {
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
-    unacked_packets_.SetMaximumSize(RudpParameters::default_window_size);
+    unacked_packets_.SetMaximumSize(Parameters::default_window_size);
   } else {
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
   }
@@ -82,7 +84,7 @@ size_t RudpSender::AddData(const asio::const_buffer &data) {
   return ptr - begin;
 }
 
-void RudpSender::HandleAck(const RudpAckPacket &packet) {
+void Sender::HandleAck(const AckPacket &packet) {
   boost::uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
@@ -96,7 +98,7 @@ void RudpSender::HandleAck(const RudpAckPacket &packet) {
     congestion_control_.OnAck(seqnum);
   }
 
-  RudpAckOfAckPacket response_packet;
+  AckOfAckPacket response_packet;
   response_packet.SetDestinationSocketId(peer_.Id());
   response_packet.SetAckSequenceNumber(packet.AckSequenceNumber());
   peer_.Send(response_packet);
@@ -109,7 +111,7 @@ void RudpSender::HandleAck(const RudpAckPacket &packet) {
   }
 }
 
-void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
+void Sender::HandleNegativeAck(const NegativeAckPacket &packet) {
   // Mark the specified packets as lost.
   for (boost::uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
@@ -123,7 +125,7 @@ void RudpSender::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
   DoSend();
 }
 
-void RudpSender::HandleTick() {
+void Sender::HandleTick() {
   if (send_timeout_ <= tick_timer_.Now()) {
     // Clear timeout. Will be reset next time a data packet is sent.
     send_timeout_ = bptime::pos_infin;
@@ -143,7 +145,7 @@ void RudpSender::HandleTick() {
   DoSend();
 }
 
-void RudpSender::DoSend() {
+void Sender::DoSend() {
   bptime::ptime now = tick_timer_.Now();
 
   for (boost::uint32_t n = unacked_packets_.Begin();
@@ -176,12 +178,14 @@ void RudpSender::DoSend() {
   }
 }
 
-void RudpSender::NotifyClose() {
-  RudpShutdownPacket shut_down_packet;
+void Sender::NotifyClose() {
+  ShutdownPacket shut_down_packet;
   shut_down_packet.SetDestinationSocketId(peer_.Id());
   peer_.Send(shut_down_packet);
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

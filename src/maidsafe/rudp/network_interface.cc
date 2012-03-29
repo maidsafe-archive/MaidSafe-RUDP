@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Created by Julian Cain on 11/3/09.
 
-#include "maidsafe/transport/network_interface.h"
+#include "maidsafe/rudp/network_interface.h"
 #include "maidsafe/common/platform_config.h"  // NOLINT (Fraser) - This is
                                               // for preprocessor definitions
 
@@ -28,7 +28,7 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 bool NetworkInterface::IsLocal(const boost::asio::ip::address & addr) {
   if (addr.is_v6()) {
@@ -265,6 +265,6 @@ std::vector<NetworkInterface> NetworkInterface::LocalList(
   return ret;
 }
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

@@ -19,18 +19,20 @@
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
-#include "maidsafe/transport/rudp_sliding_window.h"
-#include "maidsafe/transport/rudp_data_packet.h"
-#include "maidsafe/transport/rudp_tick_timer.h"
-#include "maidsafe/transport/rudp_parameters.h"
+#include "maidsafe/rudp/core/sliding_window.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/core/tick_timer.h"
+#include "maidsafe/rudp/parameters.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpCongestionControl {
+namespace detail {
+
+class CongestionControl {
  public:
-  RudpCongestionControl();
+  CongestionControl();
 
   // Event notifications.
   void OnOpen(boost::uint32_t send_seqnum,
@@ -83,8 +85,8 @@ class RudpCongestionControl {
 
  private:
   // Disallow copying and assignment.
-  RudpCongestionControl(const RudpCongestionControl&);
-  RudpCongestionControl &operator=(const RudpCongestionControl&);
+  CongestionControl(const CongestionControl&);
+  CongestionControl &operator=(const CongestionControl&);
 
   bool slow_start_phase_;
 
@@ -126,7 +128,9 @@ class RudpCongestionControl {
   boost::uint32_t transmission_speed_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

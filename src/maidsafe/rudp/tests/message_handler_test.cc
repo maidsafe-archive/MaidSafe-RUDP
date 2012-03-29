@@ -17,12 +17,12 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/crypto.h"
 #include "maidsafe/common/utils.h"
-#include "maidsafe/transport/message_handler.h"
-#include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/rudp/core/message_handler.h"
+#include "maidsafe/rudp/transport_pb.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
@@ -124,7 +124,7 @@ namespace test {
 //    if (it != invoked_slots_->end())
 //      ++((*it).second);
 //  }
-//  void ErrorSlot(const TransportCondition &tc) { error_count_ += tc; }
+//  void ErrorSlot(const ReturnCode &tc) { error_count_ += tc; }
 //
 //  void ConnectToHandlerSignals() {
 //    msg_hndlr_->on_managed_endpoint_message()->connect(boost::bind(
@@ -280,7 +280,7 @@ namespace test {
 //  for (int tc = transport::kError;
 //       tc != transport::kMessageSizeTooLarge; --tc) {
 //    errors += tc;
-//    msg_hndlr_->OnError(transport::TransportCondition(tc), Endpoint());
+//    msg_hndlr_->OnError(transport::ReturnCode(tc), Endpoint());
 //  }
 //
 //  ASSERT_EQ(errors, error_count());
@@ -500,6 +500,6 @@ namespace test {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

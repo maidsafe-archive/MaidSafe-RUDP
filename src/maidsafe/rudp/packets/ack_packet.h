@@ -20,21 +20,22 @@
 #include "boost/asio/ip/address.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpAckPacket : public RudpControlPacket {
+namespace detail {
+
+class AckPacket : public ControlPacket {
  public:
-  enum { kPacketSize = RudpControlPacket::kHeaderSize + 4 };
-  enum { kOptionalPacketSize = RudpControlPacket::kHeaderSize + 24 };
+  enum { kPacketSize = ControlPacket::kHeaderSize + 4 };
+  enum { kOptionalPacketSize = ControlPacket::kHeaderSize + 24 };
   enum { kPacketType = 2 };
 
-  RudpAckPacket();
-  virtual ~RudpAckPacket() {}
+  AckPacket();
+  virtual ~AckPacket() {}
 
   boost::uint32_t AckSequenceNumber() const;
   void SetAckSequenceNumber(boost::uint32_t n);
@@ -78,7 +79,9 @@ class RudpAckPacket : public RudpControlPacket {
   boost::uint32_t estimated_link_capacity_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

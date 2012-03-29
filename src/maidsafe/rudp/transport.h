@@ -21,22 +21,20 @@
 #include <vector>
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/contact.h"
-#include "maidsafe/transport/rudp_parameters.h"
-#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/core/message_handler.h"
 
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpAcceptor;
-class RudpConnection;
-class RudpMultiplexer;
-class RudpSocket;
+class Acceptor;
+class Connection;
+class Multiplexer;
+class Socket;
 
-typedef std::function<void(const TransportCondition&)> ConnectFunctor;
+typedef std::function<void(const ReturnCode&)> ConnectFunctor;
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -51,8 +49,8 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   explicit McTransport(boost::asio::io_service &asio_service);  // NOLINT
   virtual ~McTransport();
 
-  virtual TransportCondition StartListening(const Endpoint &endpoint);
-  virtual TransportCondition Bootstrap(const std::vector<Contact> &candidates);
+  virtual ReturnCode StartListening(const Endpoint &endpoint);
+  virtual ReturnCode Bootstrap(const std::vector<Contact> &candidates);
 
   virtual void StopListening();
   // This timeout defines the max allowed duration for the receiver to respond
@@ -87,9 +85,9 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   McTransport(const McTransport&);
   McTransport &operator=(const McTransport&);
 
-  typedef std::shared_ptr<RudpMultiplexer> MultiplexerPtr;
-  typedef std::shared_ptr<RudpAcceptor> AcceptorPtr;
-  typedef std::shared_ptr<RudpConnection> ConnectionPtr;
+  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
+  typedef std::shared_ptr<Acceptor> AcceptorPtr;
+  typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
 
   static void CloseAcceptor(AcceptorPtr acceptor);
@@ -110,7 +108,7 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   void DoConnect(const Endpoint &endpoint,
                  const Timeout &timeout,
                  ConnectFunctor callback);
-  friend class RudpConnection;
+  friend class Connection;
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
@@ -126,9 +124,9 @@ class McTransport : public std::enable_shared_from_this<McTransport> {
   ConnectionSet connections_;
 };
 
-typedef std::shared_ptr<RudpTransport> RudpTransportPtr;
+typedef std::shared_ptr<Transport> TransportPtr;
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

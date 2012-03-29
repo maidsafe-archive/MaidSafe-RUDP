@@ -18,22 +18,23 @@
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_dispatcher.h"
+#include "maidsafe/rudp/core/dispatcher.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 // Helper class to perform an asynchronous dispatch operation.
 template <typename DispatchHandler>
-class RudpDispatchOp {
+class DispatchOp {
  public:
-  RudpDispatchOp(DispatchHandler handler,
-                 boost::asio::ip::udp::socket *socket,
-                 const boost::asio::mutable_buffer &buffer,
-                 boost::asio::ip::udp::endpoint *sender_endpoint,
-                 RudpDispatcher *dispatcher)
+  DispatchOp(DispatchHandler handler,
+             boost::asio::ip::udp::socket *socket,
+             const boost::asio::mutable_buffer &buffer,
+             boost::asio::ip::udp::endpoint *sender_endpoint,
+             Dispatcher *dispatcher)
     : handler_(handler),
       socket_(socket),
       buffer_(buffer),
@@ -41,7 +42,7 @@ class RudpDispatchOp {
       dispatcher_(dispatcher) {
   }
 
-  RudpDispatchOp(const RudpDispatchOp &L)
+  DispatchOp(const DispatchOp &L)
     : handler_(L.handler_),
       socket_(L.socket_),
       buffer_(L.buffer_),
@@ -49,7 +50,7 @@ class RudpDispatchOp {
       dispatcher_(L.dispatcher_) {
   }
 
-  RudpDispatchOp & operator=(const RudpDispatchOp &L) {
+  DispatchOp & operator=(const DispatchOp &L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete socket_;
@@ -80,35 +81,37 @@ class RudpDispatchOp {
     handler_(ec);
   }
 
-  friend void *asio_handler_allocate(size_t n, RudpDispatchOp *op) {
+  friend void *asio_handler_allocate(size_t n, DispatchOp *op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, RudpDispatchOp *op) {
+  friend void asio_handler_deallocate(void *p, size_t n, DispatchOp *op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, RudpDispatchOp *op) {
+  friend void asio_handler_invoke(const Function &f, DispatchOp *op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
   // Disallow copying and assignment.
-//  RudpDispatchOp(const RudpDispatchOp&);
-//  RudpDispatchOp &operator=(const RudpDispatchOp&);
+//  DispatchOp(const DispatchOp&);
+//  DispatchOp &operator=(const DispatchOp&);
 
   DispatchHandler handler_;
   boost::asio::ip::udp::socket *socket_;
   boost::asio::mutable_buffer buffer_;
   boost::asio::ip::udp::endpoint *sender_endpoint_;
-  RudpDispatcher *dispatcher_;
+  Dispatcher *dispatcher_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

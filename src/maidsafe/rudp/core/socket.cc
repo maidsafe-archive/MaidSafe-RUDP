@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_socket.h"
+#include "maidsafe/rudp/core/socket.h"
 
 #include <algorithm>
 #include <utility>
@@ -21,8 +21,8 @@
 
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/rudp_multiplexer.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/core/multiplexer.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -32,9 +32,11 @@ namespace args = std::placeholders;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
+namespace detail {
+
+Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
   : dispatcher_(multiplexer.dispatcher_),
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
@@ -62,16 +64,16 @@ RudpSocket::RudpSocket(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   waiting_flush_.expires_at(boost::posix_time::pos_infin);
 }
 
-RudpSocket::~RudpSocket() {
+Socket::~Socket() {
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
 }
 
-boost::uint32_t RudpSocket::Id() const {
+boost::uint32_t Socket::Id() const {
   return session_.Id();
 }
 
-boost::uint32_t RudpSocket::SentLength() {
+boost::uint32_t Socket::SentLength() {
   BOOST_ASSERT(waiting_write_bytes_transferred_ - sent_length_ <=
                std::numeric_limits<boost::uint32_t>::max());
   boost::uint32_t sent_length = static_cast<boost::uint32_t>(
@@ -80,23 +82,23 @@ boost::uint32_t RudpSocket::SentLength() {
   return sent_length;
 }
 
-boost::uint32_t RudpSocket::BestReadBufferSize() {
+boost::uint32_t Socket::BestReadBufferSize() {
   return congestion_control_.BestReadBufferSize();
 }
 
-boost::asio::ip::udp::endpoint RudpSocket::RemoteEndpoint() const {
+boost::asio::ip::udp::endpoint Socket::RemoteEndpoint() const {
   return peer_.Endpoint();
 }
 
-boost::uint32_t RudpSocket::RemoteId() const {
+boost::uint32_t Socket::RemoteId() const {
   return peer_.Id();
 }
 
-bool RudpSocket::IsOpen() const {
+bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
-void RudpSocket::Close() {
+void Socket::Close() {
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -118,23 +120,23 @@ void RudpSocket::Close() {
   waiting_flush_.cancel();
 }
 
-void RudpSocket::StartConnect(const ip::udp::endpoint &remote) {
+void Socket::StartConnect(const ip::udp::endpoint &remote) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
                 sender_.GetNextPacketSequenceNumber(),
-                RudpSession::kClient);
+                Session::kClient);
 }
 
-void RudpSocket::StartConnect() {
+void Socket::StartConnect() {
   assert(peer_.Endpoint() != ip::udp::endpoint());
   assert(peer_.Id() != 0);
   session_.Open(dispatcher_.AddSocket(this),
                 sender_.GetNextPacketSequenceNumber(),
-                RudpSession::kServer);
+                Session::kServer);
 }
 
-void RudpSocket::StartWrite(const asio::const_buffer &data) {
+void Socket::StartWrite(const asio::const_buffer &data) {
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -150,7 +152,7 @@ void RudpSocket::StartWrite(const asio::const_buffer &data) {
   ProcessWrite();
 }
 
-void RudpSocket::ProcessWrite() {
+void Socket::ProcessWrite() {
   // There's only a waiting write if the write buffer is non-empty.
   if (asio::buffer_size(waiting_write_buffer_) == 0)
     return;
@@ -169,8 +171,8 @@ void RudpSocket::ProcessWrite() {
   }
 }
 
-void RudpSocket::StartRead(const asio::mutable_buffer &data,
-                           size_t transfer_at_least) {
+void Socket::StartRead(const asio::mutable_buffer &data,
+                       size_t transfer_at_least) {
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -187,7 +189,7 @@ void RudpSocket::StartRead(const asio::mutable_buffer &data,
   ProcessRead();
 }
 
-void RudpSocket::ProcessRead() {
+void Socket::ProcessRead() {
   // There's only a waiting read if the read buffer is non-empty.
   if (asio::buffer_size(waiting_read_buffer_) == 0)
     return;
@@ -207,26 +209,26 @@ void RudpSocket::ProcessRead() {
   }
 }
 
-void RudpSocket::StartFlush() {
+void Socket::StartFlush() {
   ProcessFlush();
 }
 
-void RudpSocket::ProcessFlush() {
+void Socket::ProcessFlush() {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
   }
 }
 
-void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
-                                   const ip::udp::endpoint &endpoint) {
+void Socket::HandleReceiveFrom(const asio::const_buffer &data,
+                               const ip::udp::endpoint &endpoint) {
   if (endpoint == peer_.Endpoint()) {
-    RudpDataPacket data_packet;
-    RudpAckPacket ack_packet;
-    RudpAckOfAckPacket ack_of_ack_packet;
-    RudpNegativeAckPacket negative_ack_packet;
-    RudpHandshakePacket handshake_packet;
-    RudpShutdownPacket shutdown_packet;
+    DataPacket data_packet;
+    AckPacket ack_packet;
+    AckOfAckPacket ack_of_ack_packet;
+    NegativeAckPacket negative_ack_packet;
+    HandshakePacket handshake_packet;
+    ShutdownPacket shutdown_packet;
     if (data_packet.Decode(data)) {
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
@@ -251,7 +253,7 @@ void RudpSocket::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
-void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
+void Socket::HandleHandshake(const HandshakePacket &packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
   if (!was_connected && session_.IsConnected()) {
@@ -264,7 +266,7 @@ void RudpSocket::HandleHandshake(const RudpHandshakePacket &packet) {
   }
 }
 
-void RudpSocket::HandleData(const RudpDataPacket &packet) {
+void Socket::HandleData(const DataPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
     ProcessRead();
@@ -272,7 +274,7 @@ void RudpSocket::HandleData(const RudpDataPacket &packet) {
   }
 }
 
-void RudpSocket::HandleAck(const RudpAckPacket &packet) {
+void Socket::HandleAck(const AckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
     ProcessRead();
@@ -281,7 +283,7 @@ void RudpSocket::HandleAck(const RudpAckPacket &packet) {
   }
 }
 
-void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
+void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
     ProcessRead();
@@ -290,13 +292,13 @@ void RudpSocket::HandleAckOfAck(const RudpAckOfAckPacket &packet) {
   }
 }
 
-void RudpSocket::HandleNegativeAck(const RudpNegativeAckPacket &packet) {
+void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleNegativeAck(packet);
   }
 }
 
-void RudpSocket::HandleTick() {
+void Socket::HandleTick() {
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();
@@ -308,6 +310,8 @@ void RudpSocket::HandleTick() {
   }
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

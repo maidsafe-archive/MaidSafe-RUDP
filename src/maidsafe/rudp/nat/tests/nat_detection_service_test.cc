@@ -16,19 +16,19 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/asio_service.h"
 
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/nat_detection_service.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_transport.h"
-#include "maidsafe/transport/rudp_message_handler.h"
-#include "maidsafe/transport/transport_pb.h"
-#include "maidsafe/transport/nat_detection.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/nat_detection_service.h"
+#include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/core/message_handler.h"
+#include "maidsafe/rudp/transport_pb.h"
+#include "maidsafe/rudp/nat_detection.h"
 
 namespace args = std::placeholders;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
 namespace test {
 
 class MockNatDetectionServiceTest;
@@ -50,7 +50,7 @@ class Node {
   }
 
   bool StartListening() {
-    TransportCondition condition(kError);
+    ReturnCode condition(kError);
     size_t max(5), attempt(0);
     while (attempt++ < max && (condition != kSuccess)) {
       endpoint_.port = RandomUint32() % 50000 + 1025;
@@ -251,6 +251,6 @@ class MockNatDetectionServiceTest : public testing::Test {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

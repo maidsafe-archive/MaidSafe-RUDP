@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_data_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
 
 #include <cassert>
 #include <cstring>
@@ -20,9 +20,11 @@ namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpDataPacket::RudpDataPacket()
+namespace detail {
+
+DataPacket::DataPacket()
   : packet_sequence_number_(0),
     first_packet_in_message_(false),
     last_packet_in_message_(false),
@@ -32,78 +34,78 @@ RudpDataPacket::RudpDataPacket()
     destination_socket_id_(0),
     data_() {}
 
-boost::uint32_t RudpDataPacket::PacketSequenceNumber() const {
+boost::uint32_t DataPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;
 }
 
-void RudpDataPacket::SetPacketSequenceNumber(boost::uint32_t n) {
+void DataPacket::SetPacketSequenceNumber(boost::uint32_t n) {
   assert(n <= 0x7fffffff);
   packet_sequence_number_ = n;
 }
 
-bool RudpDataPacket::FirstPacketInMessage() const {
+bool DataPacket::FirstPacketInMessage() const {
   return first_packet_in_message_;
 }
 
-void RudpDataPacket::SetFirstPacketInMessage(bool b) {
+void DataPacket::SetFirstPacketInMessage(bool b) {
   first_packet_in_message_ = b;
 }
 
-bool RudpDataPacket::LastPacketInMessage() const {
+bool DataPacket::LastPacketInMessage() const {
   return last_packet_in_message_;
 }
 
-void RudpDataPacket::SetLastPacketInMessage(bool b) {
+void DataPacket::SetLastPacketInMessage(bool b) {
   last_packet_in_message_ = b;
 }
 
-bool RudpDataPacket::InOrder() const {
+bool DataPacket::InOrder() const {
   return in_order_;
 }
 
-void RudpDataPacket::SetInOrder(bool b) {
+void DataPacket::SetInOrder(bool b) {
   in_order_ = b;
 }
 
-boost::uint32_t RudpDataPacket::MessageNumber() const {
+boost::uint32_t DataPacket::MessageNumber() const {
   return message_number_;
 }
 
-void RudpDataPacket::SetMessageNumber(boost::uint32_t n) {
+void DataPacket::SetMessageNumber(boost::uint32_t n) {
   assert(n <= 0x1fffffff);
   message_number_ = n;
 }
 
-boost::uint32_t RudpDataPacket::TimeStamp() const {
+boost::uint32_t DataPacket::TimeStamp() const {
   return time_stamp_;
 }
 
-void RudpDataPacket::SetTimeStamp(boost::uint32_t n) {
+void DataPacket::SetTimeStamp(boost::uint32_t n) {
   time_stamp_ = n;
 }
 
-boost::uint32_t RudpDataPacket::DestinationSocketId() const {
+boost::uint32_t DataPacket::DestinationSocketId() const {
   return destination_socket_id_;
 }
 
-void RudpDataPacket::SetDestinationSocketId(boost::uint32_t n) {
+void DataPacket::SetDestinationSocketId(boost::uint32_t n) {
   destination_socket_id_ = n;
 }
 
-const std::string &RudpDataPacket::Data() const {
+const std::string &DataPacket::Data() const {
   return data_;
 }
 
-void RudpDataPacket::SetData(const std::string &data) {
+void DataPacket::SetData(const std::string &data) {
   data_ = data;
 }
 
-bool RudpDataPacket::IsValid(const asio::const_buffer &buffer) {
+bool DataPacket::IsValid(const asio::const_buffer &buffer) {
   return ((asio::buffer_size(buffer) >= 16) &&
           ((asio::buffer_cast<const unsigned char *>(buffer)[0] & 0x80) == 0));
 }
 
-bool RudpDataPacket::Decode(const asio::const_buffer &buffer) {
+bool DataPacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -129,7 +131,7 @@ bool RudpDataPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t RudpDataPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t DataPacket::Encode(const asio::mutable_buffer &buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kHeaderSize + data_.size())
     return 0;
@@ -154,6 +156,8 @@ size_t RudpDataPacket::Encode(const asio::mutable_buffer &buffer) const {
   return kHeaderSize + data_.size();
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

@@ -10,14 +10,14 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/message_handler.h"
+#include "maidsafe/rudp/core/message_handler.h"
 #include "boost/lexical_cast.hpp"
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/transport_pb.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/messages_pb.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 void MessageHandler::OnMessageReceived(const std::string &request,
                                        const Info &info,
@@ -54,7 +54,7 @@ void MessageHandler::OnMessageReceived(const std::string &request,
   }
 }
 
-void MessageHandler::OnError(const TransportCondition &transport_condition,
+void MessageHandler::OnError(const ReturnCode &transport_condition,
                              const Endpoint &remote_endpoint) {
   (*on_error_)(transport_condition, remote_endpoint);
 }
@@ -126,6 +126,6 @@ std::string MessageHandler::MakeSerialisedWrapperMessage(
   return final_message;
 }
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

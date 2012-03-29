@@ -18,10 +18,10 @@
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/rudp_connection.h"
-#include "maidsafe/transport/rudp_multiplexer.h"
-#include "maidsafe/transport/rudp_transport.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/connection.h"
+#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/transport.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -31,45 +31,44 @@ namespace args = std::placeholders;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpConnection::RudpConnection(
-    const std::shared_ptr<RudpTransport> &transport,
-    const asio::io_service::strand &strand,
-    const std::shared_ptr<RudpMultiplexer> &multiplexer,
-    const ip::udp::endpoint &remote)
-        : transport_(transport),
-          strand_(strand),
-          multiplexer_(multiplexer),
-          socket_(*multiplexer_),
-          timer_(strand_.get_io_service()),
-          response_deadline_(),
-          remote_endpoint_(remote),
-          buffer_(),
-          data_size_(0),
-          data_received_(0),
-          timeout_for_response_(kMinTimeout),
-          timeout_state_(kNoTimeout) {
+Connection::Connection(const std::shared_ptr<Transport> &transport,
+                       const asio::io_service::strand &strand,
+                       const std::shared_ptr<Multiplexer> &multiplexer,
+                       const ip::udp::endpoint &remote)
+    : transport_(transport),
+      strand_(strand),
+      multiplexer_(multiplexer),
+      socket_(*multiplexer_),
+      timer_(strand_.get_io_service()),
+      response_deadline_(),
+      remote_endpoint_(remote),
+      buffer_(),
+      data_size_(0),
+      data_received_(0),
+      timeout_for_response_(kMinTimeout),
+      timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
-RudpConnection::~RudpConnection() {}
+Connection::~Connection() {}
 
-RudpSocket &RudpConnection::Socket() {
+Socket &Connection::Socket() {
   return socket_;
 }
 
-void RudpConnection::Close() {
-  strand_.dispatch(std::bind(&RudpConnection::DoClose, shared_from_this()));
+void Connection::Close() {
+  strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this()));
 }
 
-void RudpConnection::DoClose() {
-  if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
+void Connection::DoClose() {
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then
     // start flushing the socket to attempt a graceful closure.
     transport->RemoveConnection(shared_from_this());
     transport_.reset();
-    socket_.AsyncFlush(strand_.wrap(std::bind(&RudpConnection::DoClose,
+    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose,
                                               shared_from_this())));
     timer_.expires_from_now(kStallTimeout);
   } else {
@@ -79,34 +78,34 @@ void RudpConnection::DoClose() {
   }
 }
 
-void RudpConnection::StartReceiving() {
-  strand_.dispatch(std::bind(&RudpConnection::DoStartReceiving,
+void Connection::StartReceiving() {
+  strand_.dispatch(std::bind(&Connection::DoStartReceiving,
                              shared_from_this()));
 }
 
-void RudpConnection::DoStartReceiving() {
+void Connection::DoStartReceiving() {
   StartTick();
   StartServerConnect();
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
 
-void RudpConnection::Connect(const Timeout &timeout, ConnectFunctor callback) {
+void Connection::Connect(const Timeout &timeout, ConnectFunctor callback) {
   timeout_for_response_ = timeout;
-  strand_.dispatch(std::bind(&RudpConnection::DoConnect,
+  strand_.dispatch(std::bind(&Connection::DoConnect,
                              shared_from_this(), callback));
 }
 
-void RudpConnection::DoConnect(ConnectFunctor callback) {
+void Connection::DoConnect(ConnectFunctor callback) {
   StartTick();
   SimpleClientConnect(callback);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
 
-void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
+void Connection::SimpleClientConnect(ConnectFunctor callback) {
   auto handler = strand_.wrap(
-      std::bind(&RudpConnection::HandleSimpleClientConnect,
+      std::bind(&Connection::HandleSimpleClientConnect,
                 shared_from_this(), args::_1, callback));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
@@ -114,7 +113,7 @@ void RudpConnection::SimpleClientConnect(ConnectFunctor callback) {
   timeout_state_ = kSending;
 }
 
-void RudpConnection::HandleSimpleClientConnect(const bs::error_code &ec,
+void Connection::HandleSimpleClientConnect(const bs::error_code &ec,
                                                ConnectFunctor callback) {
   if (Stopped()) {
     return;
@@ -128,24 +127,22 @@ void RudpConnection::HandleSimpleClientConnect(const bs::error_code &ec,
   }
 }
 
-void RudpConnection::StartSending(const std::string &data,
-                                  const Timeout &timeout) {
+void Connection::StartSending(const std::string &data, const Timeout &timeout) {
   EncodeData(data);
   timeout_for_response_ = timeout;
-  strand_.dispatch(std::bind(&RudpConnection::DoStartSending,
-                             shared_from_this()));
+  strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this()));
 }
 
-void RudpConnection::DoStartSending() {
+void Connection::DoStartSending() {
   StartTick();
   StartClientConnect();
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
 
-void RudpConnection::CheckTimeout(const bs::error_code &ec) {
+void Connection::CheckTimeout(const bs::error_code &ec) {
   if (ec && ec != boost::asio::error::operation_aborted) {
-    DLOG(ERROR) << "RudpConnection check timeout error: " << ec.message();
+    DLOG(ERROR) << "Connection check timeout error: " << ec.message();
     socket_.Close();
     return;
   }
@@ -166,16 +163,16 @@ void RudpConnection::CheckTimeout(const bs::error_code &ec) {
   }
 
   // Keep processing timeouts until the socket is completely closed.
-  timer_.async_wait(strand_.wrap(std::bind(&RudpConnection::CheckTimeout,
+  timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckTimeout,
                                            shared_from_this(), args::_1)));
 }
 
-bool RudpConnection::Stopped() const {
+bool Connection::Stopped() const {
   return (!transport_.lock() || !socket_.IsOpen());
 }
 
-void RudpConnection::StartTick() {
-  auto handler = strand_.wrap(std::bind(&RudpConnection::HandleTick,
+void Connection::StartTick() {
+  auto handler = strand_.wrap(std::bind(&Connection::HandleTick,
                                         shared_from_this()));
   socket_.AsyncTick(handler);
 }
@@ -184,7 +181,7 @@ void RudpConnection::StartTick() {
 // 1.22ms = 1ms (congestion_control.SendDelay()) + system variant process time
 // During receiving : averagle one tick every 140ms
 // 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
-void RudpConnection::HandleTick() {
+void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return;
   if (timeout_state_ == kSending) {
@@ -202,8 +199,8 @@ void RudpConnection::HandleTick() {
   }
 }
 
-void RudpConnection::StartServerConnect() {
-  auto handler = strand_.wrap(std::bind(&RudpConnection::HandleServerConnect,
+void Connection::StartServerConnect() {
+  auto handler = strand_.wrap(std::bind(&Connection::HandleServerConnect,
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(handler);
 
@@ -211,7 +208,7 @@ void RudpConnection::StartServerConnect() {
   timeout_state_ = kSending;
 }
 
-void RudpConnection::HandleServerConnect(const bs::error_code &ec) {
+void Connection::HandleServerConnect(const bs::error_code &ec) {
   if (Stopped()) {
     return;
   }
@@ -224,8 +221,8 @@ void RudpConnection::HandleServerConnect(const bs::error_code &ec) {
   StartReadSize();
 }
 
-void RudpConnection::StartClientConnect() {
-  auto handler = strand_.wrap(std::bind(&RudpConnection::HandleClientConnect,
+void Connection::StartClientConnect() {
+  auto handler = strand_.wrap(std::bind(&Connection::HandleClientConnect,
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
@@ -233,7 +230,7 @@ void RudpConnection::StartClientConnect() {
   timeout_state_ = kSending;
 }
 
-void RudpConnection::HandleClientConnect(const bs::error_code &ec) {
+void Connection::HandleClientConnect(const bs::error_code &ec) {
   if (Stopped()) {
     return;
   }
@@ -245,12 +242,12 @@ void RudpConnection::HandleClientConnect(const bs::error_code &ec) {
   StartWrite();
 }
 
-void RudpConnection::StartReadSize() {
+void Connection::StartReadSize() {
   assert(!Stopped());
 
   buffer_.resize(sizeof(DataSize));
   socket_.AsyncRead(asio::buffer(buffer_), sizeof(DataSize),
-                    strand_.wrap(std::bind(&RudpConnection::HandleReadSize,
+                    strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
@@ -259,7 +256,7 @@ void RudpConnection::StartReadSize() {
   timeout_state_ = kReceiving;
 }
 
-void RudpConnection::HandleReadSize(const bs::error_code &ec) {
+void Connection::HandleReadSize(const bs::error_code &ec) {
   if (ec)
     return CloseOnError(kReceiveFailure);
 
@@ -276,7 +273,7 @@ void RudpConnection::HandleReadSize(const bs::error_code &ec) {
   StartReadData();
 }
 
-void RudpConnection::StartReadData() {
+void Connection::StartReadData() {
   if (Stopped())
     return CloseOnError(kNoConnection);
 
@@ -286,12 +283,12 @@ void RudpConnection::StartReadData() {
   buffer_.resize(buffer_size);
   asio::mutable_buffer data_buffer = asio::buffer(buffer_) + data_received_;
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
-                    strand_.wrap(std::bind(&RudpConnection::HandleReadData,
+                    strand_.wrap(std::bind(&Connection::HandleReadData,
                                            shared_from_this(),
                                            args::_1, args::_2)));
 }
 
-void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
+void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
   if (Stopped())
     return CloseOnError(kReceiveTimeout);
 
@@ -305,7 +302,7 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
     timer_.expires_at(boost::posix_time::pos_infin);
 
     // Dispatch the message outside the strand.
-    strand_.get_io_service().post(std::bind(&RudpConnection::DispatchMessage,
+    strand_.get_io_service().post(std::bind(&Connection::DispatchMessage,
                                             shared_from_this()));
   } else {
     // Need more data to complete the message.
@@ -319,8 +316,8 @@ void RudpConnection::HandleReadData(const bs::error_code &ec, size_t length) {
   }
 }
 
-void RudpConnection::DispatchMessage() {
-  if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
+void Connection::DispatchMessage() {
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // Signal message received and send response if applicable
     std::string response;
     Timeout response_timeout(kImmediateTimeout);
@@ -364,19 +361,18 @@ void RudpConnection::DispatchMessage() {
       }
       EncodeData(response);
       timeout_for_response_ = response_timeout;
-      strand_.dispatch(std::bind(&RudpConnection::StartWrite,
-                                 shared_from_this()));
+      strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this()));
 //    }
   }
 }
 
-void RudpConnection::EncodeData(const std::string &data) {
+void Connection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = static_cast<DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
-          static_cast<size_t>(RudpTransport::kMaxTransportMessageSize())) {
+          static_cast<size_t>(Transport::kMaxTransportMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << RudpTransport::kMaxTransportMessageSize() << ")"
+                << Transport::kMaxTransportMessageSize() << ")"
                 << std::endl;
     CloseOnError(kMessageSizeTooLarge);
     return;
@@ -388,17 +384,17 @@ void RudpConnection::EncodeData(const std::string &data) {
   buffer_.insert(buffer_.end(), data.begin(), data.end());
 }
 
-void RudpConnection::StartWrite() {
+void Connection::StartWrite() {
   if (Stopped())
     return CloseOnError(kNoConnection);
   socket_.AsyncWrite(asio::buffer(buffer_),
-                     strand_.wrap(std::bind(&RudpConnection::HandleWrite,
+                     strand_.wrap(std::bind(&Connection::HandleWrite,
                                             shared_from_this(), args::_1)));
   timer_.expires_from_now(kStallTimeout);
   timeout_state_ = kSending;
 }
 
-void RudpConnection::HandleWrite(const bs::error_code &ec) {
+void Connection::HandleWrite(const bs::error_code &ec) {
   if (Stopped())
     return CloseOnError(kNoConnection);
 
@@ -421,8 +417,8 @@ void RudpConnection::HandleWrite(const bs::error_code &ec) {
   }
 }
 
-void RudpConnection::CloseOnError(const TransportCondition &error) {
-  if (std::shared_ptr<RudpTransport> transport = transport_.lock()) {
+void Connection::CloseOnError(const ReturnCode &error) {
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
     Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
 //    if (managed_) {
 //      if (write_complete_functor_) {
@@ -445,6 +441,6 @@ void RudpConnection::CloseOnError(const TransportCondition &error) {
 //  }
 }
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

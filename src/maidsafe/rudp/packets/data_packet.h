@@ -19,18 +19,19 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/cstdint.hpp"
 #include "boost/system/error_code.hpp"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/rudp_packet.h"
+#include "maidsafe/rudp/packets/packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpDataPacket : public RudpPacket {
+namespace detail {
+
+class DataPacket : public Packet {
  public:
   enum { kHeaderSize = 16 };
 
-  RudpDataPacket();
+  DataPacket();
 
   boost::uint32_t PacketSequenceNumber() const;
   void SetPacketSequenceNumber(boost::uint32_t n);
@@ -76,7 +77,9 @@ class RudpDataPacket : public RudpPacket {
   std::string data_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

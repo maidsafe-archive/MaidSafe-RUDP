@@ -16,18 +16,20 @@
 
 #include "boost/cstdint.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "maidsafe/transport/rudp_handshake_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpPeer;
-class RudpTickTimer;
+namespace detail {
 
-class RudpSession {
+class Peer;
+class TickTimer;
+
+class Session {
  public:
-  explicit RudpSession(RudpPeer &peer, RudpTickTimer &tick_timer);  // NOLINT (Fraser)
+  explicit Session(Peer &peer, TickTimer &tick_timer);  // NOLINT (Fraser)
 
   // Open the session as a client or server.
   enum Mode { kClient, kServer };
@@ -52,15 +54,15 @@ class RudpSession {
   void Close();
 
   // Handle a handshake packet.
-  void HandleHandshake(const RudpHandshakePacket &packet);
+  void HandleHandshake(const HandshakePacket &packet);
 
   // Handle a tick in the system time.
   void HandleTick();
 
  private:
   // Disallow copying and assignment.
-  RudpSession(const RudpSession&);
-  RudpSession &operator=(const RudpSession&);
+  Session(const Session&);
+  Session &operator=(const Session&);
 
   // Helper functions to send the packets that make up the handshaking process.
   void SendPacket();
@@ -70,10 +72,10 @@ class RudpSession {
   void SendConnectionAccepted();
 
   // The peer with which we are communicating.
-  RudpPeer &peer_;
+  Peer &peer_;
 
   // The timer used to generate tick events.
-  RudpTickTimer &tick_timer_;
+  TickTimer &tick_timer_;
 
   // The local socket id.
   boost::uint32_t id_;
@@ -94,7 +96,9 @@ class RudpSession {
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -10,7 +10,7 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/rudp_transport.h"
+#include "maidsafe/rudp/transport.h"
 
 #include "boost/lexical_cast.hpp"
 #include "boost/thread/condition_variable.hpp"
@@ -19,19 +19,19 @@
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/test.h"
 
-#include "maidsafe/transport/log.h"
+#include "maidsafe/rudp/log.h"
 
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
 namespace {
 
 typedef std::vector<std::vector<std::string>> ReceivedMessages;
-typedef std::vector<std::vector<std::pair<TransportCondition, Endpoint>>>
+typedef std::vector<std::vector<std::pair<ReturnCode, Endpoint>>>
     ReceivedErrors;
 
 void OnMessageReceived(const std::string &message,
@@ -49,7 +49,7 @@ void OnMessageReceived(const std::string &message,
   received_messages->at(index).push_back(message);
 }
 
-void OnError(const TransportCondition &result,
+void OnError(const ReturnCode &result,
              const Endpoint &endpoint,
              boost::mutex *mutex,
              const size_t &index,
@@ -61,8 +61,8 @@ void OnError(const TransportCondition &result,
   received_errors->at(index).push_back(std::make_pair(result, endpoint));
 }
 
-void ConnectCallback(const TransportCondition &result_in,
-                     TransportCondition *result_out,
+void ConnectCallback(const ReturnCode &result_in,
+                     ReturnCode *result_out,
                      boost::mutex *mutex,
                      boost::condition_variable *cond_var) {
   boost::mutex::scoped_lock lock(*mutex);
@@ -91,7 +91,7 @@ class RudpTransportTest : public testing::Test {
           (*asio_services_.rbegin())->service()));
       received_messages_.push_back(std::vector<std::string>());
       received_errors_.push_back(
-          std::vector<std::pair<TransportCondition, Endpoint>>());
+          std::vector<std::pair<ReturnCode, Endpoint>>());
       (*rudp_transports_.rbegin())->on_message_received()->connect(std::bind(
           OnMessageReceived,
           args::_1, args::_2, args::_3, args::_4,
@@ -122,7 +122,7 @@ TEST_F(RudpTransportTest, BEH_Connect) {
                      static_cast<Port>(RandomUint32() % 25000) + 35000);
   ASSERT_EQ(kSuccess, rudp_transports_[0]->StartListening(endpoint0));
   ASSERT_EQ(kSuccess, rudp_transports_[1]->StartListening(endpoint1));
-  TransportCondition result(kPendingResult);
+  ReturnCode result(kPendingResult);
   boost::mutex mutex;
   boost::condition_variable cond_var;
   rudp_transports_[0]->Connect(endpoint1, bptime::seconds(5),
@@ -141,6 +141,6 @@ TEST_F(RudpTransportTest, BEH_Connect) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

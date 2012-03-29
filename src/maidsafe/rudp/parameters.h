@@ -27,10 +27,10 @@
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 // This class provides the configurability to all traffic related parameters.
-struct RudpParameters {
+struct Parameters {
  public:
   // Window size permitted in RUDP
   static boost::uint32_t default_window_size;
@@ -90,11 +90,11 @@ struct RudpParameters {
 
  private:
   // Disallow copying and assignment.
-  RudpParameters(const RudpParameters&);
-  RudpParameters &operator=(const RudpParameters&);
+  Parameters(const Parameters&);
+  Parameters &operator=(const Parameters&);
 };
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 

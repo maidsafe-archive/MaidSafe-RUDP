@@ -78,11 +78,11 @@ Succeeds                                                           Succeeds
 */
 /*
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/udt_transport.h"
+#include "maidsafe/rudp/udt_transport.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
@@ -96,7 +96,7 @@ class NatTraversalTest : public testing::Test {
  protected:
   void SetUp() {
     // Start rendezvous nodes
-    TransportCondition result(kError);
+    ReturnCode result(kError);
     Port rv_port1 = rendezvous_transport1_.StartListening("127.0.0.1", 0,
                                                           &result);
     ASSERT_EQ(kSuccess, result);
@@ -125,14 +125,14 @@ NatTraversalTest, BEH_UDT_DirectlyConnected) {
   UdtTransport udt_transport;
   udt_transport.DoNatDetection();
   EXPECT_EQ(kNotConnected, udt_transport.nat_details_.nat_type);
-  TransportCondition result(kError);
+  ReturnCode result(kError);
   Port joining_port = joining_transport_.StartListening("", 0, &result);
   ASSERT_EQ(kSuccess, result);
 }
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe
 */

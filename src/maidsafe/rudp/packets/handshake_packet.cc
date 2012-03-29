@@ -11,7 +11,7 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-#include "maidsafe/transport/rudp_handshake_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
 
 #include <cassert>
 #include <cstring>
@@ -20,9 +20,11 @@ namespace asio = boost::asio;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpHandshakePacket::RudpHandshakePacket()
+namespace detail {
+
+HandshakePacket::HandshakePacket()
   : rudp_version_(0),
     socket_type_(0),
     initial_packet_sequence_number_(0),
@@ -35,89 +37,89 @@ RudpHandshakePacket::RudpHandshakePacket()
   SetType(kPacketType);
 }
 
-boost::uint32_t RudpHandshakePacket::RudpVersion() const {
+boost::uint32_t HandshakePacket::RudpVersion() const {
   return rudp_version_;
 }
 
-void RudpHandshakePacket::SetRudpVersion(boost::uint32_t n) {
+void HandshakePacket::SetRudpVersion(boost::uint32_t n) {
   rudp_version_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::SocketType() const {
+boost::uint32_t HandshakePacket::SocketType() const {
   return socket_type_;
 }
 
-void RudpHandshakePacket::SetSocketType(boost::uint32_t n) {
+void HandshakePacket::SetSocketType(boost::uint32_t n) {
   socket_type_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::InitialPacketSequenceNumber() const {
+boost::uint32_t HandshakePacket::InitialPacketSequenceNumber() const {
   return initial_packet_sequence_number_;
 }
 
-void RudpHandshakePacket::SetInitialPacketSequenceNumber(boost::uint32_t n) {
+void HandshakePacket::SetInitialPacketSequenceNumber(boost::uint32_t n) {
   initial_packet_sequence_number_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::MaximumPacketSize() const {
+boost::uint32_t HandshakePacket::MaximumPacketSize() const {
   return maximum_packet_size_;
 }
 
-void RudpHandshakePacket::SetMaximumPacketSize(boost::uint32_t n) {
+void HandshakePacket::SetMaximumPacketSize(boost::uint32_t n) {
   maximum_packet_size_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::MaximumFlowWindowSize() const {
+boost::uint32_t HandshakePacket::MaximumFlowWindowSize() const {
   return maximum_flow_window_size_;
 }
 
-void RudpHandshakePacket::SetMaximumFlowWindowSize(boost::uint32_t n) {
+void HandshakePacket::SetMaximumFlowWindowSize(boost::uint32_t n) {
   maximum_flow_window_size_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::ConnectionType() const {
+boost::uint32_t HandshakePacket::ConnectionType() const {
   return connection_type_;
 }
 
-void RudpHandshakePacket::SetConnectionType(boost::uint32_t n) {
+void HandshakePacket::SetConnectionType(boost::uint32_t n) {
   connection_type_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::SocketId() const {
+boost::uint32_t HandshakePacket::SocketId() const {
   return socket_id_;
 }
 
-void RudpHandshakePacket::SetSocketId(boost::uint32_t n) {
+void HandshakePacket::SetSocketId(boost::uint32_t n) {
   socket_id_ = n;
 }
 
-boost::uint32_t RudpHandshakePacket::SynCookie() const {
+boost::uint32_t HandshakePacket::SynCookie() const {
   return syn_cookie_;
 }
 
-void RudpHandshakePacket::SetSynCookie(boost::uint32_t n) {
+void HandshakePacket::SetSynCookie(boost::uint32_t n) {
   syn_cookie_ = n;
 }
 
-asio::ip::address RudpHandshakePacket::IpAddress() const {
+asio::ip::address HandshakePacket::IpAddress() const {
   if (ip_address_.is_v4_compatible())
     return ip_address_.to_v4();
   return ip_address_;
 }
 
-void RudpHandshakePacket::SetIpAddress(const asio::ip::address &address) {
+void HandshakePacket::SetIpAddress(const asio::ip::address &address) {
   if (address.is_v4())
     ip_address_ = asio::ip::address_v6::v4_compatible(address.to_v4());
   else
     ip_address_ = address.to_v6();
 }
 
-bool RudpHandshakePacket::IsValid(const asio::const_buffer &buffer) {
+bool HandshakePacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool RudpHandshakePacket::Decode(const asio::const_buffer &buffer) {
+bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -146,7 +148,7 @@ bool RudpHandshakePacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t RudpHandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kPacketSize)
     return 0;
@@ -173,7 +175,8 @@ size_t RudpHandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
   return kPacketSize;
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
-

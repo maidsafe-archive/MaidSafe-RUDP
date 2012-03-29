@@ -11,13 +11,14 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
+#include "maidsafe/rudp/core/acceptor.h"
+
 #include <cassert>
 
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/rudp_acceptor.h"
-#include "maidsafe/transport/rudp_socket.h"
-#include "maidsafe/transport/rudp_handshake_packet.h"
-#include "maidsafe/transport/rudp_multiplexer.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/core/socket.h"
+#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -27,9 +28,11 @@ namespace args = std::placeholders;
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-RudpAcceptor::RudpAcceptor(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
+namespace detail {
+
+Acceptor::Acceptor(Multiplexer &multiplexer)  // NOLINT (Fraser)
   : multiplexer_(multiplexer),
     waiting_accept_(multiplexer.socket_.get_io_service()),
     waiting_accept_socket_(0),
@@ -38,23 +41,23 @@ RudpAcceptor::RudpAcceptor(RudpMultiplexer &multiplexer)  // NOLINT (Fraser)
   multiplexer_.dispatcher_.SetAcceptor(this);
 }
 
-RudpAcceptor::~RudpAcceptor() {
+Acceptor::~Acceptor() {
   if (IsOpen())
     multiplexer_.dispatcher_.SetAcceptor(0);
 }
 
-bool RudpAcceptor::IsOpen() const {
+bool Acceptor::IsOpen() const {
   return multiplexer_.dispatcher_.GetAcceptor() == this;
 }
 
-void RudpAcceptor::Close() {
+void Acceptor::Close() {
   pending_requests_.clear();
   waiting_accept_.cancel();
   if (IsOpen())
     multiplexer_.dispatcher_.SetAcceptor(0);
 }
 
-void RudpAcceptor::StartAccept(RudpSocket &socket) {  // NOLINT (Fraser)
+void Acceptor::StartAccept(Socket &socket) {  // NOLINT (Fraser)
   assert(waiting_accept_socket_ == 0);  // Only one accept operation at a time.
 
   if (!pending_requests_.empty()) {
@@ -67,11 +70,11 @@ void RudpAcceptor::StartAccept(RudpSocket &socket) {  // NOLINT (Fraser)
   }
 }
 
-void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
-                                     const asio::ip::udp::endpoint &endpoint) {
-  RudpHandshakePacket packet;
+void Acceptor::HandleReceiveFrom(const asio::const_buffer &data,
+                                 const asio::ip::udp::endpoint &endpoint) {
+  HandshakePacket packet;
   if (packet.Decode(data)) {
-    if (RudpSocket* socket = waiting_accept_socket_) {
+    if (Socket* socket = waiting_accept_socket_) {
       // A socket is ready and waiting to accept the new connection.
       socket->peer_.SetEndpoint(endpoint);
       socket->peer_.SetId(packet.SocketId());
@@ -89,7 +92,9 @@ void RudpAcceptor::HandleReceiveFrom(const asio::const_buffer &data,
   }
 }
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

@@ -20,22 +20,23 @@
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "maidsafe/transport/transport.h"
 
-#include "maidsafe/transport/rudp_accept_op.h"
+#include "maidsafe/rudp/operations/accept_op.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpDispatcher;
-class RudpMultiplexer;
-class RudpSocket;
+namespace detail {
 
-class RudpAcceptor {
+class Dispatcher;
+class Multiplexer;
+class Socket;
+
+class Acceptor {
  public:
-  explicit RudpAcceptor(RudpMultiplexer &multiplexer);  // NOLINT (Fraser)
-  ~RudpAcceptor();
+  explicit Acceptor(Multiplexer &multiplexer);  // NOLINT (Fraser)
+  ~Acceptor();
 
   // Returns whether the acceptor is open.
   bool IsOpen() const;
@@ -45,32 +46,32 @@ class RudpAcceptor {
 
   // Initiate an asynchronous operation to accept a new server-side connection.
   template <typename AcceptHandler>
-  void AsyncAccept(RudpSocket &socket, AcceptHandler handler) {  // NOLINT (Fraser)
-    RudpAcceptOp<AcceptHandler> op(handler, socket);
+  void AsyncAccept(Socket &socket, AcceptHandler handler) {  // NOLINT (Fraser)
+    AcceptOp<AcceptHandler> op(handler, socket);
     waiting_accept_.async_wait(op);
     StartAccept(socket);
   }
 
  private:
   // Disallow copying and assignment.
-  RudpAcceptor(const RudpAcceptor&);
-  RudpAcceptor &operator=(const RudpAcceptor&);
+  Acceptor(const Acceptor&);
+  Acceptor &operator=(const Acceptor&);
 
-  void StartAccept(RudpSocket &socket);  // NOLINT (Fraser)
+  void StartAccept(Socket &socket);  // NOLINT (Fraser)
 
-  // Called by the RudpDispatcher when a new packet arrives for the acceptor.
-  friend class RudpDispatcher;
+  // Called by the Dispatcher when a new packet arrives for the acceptor.
+  friend class Dispatcher;
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
   // The multiplexer used to send and receive UDP packets.
-  RudpMultiplexer &multiplexer_;
+  Multiplexer &multiplexer_;
 
   // This class allows only one outstanding asynchronous accept operation at a
   // time. The following data members store the pending accept, and the socket
   // object that is waiting to be accepted.
   boost::asio::deadline_timer waiting_accept_;
-  RudpSocket *waiting_accept_socket_;
+  Socket *waiting_accept_socket_;
 
   // A connection request that is yet to be processed by the acceptor.
   struct PendingRequest {
@@ -86,7 +87,9 @@ class RudpAcceptor {
   PendingRequestQueue pending_requests_;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

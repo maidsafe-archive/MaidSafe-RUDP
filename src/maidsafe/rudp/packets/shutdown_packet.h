@@ -15,26 +15,30 @@
 #define MAIDSAFE_RUDP_PACKETS_SHUTDOWN_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
-#include "maidsafe/transport/rudp_control_packet.h"
+#include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
-class RudpShutdownPacket : public RudpControlPacket {
+namespace detail {
+
+class ShutdownPacket : public ControlPacket {
  public:
-  enum { kPacketSize = RudpControlPacket::kHeaderSize };
+  enum { kPacketSize = ControlPacket::kHeaderSize };
   enum { kPacketType = 5 };
 
-  RudpShutdownPacket();
-  virtual ~RudpShutdownPacket() {}
+  ShutdownPacket();
+  virtual ~ShutdownPacket() {}
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 };
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe
 

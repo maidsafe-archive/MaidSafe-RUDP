@@ -15,12 +15,12 @@
 #include <set>
 #include "boost/scoped_array.hpp"
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/utils.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/utils.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 namespace test {
 
@@ -57,6 +57,6 @@ TEST(UtilsTest, BEH_NetworkInterfaces) {
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

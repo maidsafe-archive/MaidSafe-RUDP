@@ -10,14 +10,13 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#include "maidsafe/transport/utils.h"
-#include "maidsafe/transport/transport.h"
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/network_interface.h"
+#include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/network_interface.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
 
 std::string IpAsciiToBytes(const std::string &decimal_ip) {
   try {
@@ -113,6 +112,6 @@ bool IsValid(const Endpoint &endpoint) {
   return (endpoint.ip != IP()) && (endpoint.port != 0);
 }
 
-}  // namespace transport
+}  // namespace rudp
 
 }  // namespace maidsafe

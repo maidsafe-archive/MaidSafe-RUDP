@@ -12,19 +12,21 @@
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/log.h"
-#include "maidsafe/transport/rudp_sliding_window.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/core/sliding_window.h"
 
 namespace maidsafe {
 
-namespace transport {
+namespace rudp {
+
+namespace detail {
 
 namespace test {
 
 static const size_t kTestPacketCount = 100000;
 
 static void TestWindowRange(boost::uint32_t first_sequence_number) {
-  RudpSlidingWindow<boost::uint32_t> window(first_sequence_number);
+  SlidingWindow<boost::uint32_t> window(first_sequence_number);
 
   for (size_t i = 0; i < window.MaximumSize(); ++i) {
     boost::uint32_t n = window.Append();
@@ -44,21 +46,23 @@ static void TestWindowRange(boost::uint32_t first_sequence_number) {
   }
 }
 
-TEST(RudpSlidingWindowTest, BEH_FromZero) {
+TEST(SlidingWindowTest, BEH_FromZero) {
   TestWindowRange(0);
 }
 
-TEST(RudpSlidingWindowTest, BEH_FromN) {
+TEST(SlidingWindowTest, BEH_FromN) {
   TestWindowRange(123456);
 }
 
-TEST(RudpSlidingWindowTest, BEH_Wraparound) {
-  TestWindowRange(RudpSlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
+TEST(SlidingWindowTest, BEH_Wraparound) {
+  TestWindowRange(SlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
                   kTestPacketCount / 2);
 }
 
 }  // namespace test
 
-}  // namespace transport
+}  // namespace detail
+
+}  // namespace rudp
 
 }  // namespace maidsafe

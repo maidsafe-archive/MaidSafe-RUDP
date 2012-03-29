@@ -12,7 +12,7 @@
 
 #include "boost/filesystem.hpp"
 #include "maidsafe/common/test.h"
-#include "maidsafe/transport/log.h"
+#include "maidsafe/rudp/log.h"
 
 
 int main(int argc, char **argv) {
